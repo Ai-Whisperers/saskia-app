@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Sistema de gestión{% endblock %} — Saskia RMS</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <nav class="topnav">
+    <a href="/" class="brand">🍰 Saskia RMS</a>
+    <div class="nav-links">
+      <a href="/">Inicio</a>
+      <a href="/productos">Productos</a>
+      <a href="/recetas">Recetas</a>
+      <a href="/inventario">Inventario</a>
+      <a href="/ventas">Ventas</a>
+      <a href="/excel">Excel</a>
+    </div>
+    <div class="nav-right">
+      <a href="/api/healthz" class="health-link" title="Estado del servidor">●</a>
+    </div>
+  </nav>
+
+  {% block alerts %}{% endblock %}
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <small>Sistema local · {{ now_year }} · {{ "Gs." }} integer</small>
+  </footer>
+</body>
+</html>

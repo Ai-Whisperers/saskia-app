@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Inicio{% endblock %}
+
+{% block alerts %}
+{% if alerts %}
+<div class="alerts-bar">
+  {% for alert in alerts %}
+  <div class="alert alert-{{ alert.severity }}">{{ alert.text }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<h1>Inicio</h1>
+
+<div class="period-toggle">
+  <a href="?period=today" class="btn {% if period == 'today' %}btn-active{% endif %}">Hoy</a>
+  <a href="?period=week"  class="btn {% if period == 'week'  %}btn-active{% endif %}">Semana</a>
+  <a href="?period=month" class="btn {% if period == 'month' %}btn-active{% endif %}">Mes</a>
+</div>
+
+<div class="metrics-grid">
+  <div class="metric">
+    <div class="metric-label">Ventas</div>
+    <div class="metric-value">{{ m.gs_full(ventas_gs) }}</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Costo de lo vendido</div>
+    <div class="metric-value">{{ m.gs_full(cogs_gs) }}</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Margen</div>
+    <div class="metric-value">{{ m.gs_full(margen_gs) }} ({{ margen_pct_fmt }})</div>
+  </div>
+</div>
+
+<h2>Ranking de productos</h2>
+{% if ranking %}
+<table class="data">
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th class="right">Ventas (Gs.)</th>
+      <th class="right">Margen (Gs.)</th>
+      <th class="right">Margen %</th>
+      <th class="right">Cantidad vendida</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in ranking %}
+    <tr>
+      <td>{{ r.name }}</td>
+      <td class="right">{{ m.gs(r.ventas_gs) }}</td>
+      <td class="right">{{ m.gs(r.margen_gs) }}</td>
+      <td class="right">{{ "%.0f"|format(r.margen_ratio * 100) if r.margen_ratio is not none else '—' }}%</td>
+      <td class="right">{{ "%.1f"|format(r.qty) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No hay ventas en este período todavía.</p>
+{% endif %}
+
+<h2>Avisos</h2>
+{% if not stock_low and not recipes_no_cost and not sales_no_recipe %}
+<p class="empty">No hay avisos. Todo en orden.</p>
+{% else %}
+<ul class="avisos">
+  {% for s in stock_low %}
+  <li class="aviso-stock">
+    Stock bajo: <strong>{{ s.name }}</strong> ({{ "%.2f"|format(s.stock_qty) }} {{ s.unit }}, mínimo {{ "%.2f"|format(s.min_stock_qty) }} {{ s.unit }})
+  </li>
+  {% endfor %}
+  {% for r in recipes_no_cost %}
+  <li class="aviso-recipe">
+    Receta sin precio de ingrediente: <strong>{{ r.name }}</strong>. Cargá los precios para ver el costo.
+  </li>
+  {% endfor %}
+  {% for s in sales_no_recipe %}
+  <li class="aviso-sale">
+    Venta sin receta: <strong>{{ s.product_name }}</strong> ({{ s.sold_at_str }}). Asignale una receta para ver el margen.
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% endblock %}

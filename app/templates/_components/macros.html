@@ -1,0 +1,46 @@
+"""app/templates/_components/macros.html — reusable Jinja2 macros.
+
+Vos copy throughout. Money formatting via format_gs. Date formatting via
+Asunción local TZ.
+"""
+
+{# Money display — uses format_gs from money.py #}
+{% macro gs(amount) -%}
+{%- if amount is none -%}—{%- else -%}{{ "{:,.0f}".format(amount).replace(",", ".") }}{%- endif -%}
+{%- endmacro %}
+
+{# Money display with Gs. prefix #}
+{% macro gs_full(amount) -%}
+{%- if amount is none -%}—{%- else -%}Gs. {{ "{:,.0f}".format(amount).replace(",", ".") }}{%- endif -%}
+{%- endmacro %}
+
+{# Stock severity badge #}
+{% macro stock_badge(stock_qty, min_stock_qty) -%}
+{%- if stock_qty is none -%}
+  <span class="badge badge-muted">—</span>
+{%- elif stock_qty < 0 -%}
+  <span class="badge badge-danger">¡Negativo! {{ "%.2f"|format(stock_qty) }}</span>
+{%- elif min_stock_qty > 0 and stock_qty < min_stock_qty -%}
+  <span class="badge badge-warn">Stock bajo: {{ "%.2f"|format(stock_qty) }}</span>
+{%- else -%}
+  <span class="badge badge-ok">OK</span>
+{%- endif -%}
+{%- endmacro %}
+
+{# Unit-aware display #}
+{% macro unit_display(value, unit) -%}
+{{ "%.2f"|format(value) }} {{ unit }}
+{%- endmacro %}
+
+{# Margin percentage badge #}
+{% macro margin_pct(margin_gs, sale_price_gs) -%}
+{%- if margin_gs is none or sale_price_gs is none or sale_price_gs == 0 -%}
+  <span class="badge badge-muted">—</span>
+{%- elif margin_gs < 0 -%}
+  <span class="badge badge-danger">{{ "%.0f"|format(margin_gs / sale_price_gs * 100) }}%</span>
+{%- elif margin_gs / sale_price_gs >= 0.6 -%}
+  <span class="badge badge-good">{{ "%.0f"|format(margin_gs / sale_price_gs * 100) }}%</span>
+{%- else -%}
+  <span class="badge badge-ok">{{ "%.0f"|format(margin_gs / sale_price_gs * 100) }}%</span>
+{%- endif -%}
+{%- endmacro %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Productos y precios{% endblock %}
+
+{% block content %}
+<h1>Productos y precios</h1>
+
+<p><a href="/productos/nuevo" class="btn btn-primary">+ Nuevo producto</a></p>
+
+{% if products %}
+<table class="data">
+  <thead>
+    <tr>
+      <th>Nombre</th>
+      <th>Porción</th>
+      <th class="right">Precio venta</th>
+      <th>Receta</th>
+      <th class="right">Costo</th>
+      <th class="right">Margen</th>
+      <th class="right">Margen %</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in products %}
+    <tr>
+      <td>{{ p.name }}</td>
+      <td>{{ p.portion_label }}</td>
+      <td class="right">{{ m.gs_full(p.sale_price_gs) }}</td>
+      <td>{% if p.recipe_name %}{{ p.recipe_name }}{% else %}<em class="muted">sin receta</em>{% endif %}</td>
+      <td class="right">{% if p.cost_gs is none %}<em class="muted">falta precio</em>{% else %}{{ m.gs(p.cost_gs) }}{% endif %}</td>
+      <td class="right">{% if p.margin_gs is none %}<em class="muted">—</em>{% else %}{{ m.gs(p.margin_gs) }}{% endif %}</td>
+      <td class="right">{% if p.margin_ratio is none %}<em class="muted">—</em>{% else %}{{ "%.0f"|format(p.margin_ratio * 100) }}%{% endif %}</td>
+      <td>
+        <a href="/productos/{{ p.id }}/editar" class="btn btn-small">Editar</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">Todavía no cargaste productos. <a href="/productos/nuevo">Agregá el primero.</a></p>
+{% endif %}
+
+{% endblock %}

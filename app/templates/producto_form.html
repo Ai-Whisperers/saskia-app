@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Productos — {{ action }}{% endblock %}
+
+{% block content %}
+<h1>{{ action }} producto</h1>
+
+<form method="post" action="/productos{{ '/nuevo' if mode == 'new' else '/' ~ product.id ~ '/editar' }}">
+  <div class="form-row">
+    <label for="name">Nombre</label>
+    <input type="text" id="name" name="name" required value="{{ product.name if product else '' }}" placeholder="Ej: Muffin de chocolate">
+  </div>
+
+  <div class="form-row">
+    <label for="portion_label">Etiqueta de porción</label>
+    <input type="text" id="portion_label" name="portion_label" required value="{{ product.portion_label if product else '1 unidad' }}">
+  </div>
+
+  <div class="form-row">
+    <label for="sale_price_gs">Precio de venta (Gs.)</label>
+    <input type="number" id="sale_price_gs" name="sale_price_gs" required step="1" min="0" value="{{ product.sale_price_gs if product else '0' }}" placeholder="8000">
+  </div>
+
+  <div class="form-row">
+    <label for="recipe_id">Receta</label>
+    <select id="recipe_id" name="recipe_id">
+      <option value="">— Sin receta —</option>
+      {% for r in recipes %}
+      <option value="{{ r.id }}" {% if product and product.recipe_id == r.id %}selected{% endif %}>{{ r.name }}</option>
+      {% endfor %}
+    </select>
+    <small class="muted">Sin receta: las ventas se registran pero no bajan stock ni calculan margen.</small>
+  </div>
+
+  <div class="form-row">
+    <label for="notes">Notas</label>
+    <textarea id="notes" name="notes" rows="2">{{ product.notes if product and product.notes else '' }}</textarea>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Guardá</button>
+    <a href="/productos" class="btn">Cancelar</a>
+  </div>
+</form>
+
+{% endblock %}
