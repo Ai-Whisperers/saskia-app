@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Saskia RMS — Status Dashboard</title>
+<style>
+:root { --ok: #10b981; --warn: #f59e0b; --err: #ef4444; --muted: #6b7280;
+  --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --accent: #3b82f6; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 24px; background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+h1 { margin: 0 0 8px 0; font-size: 28px; }
+h2 { margin: 24px 0 12px 0; font-size: 18px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.card { background: var(--card); padding: 20px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.05); }
+.metric-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+.metric-value { font-size: 32px; font-weight: 600; margin-top: 4px; }
+.metric-value.good { color: var(--ok); }
+.metric-value.warn { color: var(--warn); }
+.metric-value.bad { color: var(--err); }
+.bar { background: #334155; border-radius: 4px; height: 12px; overflow: hidden; margin-top: 8px; }
+.bar-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
+.bar-fill.warn { background: var(--warn); }
+.bar-fill.bad { background: var(--err); }
+.bar-fill.ok { background: var(--ok); }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+th { font-size: 12px; color: #94a3b8; text-transform: uppercase; }
+tr:hover { background: rgba(255,255,255,0.03); }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.badge.ok { background: rgba(16,185,129,0.2); color: var(--ok); }
+.badge.fail { background: rgba(239,68,68,0.2); color: var(--err); }
+.badge.warn { background: rgba(245,158,11,0.2); color: var(--warn); }
+.commit { font-family: monospace; background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 4px; margin-bottom: 16px; }
+.section { background: var(--card); padding: 20px; border-radius: 8px; margin-bottom: 16px; }
+ul.checklist { list-style: none; padding: 0; margin: 0; }
+ul.checklist li { padding: 6px 0; }
+ul.checklist li::before { content: "✓ "; color: var(--ok); font-weight: 600; }
+ul.checklist li.fail::before { content: "✗ "; color: var(--err); }
+ul.checklist li.pending::before { content: "○ "; color: var(--muted); }
+.refresh-meta { color: var(--muted); font-size: 12px; margin-top: 24px; }
+</style>
+</head>
+<body>
+
+<h1>Saskia RMS — Status Dashboard</h1>
+
+<div class="commit">
+  <strong>Commit:</strong> <code>__HEAD_SHA__</code><br>
+  <strong>Message:</strong> __HEAD_MSG__
+</div>
+
+<h2>Time Budget</h2>
+<div class="card">
+  <div class="metric-label">Hours used / total</div>
+  <div class="metric-value">__HOURS_USED__ / __HOURS_BUDGET__ h</div>
+  <div class="bar"><div class="bar-fill __BAR_CLASS__" style="width: __BUDGET_PCT__%"></div></div>
+  <div style="margin-top: 8px; color: #94a3b8;">__BUDGET_PCT__% of __HOURS_BUDGET__h budget consumed</div>
+</div>
+
+<h2>Test Quality</h2>
+<div class="grid">
+  <div class="card">
+    <div class="metric-label">Tests passing</div>
+    <div class="metric-value">__TESTS_PASSING__</div>
+  </div>
+  <div class="card">
+    <div class="metric-label">Tests failing</div>
+    <div class="metric-value __FAILED_CLASS__">__TESTS_FAILED__</div>
+  </div>
+  <div class="card">
+    <div class="metric-label">Coverage</div>
+    <div class="metric-value __COV_CLASS__">__COV_PCT__%</div>
+    <div style="margin-top: 4px; color: #94a3b8; font-size: 12px;">target: 80%</div>
+  </div>
+</div>
+
+<h2>Lint</h2>
+<div class="grid">
+  <div class="card">
+    <div class="metric-label">ruff check</div>
+    <div class="metric-value"><span class="badge __RUFF_CLASS__">__RUFF_OK__</span></div>
+  </div>
+  <div class="card">
+    <div class="metric-label">ruff format</div>
+    <div class="metric-value"><span class="badge __FMT_CLASS__">__FORMAT_OK__</span></div>
+  </div>
+</div>
+
+<h2>Files</h2>
+<div class="card">
+  <table>
+    <tr><th>Total tracked</th><td>__TOTAL_FILES__</td></tr>
+    <tr><th>Planned (per dev plan v2)</th><td>72</td></tr>
+    <tr><th>Missing</th><td><span class="badge __MISSING_CLASS__">__FILES_MISSING__</span></td></tr>
+    <tr><th>App code (app/)</th><td>24</td></tr>
+    <tr><th>Tests</th><td>4</td></tr>
+  </table>
+</div>
+
+<h2>Smoke Tests (5-scenario data layer)</h2>
+<div class="section">
+  <ul class="checklist">
+    <li>Recipe batch cost (3-line muffin recipe → 5300 Gs)</li>
+    <li>Sub-recipe cost (Masa choux in Pastel choux → 8000 Gs batch)</li>
+    <li>Cycle detection (A → B → A raises CycleInRecipeTree)</li>
+    <li>Missing price (NULL purchase_price_gs → batch_cost_gs=None)</li>
+    <li>Apply sale (atomic transaction with stock moves)</li>
+    <li>Void sale (atomic reversal)</li>
+  </ul>
+</div>
+
+<h2>Features</h2>
+<div class="section">
+  <table>
+    <tr><th>Layer</th><th>Status</th></tr>
+    <tr><td>Data layer (db, models, costing, money, units)</td><td><span class="badge ok">complete</span></td></tr>
+    <tr><td>UI layer (5 routers + 8 templates)</td><td><span class="badge warn">missing</span></td></tr>
+    <tr><td>Excel I/O (import, export, roundtrip)</td><td><span class="badge warn">missing</span></td></tr>
+    <tr><td>Backup scheduler (on-startup orchestration)</td><td><span class="badge warn">missing</span></td></tr>
+    <tr><td>R2 encrypted backup (Cloudflare)</td><td><span class="badge warn">missing</span></td></tr>
+    <tr><td>Reports (monthly close, stock-out)</td><td><span class="badge warn">missing</span></td></tr>
+    <tr><td>Install session on her PC</td><td><span class="badge warn">not_started</span></td></tr>
+    <tr><td>Review rounds 1 + 2</td><td><span class="badge warn">not_started</span></td></tr>
+  </table>
+</div>
+
+<h2>What's Next</h2>
+<div class="section">
+  <p><strong>Ready to start:</strong> Batch 2 (routers + UI templates). About 12 hours. Owner: Kiki or whoever is building.</p>
+  <p><strong>Blocked (waiting on Saskia):</strong></p>
+  <ul>
+    <li>Drive folder URL — needed for Task 6 import run</li>
+    <li>WhatsApp MVP choice (A/B/C/D) — needed for Task 7 dashboard widget</li>
+    <li>Physical install session on her PC (Task 9)</li>
+  </ul>
+  <p><strong>Cost checkpoints:</strong> 30h, 50h, 60h. Stop at 70h.</p>
+</div>
+
+<h2>How to refresh this dashboard</h2>
+<div class="section">
+  <pre><code>bash /opt/data/profiles/ivan/scratch/saskia-build-plan/dashboard/refresh.sh \
+     /opt/data/profiles/ivan/scratch/saskia-build-full/saskia-app</code></pre>
+  <p>The script runs ruff + pytest, gets the current commit SHA, and regenerates STATUS.md + STATUS.html with live values.</p>
+</div>
+
+<div class="refresh-meta">
+  Last refresh: 2026-09 (manual initial render). After each batch, run refresh.sh.
+</div>
+
+</body>
+</html>
