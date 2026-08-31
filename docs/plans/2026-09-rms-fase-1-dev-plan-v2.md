@@ -696,6 +696,7 @@ continuing. No silent overflow.
 ```python
 # app/rms/config.py
 from zoneinfo import ZoneInfo
+
 ASUNCION_TZ = ZoneInfo("America/Asuncion")
 ```
 

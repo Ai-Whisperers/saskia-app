@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Inventario — {{ action }}{% endblock %}
+
+{% block content %}
+<h1>{{ action }} ingrediente</h1>
+
+<form method="post" action="/inventario{{ '/nuevo' if mode == 'new' else '/' ~ ingredient.id ~ '/editar' }}">
+  <div class="form-row">
+    <label for="name">Nombre</label>
+    <input type="text" id="name" name="name" required value="{{ ingredient.name if ingredient else '' }}" placeholder="Ej: Harina de trigo">
+  </div>
+
+  <div class="form-row">
+    <label for="unit">Unidad</label>
+    <select id="unit" name="unit" required>
+      {% for u in units %}
+      <option value="{{ u }}" {% if ingredient and ingredient.unit == u %}selected{% endif %}>{{ u }}</option>
+      {% endfor %}
+    </select>
+    <small>g, kg, ml, l, und.</small>
+  </div>
+
+  <div class="form-row">
+    <label for="stock_qty">Stock actual</label>
+    <input type="number" id="stock_qty" name="stock_qty" required step="0.01" min="0" value="{{ "%.2f"|format(ingredient.stock_qty) if ingredient else '0' }}">
+  </div>
+
+  <div class="form-row">
+    <label for="min_stock_qty">Stock mínimo (para alertas)</label>
+    <input type="number" id="min_stock_qty" name="min_stock_qty" required step="0.01" min="0" value="{{ "%.2f"|format(ingredient.min_stock_qty) if ingredient else '0' }}">
+  </div>
+
+  <div class="form-row">
+    <label for="purchase_price_gs">Precio de compra (Gs., por unidad)</label>
+    <input type="number" id="purchase_price_gs" name="purchase_price_gs" step="1" min="0" value="{{ ingredient.purchase_price_gs if ingredient and ingredient.purchase_price_gs is not none else '' }}" placeholder="Dejalo vacío si no sabés todavía">
+    <small>Entero Gs. Sin decimales. Si no sabés el precio todavía, dejalo vacío: el sistema te avisa en Inicio.</small>
+  </div>
+
+  <div class="form-row">
+    <label for="notes">Notas</label>
+    <textarea id="notes" name="notes" rows="2">{{ ingredient.notes if ingredient and ingredient.notes else '' }}</textarea>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Guardá</button>
+    <a href="/inventario" class="btn">Cancelar</a>
+  </div>
+</form>
+
+{% endblock %}

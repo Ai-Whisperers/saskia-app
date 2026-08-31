@@ -74,17 +74,20 @@ import openpyxl
 from app.config import get_backup_config
 from app.services.export_xlsx import export_all_to_xlsx
 
+
 def needs_auto_backup(last_backup_at: datetime | None, threshold_hours: int) -> bool:
     """True if last_backup_at is older than threshold, or no backup yet."""
     if last_backup_at is None:
         return True
     return datetime.now() - last_backup_at > timedelta(hours=threshold_hours)
 
+
 def needs_warning(last_backup_at: datetime | None, threshold_days: int) -> bool:
     """True if last_backup_at is older than threshold, or no backup yet."""
     if last_backup_at is None:
         return True
     return datetime.now() - last_backup_at > timedelta(days=threshold_days)
+
 
 def last_backup_at(folder: Path) -> datetime | None:
     """Return the mtime of the most recent .xlsx in folder, or None."""
@@ -95,6 +98,7 @@ def last_backup_at(folder: Path) -> datetime | None:
         return None
     return datetime.fromtimestamp(max(f.stat().st_mtime for f in files))
 
+
 def auto_backup(db_path: Path, folder: Path) -> Path:
     """Export SQLite -> timestamped .xlsx in folder. Returns the new file path."""
     folder.mkdir(parents=True, exist_ok=True)
@@ -102,6 +106,7 @@ def auto_backup(db_path: Path, folder: Path) -> Path:
     out = folder / f"rms-backup-{timestamp}.xlsx"
     export_all_to_xlsx(db_path, out)
     return out
+
 
 def prune_old_backups(folder: Path, keep_last_n: int) -> int:
     """Delete oldest backups beyond keep_last_n. Returns count deleted."""
@@ -118,10 +123,14 @@ def prune_old_backups(folder: Path, keep_last_n: int) -> int:
 ```python
 from contextlib import asynccontextmanager
 from app.services.auto_backup import (
-    auto_backup, last_backup_at, needs_auto_backup,
-    needs_warning, prune_old_backups,
+    auto_backup,
+    last_backup_at,
+    needs_auto_backup,
+    needs_warning,
+    prune_old_backups,
 )
 from app.config import get_backup_config
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -225,14 +234,15 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
 )
 
+
 @event.listens_for(engine, "connect")
 def set_sqlite_pragmas(dbapi_connection, connection_record):
     """Set reliability pragmas on every new SQLite connection."""
     cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL")        # Concurrent readers + safer writes
-    cursor.execute("PRAGMA synchronous=NORMAL")     # Faster, still crash-safe in WAL
-    cursor.execute("PRAGMA foreign_keys=ON")        # Enforce FK constraints
-    cursor.execute("PRAGMA busy_timeout=5000")      # Wait 5s if DB is locked, fail gracefully
+    cursor.execute("PRAGMA journal_mode=WAL")  # Concurrent readers + safer writes
+    cursor.execute("PRAGMA synchronous=NORMAL")  # Faster, still crash-safe in WAL
+    cursor.execute("PRAGMA foreign_keys=ON")  # Enforce FK constraints
+    cursor.execute("PRAGMA busy_timeout=5000")  # Wait 5s if DB is locked, fail gracefully
     cursor.close()
 ```
 
@@ -272,7 +282,9 @@ import sys
 BIND_HOST = os.environ.get("RMS_BIND_HOST", "127.0.0.1")
 if BIND_HOST != "127.0.0.1":
     print(f"FATAL: RMS_BIND_HOST must be 127.0.0.1, got '{BIND_HOST}'.", file=sys.stderr)
-    print("       This app is single-PC, single-user. LAN access is not supported.", file=sys.stderr)
+    print(
+        "       This app is single-PC, single-user. LAN access is not supported.", file=sys.stderr
+    )
     sys.exit(1)
 ```
 
@@ -297,10 +309,12 @@ from sqlalchemy import text
 
 router = APIRouter()
 
+
 @router.get("/healthz")
 def healthz(request: Request):
     """Cheap health check. Returns 200 always; verifies uvicorn is alive."""
     return {"status": "ok", "service": "aiw-saskia-rms"}
+
 
 @router.get("/healthz/db")
 def healthz_db(request: Request):
@@ -389,6 +403,7 @@ The Guaraní rules per the dev plan and `04_foodbiz/AGENTS.md`:
 ```python
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 
+
 def to_decimal(value) -> Decimal:
     """Coerce input to Decimal safely. Reject None, empty string, or non-numeric."""
     if value is None or value == "":
@@ -398,15 +413,17 @@ def to_decimal(value) -> Decimal:
     except (InvalidOperation, ValueError) as e:
         raise ValueError(f"Invalid money value: {value!r}") from e
 
+
 def to_int_gs(value) -> int:
     """Round to nearest integer Gs., half up. Use at persistence sites only.
-    
+
     NEVER use this in intermediate calculations. The pattern is:
         line_cost = to_decimal(qty) * to_decimal(price)   # Decimal, no rounding
         recipe_cost = sum(...)                            # Decimal, no rounding
         recipe_cost_gs = to_int_gs(recipe_cost)           # round ONCE at the end
     """
     return int(to_decimal(value).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
 
 def format_gs(value: int) -> str:
     """Format integer Gs. as 'Gs. 1.234.567' (period thousands separator, Paraguayan)."""
@@ -416,11 +433,14 @@ def format_gs(value: int) -> str:
     s = f"{abs(value):,}".replace(",", ".")
     return f"Gs. {s}" if value >= 0 else f"-Gs. {s}"
 
+
 def parse_gs(s: str) -> int:
     """Parse a user-entered Gs. string (with optional thousands sep) back to int."""
     if s is None:
         raise ValueError("empty string")
-    cleaned = s.strip().replace(".", "").replace(",", "").replace("Gs.", "").replace("Gs", "").strip()
+    cleaned = (
+        s.strip().replace(".", "").replace(",", "").replace("Gs.", "").replace("Gs", "").strip()
+    )
     if not cleaned.lstrip("-").isdigit():
         raise ValueError(f"not an integer: {s!r}")
     return int(cleaned)
@@ -440,6 +460,8 @@ Server-side format: `{{ product.sale_price_gs | fmt_gs }}` where `fmt_gs` is a J
 ```python
 # app/main.py
 from app.rms.money import format_gs
+
+
 @app.template_filter("fmt_gs")
 def fmt_gs_filter(value):
     return format_gs(value)
@@ -454,13 +476,15 @@ The dev plan §5 has `unit` field on `ingredient` and `recipe.yield_unit`. Free-
 ```python
 from enum import Enum
 
+
 class Unit(Enum):
     """Canonical units for HEREBUS ops. Add to this list only with operator review."""
+
     G = "g"
     KG = "kg"
     ML = "ml"
     L = "l"
-    UNIT = "und"      # countable items (eggs, muffins, packages)
+    UNIT = "und"  # countable items (eggs, muffins, packages)
 
     @classmethod
     def coerce(cls, value: str) -> "Unit":
@@ -470,12 +494,27 @@ class Unit(Enum):
         s = str(value).strip().lower()
         # Map common aliases to canonical
         aliases = {
-            "g": cls.G, "gramo": cls.G, "gramos": cls.G, "gram": cls.G,
-            "kg": cls.KG, "kilo": cls.KG, "kilos": cls.KG, "kilogramo": cls.KG,
-            "ml": cls.ML, "mililitro": cls.ML, "mililitros": cls.ML,
-            "l": cls.L, "litro": cls.L, "litros": cls.L,
-            "und": cls.UNIT, "unidad": cls.UNIT, "unidades": cls.UNIT, "u": cls.UNIT,
-            "porcion": cls.UNIT, "porciones": cls.UNIT, "bandeja": cls.UNIT,
+            "g": cls.G,
+            "gramo": cls.G,
+            "gramos": cls.G,
+            "gram": cls.G,
+            "kg": cls.KG,
+            "kilo": cls.KG,
+            "kilos": cls.KG,
+            "kilogramo": cls.KG,
+            "ml": cls.ML,
+            "mililitro": cls.ML,
+            "mililitros": cls.ML,
+            "l": cls.L,
+            "litro": cls.L,
+            "litros": cls.L,
+            "und": cls.UNIT,
+            "unidad": cls.UNIT,
+            "unidades": cls.UNIT,
+            "u": cls.UNIT,
+            "porcion": cls.UNIT,
+            "porciones": cls.UNIT,
+            "bandeja": cls.UNIT,
         }
         if s in aliases:
             return aliases[s]
@@ -493,13 +532,14 @@ class Unit(Enum):
 from pydantic import validator
 from app.rms.units import Unit
 
+
 class IngredientBase(BaseModel):
     name: str
-    unit: Unit        # Pydantic auto-coerces via the enum
+    unit: Unit  # Pydantic auto-coerces via the enum
     stock_qty: Decimal
     purchase_price_gs: int | None = None
     min_stock_qty: Decimal = Decimal("0")
-    
+
     @validator("unit", pre=True)
     def coerce_unit(cls, v):
         return Unit.coerce(v)
@@ -532,6 +572,7 @@ def can_drop_stock(line_unit: Unit, ingredient_unit: Unit) -> bool:
         return True
     pair = frozenset([line_unit, ingredient_unit])
     return pair in (frozenset([Unit.G, Unit.KG]), frozenset([Unit.ML, Unit.L]))
+
 
 def convert_qty(qty: Decimal, from_unit: Unit, to_unit: Unit) -> Decimal:
     if not can_drop_stock(from_unit, to_unit):
@@ -637,6 +678,7 @@ from app.services.auto_backup import auto_backup
 from datetime import datetime
 
 router = APIRouter()
+
 
 @router.post("/import/upload")
 async def import_upload(
@@ -782,12 +824,16 @@ def import_workbook(db_path: Path, xlsx_path: Path, confirm_overwrite: bool) -> 
   Actually use Starlette's `MaxBodySizeMiddleware` or just check `file.size` in the endpoint:
   ```python
   MAX_SIZE = 50 * 1024 * 1024  # 50 MB
+
+
   @router.post("/import/upload")
   async def import_upload(request: Request, file: UploadFile = File(...)):
       # Read into memory to check size; reject early
       contents = await file.read()
       if len(contents) > MAX_SIZE:
-          raise HTTPException(413, f"Archivo demasiado grande ({len(contents)} bytes). Máximo: {MAX_SIZE}")
+          raise HTTPException(
+              413, f"Archivo demasiado grande ({len(contents)} bytes). Máximo: {MAX_SIZE}"
+          )
       # ... rest of logic
   ```
 
@@ -868,10 +914,12 @@ Three severity levels:
 ```python
 from enum import Enum
 
+
 class StockSeverity(Enum):
     OK = "ok"
     WARN = "warn"
     CRITICAL = "critical"
+
 
 def stock_severity(stock_qty: Decimal, min_stock_qty: Decimal) -> StockSeverity:
     """Severity ladder. min_stock_qty = 0 means 'no min set' = OK."""
@@ -934,6 +982,7 @@ For the prior calendar month:
 from datetime import date, datetime, timedelta
 from sqlalchemy import func, and_
 
+
 def monthly_stockout_report(session, year: int, month: int) -> list[dict]:
     """Returns rows for the monthly stock-out report."""
     period_start = date(year, month, 1)
@@ -941,35 +990,36 @@ def monthly_stockout_report(session, year: int, month: int) -> list[dict]:
         period_end = date(year + 1, 1, 1)
     else:
         period_end = date(year, month + 1, 1)
-    
+
     # Find all sale_stock_moves in the period, grouped by ingredient
     moves = (
         session.query(
-            SaleStockMove.ingredient_id,
-            func.sum(SaleStockMove.qty_delta).label("total_moved")
+            SaleStockMove.ingredient_id, func.sum(SaleStockMove.qty_delta).label("total_moved")
         )
         .filter(SaleStockMove.created_at >= period_start)
         .filter(SaleStockMove.created_at < period_end)
         .group_by(SaleStockMove.ingredient_id)
         .all()
     )
-    
+
     rows = []
     for ingredient_id, total_moved in moves:
         ingredient = session.query(Ingredient).get(ingredient_id)
         if ingredient.stock_qty < ingredient.min_stock_qty:
             avg_daily_usage = abs(total_moved) / 30  # rough estimate
             suggested_reorder = max(0, int(avg_daily_usage * 30 - ingredient.stock_qty))
-            rows.append({
-                "ingredient": ingredient.name,
-                "unit": ingredient.unit.value,
-                "current_stock": ingredient.stock_qty,
-                "min_stock": ingredient.min_stock_qty,
-                "monthly_usage": abs(total_moved),
-                "suggested_reorder": suggested_reorder,
-                "severity": "critical" if ingredient.stock_qty < 0 else "warn",
-            })
-    
+            rows.append(
+                {
+                    "ingredient": ingredient.name,
+                    "unit": ingredient.unit.value,
+                    "current_stock": ingredient.stock_qty,
+                    "min_stock": ingredient.min_stock_qty,
+                    "monthly_usage": abs(total_moved),
+                    "suggested_reorder": suggested_reorder,
+                    "severity": "critical" if ingredient.stock_qty < 0 else "warn",
+                }
+            )
+
     return sorted(rows, key=lambda r: r["severity"] != "critical", reverse=False)
 ```
 
@@ -981,32 +1031,46 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 import io
 import csv
 
+
 @router.get("/reports/stockout/{year}/{month}")
 def stockout_report(request: Request, year: int, month: int, format: str = Query("html")):
     """Monthly stock-out report. HTML by default; ?format=csv for export."""
     session = request.app.state.db
     rows = monthly_stockout_report(session, year, month)
-    
+
     if format == "csv":
         output = io.StringIO()
-        writer = csv.DictWriter(output, fieldnames=[
-            "ingredient", "unit", "current_stock", "min_stock",
-            "monthly_usage", "suggested_reorder", "severity",
-        ])
+        writer = csv.DictWriter(
+            output,
+            fieldnames=[
+                "ingredient",
+                "unit",
+                "current_stock",
+                "min_stock",
+                "monthly_usage",
+                "suggested_reorder",
+                "severity",
+            ],
+        )
         writer.writeheader()
         writer.writerows(rows)
         return StreamingResponse(
             iter([output.getvalue()]),
             media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename=stockout-{year}-{month:02d}.csv"},
+            headers={
+                "Content-Disposition": f"attachment; filename=stockout-{year}-{month:02d}.csv"
+            },
         )
-    
-    return templates.TemplateResponse("reports/stockout.html", {
-        "request": request,
-        "year": year,
-        "month": month,
-        "rows": rows,
-    })
+
+    return templates.TemplateResponse(
+        "reports/stockout.html",
+        {
+            "request": request,
+            "year": year,
+            "month": month,
+            "rows": rows,
+        },
+    )
 ```
 
 ### UI: link from dashboard
@@ -1095,8 +1159,14 @@ app/
 import pytest
 from app.rms.db import init_db
 from app.rms.models import (
-    Ingredient, Recipe, RecipeLine, Product, Sale, SaleStockMove,
+    Ingredient,
+    Recipe,
+    RecipeLine,
+    Product,
+    Sale,
+    SaleStockMove,
 )
+
 
 @pytest.fixture
 def db_session(tmp_path):
@@ -1106,9 +1176,11 @@ def db_session(tmp_path):
     yield session
     session.close()
 
+
 @pytest.fixture
 def make_ingredient(db_session):
     """Factory for ingredients."""
+
     def _make(name, unit="g", purchase_price_gs=1000, stock_qty=1000, min_stock_qty=100):
         ing = Ingredient(
             name=name,
@@ -1120,7 +1192,9 @@ def make_ingredient(db_session):
         db_session.add(ing)
         db_session.flush()
         return ing
+
     return _make
+
 
 @pytest.fixture
 def mini_workbook(tmp_path):
@@ -1135,11 +1209,13 @@ from decimal import Decimal
 import pytest
 from app.rms.money import to_int_gs, format_gs, parse_gs, to_decimal
 
+
 def test_to_int_gs_rounds_half_up():
     assert to_int_gs(Decimal("0.5")) == 1
     assert to_int_gs(Decimal("1.5")) == 2
-    assert to_int_gs(Decimal("2.5")) == 3   # NOT banker's rounding (2)
+    assert to_int_gs(Decimal("2.5")) == 3  # NOT banker's rounding (2)
     assert to_int_gs(Decimal("3.5")) == 4
+
 
 def test_to_int_gs_no_float_drift():
     """Classic float bug: 0.1 + 0.2 = 0.30000000000000004"""
@@ -1148,11 +1224,13 @@ def test_to_int_gs_no_float_drift():
     assert result == 0
     # Not 1 (which is what float would give)
 
+
 def test_format_gs_uses_period_thousands():
     assert format_gs(0) == "Gs. 0"
     assert format_gs(1234567) == "Gs. 1.234.567"
     assert format_gs(729167) == "Gs. 729.167"
     assert format_gs(17500000) == "Gs. 17.500.000"
+
 
 def test_parse_gs_handles_various_inputs():
     assert parse_gs("Gs. 729.167") == 729167
@@ -1160,6 +1238,7 @@ def test_parse_gs_handles_various_inputs():
     assert parse_gs("1,234,567") == 1234567
     assert parse_gs("1234567") == 1234567
     assert parse_gs("-Gs. 500") == -500
+
 
 def test_to_decimal_rejects_invalid_input():
     with pytest.raises(ValueError):
@@ -1177,6 +1256,7 @@ import pytest
 from decimal import Decimal
 from app.rms.units import Unit, convert_qty, can_drop_stock
 
+
 def test_unit_coerce_aliases():
     assert Unit.coerce("gramos") == Unit.G
     assert Unit.coerce("kilo") == Unit.KG
@@ -1185,23 +1265,28 @@ def test_unit_coerce_aliases():
     assert Unit.coerce("porcion") == Unit.UNIT
     assert Unit.coerce("u") == Unit.UNIT
 
+
 def test_unit_coerce_rejects_unknown():
     with pytest.raises(ValueError):
         Unit.coerce("stones")
     with pytest.raises(ValueError):
         Unit.coerce(None)
 
+
 def test_convert_g_to_kg():
     assert convert_qty(Decimal("1500"), Unit.G, Unit.KG) == Decimal("1.5")
 
+
 def test_convert_kg_to_g():
     assert convert_qty(Decimal("1.5"), Unit.KG, Unit.G) == Decimal("1500")
+
 
 def test_convert_cross_family_forbidden():
     with pytest.raises(ValueError):
         convert_qty(Decimal("100"), Unit.G, Unit.L)
     with pytest.raises(ValueError):
         convert_qty(Decimal("100"), Unit.UNIT, Unit.G)
+
 
 def test_can_drop_stock_compatible():
     assert can_drop_stock(Unit.G, Unit.G)
@@ -1318,8 +1403,10 @@ def test_multiple_sales_accumulate(...):
 def test_import_mini_xlsx_creates_ingredients(db_session, mini_workbook):
     """3 ingredients in mini.xlsx appear in DB after import."""
 
+
 def test_import_then_export_then_import_same_counts(db_session, mini_workbook):
     """Roundtrip preserves ingredient/recipe counts."""
+
 
 def test_import_with_unmappable_rows_skips_with_count(db_session, tmp_path):
     """Workbook with ING-9999 reference returns skipped list, doesn't fail."""
@@ -1346,6 +1433,7 @@ def test_healthz_returns_ok(client):
     response = client.get("/healthz")
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "service": "aiw-saskia-rms"}
+
 
 def test_healthz_db_returns_journal_mode(client):
     response = client.get("/healthz/db")

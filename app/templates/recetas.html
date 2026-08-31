@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Recetas{% endblock %}
+
+{% block content %}
+<h1>Recetas</h1>
+
+<p><a href="/recetas/nueva" class="btn btn-primary">+ Nueva receta</a></p>
+
+{% if recipes %}
+<table class="data">
+  <thead>
+    <tr>
+      <th>Nombre</th>
+      <th class="right">Rinde</th>
+      <th>Líneas</th>
+      <th class="right">Costo del lote (Gs.)</th>
+      <th>Costo / porción (Gs.)</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in recipes %}
+    <tr>
+      <td>{{ r.name }}</td>
+      <td class="right">
+        {% if r.yield_qty is none %}
+          <em class="muted">sin rinde</em>
+        {% else %}
+          {{ "%.2f"|format(r.yield_qty) }} {{ r.yield_unit }}
+        {% endif %}
+      </td>
+      <td>{{ r.line_count }}</td>
+      <td class="right">{% if r.batch_cost_gs is none %}<em class="muted">falta precio</em>{% else %}{{ m.gs(r.batch_cost_gs) }}{% endif %}</td>
+      <td class="right">{% if r.unit_cost_gs is none %}<em class="muted">—</em>{% else %}{{ m.gs(r.unit_cost_gs) }}{% endif %}</td>
+      <td><a href="/recetas/{{ r.id }}/editar" class="btn btn-small">Editar</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">Todavía no cargaste recetas. <a href="/recetas/nueva">Agregá la primera.</a></p>
+{% endif %}
+
+{% endblock %}

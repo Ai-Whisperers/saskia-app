@@ -22,7 +22,15 @@ from fastapi import FastAPI
 
 from app.rms.config import BIND_HOST, ensure_dirs
 from app.rms.db import init_db, make_engine, make_session_factory
-from app.routers import health
+from app.routers import (
+    dashboard,
+    excel_io,
+    health,
+    inventory,
+    products,
+    recipes,
+    sales,
+)
 
 
 def _assert_bind() -> None:
@@ -65,6 +73,12 @@ app = FastAPI(
 
 # Mount routers
 app.include_router(health.router)
+app.include_router(dashboard.router)
+app.include_router(inventory.router)
+app.include_router(recipes.router)
+app.include_router(products.router)
+app.include_router(sales.router)
+app.include_router(excel_io.router)
 
 
 def run() -> None:

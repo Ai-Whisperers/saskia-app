@@ -1,0 +1,308 @@
+/* app/static/app.css — Saskia RMS stylesheet
+   Minimal, no Tailwind, no Bootstrap. Mobile-friendly.
+   Dark theme (single-color), high-contrast for production use. */
+
+:root {
+  --bg: #f7f7f5;
+  --card-bg: #ffffff;
+  --text: #1f2937;
+  --text-muted: #6b7280;
+  --border: #e5e7eb;
+  --primary: #b45309;        /* warm amber, matches bakery */
+  --primary-hover: #92400e;
+  --danger: #dc2626;
+  --warn: #f59e0b;
+  --good: #16a34a;
+  --ok: #2563eb;
+  --flash-bg: #fef2f2;
+  --flash-border: #dc2626;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.topnav {
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.brand {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.nav-links {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.nav-links a {
+  padding: 6px 12px;
+  color: var(--text);
+  text-decoration: none;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.nav-links a:hover { background: var(--bg); }
+.nav-links a.active { background: var(--primary); color: white; }
+
+.nav-right { color: var(--text-muted); font-size: 12px; }
+.health-link { text-decoration: none; font-size: 18px; }
+
+.container {
+  max-width: 1100px;
+  margin: 24px auto;
+  padding: 0 24px;
+}
+
+h1 { font-size: 28px; margin: 0 0 16px 0; }
+h2 { font-size: 20px; margin: 24px 0 12px 0; }
+
+.btn {
+  display: inline-block;
+  padding: 8px 16px;
+  background: var(--card-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn:hover { background: var(--bg); }
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+
+.btn-danger {
+  background: var(--danger);
+  color: white;
+  border-color: var(--danger);
+}
+
+.btn-small { padding: 4px 8px; font-size: 12px; }
+
+.muted { color: var(--text-muted); font-style: italic; }
+.empty { color: var(--text-muted); padding: 24px; text-align: center; }
+
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+table.data th, table.data td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+table.data th {
+  background: var(--bg);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+table.data tr:last-child td { border-bottom: none; }
+table.data tr:hover { background: var(--bg); }
+table.data .right { text-align: right; }
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.badge-ok { background: #dcfce7; color: #14532d; }
+.badge-warn { background: #fef3c7; color: #78350f; }
+.badge-danger { background: #fee2e2; color: #7f1d1d; animation: flash 1.5s infinite; }
+.badge-muted { background: var(--bg); color: var(--text-muted); }
+.badge-good { background: #dcfce7; color: #14532d; }
+
+@keyframes flash {
+  0%, 100% { background: #fee2e2; }
+  50% { background: #fef2f2; }
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.metric {
+  background: var(--card-bg);
+  padding: 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.metric-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.metric-value {
+  font-size: 24px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.period-toggle {
+  display: inline-flex;
+  gap: 0;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.period-toggle a {
+  padding: 8px 16px;
+  color: var(--text);
+  text-decoration: none;
+  border-right: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.period-toggle a:last-child { border-right: none; }
+.period-toggle a.active { background: var(--primary); color: white; }
+
+.alerts-bar {
+  background: var(--flash-bg);
+  border-bottom: 1px solid var(--flash-border);
+  padding: 8px 24px;
+}
+
+.alert {
+  padding: 4px 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.alert-danger { color: var(--danger); }
+.alert-warn { color: var(--warn); }
+.alert-ok { color: var(--good); }
+
+.avisos {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.avisos li {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.avisos li:last-child { border-bottom: none; }
+.avisos li::before { font-weight: 600; margin-right: 6px; }
+.aviso-stock::before { content: "⚠"; color: var(--warn); }
+.aviso-recipe::before { content: "⚠"; color: var(--warn); }
+.aviso-sale::before { content: "ℹ"; color: var(--ok); }
+
+form {
+  background: var(--card-bg);
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  max-width: 600px;
+}
+
+.form-row {
+  margin-bottom: 16px;
+}
+
+.form-row label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.form-row input,
+.form-row select,
+.form-row textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 14px;
+  background: white;
+}
+
+.form-row input:focus,
+.form-row select:focus,
+.form-row textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.form-row small {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+input[type="file"] {
+  padding: 4px !important;
+}
+
+.footer {
+  margin-top: 64px;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  border-top: 1px solid var(--border);
+}

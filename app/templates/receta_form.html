@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Receta — {{ action }}{% endblock %}
+
+{% block content %}
+<h1>{{ action }} receta</h1>
+
+<form method="post" action="/recetas{{ '/nueva' if mode == 'new' else '/' ~ recipe.id ~ '/editar' }}">
+  <div class="form-row">
+    <label for="name">Nombre</label>
+    <input type="text" id="name" name="name" required value="{{ recipe.name if recipe else '' }}" placeholder="Ej: Muffin de chocolate">
+  </div>
+
+  <div class="form-row">
+    <label for="yield_qty">Rinde (cantidad)</label>
+    <input type="number" id="yield_qty" name="yield_qty" step="0.01" min="0" value="{{ "%.2f"|format(recipe.yield_qty) if recipe and recipe.yield_qty is not none else '12' }}">
+  </div>
+
+  <div class="form-row">
+    <label for="yield_unit">Unidad del rinde</label>
+    <select id="yield_unit" name="yield_unit" required>
+      {% for u in units %}
+      <option value="{{ u }}" {% if recipe and recipe.yield_unit == u %}selected{% endif %}>{{ u }}</option>
+      {% endfor %}
+    </select>
+    <small>Para 12 muffins, poné rinde = 12 und.</small>
+  </div>
+
+  <h2>Líneas</h2>
+
+  <p class="muted">Las líneas son los ingredientes que entran en la receta. Para sub-recetas (masa choux usada en pastel), agregá la sub-receta como línea con tipo "sub-receta".</p>
+
+  <div id="lines">
+    {% for line in lines %}
+    <div class="line-row" style="display: grid; grid-template-columns: 100px 1fr 100px 1fr 30px; gap: 8px; align-items: end; margin-bottom: 8px;">
+      <select name="line_kind">
+        <option value="ingredient" {% if line.line_kind == 'ingredient' %}selected{% endif %}>Ingrediente</option>
+        <option value="sub_recipe" {% if line.line_kind == 'sub_recipe' %}selected{% endif %}>Sub-receta</option>
+      </select>
+      <select name="line_target_id">
+        <option value="">— Seleccionar —</option>
+        {% if line.line_kind == 'ingredient' %}
+          {% for ing in ingredients %}
+          <option value="{{ ing.id }}" {% if ing.id == line.line_ref_id %}selected{% endif %}>{{ ing.name }}</option>
+          {% endfor %}
+        {% else %}
+          {% for sub in other_recipes %}
+          <option value="{{ sub.id }}" {% if sub.id == line.line_ref_id %}selected{% endif %}>{{ sub.name }}</option>
+          {% endfor %}
+        {% endif %}
+      </select>
+      <input type="number" name="line_qty" step="0.01" min="0" required value="{{ line.qty }}" placeholder="Cantidad">
+      <input type="text" name="line_notes" value="{{ line.notes or '' }}" placeholder="Notas (opcional)">
+      <button type="button" class="btn btn-small" onclick="this.parentElement.remove()">×</button>
+    </div>
+    {% endfor %}
+  </div>
+
+  <p><button type="button" class="btn btn-small" id="add-line">+ Agregar línea</button></p>
+
+  <div class="form-row">
+    <label for="notes">Notas</label>
+    <textarea id="notes" name="notes" rows="2">{{ recipe.notes if recipe and recipe.notes else '' }}</textarea>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Guardá</button>
+    <a href="/recetas" class="btn">Cancelar</a>
+  </div>
+</form>
+
+<script>
+// Tiny inline script to add lines (no JS framework)
+document.getElementById('add-line').addEventListener('click', function() {
+  const container = document.getElementById('lines');
+  const row = document.createElement('div');
+  row.className = 'line-row';
+  row.style.cssText = 'display: grid; grid-template-columns: 100px 1fr 100px 1fr 30px; gap: 8px; align-items: end; margin-bottom: 8px;';
+  row.innerHTML = `
+    <select name="line_kind">
+      <option value="ingredient">Ingrediente</option>
+      <option value="sub_recipe">Sub-receta</option>
+    </select>
+    <select name="line_target_id">
+      <option value="">— Seleccionar —</option>
+    </select>
+    <input type="number" name="line_qty" step="0.01" min="0" required placeholder="Cantidad">
+    <input type="text" name="line_notes" placeholder="Notas (opcional)">
+    <button type="button" class="btn btn-small" onclick="this.parentElement.remove()">×</button>
+  `;
+  container.appendChild(row);
+  // Reload selects with current options
+  // (server doesn't know about new rows; user picks and the selects auto-populate
+  // when they submit and re-render the form with errors)
+});
+</script>
+
+{% endblock %}

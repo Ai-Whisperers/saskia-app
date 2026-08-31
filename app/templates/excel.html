@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Excel{% endblock %}
+
+{% block content %}
+<h1>Excel: importar / exportar</h1>
+
+<p class="muted">Tu sistema lee y escribe archivos .xlsx. El backup principal es el archivo exportado; podés guardarlo en Drive o donde quieras.</p>
+
+<h2>Importar desde Excel</h2>
+<form method="post" action="/excel/importar" enctype="multipart/form-data">
+  <div class="form-row">
+    <label for="file">Archivo .xlsx</label>
+    <input type="file" id="file" name="file" accept=".xlsx" required>
+    <small>Subí una copia de tu archivo de Drive (no lo modificamos, solo lo leemos).</small>
+  </div>
+  <div class="form-row">
+    <label>
+      <input type="checkbox" name="wipe_existing" value="true">
+      Borrar ingredientes/recetas/productos existentes antes de importar
+    </label>
+    <small>Si no marcás esta opción, el import es aditivo (suma sin pisar).</small>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Importar</button>
+  </div>
+</form>
+
+{% if last_import %}
+<h3>Último import</h3>
+<div class="metric">
+  <p><strong>Archivo:</strong> {{ last_import.filename }}</p>
+  <p><strong>Fecha:</strong> {{ last_import.imported_at_str }}</p>
+  <p><strong>Ingredientes importados:</strong> {{ last_import.ingredients }}</p>
+  <p><strong>Recetas importadas:</strong> {{ last_import.recipes }}</p>
+  <p><strong>Líneas importadas:</strong> {{ last_import.lines }}</p>
+  <p><strong>Productos importados:</strong> {{ last_import.products }}</p>
+  {% if last_import.warnings %}
+  <p><strong>Avisos:</strong></p>
+  <ul>
+    {% for w in last_import.warnings %}
+    <li>{{ w }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endif %}
+
+<h2>Exportar a Excel (backup)</h2>
+<p><a href="/excel/exportar" class="btn btn-primary">Descargar backup (.xlsx)</a></p>
+<p class="muted">El archivo tiene 6 hojas: Ingredientes, Recetas, Lineas, Productos, Ventas, StockMoves.</p>
+
+{% endblock %}

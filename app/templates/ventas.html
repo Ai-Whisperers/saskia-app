@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Ventas{% endblock %}
+
+{% block content %}
+<h1>Ventas</h1>
+
+<h2>Nueva venta</h2>
+<form method="post" action="/ventas/nueva">
+  <div class="form-row">
+    <label for="product_id">Producto</label>
+    <select id="product_id" name="product_id" required>
+      <option value="">— Seleccionar producto —</option>
+      {% for p in products %}
+      <option value="{{ p.id }}">{{ p.name }} ({{ m.gs(p.sale_price_gs) }})</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label for="qty">Cantidad</label>
+    <input type="number" id="qty" name="qty" required step="0.01" min="0.01" value="1">
+  </div>
+
+  <div class="form-row">
+    <label for="sold_at">Fecha y hora</label>
+    <input type="datetime-local" id="sold_at" name="sold_at" value="{{ now_local }}">
+    <small>Por defecto: ahora. Podés corregirlo si la venta fue antes (últimos 30 días).</small>
+  </div>
+
+  <div class="form-row">
+    <label for="notes">Notas</label>
+    <textarea id="notes" name="notes" rows="2"></textarea>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Registrá venta</button>
+    <a href="/ventas" class="btn">Cancelar</a>
+  </div>
+</form>
+
+<h2>Historial</h2>
+{% if sales %}
+<table class="data">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Producto</th>
+      <th class="right">Cantidad</th>
+      <th class="right">Precio unit.</th>
+      <th class="right">Total</th>
+      <th>Estado</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in sales %}
+    <tr {% if s.voided_at %}style="opacity: 0.5; text-decoration: line-through;"{% endif %}>
+      <td>{{ s.sold_at_str }}</td>
+      <td>{{ s.product_name }}</td>
+      <td class="right">{{ "%.2f"|format(s.qty) }}</td>
+      <td class="right">{{ m.gs(s.unit_price_gs) }}</td>
+      <td class="right">{{ m.gs(s.total_gs) }}</td>
+      <td>
+        {% if s.voided_at %}
+          <span class="badge badge-muted">Anulada</span>
+        {% else %}
+          <span class="badge badge-ok">Activa</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if not s.voided_at %}
+        <form method="post" action="/ventas/{{ s.id }}/anular" style="display: inline;">
+          <button type="submit" class="btn btn-small btn-danger" onclick="return confirm('¿Anular esta venta? Se devuelve el stock.')">Anular</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No hay ventas todavía. Registrá la primera arriba.</p>
+{% endif %}
+
+{% endblock %}

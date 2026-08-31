@@ -39,12 +39,16 @@ def healthz_db(request: Request) -> JSONResponse:
     Returns 200 if SQLite is reachable and writable; 503 otherwise.
     Also reports journal_mode (must be 'wal' for concurrent-safe writes).
     """
+    engine = request.app.state.engine
     try:
-        db = request.app.state.db
-        result = db.execute(text("SELECT 1")).scalar()
-        if result != 1:
-            return JSONResponse({"db": "unreachable", "detail": "SELECT 1 failed"}, status_code=503)
-        mode = db.execute(text("PRAGMA journal_mode")).scalar()
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT 1")).scalar()
+            if result != 1:
+                return JSONResponse(
+                    {"db": "unreachable", "detail": "SELECT 1 failed"},
+                    status_code=503,
+                )
+            mode = conn.execute(text("PRAGMA journal_mode")).scalar()
         return {
             "db": "ok",
             "journal_mode": mode,

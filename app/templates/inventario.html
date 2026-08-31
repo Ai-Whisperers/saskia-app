@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Inventario{% endblock %}
+
+{% block content %}
+<h1>Inventario</h1>
+
+<p><a href="/inventario/nuevo" class="btn btn-primary">+ Nuevo ingrediente</a></p>
+
+{% if ingredients %}
+<table class="data">
+  <thead>
+    <tr>
+      <th>Nombre</th>
+      <th>Unidad</th>
+      <th class="right">Stock actual</th>
+      <th class="right">Stock mínimo</th>
+      <th class="right">Precio compra (Gs.)</th>
+      <th>Estado</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for i in ingredients %}
+    <tr>
+      <td>{{ i.name }}</td>
+      <td>{{ i.unit }}</td>
+      <td class="right">{{ "%.2f"|format(i.stock_qty) }}</td>
+      <td class="right">{{ "%.2f"|format(i.min_stock_qty) }}</td>
+      <td class="right">{% if i.purchase_price_gs is none %}<em class="muted">sin precio</em>{% else %}{{ m.gs_full(i.purchase_price_gs) }}{% endif %}</td>
+      <td>{{ m.stock_badge(i.stock_qty, i.min_stock_qty) }}</td>
+      <td>
+        <a href="/inventario/{{ i.id }}/editar" class="btn btn-small">Editar</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">Todavía no cargaste ingredientes. <a href="/inventario/nuevo">Agregá el primero.</a></p>
+{% endif %}
+
+{% endblock %}
