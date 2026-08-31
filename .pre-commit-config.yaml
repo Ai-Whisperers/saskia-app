@@ -1,0 +1,73 @@
+# .pre-commit-config.yaml — pre-commit hooks
+# Per tech-stack-review #4 (CI) + #12 (pre-commit hooks):
+# - Pre-commit prevents local breakage before commit
+# - ruff: lint + format
+# - pytest-fast: smoke tests on every commit (NOT full suite)
+# - file-size sanity: blocks huge accidental commits
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.7.4
+    hooks:
+      - id: ruff
+        args: ["--fix", "--exit-non-zero-on-fix"]
+        types_or: [python, pyi]
+      - id: ruff-format
+        types_or: [python, pyi]
+
+  - repo: local
+    hooks:
+      - id: pytest-smoke
+        name: pytest (smoke)
+        entry: uv run pytest -x -q --no-cov tests/test_money.py tests/test_units.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: forbid-secret-files
+        name: forbid accidental .env or secret commits
+        entry: >-
+            bash -c '
+            for f in $(git diff --cached --name-only); do
+              case "$f" in
+                *.env|*.env.*|*/credentials|*/secrets.yaml|*/id_rsa|*/secrets.yml)
+                  echo "ERROR: attempted to commit a secret-like file: $f. Aborting.";
+                  exit 1;
+                  ;;
+              esac;
+            done
+            '
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: file-size-sanity
+        name: block huge accidental files (over 1 MB)
+        entry: >-
+            bash -c '
+            for f in $(git diff --cached --name-only); do
+              if [ -f "$f" ]; then
+                size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f");
+                if [ "$size" -gt 1048576 ]; then
+                  echo "WARN: $f is large (size $size bytes); verify this is intended.";
+                  exit 1;
+                fi;
+              fi;
+            done;
+            exit 0
+            '
+        language: system
+        pass_filenames: false
+
+      - id: check-yaml
+        name: validate YAML files
+        entry: >-
+            python -c "import yaml, sys;
+            list(map(lambda p: yaml.safe_load(open(p)), [l.strip() for l in sys.stdin.read().splitlines() if l.strip()]))"
+        language: system
+        types: [yaml]
+
+# Install:
+#   uv tool install pre-commit
+#   pre-commit install
+# After install, every `git commit` runs these hooks locally.

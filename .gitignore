@@ -1,0 +1,66 @@
+﻿.DS_Store
+Thumbs.db
+*.tmp
+commitmsg.txt
+.env
+.env.*
+credentials.json
+**/node_modules/
+.cursor/
+.specstory/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# uv
+uv.lock
+
+# Build artifacts
+build/
+dist/
+*.egg
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local data (NEVER commit the database file or her actual data)
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+
+# Local backups (NEVER commit her backups)
+backups/
+*.xlsx.bak
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Logs (NEVER commit logs — they may contain PII)
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+.env.*.local

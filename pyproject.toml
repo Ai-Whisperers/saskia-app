@@ -1,0 +1,80 @@
+# pyproject.toml — Saskia RMS fase 1
+# Per tech-stack-review recommendations (#1, #2, #5, #10):
+# - Use uv for install (10-100× faster than pip; reproducible lockfile)
+# - Pin openpyxl >=3.1,<4 (3.x stable, 4.x may break)
+# - Use uvicorn[standard] (gets httptools, uvloop, websockets, watchfiles)
+# - Hand-rolled schema-versioned migrations in db.py (NOT Alembic)
+# - SQLAlchemy sync mode (NOT async)
+# - Phase 1: pure server-rendered HTML (NOT HTMX)
+
+[project]
+name = "aiw-saskia-rms"
+version = "0.1.0"
+description = "Sistema de gestión de restaurante — Saskia Weiss Vander — Fase 1"
+requires-python = ">=3.13,<3.14"
+authors = [
+    {name = "AI Whisperers", email = "ivan@ai-whisperers.dev"},
+]
+license = {text = "MIT"}
+
+# Runtime dependencies
+dependencies = [
+    "fastapi>=0.115,<0.116",         # Pinned to a known-good major.minor
+    "uvicorn[standard]>=0.32,<0.33",  # [standard] = httptools + uvloop + websockets + watchfiles
+    "sqlalchemy>=2.0,<2.1",          # Sync mode (NOT async; documented in app/rms/db.py)
+    "openpyxl>=3.1,<4",              # 3.x stable; 4.x may have breaking changes
+    "jinja2>=3.1,<4",                # Templating for server-rendered HTML
+    "python-multipart>=0.0.20",      # FastAPI form parsing (for HTML forms)
+    "pydantic>=2.9,<3",               # Data validation; FastAPI uses it natively
+    "loguru>=0.7,<0.8",               # App logging per tech-stack-review #13
+]
+
+# Development dependencies
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3,<9",                 # Test framework
+    "pytest-cov>=6,<7",                # Coverage reporting
+    "hypothesis>=6.115,<7",          # Property-based testing (per tech-stack-review #9)
+    "ruff>=0.7,<1",                   # Linting
+]
+
+# Entry point for uvicorn (run from project root: uvicorn app.rms.main:app --reload)
+[project.scripts]
+aiw-saskia = "app.rms.main:run"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+# Pytest config
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+pythonpath = ["."]
+
+# Ruff config
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]  # pycodestyle errors/warnings, pyflakes, isort
+ignore = ["E501"]  # line-too-long (we use 100, ruff default is 88)
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E402"]  # test files may have non-top imports
+
+# Hypothesis profile
+[tool.hypothesis]
+max_examples = 1000
+deadline = 1000  # ms per example
+
+# Mypy config (we use ruff for linting but mypy is the type checker; not strict yet)
+[tool.mypy]
+python_version = "3.13"
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true

@@ -1,0 +1,50 @@
+# .github/workflows/ci.yml — minimal CI for the engagement
+# Per tech-stack-review #12: GitHub Actions is free for public repos; this
+# repo (Ai-Whisperers/saskia) IS public, so this is free.
+#
+# Triggers on PR to main. Runs ruff + pytest. ~2 min total.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.5.x"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Lint (ruff)
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Test (pytest)
+        run: uv run pytest --cov=app --cov-report=term-missing
+
+      - name: Fail if coverage drops below 80%
+        run: |
+          coverage=$(uv run coverage report | tail -2 | head -1 | awk '{print $NF}' | tr -d '%')
+          if [ "$coverage" -lt 80 ]; then
+            echo "Coverage $coverage% is below 80% threshold"
+            exit 1
+          fi
+
+      - name: Type check (mypy, non-strict)
+        run: uv run mypy app/ || true  # mypy is informational, not blocking yet
+        continue-on-error: true
