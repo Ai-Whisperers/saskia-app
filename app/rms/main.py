@@ -56,7 +56,18 @@ async def lifespan(app: FastAPI):
     init_db(engine)
     app.state.engine = engine
     app.state.session_factory = make_session_factory(engine)
-    # Backup scheduler is wired in Task 9 (install session). For now, no-op.
+    # Backup scheduler (Batch 5): idempotent, no-op if R2 not configured.
+    # Runs on a fresh session so it doesn't share state with request handlers.
+    try:
+        from app.rms.config import DB_PATH
+        from app.services.backup_scheduler import run_backup
+
+        with app.state.session_factory() as _s:
+            run_backup(_s, DB_PATH)
+    except Exception:
+        # Don't crash the app on backup failures; the request handlers
+        # are independent of this. (Errors are recorded in app_meta.)
+        pass
     yield
 
 

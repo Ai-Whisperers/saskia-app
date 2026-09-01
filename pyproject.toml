@@ -27,6 +27,8 @@ dependencies = [
     "python-multipart>=0.0.20",      # FastAPI form parsing (for HTML forms)
     "pydantic>=2.9,<3",               # Data validation; FastAPI uses it natively
     "loguru>=0.7,<0.8",               # App logging per tech-stack-review #13
+    "cryptography>=50.0.1",
+    "boto3>=1.43.85",
 ]
 
 # Development dependencies
