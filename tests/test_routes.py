@@ -368,14 +368,26 @@ def test_excel_page_renders(client):
     assert "Exportar" in r.text
 
 
-def test_excel_import_stub_returns_501(client):
-    """Import is a stub in Batch 2; returns 501 not-implemented."""
-    # Need a real .xlsx file to bypass the extension check
+def test_excel_import_succeeds_with_mini_xlsx(client, session_factory, tmp_path):
+    """POST /excel/importar with a real .xlsx → redirects to /excel."""
     import openpyxl
 
+    # Generate the fixture in tmp_path so the tempdir is unique per test
     wb = openpyxl.Workbook()
-    wb.save("/tmp/test-import.xlsx")
-    with open("/tmp/test-import.xlsx", "rb") as f:
+    default_sheet = wb.active
+    if default_sheet is not None:
+        wb.remove(default_sheet)
+
+    ws = wb.create_sheet("Ingredientes")
+    ws.append(["id", "name", "unit", "stock_qty", "purchase_price_gs", "min_stock_qty", "notes"])
+    ws.append([1, "Test", "kg", 2.0, "Gs. 5.000", 0.5, None])
+    for sheet_name in ("Recetas", "Lineas", "Productos", "Ventas", "StockMoves"):
+        wb.create_sheet(sheet_name).append(["id"])
+
+    save = tmp_path / "test-import.xlsx"
+    wb.save(str(save))
+
+    with open(save, "rb") as f:
         r = client.post(
             "/excel/importar",
             files={
@@ -387,13 +399,34 @@ def test_excel_import_stub_returns_501(client):
             },
             follow_redirects=False,
         )
-    # 501 because stub, not 400
-    assert r.status_code == 501
+    assert r.status_code == 303
+    assert r.headers["location"] == "/excel"
 
 
-def test_excel_export_stub_returns_501(client):
+def test_excel_import_rejects_non_xlsx(client):
+    """POST /excel/importar with .txt → 400."""
+    r = client.post(
+        "/excel/importar",
+        files={"file": ("test.txt", b"hello", "text/plain")},
+    )
+    assert r.status_code == 400
+
+
+def test_excel_export_returns_xlsx(client, session_factory, mini_xlsx_path):
+    """GET /excel/exportar returns a valid .xlsx file (200, octet-stream)."""
+    from app.services.import_xlsx import from_file
+
+    with session_factory() as s:
+        from_file(s, mini_xlsx_path)
+
     r = client.get("/excel/exportar")
-    assert r.status_code == 501
+    assert r.status_code == 200
+    assert r.headers["content-type"] == (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    # Body is a real xlsx file (starts with PK magic bytes)
+    body = r.content
+    assert body[:2] == b"PK"
 
 
 # --- Money formatting ---

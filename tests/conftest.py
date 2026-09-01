@@ -115,3 +115,88 @@ def client(session_factory, monkeypatch):
 
     with TestClient(main_module.app) as c:
         yield c
+
+
+# --- xlsx fixture: synthetic HEREBUS workbook for import/export tests ---
+
+
+@pytest.fixture
+def mini_xlsx_path(tmp_path):
+    """Return a Path to a synthetic HEREBUS-format .xlsx fixture.
+
+    3 ingredients, 1 recipe (Muffin), 3 ingredient lines, 2 products.
+    Sales + StockMoves sheets are present but empty (they're runtime data).
+
+    Generated on demand; never checked into git.
+    """
+    from pathlib import Path
+
+    from openpyxl import Workbook
+
+    path: Path = tmp_path / "mini.xlsx"
+    wb = Workbook()
+    default_sheet = wb.active
+    if default_sheet is not None:
+        wb.remove(default_sheet)
+
+    ws = wb.create_sheet("Ingredientes")
+    ws.append(["id", "name", "unit", "stock_qty", "purchase_price_gs", "min_stock_qty", "notes"])
+    ws.append([1, "Harina", "kg", 2.0, "Gs. 5.000", 0.5, None])
+    ws.append([2, "Azúcar", "kg", 1.5, "Gs. 4.000", 0.3, None])
+    ws.append([3, "Huevo", "und", 20.0, "Gs. 1.500", 6.0, None])
+
+    ws = wb.create_sheet("Recetas")
+    ws.append(["id", "name", "yield_qty", "yield_unit", "notes"])
+    ws.append([1, "Muffin", 12.0, "und", None])
+
+    ws = wb.create_sheet("Lineas")
+    ws.append(
+        [
+            "id",
+            "recipe_id",
+            "recipe_name",
+            "line_kind",
+            "line_ref_id",
+            "target_name",
+            "qty",
+            "notes",
+        ]
+    )
+    ws.append([1, 1, "Muffin", "ingredient", 1, "Harina", 0.3, None])
+    ws.append([2, 1, "Muffin", "ingredient", 2, "Azúcar", 0.2, None])
+    ws.append([3, 1, "Muffin", "ingredient", 3, "Huevo", 2.0, None])
+
+    ws = wb.create_sheet("Productos")
+    ws.append(
+        [
+            "id",
+            "name",
+            "portion_label",
+            "sale_price_gs",
+            "recipe_id",
+            "recipe_name",
+            "notes",
+        ]
+    )
+    ws.append([1, "Muffin", "1 muffin", "Gs. 8.000", 1, "Muffin", None])
+    ws.append([2, "Mystery", "1 unidad", "Gs. 5.000", None, None, "no recipe"])
+
+    ws = wb.create_sheet("Ventas")
+    ws.append(
+        [
+            "id",
+            "sold_at",
+            "product_id",
+            "product_name",
+            "qty",
+            "unit_price_gs",
+            "notes",
+            "voided_at",
+        ]
+    )
+
+    ws = wb.create_sheet("StockMoves")
+    ws.append(["id", "sale_id", "affected_recipe_id", "ingredient_id", "qty_delta"])
+
+    wb.save(str(path))
+    return path

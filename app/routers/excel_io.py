@@ -1,17 +1,27 @@
 """app/routers/excel_io.py — Excel import + export UI endpoints.
 
-Per dev plan §9 Task 6.
+Per dev plan §9 Task 6 + v2 §6 (Excel I/O).
 
-Note: the actual import_xlsx / export_xlsx service code lands in Batch 4.
-For Batch 2, we ship the UI shell + a placeholder route handler.
+Endpoints:
+- GET  /excel         — page listing recent import batches
+- POST /excel/importar — upload .xlsx, import into DB
+- GET  /excel/exportar — download current DB state as .xlsx
 """
 
 from __future__ import annotations
 
+import json
+import os
+import tempfile
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.rms.models import ImportBatch
+from app.services.import_xlsx import from_file
 from app.services.template_render import render
 
 router = APIRouter(prefix="/excel")
@@ -24,24 +34,24 @@ def get_session(request: Request) -> Session:
 @router.get("", response_class=HTMLResponse)
 async def excel_home(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     """Excel page: list recent import batches + import/export buttons."""
-    from sqlalchemy import select
-
-    from app.rms.models import ImportBatch
-
     batches = session.scalars(
         select(ImportBatch).order_by(ImportBatch.imported_at.desc()).limit(10)
     ).all()
     last_import = None
     if batches:
         b = batches[0]
+        try:
+            counts = json.loads(b.row_counts_json)
+        except (json.JSONDecodeError, TypeError):
+            counts = {}
         last_import = {
             "filename": b.source_filename,
             "imported_at_str": b.imported_at.strftime("%d/%m/%Y %H:%M"),
-            "ingredients": 0,
-            "recipes": 0,
-            "lines": 0,
-            "products": 0,
-            "warnings": [],
+            "ingredients": counts.get("ingredients", 0),
+            "recipes": counts.get("recipes", 0),
+            "lines": counts.get("lines", 0),
+            "products": counts.get("products", 0),
+            "warnings": counts.get("warnings", []),
         }
 
     return render(request, "excel.html", {"last_import": last_import})
@@ -52,45 +62,57 @@ async def excel_import(
     request: Request,
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
-    """Import an uploaded .xlsx file. (Stub — full implementation lands in Batch 4.)"""
+    """Import an uploaded .xlsx file."""
     form = await request.form()
     file = form.get("file")
     if file is None or not hasattr(file, "filename"):
         raise HTTPException(status_code=400, detail="Subí un archivo .xlsx")
-    filename = getattr(file, "filename", "")
-    if not filename or not filename.endswith(".xlsx"):
+    filename = getattr(file, "filename", "") or ""
+    if not filename or not filename.lower().endswith(".xlsx"):
         raise HTTPException(status_code=400, detail="El archivo tiene que ser .xlsx")
 
-    # Save uploaded file to temp location
-    import os
-
-    save_dir = "/tmp/saskia-imports"
-    os.makedirs(save_dir, exist_ok=True)
-    save_path = os.path.join(save_dir, filename)
-
+    # Save uploaded file to a secure temp location
     content = await file.read()
-    with open(save_path, "wb") as f:
-        f.write(content)
+    if not content:
+        raise HTTPException(status_code=400, detail="Archivo vacío")
 
-    # TODO (Batch 4): call app.services.import_xlsx.from_file(save_path)
-    # For now, just record that we received it.
-    raise HTTPException(
-        status_code=501,
-        detail=(
-            f"Importar Excel no está implementado todavía (llega en Batch 4). "
-            f"Archivo recibido: {filename} ({len(content)} bytes)."
-        ),
-    )
+    # Use a per-request temp dir so concurrent imports don't clash
+    with tempfile.TemporaryDirectory(prefix="saskia-import-") as tmp_dir:
+        save_path = Path(tmp_dir) / filename
+        save_path.write_bytes(content)
+        try:
+            from_file(session, save_path)
+        except (FileNotFoundError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # Redirect back to /excel with the last batch shown
+    return RedirectResponse(url="/excel", status_code=303)
 
 
 @router.get("/exportar")
-async def excel_export(request: Request) -> FileResponse:
-    """Export current data to .xlsx. (Stub — full implementation lands in Batch 4.)"""
-    # TODO (Batch 4): call app.services.export_xlsx.to_file() and return FileResponse.
-    raise HTTPException(
-        status_code=501,
-        detail="Exportar Excel no está implementado todavía (llega en Batch 4).",
-    )
+async def excel_export(request: Request, session: Session = Depends(get_session)) -> FileResponse:
+    """Export current DB state to a HEREBUS-format .xlsx."""
+    from app.services.export_xlsx import to_file
+
+    # Use a temp file so concurrent exports don't overwrite each other
+    fd, tmp_path_str = tempfile.mkstemp(prefix="saskia-export-", suffix=".xlsx")
+    os.close(fd)  # let openpyxl open it
+    tmp_path = Path(tmp_path_str)
+    try:
+        written = to_file(session, tmp_path)
+        # FileResponse will read + delete via the temp file pattern
+        return FileResponse(
+            path=str(written),
+            filename="saskia-rms-export.xlsx",
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    except Exception:
+        # Clean up temp file on failure
+        try:
+            tmp_path.unlink()
+        except OSError:
+            pass
+        raise
 
 
 __all__ = ["router"]
