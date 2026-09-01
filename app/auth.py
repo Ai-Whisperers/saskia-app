@@ -1,28 +1,35 @@
-"""app/auth.py — session-cookie auth (Milestone 1).
+"""app/auth.py — auth abstraction layer.
 
-Single user, single tenant. Multi-tenant in Milestone 7.
+Single user, single tenant (Milestone 7 adds multi-tenant).
 
-Pattern: Starlette SessionMiddleware + bcrypt password hashing.
-- Login form POSTs username/password
-- Server verifies bcrypt hash, sets session['user_id']
-- Middleware loads user on every request, attaches to request.state
-- Logout clears the session
-- Session secret loaded from BWS at startup; never committed
+Two backends supported:
+1. **Supabase Auth** (preferred when SUPABASE_URL is set) — managed
+   email/password, JWT validation, password reset flow
+2. **Self-built bcrypt** (fallback for local dev / tests) — own user
+   table, bcrypt password hashing
 
-Why session cookies over JWT:
-- Single user, browser-based → simpler
-- No token refresh dance
-- Server can invalidate on logout
-- bcrypt + signed cookie = standard, well-understood
+Both backends store the session in a server-side encrypted cookie
+(Starlette SessionMiddleware). The public API of this module
+(get_current_user, require_login, login_user, logout_user) is the
+same for both backends.
 
-Why Starlette SessionMiddleware over Flask-Login or roll-our-own:
-- Already in our dep tree (FastAPI uses Starlette)
-- Signs cookies with itsdangerous (same library, same threat model as JWT)
-- ~20 lines of glue vs ~200 lines of custom auth
+Why Supabase Auth when available:
+- Email-based password reset out of the box (vs. building + sending
+  email ourselves)
+- Bcrypt cost handled by Supabase
+- JWT validation against Supabase's JWKS (cached locally, ~5ms)
+- User metadata lives in Supabase; we keep our own User table only
+  for app-level metadata (last_login_at, etc.)
+
+Why we still own the session cookie:
+- Tokens never touch the browser JS (XSS protection)
+- Same SessionMiddleware pattern for both backends; routes don't
+  change
+- Logout is instant (cookie cleared) without waiting for Supabase
 
 Reference:
-- chatbot-rag-rbac/app/auth.py: API-key pattern we adapted
-- https://fastapi.tiangolo.com/advanced/security/http-basic-auth/
+- https://supabase.com/docs/reference/python/auth-getuser
+- https://supabase.com/docs/guides/auth/jwts
 """
 
 from __future__ import annotations
@@ -33,42 +40,36 @@ from typing import Optional
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
-from app.rms.db_dialect import get_database_url
-from app.rms.models import User as SqliteUser  # for tests
-from app.rms.schema_postgres import User as PgUser
-
-# --- User model selector (dialect-agnostic) ---
-
-
-def get_user_model():
-    """Return User model matching the active dialect.
-
-    Same class shape (set_password, check_password, etc.) so callers
-    don't need to care which dialect is active.
-    """
-    from app.rms.db_dialect import _is_postgres
-
-    if _is_postgres(get_database_url()):
-        return PgUser
-    return SqliteUser
-
-
-# --- Session secret (loaded once at import) ---
-
+# Re-export the session secret config (used by SessionMiddleware in main.py)
 SESSION_SECRET = os.getenv("SESSION_SECRET")
 if not SESSION_SECRET:
-    # Dev fallback. Production MUST set SESSION_SECRET in env (from BWS).
-    # Use a stable-but-not-secret string in dev so cookies survive restarts.
     SESSION_SECRET = os.getenv(
         "DEV_SESSION_SECRET",
         "dev-only-not-secret-replace-in-prod-9f8e7d6c5b4a3920",
     )
 
-# --- Bcrypt helpers (lazy import; bcrypt 5.x changed API surface) ---
+
+# --- Backend detection ---
 
 
+def _supabase_enabled() -> bool:
+    """True if Supabase Auth is configured."""
+    from app.auth_supabase import is_supabase_auth_enabled
+
+    return is_supabase_auth_enabled()
+
+
+def using_supabase() -> bool:
+    """Public check: is this deployment using Supabase Auth?"""
+    return _supabase_enabled()
+
+
+# --- Self-built bcrypt backend (used when Supabase not configured) ---
+
+
+# Lazy bcrypt import (5.x changed API surface)
 def hash_password(plain: str) -> str:
-    """Hash a plaintext password with bcrypt cost-12. Returns the hash string."""
+    """Hash a plaintext password with bcrypt cost-12."""
     import bcrypt
 
     salt = bcrypt.gensalt(rounds=12)
@@ -87,33 +88,78 @@ def verify_password(plain: str, hashed: str) -> bool:
         return False
 
 
-# --- Session helpers ---
-
-SESSION_KEY_USER_ID = "user_id"
-SESSION_KEY_USERNAME = "username"
+# --- User model selector (dialect-agnostic, bcrypt path only) ---
 
 
-def login_user(request: Request, user_id: int, username: str) -> None:
-    """Mark the current session as logged in."""
-    request.session[SESSION_KEY_USER_ID] = user_id
-    request.session[SESSION_KEY_USERNAME] = username
+def get_user_model():
+    """Return User model matching the active dialect (bcrypt backend only).
+
+    With Supabase Auth, user metadata lives in Supabase — not in our DB.
+    """
+    from app.rms.db_dialect import _is_postgres
+
+    if _is_postgres(os.getenv("DATABASE_URL", "")):
+        from app.rms.schema_postgres import User as PgUser
+
+        return PgUser
+    from app.rms.models import User as SqliteUser
+
+    return SqliteUser
+
+
+# --- Session helpers (dispatch to backend) ---
+
+# Local-bcrypt session keys
+LOCAL_SESSION_KEY_USER_ID = "local_user_id"
+LOCAL_SESSION_KEY_USERNAME = "local_username"
+
+
+def login_user_local(request: Request, user_id, username: str) -> None:
+    """Bcrypt backend: store user_id + username in session."""
+    request.session[LOCAL_SESSION_KEY_USER_ID] = user_id
+    request.session[LOCAL_SESSION_KEY_USERNAME] = username
+
+
+def login_user(request: Request, user_id, username: str) -> None:
+    """Dispatch to whichever backend is configured."""
+    if _supabase_enabled():
+        # The Supabase login flow happens in routers/auth.py via
+        # auth_supabase.sign_in_with_password, not here. This function
+        # is for the bcrypt flow only.
+        return
+    login_user_local(request, user_id, username)
 
 
 def logout_user(request: Request) -> None:
-    """Clear the session."""
+    """Clear session regardless of backend."""
+    if _supabase_enabled():
+        from app.auth_supabase import clear_session
+
+        clear_session(request)
+        return
     request.session.clear()
 
 
 def current_user_id(request: Request) -> Optional[int]:
-    """Return the current user id from session, or None."""
-    return request.session.get(SESSION_KEY_USER_ID)
+    """Return the current user identifier, or None.
+
+    For bcrypt backend: returns the integer user_id (from ORM).
+    For Supabase backend: returns the user UUID string.
+
+    Mixed return type is intentional — callers should treat it as an
+    opaque identifier and use get_current_user() for the full User.
+    """
+    if _supabase_enabled():
+        from app.auth_supabase import SESSION_KEY_USER_ID
+
+        return request.session.get(SESSION_KEY_USER_ID)
+    return request.session.get(LOCAL_SESSION_KEY_USER_ID)
 
 
-def require_login(request: Request) -> int:
+def require_login(request: Request):
     """FastAPI dependency: returns user_id if logged in, else raises 401/redirect."""
     user_id = current_user_id(request)
     if user_id is None:
-        # For HTML routes, redirect to /login. For API routes, 401.
         accept = request.headers.get("accept", "")
         if "text/html" in accept:
             raise HTTPException(
@@ -138,42 +184,58 @@ def get_db_session(request: Request) -> Session:
 def get_current_user(
     request: Request,
     session: Session = Depends(get_db_session),
-) -> object:
-    """FastAPI dependency: return the logged-in User, or raise 401."""
+):
+    """FastAPI dependency: return the logged-in User, or raise 401.
+
+    For Supabase backend: returns a SupabaseUser (id + email + claims).
+    For bcrypt backend: returns the ORM User row.
+    """
+    if _supabase_enabled():
+        from app.auth_supabase import get_session_user
+
+        user = get_session_user(request)
+        if user is None:
+            _redirect_to_login(request)
+        return user
+
+    # Bcrypt backend
     user_id = current_user_id(request)
     if user_id is None:
-        accept = request.headers.get("accept", "")
-        if "text/html" in accept:
-            raise HTTPException(
-                status_code=status.HTTP_303_SEE_OTHER,
-                headers={"Location": "/login"},
-            )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-        )
+        _redirect_to_login(request)
+
     User = get_user_model()
     user = session.get(User, user_id)
     if user is None or not user.is_active:
         logout_user(request)
+        _redirect_to_login(request)
+    return user
+
+
+def _redirect_to_login(request: Request) -> None:
+    """Internal: raise the appropriate redirect/401 for the request type."""
+    accept = request.headers.get("accept", "")
+    if "text/html" in accept:
         raise HTTPException(
             status_code=status.HTTP_303_SEE_OTHER,
             headers={"Location": "/login"},
         )
-    return user
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication required",
+    )
 
 
 __all__ = [
     "SESSION_SECRET",
-    "SESSION_KEY_USER_ID",
-    "SESSION_KEY_USERNAME",
+    "using_supabase",
     "hash_password",
     "verify_password",
+    "get_user_model",
     "login_user",
+    "login_user_local",
     "logout_user",
     "current_user_id",
     "require_login",
-    "get_current_user",
     "get_db_session",
-    "get_user_model",
+    "get_current_user",
 ]

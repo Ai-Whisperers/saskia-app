@@ -10,16 +10,24 @@
   </div>
   {% endif %}
 
+  {% if message %}
+  <div class="alert alert-info" role="status">
+    {{ message }}
+  </div>
+  {% endif %}
+
   <form method="post" action="/login" class="form">
     <input type="hidden" name="next" value="{{ next }}">
 
     <div class="form-row">
-      <label for="username">Usuario</label>
+      <label for="username">
+        {% if using_supabase %}Correo electrónico{% else %}Usuario{% endif %}
+      </label>
       <input
-        type="text"
+        type="{% if using_supabase %}email{% else %}text{% endif %}"
         id="username"
         name="username"
-        autocomplete="username"
+        autocomplete="{% if using_supabase %}email{% else %}username{% endif %}"
         required
         autofocus
       >
@@ -41,8 +49,29 @@
     </div>
   </form>
 
+  {% if using_supabase %}
+  <p class="hint">
+    <a href="/login" id="forgot-link">¿Olvidaste tu contraseña?</a>
+  </p>
+  <script>
+    document.getElementById('forgot-link').addEventListener('click', function(e) {
+      e.preventDefault();
+      var email = document.getElementById('username').value;
+      if (!email) { alert('Escribí tu correo primero.'); return; }
+      var form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/forgot-password';
+      var input = document.createElement('input');
+      input.type = 'hidden'; input.name = 'email'; input.value = email;
+      form.appendChild(input);
+      document.body.appendChild(form);
+      form.submit();
+    });
+  </script>
+  {% else %}
   <p class="hint">
     ¿Problemas para entrar? Escribile a Iván (es tu hermano, no se cobra).
   </p>
+  {% endif %}
 </main>
 {% endblock %}
