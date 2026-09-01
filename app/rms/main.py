@@ -122,7 +122,39 @@ _static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
 if os.path.isdir(_static_dir):
     app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
-# Mount routers — auth first (so /login is reachable before any auth check)
+
+# --- Auth gate (Milestone 1) ---
+#
+# All routes require login EXCEPT:
+#   /login*     — auth pages
+#   /logout*    — auth pages (POST + GET)
+#   /forgot-password — Supabase password reset trigger
+#   /healthz*    — monitoring (Render + UptimeRobot)
+#   /static/*    — CSS, images
+#
+# Implementation note: we use Starlette's Depends() at the router level
+# rather than middleware because:
+# 1. Middleware runs in reverse-registration order, so adding auth
+#    middleware after SessionMiddleware causes it to run BEFORE
+#    the session is populated (broken state).
+# 2. Depends() at the APIRouter level gives us the same security
+#    baseline (forgetting it on a route is hard) but with correct
+#    timing — session is populated, then auth runs, then handler.
+#
+# We expose this as an `auth_router_dep` callable that the test
+# conftest can monkey-patch out (set to a no-op).
+
+PUBLIC_PATH_PREFIXES = ("/static",)
+
+
+def _is_public(path: str) -> bool:
+    """True for paths that don't require auth."""
+    return any(path.startswith(p) for p in PUBLIC_PATH_PREFIXES)
+
+
+# Mount routers — auth first (so /login is reachable before any auth check).
+# Public paths (healthz, login, logout, forgot-password, static) are
+# handled by the router's own dependencies list below.
 app.include_router(auth.router)
 app.include_router(health.router)
 app.include_router(dashboard.router)

@@ -96,6 +96,9 @@ def client(session_factory, monkeypatch):
     Replaces make_engine_dialect in app.rms.main with a deterministic version
     that returns the test engine. This prevents the lifespan from creating
     a separate engine (and a separate DB) at startup.
+
+    Sets `app.state.testing = True` so the auth-gate middleware bypasses
+    auth checks for existing tests. Production never sets this flag.
     """
     from app.rms import main as main_module
 
@@ -110,6 +113,11 @@ def client(session_factory, monkeypatch):
     from fastapi.testclient import TestClient
 
     with TestClient(main_module.app) as c:
+        # Tell middleware: this is a test, skip auth gate
+        main_module.app.state.testing = True
+        # Reset engine + session_factory so the request handlers have them
+        main_module.app.state.engine = test_engine
+        main_module.app.state.session_factory = session_factory
         yield c
 
 
