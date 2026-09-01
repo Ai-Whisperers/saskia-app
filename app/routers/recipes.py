@@ -15,12 +15,13 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.auth import require_login_or_disabled as require_login
 from app.rms.costing import recipe_batch_cost_gs, recipe_unit_cost_gs
 from app.rms.models import Ingredient, Recipe, RecipeLine
 from app.rms.units import Unit
 from app.services.template_render import render
 
-router = APIRouter(prefix="/recetas")
+router = APIRouter(prefix="/recetas", dependencies=[Depends(require_login)])
 
 
 def get_session(request: Request) -> Session:

@@ -11,11 +11,12 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.auth import require_login_or_disabled as require_login
 from app.rms.models import Ingredient, RecipeLine
 from app.rms.units import Unit
 from app.services.template_render import render
 
-router = APIRouter(prefix="/inventario")
+router = APIRouter(prefix="/inventario", dependencies=[Depends(require_login)])
 
 
 def get_session(request: Request) -> Session:

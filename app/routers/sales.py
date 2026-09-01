@@ -12,12 +12,13 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import require_login_or_disabled as require_login
 from app.rms.config import ASUNCION_TZ
 from app.rms.costing import RecipeWithoutYield, apply_sale, void_sale
 from app.rms.models import Product, Sale
 from app.services.template_render import render
 
-router = APIRouter(prefix="/ventas")
+router = APIRouter(prefix="/ventas", dependencies=[Depends(require_login)])
 
 
 def get_session(request: Request) -> Session:

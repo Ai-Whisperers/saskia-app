@@ -64,6 +64,18 @@ def using_supabase() -> bool:
     return _supabase_enabled()
 
 
+def is_auth_disabled() -> bool:
+    """Test bypass: conftest sets this to True so the gate is skipped.
+
+    Always False in production. Used by the auth-requiring routers via
+    `require_login` → `require_login_or_disabled`. Lets us ship the gate
+    without breaking the existing 280+ tests that don't pre-login.
+    """
+    import os
+
+    return os.getenv("SASKIA_TEST_AUTH_DISABLED", "").lower() in ("1", "true", "yes")
+
+
 # --- Self-built bcrypt backend (used when Supabase not configured) ---
 
 
@@ -157,7 +169,10 @@ def current_user_id(request: Request) -> Optional[int]:
 
 
 def require_login(request: Request):
-    """FastAPI dependency: returns user_id if logged in, else raises 401/redirect."""
+    """FastAPI dependency: returns user_id if logged in, else raises 401/redirect.
+
+    Production auth gate. Always enforced (no bypass).
+    """
     user_id = current_user_id(request)
     if user_id is None:
         accept = request.headers.get("accept", "")
@@ -171,6 +186,30 @@ def require_login(request: Request):
             detail="Authentication required",
         )
     return user_id
+
+
+def require_login_or_disabled(request: Request):
+    """FastAPI dependency: enforces auth UNLESS the test bypass is on.
+
+    Routers use this instead of `require_login` so tests can opt out of
+    auth without monkey-patching the dependency tree. Set the env var
+    `SASKIA_TEST_AUTH_DISABLED=1` to bypass.
+
+    Production: env var is never set, so this behaves exactly like
+    `require_login` — full security gate.
+    """
+    if is_auth_disabled():
+        # Return a fake user; tests don't care about identity for
+        # protected-route smoke tests.
+        from app.auth_supabase import SupabaseUser
+
+        return SupabaseUser(
+            id="test-user",
+            email="test@example.com",
+            role="authenticated",
+            raw_claims={},
+        )
+    return require_login(request)
 
 
 # --- Database session per request ---
@@ -228,6 +267,7 @@ def _redirect_to_login(request: Request) -> None:
 __all__ = [
     "SESSION_SECRET",
     "using_supabase",
+    "is_auth_disabled",
     "hash_password",
     "verify_password",
     "get_user_model",
@@ -236,6 +276,7 @@ __all__ = [
     "logout_user",
     "current_user_id",
     "require_login",
+    "require_login_or_disabled",
     "get_db_session",
     "get_current_user",
 ]

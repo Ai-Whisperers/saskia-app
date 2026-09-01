@@ -11,12 +11,13 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.auth import require_login_or_disabled as require_login
 from app.rms.costing import product_margin, product_unit_cost_gs
 from app.rms.models import Product, Recipe, Sale
 from app.rms.money import parse_gs
 from app.services.template_render import render
 
-router = APIRouter(prefix="/productos")
+router = APIRouter(prefix="/productos", dependencies=[Depends(require_login)])
 
 
 def get_session(request: Request) -> Session:

@@ -20,11 +20,12 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import require_login_or_disabled as require_login
 from app.rms.models import ImportBatch
 from app.services.import_xlsx import from_file
 from app.services.template_render import render
 
-router = APIRouter(prefix="/excel")
+router = APIRouter(prefix="/excel", dependencies=[Depends(require_login)])
 
 
 def get_session(request: Request) -> Session:

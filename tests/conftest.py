@@ -97,8 +97,13 @@ def client(session_factory, monkeypatch):
     that returns the test engine. This prevents the lifespan from creating
     a separate engine (and a separate DB) at startup.
 
-    Sets `app.state.testing = True` so the auth-gate middleware bypasses
-    auth checks for existing tests. Production never sets this flag.
+    For test isolation: the auth gate is bypassed via the
+    `SASKIA_TEST_AUTH_DISABLED=1` env var (read by `is_auth_disabled`
+    in app/auth.py). The router dependency `require_login_or_disabled`
+    returns a fake user when this is set.
+
+    Tests that specifically exercise the auth gate (test_auth_integration.py)
+    clear the env var to re-enable auth checks.
     """
     from app.rms import main as main_module
 
@@ -109,13 +114,12 @@ def client(session_factory, monkeypatch):
         return test_engine
 
     monkeypatch.setattr(main_module, "make_engine_dialect", _make_engine_for_test)
+    # Bypass auth gate for non-auth tests
+    monkeypatch.setenv("SASKIA_TEST_AUTH_DISABLED", "1")
 
     from fastapi.testclient import TestClient
 
     with TestClient(main_module.app) as c:
-        # Tell middleware: this is a test, skip auth gate
-        main_module.app.state.testing = True
-        # Reset engine + session_factory so the request handlers have them
         main_module.app.state.engine = test_engine
         main_module.app.state.session_factory = session_factory
         yield c
