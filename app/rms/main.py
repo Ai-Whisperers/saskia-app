@@ -15,10 +15,12 @@ Entry: `uv run uvicorn app.rms.main:app --host 127.0.0.1 --port 8765`
 
 from __future__ import annotations
 
+import os
 import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from app.rms.config import BIND_HOST, ensure_dirs
 from app.rms.db import init_db, make_engine, make_session_factory
@@ -81,6 +83,11 @@ app = FastAPI(
     redoc_url=None,
     openapi_url="/api/openapi.json",
 )
+
+# Mount static files (CSS, images, etc.) so templates can link /static/app.css
+_static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+if os.path.isdir(_static_dir):
+    app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
 # Mount routers
 app.include_router(health.router)

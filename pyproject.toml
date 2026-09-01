@@ -81,3 +81,8 @@ python_version = "3.13"
 ignore_missing_imports = true
 warn_unused_ignores = true
 warn_redundant_casts = true
+
+[dependency-groups]
+dev = [
+    "playwright>=1.62.0",
+]

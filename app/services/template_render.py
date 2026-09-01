@@ -20,6 +20,8 @@ def _now_year() -> int:
     return datetime.now().year
 
 
+# Register as a Jinja2 "global function" so {{ now_year() }} works in templates.
+# Without the parens Jinja would print the function repr.
 templates.env.globals["now_year"] = _now_year
 
 

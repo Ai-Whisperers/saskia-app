@@ -43,6 +43,20 @@ def test_healthz_db_reports_wal(client):
     assert body["journal_mode"] == "wal"
 
 
+def test_static_css_serves(client):
+    """GET /static/app.css returns 200 + the CSS file (not 404).
+
+    Regression for the bug found via screenshot exercise: the app
+    referenced /static/app.css in templates but main.py never mounted
+    StaticFiles, so every page rendered unstyled in the browser.
+    """
+    r = client.get("/static/app.css")
+    assert r.status_code == 200
+    assert "text/css" in r.headers["content-type"]
+    # Spot-check that it's actually our CSS (not a 404 page)
+    assert ":root" in r.text or "--bg" in r.text
+
+
 def test_healthz_db_unreachable_returns_503(client, monkeypatch):
     """Mock engine.connect to raise → endpoint returns 503."""
 

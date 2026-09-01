@@ -682,3 +682,20 @@ def test_excel_page_renders(client, session_factory):
     assert r.status_code == 200
     assert "Importar" in r.text
     assert "Exportar" in r.text
+
+
+def test_footer_renders_year_not_function_repr(client):
+    """Footer renders the current year, NOT the function's repr.
+
+    Regression for the bug found via screenshot exercise: `{{ now_year }}`
+    in the template printed `<function _now_year at 0x...>` because
+    Jinja2 doesn't auto-call globals. Fixed by using `{{ now_year() }}`.
+    """
+    from datetime import datetime
+
+    r = client.get("/")
+    assert r.status_code == 200
+    current_year = str(datetime.now().year)
+    assert current_year in r.text
+    # The function repr must NOT appear
+    assert "<function _now_year" not in r.text
