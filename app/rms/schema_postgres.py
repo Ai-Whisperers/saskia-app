@@ -1,16 +1,24 @@
-"""app/rms/models.py — SQLAlchemy ORM models.
+"""app/rms/schema_postgres.py — Postgres-flavored SQLAlchemy schema.
 
-Per dev plan §9 Task 1 + v2 §5 (data model).
+This module exists alongside models.py so the SQLite test path stays
+isolated from the production Postgres path. Both models.py and
+schema_postgres.py define the same 8 tables, but Postgres uses:
+- NUMERIC(12,4) for stock_qty / yield_qty / min_stock_qty / qty / qty_delta
+  (avoids Float drift; exact decimal arithmetic)
+- BIGINT for money columns (was Integer — same range, no behavior change)
+- TIMESTAMP WITH TIME ZONE for sold_at (was DateTime; TZ-aware)
+- JSONB for app_meta.value (was Text — but kept Text for app_meta.value
+  since the migration scripts already handle string-encoded JSON)
+- VARCHAR(n) replaces String(n) — same SQL under the hood
 
-Tables:
-- ingredient: name, unit, stock_qty, purchase_price_gs (int), min_stock_qty, notes
-- recipe: name, yield_qty, yield_unit, notes
-- recipe_line: polymorphic via line_kind + line_ref_id (FK to ingredient OR recipe)
-- product: name, portion_label, sale_price_gs (int), recipe_id (nullable)
-- sale: sold_at, product_id, qty, unit_price_gs (snapshot int), notes
-- sale_stock_move: sale_id, affected_recipe_id, ingredient_id, qty_delta
-- import_batch: imported_at, source_filename, note, row_counts_json
-- app_meta: key, value, updated_at (schema version, last_backup_at, etc.)
+The SQLite path keeps models.py unchanged. Production uses
+schema_postgres.py via env var DATABASE_URL.
+
+Strategy:
+- Both modules export `Base` (declarative base) and all 8 model classes
+- A factory function `get_metadata()` returns the right Base for the
+  configured DATABASE_URL
+- `init_db(engine)` is dialect-agnostic (works for both)
 """
 
 from __future__ import annotations
@@ -18,58 +26,46 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
+import bcrypt
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     DateTime,
-    Float,
     ForeignKey,
     Index,
-    Integer,
+    Numeric,
     String,
     Text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
-    """SQLAlchemy declarative base. All models inherit from this."""
+    """Postgres-flavored declarative base. All models inherit from this."""
 
     pass
 
 
 class AppMeta(Base):
-    """Key-value store for app metadata (schema version, last_backup_at, etc.)."""
-
     __tablename__ = "app_meta"
 
     key: Mapped[str] = mapped_column(Text, primary_key=True)
-    value: Mapped[str] = mapped_column(Text, nullable=False)
+    value: Mapped[str] = mapped_column(JSONB, nullable=False)
     updated_at: Mapped[str] = mapped_column(Text, nullable=False)
 
 
 class Ingredient(Base):
-    """An inventory item. Stock and prices are stored as Decimal (float64).
-
-    purchase_price_gs is integer Gs. (no cents). NULL means "no price set yet"
-    (dashboard alerts on this).
-    """
-
     __tablename__ = "ingredient"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
     unit: Mapped[str] = mapped_column(String(16), nullable=False)
-    stock_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    purchase_price_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    min_stock_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    stock_qty: Mapped[float] = mapped_column(Numeric(12, 4), nullable=False, default=0)
+    purchase_price_gs: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    min_stock_qty: Mapped[float] = mapped_column(Numeric(12, 4), nullable=False, default=0)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # Relationships
-    # NOTE: `recipe_lines` (the reverse of RecipeLine.ingredient) is NOT defined here
-    # because RecipeLine.line_ref_id is polymorphic (FK to ingredient OR recipe).
-    # Use RecipeLine.ingredient relationship (viewonly=True, primaryjoin with line_kind check)
-    # or query RecipeLine directly: SELECT FROM recipe_line WHERE line_kind='ingredient'
-    # AND line_ref_id = :id. Helper functions live in costing.py.
     stock_moves: Mapped[list["SaleStockMove"]] = relationship(back_populates="ingredient")
 
     __table_args__ = (
@@ -85,17 +81,14 @@ class Ingredient(Base):
 
 
 class Recipe(Base):
-    """A recipe. yield_qty + yield_unit describe the batch (e.g., 12 muffins, 1 torta)."""
-
     __tablename__ = "recipe"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
-    yield_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    yield_qty: Mapped[Optional[float]] = mapped_column(Numeric(12, 4), nullable=True)
     yield_unit: Mapped[str] = mapped_column(String(16), nullable=False, default="und")
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # Relationships
     lines: Mapped[list["RecipeLine"]] = relationship(
         back_populates="recipe",
         foreign_keys="RecipeLine.recipe_id",
@@ -115,29 +108,18 @@ class Recipe(Base):
 
 
 class RecipeLine(Base):
-    """A line in a recipe. Polymorphic: line_kind ∈ {ingredient, sub_recipe}.
-
-    line_ref_id points to either ingredient.id (if line_kind='ingredient') or
-    recipe.id (if line_kind='sub_recipe'). Use the corresponding view (lines_via_ingredient,
-    lines_via_sub_recipe) or the helper functions in costing.py to walk the tree.
-    """
-
     __tablename__ = "recipe_line"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     recipe_id: Mapped[int] = mapped_column(
         ForeignKey("recipe.id", ondelete="CASCADE"), nullable=False
     )
     line_kind: Mapped[str] = mapped_column(String(16), nullable=False)
-    line_ref_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    qty: Mapped[float] = mapped_column(Float, nullable=False)
+    line_ref_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    qty: Mapped[float] = mapped_column(Numeric(12, 4), nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # Relationships
     recipe: Mapped["Recipe"] = relationship(back_populates="lines", foreign_keys=[recipe_id])
-    # NOTE: ingredient and sub_recipe relationships are NOT defined here because
-    # line_ref_id is polymorphic. Use `resolve_line_target(session, line)` in
-    # costing.py to get the right object.
 
     __table_args__ = (
         CheckConstraint("line_kind IN ('ingredient', 'sub_recipe')", name="ck_line_kind"),
@@ -148,18 +130,15 @@ class RecipeLine(Base):
 
 
 class Product(Base):
-    """A sellable product. Has a sale_price_gs (int) and an optional recipe."""
-
     __tablename__ = "product"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
     portion_label: Mapped[str] = mapped_column(String(60), nullable=False, default="1 unidad")
-    sale_price_gs: Mapped[int] = mapped_column(Integer, nullable=False)
+    sale_price_gs: Mapped[int] = mapped_column(BigInteger, nullable=False)
     recipe_id: Mapped[Optional[int]] = mapped_column(ForeignKey("recipe.id"), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # Relationships
     recipe: Mapped[Optional["Recipe"]] = relationship(back_populates="products")
     sales: Mapped[list["Sale"]] = relationship(back_populates="product")
 
@@ -170,19 +149,16 @@ class Product(Base):
 
 
 class Sale(Base):
-    """A recorded sale. unit_price_gs is SNAPSHOT — even if product catalog changes."""
-
     __tablename__ = "sale"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    sold_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    sold_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     product_id: Mapped[int] = mapped_column(ForeignKey("product.id"), nullable=False, index=True)
-    qty: Mapped[float] = mapped_column(Float, nullable=False)
-    unit_price_gs: Mapped[int] = mapped_column(Integer, nullable=False)
+    qty: Mapped[float] = mapped_column(Numeric(12, 4), nullable=False)
+    unit_price_gs: Mapped[int] = mapped_column(BigInteger, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    voided_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    voided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    # Relationships
     product: Mapped["Product"] = relationship(back_populates="sales")
     stock_moves: Mapped[list["SaleStockMove"]] = relationship(
         back_populates="sale", cascade="all, delete-orphan"
@@ -195,15 +171,9 @@ class Sale(Base):
 
 
 class SaleStockMove(Base):
-    """Audit of stock moves caused by a sale (or its void).
-
-    qty_delta is negative for normal sales (stock decreases). For voids, the
-    same row is updated to positive (stock restored).
-    """
-
     __tablename__ = "sale_stock_move"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     sale_id: Mapped[int] = mapped_column(
         ForeignKey("sale.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -211,9 +181,8 @@ class SaleStockMove(Base):
     ingredient_id: Mapped[int] = mapped_column(
         ForeignKey("ingredient.id"), nullable=False, index=True
     )
-    qty_delta: Mapped[float] = mapped_column(Float, nullable=False)
+    qty_delta: Mapped[float] = mapped_column(Numeric(12, 4), nullable=False)
 
-    # Relationships
     sale: Mapped["Sale"] = relationship(back_populates="stock_moves")
     affected_recipe: Mapped["Recipe"] = relationship(
         foreign_keys=[affected_recipe_id], back_populates="stock_moves"
@@ -222,22 +191,16 @@ class SaleStockMove(Base):
 
 
 class ImportBatch(Base):
-    """Audit of a Drive-Excel import run."""
-
     __tablename__ = "import_batch"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    imported_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     source_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    row_counts_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    row_counts_json: Mapped[str] = mapped_column(JSONB, nullable=False, default="{}")
 
 
 # --- User table for single-tenant auth (Milestone 1) ---
-#
-# We import bcrypt inside the methods (not at module top) because bcrypt
-# 5.x changed its API and the lazy import lets tests monkeypatch easily.
-# This mirrors the bcrypt helpers in app.auth.
 
 
 class User(Base):
@@ -245,26 +208,26 @@ class User(Base):
 
     __tablename__ = "user"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     username: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False)
-    last_login_at: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now()
+    )
+    last_login_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     __table_args__ = (CheckConstraint("length(username) >= 1", name="ck_user_username_nonempty"),)
 
     def set_password(self, plain: str) -> None:
         """Hash with bcrypt cost-12 and store."""
-        import bcrypt
-
         salt = bcrypt.gensalt(rounds=12)
         self.password_hash = bcrypt.hashpw(plain.encode("utf-8"), salt).decode("utf-8")
 
     def check_password(self, plain: str) -> bool:
         """Verify password against stored bcrypt hash."""
-        import bcrypt
-
         if not self.password_hash:
             return False
         return bcrypt.checkpw(plain.encode("utf-8"), self.password_hash.encode("utf-8"))

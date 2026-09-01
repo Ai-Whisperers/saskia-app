@@ -29,6 +29,9 @@ dependencies = [
     "loguru>=0.7,<0.8",               # App logging per tech-stack-review #13
     "cryptography>=50.0.1",
     "boto3>=1.43.85",
+    "bcrypt>=5.0.0",
+    "itsdangerous>=2.2.0",
+    "psycopg[binary]>=3.3.5",
 ]
 
 # Development dependencies

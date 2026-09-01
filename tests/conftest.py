@@ -93,7 +93,7 @@ def reset_app_state():
 def client(session_factory, monkeypatch):
     """TestClient wired with a session_factory that uses app_engine.
 
-    Replaces make_engine in app.rms.main with a deterministic version
+    Replaces make_engine_dialect in app.rms.main with a deterministic version
     that returns the test engine. This prevents the lifespan from creating
     a separate engine (and a separate DB) at startup.
     """
@@ -105,11 +105,7 @@ def client(session_factory, monkeypatch):
         # Always return our test engine, ignore URL or args.
         return test_engine
 
-    monkeypatch.setattr(main_module, "make_engine", _make_engine_for_test)
-    # Also patch the imported reference inside the lifespan closure.
-    # The lifespan does `from app.rms.db import init_db, make_engine, ...`
-    # but the closure's `make_engine` refers to the module-level `main.make_engine`.
-    # monkeypatch handles this via attribute lookup on the module.
+    monkeypatch.setattr(main_module, "make_engine_dialect", _make_engine_for_test)
 
     from fastapi.testclient import TestClient
 

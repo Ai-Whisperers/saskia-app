@@ -1,0 +1,41 @@
+# fly.toml — Fly.io configuration (alternative to Render)
+# Usage:
+#   fly launch --copy-config  # uses this file
+#   fly secrets set DATABASE_URL=... SESSION_SECRET=... R2_ACCESS_KEY=... R2_SECRET_KEY=...
+#   fly deploy
+
+app = "saskia-rms"
+primary_region = "gru"  # São Paulo — closest to Paraguay in free tier regions
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  BIND_HOST = "0.0.0.0"
+  PORT = "8000"
+  PYTHONUNBUFFERED = "1"
+  R2_BUCKET = "saskia-rms-backups"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = false  # keep always on
+  auto_start_machines = true
+  min_instances_running = 1   # one always-on shared-cpu-1x
+  processes = ["app"]
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/healthz"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
+  memory = "512mb"
+
+# Note: shared-cpu-1x 512MB is free up to 3 shared VMs per account.
+# Add secrets with `fly secrets set KEY=value` (don't commit secrets here).
