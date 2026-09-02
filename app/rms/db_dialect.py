@@ -33,8 +33,22 @@ from app.rms.config import DB_PATH
 
 
 def _is_postgres(url: str) -> bool:
-    """True if the URL is a Postgres connection string."""
-    return url.startswith(("postgresql://", "postgres://"))
+    """True if the URL is a Postgres connection string.
+
+    Matches both plain `postgresql://` (driver defaults to psycopg2) and
+    the prefixed forms `postgresql+psycopg://` (psycopg3) / `postgresql+psycopg2://`
+    (legacy). The dialect code rewrites plain `postgresql://` to
+    `postgresql+psycopg://` in get_database_url/make_engine so callers
+    see the psycopg3 form; this helper accepts both.
+    """
+    return url.startswith(
+        (
+            "postgresql://",
+            "postgres://",
+            "postgresql+psycopg://",
+            "postgresql+psycopg2://",
+        )
+    )
 
 
 def _set_sqlite_pragmas(dbapi_conn, _):
@@ -54,9 +68,18 @@ def get_database_url() -> str:
     1. DATABASE_URL env var (production: Postgres)
     2. AIW_SASKIA_DB_PATH env var (test/dev: SQLite at custom path)
     3. config.DB_PATH (default: ~/.local/share/AIW-Saskia/rms.sqlite)
+
+    For Postgres, we add the `+psycopg` driver prefix if not present so
+    SQLAlchemy uses psycopg3 (the version pinned in pyproject.toml) instead
+    of the legacy psycopg2 (which isn't installed). See commit history:
+    this caught us during the 2026-09-02 deploy when the dialect detection
+    was correct but SQLAlchemy defaulted to psycopg2 and crashed.
     """
     url = os.getenv("DATABASE_URL")
     if url:
+        # If it's a Postgres URL without an explicit driver, add +psycopg
+        if url.startswith("postgresql://") and "+" not in url.split("//", 1)[0]:
+            url = "postgresql+psycopg://" + url[len("postgresql://") :]
         return url
     # Fall through to SQLite path
     sqlite_path = Path(os.getenv("AIW_SASKIA_DB_PATH", str(DB_PATH)))
@@ -68,9 +91,15 @@ def make_engine(url: str | None = None, *, for_tests: bool = False) -> Engine:
     """Create SQLAlchemy engine. SQLite or Postgres depending on URL.
 
     SQLite-specific pragmas only attach for sqlite URLs.
+
+    For Postgres URLs without an explicit driver prefix, we add +psycopg
+    so SQLAlchemy uses psycopg3 (the version pinned in pyproject.toml)
+    instead of the legacy psycopg2 (which isn't installed in this project).
     """
     if url is None:
         url = get_database_url()
+    elif url.startswith("postgresql://") and "+" not in url.split("//", 1)[0]:
+        url = "postgresql+psycopg://" + url[len("postgresql://") :]
 
     kwargs: dict = {"echo": False, "future": True}
 
