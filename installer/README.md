@@ -1,8 +1,43 @@
 # Saskia RMS — install-session checklist
 
+> **Two install paths.** Pick one based on what was decided for the engagement
+> (see `docs/operations/2026-09-02-saskia-decision-hosted-pivot.md`).
+
+## ⭐ Path C: Hosted (recommended since 2026-09-02)
+
+> Saskia opens `https://saskia-rms.paragu-ai.com` in any browser. That's it.
+> No `uv`, no `git`, no Windows shell. AIW team runs everything on Render +
+> Neon + Cloudflare Tunnel + Supabase Auth.
+
+For the operator's deploy runbook, see `docs/operations/2026-09-02-saskia-deploy-runbook.md`.
+The end-user (Saskia) experience is documented in
+`docs/operations/2026-09-02-saskia-agent-messages.md`.
+
+**Quick verification (no install needed):**
+
+```cmd
+# From any browser:
+https://saskia-rms.paragu-ai.com/login
+```
+
+If the login page appears, the hosted deploy is alive. Log in with the
+credentials the operator gave you. Done.
+
+If the URL doesn't load (no internet, DNS issue, server is down), the
+desktop shortcut falls back to a local install (Path A below).
+
+---
+
+## Path A: Local install (legacy / offline fallback)
+
 > **For Kiki (or whoever runs the install).** Per `docs/plans/2026-08-31-rms-fase-1-dev-plan.md §9 Task 9` and the comprehensive improvements review.
 >
 > **Total time:** ~45-90 minutes depending on how many troubleshooting items arise.
+>
+> **Note:** the `installer/run.bat` shortcut on Saskia's desktop now tries
+> the hosted URL first (Path C). It only falls back to local if the hosted
+> server is unreachable. So you only need this section if you want to do
+> a fresh local install from scratch.
 
 ---
 
