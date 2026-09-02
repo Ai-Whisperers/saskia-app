@@ -20,6 +20,7 @@ Examples:
 
 Output: one line per secret, just the NAME. Nothing else.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -39,7 +40,9 @@ PROJECT_ID_PATH = Path("/opt/data/.hermes/inbox/bws-project-id-hermes.txt")
 
 def main() -> int:
     p = argparse.ArgumentParser(description="List BWS secret names (never values).")
-    p.add_argument("--project-id", help="BWS project UUID (defaults to inbox/bws-project-id-hermes.txt)")
+    p.add_argument(
+        "--project-id", help="BWS project UUID (defaults to inbox/bws-project-id-hermes.txt)"
+    )
     p.add_argument("--org-id", help="BWS org UUID (defaults to inbox/org-id.txt)")
     p.add_argument("--search", help="Case-insensitive substring filter on name")
     args = p.parse_args()
