@@ -5,9 +5,17 @@ Read this BEFORE writing code in this repo.
 ## What this repo is
 
 **`Ai-Whisperers/saskia-app`** is the source code for the RMS fase 1 app —
-the restaurant management system that runs on Saskia's PC. The dev plan is
-at `docs/plans/2026-08-31-rms-fase-1-dev-plan.md`. The build specs are at
-`docs/operations/2026-09-fase-1-specs.md`. Read both before writing any code.
+the restaurant management system. Supports **two deployment modes**:
+
+- **Local-first** (legacy): single-user install on Saskia's PC, binds to
+  `127.0.0.1`, SQLite, no third-party SaaS.
+- **Hosted** (recommended since 2026-09-02): Neon Postgres + Render + Cloudflare
+  Tunnel + Supabase Auth. Saskia just opens a URL. See
+  `docs/operations/2026-09-02-saskia-decision-hosted-pivot.md`.
+
+The dev plan is at `docs/plans/2026-08-31-rms-fase-1-dev-plan.md`. The build
+specs are at `docs/operations/2026-09-fase-1-specs.md`. Read both before
+writing any code.
 
 ## Who reads this
 
@@ -53,13 +61,22 @@ Per `docs/operations/2026-09-tech-stack-review.md`:
    (or `saskia-context/docs/operations/copy-vos-request.md`). No Argentine,
    no Mexican, no English-only.
 6. **Spanish (vos) form for verb conjugations.** "Guardá", not "Salvá".
-7. **Bind to `127.0.0.1` only.** `app/rms/main.py` has an assertion that
-   refuses to start on any other host.
+7. **Bind to `127.0.0.1` for local; `0.0.0.0` allowed for hosted.**
+   `app/rms/main.py` has an assertion that refuses to start on any other
+   host. Hosted (Render/Fly) uses `0.0.0.0` because TLS is terminated by
+   Cloudflare Tunnel and the port is not reachable from the public internet.
 8. **WAL mode + secure_delete = ON.** Set in `app/rms/db.py` event listener.
 9. **No live customer PII.** The app doesn't have a customer table;
    if you add one, follow AGENTS.md rule #4 of `saskia-context`.
 10. **No silent overwrite.** Every mass-write (import, re-import) requires
     explicit user confirmation; auto-backup before destructive ops.
+11. **Never commit credentials.** Pre-commit hook `check-no-secrets` blocks
+    any staged file containing GitHub PAT shapes (`ghp_*`, `ghs_*`, `gho_*`,
+    `ghu_*`, `github_pat_*`), `x-access-token:` URLs, AWS access keys, JWTs,
+    or long `key=value` strings. Use BWS for secrets. See
+    `scripts/check_no_secrets.py` and the `credential-redacted-grep` skill.
+    **If you find a leaked credential: rotate first, then scrub the transcript
+    with `scripts/redact_key.py`, then fix the leak path.**
 
 ## Testing
 

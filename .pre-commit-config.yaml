@@ -67,6 +67,19 @@ repos:
         language: system
         types: [yaml]
 
+      - id: check-no-secrets
+        name: block credential patterns in committed files
+        # Per AIW AGENTS.md rule + credential-redacted-grep skill.
+        # 2026-09-02: a rotated GitHub PAT was found in .git/config in a
+        # shared scratch dir. This hook catches future instances.
+        # Token-shape patterns: ghp_, ghs_, gho_, ghu_, github_pat_,
+        # x-access-token: URLs, AKIA (AWS), generic JWTs, long key=values.
+        entry: python scripts/check_no_secrets.py
+        language: system
+        pass_filenames: true
+        types_or: [python, yaml, json, toml, markdown, text, shell]
+        stages: [pre-commit]
+
 # Install:
 #   uv tool install pre-commit
 #   pre-commit install
