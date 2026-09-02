@@ -31,6 +31,7 @@ from bitwarden_sdk import BitwardenClient, ClientSettings, DeviceType  # noqa: E
 DB_URL_FILE = Path("/tmp/dbx.txt")
 BWS_TOKEN_PATH = Path("/opt/data/.hermes/inbox/bws-token.secret")
 ORG_ID_PATH = Path("/opt/data/.hermes/inbox/org-id.txt")
+PROJECT_ID_PATH = Path("/opt/data/.hermes/inbox/bws-project-id-hermes.txt")
 SECRET_NAME = "SASKIA_NEON_DATABASE_URL"
 SECRET_NOTE = "Saskia RMS hosted DB. Free tier 0.5GB, US East. 2026-09-02."
 
@@ -61,6 +62,7 @@ def main() -> int:
     # 2. Connect to BWS
     token = BWS_TOKEN_PATH.read_text().strip()
     org_id = ORG_ID_PATH.read_text().strip()
+    project_id = PROJECT_ID_PATH.read_text().strip()
     c = BitwardenClient(
         ClientSettings(
             api_url="https://api.bitwarden.com",
@@ -73,16 +75,21 @@ def main() -> int:
 
     # 3. Create the secret. The SDK returns the new secret's UUID.
     #    The value never appears in the response we print.
+    # Note: BWS SDK requires `key` (not `name`) and project_ids as a list
+    # for create() to succeed (otherwise 404 on a valid org).
     result = c.secrets().create(
         organization_id=uuid.UUID(org_id),
-        name=SECRET_NAME,
+        key=SECRET_NAME,
         value=url,
         note=SECRET_NOTE,
+        project_ids=[uuid.UUID(project_id)],
     )
 
     # 4. Print ONLY the new UUID — operator uses this to confirm.
     #    Do NOT print the URL, the value, or anything else.
-    print(f"saved: {result.id.hex if hasattr(result.id, 'hex') else result.id}")
+    new_id = result.data.id
+    new_id_str = new_id.hex if hasattr(new_id, "hex") else str(new_id)
+    print(f"saved: {new_id_str}")
     print(f"# {SECRET_NAME} stored. URL was {len(url)} chars (not echoed).")
     print(f"# DELETE THE INPUT FILE: shred -u {DB_URL_FILE}")
     return 0
