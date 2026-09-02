@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Sistema de gestión{% endblock %} — Saskia RMS</title>
   <link rel="stylesheet" href="/static/app.css">
+  <script>
+    // Theme persistence — read before paint to avoid flash.
+    (function() {
+      try {
+        var t = localStorage.getItem('saskia-theme');
+        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <nav class="topnav">
@@ -18,6 +27,8 @@
       <a href="/excel">Excel</a>
     </div>
     <div class="nav-right">
+      <button type="button" class="theme-toggle" id="theme-toggle"
+              aria-label="Cambiar tema claro/oscuro" title="Cambiar tema">🌙</button>
       <a href="/api/healthz" class="health-link" title="Estado del servidor">●</a>
     </div>
   </nav>
@@ -31,5 +42,30 @@
   <footer class="footer">
     <small>Sistema local · {{ now_year() }} · {{ "Gs." }} integer</small>
   </footer>
+
+  <script>
+    // Dark mode toggle (per stack audit 2026-09-02).
+    (function() {
+      var btn = document.getElementById('theme-toggle');
+      if (!btn) return;
+      function paint() {
+        var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        btn.textContent = dark ? '☀️' : '🌙';
+        btn.setAttribute('aria-pressed', String(dark));
+      }
+      paint();
+      btn.addEventListener('click', function() {
+        var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (dark) {
+          document.documentElement.removeAttribute('data-theme');
+          try { localStorage.setItem('saskia-theme', 'light'); } catch (e) {}
+        } else {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          try { localStorage.setItem('saskia-theme', 'dark'); } catch (e) {}
+        }
+        paint();
+      });
+    })();
+  </script>
 </body>
 </html>

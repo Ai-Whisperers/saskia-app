@@ -229,10 +229,17 @@ payload = {
     "number": SASKIA_NUMBER,
     "text": "<message body here>",
 }
-resp = json.loads(urllib.request.urlopen(urllib.request.Request(
-    f"{URL}/message/sendText/{INST}", data=json.dumps(payload).encode(),
-    headers={"apikey": KEY, "Content-Type": "application/json"}, method="POST"),
-    timeout=15).read())
+resp = json.loads(
+    urllib.request.urlopen(
+        urllib.request.Request(
+            f"{URL}/message/sendText/{INST}",
+            data=json.dumps(payload).encode(),
+            headers={"apikey": KEY, "Content-Type": "application/json"},
+            method="POST",
+        ),
+        timeout=15,
+    ).read()
+)
 print(f"sent_message_id={(resp.get('key') or {}).get('id')}")
 ```
 

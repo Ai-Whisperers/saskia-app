@@ -30,6 +30,7 @@ from sqlalchemy.orm import Session
 
 from app.rms.config import BACKUP_DIR, BACKUP_THRESHOLD_HOURS, KEEP_LOCAL_BACKUPS_DAYS
 from app.rms.models import AppMeta
+from app.services.export_csv import to_dir as to_csv_dir
 from app.services.export_xlsx import to_file
 from app.services.r2_backup import (
     Boto3Storage,
@@ -109,6 +110,59 @@ def _prune_old_local_backups(folder: Path, keep_last_n: int) -> int:
     return deleted
 
 
+def _prune_old_csv_backups(folder: Path, keep_last_n: int) -> int:
+    """Keep the N most recent sets of CSV backups; delete the rest.
+
+    Files are matched on the timestamp prefix so we keep the N most recent
+    *export runs* (each run writes 8 files, one per table). We don't split
+    the same timestamp's files across the cutoff.
+    """
+    if not folder.exists():
+        return 0
+    files = list(folder.glob("rms-csv-*.csv"))
+    if not files:
+        return 0
+    # Group by timestamp prefix (rms-csv-YYYYMMDD-HHMMSS-...)
+    timestamps: dict[str, list[Path]] = {}
+    for f in files:
+        # Filename: rms-csv-YYYYMMDD-HHMMSS-<table>.csv
+        parts = f.name.split("-", 4)
+        if len(parts) < 5:
+            continue
+        ts = "-".join(parts[1:4])  # YYYYMMDD-HHMMSS
+        timestamps.setdefault(ts, []).append(f)
+    # Sort timestamps newest-first (filenames sort the same as timestamps)
+    sorted_ts = sorted(timestamps.keys(), reverse=True)
+    deleted = 0
+    for ts in sorted_ts[keep_last_n:]:
+        for f in timestamps[ts]:
+            try:
+                f.unlink()
+                deleted += 1
+            except OSError:
+                pass
+    return deleted
+
+
+def _prune_old_sqlite_snapshots(folder: Path, keep_last_n: int) -> int:
+    """Keep the N most recent SQLite snapshots; delete the rest."""
+    if not folder.exists():
+        return 0
+    files = sorted(
+        folder.glob("rms-snapshot-*.sqlite"),
+        key=lambda f: f.stat().st_mtime,
+        reverse=True,
+    )
+    deleted = 0
+    for f in files[keep_last_n:]:
+        try:
+            f.unlink()
+            deleted += 1
+        except OSError:
+            pass
+    return deleted
+
+
 def _build_storage() -> Storage | None:
     """Build an R2 Storage adapter if configured; else None.
 
@@ -159,15 +213,29 @@ def run_backup(
             reason=f"Last backup at {last_backup.isoformat()} is within {threshold_hours}h threshold",
         )
 
-    # 1. Local xlsx export
+    # 1. Local xlsx export (human-readable; monthly report for the operator)
     backup_dir.mkdir(parents=True, exist_ok=True)
     timestamp = now.strftime("%Y%m%d-%H%M%S")
     local_path = backup_dir / f"rms-backup-{timestamp}.xlsx"
     written = to_file(session, local_path)
     assert written == local_path.resolve() or written == local_path
 
-    # 2. Prune old local backups
+    # 1b. CSV exports (diffable, importable anywhere; one file per table)
+    to_csv_dir(session, backup_dir)
+
+    # 1c. SQLite snapshot (byte-perfect restore; takes copy under WAL lock)
+    snap_path = backup_dir / f"rms-snapshot-{timestamp}.sqlite"
+    import sqlite3
+
+    with sqlite3.connect(str(db_path)) as src:
+        with sqlite3.connect(str(snap_path)) as dst:
+            src.backup(dst)
+
+    # 2. Prune old local backups (xlsx only; CSVs and snapshots are pruned
+    #    in their own folders below — keeps the policy simple)
     pruned = _prune_old_local_backups(backup_dir, keep_last_n)
+    pruned += _prune_old_csv_backups(backup_dir, keep_last_n)
+    pruned += _prune_old_sqlite_snapshots(backup_dir, keep_last_n)
 
     # 3. Update last_backup_at meta
     _set_meta(session, APP_META_LAST_BACKUP, now.isoformat())
@@ -185,31 +253,17 @@ def run_backup(
         try:
             key_path = key_file or (backup_dir / KEY_FILE_NAME)
             fernet_key = load_or_create_key(key_path)
-            # Take a fresh snapshot of the SQLite DB for upload.
-            # Use sqlite3 backup API for WAL safety (shutil.copyfile would
-            # race with concurrent writes; backup is atomic-ish).
-            import sqlite3
-
-            snap_path = backup_dir / f"rms-snapshot-{timestamp}.sqlite"
-            with sqlite3.connect(str(db_path)) as src:
-                with sqlite3.connect(str(snap_path)) as dst:
-                    src.backup(dst)
-            try:
-                plaintext = snap_path.read_bytes()
-                r2_key = f"rms-snapshots/{timestamp}.sqlite.enc"
-                encrypt_and_upload(r2_storage, fernet_key, r2_key, plaintext)
-                _set_meta(
-                    session,
-                    APP_META_LAST_R2_BACKUP,
-                    now.isoformat(),
-                )
-                session.commit()
-                r2_uploaded = True
-            finally:
-                try:
-                    snap_path.unlink()
-                except OSError:
-                    pass
+            # Re-use the local snapshot we already wrote (1c above).
+            plaintext = snap_path.read_bytes()
+            r2_key = f"rms-snapshots/{timestamp}.sqlite.enc"
+            encrypt_and_upload(r2_storage, fernet_key, r2_key, plaintext)
+            _set_meta(
+                session,
+                APP_META_LAST_R2_BACKUP,
+                now.isoformat(),
+            )
+            session.commit()
+            r2_uploaded = True
         except StorageError as exc:
             # Don't crash the app on R2 failure; log and continue.
             # Real logging is added in Batch 5.5; for now we leave a

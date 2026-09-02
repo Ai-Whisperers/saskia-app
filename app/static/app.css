@@ -306,3 +306,85 @@ input[type="file"] {
   font-size: 12px;
   border-top: 1px solid var(--border);
 }
+
+/* --- Mobile responsiveness (added 2026-09-02 per stack audit) ---
+   Below 720px: nav stacks, tables scroll horizontally, forms go full-width. */
+@media (max-width: 720px) {
+  .container { padding: 0 16px; margin: 16px auto; }
+  .topnav { flex-wrap: wrap; gap: 12px; padding: 12px 16px; }
+  .nav-links { order: 3; width: 100%; gap: 2px; }
+  .nav-links a { padding: 8px 10px; font-size: 13px; flex: 1; text-align: center; }
+  .brand { font-size: 16px; }
+  .metrics-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .metric { padding: 12px; }
+  .metric-value { font-size: 20px; }
+  h1 { font-size: 22px; }
+  h2 { font-size: 18px; }
+  form { padding: 16px; max-width: none; }
+  .footer { margin-top: 32px; padding: 16px; font-size: 11px; }
+  /* Tables: wrap in a scroll container rather than overflow on the page */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.data { min-width: 480px; }
+  table.data th, table.data td { padding: 8px 10px; font-size: 13px; }
+}
+
+@media (max-width: 420px) {
+  .metrics-grid { grid-template-columns: 1fr; }
+  .nav-links a { font-size: 12px; padding: 6px 4px; }
+}
+
+/* --- Dark mode (added 2026-09-02) ---
+   Toggle via [data-theme="dark"] on <html>. Persisted to localStorage.
+   Toggle button is in base.html; this is just the styling. */
+[data-theme="dark"] {
+  --bg: #0f172a;
+  --card-bg: #1e293b;
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --border: #334155;
+  --primary: #fbbf24;            /* brighter amber for dark bg */
+  --primary-hover: #fcd34d;
+  --danger: #fca5a5;
+  --warn: #fcd34d;
+  --good: #86efac;
+  --ok: #93c5fd;
+  --flash-bg: #450a0a;
+  --flash-border: #fca5a5;
+}
+[data-theme="dark"] .form-row input,
+[data-theme="dark"] .form-row select,
+[data-theme="dark"] .form-row textarea {
+  background: #0f172a;
+  color: var(--text);
+}
+[data-theme="dark"] .badge-ok,
+[data-theme="dark"] .badge-good { background: #14532d; color: #86efac; }
+[data-theme="dark"] .badge-warn { background: #78350f; color: #fcd34d; }
+[data-theme="dark"] .badge-danger { background: #7f1d1d; color: #fca5a5; }
+
+.theme-toggle {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text);
+  font-family: inherit;
+}
+.theme-toggle:hover { background: var(--bg); }
+
+/* --- Print stylesheet (added 2026-09-02) ---
+   Monthly close / stockout reports get a paper-friendly layout. */
+@media print {
+  .topnav, .footer, .alerts-bar, .form-actions, .period-toggle,
+  .theme-toggle, .btn { display: none !important; }
+  body { background: white; color: black; font-size: 11pt; }
+  .container { max-width: none; padding: 0; margin: 0; }
+  h1 { font-size: 18pt; }
+  h2 { font-size: 14pt; }
+  table.data { border: 1px solid #000; }
+  table.data th { background: #f0f0f0; color: #000; }
+  table.data td, table.data th { padding: 4px 8px; font-size: 10pt; }
+  a { color: black; text-decoration: none; }
+}

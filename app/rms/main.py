@@ -66,7 +66,33 @@ def _assert_bind() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize DB + run backup scheduler on startup."""
+    """Initialize DB + run backup scheduler on startup.
+
+    Also wires up Sentry error tracking if SENTRY_DSN env var is set.
+    No-op when SENTRY_DSN is unset — keeps the dependency optional in dev.
+    """
+    # Sentry — gated by env var. Free tier 5K events/mo at sentry.io.
+    # We add sentry_sdk to deps but never require it to be initialized;
+    # if the env var is missing, this block is skipped.
+    sentry_dsn = os.getenv("SENTRY_DSN")
+    if sentry_dsn:
+        try:
+            import sentry_sdk
+            from sentry_sdk.integrations.fastapi import FastApiIntegration
+            from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+
+            sentry_sdk.init(
+                dsn=sentry_dsn,
+                integrations=[FastApiIntegration(), SqlalchemyIntegration()],
+                traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+                # Don't capture PII by default. Saskia's data is sensitive.
+                send_default_pii=False,
+                environment=os.getenv("SENTRY_ENVIRONMENT", "production"),
+                release=app.version,
+            )
+        except Exception as exc:  # noqa: BLE001 — Sentry init must never crash the app
+            print(f"WARNING: Sentry init failed: {exc}", file=sys.stderr)
+
     ensure_dirs()
     url = get_database_url()
     engine = make_engine_dialect(url)
