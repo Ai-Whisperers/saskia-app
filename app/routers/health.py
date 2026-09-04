@@ -16,6 +16,7 @@ state. They only report liveness and DB mode. Safe to hit.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -46,6 +47,36 @@ def healthz_head() -> Response:
     Same 200/headers as GET; body is stripped by the transport layer.
     """
     return Response(status_code=200, media_type="application/json")
+
+
+@router.get("/healthz/deps")
+def healthz_deps() -> dict:
+    """Dependency fingerprint for debugging env mismatches on Render.
+
+    Reports presence + sha256 prefix of key env vars (never the values)
+    and importable package versions. Public: safe metadata only.
+    """
+    import hashlib
+    import importlib.metadata as md
+
+    def fp(name: str) -> str | None:
+        v = os.environ.get(name)
+        if v is None:
+            return None
+        return f"len={len(v)} sha={hashlib.sha256(v.encode()).hexdigest()[:12]}"
+
+    pkgs = {}
+    for pkg in ("supabase", "supabase-auth", "fastapi", "starlette"):
+        try:
+            pkgs[pkg] = md.version(pkg)
+        except Exception:
+            pkgs[pkg] = "NOT INSTALLED"
+    return {
+        "SUPABASE_URL": fp("SUPABASE_URL"),
+        "SUPABASE_PUBLISHABLE_KEY": fp("SUPABASE_PUBLISHABLE_KEY"),
+        "SUPABASE_SECRET_KEY": fp("SUPABASE_SECRET_KEY"),
+        "packages": pkgs,
+    }
 
 
 @router.get("/healthz/db")
