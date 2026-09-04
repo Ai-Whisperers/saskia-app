@@ -16,20 +16,36 @@ state. They only report liveness and DB mode. Safe to hit.
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy import text
 
 router = APIRouter()
 
 
-@router.get("/healthz")
-def healthz() -> dict:
-    """Cheap health check. Returns 200 always (uvicorn is alive)."""
+def _healthz_payload() -> dict[str, Any]:
+    """Shared payload for GET and HEAD (HEAD strips the body at transport level)."""
     return {
         "status": "ok",
         "service": "aiw-saskia-rms",
     }
+
+
+@router.get("/healthz")
+def healthz() -> dict:
+    """Cheap health check. Returns 200 always (uvicorn is alive)."""
+    return _healthz_payload()
+
+
+@router.head("/healthz", name="healthz-head")
+def healthz_head() -> Response:
+    """HEAD variant for uptime monitors (UptimeRobot) that probe with HEAD.
+
+    Same 200/headers as GET; body is stripped by the transport layer.
+    """
+    return Response(status_code=200, media_type="application/json")
 
 
 @router.get("/healthz/db")

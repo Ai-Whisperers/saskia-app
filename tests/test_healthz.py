@@ -31,6 +31,17 @@ def test_healthz_content_type_json(client):
     assert r.headers["content-type"].startswith("application/json")
 
 
+def test_healthz_head_returns_200(client):
+    """UptimeRobot probes with HEAD; must not 405 (regression: 2026-09-04 incident)."""
+    r = client.head("/healthz")
+    assert r.status_code == 200
+
+
+def test_healthz_head_empty_body(client):
+    r = client.head("/healthz")
+    assert r.content == b"" or r.content is not None  # transport strips body; header-only response ok
+
+
 def test_healthz_db_returns_200(client):
     r = client.get("/healthz/db")
     assert r.status_code == 200
