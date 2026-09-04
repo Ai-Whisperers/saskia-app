@@ -26,6 +26,7 @@ int), NOT the denormalized name. Importer resolves the FK by name.
 from __future__ import annotations
 
 import csv
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -148,6 +149,9 @@ def _row_for(model_obj, columns: list[str]) -> list:
         # Handle datetime -> ISO string for stable diffs
         if isinstance(value, datetime):
             value = value.isoformat()
+        # JSON columns arrive as dicts — serialize for CSV
+        if isinstance(value, dict):
+            value = json.dumps(value, ensure_ascii=False)
         row.append(value)
     return row
 

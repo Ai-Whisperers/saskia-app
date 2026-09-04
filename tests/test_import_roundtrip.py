@@ -155,7 +155,8 @@ def test_import_records_batch_metadata(session_factory, mini_xlsx_path: Path):
         batch = s.get(ImportBatch, result.batch_id)
         assert batch is not None
         assert batch.source_filename == mini_xlsx_path.name
-        counts = json.loads(batch.row_counts_json)
+        raw_counts = batch.row_counts_json
+        counts = json.loads(raw_counts) if isinstance(raw_counts, str) else raw_counts
         assert counts["ingredients"] == 3
         assert counts["recipes"] == 1
 

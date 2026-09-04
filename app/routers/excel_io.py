@@ -41,10 +41,14 @@ async def excel_home(request: Request, session: Session = Depends(get_session)) 
     last_import = None
     if batches:
         b = batches[0]
-        try:
-            counts = json.loads(b.row_counts_json)
-        except (json.JSONDecodeError, TypeError):
-            counts = {}
+        raw = b.row_counts_json
+        if isinstance(raw, str):
+            try:
+                counts = json.loads(raw)
+            except (json.JSONDecodeError, TypeError):
+                counts = {}
+        else:
+            counts = raw or {}
         last_import = {
             "filename": b.source_filename,
             "imported_at_str": b.imported_at.strftime("%d/%m/%Y %H:%M"),

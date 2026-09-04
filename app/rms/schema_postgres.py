@@ -197,7 +197,7 @@ class ImportBatch(Base):
     imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     source_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    row_counts_json: Mapped[str] = mapped_column(JSONB, nullable=False, default="{}")
+    row_counts_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
 
 # --- User table for single-tenant auth (Milestone 1) ---

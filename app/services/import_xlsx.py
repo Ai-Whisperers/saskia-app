@@ -369,7 +369,7 @@ def from_file(session: Session, path: str | Path) -> ImportResult:
         imported_at=datetime.now(),
         source_filename=path.name,
         note=None,
-        row_counts_json=json.dumps(result.row_counts()),
+        row_counts_json=result.row_counts(),
     )
     session.add(batch)
     session.flush()

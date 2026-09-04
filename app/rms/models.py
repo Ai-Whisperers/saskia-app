@@ -19,6 +19,7 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     DateTime,
     Float,
@@ -230,7 +231,7 @@ class ImportBatch(Base):
     imported_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     source_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    row_counts_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    row_counts_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
 
 # --- User table for single-tenant auth (Milestone 1) ---
