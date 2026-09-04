@@ -30,7 +30,8 @@ RUN pip install --upgrade pip && \
     "boto3>=1.34,<2" \
     "bcrypt>=4.1,<5" \
     "itsdangerous>=2.2,<3" \
-    "apscheduler>=3.10,<4"
+    "apscheduler>=3.10,<4" \
+    "supabase>=2.31.0"
 
 # App code
 COPY app ./app
