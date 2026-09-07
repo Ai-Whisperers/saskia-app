@@ -28,6 +28,7 @@ from app.auth import (
 from app.services.template_render import render
 
 from app.rms.audit import record as audit_record
+from app.rms.rate_limit import is_disabled, is_rate_limited
 
 router = APIRouter()
 
@@ -62,6 +63,22 @@ def login_submit(
 ) -> RedirectResponse:
     """Sign in. Dispatch to Supabase Auth or local bcrypt based on config."""
     safe_next = next if next.startswith("/") and not next.startswith("//") else "/"
+
+    # Rate limit: block before dispatching to backend.
+    # Bypass if AIW_SASKIA_AUTH_DISABLED=1 (test/maintenance).
+    if not is_disabled():
+        from fastapi.responses import JSONResponse
+
+        decision = is_rate_limited(session, request)
+        if not decision.allowed:
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "detail": "Demasiados intentos. Intenta nuevamente en unos minutos.",
+                    "retry_after_seconds": decision.retry_after_seconds,
+                },
+                headers={"Retry-After": str(decision.retry_after_seconds)},
+            )
 
     if using_supabase():
         return _login_supabase(request, username, password, safe_next)

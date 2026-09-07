@@ -22,6 +22,9 @@
   CSP, and Permissions-Policy on every response (including /healthz
   and 3xx redirects). HSTS conditional on HTTPS_ONLY (off for local-dev
   over http). 9 tests lock the behavior in.
+- **Login rate-limit (E3.S2)**: 5 failures / 5 min per IP → 429 with
+  Retry-After. Backed by audit log (login.rate_limited rows for forensics).
+  /healthz is exempt. AIW_SASKIA_AUTH_DISABLED=1 bypasses for tests.
 - **CF tunnel rotation runbook (E1.S3)**:
   `docs/operations/cf-tunnel-rotation.md`. 7-step procedure with
   90-day cadence (next: 2026-12-04) and rollback. Operator-only;
