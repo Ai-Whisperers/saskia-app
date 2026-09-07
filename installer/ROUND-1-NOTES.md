@@ -115,12 +115,12 @@ Copy this template for each new item:
 4. `installer/run.bat` didn't set `AIW_SASKIA_*_DIR` overrides for her user profile — added
 
 **2 unfixed governance issues:**
-1. The .bat edits were made live on her machine, not pushed back to repo. Operator needs to commit the patched `run.bat` so the next install doesn't repeat the bugs.
-2. `installer/ROUND-1-NOTES.md` (this file) didn't exist on disk — was referenced in handoff message but never created. (FIXED 2026-09-02.)
+1. ~~The .bat edits were made live on her machine, not pushed back to repo.~~ **FIXED 2026-09-04**: commit `94f9a24` ("build: unified run.bat (hosted-first + local fallback) + deploy runbook") shipped all 4 launcher fixes; commit `6fef4a2` ("fix(installer): README points at correct repo URL") cleaned the clone URL. Verified 334 tests passing at 81% coverage on the resulting tree.
+2. ~~`installer/ROUND-1-NOTES.md` (this file) didn't exist on disk~~ **FIXED 2026-09-02** (per the original closing note above).
 
-**Build team:** Local install stable as of 2026-09-01 18:05 UTC. Hosted pivot planned per `docs/operations/2026-09-02-saskia-decision-hosted-pivot.md`.
+**Build team:** Local install stable as of 2026-09-01 18:05 UTC. Hosted pivot landed 2026-09-04 at https://saskia-rms.paragu-ai.com; 5 production hotfixes in 24h (`f1af406`, `c093a75`, `99b37c6`, `bb21eff`, `501bcff`).
 
-**Closed at:** 2026-09-02
+**Closed at:** 2026-09-04 (governance items closed by `94f9a24` + `6fef4a2`)
 
 ---
 
