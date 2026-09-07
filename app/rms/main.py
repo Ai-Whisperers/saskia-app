@@ -26,6 +26,8 @@ import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+
+from app.rms.security_headers import SecurityHeadersMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -130,6 +132,11 @@ app = FastAPI(
     redoc_url=None,
     openapi_url="/api/openapi.json",
 )
+
+# Security headers middleware: defense-in-depth HTTP response headers
+# (X-Frame-Options, CSP, HSTS, etc.). Registered BEFORE SessionMiddleware
+# so it runs OUTERMOST and its headers are guaranteed on every response.
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Session middleware: signs cookies with SESSION_SECRET.
 # Must be added BEFORE routers so login_user() can write to request.session.
