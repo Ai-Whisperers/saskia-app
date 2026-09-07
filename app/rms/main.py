@@ -191,12 +191,56 @@ app.include_router(sales.router)
 app.include_router(excel_io.router)
 
 
-def run() -> None:
-    """Programmatic entry point (used by `uv run aiw-saskia` script entry).
+def migrate() -> None:
+    """Schema migration entry point. Idempotent.
 
-    Reads BIND_HOST, PORT from config (which reads env vars). Asserts
-    bind is allowed before starting.
+    Usage:
+        uv run aiw-saskia migrate            # uses DATABASE_URL or AIW_SASKIA_DB_PATH
+        DATABASE_URL=postgres://... uv run aiw-saskia migrate
     """
+    import sys
+
+    from sqlalchemy import inspect
+
+    from app.rms.db import CURRENT_SCHEMA_VERSION, _current_schema_version, init_db
+    from app.rms.db_dialect import make_engine
+
+    raw = os.environ.get("DATABASE_URL")
+    if not raw:
+        local_db = os.environ.get("AIW_SASKIA_DB_PATH")
+        if local_db:
+            raw = f"sqlite:///{local_db}"
+        else:
+            print(
+                "ERROR: DATABASE_URL (or AIW_SASKIA_DB_PATH) not set. "
+                "Cannot determine which DB to migrate.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+    engine = make_engine(raw)
+    print(f"engine driver: {engine.url.drivername}")
+    try:
+        with engine.connect() as conn:
+            before = _current_schema_version(conn)
+    except Exception:
+        before = 0
+
+    if before == CURRENT_SCHEMA_VERSION:
+        print(f"schema_version already at {CURRENT_SCHEMA_VERSION} (no-op)")
+        insp = inspect(engine)
+        schema = "public" if engine.dialect.name == "postgresql" else None
+        for t in sorted(insp.get_table_names(schema=schema)):
+            print(f"  - {t}")
+        return
+
+    print(f"schema_version: {before} -> {CURRENT_SCHEMA_VERSION}")
+    init_db(engine)
+    print(f"schema applied at version {CURRENT_SCHEMA_VERSION}")
+
+
+def _serve() -> None:
+    """Start uvicorn. Internal helper — do not call directly; use run()."""
     import uvicorn
 
     from app.rms.config import PORT
@@ -209,6 +253,30 @@ def run() -> None:
         log_level="info",
         reload=False,  # dev: set to True for hot reload during development
     )
+
+
+def run() -> None:
+    """Programmatic entry point (used by `uv run aiw-saskia` script entry).
+
+    Dispatches based on sys.argv:
+      - `aiw-saskia migrate`   -> apply schema migrations (idempotent)
+      - `aiw-saskia serve`     -> start uvicorn (default; backward compatible)
+      - (no argv)              -> start uvicorn (backward compatible)
+
+    Reads BIND_HOST, PORT from config (which reads env vars). Asserts
+    bind is allowed before starting.
+    """
+    import sys
+
+    argv = sys.argv[1:]
+    if argv and argv[0] == "migrate":
+        migrate()
+        return
+    if argv and argv[0] in ("serve", "run", "start"):
+        _serve()
+        return
+    # Default: serve (backward compat with pre-argv-dispatch entry)
+    _serve()
 
 
 if __name__ == "__main__":

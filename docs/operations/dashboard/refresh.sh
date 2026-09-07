@@ -11,7 +11,14 @@
 
 set -euo pipefail
 
-PROJECT_DIR="${1:-/opt/data/profiles/ivan/scratch/saskia-build-full/saskia-app}"
+# Default: explicit arg, else PWD if it is a saskia-app git repo, else legacy scratch path
+if [ -n "${1:-}" ]; then
+  PROJECT_DIR="$1"
+elif [ -d "$PWD/.git" ] && [ "$(basename "$PWD")" = "saskia-app" ]; then
+  PROJECT_DIR="$PWD"
+else
+  PROJECT_DIR="/opt/data/profiles/ivan/scratch/saskia-build-full/saskia-app"
+fi
 DASHBOARD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [ ! -d "$PROJECT_DIR" ]; then
