@@ -2,7 +2,8 @@
 # Per tech-stack-review #12: GitHub Actions is free for public repos; this
 # repo (Ai-Whisperers/saskia) IS public, so this is free.
 #
-# Triggers on PR to main. Runs ruff + pytest. ~2 min total.
+# Triggers on PR to main. Runs ruff + pytest + migrate smoke + CHANGELOG gate.
+# ~3 min total.
 
 name: CI
 
@@ -48,3 +49,37 @@ jobs:
       - name: Type check (mypy, non-strict)
         run: uv run mypy app/ || true  # mypy is informational, not blocking yet
         continue-on-error: true
+
+      # ---- E2.S3.T2: migrate CLI smoke test ----
+      # Verifies that the application can boot, apply schema, and exit cleanly
+      # against a fresh SQLite DB. This catches regressions in the migrate()
+      # entry point (which the previous batch made idempotent).
+      - name: Migrate smoke test (fresh DB)
+        run: |
+          TMP_DB=$(mktemp /tmp/saskia-migrate-smoke.XXXXXX.sqlite)
+          AIW_SASKIA_DB_PATH="$TMP_DB" uv run aiw-saskia migrate
+
+      # ---- E5.S3.T3: CHANGELOG must be updated on every PR ----
+      # Rejects any PR that touches app/, scripts/, tests/, or .github/ but
+      # doesn't also touch app/CHANGELOG.md. Keeps the [Unreleased] section
+      # honest.
+      - name: CHANGELOG discipline check
+        run: |
+          changed=$(git diff --name-only origin/main...HEAD 2>/dev/null || git diff --name-only HEAD~1)
+          hits=false
+          for f in $changed; do
+            case "$f" in
+              app/*|scripts/*|tests/*|.github/*) hits=true ;;
+            esac
+          done
+          if [ "$hits" = "true" ]; then
+            if echo "$changed" | grep -q "^app/CHANGELOG.md$"; then
+              echo "OK: app/CHANGELOG.md updated"
+            else
+              echo "ERROR: code changed but app/CHANGELOG.md was not updated."
+              echo "Per E5.S3, every PR touching code must also touch app/CHANGELOG.md."
+              echo "Changed files:"
+              echo "$changed" | sed 's/^/  /'
+              exit 1
+            fi
+          fi

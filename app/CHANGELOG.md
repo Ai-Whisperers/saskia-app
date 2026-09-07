@@ -55,6 +55,60 @@ which migrated to `saskia-app` repo. **Not yet on her PC.**
   `test_recipe_polymorphic.py` — Tasks 1, 2, 6, 9.
 - `tests/fixtures/stress.xlsx` (real-scale synthetic) — Task 6.
 
+## [2026.09.0] — 2026-09-04 / 2026-09-07 — Fase 1.5 hardening
+
+**Status:** Closed Fase 1 production hotfixes + hardened deploy CI. **On her PC** once operator syncs `main` branch.
+
+### Added
+
+- **`docs/wishlist/`** (append-only bucket for future ideas; 21 seeds from
+  critical-path analysis). Includes `README.md` format spec and `raw/` /
+  `triaged/` / `rejected/` subdirs.
+- **`tests/test_hotfix_regressions.py`** — 15 fail-closed tests for the 5
+  production hotfixes landed on 2026-09-04 (HEAD /healthz, SUPABASE_SECRET_KEY
+  alias, supabase in Dockerfile pip list, /healthz/deps fingerprint,
+  row_counts_json JSONB match). Proven fail-closed by reverting the HEAD route
+  and confirming 2 tests fail with the original 405.
+- **`tests/test_migrate_cli.py`** — 5 tests covering the new `aiw-saskia
+  migrate` CLI (idempotent first/second run, schema detection across SQLite
+  and Postgres dialects, argv dispatch).
+- **CLI dispatch in `app/rms/main.py`**: `run()` now dispatches on sys.argv —
+  `aiw-saskia migrate` invokes `migrate()` (idempotent schema apply);
+  `aiw-saskia serve` and bare `aiw-saskia` start uvicorn (backward compatible).
+- **`migrate()` entry point** in `app/rms/main.py`: idempotent (checks
+  schema_version; no-op if already at target); supports both `DATABASE_URL`
+  (Postgres) and `AIW_SASKIA_DB_PATH` (SQLite) so it works for hosted and
+  local dev.
+- **CI: migrate smoke test** in `.github/workflows/ci.yml` — runs
+  `aiw-saskia migrate` against a fresh SQLite on every PR to catch migrate()
+  regressions.
+- **CI: CHANGELOG discipline check** — every PR touching `app/`, `scripts/`,
+  `tests/`, or `.github/` must also touch `app/CHANGELOG.md` or CI fails.
+
+### Changed
+
+- **`scripts/apply_neon_schema.py`** — now a thin wrapper around `migrate()`
+  with dialect-aware schema introspection (works on both PG and SQLite).
+- **`docs/operations/dashboard/refresh.sh`** — autodetects when `$PWD` is a
+  saskia-app git repo, falling back to the legacy scratch path only when
+  both are absent. Previously the hard-coded path didn't exist.
+- **`installer/README.md`** — clone URL corrected from `saskia.git` to
+  `saskia-app.git` (commit `6fef4a2`).
+
+### Test results
+
+- 354 tests pass (was 334; +20 from `test_hotfix_regressions` and
+  `test_migrate_cli`).
+- Coverage: 82% (was 81%; held at >= 80% gate).
+
+### Hotfixes locked in by the regression suite (commits on `main`)
+
+- `f1af406` — HEAD /healthz for UptimeRobot
+- `c093a75` — SUPABASE_SECRET_KEY / SUPABASE_PUBLISHABLE_KEY aliases
+- `99b37c6` — supabase SDK in Dockerfile pip list
+- `bb21eff` — /healthz/deps env fingerprint
+- `501bcff` — `row_counts_json` ORM type matches Postgres JSONB column
+
 ## Versioning
 
 - We use CalVer: `YYYY.MM.patch` (e.g., `2026.09.0`).
