@@ -3,7 +3,15 @@
 > **For Kiki, Saskia, and any agent.** App-level changelog separate from the
 > repo-level changelog. Tracks changes to the `app/` source code, not the docs.
 
-## [Unreleased] — pre-signoff skeleton
+## [Unreleased]
+
+### Added
+
+- `.github/ISSUE_TEMPLATE/{bug,feature,epic}.md` for guided issue filing.
+- AGENTS.md gains "Issue templates", "Locked hotfixes", and refreshed CI
+  list sections.
+
+## [Unreleased-pre-templates] — pre-signoff skeleton
 
 **Status:** Skeleton landed in pre-signoff commit `f82dfb3` of the engagement repo,
 which migrated to `saskia-app` repo. **Not yet on her PC.**

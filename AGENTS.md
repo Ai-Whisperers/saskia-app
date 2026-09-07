@@ -91,10 +91,38 @@ Per `docs/operations/2026-09-tech-stack-review.md`:
 GitHub Actions runs on every PR to `main`:
 - `ruff check .`
 - `ruff format --check .`
-- `pytest --cov=app`
+- `pytest --cov=app` (80% coverage gate)
 - Typer check (informational; not blocking yet)
+- `aiw-saskia migrate` smoke test (fresh SQLite)
+- CHANGELOG discipline check (fails PR if `app/`, `scripts/`, `tests/`, or
+  `.github/` changed but `app/CHANGELOG.md` did not)
 
 See `.github/workflows/ci.yml`.
+
+## Issue templates
+
+When filing an issue, pick the right template:
+
+- **Bug report** (`.github/ISSUE_TEMPLATE/bug.md`) — defect in deployed code.
+- **Feature request** (`.github/ISSUE_TEMPLATE/feature.md`) — proposal for
+  a new feature. **Check `docs/wishlist/raw/` first** — the idea may already
+  be there. If so, link rather than duplicate.
+- **Epic / story** (`.github/ISSUE_TEMPLATE/epic.md`) — multi-PR initiative
+  with several stories. Use for any work scoped across multiple PRs.
+
+## Locked hotfixes (DO NOT REVERT without understanding)
+
+The commits on `main` below address real production incidents from
+2026-09-04. Each is locked in by a fail-closed test in
+`tests/test_hotfix_regressions.py`. If a refactor breaks one of those
+tests, the right answer is almost always to update the code to match the
+test, NOT to relax the test.
+
+- `f1af406` — HEAD /healthz for UptimeRobot
+- `c093a75` — SUPABASE_SECRET_KEY / SUPABASE_PUBLISHABLE_KEY aliases
+- `99b37c6` — supabase SDK in Dockerfile pip list
+- `bb21eff` — /healthz/deps env fingerprint (debug-only, never leaks values)
+- `501bcff` — `row_counts_json` ORM type matches Postgres JSONB
 
 ## Cross-references
 
