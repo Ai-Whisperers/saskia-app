@@ -19,12 +19,15 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.auth import (
+    current_user_id,
     get_db_session,
     login_user_local,
     logout_user,
     using_supabase,
 )
 from app.services.template_render import render
+
+from app.rms.audit import record as audit_record
 
 router = APIRouter()
 
@@ -104,6 +107,14 @@ def _login_local(
         .one_or_none()
     )
     if user is None or not verify_password(password, user.password_hash or ""):
+        audit_record(
+            session,
+            user_id=None,
+            action="login.failure",
+            request=request,
+            detail={"backend": "local", "username": username, "reason": "bad_credentials"},
+        )
+        session.commit()
         return RedirectResponse(
             url=f"/login?next={safe_next}&error=credenciales+inv%C3%A1lidas",
             status_code=status.HTTP_303_SEE_OTHER,
@@ -112,6 +123,13 @@ def _login_local(
 
     login_user_local(request, user.id, user.username)
     user.last_login_at = datetime.now().isoformat()
+    audit_record(
+        session,
+        user_id=user.id,
+        action="login.success",
+        request=request,
+        detail={"backend": "local", "username": username},
+    )
     session.commit()
     return RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
 
@@ -119,12 +137,21 @@ def _login_local(
 @router.post("/logout")
 def logout(request: Request) -> RedirectResponse:
     """Clear session, redirect to /login."""
+    user_id = current_user_id(request)
     if using_supabase():
         from app.auth_supabase import SESSION_KEY_ACCESS, sign_out
 
         access = request.session.get(SESSION_KEY_ACCESS)
         if access:
             sign_out(access)
+    db = get_db_session(request)
+    audit_record(
+        db,
+        user_id=user_id,
+        action="logout",
+        request=request,
+    )
+    db.commit()
     logout_user(request)
     return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -132,12 +159,21 @@ def logout(request: Request) -> RedirectResponse:
 @router.get("/logout")
 def logout_get(request: Request) -> RedirectResponse:
     """GET variant for nav links."""
+    user_id = current_user_id(request)
     if using_supabase():
         from app.auth_supabase import SESSION_KEY_ACCESS, sign_out
 
         access = request.session.get(SESSION_KEY_ACCESS)
         if access:
             sign_out(access)
+    db = get_db_session(request)
+    audit_record(
+        db,
+        user_id=user_id,
+        action="logout",
+        request=request,
+    )
+    db.commit()
     logout_user(request)
     return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
 

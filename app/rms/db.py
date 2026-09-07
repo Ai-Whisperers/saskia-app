@@ -27,6 +27,8 @@ from collections.abc import Callable
 from typing import Any
 
 from sqlalchemy import create_engine, event, text
+from datetime import datetime, timezone
+
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -107,6 +109,49 @@ def _migration_001_initial_schema(conn: Any) -> None:
 
 MIGRATIONS: dict[int, MigrationFn] = {
     1: _migration_001_initial_schema,
+}
+
+
+def _migration_002_audit_log(conn: Any) -> None:
+    """Add the audit_log table (E3.S1).
+
+    Records every security-relevant action: login success/failure, logout,
+    password reset, sales CRUD, recipe/product edits, inventory movements.
+
+    created_at column (datetime UTC) gets a btree index so admin queries on
+    /audit?since=...&until=... are fast. user_id + action get their own
+    indexes for filter-by-user / filter-by-action queries.
+
+    No backfill: there is no historical data to migrate. Existing rows in
+    other tables are unaffected.
+    """
+    conn.execute(
+        text(
+            "CREATE TABLE IF NOT EXISTS audit_log ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "occurred_at DATETIME NOT NULL, "
+            "user_id VARCHAR(64), "
+            "action VARCHAR(64) NOT NULL, "
+            "target_type VARCHAR(64), "
+            "target_id VARCHAR(64), "
+            "detail TEXT NOT NULL DEFAULT '{}', "
+            "ip VARCHAR(64), "
+            "user_agent VARCHAR(256)"
+            ")"
+        )
+    )
+    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_log_occurred_at ON audit_log (occurred_at)"))
+    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_log_user_id ON audit_log (user_id)"))
+    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_log_action ON audit_log (action)"))
+    conn.execute(
+        text("UPDATE app_meta SET value = '2', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
+MIGRATIONS: dict[int, MigrationFn] = {
+    1: _migration_001_initial_schema,
+    2: _migration_002_audit_log,
 }
 
 

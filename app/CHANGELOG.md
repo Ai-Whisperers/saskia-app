@@ -10,6 +10,13 @@
 - `.github/ISSUE_TEMPLATE/{bug,feature,epic}.md` for guided issue filing.
 - AGENTS.md gains "Issue templates", "Locked hotfixes", and refreshed CI
   list sections.
+- **Audit log (E3.S1)**: `audit_log` table + `app/rms/audit.py` record()
+  helper. Captures `login.success`, `login.failure`, `logout` from the
+  auth router with X-Forwarded-For IP + truncated User-Agent. Append-only
+  by convention; surfaced later via /audit admin view.
+- Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
+  bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
+  run against existing DBs.
 
 ## [Unreleased-pre-templates] — pre-signoff skeleton
 
