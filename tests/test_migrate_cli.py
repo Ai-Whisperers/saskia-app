@@ -10,13 +10,9 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-import pytest
-
 
 def _run_migrate(db_path: Path):
     """Invoke migrate() against a fresh SQLite file, capturing stdout."""
-    import io
-    import sys
 
     # Fresh DB path
     if db_path.exists():
@@ -24,8 +20,8 @@ def _run_migrate(db_path: Path):
 
     os.environ["AIW_SASKIA_DB_PATH"] = str(db_path)
     # Reload to pick up new env
-    from app.rms.db_dialect import make_engine
     from app.rms.db import _current_schema_version, init_db
+    from app.rms.db_dialect import make_engine
 
     engine = make_engine(f"sqlite:///{db_path}")
     init_db(engine)
@@ -38,9 +34,10 @@ def _run_migrate(db_path: Path):
 
 def test_migrate_first_run_creates_all_tables(tmp_path):
     """First migrate creates all 8 tables and sets schema_version=1."""
+    from sqlalchemy import inspect
+
     from app.rms.db import CURRENT_SCHEMA_VERSION
     from app.rms.db_dialect import make_engine
-    from sqlalchemy import inspect
 
     db_path = tmp_path / "first.sqlite"
     v = _run_migrate(db_path)
@@ -57,9 +54,10 @@ def test_migrate_first_run_creates_all_tables(tmp_path):
 
 def test_migrate_second_run_is_idempotent(tmp_path):
     """Second migrate on the same DB is a no-op (no exceptions, no duplicates)."""
+    from sqlalchemy import inspect
+
     from app.rms.db import CURRENT_SCHEMA_VERSION
     from app.rms.db_dialect import make_engine
-    from sqlalchemy import inspect
 
     db_path = tmp_path / "second.sqlite"
 
@@ -102,6 +100,7 @@ def test_apply_neon_schema_script_noop_on_second_run(tmp_path, monkeypatch, caps
 def test_run_dispatches_migrate_argv(monkeypatch):
     """`aiw-saskia migrate` must call migrate(), not _serve()."""
     import sys
+
     import app.rms.main as m
 
     called = {"migrate": 0, "serve": 0}
@@ -124,6 +123,7 @@ def test_run_dispatches_migrate_argv(monkeypatch):
 def test_run_dispatches_serve_argv(monkeypatch):
     """`aiw-saskia serve` calls _serve(); `aiw-saskia` (no argv) also calls _serve()."""
     import sys
+
     import app.rms.main as m
 
     called = {"migrate": 0, "serve": 0}

@@ -21,13 +21,8 @@ canonical regression suite for hotfixes.
 from __future__ import annotations
 
 import json
-import os
 import re
-import subprocess
 from pathlib import Path
-
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # 1. f1af406 — HEAD /healthz for uptime monitors

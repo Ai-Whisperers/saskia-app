@@ -34,7 +34,6 @@ from sqlalchemy.orm import Session
 from app.rms.audit import record as audit_record
 from app.rms.models import AuditLog
 
-
 DEFAULT_LIMIT = 5
 DEFAULT_WINDOW_MINUTES = 5
 

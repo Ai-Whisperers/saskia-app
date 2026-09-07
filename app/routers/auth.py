@@ -25,10 +25,9 @@ from app.auth import (
     logout_user,
     using_supabase,
 )
-from app.services.template_render import render
-
 from app.rms.audit import record as audit_record
 from app.rms.rate_limit import is_disabled, is_rate_limited
+from app.services.template_render import render
 
 router = APIRouter()
 

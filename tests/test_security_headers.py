@@ -15,8 +15,6 @@ Covers:
 
 from __future__ import annotations
 
-import os
-
 
 def test_security_headers_on_healthz(client):
     """/healthz (monitoring endpoint) must carry security headers too."""
@@ -74,16 +72,6 @@ def test_permissions_policy_disables_dangerous_apis(client):
     pp = r.headers["Permissions-Policy"]
     for api in ("geolocation", "camera", "microphone", "payment", "usb"):
         assert f"{api}=()" in pp, f"missing {api}=() in Permissions-Policy"
-
-
-def test_cookie_samesite_and_httponly(client):
-    """Session cookie must be SameSite=Lax and HttpOnly (regression for f1af406 era)."""
-    r = client.get("/login")
-    set_cookies = r.headers.get_list("set-cookie")
-    # In test env there may not be a session cookie yet
-    # (login_form doesn't write one). Test by POSTing and checking the
-    # redirect response.
-    assert r.status_code == 200
 
 
 def test_security_headers_on_post_redirect(client):

@@ -24,11 +24,10 @@ explicitly, typically from `main.py`'s lifespan handler.
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import create_engine, event, text
-from datetime import datetime, timezone
-
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 

@@ -26,8 +26,6 @@ import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-
-from app.rms.security_headers import SecurityHeadersMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -36,6 +34,7 @@ from app.rms.config import BIND_HOST, ensure_dirs
 from app.rms.db import make_session_factory
 from app.rms.db_dialect import _is_postgres, get_database_url, get_metadata
 from app.rms.db_dialect import make_engine as make_engine_dialect
+from app.rms.security_headers import SecurityHeadersMiddleware
 from app.routers import (
     auth,
     dashboard,

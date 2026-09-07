@@ -15,8 +15,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-import pytest
-
 
 def test_record_writes_row_with_all_fields(session_factory):
     """record() populates every column from the kwargs."""
@@ -200,9 +198,10 @@ def test_logout_writes_audit_row(client, session_factory):
 
 def test_audit_log_table_created_by_migrate(tmp_path):
     """Migration 002 creates the audit_log table."""
+    from sqlalchemy import inspect
+
     from app.rms.db import init_db
     from app.rms.db_dialect import make_engine
-    from sqlalchemy import inspect
 
     db_path = tmp_path / "audit-migrate.sqlite"
     engine = make_engine(f"sqlite:///{db_path}")
