@@ -78,8 +78,8 @@ If `uv` install fails (corporate proxy / etc.), fall back to official Python 3.1
 
 ```cmd
 cd %USERPROFILE%\Documents
-git clone https://github.com/Ai-Whisperers/saskia.git
-cd saskia
+git clone https://github.com/Ai-Whisperers/saskia-app.git
+cd saskia-app
 ```
 
 (or for Mac: `cd ~/Documents && git clone ... && cd saskia`)
