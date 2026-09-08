@@ -47,6 +47,7 @@ from app.routers import (
     health,
     inventory,
     products,
+    produccion,
     recipes,
     sales,
 )
@@ -237,6 +238,7 @@ app.include_router(products.router)
 app.include_router(sales.router)
 app.include_router(excel_io.router)
 app.include_router(customers.router)
+app.include_router(produccion.router)
 
 
 def migrate() -> None:

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Producción{% endblock %}
+{% block content %}
+<h1>Plan de producción</h1>
+
+{% if plan.notes %}
+<div class="alerts-info">
+  {% for n in plan.notes %}
+  <p>{{ n }}</p>
+  {% endfor %}
+</div>
+{% endif %}
+
+<h2>Para el día {{ for_date }}</h2>
+
+{% if plan.rows %}
+<h3>Productos a producir</h3>
+<table class="data">
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th class="right">Cantidad</th>
+      <th>Forecast source</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in plan.rows %}
+    <tr>
+      <td>{{ r.product_name }}</td>
+      <td class="right">{{ "%.1f"|format(r.qty_to_produce) }}</td>
+      <td>{{ r.forecast_source }}</td>
+      <td><a href="/productos/{{ r.product_id }}/editar" class="btn btn-small">Ver receta</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No hay producción planificada. Verificá que haya ventas registradas en los últimos 14 días.</p>
+{% endif %}
+
+{% if plan.lines %}
+<h3>Ingredientes necesarios</h3>
+<table class="data">
+  <thead>
+    <tr>
+      <th>Ingrediente</th>
+      <th class="right">Cantidad</th>
+      <th class="right">Stock actual</th>
+      <th class="right">A comprar</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for l in plan.lines %}
+    <tr>
+      <td>{{ l.ingredient_name }}</td>
+      <td class="right">{{ "%.2f"|format(l.qty_required) }} {{ l.unit }}</td>
+      <td class="right">{{ "%.2f"|format(l.stock_on_hand) }} {{ l.unit }}</td>
+      <td class="right"><strong>{{ "%.2f"|format(l.qty_to_buy) }}</strong> {{ l.unit }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% endblock %}
