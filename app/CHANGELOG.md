@@ -7,6 +7,13 @@
 
 ### Fixed (performance, 2026-09-08)
 
+- **GZip + static cache headers** — added `GZipMiddleware(minimum_size=500)`
+  (compressed HTML/CSS/JS responses, ~70% bandwidth reduction) and a new
+  `StaticCacheMiddleware` that sets `Cache-Control: max-age=3600, public`
+  on `/static/*` responses. Browser revalidation on every page load is
+  wasteful for assets that only change on deploys. 4 regression tests in
+  `tests/test_middleware.py` pin both behaviors.
+
 - **Dashboard N+1 → batched** — `app/routers/dashboard.py` was issuing ~3,000
   DB queries per render (one `product_unit_cost_gs()` call per sale, plus
   per-product loops in ranking + recipes_no_cost + build_insights). Replaced

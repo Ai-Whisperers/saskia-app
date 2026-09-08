@@ -27,7 +27,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 from app.auth import SESSION_SECRET
 from app.rms.config import BIND_HOST, ensure_dirs
@@ -140,6 +144,33 @@ app = FastAPI(
     redoc_url=None,
     openapi_url="/api/openapi.json",
 )
+
+class StaticCacheMiddleware(BaseHTTPMiddleware):
+    """Add Cache-Control: max-age=3600 to /static/* responses.
+
+    CSS/JS/image assets change only on deploys. Browser revalidation on
+    every page load wastes RTT. 1-hour cache balances freshness with
+    performance.
+
+    Not applied to other paths — those have session-aware content.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        if request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "max-age=3600, public"
+        return response
+
+
+# GZip compression: ~70% bandwidth reduction on all HTML/CSS/JS responses.
+# minimum_size=500 avoids compressing tiny responses (overhead > savings).
+# Registered LAST so it runs INNERMOST (closest to the route handler) and
+# wraps every response body before the other middlewares see it.
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
+# Cache headers for /static/*. Browser revalidation is wasteful for assets
+# that change only on deploys.
+app.add_middleware(StaticCacheMiddleware)
 
 # Security headers middleware: defense-in-depth HTTP response headers
 # (X-Frame-Options, CSP, HSTS, etc.). Registered BEFORE SessionMiddleware
