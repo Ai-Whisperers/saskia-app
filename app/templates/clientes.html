@@ -5,6 +5,18 @@
 
 <p class="hint">Programa de puntos: 1 punto por cada 1.000 Gs. gastados. 1 punto = 1.000 Gs. de descuento.</p>
 
+<form method="get" action="/clientes" class="form form-row">
+  <input type="search" name="q" value="{{ q }}" placeholder="Buscar nombre o teléfono…">
+  <select name="tier">
+    <option value="">— Todos los niveles —</option>
+    {% for t in tiers %}
+    <option value="{{ t }}" {% if tier == t %}selected{% endif %}>{{ t | capitalize }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn">Filtrar</button>
+  <a href="/clientes" class="btn">Limpiar</a>
+</form>
+
 {% if customers %}
 <table class="data">
   <thead>
