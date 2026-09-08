@@ -79,6 +79,23 @@
 </form>
 
 <h2>Historial</h2>
+<form method="get" action="/ventas" class="form form-row">
+  <input type="search" name="q" value="{{ request.query_params.get('q','') }}" placeholder="Buscar producto, nota o teléfono">
+  <select name="product_id">
+    <option value="">— Todos los productos —</option>
+    {% for p in products %}
+    <option value="{{ p.id }}" {% if request.query_params.get('product_id')|int == p.id %}selected{% endif %}>{{ p.name }}</option>
+    {% endfor %}
+  </select>
+  <select name="days">
+    <option value="">— Todo el historial —</option>
+    <option value="7" {% if request.query_params.get('days') == '7' %}selected{% endif %}>Últimos 7 días</option>
+    <option value="30" {% if request.query_params.get('days') == '30' %}selected{% endif %}>Últimos 30 días</option>
+    <option value="90" {% if request.query_params.get('days') == '90' %}selected{% endif %}>Últimos 90 días</option>
+  </select>
+  <button type="submit" class="btn">Filtrar</button>
+  <a href="/ventas" class="btn">Limpiar</a>
+</form>
 {% if sales %}
 <table class="data">
   <thead>

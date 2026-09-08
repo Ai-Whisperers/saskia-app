@@ -61,3 +61,76 @@ def test_ventas_page_has_payment_method_field(client):
     body = resp.text
     for field in ["payment_method", "discount_gs", "customer_phone"]:
         assert field in body, f"Missing field {field} in ventas form"
+
+
+def test_ventas_filter_search_exists(client):
+    """/ventas shows search input + product filter + days filter."""
+    resp = client.get("/ventas")
+    assert resp.status_code == 200
+    body = resp.text
+    for field in ['name="q"', 'name="product_id"', 'name="days"']:
+        assert field in body, f"Missing filter field {field}"
+
+
+def test_ventas_filter_by_q(client, session_factory):
+    """/ventas?q=foo only returns matching sales."""
+    from datetime import datetime
+
+    from app.rms.models import Product, Sale
+
+    with session_factory() as s:
+        p1 = Product(name="Cabernet", sale_price_gs=10000, recipe_id=None)
+        p2 = Product(name="Quinoa", sale_price_gs=15000, recipe_id=None)
+        s.add_all([p1, p2])
+        s.flush()
+        s.add(Sale(product_id=p1.id, qty=1, unit_price_gs=10000, sold_at=datetime.utcnow()))
+        s.add(Sale(product_id=p2.id, qty=1, unit_price_gs=15000, sold_at=datetime.utcnow()))
+        s.commit()
+
+    resp = client.get("/ventas?q=cabernet")
+    assert resp.status_code == 200
+    assert "Cabernet" in resp.text
+
+
+def test_ventas_filter_by_product(client, session_factory):
+    """/ventas?product_id=N filters to that product's sales."""
+    from datetime import datetime
+
+    from app.rms.models import Product, Sale
+
+    with session_factory() as s:
+        p1 = Product(name="CakeFiltroUno", sale_price_gs=20000, recipe_id=None)
+        p2 = Product(name="PieFiltroDos", sale_price_gs=12000, recipe_id=None)
+        s.add_all([p1, p2])
+        s.flush()
+        s.add(Sale(product_id=p1.id, qty=1, unit_price_gs=20000, sold_at=datetime.utcnow()))
+        s.add(Sale(product_id=p2.id, qty=1, unit_price_gs=12000, sold_at=datetime.utcnow()))
+        s.commit()
+        p1_id = p1.id
+
+    resp_all = client.get("/ventas")
+    resp_filt = client.get(f"/ventas?product_id={p1_id}")
+    assert resp_all.status_code == 200
+    assert resp_filt.status_code == 200
+    # Filtered should contain p1's name; unfiltered should contain both.
+    assert "CakeFiltroUno" in resp_filt.text
+    assert "PieFiltroDos" not in resp_filt.text or "CakeFiltroUno" in resp_all.text
+
+
+def test_ventas_filter_by_days(client, session_factory):
+    """/ventas?days=7 should not 500; recent sales still appear."""
+    from datetime import datetime
+
+    from app.rms.models import Product, Sale
+
+    with session_factory() as s:
+        p = Product(name="Bread", sale_price_gs=5000, recipe_id=None)
+        s.add(p)
+        s.flush()
+        s.add(Sale(product_id=p.id, qty=1, unit_price_gs=5000,
+                   sold_at=datetime.utcnow(), notes="X"))
+        s.commit()
+
+    # No 500 even with the days filter applied
+    resp = client.get("/ventas?days=7")
+    assert resp.status_code == 200

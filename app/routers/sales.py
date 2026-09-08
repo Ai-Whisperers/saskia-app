@@ -5,17 +5,17 @@ Per dev plan §9 Task 5.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
 from app.rms.config import ASUNCION_TZ
 from app.rms.costing import RecipeWithoutYield, apply_sale, void_sale
-from app.rms.models import Product, Sale
+from app.rms.models import Customer, Product, Sale
 from app.services.template_render import render
 
 router = APIRouter(prefix="/ventas", dependencies=[Depends(require_login)])
@@ -44,14 +44,44 @@ def _decorated(s: Sale) -> dict:
 
 
 @router.get("", response_class=HTMLResponse)
-async def sales_list(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
+async def sales_list(
+    request: Request,
+    q: str | None = None,
+    product_id: int | None = None,
+    days: int | None = None,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Sales list with optional filter (?q=substring, ?product_id=, ?days=N).
+
+    Filters run on the existing sales query so `/ventas?q=cabernet`
+    only returns matches. Helps operators find old sales without
+    scrolling 50+ rows.
+    """
     products = session.scalars(select(Product).order_by(Product.name)).all()
-    sales = session.scalars(select(Sale).order_by(Sale.sold_at.desc()).limit(50)).all()
+    sales_q = select(Sale).order_by(Sale.sold_at.desc())
+    if product_id is not None:
+        sales_q = sales_q.where(Sale.product_id == product_id)
+    if days is not None and days > 0:
+        cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
+        sales_q = sales_q.where(Sale.sold_at >= cutoff)
+    if q:
+        # Search across product name, notes, customer phone.
+        like = f"%{q.lower()}%"
+        sales_q = (
+            sales_q
+            .outerjoin(Product, Sale.product_id == Product.id)
+            .outerjoin(Customer, Sale.customer_id == Customer.id)
+            .where(
+                or_(
+                    func.lower(Product.name).like(like),
+                    func.lower(Sale.notes).like(like),
+                    func.lower(Customer.phone).like(like),
+                )
+            )
+        )
+    sales = session.scalars(sales_q.limit(50)).all()
 
     # Quick-sell: top 5 products by revenue in last 14 days
-    from datetime import timedelta
-
-    from sqlalchemy import func
     since = datetime.now(ASUNCION_TZ) - timedelta(days=14)
     q = (
         select(Sale.product_id, func.sum(Sale.qty).label("units"), func.sum(Sale.qty * Sale.unit_price_gs).label("rev"))

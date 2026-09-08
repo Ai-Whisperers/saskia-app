@@ -88,6 +88,12 @@
   `action_filter=http.500`. Failures of the audit-recording are
   themselves caught and logged (never bubble up).
 
+- **`/ventas` filter (q / product_id / days)** — operators can now
+  search 920+ sales by substring (`?q=cabernet`), filter by product
+  (`?product_id=N`), or by date range (`?days=7` for last week,
+  `30`, `90`). Filter UI on the page with a search input + dropdowns +
+  "Limpiar" reset. 4 regression tests in `tests/test_sales_overhaul.py`.
+
 - **`/clientes` list + detail pages** — wires the existing
   `app/rms/customers.py` module (E13) to actual routes. Operators can now
   see the customer directory with lifetime spend, visit count, points
