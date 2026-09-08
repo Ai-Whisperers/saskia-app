@@ -17,6 +17,10 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Operator workflow + seasonal calendar (E12 + E19 prep)** — EOD
+  checklist (10 items), daily_summary_full with warnings (high void
+  rate, low margin, low stock), 2026 seasonal calendar (11 events;
+  Navidad 3x, Día de la Madre 2x, Independencia 1.8x).
 - **Dev tooling (E24)** — Makefile (18 targets); CONTRIBUTING.md;
   docker-compose.dev.yml (Postgres 16); CODEOWNERS (security/dba routing);
   Dependabot weekly uv bumps.
