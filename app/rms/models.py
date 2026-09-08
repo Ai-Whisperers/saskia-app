@@ -70,6 +70,13 @@ class Ingredient(Base):
     min_stock_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     shelf_life_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # E26 ingredient intelligence
+    category: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    subcategory: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    role: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    allergens: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    dietary_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    lead_time_days: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
 
     # Relationships
     # NOTE: `recipe_lines` (the reverse of RecipeLine.ingredient) is NOT defined here

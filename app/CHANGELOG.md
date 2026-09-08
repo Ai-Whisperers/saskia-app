@@ -30,6 +30,13 @@
   `menu_engineering_report` (4-quadrant report with counts + total margin),
   `action_for` (recommendations per quadrant). Volume window 90 days,
   voided sales excluded.
+- **Inventory intelligence (E29)** — days-of-stock, reorder points, dead
+  stock, overstocked detection, total capital tied up. `app/rms/inventory_intel.py`
+  exposes `days_of_stock`, `reorder_point`, `inventory_status`,
+  `inventory_status_all`, `dead_stock`, `overstocked`, `stock_value_gs`,
+  `low_stock_alerts`. Ingredient model gains 6 new fields
+  (category/subcategory/role/allergens/dietary_tags/lead_time_days).
+  Migration 009 backs the columns; idempotent.
 
 - `.github/ISSUE_TEMPLATE/{bug,feature,epic}.md` for guided issue filing.
 - AGENTS.md gains "Issue templates", "Locked hotfixes", and refreshed CI
