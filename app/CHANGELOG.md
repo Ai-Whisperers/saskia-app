@@ -83,6 +83,37 @@
   manually earlier); this fix prevents future migrations from the same
   no-op pattern.
 
+### Accessibility (audit 2026-09-08)
+
+Live audit of every route in the app (16 GET + 1 POST across
+`/`, `/login`, `/productos*`, `/recetas*`, `/inventario*`, `/ventas*`,
+`/excel*`, `/healthz*`). Found and fixed:
+
+- **Bug**: Nav `<a href="/api/healthz">` → 404. Changed to `/healthz`
+  and added `aria-label="Estado del servidor"` (was relying only on
+  the dot glyph).
+- **No skip link**: Added `<a href="#main-content" class="skip-link">`
+  as the first focusable element on every page. CSS hides it off-screen
+  until keyboard focus, then slides it into view (`.skip-link { top: -40px; }
+  .skip-link:focus { top: 8px; }`).
+- **No active-page indicator**: Nav links now carry
+  `aria-current="page"` on the active route via
+  `request.url.path.startswith(...)`. Visual highlight matches the new
+  attribute via `.nav-links a[aria-current="page"]`.
+- **No alert announcement**: Flash messages were invisible to screen
+  readers. Wrapped `{% block alerts %}` in
+  `<div class="alerts-region" aria-live="polite" aria-atomic="true">`
+  so new alerts are spoken as they appear.
+- **No visible focus**: Added `:focus-visible { outline: 2px solid var(--primary); }`
+  global rule so keyboard users can see which element is focused.
+  `<main>` gets `tabindex="-1"` so the skip-link target can receive
+  focus.
+
+16 new regression tests in `tests/test_a11y_navigation.py` cover:
+skip link, nav aria-label, aria-current (positive + negative cases),
+aria-live, main id+tabindex, lang, h1 count, title, health-link
+direction (regression for the 404), and all 7 nav targets returning 200.
+
 - `.github/ISSUE_TEMPLATE/{bug,feature,epic}.md` for guided issue filing.
 - AGENTS.md gains "Issue templates", "Locked hotfixes", and refreshed CI
   list sections.

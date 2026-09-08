@@ -16,26 +16,30 @@
   </script>
 </head>
 <body>
-  <nav class="topnav">
+  <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+  <nav class="topnav" aria-label="Navegación principal">
     <a href="/" class="brand">🍰 Saskia RMS</a>
     <div class="nav-links">
-      <a href="/">Inicio</a>
-      <a href="/productos">Productos</a>
-      <a href="/recetas">Recetas</a>
-      <a href="/inventario">Inventario</a>
-      <a href="/ventas">Ventas</a>
-      <a href="/excel">Excel</a>
+      <a href="/" {% if request.url.path == "/" %}aria-current="page"{% endif %}>Inicio</a>
+      <a href="/productos" {% if request.url.path.startswith("/productos") %}aria-current="page"{% endif %}>Productos</a>
+      <a href="/recetas" {% if request.url.path.startswith("/recetas") %}aria-current="page"{% endif %}>Recetas</a>
+      <a href="/inventario" {% if request.url.path.startswith("/inventario") %}aria-current="page"{% endif %}>Inventario</a>
+      <a href="/ventas" {% if request.url.path.startswith("/ventas") %}aria-current="page"{% endif %}>Ventas</a>
+      <a href="/excel" {% if request.url.path.startswith("/excel") %}aria-current="page"{% endif %}>Excel</a>
     </div>
     <div class="nav-right">
       <button type="button" class="theme-toggle" id="theme-toggle"
               aria-label="Cambiar tema claro/oscuro" title="Cambiar tema">🌙</button>
-      <a href="/api/healthz" class="health-link" title="Estado del servidor">●</a>
+      <a href="/healthz" class="health-link" title="Estado del servidor" aria-label="Estado del servidor">●</a>
     </div>
   </nav>
 
-  {% block alerts %}{% endblock %}
+  <div class="alerts-region" aria-live="polite" aria-atomic="true">
+    {% block alerts %}{% endblock %}
+  </div>
 
-  <main class="container">
+
+  <main class="container" id="main-content" tabindex="-1">
     {% block content %}{% endblock %}
   </main>
 
