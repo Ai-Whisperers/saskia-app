@@ -43,6 +43,13 @@
   scroll, nav flex-wraps, forms stack vertically. Print CSS was already
   present (verified by test). 4 regression tests in `tests/test_phase6_polish.py`.
 
+- **Phase 7 UptimeRobot integration** — existing monitor
+  (id `803916096`) was already configured for `https://saskia-rms.paragu-ai.com/healthz`
+  every 5 min, keeping the free-tier Render container warm. Added
+  `scripts/uptimerobot_setup.py` for idempotent verify / pause / delete
+  operations (reads API key from BWS at runtime). 2 regression tests
+  pin the script + verify both BWS keys exist.
+
 - **`/clientes` list + detail pages** — wires the existing
   `app/rms/customers.py` module (E13) to actual routes. Operators can now
   see the customer directory with lifetime spend, visit count, points
