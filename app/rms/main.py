@@ -301,6 +301,30 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
         request.url.path,
         exc,
     )
+    # Best-effort audit log row so operators can see error counts per hour
+    # via /auditoria. Failures here MUST NOT bubble up — we're already
+    # handling an exception. Use a fresh session since the request's
+    # may be torn down or in an error state.
+    try:
+        from app.rms.audit import record
+        with request.app.state.session_factory() as _s:
+            record(
+                _s,
+                user_id=None,
+                action="http.500",
+                target_type="http_error",
+                target_id=rid,
+                detail={
+                    "method": request.method,
+                    "path": request.url.path,
+                    "type": exc.__class__.__name__,
+                    "msg": str(exc)[:500],
+                },
+            )
+            _s.commit()
+    except Exception:
+        logger.warning("audit.record for http.500 failed (non-fatal)")
+
     return JSONResponse(
         status_code=500,
         content={

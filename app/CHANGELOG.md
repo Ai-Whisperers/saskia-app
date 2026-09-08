@@ -81,6 +81,13 @@
   cold-start window where requests hit a half-initialized app and
   get raw 500s. 4 regression tests in `tests/test_readiness.py`.
 
+- **5xx auto-logged to `audit_log`** — every unhandled error now
+  writes an `action="http.500"` row with request_id, method, path,
+  type, message (truncated to 500 chars). Operators can see error
+  counts / types via the existing `/auditoria` page filtered by
+  `action_filter=http.500`. Failures of the audit-recording are
+  themselves caught and logged (never bubble up).
+
 - **`/clientes` list + detail pages** — wires the existing
   `app/rms/customers.py` module (E13) to actual routes. Operators can now
   see the customer directory with lifetime spend, visit count, points
