@@ -430,6 +430,65 @@ def _current_schema_version(conn: Any) -> int:
         return 0
 
 
+def schema_version(conn: Any) -> int:
+    """Read schema version. Public alias for _current_schema_version.
+
+    Used by `/healthz/schema` endpoint to detect drift between code and
+    DB. Returns int (0 means schema_version row missing entirely).
+    """
+    return _current_schema_version(conn)
+
+
+def schema_version_mismatch(conn: Any) -> int:
+    """Return CURRENT_SCHEMA_VERSION - actual_db_version.
+
+    - Positive = DB is behind code (migrations not applied — risk of
+      `column X does not exist` 500s on first request after deploy).
+    - Zero = in sync. Healthy.
+    - Negative = DB is ahead of code (rolled back to old code).
+
+    Used by `/healthz/schema` to surface drift before operators see 500s.
+    """
+    return CURRENT_SCHEMA_VERSION - _current_schema_version(conn)
+
+
+def app_meta_read(conn: Any, key: str) -> str | None:
+    """Read one key from app_meta. Returns None if the row is missing.
+
+    Dialect-agnostic. Returns str | None.
+    """
+    row = conn.execute(
+        text("SELECT value FROM app_meta WHERE key = :key"), {"key": key}
+    ).first()
+    return row[0] if row else None
+
+
+def app_meta_write(conn: Any, key: str, value: str) -> None:
+    """Upsert one key into app_meta. Dialect-agnostic.
+
+    Postgres uses ON CONFLICT (key) DO UPDATE; SQLite uses
+    INSERT OR REPLACE. Caller commits the surrounding transaction;
+    this function does NOT commit by itself.
+    """
+    from datetime import datetime, timezone
+
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    ts = datetime.now(timezone.utc).isoformat()
+    if dialect == "postgresql":
+        conn.execute(
+            text(
+                "INSERT INTO app_meta (key, value, updated_at) VALUES (:k, :v, :ts) "
+                "ON CONFLICT (key) DO UPDATE SET value = :v, updated_at = :ts"
+            ),
+            {"k": key, "v": value, "ts": ts},
+        )
+    else:
+        conn.execute(
+            text("INSERT OR REPLACE INTO app_meta (key, value, updated_at) VALUES (:k, :v, :ts)"),
+            {"k": key, "v": value, "ts": ts},
+        )
+
+
 def init_db(engine: Engine) -> None:
     """Initialize the database: create tables + run pending migrations.
 
