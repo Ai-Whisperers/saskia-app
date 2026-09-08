@@ -8,6 +8,17 @@
 
 <p><a href="/productos/nuevo" class="btn btn-primary">+ Nuevo producto</a></p>
 
+<form method="get" action="/productos" class="form form-row">
+  <input type="search" name="q" value="{{ q }}" placeholder="Buscar producto…">
+  <select name="has_recipe">
+    <option value="">— Todos —</option>
+    <option value="yes" {% if has_recipe == 'yes' %}selected{% endif %}>Con receta</option>
+    <option value="no" {% if has_recipe == 'no' %}selected{% endif %}>Sin receta</option>
+  </select>
+  <button type="submit" class="btn">Filtrar</button>
+  <a href="/productos" class="btn">Limpiar</a>
+</form>
+
 {% if products %}
 <table class="data">
   <thead>

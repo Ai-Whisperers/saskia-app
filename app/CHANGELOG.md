@@ -94,6 +94,11 @@
   `30`, `90`). Filter UI on the page with a search input + dropdowns +
   "Limpiar" reset. 4 regression tests in `tests/test_sales_overhaul.py`.
 
+- **`/productos` filter (q / has_recipe)** — operators can search
+  products by name (`?q=`) and filter by recipe status
+  (`?has_recipe=yes` / `no`). Filter UI with search input +
+  dropdown. 4 regression tests in `tests/test_productos_filter.py`.
+
 - **`/clientes` list + detail pages** — wires the existing
   `app/rms/customers.py` module (E13) to actual routes. Operators can now
   see the customer directory with lifetime spend, visit count, points

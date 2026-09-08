@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -43,9 +43,24 @@ def _decorate(session: Session, p: Product) -> dict:
 
 
 @router.get("", response_class=HTMLResponse)
-def products_list(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
-    """List all products with cost + margin. Batch-loads to avoid N+1."""
-    products = session.scalars(select(Product).order_by(Product.name)).all()
+def products_list(
+    request: Request,
+    q: str | None = None,
+    has_recipe: str | None = None,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """List all products with cost + margin. Batch-loads to avoid N+1.
+
+    Optional filter (?q=substring, ?has_recipe=yes/no).
+    """
+    stmt = select(Product).order_by(Product.name)
+    if q:
+        stmt = stmt.where(func.lower(Product.name).like(f"%{q.lower()}%"))
+    if has_recipe == "yes":
+        stmt = stmt.where(Product.recipe_id.is_not(None))
+    elif has_recipe == "no":
+        stmt = stmt.where(Product.recipe_id.is_(None))
+    products = session.scalars(stmt).all()
     # One batch call replaces N+1 cost/margin queries (Neon round-trips).
     batch_results = batch_products_cost_margin(session, list(products))
     decorated = []
@@ -71,7 +86,7 @@ def products_list(request: Request, session: Session = Depends(get_session)) -> 
                 "notes": p.notes,
             }
         )
-    return render(request, "productos.html", {"products": decorated})
+    return render(request, "productos.html", {"products": decorated, "q": q or "", "has_recipe": has_recipe or ""})
 
 
 @router.get("/nuevo", response_class=HTMLResponse)
