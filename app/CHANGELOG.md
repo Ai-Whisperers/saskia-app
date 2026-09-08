@@ -106,6 +106,15 @@
   3 regression tests in `tests/test_healthz_errors.py`. Tip: hit this
   URL to instantly know if there have been recent server errors.
 
+- **OUTAGE FIX: migrations auto-run on startup** — the lifespan
+  now defaults to running `init_db()` on every boot (set
+  `AIW_SASKIA_RUN_MIGRATIONS=0` to disable). Previously gated behind
+  `=1` opt-in, which left the production Neon DB at schema v10
+  while the code expected v11 — causing `column sale.payment_method
+  does not exist` 500s on the dashboard. Migration is wrapped in
+  try/except so a failed migration never crashes the app. 4 regression
+  tests in `tests/test_lifespan_migrations.py`.
+
 - **`/clientes` list + detail pages** — wires the existing
   `app/rms/customers.py` module (E13) to actual routes. Operators can now
   see the customer directory with lifetime spend, visit count, points

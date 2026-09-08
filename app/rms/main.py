@@ -114,14 +114,25 @@ async def lifespan(app: FastAPI):
     # create_all is dialect-aware via SQLAlchemy; works for both
     metadata.create_all(engine)
 
-    # One-time migration bootstrap (E26-E35 deploy 2026-09-08).
-    # If AIW_SASKIA_RUN_MIGRATIONS=1, run init_db() to apply pending
-    # schema migrations. Idempotent — no-op if already at current version.
-    # Operator removes this env var after the first successful deploy.
-    if os.getenv("AIW_SASKIA_RUN_MIGRATIONS") == "1":
-        from app.rms.db import init_db
-        init_db(engine)
-        print("MIGRATIONS: applied (set AIW_SASKIA_RUN_MIGRATIONS=0 to disable)", file=sys.stderr)
+    # Migration bootstrap. Always-run by default — migrations are idempotent
+    # (each adds columns / INSERT/UPDATEs that no-op when not needed).
+    #
+    # Set AIW_SASKIA_RUN_MIGRATIONS=0 only if you specifically need to
+    # pause migration application (e.g. during a maintenance window).
+    #
+    # History: previously this was gated behind a "1" flag, which left
+    # the production DB out of sync with the code (the 2026-09-08 outage
+    # where sale.payment_method didn't exist on Neon). Auto-running is
+    # safer than opt-in.
+    if os.getenv("AIW_SASKIA_RUN_MIGRATIONS", "1") != "0":
+        try:
+            from app.rms.db import init_db
+            init_db(engine)
+            print("MIGRATIONS: applied (idempotent, no-op if already current)", file=sys.stderr)
+        except Exception as exc:
+            # Migrations must never crash the app. Log and continue.
+            print(f"MIGRATIONS: failed to apply: {exc!r}", file=sys.stderr)
+            logger.exception("migration apply failed on startup")
 
     app.state.engine = engine
     app.state.session_factory = make_session_factory(engine)
