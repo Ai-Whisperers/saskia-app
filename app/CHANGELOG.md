@@ -73,6 +73,14 @@
   tests in `tests/test_csrf.py`. Test conftest auto-primes the cookie
   so existing POST tests work without modification.
 
+- **Readiness gate on `/healthz` + `/healthz/deps`** — lifespan
+  flips `app.state.ready = True` after create_all() + init_db()
+  complete. `/healthz` returns 503 with
+  `{status: "warming_up", detail: "..."}` while readiness is False,
+  flips to 200 once the app finishes initializing. Eliminates the
+  cold-start window where requests hit a half-initialized app and
+  get raw 500s. 4 regression tests in `tests/test_readiness.py`.
+
 - **`/clientes` list + detail pages** — wires the existing
   `app/rms/customers.py` module (E13) to actual routes. Operators can now
   see the customer directory with lifetime spend, visit count, points

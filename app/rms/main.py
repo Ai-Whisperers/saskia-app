@@ -126,6 +126,7 @@ async def lifespan(app: FastAPI):
     app.state.engine = engine
     app.state.session_factory = make_session_factory(engine)
     app.state.is_postgres = _is_postgres(url)
+    app.state.ready = True  # Readiness flag for /healthz gating
 
     # Backup scheduler: idempotent, no-op if R2 not configured.
     # Runs on a fresh session so it doesn't share state with request handlers.

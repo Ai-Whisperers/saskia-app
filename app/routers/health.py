@@ -34,28 +34,64 @@ def _healthz_payload() -> dict[str, Any]:
     }
 
 
-@router.get("/healthz")
-def healthz() -> dict:
-    """Cheap health check. Returns 200 always (uvicorn is alive)."""
+@router.get("/healthz", response_model=None)
+def healthz(request: Request) -> JSONResponse | dict:
+    """Cheap health check.
+
+    Returns 200 if the app finished startup. Returns 503 if the lifespan
+    is still running (cold-start window). Returns 200 with body if
+    startup completed successfully.
+
+    Why gate on app.state.ready: during the cold-start window, uvicorn
+    accepts requests before our lifespan calls create_all()/init_db().
+    Any request that hits the dashboard during this window returned
+    raw 500s with no info. /healthz returning 503 lets the operator
+    see "warming up" instead of broken.
+    """
+    ready = getattr(request.app.state, "ready", False)
+    if not ready:
+        # Cold-start window — return 503 with structured payload so the
+        # operator's UptimeRobot monitor shows "warming up".
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "warming_up",
+                "service": "aiw-saskia-rms",
+                "detail": "App is still initializing; retry in a few seconds.",
+            },
+        )
     return _healthz_payload()
 
 
 @router.head("/healthz", name="healthz-head")
-def healthz_head() -> Response:
+def healthz_head(request: Request) -> Response:
     """HEAD variant for uptime monitors (UptimeRobot) that probe with HEAD.
 
-    Same 200/headers as GET; body is stripped by the transport layer.
+    Same 503/200 logic as GET — body is stripped by the transport layer.
     """
+    ready = getattr(request.app.state, "ready", False)
+    if not ready:
+        return Response(status_code=503, media_type="application/json")
     return Response(status_code=200, media_type="application/json")
 
 
-@router.get("/healthz/deps")
-def healthz_deps() -> dict:
+@router.get("/healthz/deps", response_model=None)
+def healthz_deps(request: Request) -> JSONResponse | dict:
     """Dependency fingerprint for debugging env mismatches on Render.
 
     Reports presence + sha256 prefix of key env vars (never the values)
     and importable package versions. Public: safe metadata only.
+
+    Gated on app.state.ready: returns 503 if app is still warming up,
+    so probes during the cold-start window correctly distinguish
+    "broken" from "warming up".
     """
+    ready = getattr(request.app.state, "ready", False)
+    if not ready:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "warming_up", "detail": "App still initializing."},
+        )
     import hashlib
     import importlib.metadata as md
 
