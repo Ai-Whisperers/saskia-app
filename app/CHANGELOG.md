@@ -17,6 +17,10 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **WhatsApp + email daily summary (E14)** —
+  format_daily_summary_message (concise text), NotifyKind
+  (dryrun/whatsapp/email), Twilio REST over stdlib urllib (no SDK
+  dep), SMTP send, spool-dir + notification log.
 - **Future-facing seams (E25)** — RBAC stub (Role enum +
   ROLE_PERMISSIONS); report registry (5 built-in auto-registered);
   feature flags via app_meta (4 defaults: dark mode, void button,
