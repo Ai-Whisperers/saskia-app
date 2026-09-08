@@ -17,6 +17,10 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Future-facing seams (E25)** — RBAC stub (Role enum +
+  ROLE_PERMISSIONS); report registry (5 built-in auto-registered);
+  feature flags via app_meta (4 defaults: dark mode, void button,
+  seasonal hint, drive-shape-only imports).
 - **ESC/POS receipt printer + labels (E18)** — file/network/USB
   backends; vendor list (Epson/Star/Citizen/Brother); AIW_PRINTER_*
   env config. Default file backend for CI.
