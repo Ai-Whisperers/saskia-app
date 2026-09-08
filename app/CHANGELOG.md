@@ -17,6 +17,9 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Customer directory + loyalty (E13)** — schema v5; phone-unique
+  customer records; 1 pt/1000 Gs. loyalty; bronze/silver/gold/platinum
+  tiers by lifetime spend; redeem 1 pt = 1000 Gs. discount.
 - **Operator-facing settings (E10)** — 30 settings across 7 groups
   (general/inventory/sales/dashboard/backup/session/demo), backed by
   AppMeta with validators + audit-ready writes.

@@ -181,6 +181,7 @@ class Sale(Base):
     """A recorded sale. unit_price_gs is SNAPSHOT — even if product catalog changes."""
 
     __tablename__ = "sale"
+    customer_id: Mapped[Optional[int]] = mapped_column(ForeignKey("customer.id"), nullable=True, index=True)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     sold_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
@@ -192,6 +193,7 @@ class Sale(Base):
 
     # Relationships
     product: Mapped["Product"] = relationship(back_populates="sales")
+    customer: Mapped[Optional["Customer"]] = relationship(back_populates="sales")
     stock_moves: Mapped[list["SaleStockMove"]] = relationship(
         back_populates="sale", cascade="all, delete-orphan"
     )
@@ -324,6 +326,34 @@ class AuditLog(Base):
     user_agent: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
 
 
+
+class Customer(Base):
+    """A customer record (E13).
+
+    Phone is the de-facto unique identifier (matches how Saskia
+    identifies customers at the counter). Loyalty points are tracked
+    in-app; lifetime spend is computed from sales at query time.
+    """
+
+    __tablename__ = "customer"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    phone: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
+    email: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    loyalty_points: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_customer_name", "name"),
+    )
+
+    # Relationships
+    sales: Mapped[list["Sale"]] = relationship(back_populates="customer")
+
+
 class Tag(Base):
     """Tag row (E9.S1).
 
@@ -392,4 +422,5 @@ __all__ = [
     "User",
     "Tag",
     "TagLink",
+    "Customer",
 ]

@@ -148,6 +148,19 @@ def _migration_002_audit_log(conn: Any) -> None:
     )
 
 
+def _migration_005_customer(conn: Any) -> None:
+    """Add Customer table + Sale.customer_id FK (E13).
+
+    Tables are created via create_all() in init_db(). The Sale
+    FK column is added in case create_all didn't (e.g. on an existing
+    DB that pre-dates the customer table).
+    """
+    conn.execute(
+        text("UPDATE app_meta SET value = '5', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 def _migration_004_tags(conn: Any) -> None:
     """Add Tag + TagLink tables (E9.S1).
 
@@ -216,6 +229,7 @@ MIGRATIONS = {
     2: _migration_002_audit_log,
     3: _migration_003_analytics_columns,
     4: _migration_004_tags,
+    5: _migration_005_customer,
 }
 
 
