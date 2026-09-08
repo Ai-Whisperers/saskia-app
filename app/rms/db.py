@@ -512,6 +512,14 @@ def init_db(engine: Engine) -> None:
         current = _current_schema_version(conn)
         target = CURRENT_SCHEMA_VERSION
 
+        # Detect dialect once, at function scope (used by both migrations
+        # block and index-application block below).
+        dialect = (
+            conn.dialect.name
+            if hasattr(conn, "dialect")
+            else "sqlite"
+        )
+
         if current < target:
             # Detect dialect for dialect-aware schema_version upsert.
             dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
@@ -557,6 +565,25 @@ def init_db(engine: Engine) -> None:
                         {"v": str(v), "ts": ts_now},
                     )
         conn.commit()
+
+        # 3. Apply recommended Postgres indexes (idempotent).
+        # Wrapped in its own connection so failure here doesn't undo migrations.
+        if dialect == "postgresql":
+            try:
+                with engine.connect() as idx_conn:
+                    # Use a Session wrapper around the conn.
+                    from sqlalchemy.orm import sessionmaker
+
+                    from app.rms.db import SessionLocal  # type: ignore  # noqa
+                    from app.rms.perf import apply_postgres_indexes
+                    Session = sessionmaker(bind=engine)()
+                    _ = apply_postgres_indexes(Session)
+                    Session.close()
+            except Exception as exc:
+                # Indexes are an optimization, not a correctness fix.
+                # Don't crash startup if the applier hiccups.
+                from loguru import logger
+                logger.warning(f"apply_postgres_indexes failed (non-fatal): {exc!r}")
 
 
 def make_session_factory(engine: Engine) -> sessionmaker:
