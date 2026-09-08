@@ -17,6 +17,9 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Dev tooling (E24)** — Makefile (18 targets); CONTRIBUTING.md;
+  docker-compose.dev.yml (Postgres 16); CODEOWNERS (security/dba routing);
+  Dependabot weekly uv bumps.
 - **Paraguay accounting/IVA reports (E17)** — 10% IVA extraction
   (included/excluded modes); monthly_iva_breakdown; libro_ventas;
   daily_summary; product_margin_summary.

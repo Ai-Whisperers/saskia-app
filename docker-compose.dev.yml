@@ -1,0 +1,35 @@
+version: "3.9"
+
+# Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E24.S4.
+# Local development Postgres for contributors who want to test against
+# real PG instead of SQLite. CI continues to use SQLite (faster, no
+# container).
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up -d
+#   export AIW_SASKIA_DB_URL=postgresql+psycopg2://saskia:saskia@localhost:5432/saskia
+#   make migrate
+#   make serve
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: saskia-dev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: saskia
+      POSTGRES_PASSWORD: saskia
+      POSTGRES_DB: saskia
+    ports:
+      - "5432:5432"
+    volumes:
+      - saskia-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saskia"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  saskia-postgres-data:
+    driver: local

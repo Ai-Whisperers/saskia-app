@@ -1,0 +1,29 @@
+# Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E24.S5.
+# Auto-merge Dependabot PRs for low-risk upgrades.
+#
+# Pinned weekly on Mondays 04:00 UTC.
+# Grouped so PRs are easier to review.
+
+version: 2
+
+updates:
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    groups:
+      patch-and-minor:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    labels:
+      - "dependencies"
+      - "auto-merge"
+    commit-message:
+      prefix: "deps"

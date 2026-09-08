@@ -34,6 +34,7 @@ dependencies = [
     "psycopg[binary]>=3.3.5",
     "supabase>=2.31.0",
     "sentry-sdk[fastapi]>=2.10,<3",   # Error tracking (optional via SENTRY_DSN env var; free tier)
+    "pyyaml>=6.0.3",
 ]
 
 # Development dependencies
