@@ -61,6 +61,11 @@
   `food_cost_report` (combined FoodCostReport dataclass with revenue,
   theoretical %, actual %, ratio). Ratio = actual/theoretical; >1.0 means
   waste, theft, or spillage; <1.0 means recipes/prices outdated.
+- **Dashboard insights panel (E34)** — single consolidated panel for the
+  dashboard route. `app/rms/insights.py` exposes `build_insights` which
+  pulls together inventory capital + alerts, menu-engineering quadrants,
+  tomorrow's production plans, food cost summary, peak hour/DOW, top
+  rising/churning products. Returns `InsightsPanel` dataclass.
 
 - `.github/ISSUE_TEMPLATE/{bug,feature,epic}.md` for guided issue filing.
 - AGENTS.md gains "Issue templates", "Locked hotfixes", and refreshed CI
