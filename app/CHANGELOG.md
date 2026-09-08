@@ -17,6 +17,11 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Complete epic plan v3 (`docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md`)** —
+  25 epics across 6 phases, ~268h, no cap (gem project). Each epic has
+  Why / Stories / Tasks / Effort / Depends on / Acceptance / Refs.
+  Ticket convention `SASKIA-NNN` defined in `AGENTS.md`.
+
 - **Security headers (E3.S3)**: `app/rms/security_headers.py` adds
   X-Frame-Options, X-Content-Type-Options, Referrer-Policy, restrictive
   CSP, and Permissions-Policy on every response (including /healthz

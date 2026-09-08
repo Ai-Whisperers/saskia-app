@@ -124,6 +124,45 @@ test, NOT to relax the test.
 - `bb21eff` — /healthz/deps env fingerprint (debug-only, never leaks values)
 - `501bcff` — `row_counts_json` ORM type matches Postgres JSONB
 
+## Ticket convention
+
+Tickets use the format `SASKIA-NNN` (e.g. `SASKIA-001`). 5-character
+codes like `E1.S2` are for epic+story (e.g. `E3.S1` = Epic 3, Story 1).
+File naming: `SASKIA-NNN-<short-slug>.md`.
+
+The full epic plan (25 epics, 6 phases, ~268h) lives at
+`docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md`. Pick from
+there.
+
+Ticket template:
+
+```markdown
+# SASKIA-NNN: <short title>
+
+**Date:** YYYY-MM-DD
+**Epic / Story:** E#.S#
+**Owner:** Iván
+**Estimate:** Xh
+**Status:** in_progress | shipped | blocked | cancelled
+
+## What
+
+<description>
+
+## Why
+
+<business outcome>
+
+## Tasks
+
+- [ ] Task 1
+- [ ] Task 2
+
+## Acceptance
+
+<definition of done>
+```
+
 ## Cross-references
 
 | Repo | What | When to read |
