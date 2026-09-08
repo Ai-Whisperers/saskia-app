@@ -17,6 +17,10 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Backup + restore + DR retention (E20)** — JSON+gz archives with
+  sha256 manifest; tamper detection; merge-restore; retention policy
+  (keep newest N + last D days); scripts/backup.py CLI (backup/list/
+  restore/prune/verify).
 - **Production worksheet (E21)** — forecast_sales (rolling 14d
   avg) + plan_production (per-product forecast with seasonal
   multiplier + per-ingredient lines with stock_on_hand + qty_to_buy).

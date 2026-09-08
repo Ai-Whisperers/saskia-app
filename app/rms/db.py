@@ -319,3 +319,25 @@ __all__ = [
     "MIGRATIONS",
     "MigrationFn",
 ]
+
+
+def _get_db_url_safe() -> str:
+    """Return the database URL stripped of credentials.
+
+    Used in backup manifests so the file does not leak the password.
+    Returns something like "postgresql+psycopg2://***@host/db".
+    """
+    import os
+    from urllib.parse import urlsplit, urlunsplit
+
+    url = os.environ.get("AIW_SASKIA_DB_URL", "sqlite:///./saskia.db")
+    if url.startswith("sqlite"):
+        return "sqlite:///<local>"
+    try:
+        parts = urlsplit(url)
+        if parts.username or parts.password:
+            netloc = "***@" + parts.netloc.split("@", 1)[-1]
+            return urlunsplit((parts.scheme, netloc, parts.path, parts.query, ""))
+        return url
+    except Exception:
+        return "<unknown>"
