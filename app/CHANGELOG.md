@@ -72,6 +72,26 @@
   hora/día pico, food cost % (30d), star/dog quadrants, low-stock alerts,
   rising/churning products, and tomorrow's production plan.
 
+### Operations
+
+- **One-time migration bootstrap hook** — added opt-in `AIW_SASKIA_RUN_MIGRATIONS=1`
+  env var that triggers `init_db()` from the FastAPI lifespan. Used to apply
+  pending schema migrations (v8 → v10 for E26-E35 columns) on the deployed
+  Render service, since Render doesn't expose a "run command" API and SSH
+  access requires operator-side key registration. After the first successful
+  deploy, the env var should be unset so subsequent deploys don't run
+  migrations on every restart.
+
+### Fixed (production deploy 2026-09-08)
+
+- **`/healthz/db` 503 on live** — fixed in `f272e87`. Live site now returns
+  `{"db":"ok","server_version":"18.6 (c5250a2)","dialect":"postgresql"}`.
+- **Dead PAT stripped from `.git/config`** — found `ghp_u0Cs76...` (the
+  known-dead PAT from the "Known dead values" table) embedded in the remote
+  URL. Stripped via `git remote set-url origin https://github.com/Ai-Whisperers/saskia-app.git`.
+  Re-authenticated via `git credential approve` with the live PAT from BWS.
+  Push of 17 commits succeeded.
+
 ### Fixed
 
 - **`_migration_007_product_sku` was a no-op** — bumped version but didn't

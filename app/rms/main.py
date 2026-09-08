@@ -102,6 +102,15 @@ async def lifespan(app: FastAPI):
     # create_all is dialect-aware via SQLAlchemy; works for both
     metadata.create_all(engine)
 
+    # One-time migration bootstrap (E26-E35 deploy 2026-09-08).
+    # If AIW_SASKIA_RUN_MIGRATIONS=1, run init_db() to apply pending
+    # schema migrations. Idempotent — no-op if already at current version.
+    # Operator removes this env var after the first successful deploy.
+    if os.getenv("AIW_SASKIA_RUN_MIGRATIONS") == "1":
+        from app.rms.db import init_db
+        init_db(engine)
+        print("MIGRATIONS: applied (set AIW_SASKIA_RUN_MIGRATIONS=0 to disable)", file=sys.stderr)
+
     app.state.engine = engine
     app.state.session_factory = make_session_factory(engine)
     app.state.is_postgres = _is_postgres(url)
