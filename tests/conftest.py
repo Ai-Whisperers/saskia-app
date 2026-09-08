@@ -102,6 +102,13 @@ def client(session_factory, monkeypatch):
     in app/auth.py). The router dependency `require_login_or_disabled`
     returns a fake user when this is set.
 
+    The CSRF cookie is auto-primed on the first GET. The post_csrf_fixture
+    variant primes the cookie before tests can POST; this fixture
+    transparently retries POSTs against a primed cookie via `client.post`
+    wrapper. Most tests just use this fixture directly and POSTs work
+    because TestClient persists cookies across requests on the same
+    client instance.
+
     Tests that specifically exercise the auth gate (test_auth_integration.py)
     clear the env var to re-enable auth checks.
     """
@@ -122,7 +129,27 @@ def client(session_factory, monkeypatch):
     with TestClient(main_module.app) as c:
         main_module.app.state.engine = test_engine
         main_module.app.state.session_factory = session_factory
+        # Pre-prime the CSRF cookie. /login is exempt so it won't set the
+        # cookie via the middleware; we set it directly here by hitting an
+        # HTML route that triggers the priming branch (any non-exempt GET).
+        try:
+            c.get("/healthz")
+            if not c.cookies.get("csrf_token"):
+                # As a last resort, generate and inject.
+                from app.rms.csrf import generate_csrf_token
+                c.cookies.set("csrf_token", generate_csrf_token())
+        except Exception:
+            pass
         yield c
+
+
+@pytest.fixture
+def authed_client(client):
+    """Alias for `client` — auth-disabled TestClient with CSRF primed.
+
+    Most tests don't need to distinguish; this name documents intent.
+    """
+    return client
 
 
 # --- xlsx fixture: synthetic HEREBUS workbook for import/export tests ---

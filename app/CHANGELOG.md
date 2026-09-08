@@ -50,6 +50,29 @@
   operations (reads API key from BWS at runtime). 2 regression tests
   pin the script + verify both BWS keys exist.
 
+### Added (reliability, 2026-09-08)
+
+- **Global exception handler + structured 5xx** — when an unhandled
+  error occurs, the app now logs the exception to stderr with full
+  context (request_id, method, path) and returns a structured JSON
+  response `{error, type, request_id, hint}` instead of FastAPI's
+  default HTML 500. HTTPException (FastAPI's normal 4xx/5xx control
+  flow) is preserved and returned as a JSON of the same shape.
+
+- **Per-request access log middleware** — every non-/static, non-/healthz
+  request now logs `request_id=<id> method=<m> path=<p> status=<s>
+  elapsed_ms=<n>` and echoes the request_id back via `X-Request-Id`
+  header for correlation. 2 regression tests in `tests/test_reliability.py`.
+
+- **CSRF protection on state-changing endpoints** — new
+  `app/rms/csrf.py` implements signed double-submit cookies: sets
+  `csrf_token` (HMAC-signed) on every non-exempt GET response, requires
+  a matching cookie on every POST/PUT/DELETE/PATCH. Exempt paths:
+  `/login`, `/forgot-password`, `/healthz*`, `/static/*`. Uses
+  `itsdangerous.URLSafeSerializer` (already in deps). 5 regression
+  tests in `tests/test_csrf.py`. Test conftest auto-primes the cookie
+  so existing POST tests work without modification.
+
 - **`/clientes` list + detail pages** — wires the existing
   `app/rms/customers.py` module (E13) to actual routes. Operators can now
   see the customer directory with lifetime spend, visit count, points

@@ -25,16 +25,18 @@ import os
 import sys
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.requests import Request
 from starlette.responses import Response
 
 from app.auth import SESSION_SECRET
 from app.rms.config import BIND_HOST, ensure_dirs
+from app.rms.csrf import csrf_cookie_middleware
 from app.rms.db import make_session_factory
 from app.rms.db_dialect import _is_postgres, get_database_url, get_metadata
 from app.rms.db_dialect import make_engine as make_engine_dialect
@@ -183,6 +185,10 @@ app.add_middleware(StaticCacheMiddleware)
 # so it runs OUTERMOST and its headers are guaranteed on every response.
 app.add_middleware(SecurityHeadersMiddleware)
 
+# CSRF protection: signed double-submit cookie.
+# Set on every GET response to non-exempt paths; required on every POST.
+app.middleware("http")(csrf_cookie_middleware)
+
 # Session middleware: signs cookies with SESSION_SECRET.
 # Must be added BEFORE routers so login_user() can write to request.session.
 # Same-site=lax + https-only when behind CF Tunnel (which always terminates TLS).
@@ -247,6 +253,102 @@ app.include_router(eod.router)
 app.include_router(merma.router)
 app.include_router(reportes.router)
 app.include_router(auditoria.router)
+
+
+def _request_id() -> str:
+    """Generate a short request id for log correlation."""
+    import uuid
+
+    return uuid.uuid4().hex[:12]
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """Global 500 handler: log + structured JSON response.
+
+    Without this, FastAPI returns a generic HTML 500 with no info. The
+    operator sees only "Internal Server Error" and can't diagnose.
+
+    Now: logs exception to stderr (loguru) with request context, returns
+    JSON {error, type, request_id} so frontend can show the id in a
+    "report this issue" hint.
+
+    HTTPException is a control-flow exception raised by FastAPI itself
+    for intentional 4xx/5xx responses (e.g. 401 auth, 403 CSRF, 405, etc).
+    Return its proper status code + detail verbatim — but emit a
+    consistent JSON shape so clients can parse it.
+    """
+    from fastapi import HTTPException
+
+    if isinstance(exc, HTTPException):
+        # Re-emit as JSON with the original status_code + detail.
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "error": exc.detail if exc.detail is not None else "http_error",
+                "type": exc.__class__.__name__,
+                "status": exc.status_code,
+            },
+            headers=exc.headers,
+        )
+
+    rid = _request_id()
+    logger.exception(
+        "unhandled error request_id={} method={} path={}: {!r}",
+        rid,
+        request.method,
+        request.url.path,
+        exc,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": str(exc) or exc.__class__.__name__,
+            "type": exc.__class__.__name__,
+            "request_id": rid,
+            "hint": "Pass the request_id to the operator for diagnosis.",
+        },
+    )
+
+
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc: Exception):
+    """JSON 404 instead of HTML — consistency with 500."""
+    return JSONResponse(
+        status_code=404,
+        content={
+            "error": "not_found",
+            "path": request.url.path,
+        },
+    )
+
+
+@app.middleware("http")
+async def request_log_middleware(request: Request, call_next):
+    """Per-request access log (skips /static/* and /healthz noise)."""
+    import time
+
+    if not request.url.path.startswith(("/static/", "/healthz")):
+        start = time.perf_counter()
+        rid = _request_id()
+        request.state.request_id = rid
+        try:
+            response = await call_next(request)
+        except Exception:
+            logger.error(
+                "request_id={} method={} path={} CRASHED",
+                rid, request.method, request.url.path,
+            )
+            raise
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        logger.info(
+            "request_id={} method={} path={} status={} elapsed_ms={:.0f}",
+            rid, request.method, request.url.path,
+            response.status_code, elapsed_ms,
+        )
+        response.headers["X-Request-Id"] = rid
+        return response
+    return await call_next(request)
 
 
 def migrate() -> None:
