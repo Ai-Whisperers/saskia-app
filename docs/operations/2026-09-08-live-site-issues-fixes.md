@@ -92,3 +92,16 @@ When checking https://saskia-rms.paragu-ai.com on 2026-09-08:
 3. **N+1 queries don't show up on SQLite** (in-process, microsecond round-trips). They bite hard on remote DBs. Always use batch helpers for any "decorate a list" pattern.
 4. **Hybrid schemas from legacy migrations are nightmares**. The `user` table having both integer id and UUID column came from a prior Supabase Auth integration that didn't get cleaned up. The local model is the source of truth — drop and recreate tables that drift.
 5. **BWS PAT rotation is brittle**. With GitHub App decommissioning PATs in 2026, the only working push path is via the GitHub App installation token (JWT-based). That requires the App's PEM key in BWS or on disk.
+### 6. Pool config & Neon pauses
+
+Neon free-tier pauses the database after ~5 min of no activity. On the
+next query, Neon takes 5-20s to resume. SQLAlchemy with `pool_pre_ping=True`
+detects a stale connection (via `SELECT 1` before each query) and
+reconnects transparently. The user sees a slow first query, not a 500.
+
+`pool_recycle=1800s` (30 min) refreshes connections even on the
+healthy pool to avoid edge cases where the connection goes stale
+without `pool_pre_ping` firing. Both are configured in
+`app/rms/db_dialect.py:make_engine()` and guarded by the regression
+test `tests/test_engine_pool_recycle.py` (asserts `pool_pre_ping=True`,
+pool_size set, pool_recycle set on Postgres engines).
