@@ -57,6 +57,76 @@ def expected_daily_sales(session: Session, product_id: int,
     return total / window_days
 
 
+def batch_expected_daily_sales(
+    session: Session,
+    product_ids: list[int],
+    window_days: int = 14,
+) -> dict[int, float]:
+    """Batch-compute expected daily sales for many products in 1 query.
+
+    Returns {product_id: avg_units_per_day}. Products with no sales in the
+    window map to 0.0.
+    """
+    if not product_ids:
+        return {}
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=window_days)
+    rows = session.execute(
+        select(Sale.product_id, Sale.qty).where(
+            Sale.product_id.in_(product_ids),
+            Sale.voided_at.is_(None),
+            Sale.sold_at >= cutoff,
+        )
+    ).all()
+    totals: dict[int, float] = {pid: 0.0 for pid in product_ids}
+    for pid, qty in rows:
+        totals[pid] = totals.get(pid, 0.0) + float(qty or 0)
+    return {pid: total / window_days for pid, total in totals.items()}
+
+
+def batch_production_plans(
+    session: Session,
+    products: list[Product],
+    target_date: datetime | None = None,
+    safety_pct: float = 0.20,
+) -> list["ProductionPlan"]:
+    """Batch-compute production plans for many products in 2 queries.
+
+    Replaces N+1 pattern of production_plan_for_day(product) in a loop.
+    Pre-loads recipes + velocities in one pass, then computes plans in Python.
+    """
+    if not products:
+        return []
+
+    product_ids = [p.id for p in products]
+    # Pre-load recipes (so _recipe_yield's session.get() is identity-map hit)
+    recipe_ids = {p.recipe_id for p in products if p.recipe_id is not None}
+    if recipe_ids:
+        session.scalars(select(Recipe).where(Recipe.id.in_(recipe_ids))).all()
+
+    # Batch-load sales velocities in 1 query
+    velocities = batch_expected_daily_sales(session, product_ids)
+
+    plans = []
+    for p in products:
+        velocity = velocities.get(p.id, 0.0)
+        target = max(1, int(round(velocity * (1 + safety_pct))))
+        yield_per_batch = max(1, _recipe_yield(session, p))
+        batches = max(1, -(-target // yield_per_batch))
+        reason = (
+            f"velocity={velocity:.1f}/day + {int(safety_pct*100)}% safety "
+            f"→ target {target} units ({batches} batch{'es' if batches > 1 else ''})"
+        )
+        plans.append(ProductionPlan(
+            product_id=p.id,
+            product_name=p.name,
+            target_qty=target,
+            reason=reason,
+            batch_count=batches,
+        ))
+    return plans
+
+
 # ---------------------------------------------------------------------------
 # Stock coverage
 # ---------------------------------------------------------------------------

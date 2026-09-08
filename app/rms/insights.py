@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.rms.food_cost import food_cost_report
@@ -29,7 +30,7 @@ from app.rms.menu_engineering import (
     classify_products,
 )
 from app.rms.models import Product
-from app.rms.production_scheduler import production_plan_for_day
+from app.rms.production_scheduler import batch_production_plans
 from app.rms.sales_intel import (
     churning_products,
     peak_hour,
@@ -75,13 +76,8 @@ def build_insights(session: Session) -> InsightsPanel:
                    key=lambda x: x["margin_gs"], reverse=True)[:3]
     dogs = quadrants.get(Quadrant.DOG.value, [])
 
-    # Production tomorrow
-    tomorrow_plans = []
-    for p in session.query(Product).all():
-        try:
-            tomorrow_plans.append(production_plan_for_day(session, p))
-        except Exception:
-            pass
+    # Production tomorrow (batched — replaces per-product N+1 loop)
+    tomorrow_plans = batch_production_plans(session, list(session.scalars(select(Product)).all()))
 
     # Food cost
     fc_report = food_cost_report(session, period_days=30)

@@ -21,6 +21,15 @@
   1 regression test in `tests/test_menu_engineering_perf.py` asserts no
   per-product point queries against `sale`.
 
+- **insights + sales_intel N+1 → batched** — `build_insights()` was calling
+  `production_plan_for_day()` per product (one query each); `rising_products()`
+  and `churning_products()` were calling `_trend_for_product()` per product
+  (2 queries each). Added `batch_production_plans()` to
+  `app/rms/production_scheduler.py` and `_batch_trend_counts()` /
+  `_classify_trend()` helpers to `app/rms/sales_intel.py`. Both functions
+  now do constant-query work regardless of product count. 2 regression
+  tests in `tests/test_insights_perf.py` pin both behaviors.
+
 - **Dashboard N+1 → batched** — `app/routers/dashboard.py` was issuing ~3,000
   DB queries per render (one `product_unit_cost_gs()` call per sale, plus
   per-product loops in ranking + recipes_no_cost + build_insights). Replaced

@@ -207,12 +207,86 @@ def _trend_for_product(session: Session, product_id: int,
                        direction)
 
 
+def _batch_trend_counts(
+    session: Session,
+    product_ids: list[int],
+    window_days: int = 14,
+) -> tuple[dict[int, int], dict[int, int]]:
+    """Batch-load recent + prior sales counts in 2 queries.
+
+    Returns (recent_by_pid, prior_by_pid).
+    """
+    if not product_ids:
+        return {}, {}
+    now = datetime.now(timezone.utc)
+    recent_start = now - timedelta(days=window_days)
+    prior_start = now - timedelta(days=window_days * 2)
+
+    recent_rows = session.execute(
+        select(Sale.product_id, Sale.qty).where(
+            Sale.product_id.in_(product_ids),
+            Sale.voided_at.is_(None),
+            Sale.sold_at >= recent_start,
+        )
+    ).all()
+    prior_rows = session.execute(
+        select(Sale.product_id, Sale.qty).where(
+            Sale.product_id.in_(product_ids),
+            Sale.voided_at.is_(None),
+            Sale.sold_at >= prior_start,
+            Sale.sold_at < recent_start,
+        )
+    ).all()
+
+    recent_by_pid: dict[int, int] = {pid: 0 for pid in product_ids}
+    for pid, qty in recent_rows:
+        recent_by_pid[pid] = recent_by_pid.get(pid, 0) + int(qty or 0)
+    prior_by_pid: dict[int, int] = {pid: 0 for pid in product_ids}
+    for pid, qty in prior_rows:
+        prior_by_pid[pid] = prior_by_pid.get(pid, 0) + int(qty or 0)
+    return recent_by_pid, prior_by_pid
+
+
+def _classify_trend(
+    product_id: int,
+    product_name: str,
+    recent: int,
+    prior: int,
+    threshold_pct: float,
+) -> TrendResult:
+    """Classify one trend from pre-computed counts."""
+    if prior == 0:
+        if recent == 0:
+            return TrendResult(product_id, product_name, 0, 0, None, "stable")
+        return TrendResult(product_id, product_name, recent, 0, None, "new")
+    change_pct = (recent - prior) / prior
+    if change_pct > threshold_pct:
+        direction = "rising"
+    elif change_pct < -threshold_pct:
+        direction = "churning"
+    else:
+        direction = "stable"
+    return TrendResult(product_id, product_name, recent, prior, change_pct,
+                       direction)
+
+
 def churning_products(session: Session, threshold_pct: float = 0.3,
                       window_days: int = 14) -> list[TrendResult]:
     """Products whose sales in last N days dropped > threshold from prior N."""
+    products = list(session.scalars(select(Product)).all())
+    if not products:
+        return []
+    recent_by_pid, prior_by_pid = _batch_trend_counts(
+        session, [p.id for p in products], window_days,
+    )
     out = []
-    for p in session.scalars(select(Product)).all():
-        trend = _trend_for_product(session, p.id, threshold_pct, window_days)
+    for p in products:
+        trend = _classify_trend(
+            p.id, p.name,
+            recent_by_pid.get(p.id, 0),
+            prior_by_pid.get(p.id, 0),
+            threshold_pct,
+        )
         if trend.direction == "churning":
             out.append(trend)
     out.sort(key=lambda t: t.change_pct or 0)
@@ -222,9 +296,20 @@ def churning_products(session: Session, threshold_pct: float = 0.3,
 def rising_products(session: Session, threshold_pct: float = 0.3,
                     window_days: int = 14) -> list[TrendResult]:
     """Products whose sales grew > threshold."""
+    products = list(session.scalars(select(Product)).all())
+    if not products:
+        return []
+    recent_by_pid, prior_by_pid = _batch_trend_counts(
+        session, [p.id for p in products], window_days,
+    )
     out = []
-    for p in session.scalars(select(Product)).all():
-        trend = _trend_for_product(session, p.id, threshold_pct, window_days)
+    for p in products:
+        trend = _classify_trend(
+            p.id, p.name,
+            recent_by_pid.get(p.id, 0),
+            prior_by_pid.get(p.id, 0),
+            threshold_pct,
+        )
         if trend.direction == "rising":
             out.append(trend)
     out.sort(key=lambda t: t.change_pct or 0, reverse=True)
