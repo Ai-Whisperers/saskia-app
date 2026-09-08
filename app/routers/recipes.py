@@ -16,7 +16,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
-from app.rms.costing import recipe_batch_cost_gs, recipe_unit_cost_gs
+from app.rms.costing import (
+    CostResult,
+    batch_recipes_cost,
+)
 from app.rms.models import Ingredient, Recipe, RecipeLine
 from app.rms.units import Unit
 from app.services.template_render import render
@@ -28,15 +31,8 @@ def get_session(request: Request) -> Session:
     return request.app.state.session_factory()
 
 
-def _decorate(session: Session, r: Recipe) -> dict:
-    """Compute batch + unit cost for a recipe row."""
-    batch = recipe_batch_cost_gs(session, r.id)
-    unit = recipe_unit_cost_gs(session, r.id)
-    from sqlalchemy import func
-
-    line_count = (
-        session.scalar(select(func.count(RecipeLine.id)).where(RecipeLine.recipe_id == r.id)) or 0
-    )
+def _decorate(session: Session, r: Recipe, batch: CostResult, unit: CostResult | None, line_count: int) -> dict:
+    """Compute batch + unit cost for a recipe row (data passed in from batch loader)."""
     return {
         "id": r.id,
         "name": r.name,
@@ -44,15 +40,20 @@ def _decorate(session: Session, r: Recipe) -> dict:
         "yield_unit": r.yield_unit,
         "line_count": line_count,
         "batch_cost_gs": batch.batch_cost_gs,
-        "unit_cost_gs": unit.batch_cost_gs,
+        "unit_cost_gs": unit.batch_cost_gs if unit else None,
         "notes": r.notes,
     }
 
 
 @router.get("", response_class=HTMLResponse)
 async def recipes_list(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
+    """List recipes with batch + unit cost. Batch-loaded to avoid N+1 on Neon."""
     recipes = session.scalars(select(Recipe).order_by(Recipe.name)).all()
-    decorated = [_decorate(session, r) for r in recipes]
+    batch_results = batch_recipes_cost(session, list(recipes))
+    decorated = [
+        _decorate(session, r, batch_results[r.id][0], batch_results[r.id][1], batch_results[r.id][2])
+        for r in recipes
+    ]
     return render(request, "recetas.html", {"recipes": decorated})
 
 

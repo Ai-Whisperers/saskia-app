@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
-from app.rms.costing import product_margin, product_unit_cost_gs
+from app.rms.costing import batch_products_cost_margin, product_margin, product_unit_cost_gs
 from app.rms.models import Product, Recipe, Sale
 from app.rms.money import parse_gs
 from app.services.template_render import render
@@ -44,9 +44,33 @@ def _decorate(session: Session, p: Product) -> dict:
 
 @router.get("", response_class=HTMLResponse)
 def products_list(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
-    """List all products with cost + margin."""
+    """List all products with cost + margin. Batch-loads to avoid N+1."""
     products = session.scalars(select(Product).order_by(Product.name)).all()
-    decorated = [_decorate(session, p) for p in products]
+    # One batch call replaces N+1 cost/margin queries (Neon round-trips).
+    batch_results = batch_products_cost_margin(session, list(products))
+    decorated = []
+    for p in products:
+        cost, margin = batch_results.get(
+            p.id,
+            (
+                product_unit_cost_gs(session, p.id),
+                product_margin(session, p.id),
+            ),
+        )
+        decorated.append(
+            {
+                "id": p.id,
+                "name": p.name,
+                "portion_label": p.portion_label,
+                "sale_price_gs": p.sale_price_gs,
+                "recipe_id": p.recipe_id,
+                "recipe_name": p.recipe.name if p.recipe else None,
+                "cost_gs": cost.batch_cost_gs,
+                "margin_gs": margin[0],
+                "margin_ratio": margin[1],
+                "notes": p.notes,
+            }
+        )
     return render(request, "productos.html", {"products": decorated})
 
 

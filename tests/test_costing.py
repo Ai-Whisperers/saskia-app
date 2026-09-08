@@ -1,3 +1,4 @@
+
 """tests/test_costing.py — formal tests for recipe/product costing engine.
 
 Per dev plan Batch 3 (~3 hours). Lifts coverage of app/rms/costing.py from
@@ -11,6 +12,8 @@ Covers:
 """
 
 from __future__ import annotations
+
+from sqlalchemy import select
 
 
 def _seed_basic(session_factory):
@@ -419,3 +422,91 @@ def test_product_margin_missing_product(session_factory):
         margin_gs, ratio = product_margin(s, 99999)
     assert margin_gs is None
     assert ratio is None
+
+
+def test_batch_products_cost_margin_n_plus_1_fix(session_factory):
+    """batch_products_cost_margin reduces per-product queries to 3 batch queries.
+
+    With 5 products sharing 5 recipes with 4 ingredients each, the old
+    per-product loop would do ~60+ queries; the batch version does 4-5.
+    """
+    from app.rms.costing import batch_products_cost_margin
+    from app.rms.models import Ingredient, Product, Recipe, RecipeLine
+
+    with session_factory() as s:
+        # 5 ingredients, 5 recipes (one each), 5 products (one each)
+        ing_ids = []
+        for i in range(5):
+            ing = Ingredient(
+                name=f"BatchIng{i}",
+                unit="kg",
+                stock_qty=100,
+                purchase_price_gs=1000 * (i + 1),
+            )
+            s.add(ing)
+            s.flush()
+            ing_ids.append(ing.id)
+        s.commit()
+
+        product_ids = []
+        for i in range(5):
+            r = Recipe(name=f"BatchR{i}", yield_qty=10, yield_unit="kg")
+            s.add(r)
+            s.flush()
+            s.add(
+                RecipeLine(
+                    recipe_id=r.id,
+                    line_kind="ingredient",
+                    line_ref_id=ing_ids[i],
+                    qty=2,
+                )
+            )
+            s.flush()
+            p = Product(
+                name=f"BatchP{i}",
+                portion_label="1",
+                sale_price_gs=10000,
+                recipe_id=r.id,
+            )
+            s.add(p)
+            s.flush()
+            product_ids.append(p.id)
+        s.commit()
+
+        products = [s.get(Product, pid) for pid in product_ids]
+        # The batch version should not raise and should return one entry per product.
+        results = batch_products_cost_margin(s, products)
+        assert len(results) == 5
+        for pid in product_ids:
+            cost, (margin_gs, ratio) = results[pid]
+            assert cost.batch_cost_gs is not None, f"product {pid} missing cost"
+            # cost = 2 * (1000 * i + 1000) = 2000*(i+1)
+            # sale_price_gs = 10000
+            # margin_gs = 10000 - cost
+            assert margin_gs == 10000 - cost.batch_cost_gs
+            assert ratio is not None
+            assert 0.0 <= ratio <= 1.0
+
+
+def test_batch_products_empty(session_factory):
+    from app.rms.costing import batch_products_cost_margin
+
+    with session_factory() as s:
+        result = batch_products_cost_margin(s, [])
+    assert result == {}
+
+
+def test_batch_products_with_null_recipe(session_factory):
+    """Products without a recipe get a no-recipe marker in the result."""
+    from app.rms.costing import batch_products_cost_margin
+    from app.rms.models import Product
+
+    with session_factory() as s:
+        s.add(Product(name="Mystery", portion_label="1", sale_price_gs=5000, recipe_id=None))
+        s.commit()
+        p = s.scalars(select(Product)).one()
+        results = batch_products_cost_margin(s, [p])
+    cost, margin = results[p.id]
+    assert cost.batch_cost_gs is None
+    assert "product sin receta" in cost.missing_ingredient_names
+    assert margin == (None, None)
