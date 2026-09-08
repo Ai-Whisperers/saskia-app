@@ -99,6 +99,13 @@
   (`?has_recipe=yes` / `no`). Filter UI with search input +
   dropdown. 4 regression tests in `tests/test_productos_filter.py`.
 
+- **`/healthz/errors` endpoint** — quick error-rate snapshot for
+  operators. Returns counts of `action="http.500"` rows in the
+  audit_log for the last 1h and last 24h. Gated on readiness (503
+  during warm-up). Public read-only endpoint, no PII; just counts.
+  3 regression tests in `tests/test_healthz_errors.py`. Tip: hit this
+  URL to instantly know if there have been recent server errors.
+
 - **`/clientes` list + detail pages** — wires the existing
   `app/rms/customers.py` module (E13) to actual routes. Operators can now
   see the customer directory with lifetime spend, visit count, points

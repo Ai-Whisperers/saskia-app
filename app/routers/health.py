@@ -75,6 +75,56 @@ def healthz_head(request: Request) -> Response:
     return Response(status_code=200, media_type="application/json")
 
 
+@router.get("/healthz/errors", response_model=None)
+def healthz_errors(request: Request) -> JSONResponse:
+    """Quick error-rate snapshot for the operator.
+
+    Counts how many `action="http.500"` rows are in audit_log over the
+    last 24h and last 1h. Operators hit this when the user sees "page
+    not loading" — instantly know if there were recent server errors.
+
+    Read-only public endpoint (sanitized: no PII, just counts).
+    """
+    from datetime import datetime, timedelta
+
+    from sqlalchemy import func, select
+
+    ready = getattr(request.app.state, "ready", False)
+    if not ready:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "warming_up"},
+        )
+
+    from app.rms.models import AuditLog
+
+    now = datetime.now()
+    last_1h = now - timedelta(hours=1)
+    last_24h = now - timedelta(hours=24)
+
+    with request.app.state.session_factory() as s:
+        n_1h = s.execute(
+            select(func.count())
+            .select_from(AuditLog)
+            .where(AuditLog.action == "http.500", AuditLog.occurred_at >= last_1h)
+        ).scalar() or 0
+        n_24h = s.execute(
+            select(func.count())
+            .select_from(AuditLog)
+            .where(AuditLog.action == "http.500", AuditLog.occurred_at >= last_24h)
+        ).scalar() or 0
+
+    return JSONResponse(
+        content={
+            "http_500_count": {
+                "last_1h": int(n_1h),
+                "last_24h": int(n_24h),
+            },
+            "hint": "If last_1h > 0, check Render deploy logs or /auditoria?action_filter=http.500",
+        }
+    )
+
+
 @router.get("/healthz/deps", response_model=None)
 def healthz_deps(request: Request) -> JSONResponse | dict:
     """Dependency fingerprint for debugging env mismatches on Render.
