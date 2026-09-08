@@ -243,14 +243,39 @@ table.data .right { text-align: right; }
 }
 
 .alert {
-  padding: 4px 0;
-  font-size: 13px;
+  padding: 10px 14px;
+  font-size: 14px;
   font-weight: 500;
+  border-radius: 6px;
+  margin: 12px 0;
+  border: 1px solid transparent;
+  line-height: 1.4;
 }
 
 .alert-danger { color: var(--danger); }
 .alert-warn { color: var(--warn); }
 .alert-ok { color: var(--good); }
+
+/* Filled variants for inline form errors. Use these inside the form body. */
+.alert-error {
+  color: #fff;
+  background: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 70%, #000 30%);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.alert-error::before {
+  content: "⚠";
+  font-size: 18px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.alert-info {
+  color: #fff;
+  background: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 70%, #000 30%);
+}
 
 .avisos {
   list-style: none;

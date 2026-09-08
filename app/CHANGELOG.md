@@ -72,6 +72,41 @@
   hora/día pico, food cost % (30d), star/dog quadrants, low-stock alerts,
   rising/churning products, and tomorrow's production plan.
 
+### Fixed (login UX, 2026-09-08)
+
+User-facing login was hostile: bad credentials rendered an unstyled text
+div with no visual prominence, the page title was doubled
+("Iniciar sesión — Saskia RMS — Saskia RMS"), and the forgot-password
+recovery link had no tests. This commit:
+
+- **`.alert-error` CSS rule added** — was completely missing. Now renders as
+  a red filled box with warning icon (via `::before`). `.alert-info`
+  variant also added for the forgot-password confirmation.
+- **Login error rendering** — alert block placed above the form with
+  `role="alert" aria-live="assertive"` so screen readers announce immediately.
+  Error text is human-friendly ("No pudimos entrar.") not URL-encoded
+  Spanish gibberish.
+- **Form fields marked `aria-invalid="true"`** on error, with
+  `aria-describedby="login-error"` so screen readers link the field to
+  the error message.
+- **Autofocus moves to password field on error** — more useful than
+  re-focusing username (which already had the right value).
+- **`<title>` deduplicated** — login.html no longer includes
+  "— Saskia RMS" in its title block (base template adds the suffix).
+- **Forgot-password link rewritten** — action label "Recuperar contraseña"
+  instead of question "¿Olvidaste tu contraseña?". Added explicit Iván
+  contact (`mailto:ivan@ai-whisperers.dev`) and "5 minutes + spam" hint.
+- **Forgot-password inline validation** — the JS handler now uses an
+  inline error div instead of `alert()` (better UX, accessibility).
+- **`novalidate` on login form** — lets the server's rate-limit / redirect
+  logic run instead of the browser blocking submission.
+
+13 new regression tests in `tests/test_login_a11y_regression.py` cover:
+alert rendering, aria-invalid on inputs, autofocus behavior, title
+de-duplication, forgot-link presence in Supabase mode, message rendering,
+forgot-password endpoint, no-enumeration leak, CSS rules present, alert
+position (above form, inside main), and form novalidate.
+
 ### Operations
 
 - **One-time migration bootstrap hook** — added opt-in `AIW_SASKIA_RUN_MIGRATIONS=1`

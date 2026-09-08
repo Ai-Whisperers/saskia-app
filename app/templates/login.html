@@ -1,22 +1,27 @@
 {% extends "base.html" %}
-{% block title %}Iniciar sesión — Saskia RMS{% endblock %}
+{% block title %}Iniciar sesión{% endblock %}
 {% block content %}
-<main class="container" style="max-width: 400px;">
+<main class="container" style="max-width: 440px;">
   <h1>Iniciar sesión</h1>
 
   {% if error %}
-  <div class="alert alert-error" role="alert">
-    <strong>Error:</strong> {{ error }}
+  {# Inline error shown ABOVE the form so it's impossible to miss.
+     role="alert" + aria-live="assertive" forces screen readers to announce immediately. #}
+  <div class="alert alert-error" role="alert" aria-live="assertive">
+    <div>
+      <strong>No pudimos entrar.</strong><br>
+      {{ error }}
+    </div>
   </div>
   {% endif %}
 
   {% if message %}
-  <div class="alert alert-info" role="status">
+  <div class="alert alert-info" role="status" aria-live="polite">
     {{ message }}
   </div>
   {% endif %}
 
-  <form method="post" action="/login" class="form">
+  <form method="post" action="/login" class="form" novalidate>
     <input type="hidden" name="next" value="{{ next }}">
 
     <div class="form-row">
@@ -29,7 +34,8 @@
         name="username"
         autocomplete="{% if using_supabase %}email{% else %}username{% endif %}"
         required
-        autofocus
+        {% if not error %}autofocus{% endif %}
+        {% if error %}aria-invalid="true" aria-describedby="login-error"{% endif %}
       >
     </div>
 
@@ -41,6 +47,7 @@
         name="password"
         autocomplete="current-password"
         required
+        {% if error %}autofocus aria-invalid="true" aria-describedby="login-error"{% endif %}
       >
     </div>
 
@@ -51,13 +58,34 @@
 
   {% if using_supabase %}
   <p class="hint">
-    <a href="/login" id="forgot-link">¿Olvidaste tu contraseña?</a>
+    ¿Problemas para entrar?
+    <a href="/login" id="forgot-link">Recuperar contraseña</a>
+    ·
+    <a href="mailto:ivan@ai-whisperers.dev">Escribile a Iván</a>
+  </p>
+  <p class="hint hint-muted" style="font-size: 12px;">
+    Te enviamos un link al correo para crear una contraseña nueva.
+    Si no te llega en 5 minutos, revisá spam o pedile a Iván que te lo resetee.
   </p>
   <script>
     document.getElementById('forgot-link').addEventListener('click', function(e) {
       e.preventDefault();
-      var email = document.getElementById('username').value;
-      if (!email) { alert('Escribí tu correo primero.'); return; }
+      var emailEl = document.getElementById('username');
+      var email = emailEl.value;
+      if (!email || email.indexOf('@') === -1) {
+        emailEl.focus();
+        // Inline alert instead of native alert() — better UX + accessibility.
+        var existing = document.getElementById('forgot-inline-err');
+        if (existing) existing.remove();
+        var div = document.createElement('div');
+        div.id = 'forgot-inline-err';
+        div.className = 'alert alert-error';
+        div.setAttribute('role', 'alert');
+        div.setAttribute('aria-live', 'assertive');
+        div.innerHTML = '<div><strong>Falta el correo.</strong> Escribilo arriba primero para poder enviarte el link de recuperación.</div>';
+        emailEl.parentNode.insertBefore(div, emailEl.parentNode.nextSibling);
+        return;
+      }
       var form = document.createElement('form');
       form.method = 'POST';
       form.action = '/forgot-password';
