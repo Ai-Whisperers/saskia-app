@@ -1,7 +1,6 @@
 """tests/test_logging_config.py — loguru emits structured logs."""
 from __future__ import annotations
 
-import json
 import sys
 
 

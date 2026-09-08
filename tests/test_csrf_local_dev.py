@@ -27,6 +27,7 @@ def test_csrf_module_reads_env_var_and_round_trips():
 def test_csrf_middleware_path_filter():
     """Exempt paths do not enforce CSRF /healthz."""
     from fastapi.testclient import TestClient
+
     from app.rms.main import app
 
     tc = TestClient(app, raise_server_exceptions=False)
@@ -47,9 +48,9 @@ def test_csrf_forced_secure_flag_via_env(monkeypatch):
 
     monkeypatch.setenv("AIW_SASKIA_FORCE_SECURE_COOKIES", "1")
 
-    from app.rms.csrf import csrf_cookie_middleware  # noqa: F401
-
     import os
+
+    from app.rms.csrf import csrf_cookie_middleware  # noqa: F401
     # Now check that the middleware would set Secure=True.
     val = os.getenv("AIW_SASKIA_FORCE_SECURE_COOKIES") == "1"
     assert val is True

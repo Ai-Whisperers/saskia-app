@@ -570,15 +570,13 @@ def init_db(engine: Engine) -> None:
         # Wrapped in its own connection so failure here doesn't undo migrations.
         if dialect == "postgresql":
             try:
-                with engine.connect() as idx_conn:
-                    # Use a Session wrapper around the conn.
-                    from sqlalchemy.orm import sessionmaker
+                # Use a Session wrapper around the engine.
+                from sqlalchemy.orm import sessionmaker
 
-                    from app.rms.db import SessionLocal  # type: ignore  # noqa
-                    from app.rms.perf import apply_postgres_indexes
-                    Session = sessionmaker(bind=engine)()
-                    _ = apply_postgres_indexes(Session)
-                    Session.close()
+                from app.rms.perf import apply_postgres_indexes
+                Session = sessionmaker(bind=engine)()
+                _ = apply_postgres_indexes(Session)
+                Session.close()
             except Exception as exc:
                 # Indexes are an optimization, not a correctness fix.
                 # Don't crash startup if the applier hiccups.

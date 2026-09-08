@@ -1,6 +1,11 @@
 """tests/test_schema_version_helper.py — schema version drift detector."""
-from app.rms.db import schema_version, CURRENT_SCHEMA_VERSION, schema_version_mismatch
-from app.rms.db import app_meta_write, app_meta_read
+from app.rms.db import (
+    CURRENT_SCHEMA_VERSION,
+    app_meta_read,
+    app_meta_write,
+    schema_version,
+    schema_version_mismatch,
+)
 
 
 def test_schema_version_returns_int(session_factory):
