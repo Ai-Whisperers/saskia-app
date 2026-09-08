@@ -244,6 +244,14 @@ def _migration_003_analytics_columns(conn: Any) -> None:
     )
 
 
+
+def _migration_008_tenant(conn):
+    """Add tenant table (E15)."""
+    conn.execute(
+        text("UPDATE app_meta SET value = '8', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -252,6 +260,7 @@ MIGRATIONS = {
     5: _migration_005_customer,
     6: _migration_006_waste_log,
     7: _migration_007_product_sku,
+    8: _migration_008_tenant,
 }
 
 

@@ -441,6 +441,25 @@ class WasteLog(Base):
 
 
 
+
+class Tenant(Base):
+    """A multi-tenant boundary (E15).
+
+    In single-tenant mode (today), exactly one Tenant row exists
+    (slug="default") and every model implicitly references it.
+    In multi-tenant mode, a future migration would add tenant_id to
+    each table and isolate data per slug.
+    """
+
+    __tablename__ = "tenant"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    slug: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    business_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    primary_color: Mapped[str] = mapped_column(String(16), nullable=False, default="#7b3f00")
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="Gs.")
+    created_at: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+
 __all__ = [
     "Base",
     "AppMeta",
@@ -455,6 +474,7 @@ __all__ = [
     "User",
     "Tag",
     "TagLink",
+    "Tenant",
     "Customer",
     "WasteLog",
 ]

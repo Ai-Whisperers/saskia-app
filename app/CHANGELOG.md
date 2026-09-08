@@ -17,6 +17,10 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Multi-tenant scaffolding (E15)** — Tenant model + schema v8;
+  app/rms/tenants.py with ensure_default_tenant (idempotent),
+  resolve_tenant_id (env or subdomain), current_tenant context,
+  assert_single_tenant warning on > 1 rows.
 - **Progressive Web App seams (E11)** — PWA manifest (icons +
   theme_color), inline service worker (cache-first static /
   network-first API / offline HTML), UA-based is_mobile detector,
