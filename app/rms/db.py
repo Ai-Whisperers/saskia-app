@@ -299,6 +299,33 @@ def _migration_008_tenant(conn):
         {"ts": datetime.now(timezone.utc).isoformat()},
     )
 
+
+def _migration_009_ingredient_intel(conn):
+    """Add ingredient intelligence columns (E26): category, subcategory, role,
+    allergens, dietary_tags, lead_time_days.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    # Use TEXT type — works on both dialects.
+    cols = [
+        ("category", "VARCHAR(32)"),
+        ("subcategory", "VARCHAR(32)"),
+        ("role", "VARCHAR(32)"),
+        ("allergens", "JSONB" if dialect == "postgresql" else "TEXT"),
+        ("dietary_tags", "JSONB" if dialect == "postgresql" else "TEXT"),
+        ("lead_time_days", "INTEGER DEFAULT 3"),
+    ]
+    for col_name, col_type in cols:
+        try:
+            conn.execute(text(f"ALTER TABLE ingredient ADD COLUMN {col_name} {col_type}"))
+        except Exception:
+            # Column already exists — idempotent.
+            pass
+    conn.execute(
+        text("UPDATE app_meta SET value = '9', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -308,6 +335,7 @@ MIGRATIONS = {
     6: _migration_006_waste_log,
     7: _migration_007_product_sku,
     8: _migration_008_tenant,
+    9: _migration_009_ingredient_intel,
 }
 
 

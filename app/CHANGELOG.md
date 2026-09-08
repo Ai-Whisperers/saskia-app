@@ -7,6 +7,16 @@
 
 ### Added
 
+- **Ingredient intelligence (E26)** — auto-classify every ingredient by
+  category, role, allergens, dietary tags, shelf-life, and storage.
+  `app/rms/ingredient_intel.py` exposes `infer_category`,
+  `infer_subcategory`, `infer_role`, `infer_allergens`,
+  `infer_dietary_tags`, `infer_shelf_life_days`, `infer_storage`,
+  `classify_ingredient`, and `find_substitutes_by_role` (recipe
+  co-occurrence graph). Schema bumped to v9 with new columns:
+  `category`, `subcategory`, `role`, `allergens` (JSONB/Text),
+  `dietary_tags` (JSONB/Text), `lead_time_days`. Idempotent migration.
+
 - `.github/ISSUE_TEMPLATE/{bug,feature,epic}.md` for guided issue filing.
 - AGENTS.md gains "Issue templates", "Locked hotfixes", and refreshed CI
   list sections.
