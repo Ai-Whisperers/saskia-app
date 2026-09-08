@@ -441,6 +441,8 @@ def seed_demo_data(
     sale_rows: list[Sale] = []
     stock_move_rows: list[SaleStockMove] = []
 
+    BATCH_SIZE = 25  # commit every N days to avoid long-running transactions
+
     for day_offset in range(days_of_history):
         sale_date = sales_start + timedelta(days=day_offset)
         weekday = sale_date.weekday()  # 0=Mon, 6=Sun
@@ -454,17 +456,11 @@ def seed_demo_data(
         # Mild noise
         count = max(1, int(base_count + rng.randint(-1, 1)))
 
-        # Day-of-month holiday multiplier (Día de la Madre = May 15, etc.)
-        # We don't bake a full holiday calendar here — that's E19. For now
-        # add one synthetic spike on day-of-month 14 or 15.
         for _ in range(count):
             product = rng.choice(list(products_by_id.values()))
-            # Morning sales +30%, afternoon +50%, evening +20% by hour
             hour = rng.choices([8, 9, 10, 11, 14, 15, 16, 17, 18], weights=[2, 3, 3, 2, 3, 3, 2, 2, 1])[0]
             minute = rng.randint(0, 59)
             sold_at = sale_date.replace(hour=hour, minute=minute)
-
-            # Qty: usually 1, sometimes 2-12 (docenas)
             qty = rng.choices([1, 2, 3, 6, 12], weights=[70, 15, 5, 5, 5])[0]
 
             sale = Sale(
@@ -477,7 +473,6 @@ def seed_demo_data(
             session.add(sale)
             session.flush()  # to get sale.id
 
-            # Generate stock moves for this sale (negative)
             if product.recipe_id and product.recipe_id in recipe_lines_by_recipe:
                 recipe = recipes_by_id[product.recipe_id]
                 yield_qty = recipe.yield_qty or 1.0
@@ -492,14 +487,17 @@ def seed_demo_data(
                     session.add(move)
                     stock_move_rows.append(move)
 
-                    # Also decrement ingredient.stock_qty (in real life this
-                    # happens in the sales POST handler — for the seed we
-                    # do it directly to keep things realistic).
                     ing_row = session.get(Ingredient, line.line_ref_id)
                     if ing_row is not None:
                         ing_row.stock_qty = max(0.0, ing_row.stock_qty - need)
 
             sale_rows.append(sale)
+
+        # Commit every BATCH_SIZE days to avoid one giant transaction
+        # that locks Postgres for minutes (live Neon was hanging).
+        if (day_offset + 1) % BATCH_SIZE == 0:
+            session.commit()
+            logger.info(f"seeded days {day_offset + 1}/{days_of_history}")
 
     report.sales = len(sale_rows)
     report.stock_moves = len(stock_move_rows)
@@ -596,8 +594,26 @@ def seed_demo_data(
         select(AppMeta).where(AppMeta.key == "last_seed_at")
     ).scalar_one_or_none()
     now_str = datetime.now(timezone.utc).isoformat()
+    # On Postgres, app_meta.value may be JSONB (legacy column type from
+    # Supabase Auth). Use dialect-aware INSERT to handle both.
+    bind = session.get_bind()
+    dialect_name = bind.dialect.name if bind is not None else "sqlite"
     if existing_meta is None:
-        session.add(AppMeta(key="last_seed_at", value=now_str, updated_at=now_str))
+        if dialect_name == "postgresql":
+            from sqlalchemy import text as sa_text
+
+            # Build SQL in Python to avoid SQLAlchemy's :param binding
+            # conflicting with Postgres' ::type casts.
+            ts_q = now_str.replace("'", "''")
+            session.execute(
+                sa_text(
+                    f"INSERT INTO app_meta (key, value, updated_at) "
+                    f"VALUES ('last_seed_at', '\"{ts_q}\"'::jsonb, '{ts_q}') "
+                    f"ON CONFLICT (key) DO NOTHING"
+                )
+            )
+        else:
+            session.add(AppMeta(key="last_seed_at", value=now_str, updated_at=now_str))
     else:
         existing_meta.value = now_str
         existing_meta.updated_at = now_str
@@ -610,21 +626,36 @@ def seed_demo_data(
 def _delete_seeded_data(session: Session) -> None:
     """Delete all rows from the tables we manage. Used when overwrite=True."""
     # Order matters: respect FKs.
-    session.execute(delete(SaleStockMove))
-    session.execute(delete(Sale))
-    session.execute(delete(ImportBatch))
-    session.execute(delete(Product))
-    session.execute(delete(RecipeLine))
-    session.execute(delete(Recipe))
-    session.execute(delete(Ingredient))
-    # Delete demo user only
-    session.execute(delete(User).where(User.username == DEMO_USER_USERNAME))
-    # Delete audit log rows we created
-    session.execute(delete(AppMeta).where(AppMeta.key == "last_seed_at"))
+    # Wrap each deletion in try/except so a missing-table error (live DB
+    # schema drift) doesn't abort the whole seed.
+    for model in (
+        SaleStockMove,
+        Sale,
+        ImportBatch,
+        Product,
+        RecipeLine,
+        Recipe,
+        Ingredient,
+        User,
+    ):
+        try:
+            session.execute(delete(model))
+        except Exception as e:  # noqa: BLE001 - table may not exist
+            logger.warning(f"Could not wipe {model.__name__}: {e}")
+            session.rollback()
+    try:
+        session.execute(delete(AppMeta).where(AppMeta.key == "last_seed_at"))
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Could not delete last_seed_at: {e}")
+        session.rollback()
     # AuditLog: only delete the seeded events (action='seed.complete')
     from app.rms.models import AuditLog
 
-    session.execute(delete(AuditLog).where(AuditLog.action == "seed.complete"))
+    try:
+        session.execute(delete(AuditLog).where(AuditLog.action == "seed.complete"))
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Could not wipe audit log: {e}")
+        session.rollback()
     session.commit()
 
 

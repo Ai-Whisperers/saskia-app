@@ -125,11 +125,6 @@ def _migration_001_initial_schema(conn: Any) -> None:
     conn.execute(text(upsert2), {"ts": ts})
 
 
-MIGRATIONS: dict[int, MigrationFn] = {
-    1: _migration_001_initial_schema,
-}
-
-
 def _migration_002_audit_log(conn: Any) -> None:
     """Add the audit_log table (E3.S1).
 
@@ -233,12 +228,6 @@ def _migration_004_tags(conn: Any) -> None:
     )
 
 
-MIGRATIONS: dict[int, MigrationFn] = {
-    1: _migration_001_initial_schema,
-    2: _migration_002_audit_log,
-}
-
-
 def _migration_003_analytics_columns(conn: Any) -> None:
     """Add analytics-tracking columns (E8).
 
@@ -255,10 +244,12 @@ def _migration_003_analytics_columns(conn: Any) -> None:
     """
     # SQLite ALTER TABLE supports adding columns one at a time. Wrap in try/except
     # so re-running this migration on an already-migrated DB is a no-op.
-    # Same syntax works on Postgres.
+    # Postgres uses TIMESTAMP; SQLite accepts both.
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    ts_type = "TIMESTAMP" if dialect == "postgresql" else "DATETIME"
     _add_columns = [
-        ("ingredient", "purchase_price_updated_at", "DATETIME"),
-        ("ingredient", "last_consumed_at", "DATETIME"),
+        ("ingredient", "purchase_price_updated_at", ts_type),
+        ("ingredient", "last_consumed_at", ts_type),
         ("ingredient", "shelf_life_days", "INTEGER"),
         ("recipe", "prep_minutes", "INTEGER"),
     ]
