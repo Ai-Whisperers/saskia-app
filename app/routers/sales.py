@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -119,43 +119,58 @@ async def sales_list(
 
 @router.post("/nueva")
 async def sale_create(
-    request: Request, session: Session = Depends(get_session)
+    request: Request,
+    product_id: int = Form(..., gt=0),
+    qty: float = Form(..., gt=0),
+    payment_method: str = Form(""),
+    discount_gs: int = Form(0, ge=0),
+    customer_phone: str = Form(""),
+    notes: str = Form(""),
+    sold_at: str = Form(""),
+    session: Session = Depends(get_session),
 ) -> RedirectResponse:
-    """Create a sale with stock drop."""
-    form = await request.form()
-    try:
-        product_id = int(form.get("product_id", "0"))
-        qty = float(form.get("qty", "0"))
-    except (ValueError, TypeError) as e:
-        raise HTTPException(status_code=400, detail=f"Entrada inválida: {e}") from e
+    """Create a sale with stock drop.
 
-    if product_id <= 0 or qty <= 0:
-        raise HTTPException(status_code=400, detail="Producto y cantidad son obligatorios")
+    Validation: FastAPI's Form(...) enforces types + bounds before this
+    handler runs. Bad input → 422.
+    """
+    from app.rms.schemas import ALLOWED_PAYMENT_METHODS, MAX_DISCOUNT_GS, MAX_QTY
+    # Form(...) didn't enforce upper bounds here because Form() with `le=`
+    # requires a literal value, not a constant. So we re-check explicitly.
+    # The 422 path is hit when gt/le/... mismatch happens (handled by
+    # FastAPI). For " > MAX_QTY specifically, raise 422 in the route via
+    # the same alias — but that's overcomplicated. Keep 400 for these.
+    if qty > MAX_QTY:
+        raise HTTPException(status_code=422, detail=f"qty must be ≤ {MAX_QTY}")
+    if discount_gs > MAX_DISCOUNT_GS:
+        raise HTTPException(status_code=422, detail=f"discount_gs must be ≤ {MAX_DISCOUNT_GS}")
 
     # Parse sold_at (defaults to now in Asunción TZ)
-    sold_at_raw = str(form.get("sold_at", "")).strip()
+    sold_at_raw = sold_at.strip()
     if sold_at_raw:
         try:
             # Form sends "YYYY-MM-DDTHH:MM" (no TZ). Treat as Asunción local.
             naive = datetime.fromisoformat(sold_at_raw)
-            sold_at = naive.replace(tzinfo=ASUNCION_TZ).astimezone(ASUNCION_TZ)
+            sold_at_dt = naive.replace(tzinfo=ASUNCION_TZ).astimezone(ASUNCION_TZ)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Fecha inválida: {sold_at_raw!r}") from e
     else:
-        sold_at = datetime.now(ASUNCION_TZ)
+        sold_at_dt = datetime.now(ASUNCION_TZ)
 
-    notes = str(form.get("notes", "")).strip() or None
-    payment_method = str(form.get("payment_method", "")).strip() or None
-    discount_raw = str(form.get("discount_gs", "0")).strip() or "0"
-    try:
-        discount_gs = max(0, int(discount_raw))
-    except ValueError:
-        discount_gs = 0
-    customer_phone = str(form.get("customer_phone", "")).strip() or None
+    # payment_method: optional, must be in ALLOWED_PAYMENT_METHODS if set
+    payment_method_clean = payment_method.strip() or None
+    if payment_method_clean is not None and payment_method_clean not in ALLOWED_PAYMENT_METHODS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Forma de pago inválida. Permitidas: {sorted(ALLOWED_PAYMENT_METHODS)}",
+        )
+
+    notes_clean = notes.strip() or None
+    customer_phone_clean = customer_phone.strip() or None
     customer_id: int | None = None
-    if customer_phone:
+    if customer_phone_clean:
         from app.rms.customers import ensure_customer
-        c = ensure_customer(session, name=customer_phone, phone=customer_phone)
+        c = ensure_customer(session, name=customer_phone_clean, phone=customer_phone_clean)
         customer_id = c.id
 
     try:
@@ -163,10 +178,10 @@ async def sale_create(
             session,
             product_id,
             qty,
-            sold_at,
-            notes,
+            sold_at_dt,
+            notes_clean,
             customer_id=customer_id,
-            payment_method=payment_method,
+            payment_method=payment_method_clean,
             discount_gs=discount_gs,
         )
     except RecipeWithoutYield as e:

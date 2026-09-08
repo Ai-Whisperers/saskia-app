@@ -325,7 +325,7 @@ def test_sale_negative_qty_rejected(client, session_factory):
         },
         follow_redirects=False,
     )
-    assert r.status_code == 400
+    assert r.status_code == 422  # FastAPI Form(...) rejects negative qty
 
 
 def test_sale_void_restores_stock(client, session_factory):
