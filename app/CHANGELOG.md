@@ -37,6 +37,11 @@
   `low_stock_alerts`. Ingredient model gains 6 new fields
   (category/subcategory/role/allergens/dietary_tags/lead_time_days).
   Migration 009 backs the columns; idempotent.
+- **Sales intelligence (E30)** — hourly/DOW/monthly patterns, market basket
+  affinity, churn/rising detection. `app/rms/sales_intel.py` exposes
+  `sales_by_hour`, `sales_by_day_of_week`, `sales_by_month`, `peak_hour`,
+  `peak_day_of_week`, `product_affinity`, `top_pairs`,
+  `churning_products`, `rising_products`, `sales_summary`.
 
 - `.github/ISSUE_TEMPLATE/{bug,feature,epic}.md` for guided issue filing.
 - AGENTS.md gains "Issue templates", "Locked hotfixes", and refreshed CI
