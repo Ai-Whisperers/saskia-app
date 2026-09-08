@@ -42,6 +42,12 @@
   `sales_by_hour`, `sales_by_day_of_week`, `sales_by_month`, `peak_hour`,
   `peak_day_of_week`, `product_affinity`, `top_pairs`,
   `churning_products`, `rising_products`, `sales_summary`.
+- **Product similarity (E31)** — Jaccard ingredient overlap for menu
+  rationalization, substitution suggestions, clone detection.
+  `app/rms/product_similarity.py` exposes `product_ingredient_set`
+  (walks sub-recipes recursively), `jaccard_similarity`,
+  `most_similar_products`, `suggest_substitute`, `similarity_matrix`,
+  `find_clones`.
 
 - `.github/ISSUE_TEMPLATE/{bug,feature,epic}.md` for guided issue filing.
 - AGENTS.md gains "Issue templates", "Locked hotfixes", and refreshed CI
