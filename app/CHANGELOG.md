@@ -17,6 +17,10 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Drive-shape xlsx fixtures (E7)** — 4 fixtures under tests/fixtures/
+  (minimal, realistic, edge cases, herbus-compat) + 10 round-trip tests.
+  Rebuild with `uv run python tests/fixtures/build_herbus_fixture.py`.
+
 - **Operational analytics dashboard (E8)** — `app/rms/analytics.py` adds
   stock turnover, dead-stock detection, margin-erosion alerts, day-of-week
   heatmap, top-margin ranking, ingredient concentration, recipe complexity.
