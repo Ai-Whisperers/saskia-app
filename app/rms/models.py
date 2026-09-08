@@ -28,6 +28,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -323,6 +324,60 @@ class AuditLog(Base):
     user_agent: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
 
 
+class Tag(Base):
+    """Tag row (E9.S1).
+
+    A tag belongs to a single kind (product | ingredient | recipe).
+    Polymorphic M:N is handled by TagLink.
+    """
+
+    __tablename__ = "tag"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    color: Mapped[str] = mapped_column(String(16), nullable=False, default="#757575")
+
+    __table_args__ = (
+        UniqueConstraint("name", "kind", name="uq_tag_name_kind"),
+        Index("ix_tag_kind", "kind"),
+    )
+
+    # Relationships
+    links: Mapped[list["TagLink"]] = relationship(
+        "TagLink", back_populates="tag", cascade="all, delete-orphan"
+    )
+
+
+class TagLink(Base):
+    """Polymorphic M:N link between a Tag and a target (E9.S1).
+
+    target_kind in ("product", "ingredient", "recipe"); target_id is the FK
+    to the corresponding table.
+    """
+
+    __tablename__ = "tag_link"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tag_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tag.id", ondelete="CASCADE"), nullable=False
+    )
+    target_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    target_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    __table_args__ = (
+        UniqueConstraint("tag_id", "target_kind", "target_id", name="uq_tag_link"),
+        Index("ix_tag_link_target", "target_kind", "target_id"),
+    )
+
+    # Relationships
+    tag: Mapped["Tag"] = relationship("Tag", back_populates="links")
+
+
+
 __all__ = [
     "Base",
     "AppMeta",
@@ -335,4 +390,6 @@ __all__ = [
     "SaleStockMove",
     "ImportBatch",
     "User",
+    "Tag",
+    "TagLink",
 ]

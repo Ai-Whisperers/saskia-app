@@ -44,6 +44,7 @@ from app.rms.models import (
     SaleStockMove,
     User,
 )
+from app.rms.tags import TagKind, ensure_starter_tags, ensure_tag, tag_target
 
 # Use UTC-naive datetime columns consistently with existing models.
 # Sale.sold_at is DateTime without tz; we store UTC-naive.
@@ -544,6 +545,32 @@ def seed_demo_data(
 
     report.sales += 2  # voided + encargo
     report.stock_moves += len(recipe_lines_by_recipe.get(last_product.recipe_id, []))
+
+    # --- Tags (E9.S1) ---
+    # Insert all 31 starter tags + apply a few to seed products so the demo
+    # data surfaces immediately in the UI.
+    ensure_starter_tags(session)
+    popular_tag = ensure_tag(session, "popular", TagKind.PRODUCT.value)
+    premium_tag = ensure_tag(session, "premium", TagKind.PRODUCT.value)
+    individual_tag = ensure_tag(session, "individual", TagKind.PRODUCT.value)
+    docena_tag = ensure_tag(session, "docena", TagKind.PRODUCT.value)
+    all_products = list(session.execute(select(Product)).scalars())
+    all_products_by_name = {p.name: p for p in all_products}
+    for prod_name, _recipe_name, portion_label, _price, _category in PRODUCTS:
+        prod = all_products_by_name.get(prod_name)
+        if prod is None:
+            continue
+        if portion_label == "docena":
+            tag_target(session, docena_tag, TagKind.PRODUCT.value, prod.id)
+        elif portion_label == "1 unidad":
+            tag_target(session, individual_tag, TagKind.PRODUCT.value, prod.id)
+    # Mark all products with the "popular" tag (illustrative; in reality
+    # this would be data-driven from sales velocity).
+    for p in all_products:
+        tag_target(session, popular_tag, TagKind.PRODUCT.value, p.id)
+    # Premium only on the last product (highest price point)
+    if all_products:
+        tag_target(session, premium_tag, TagKind.PRODUCT.value, all_products[-1].id)
 
     # --- Audit log seed (2 rows) ---
     demo_user_id_str = str(user.id) if user else None

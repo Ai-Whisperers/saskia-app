@@ -148,6 +148,24 @@ def _migration_002_audit_log(conn: Any) -> None:
     )
 
 
+def _migration_004_tags(conn: Any) -> None:
+    """Add Tag + TagLink tables (E9.S1).
+
+    Tags are polymorphic (target_kind in product|ingredient|recipe). The
+    tag table holds the name + color + kind; the tag_link table holds
+    the M:N mapping.
+
+    Both tables are created via create_all() in init_db(). Here we
+    just bump the schema version.
+    """
+    # create_all is called by init_db BEFORE this migration runs.
+    # Nothing else to do — the new tables already exist.
+    conn.execute(
+        text("UPDATE app_meta SET value = '4', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS: dict[int, MigrationFn] = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -197,6 +215,7 @@ MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
     3: _migration_003_analytics_columns,
+    4: _migration_004_tags,
 }
 
 

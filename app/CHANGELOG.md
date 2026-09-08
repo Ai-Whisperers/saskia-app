@@ -17,6 +17,9 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Tag system + filters (E9)** — schema v4; 31 starter tags;
+  polymorphic M:N (product/ingredient/recipe); filter dataclasses for
+  Ventas/Inventario/Recetas/Productos.
 - **Drive-shape xlsx fixtures (E7)** — 4 fixtures under tests/fixtures/
   (minimal, realistic, edge cases, herbus-compat) + 10 round-trip tests.
   Rebuild with `uv run python tests/fixtures/build_herbus_fixture.py`.
