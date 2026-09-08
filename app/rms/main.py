@@ -59,6 +59,43 @@ from app.routers import (
 )
 
 
+def _configure_logging() -> None:
+    """Configure loguru at import time.
+
+    - In production (AIW_SASKIA_LOG_FORMAT=prod): JSON to stderr so
+      Render's log viewer / log aggregators can parse line-by-line.
+    - In dev (default): human-readable, color-coded.
+
+    Called once at module import. Idempotent on subsequent calls
+    (logger.remove() removes all default sinks).
+    """
+    fmt = os.getenv("AIW_SASKIA_LOG_FORMAT", "dev").lower()
+    logger.remove()  # remove default sink so we don't double-log
+    if fmt == "prod":
+        logger.add(
+            sys.stderr,
+            level="INFO",
+            serialize=True,
+            backtrace=False,
+            diagnose=False,
+            format="{message}",
+        )
+    else:
+        logger.add(
+            sys.stderr,
+            level="DEBUG",
+            backtrace=True,
+            diagnose=False,
+            format=(
+                "<green>{time:HH:mm:ss}</green> | "
+                "<level>{level: <7}</level> | {message}"
+            ),
+        )
+
+
+_configure_logging()
+
+
 def _assert_bind() -> None:
     """Defensive: refuse to start if bind host is unsafe.
 
