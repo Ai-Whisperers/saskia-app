@@ -1,7 +1,6 @@
 """tests/test_menu_engineering_perf.py — regression test for classify_products N+1."""
 from __future__ import annotations
 
-import pytest
 from sqlalchemy import event
 
 
@@ -15,8 +14,9 @@ def test_classify_products_uses_batch_load(client, session_factory):
     Post-fix: 2 queries (current sales window + prior window) regardless
     of product count.
     """
-    from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale
     from datetime import datetime, timedelta
+
+    from app.rms.models import Ingredient, Product, Sale
 
     # Seed enough products + sales to actually trigger N+1
     with session_factory() as s:

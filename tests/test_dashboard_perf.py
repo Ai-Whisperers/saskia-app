@@ -4,7 +4,6 @@ for a typical seed dataset.
 """
 from __future__ import annotations
 
-import pytest
 from sqlalchemy import event
 
 
