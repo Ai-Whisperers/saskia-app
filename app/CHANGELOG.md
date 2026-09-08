@@ -17,6 +17,9 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Production worksheet (E21)** — forecast_sales (rolling 14d
+  avg) + plan_production (per-product forecast with seasonal
+  multiplier + per-ingredient lines with stock_on_hand + qty_to_buy).
 - **Operator workflow + seasonal calendar (E12 + E19 prep)** — EOD
   checklist (10 items), daily_summary_full with warnings (high void
   rate, low margin, low stock), 2026 seasonal calendar (11 events;
