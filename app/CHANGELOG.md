@@ -5,6 +5,15 @@
 
 ## [Unreleased]
 
+### Added (2026-09-08)
+
+- **`/clientes` list + detail pages** — wires the existing
+  `app/rms/customers.py` module (E13) to actual routes. Operators can now
+  see the customer directory with lifetime spend, visit count, points
+  balance, and loyalty tier (Bronze/Silver/Gold/Platinum). The detail page
+  shows purchase history. Customers are created automatically when a sale
+  records a phone number. 5 regression tests in `tests/test_clientes_routes.py`.
+
 ### Fixed (performance, 2026-09-08)
 
 - **GZip + static cache headers** — added `GZipMiddleware(minimum_size=500)`

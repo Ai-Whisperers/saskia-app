@@ -41,6 +41,7 @@ from app.rms.db_dialect import make_engine as make_engine_dialect
 from app.rms.security_headers import SecurityHeadersMiddleware
 from app.routers import (
     auth,
+    customers,
     dashboard,
     excel_io,
     health,
@@ -235,6 +236,7 @@ app.include_router(recipes.router)
 app.include_router(products.router)
 app.include_router(sales.router)
 app.include_router(excel_io.router)
+app.include_router(customers.router)
 
 
 def migrate() -> None:
