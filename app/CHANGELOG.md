@@ -7,6 +7,25 @@
 
 ### Added (2026-09-08)
 
+- **`/produccion` production worksheet** — wires the existing
+  `app/rms/production.py` module (E21) to a route. Shows tomorrow's
+  forecast with seasonal multiplier, ingredient requirements, and stock
+  shortfalls. Nav link added. 1 regression test.
+
+- **`/eod` end-of-day checklist** — wires `EOD_CHECKLIST_TEMPLATE`
+  (10 items) to a route showing progress + per-item checkboxes.
+
+- **`/merma` waste log** — wires `app/rms/waste.py` (E22) to a route with
+  record form, 30-day summary, and per-reason / per-ingredient breakdown.
+  Industry benchmark shown (< 5% is healthy).
+
+- **`/reportes` (hub + `/iva` + `/libro-ventas` + `/diario`)** — wires
+  `app/rms/accounting.py` (E17) to 4 routes for IVA monthlies, libro de
+  ventas, and daily summary. Legally required reports.
+
+- **`/auditoria` audit log viewer** — wires `app/rms/audit.py` to a route
+  with filterable / paginated view of AuditLog entries.
+
 - **`/clientes` list + detail pages** — wires the existing
   `app/rms/customers.py` module (E13) to actual routes. Operators can now
   see the customer directory with lifetime spend, visit count, points

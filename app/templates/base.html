@@ -27,6 +27,10 @@
       <a href="/ventas" {% if request.url.path.startswith("/ventas") %}aria-current="page"{% endif %}>Ventas</a>
       <a href="/clientes" {% if request.url.path.startswith("/clientes") %}aria-current="page"{% endif %}>Clientes</a>
       <a href="/produccion" {% if request.url.path.startswith("/produccion") %}aria-current="page"{% endif %}>Producción</a>
+      <a href="/eod" {% if request.url.path.startswith("/eod") %}aria-current="page"{% endif %}>Cierre</a>
+      <a href="/merma" {% if request.url.path.startswith("/merma") %}aria-current="page"{% endif %}>Merma</a>
+      <a href="/reportes" {% if request.url.path.startswith("/reportes") %}aria-current="page"{% endif %}>Reportes</a>
+      <a href="/auditoria" {% if request.url.path.startswith("/auditoria") %}aria-current="page"{% endif %}>Auditoría</a>
       <a href="/excel" {% if request.url.path.startswith("/excel") %}aria-current="page"{% endif %}>Excel</a>
     </div>
     <div class="nav-right">

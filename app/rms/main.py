@@ -40,15 +40,19 @@ from app.rms.db_dialect import _is_postgres, get_database_url, get_metadata
 from app.rms.db_dialect import make_engine as make_engine_dialect
 from app.rms.security_headers import SecurityHeadersMiddleware
 from app.routers import (
+    auditoria,
     auth,
     customers,
     dashboard,
+    eod,
     excel_io,
     health,
     inventory,
-    products,
+    merma,
     produccion,
+    products,
     recipes,
+    reportes,
     sales,
 )
 
@@ -239,6 +243,10 @@ app.include_router(sales.router)
 app.include_router(excel_io.router)
 app.include_router(customers.router)
 app.include_router(produccion.router)
+app.include_router(eod.router)
+app.include_router(merma.router)
+app.include_router(reportes.router)
+app.include_router(auditoria.router)
 
 
 def migrate() -> None:

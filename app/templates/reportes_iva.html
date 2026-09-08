@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Libro IVA{% endblock %}
+{% block content %}
+<h1>Libro IVA — últimos 12 meses</h1>
+
+<p class="hint">IVA 10% (Paraguay) — todos los precios son IVA incluido.</p>
+
+{% if rows %}
+<table class="data">
+  <thead>
+    <tr>
+      <th>Mes</th>
+      <th class="right">Ventas</th>
+      <th class="right">Gravado (Gs.)</th>
+      <th class="right">IVA 10% (Gs.)</th>
+      <th class="right">Total (Gs.)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>{{ "%04d-%02d"|format(r.year, r.month) }}</td>
+      <td class="right">{{ r.n_sales }}</td>
+      <td class="right">{{ "{:,.0f}".format(r.total_base_gs) }}</td>
+      <td class="right">{{ "{:,.0f}".format(r.total_iva_gs) }}</td>
+      <td class="right"><strong>{{ "{:,.0f}".format(r.total_gross_gs) }}</strong></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No hay ventas registradas en los últimos 12 meses.</p>
+{% endif %}
+
+{% endblock %}

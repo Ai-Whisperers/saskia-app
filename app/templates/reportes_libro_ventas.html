@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Libro de Ventas{% endblock %}
+{% block content %}
+<h1>Libro de Ventas</h1>
+
+<form method="get" action="/reportes/libro-ventas" class="form">
+  <div class="form-row">
+    <label for="start">Desde</label>
+    <input type="date" id="start" name="start" value="{{ start_date }}">
+  </div>
+  <div class="form-row">
+    <label for="end">Hasta</label>
+    <input type="date" id="end" name="end" value="{{ end_date }}">
+  </div>
+  <button type="submit" class="btn">Filtrar</button>
+</form>
+
+{% if rows %}
+<table class="data">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Cliente</th>
+      <th>Producto</th>
+      <th class="right">Cant.</th>
+      <th class="right">Gravado (Gs.)</th>
+      <th class="right">IVA (Gs.)</th>
+      <th class="right">Total (Gs.)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.sold_at.strftime("%d/%m/%Y") if r.sold_at else "" }}</td>
+      <td>{{ r.customer_name or "—" }}</td>
+      <td>{{ r.product_name }}</td>
+      <td class="right">{{ "%.2f"|format(r.qty) }}</td>
+      <td class="right">{{ "{:,.0f}".format(r.base_gs) }}</td>
+      <td class="right">{{ "{:,.0f}".format(r.iva_gs) }}</td>
+      <td class="right">{{ "{:,.0f}".format(r.total_gross_gs) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No hay ventas en este período.</p>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Merma{% endblock %}
+{% block content %}
+<h1>Merma (desperdicio)</h1>
+
+<p class="hint">Registrá toda merma para mantener el food cost bajo control. Benchmark: &lt; 5% es saludable.</p>
+
+<h2>Registrar merma</h2>
+<form method="post" action="/merma/registrar" class="form">
+  <div class="form-row">
+    <label for="ingredient_id">Ingrediente</label>
+    <select id="ingredient_id" name="ingredient_id" required>
+      <option value="">— Seleccionar —</option>
+      {% for ing in ingredients %}
+      <option value="{{ ing.id }}">{{ ing.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-row">
+    <label for="qty">Cantidad</label>
+    <input type="number" id="qty" name="qty" required step="0.01" min="0.01" value="1">
+  </div>
+  <div class="form-row">
+    <label for="reason">Motivo</label>
+    <select id="reason" name="reason" required>
+      {% for r in reasons %}
+      <option value="{{ r }}">{{ r }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-row">
+    <label for="notes">Notas</label>
+    <textarea id="notes" name="notes" rows="2"></textarea>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Registrar merma</button>
+    <a href="/merma" class="btn">Cancelar</a>
+  </div>
+</form>
+
+<h2>Resumen últimos 30 días</h2>
+<p>Total: <strong>Gs. {{ "{:,.0f}".format(impact.total_cost_gs) }}</strong> ({{ impact.n_events }} eventos). Representa <strong>{{ "%.1f"|format(pct) }}%</strong> de los ingresos.</p>
+
+{% if impact.by_reason %}
+<h3>Por motivo</h3>
+<table class="data">
+  <thead><tr><th>Motivo</th><th class="right">Costo (Gs.)</th></tr></thead>
+  <tbody>
+    {% for reason, cost in impact.by_reason.items %}
+    <tr><td>{{ reason }}</td><td class="right">{{ "{:,.0f}".format(cost) }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if items %}
+<h3>Últimos eventos</h3>
+<table class="data">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Ingrediente</th>
+      <th class="right">Cantidad</th>
+      <th>Motivo</th>
+      <th class="right">Costo (Gs.)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for w in items %}
+    <tr>
+      <td>{{ w.recorded_at.strftime("%d/%m/%Y") if w.recorded_at else "" }}</td>
+      <td>{{ w.ingredient.name if w.ingredient else "?" }}</td>
+      <td class="right">{{ "%.2f"|format(w.qty) }}</td>
+      <td>{{ w.reason }}</td>
+      <td class="right">{{ "{:,.0f}".format(w.cost_gs) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No hay merma registrada todavía.</p>
+{% endif %}
+
+{% endblock %}

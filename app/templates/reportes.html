@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Reportes{% endblock %}
+{% block content %}
+<h1>Reportes</h1>
+
+<p class="hint">Reportes financieros y operativos.</p>
+
+<ul class="report-list">
+  <li><a href="/reportes/iva">📊 Libro IVA (mensual)</a> — Desglose de IVA 10% por mes</li>
+  <li><a href="/reportes/libro-ventas">📖 Libro de Ventas</a> — Ventas cronológicas con IVA</li>
+  <li><a href="/reportes/diario">📅 Resumen diario</a> — Ingresos, COGS, margen del día</li>
+</ul>
+
+{% endblock %}
