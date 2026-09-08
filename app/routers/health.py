@@ -83,8 +83,10 @@ def healthz_deps() -> dict:
 def healthz_db(request: Request) -> JSONResponse:
     """DB health check.
 
-    Returns 200 if SQLite is reachable and writable; 503 otherwise.
-    Also reports journal_mode (must be 'wal' for concurrent-safe writes).
+    Returns 200 if the database is reachable; 503 otherwise.
+    Reports:
+    - journal_mode on SQLite (must be 'wal' for concurrent-safe writes)
+    - server version on Postgres
     """
     engine = request.app.state.engine
     try:
@@ -95,11 +97,19 @@ def healthz_db(request: Request) -> JSONResponse:
                     {"db": "unreachable", "detail": "SELECT 1 failed"},
                     status_code=503,
                 )
-            mode = conn.execute(text("PRAGMA journal_mode")).scalar()
-        return {
-            "db": "ok",
-            "journal_mode": mode,
-        }
+            payload: dict[str, Any] = {"db": "ok"}
+            dialect = engine.dialect.name
+            if dialect == "sqlite":
+                mode = conn.execute(text("PRAGMA journal_mode")).scalar()
+                payload["journal_mode"] = mode
+                payload["dialect"] = "sqlite"
+            elif dialect == "postgresql":
+                ver = conn.execute(text("SHOW server_version")).scalar()
+                payload["server_version"] = ver
+                payload["dialect"] = "postgresql"
+            else:
+                payload["dialect"] = dialect
+        return payload
     except Exception as exc:
         return JSONResponse({"db": "error", "detail": str(exc)}, status_code=503)
 

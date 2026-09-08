@@ -96,14 +96,33 @@ def _migration_001_initial_schema(conn: Any) -> None:
 
     We let SQLAlchemy's create_all() do the heavy lifting; this migration is a
     marker for the schema version. It also seeds the app_meta table.
+
+    Dialect-aware upsert: SQLite uses INSERT OR IGNORE; Postgres uses
+    ON CONFLICT DO NOTHING. We detect the dialect via the bind dialect name.
     """
-    # create_all is called by the caller before this migration runs (see init_db).
-    # Here we just record the schema version.
-    conn.execute(text("INSERT OR IGNORE INTO app_meta (key, value) VALUES ('schema_version', '1')"))
-    conn.execute(
-        text("INSERT OR IGNORE INTO app_meta (key, value) VALUES ('created_at', :ts)"),
-        {"ts": "2026-09-01T00:00:00Z"},
-    )
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    ts = datetime.now(timezone.utc).isoformat()
+    if dialect == "postgresql":
+        # app_meta.value is JSONB on production (legacy column type);
+        # cast string → jsonb so the insert doesn't fail. Build the
+        # string in Python so SQLAlchemy parameter binding doesn't
+        # fight with ::type casts.
+        ts_quoted = ts.replace("'", "''")
+        upsert = (
+            f"INSERT INTO app_meta (key, value, updated_at) "
+            f"VALUES ('schema_version', '\"1\"'::jsonb, '{ts_quoted}') "
+            f"ON CONFLICT (key) DO NOTHING"
+        )
+        upsert2 = (
+            f"INSERT INTO app_meta (key, value, updated_at) "
+            f"VALUES ('created_at', '\"{ts_quoted}\"'::jsonb, '{ts_quoted}') "
+            f"ON CONFLICT (key) DO NOTHING"
+        )
+    else:
+        upsert = "INSERT OR IGNORE INTO app_meta (key, value) VALUES ('schema_version', '1')"
+        upsert2 = "INSERT OR IGNORE INTO app_meta (key, value) VALUES ('created_at', :ts)"
+    conn.execute(text(upsert), {"ts": ts})
+    conn.execute(text(upsert2), {"ts": ts})
 
 
 MIGRATIONS: dict[int, MigrationFn] = {
@@ -127,7 +146,7 @@ def _migration_002_audit_log(conn: Any) -> None:
     conn.execute(
         text(
             "CREATE TABLE IF NOT EXISTS audit_log ("
-            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "id SERIAL PRIMARY KEY, "
             "occurred_at DATETIME NOT NULL, "
             "user_id VARCHAR(64), "
             "action VARCHAR(64) NOT NULL, "
@@ -139,9 +158,24 @@ def _migration_002_audit_log(conn: Any) -> None:
             ")"
         )
     )
-    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_log_occurred_at ON audit_log (occurred_at)"))
-    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_log_user_id ON audit_log (user_id)"))
-    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_log_action ON audit_log (action)"))
+    # Postgres-compatible: CREATE INDEX IF NOT EXISTS is SQLite-only.
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    if dialect == "postgresql":
+        for ix_name, ix_table, ix_col in [
+            ("ix_audit_log_occurred_at", "audit_log", "occurred_at"),
+            ("ix_audit_log_user_id", "audit_log", "user_id"),
+            ("ix_audit_log_action", "audit_log", "action"),
+        ]:
+            existing = conn.execute(
+                text("SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname=:n"),
+                {"n": ix_name},
+            ).first()
+            if existing is None:
+                conn.execute(text(f"CREATE INDEX {ix_name} ON {ix_table} ({ix_col})"))
+    else:
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_log_occurred_at ON audit_log (occurred_at)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_log_user_id ON audit_log (user_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_log_action ON audit_log (action)"))
     conn.execute(
         text("UPDATE app_meta SET value = '2', updated_at = :ts WHERE key = 'schema_version'"),
         {"ts": datetime.now(timezone.utc).isoformat()},
@@ -221,6 +255,7 @@ def _migration_003_analytics_columns(conn: Any) -> None:
     """
     # SQLite ALTER TABLE supports adding columns one at a time. Wrap in try/except
     # so re-running this migration on an already-migrated DB is a no-op.
+    # Same syntax works on Postgres.
     _add_columns = [
         ("ingredient", "purchase_price_updated_at", "DATETIME"),
         ("ingredient", "last_consumed_at", "DATETIME"),
@@ -234,9 +269,30 @@ def _migration_003_analytics_columns(conn: Any) -> None:
             pass
 
     # Index on last_consumed_at so dead_stock reports stay fast.
-    conn.execute(
-        text("CREATE INDEX IF NOT EXISTS ix_ingredient_last_consumed_at ON ingredient (last_consumed_at)")
-    )
+    # CREATE INDEX IF NOT EXISTS is SQLite syntax; on Postgres use a
+    # check against pg_indexes.
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    if dialect == "postgresql":
+        existing = conn.execute(
+            text(
+                "SELECT 1 FROM pg_indexes "
+                "WHERE schemaname='public' AND indexname='ix_ingredient_last_consumed_at'"
+            )
+        ).first()
+        if existing is None:
+            conn.execute(
+                text(
+                    "CREATE INDEX ix_ingredient_last_consumed_at "
+                    "ON ingredient (last_consumed_at)"
+                )
+            )
+    else:
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_ingredient_last_consumed_at "
+                "ON ingredient (last_consumed_at)"
+            )
+        )
 
     conn.execute(
         text("UPDATE app_meta SET value = '3', updated_at = :ts WHERE key = 'schema_version'"),
@@ -299,6 +355,8 @@ def init_db(engine: Engine) -> None:
         target = CURRENT_SCHEMA_VERSION
 
         if current < target:
+            # Detect dialect for dialect-aware schema_version upsert.
+            dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
             for v in range(current + 1, target + 1):
                 if v not in MIGRATIONS:
                     raise RuntimeError(
@@ -306,14 +364,40 @@ def init_db(engine: Engine) -> None:
                         f"current={current}, target={target}. "
                         "Add the migration in app/rms/db.py."
                     )
-                MIGRATIONS[v](conn)
-                conn.execute(
-                    text(
-                        "INSERT OR REPLACE INTO app_meta (key, value, updated_at) "
-                        "VALUES ('schema_version', :v, :ts)"
-                    ),
-                    {"v": str(v), "ts": "2026-09-01T00:00:00Z"},
-                )
+                # Postgres aborts the whole transaction on a SQL error,
+                # so wrap each migration in a SAVEPOINT to keep going
+                # after a benign error (e.g. column already exists).
+                if dialect == "postgresql":
+                    sp = f"mig_{v}"
+                    conn.execute(text(f"SAVEPOINT {sp}"))
+                    try:
+                        MIGRATIONS[v](conn)
+                    except Exception:
+                        conn.execute(text(f"ROLLBACK TO SAVEPOINT {sp}"))
+                        # Re-raise — migration errors should NOT be silently swallowed
+                        # on Postgres, only on SQLite.
+                        raise
+                    conn.execute(text(f"RELEASE SAVEPOINT {sp}"))
+                else:
+                    MIGRATIONS[v](conn)
+                ts_now = datetime.now(timezone.utc).isoformat()
+                if dialect == "postgresql":
+                    # app_meta.value is JSONB on prod; cast int → jsonb.
+                    upsert_v = (
+                        f"INSERT INTO app_meta (key, value, updated_at) "
+                        f"VALUES ('schema_version', '\"{v}\"'::jsonb, '{ts_now}') "
+                        f"ON CONFLICT (key) DO UPDATE SET "
+                        f"value = EXCLUDED.value, updated_at = EXCLUDED.updated_at"
+                    )
+                    conn.execute(text(upsert_v))
+                else:
+                    conn.execute(
+                        text(
+                            "INSERT OR REPLACE INTO app_meta (key, value, updated_at) "
+                            "VALUES ('schema_version', :v, :ts)"
+                        ),
+                        {"v": str(v), "ts": ts_now},
+                    )
         conn.commit()
 
 
