@@ -5,6 +5,19 @@
 
 ## [Unreleased]
 
+### Fixed (performance, 2026-09-08)
+
+- **Dashboard N+1 → batched** — `app/routers/dashboard.py` was issuing ~3,000
+  DB queries per render (one `product_unit_cost_gs()` call per sale, plus
+  per-product loops in ranking + recipes_no_cost + build_insights). Replaced
+  three hot loops with batch helpers already in `app/rms/costing.py`:
+  `batch_products_cost_margin()` and `batch_recipes_cost()`. Query count on
+  an empty test DB dropped from 37 to 18; on the populated live Neon the
+  savings will be much larger (the old code issued ~3 queries per sale × 920
+  sales). Two regression tests in `tests/test_dashboard_perf.py` pin the
+  behaviour: total query count must stay under 40, and no point-queries
+  against the `ingredient` table.
+
 ### Added
 
 - **Ingredient intelligence (E26)** — auto-classify every ingredient by

@@ -22,7 +22,7 @@ from app.rms.analytics import (
     top_margin_products,
 )
 from app.rms.config import ASUNCION_TZ
-from app.rms.costing import product_unit_cost_gs
+from app.rms.costing import batch_products_cost_margin, batch_recipes_cost
 from app.rms.insights import build_insights
 from app.rms.models import Ingredient, Recipe, Sale
 from app.services.template_render import render
@@ -82,14 +82,24 @@ async def dashboard(
     # A more correct implementation would store tz-aware datetime in DB.
 
     ventas_gs = sum(int(round(s.qty * s.unit_price_gs)) for s in sales)
+
+    # Batch-load all product costs in ~3-4 queries (replaces N+1 loop).
+    # The batch helper caches recipes + lines + ingredients in the
+    # session identity map, so subsequent session.get() calls hit memory.
+    products_in_period = sorted(
+        {s.product for s in sales if s.product is not None},
+        key=lambda p: p.id,
+    )
+    batch_costs = batch_products_cost_margin(session, products_in_period)
+
     cogs_gs = 0
     sales_no_recipe = []
     for s in sales:
         if s.product is None or s.product.recipe_id is None:
             sales_no_recipe.append(s)
             continue
-        cost = product_unit_cost_gs(session, s.product_id)
-        if cost.batch_cost_gs is None:
+        cost, _margin = batch_costs.get(s.product_id, (None, (None, None)))
+        if cost is None or cost.batch_cost_gs is None:
             sales_no_recipe.append(s)
             continue
         cogs_gs += int(round(s.qty * cost.batch_cost_gs))
@@ -97,7 +107,7 @@ async def dashboard(
     margen_gs = ventas_gs - cogs_gs
     margen_pct_fmt = f"{(margen_gs / ventas_gs * 100):.1f}%" if ventas_gs > 0 else "—"
 
-    # Ranking: aggregate margin by product
+    # Ranking: aggregate margin by product (reuse batch_costs — no extra queries)
     ranking_dict: dict[int, dict] = {}
     for s in sales:
         if s.product is None:
@@ -114,8 +124,8 @@ async def dashboard(
         ranking_dict[rid]["ventas_gs"] += int(round(s.qty * s.unit_price_gs))
         ranking_dict[rid]["qty"] += s.qty
         if s.product.recipe_id is not None:
-            cost = product_unit_cost_gs(session, rid)
-            if cost.batch_cost_gs is not None:
+            cost, _margin = batch_costs.get(rid, (None, (None, None)))
+            if cost is not None and cost.batch_cost_gs is not None:
                 line_margin = int(round(s.qty * (s.unit_price_gs - cost.batch_cost_gs)))
                 ranking_dict[rid]["margen_gs"] += line_margin
 
@@ -137,12 +147,13 @@ async def dashboard(
         )
     ).all()
 
-    recipes_no_cost = []
-    for r in session.scalars(select(Recipe)).all():
-        from app.rms.costing import recipe_batch_cost_gs
-
-        if recipe_batch_cost_gs(session, r.id).batch_cost_gs is None and len(r.lines) > 0:
-            recipes_no_cost.append(r)
+    # Batch-load all recipe costs (replaces per-recipe N+1).
+    all_recipes = list(session.scalars(select(Recipe)).all())
+    batch_recipe_results = batch_recipes_cost(session, all_recipes)
+    recipes_no_cost = [
+        r for r in all_recipes
+        if batch_recipe_results[r.id][0].batch_cost_gs is None and len(r.lines) > 0
+    ]
 
     sales_no_recipe_decor = [
         {
