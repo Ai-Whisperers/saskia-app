@@ -17,6 +17,9 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Barcode scanner support (E23)** — Product.sku column (optional,
+  unique, indexed) + migration 007; normalize/validate/lookup helpers
+  in app/rms/barcode.py; suggest_sku heuristic.
 - **Backup + restore + DR retention (E20)** — JSON+gz archives with
   sha256 manifest; tamper detection; merge-restore; retention policy
   (keep newest N + last D days); scripts/backup.py CLI (backup/list/

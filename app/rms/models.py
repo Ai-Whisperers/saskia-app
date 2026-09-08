@@ -166,6 +166,7 @@ class Product(Base):
     sale_price_gs: Mapped[int] = mapped_column(Integer, nullable=False)
     recipe_id: Mapped[Optional[int]] = mapped_column(ForeignKey("recipe.id"), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    sku: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, unique=True, index=True)  # E23.S1 barcode
 
     # Relationships
     recipe: Mapped[Optional["Recipe"]] = relationship(back_populates="products")

@@ -148,6 +148,18 @@ def _migration_002_audit_log(conn: Any) -> None:
     )
 
 
+def _migration_007_product_sku(conn: Any) -> None:
+    """Add Product.sku column (E23.S1).
+
+    SKU is optional; most bakeries don't print barcodes on products but
+    an operator may add them later. Unique when set.
+    Schema bumps via create_all idempotency."""
+    conn.execute(
+        text("UPDATE app_meta SET value = '7', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 def _migration_006_waste_log(conn: Any) -> None:
     """Add waste_log table (E22)."""
     conn.execute(
@@ -239,6 +251,7 @@ MIGRATIONS = {
     4: _migration_004_tags,
     5: _migration_005_customer,
     6: _migration_006_waste_log,
+    7: _migration_007_product_sku,
 }
 
 
