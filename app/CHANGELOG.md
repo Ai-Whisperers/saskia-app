@@ -17,6 +17,10 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Progressive Web App seams (E11)** — PWA manifest (icons +
+  theme_color), inline service worker (cache-first static /
+  network-first API / offline HTML), UA-based is_mobile detector,
+  offline.html fallback, pwa_meta_tags() for head injection.
 - **WhatsApp + email daily summary (E14)** —
   format_daily_summary_message (concise text), NotifyKind
   (dryrun/whatsapp/email), Twilio REST over stdlib urllib (no SDK
