@@ -408,6 +408,38 @@ class TagLink(Base):
 
 
 
+
+class WasteLog(Base):
+    """A waste event (E22).
+
+    Append-only. Cost is denormalized at insert time so historical
+    reports don't retroactively change when purchase prices change.
+    """
+
+    __tablename__ = "waste_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ingredient_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("ingredient.id"), nullable=False, index=True
+    )
+    qty: Mapped[float] = mapped_column(Float, nullable=False)
+    reason: Mapped[str] = mapped_column(String(32), nullable=False)
+    cost_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    recorded_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("qty > 0", name="ck_waste_qty_positive"),
+        Index("ix_waste_log_reason", "reason"),
+    )
+
+    # Relationships
+    ingredient: Mapped["Ingredient"] = relationship("Ingredient")
+
+
+
+
 __all__ = [
     "Base",
     "AppMeta",
@@ -423,4 +455,5 @@ __all__ = [
     "Tag",
     "TagLink",
     "Customer",
+    "WasteLog",
 ]

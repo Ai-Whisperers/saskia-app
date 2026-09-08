@@ -17,6 +17,9 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Merma waste tracking (E22)** — schema v6; append-only waste log;
+  7 reasons (vencida/quemada/derrame/robo/danio/receta_incompleta/otra);
+  cost denormalized at insert; impact reports by reason/ingredient.
 - **Customer directory + loyalty (E13)** — schema v5; phone-unique
   customer records; 1 pt/1000 Gs. loyalty; bronze/silver/gold/platinum
   tiers by lifetime spend; redeem 1 pt = 1000 Gs. discount.

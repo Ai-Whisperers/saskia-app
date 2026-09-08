@@ -148,6 +148,14 @@ def _migration_002_audit_log(conn: Any) -> None:
     )
 
 
+def _migration_006_waste_log(conn: Any) -> None:
+    """Add waste_log table (E22)."""
+    conn.execute(
+        text("UPDATE app_meta SET value = '6', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 def _migration_005_customer(conn: Any) -> None:
     """Add Customer table + Sale.customer_id FK (E13).
 
@@ -230,6 +238,7 @@ MIGRATIONS = {
     3: _migration_003_analytics_columns,
     4: _migration_004_tags,
     5: _migration_005_customer,
+    6: _migration_006_waste_log,
 }
 
 
