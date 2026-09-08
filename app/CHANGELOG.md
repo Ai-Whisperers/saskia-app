@@ -17,6 +17,9 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Paraguay accounting/IVA reports (E17)** — 10% IVA extraction
+  (included/excluded modes); monthly_iva_breakdown; libro_ventas;
+  daily_summary; product_margin_summary.
 - **Merma waste tracking (E22)** — schema v6; append-only waste log;
   7 reasons (vencida/quemada/derrame/robo/danio/receta_incompleta/otra);
   cost denormalized at insert; impact reports by reason/ingredient.
