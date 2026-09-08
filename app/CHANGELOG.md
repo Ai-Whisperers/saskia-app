@@ -17,6 +17,9 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Operator-facing settings (E10)** — 30 settings across 7 groups
+  (general/inventory/sales/dashboard/backup/session/demo), backed by
+  AppMeta with validators + audit-ready writes.
 - **Tag system + filters (E9)** — schema v4; 31 starter tags;
   polymorphic M:N (product/ingredient/recipe); filter dataclasses for
   Ventas/Inventario/Recetas/Productos.
