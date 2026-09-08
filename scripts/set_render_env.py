@@ -8,7 +8,12 @@ TLS) reject non-Secure cookies, so every POST 403s.
 This is the runtime flag flipped ON for hosted deployments; local
 dev / tests leave it unset so plain HTTP works.
 """
-import sys, time, json, urllib.request, urllib.error, os
+import json
+import os
+import sys
+import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, "/opt/data/.venv/lib/python3.11/site-packages")
@@ -27,12 +32,14 @@ cache = {}
 with open("/opt/data/.hermes/bws-secrets-cache.tsv") as f:
     for line in f:
         parts = line.strip().split("\t", 1)
-        if len(parts) == 2: cache[parts[0]] = parts[1]
+        if len(parts) == 2:
+            cache[parts[0]] = parts[1]
 
 time.sleep(2)
 r = c.secrets().get_by_ids([cache["RENDER_API_KEY"]])
 RK = r.to_dict()["data"]["data"][0]["value"]
-Path("/tmp/_rk").write_text(RK); Path("/tmp/_rk").chmod(0o600)
+Path("/tmp/_rk").write_text(RK)
+Path("/tmp/_rk").chmod(0o600)
 
 base = "https://api.render.com/v1/services/srv-dac8g2u7bikc73f3psf0/env-vars"
 req = urllib.request.Request(
