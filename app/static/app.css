@@ -442,3 +442,118 @@ input[type="file"] {
   table.data td, table.data th { padding: 4px 8px; font-size: 10pt; }
   a { color: black; text-decoration: none; }
 }
+/* --- Phase 6 polish (added 2026-09-08) --- */
+
+/* Logout button (in nav-right) */
+.logout-link {
+  display: inline-block;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 16px;
+  margin-left: 4px;
+}
+.logout-link:hover { background: var(--bg); }
+
+/* Quick-sell buttons (sales page) */
+.quick-sell-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.quick-sell-btn { margin: 0; }
+.quick-sell-btn .btn-large {
+  width: 100%;
+  text-align: center;
+  padding: 12px 8px;
+  background: var(--card);
+  border: 2px solid var(--border);
+  display: block;
+  white-space: normal;
+}
+.quick-sell-btn .gs {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+/* Tier badges (clientes page) */
+.badge-tier-bronze { background: #fed7aa; color: #7c2d12; }
+.badge-tier-silver { background: #e5e7eb; color: #374151; }
+.badge-tier-gold { background: #fef3c7; color: #92400e; }
+.badge-tier-platinum { background: #ede9fe; color: #5b21b6; }
+[data-theme="dark"] .badge-tier-bronze { background: #7c2d12; color: #fed7aa; }
+[data-theme="dark"] .badge-tier-silver { background: #374151; color: #e5e7eb; }
+[data-theme="dark"] .badge-tier-gold { background: #92400e; color: #fef3c7; }
+[data-theme="dark"] .badge-tier-platinum { background: #5b21b6; color: #ede9fe; }
+
+/* Breadcrumbs */
+nav.breadcrumbs {
+  font-size: 13px;
+  margin-bottom: 12px;
+  opacity: 0.8;
+}
+nav.breadcrumbs a {
+  color: var(--accent);
+  text-decoration: none;
+}
+nav.breadcrumbs a:hover { text-decoration: underline; }
+
+/* Customer meta list */
+dl.customer-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 16px 0;
+}
+dl.customer-meta dt { font-weight: 600; opacity: 0.7; }
+dl.customer-meta dd { margin: 0; }
+
+/* Summary grid (daily report) */
+dl.summary-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 16px 0;
+}
+dl.summary-grid dt { font-weight: 600; opacity: 0.7; }
+dl.summary-grid dd { margin: 0; }
+
+/* EOD progress */
+.eod-progress {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+/* Mobile responsive (added 2026-09-08) */
+@media (max-width: 768px) {
+  .nav-links {
+    flex-wrap: wrap;
+  }
+  table.data {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  .form-row {
+    flex-direction: column;
+  }
+  .container {
+    padding: 8px 12px;
+  }
+  h1 { font-size: 20px; }
+  dl.customer-meta, dl.summary-grid {
+    grid-template-columns: 1fr;
+  }
+  .quick-sell-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

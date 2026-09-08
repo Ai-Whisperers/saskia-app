@@ -34,6 +34,15 @@
   accrue loyalty points), payment method, and discount. 4 regression
   tests pin the model + form behavior. Schema v10 → v11.
 
+- **Phase 6 nav/CSS polish** — added logout link to top nav
+  (`<a href="/logout" class="logout-link">⎋</a>`). CSS additions:
+  `.quick-sell-grid` + `.btn-large` for sales one-tap buttons,
+  `.badge-tier-{bronze,silver,gold,platinum}` colored tier badges,
+  `nav.breadcrumbs` styling, customer/summary `<dl>` grids. Mobile
+  responsive: `@media (max-width: 768px)` makes tables horizontally
+  scroll, nav flex-wraps, forms stack vertically. Print CSS was already
+  present (verified by test). 4 regression tests in `tests/test_phase6_polish.py`.
+
 - **`/clientes` list + detail pages** — wires the existing
   `app/rms/customers.py` module (E13) to actual routes. Operators can now
   see the customer directory with lifetime spend, visit count, points
