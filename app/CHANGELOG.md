@@ -54,6 +54,13 @@
   exposes `expected_daily_sales`, `production_plan_for_day`,
   `production_calendar` (multi-day), `ingredient_requirements`,
   `check_ingredient_availability` (flags stock shortages that block a plan).
+- **True food cost (E33)** — theoretical vs actual reconciliation. Recipe-based
+  cost estimate vs. actual stock-move consumption vs. recorded waste.
+  `app/rms/food_cost.py` exposes `sales_revenue`,
+  `theoretical_food_cost`, `actual_ingredient_consumption`, `waste_cost`,
+  `food_cost_report` (combined FoodCostReport dataclass with revenue,
+  theoretical %, actual %, ratio). Ratio = actual/theoretical; >1.0 means
+  waste, theft, or spillage; <1.0 means recipes/prices outdated.
 
 - `.github/ISSUE_TEMPLATE/{bug,feature,epic}.md` for guided issue filing.
 - AGENTS.md gains "Issue templates", "Locked hotfixes", and refreshed CI
