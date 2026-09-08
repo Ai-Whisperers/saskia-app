@@ -88,4 +88,93 @@
 </ul>
 {% endif %}
 
+<h2>Inteligencia (E26-E34)</h2>
+<div class="metrics-grid">
+  <div class="metric">
+    <div class="metric-label">Capital en inventario</div>
+    <div class="metric-value">{{ m.gs_full(insights.inventory_capital_gs) }}</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Hora pico de ventas</div>
+    <div class="metric-value">
+      {% if insights.sales_peak_hour >= 0 %}{{ insights.sales_peak_hour }}:00{% else %}—{% endif %}
+    </div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Día pico de ventas</div>
+    <div class="metric-value">
+      {% set dow_names = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'] %}
+      {% if insights.sales_peak_dow >= 0 %}{{ dow_names[insights.sales_peak_dow] }}{% else %}—{% endif %}
+    </div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Food cost % (30d)</div>
+    <div class="metric-value">
+      {{ "%.1f"|format(insights.food_cost.theoretical_food_cost_pct) }}%
+    </div>
+  </div>
+</div>
+
+{% if insights.stars %}
+<h3 class="quadrant-star">⭐ Stars (alto margen + alto volumen)</h3>
+<ul>
+  {% for s in insights.stars %}
+  <li>{{ s.product_name }} — margen {{ m.gs(s.margin_gs) }}, volumen {{ s.volume }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% if insights.dogs %}
+<h3 class="quadrant-dog">🐕 Dogs (bajo margen + bajo volumen)</h3>
+<ul>
+  {% for d in insights.dogs %}
+  <li>{{ d.product_name }} — margen {{ m.gs(d.margin_gs) }}, volumen {{ d.volume }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% if insights.low_stock_alerts %}
+<h3>⚠ Reposición urgente</h3>
+<ul>
+  {% for a in insights.low_stock_alerts %}
+  <li>{{ a.ingredient_name }} — quedan {{ "%.2f"|format(a.stock_qty) }}, días: {{ "%.1f"|format(a.days_of_stock or 0) if a.days_of_stock is not none else '—' }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% if insights.rising_products %}
+<h3>📈 En alza</h3>
+<ul>
+  {% for r in insights.rising_products %}
+  <li>{{ r.product_name }} — reciente {{ r.recent_sales }}, previo {{ r.prior_sales }} ({{ "%.0f"|format((r.change_pct or 0)*100) }}%)</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% if insights.churning_products %}
+<h3>📉 En baja</h3>
+<ul>
+  {% for c in insights.churning_products %}
+  <li>{{ c.product_name }} — reciente {{ c.recent_sales }}, previo {{ c.prior_sales }} ({{ "%.0f"|format((c.change_pct or 0)*100) }}%)</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% if insights.production_tomorrow %}
+<h3>📦 Producción de mañana</h3>
+<table class="data">
+  <thead><tr><th>Producto</th><th class="right">Cantidad</th><th class="right">Batches</th><th>Motivo</th></tr></thead>
+  <tbody>
+    {% for p in insights.production_tomorrow %}
+    <tr>
+      <td>{{ p.product_name }}</td>
+      <td class="right">{{ p.target_qty }}</td>
+      <td class="right">{{ p.batch_count }}</td>
+      <td>{{ p.reason }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
 {% endblock %}

@@ -66,6 +66,11 @@
   pulls together inventory capital + alerts, menu-engineering quadrants,
   tomorrow's production plans, food cost summary, peak hour/DOW, top
   rising/churning products. Returns `InsightsPanel` dataclass.
+- **Dashboard insights integration (E35)** — wired `build_insights` into the
+  existing `app/routers/dashboard.py` route and rendered new section in
+  `app/templates/inicio.html`. Dashboard now shows capital en inventario,
+  hora/día pico, food cost % (30d), star/dog quadrants, low-stock alerts,
+  rising/churning products, and tomorrow's production plan.
 
 - `.github/ISSUE_TEMPLATE/{bug,feature,epic}.md` for guided issue filing.
 - AGENTS.md gains "Issue templates", "Locked hotfixes", and refreshed CI

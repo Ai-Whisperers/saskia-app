@@ -23,6 +23,7 @@ from app.rms.analytics import (
 )
 from app.rms.config import ASUNCION_TZ
 from app.rms.costing import product_unit_cost_gs
+from app.rms.insights import build_insights
 from app.rms.models import Ingredient, Recipe, Sale
 from app.services.template_render import render
 
@@ -185,6 +186,8 @@ async def dashboard(
             "concentration": ingredient_concentration(session, days=90)[:5],
             "erosion_alerts": margin_erosion_alerts(session, threshold_pct=5.0),
             "complexity": recipe_complexity(session),
+            # E34: consolidated insights panel
+            "insights": build_insights(session),
         },
     )
 
