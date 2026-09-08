@@ -17,6 +17,10 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Seasonal events HTTP seam (E19 final)** — serialize_event +
+  calendar_for_year (auto-shifts 2026 calendar to N year) +
+  upcoming_calendar_json dashboard widget +
+  product_hints_for_event (keyword-based recs).
 - **Performance scaffolding (E16)** — paginate() helper with
   clamp-safe bounds; query_timer context manager (logs warning
   on slow ORM); INDEX_HINTS (8 model+column tuples);
