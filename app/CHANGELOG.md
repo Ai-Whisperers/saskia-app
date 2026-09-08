@@ -17,6 +17,9 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **ESC/POS receipt printer + labels (E18)** — file/network/USB
+  backends; vendor list (Epson/Star/Citizen/Brother); AIW_PRINTER_*
+  env config. Default file backend for CI.
 - **Barcode scanner support (E23)** — Product.sku column (optional,
   unique, indexed) + migration 007; normalize/validate/lookup helpers
   in app/rms/barcode.py; suggest_sku heuristic.
