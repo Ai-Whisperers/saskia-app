@@ -24,6 +24,7 @@ from typing import Final
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.rms.costing import batch_products_cost_margin
 from app.rms.models import Product, Sale
 
 
@@ -137,22 +138,49 @@ def _product_margin(session: Session, product: Product) -> tuple[int, int | None
 # ---------------------------------------------------------------------------
 
 def classify_products(session: Session) -> list[ProductClassification]:
-    """Compute quadrant for every product."""
+    """Compute quadrant for every product.
+
+    Batched: 1 query for all sales volumes in window (grouped by product)
+    + 1 batch_products_cost_margin call (already batched). Total: ~4
+    queries regardless of product count, down from ~60+ before.
+    """
+    from datetime import datetime, timedelta, timezone
+
     products = list(session.scalars(select(Product)).all())
     if not products:
         return []
 
+    # Batch-load all sales volumes in one query, grouped by product.
+    cutoff = datetime.now(timezone.utc) - timedelta(days=_VOLUME_WINDOW_DAYS)
+    volume_rows = session.execute(
+        select(Sale.product_id, Sale.qty).where(
+            Sale.product_id.in_([p.id for p in products]),
+            Sale.voided_at.is_(None),
+            Sale.sold_at >= cutoff,
+        )
+    ).all()
+    volume_by_product: dict[int, int] = {}
+    for pid, qty in volume_rows:
+        volume_by_product[pid] = volume_by_product.get(pid, 0) + int(qty or 0)
+
+    # Batch-load all product costs (3-4 queries via existing helper).
+    batch_costs = batch_products_cost_margin(session, products)
+
     classifications: list[ProductClassification] = []
     for p in products:
-        vol = _product_volume(session, p.id)
-        margin_gs, cost_gs, margin_ratio = _product_margin(session, p)
+        vol = volume_by_product.get(p.id, 0)
+        cost_result, margin_pair = batch_costs.get(p.id, (None, (None, None)))
+        cost_gs = cost_result.batch_cost_gs if cost_result else None
+        margin_gs, margin_ratio = margin_pair
+        if margin_gs is None:
+            margin_gs = p.sale_price_gs or 0
         classifications.append(ProductClassification(
             product_id=p.id,
             product_name=p.name,
             quadrant=Quadrant.DOG,  # placeholder, set after median threshold
             volume=vol,
             margin_gs=margin_gs,
-            margin_ratio=margin_ratio,
+            margin_ratio=margin_ratio or 0.0,
             sale_price_gs=p.sale_price_gs or 0,
             cost_gs=cost_gs,
         ))

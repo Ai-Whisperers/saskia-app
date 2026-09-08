@@ -14,6 +14,13 @@
   wasteful for assets that only change on deploys. 4 regression tests in
   `tests/test_middleware.py` pin both behaviors.
 
+- **classify_products N+1 → batched** — `app/rms/menu_engineering.py`'s
+  `classify_products()` was issuing one `_product_volume` query per product
+  (~20 queries for 20 products) plus per-product batch costs. Replaced
+  with 1 grouped query for all volumes + 1 `batch_products_cost_margin` call.
+  1 regression test in `tests/test_menu_engineering_perf.py` asserts no
+  per-product point queries against `sale`.
+
 - **Dashboard N+1 → batched** — `app/routers/dashboard.py` was issuing ~3,000
   DB queries per render (one `product_unit_cost_gs()` call per sale, plus
   per-product loops in ranking + recipes_no_cost + build_insights). Replaced
