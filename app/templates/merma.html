@@ -46,7 +46,7 @@
 <table class="data">
   <thead><tr><th>Motivo</th><th class="right">Costo (Gs.)</th></tr></thead>
   <tbody>
-    {% for reason, cost in impact.by_reason.items %}
+    {% for reason, cost in impact.by_reason.items() %}
     <tr><td>{{ reason }}</td><td class="right">{{ "{:,.0f}".format(cost) }}</td></tr>
     {% endfor %}
   </tbody>

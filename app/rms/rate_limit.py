@@ -138,10 +138,49 @@ def is_disabled() -> bool:
     return os.getenv("AIW_SASKIA_AUTH_DISABLED", "").lower() in ("1", "true", "yes")
 
 
+def is_write_rate_limited(
+    session: Session,
+    request,
+    *,
+    max_per_minute: int = 10,
+    window_seconds: int = 60,
+    now=None,
+) -> bool:
+    """Return True if this client has exceeded max_per_minute writes.
+
+    Counts rows with `action LIKE 'write.%'` for this IP within the
+    sliding window. Used to throttle state-changing POSTs (sale.create,
+    merma.register, product.create) so a bot can't flood.
+
+    FAIL OPEN: if the DB raises, return False so a DB outage does not
+    brick write endpoints. A flood during a DB outage is the lesser
+    evil compared to blocking legitimate operators.
+
+    Pass `now` for deterministic tests.
+    """
+    when = now or datetime.now(timezone.utc)
+    threshold = when - timedelta(seconds=window_seconds)
+    ip = _client_ip(request)
+    try:
+        count = (
+            session.query(AuditLog)
+            .filter(
+                AuditLog.action.like("write.%"),
+                AuditLog.ip == ip,
+                AuditLog.occurred_at >= threshold,
+            )
+            .count()
+        )
+    except Exception:
+        return False
+    return count >= max_per_minute
+
+
 __all__ = [
     "DEFAULT_LIMIT",
     "DEFAULT_WINDOW_MINUTES",
     "RateLimitDecision",
     "is_rate_limited",
+    "is_write_rate_limited",
     "is_disabled",
 ]

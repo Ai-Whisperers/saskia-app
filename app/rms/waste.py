@@ -13,7 +13,7 @@ Adds:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 
@@ -39,11 +39,11 @@ class WasteReason(str, Enum):
 class WasteImpact:
     """Summary of waste cost in a period."""
 
-    n_events: int
-    total_qty: float
-    total_cost_gs: int
-    by_reason: dict[str, int]  # reason -> cost_gs
-    by_ingredient: list[tuple[int, str, int]]  # (id, name, cost_gs)
+    n_events: int = 0
+    total_qty: float = 0.0
+    total_cost_gs: int = 0
+    by_reason: dict[str, int] = field(default_factory=dict)
+    by_ingredient: list[tuple[int, str, int]] = field(default_factory=list)
 
 
 # --- CRUD ---

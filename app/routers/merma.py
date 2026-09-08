@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -68,12 +68,40 @@ def merma_register(
     session: Session = Depends(get_session),
 ):
     """Record a new waste event."""
+    # Validate reason is in the enum
+    try:
+        reason_enum = WasteReason(reason)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # Rate-limit writes per IP.
+    from app.rms.rate_limit import is_write_rate_limited
+    with session.bind.connect() as _:
+        pass  # touch to ensure session is live
+    # We need request inside the function — use a quick manual lookup
+    ip = request.headers.get("x-forwarded-for", "")
+    if ip:
+        ip = ip.split(",")[0].strip()
+    # Re-use the rate-limit helper through session_factory
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(status_code=429, detail="Demasiadas acciones en 1 minuto. Esperá un momento.")
+
     record_waste(
         session,
         ingredient_id=ingredient_id,
         qty=qty,
-        reason=WasteReason(reason),
+        reason=reason_enum,
         notes=notes or None,
+    )
+
+    # Audit + commit
+    from app.rms.audit import record as audit_record
+    audit_record(
+        session,
+        user_id=None,
+        action="write.merma.register",
+        request=request,
+        detail={"ingredient_id": ingredient_id, "qty": qty, "reason": reason},
     )
     session.commit()
     return RedirectResponse(url="/merma", status_code=303)

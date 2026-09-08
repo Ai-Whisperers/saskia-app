@@ -189,6 +189,20 @@ async def sale_create(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
+    # Audit + rate-limit (writes only — read paths not counted).
+    from app.rms.audit import record as audit_record
+    from app.rms.rate_limit import is_write_rate_limited
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(status_code=429, detail="Demasiadas ventas en 1 minuto. Esperá un momento.")
+    audit_record(
+        session,
+        user_id=None,
+        action="write.sale.create",
+        request=request,
+        detail={"product_id": product_id, "qty": qty, "discount_gs": discount_gs},
+    )
+    session.commit()
+
     return RedirectResponse(url="/ventas", status_code=303)
 
 
