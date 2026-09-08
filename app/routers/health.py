@@ -201,3 +201,46 @@ def healthz_db(request: Request) -> JSONResponse:
 
 
 __all__ = ["router"]
+
+
+@router.get("/healthz/schema", response_model=None)
+def healthz_schema(request: Request) -> JSONResponse:
+    """Drift detector: returns code_version, db_version, drift.
+
+    drift > 0 = DB behind code (CRITICAL — production will 500 on
+    new columns). Operator action: redeploy to apply pending migrations
+    (init_db() auto-runs as of 2026-09-08 by default).
+
+    Returns 500 when drift > 0 so monitoring tools (UptimeRobot) alert.
+    """
+    from app.rms.db import (
+        CURRENT_SCHEMA_VERSION,
+        schema_version,
+        schema_version_mismatch,
+    )
+
+    ready = getattr(request.app.state, "ready", False)
+    if not ready:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "warming_up"},
+        )
+
+    with request.app.state.session_factory() as s:
+        actual = schema_version(s.connection())
+        drift = schema_version_mismatch(s.connection())
+
+    body: dict[str, Any] = {
+        "code_version": CURRENT_SCHEMA_VERSION,
+        "db_version": actual,
+        "drift": drift,
+    }
+    if drift > 0:
+        body["hint"] = (
+            f"DB schema v{actual}, code expects v{CURRENT_SCHEMA_VERSION}. "
+            "Redeploy to apply pending migrations automatically."
+        )
+        body["status"] = "schema_drift"
+        return JSONResponse(status_code=500, content=body)
+    body["status"] = "in_sync"
+    return JSONResponse(status_code=200, content=body)
