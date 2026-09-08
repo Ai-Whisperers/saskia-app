@@ -48,6 +48,12 @@
   (walks sub-recipes recursively), `jaccard_similarity`,
   `most_similar_products`, `suggest_substitute`, `similarity_matrix`,
   `find_clones`.
+- **Production scheduler (E32)** — when-to-bake-how-much optimizer. Uses
+  velocity (from sales_intel) + DOW multiplier + safety stock + recipe yield
+  to plan per-product batches per day. `app/rms/production_scheduler.py`
+  exposes `expected_daily_sales`, `production_plan_for_day`,
+  `production_calendar` (multi-day), `ingredient_requirements`,
+  `check_ingredient_availability` (flags stock shortages that block a plan).
 
 - `.github/ISSUE_TEMPLATE/{bug,feature,epic}.md` for guided issue filing.
 - AGENTS.md gains "Issue templates", "Locked hotfixes", and refreshed CI
