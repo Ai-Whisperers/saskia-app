@@ -68,7 +68,7 @@ BACKUP_THRESHOLD_HOURS = int(os.getenv("AIW_SASKIA_BACKUP_HOURS", "24"))
 KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_SASKIA_KEEP_LOCAL_DAYS", "30"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 9  # 009 = ingredient intelligence columns (E26)
+CURRENT_SCHEMA_VERSION = 10  # 010 = recipe intelligence columns (E27)
 
 
 def ensure_dirs() -> None:

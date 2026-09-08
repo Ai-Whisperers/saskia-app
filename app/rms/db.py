@@ -326,6 +326,29 @@ def _migration_009_ingredient_intel(conn):
     )
 
 
+def _migration_010_recipe_intel(conn):
+    """Add recipe intelligence columns (E27): family, difficulty, dietary_tags,
+    cook_minutes. prep_minutes already exists (added in migration 003).
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    cols = [
+        ("family", "VARCHAR(32)"),
+        ("difficulty", "INTEGER"),
+        ("dietary_tags", "JSONB" if dialect == "postgresql" else "TEXT"),
+        ("cook_minutes", "INTEGER"),
+    ]
+    for col_name, col_type in cols:
+        try:
+            conn.execute(text(f"ALTER TABLE recipe ADD COLUMN {col_name} {col_type}"))
+        except Exception:
+            # Column already exists — idempotent.
+            pass
+    conn.execute(
+        text("UPDATE app_meta SET value = '10', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -336,6 +359,7 @@ MIGRATIONS = {
     7: _migration_007_product_sku,
     8: _migration_008_tenant,
     9: _migration_009_ingredient_intel,
+    10: _migration_010_recipe_intel,
 }
 
 

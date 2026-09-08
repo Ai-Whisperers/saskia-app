@@ -16,6 +16,14 @@
   co-occurrence graph). Schema bumped to v9 with new columns:
   `category`, `subcategory`, `role`, `allergens` (JSONB/Text),
   `dietary_tags` (JSONB/Text), `lead_time_days`. Idempotent migration.
+- **Recipe intelligence (E27)** — auto-classify every recipe by family,
+  difficulty, dietary compatibility, prep/cook time, yield-in-grams,
+  cost-per-gram. `app/rms/recipe_intel.py` exposes `infer_recipe_family`,
+  `estimate_prep_minutes`, `estimate_cook_minutes`,
+  `infer_difficulty`, `infer_recipe_dietary`, `recipe_yield_grams`,
+  `recipe_cost_per_gram`, `classify_recipe`, `classify_all_recipes`.
+  Schema bumped to v10 with `family`, `difficulty`, `dietary_tags`,
+  `cook_minutes`. Idempotent migration.
 
 - `.github/ISSUE_TEMPLATE/{bug,feature,epic}.md` for guided issue filing.
 - AGENTS.md gains "Issue templates", "Locked hotfixes", and refreshed CI
