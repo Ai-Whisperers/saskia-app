@@ -62,7 +62,12 @@ class Ingredient(Base):
     unit: Mapped[str] = mapped_column(String(16), nullable=False)
     stock_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     purchase_price_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    purchase_price_updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    last_consumed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     min_stock_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    shelf_life_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships
@@ -94,6 +99,7 @@ class Recipe(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
     yield_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     yield_unit: Mapped[str] = mapped_column(String(16), nullable=False, default="und")
+    prep_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships

@@ -154,6 +154,52 @@ MIGRATIONS: dict[int, MigrationFn] = {
 }
 
 
+def _migration_003_analytics_columns(conn: Any) -> None:
+    """Add analytics-tracking columns (E8).
+
+    New columns:
+    - ingredient.purchase_price_updated_at: tracks when the cost was last changed
+      (used by margin_erosion_alerts in app/rms/analytics.py)
+    - ingredient.last_consumed_at: tracks the most recent sale that consumed this
+      ingredient (used by dead_stock and stock_turnover reports)
+    - ingredient.shelf_life_days: optional, drives spoilage alerts (E22)
+    - recipe.prep_minutes: optional, drives cost-per-prep-minute reports
+
+    All columns are nullable / optional so the migration is safe on existing rows
+    (which get NULL = "unknown" rather than a fabricated value).
+    """
+    # SQLite ALTER TABLE supports adding columns one at a time. Wrap in try/except
+    # so re-running this migration on an already-migrated DB is a no-op.
+    _add_columns = [
+        ("ingredient", "purchase_price_updated_at", "DATETIME"),
+        ("ingredient", "last_consumed_at", "DATETIME"),
+        ("ingredient", "shelf_life_days", "INTEGER"),
+        ("recipe", "prep_minutes", "INTEGER"),
+    ]
+    for table, col, decl in _add_columns:
+        try:
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {decl}"))
+        except Exception:  # noqa: BLE001 - column already exists; that's fine
+            pass
+
+    # Index on last_consumed_at so dead_stock reports stay fast.
+    conn.execute(
+        text("CREATE INDEX IF NOT EXISTS ix_ingredient_last_consumed_at ON ingredient (last_consumed_at)")
+    )
+
+    conn.execute(
+        text("UPDATE app_meta SET value = '3', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
+MIGRATIONS = {
+    1: _migration_001_initial_schema,
+    2: _migration_002_audit_log,
+    3: _migration_003_analytics_columns,
+}
+
+
 def _current_schema_version(conn: Any) -> int:
     """Read schema version from app_meta table (default 0)."""
     row = conn.execute(text("SELECT value FROM app_meta WHERE key = 'schema_version'")).first()

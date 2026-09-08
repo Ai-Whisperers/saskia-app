@@ -13,6 +13,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
+from app.rms.analytics import (
+    day_of_week_heatmap,
+    ingredient_concentration,
+    margin_erosion_alerts,
+    recipe_complexity,
+    stock_turnover,
+    top_margin_products,
+)
 from app.rms.config import ASUNCION_TZ
 from app.rms.costing import product_unit_cost_gs
 from app.rms.models import Ingredient, Recipe, Sale
@@ -165,6 +173,18 @@ async def dashboard(
             ],
             "recipes_no_cost": recipes_no_cost,
             "sales_no_recipe": sales_no_recipe_decor,
+            # E8: operational analytics surfaces
+            "dow_buckets": day_of_week_heatmap(session, days=90),
+            "turnover": [
+                stock_turnover(session, ing.id, days=30)
+                for ing in session.scalars(
+                    select(Ingredient).where(Ingredient.stock_qty > 0).limit(8)
+                )
+            ],
+            "top_margin": top_margin_products(session, days=30, limit=5),
+            "concentration": ingredient_concentration(session, days=90)[:5],
+            "erosion_alerts": margin_erosion_alerts(session, threshold_pct=5.0),
+            "complexity": recipe_complexity(session),
         },
     )
 

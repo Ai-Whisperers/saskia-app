@@ -17,6 +17,12 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Operational analytics dashboard (E8)** — `app/rms/analytics.py` adds
+  stock turnover, dead-stock detection, margin-erosion alerts, day-of-week
+  heatmap, top-margin ranking, ingredient concentration, recipe complexity.
+  Schema v3 adds 4 nullable columns: ingredient.purchase_price_updated_at,
+  last_consumed_at (indexed), shelf_life_days (E22 prep), recipe.prep_minutes.
+
 - **Realistic demo data seed (E6)** — `app/rms/seed.py` +
   `aiw-saskia seed [--reset]`. 30 ingredients, 12 recipes, 80
   recipe_lines, 20 products, ~200 synthetic sales over 90 days with
