@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Estado operativo{% endblock %}
+{% block content %}
+<h1>Estado operativo</h1>
+
+<p class="hint">Vista rápida para identificar problemas. Si algo
+  parece roto abajo, abrir <code>/healthz/errors</code> + filtrar
+  <code>action_filter=http.500</code> en <a href="/auditoria">/auditoria</a>.
+  Plan completo en
+  <code>docs/operations/2026-09-08-incident-response.md</code>.</p>
+
+<table class="data">
+  <thead>
+    <tr><th>Endpoint</th><th>Propósito</th><th>Acción</th></tr>
+  </thead>
+  <tbody>
+    {% for path, purpose in endpoints %}
+    <tr>
+      <td><code><a href="{{ path }}">{{ path }}</a></code></td>
+      <td>{{ purpose }}</td>
+      <td>
+        <a class="btn btn-small" href="{{ path }}">Abrir</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>Operaciones comunes</h2>
+<ul>
+  <li><strong>Forzar redeploy</strong> — desde local:
+    <code>git commit --allow-empty -m "trigger redeploy" &&amp;&amp; git push origin main</code>
+    (Render auto-redeploya).</li>
+  <li><strong>Prune audit log</strong> — desde local:
+    <code>python scripts/audit_prune.py --days 30</code></li>
+  <li><strong>Verificar env vars</strong> — Render dashboard →
+    saskia-rms → Environment, o el catálogo en
+    <code>docs/operations/2026-09-08-render-env-vars.md</code>.</li>
+</ul>
+
+{% endblock %}

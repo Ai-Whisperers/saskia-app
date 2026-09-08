@@ -51,6 +51,7 @@ from app.routers import (
     health,
     inventory,
     merma,
+    ops,
     produccion,
     products,
     recipes,
@@ -302,6 +303,7 @@ app.include_router(eod.router)
 app.include_router(merma.router)
 app.include_router(reportes.router)
 app.include_router(auditoria.router)
+app.include_router(ops.router)
 
 
 def _request_id() -> str:
