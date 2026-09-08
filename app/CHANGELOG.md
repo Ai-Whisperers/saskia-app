@@ -17,6 +17,11 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Performance scaffolding (E16)** — paginate() helper with
+  clamp-safe bounds; query_timer context manager (logs warning
+  on slow ORM); INDEX_HINTS (8 model+column tuples);
+  apply_postgres_indexes (idempotent CREATE INDEX); count_models
+  diagnostics.
 - **Multi-tenant scaffolding (E15)** — Tenant model + schema v8;
   app/rms/tenants.py with ensure_default_tenant (idempotent),
   resolve_tenant_id (env or subdomain), current_tenant context,
