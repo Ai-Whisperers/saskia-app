@@ -24,6 +24,12 @@
   `recipe_cost_per_gram`, `classify_recipe`, `classify_all_recipes`.
   Schema bumped to v10 with `family`, `difficulty`, `dietary_tags`,
   `cook_minutes`. Idempotent migration.
+- **Menu engineering (E28)** — Kasavana/Donaldson star/puzzle/plowhorse/dog
+  quadrant classification. `app/rms/menu_engineering.py` exposes
+  `classify_products` (volume × margin matrix with median thresholds),
+  `menu_engineering_report` (4-quadrant report with counts + total margin),
+  `action_for` (recommendations per quadrant). Volume window 90 days,
+  voided sales excluded.
 
 - `.github/ISSUE_TEMPLATE/{bug,feature,epic}.md` for guided issue filing.
 - AGENTS.md gains "Issue templates", "Locked hotfixes", and refreshed CI
