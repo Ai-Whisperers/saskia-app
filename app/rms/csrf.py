@@ -22,6 +22,7 @@ Compatibility:
 """
 from __future__ import annotations
 
+import os
 import secrets
 
 from fastapi import HTTPException, Request, Response, status
@@ -48,7 +49,7 @@ def generate_csrf_token() -> str:
     return _serializer.dumps(nonce)
 
 
-def verify_csrf_token(token: str) -> bool:
+def verify_csrf_token(token: str | None) -> bool:
     """Return True if token is a valid signed value. False otherwise."""
     if not token:
         return False
@@ -102,7 +103,11 @@ async def csrf_cookie_middleware(request: Request, call_next):
                 max_age=60 * 60 * 24,  # 1 day
                 httponly=True,
                 samesite="lax",
-                secure=True,  # only sent on https (hosted) — local http won't have cookie either
+                # Secure flag is opt-in. Hosted (Render) sets
+                # AIW_SASKIA_FORCE_SECURE_COOKIES=1 so the cookie is
+                # Secure-flagged (only sent on https). Local dev / tests
+                # leave the env unset, so plain HTTP can store the cookie.
+                secure=os.getenv("AIW_SASKIA_FORCE_SECURE_COOKIES") == "1",
             )
 
     return response
