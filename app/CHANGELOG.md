@@ -72,6 +72,17 @@
   hora/día pico, food cost % (30d), star/dog quadrants, low-stock alerts,
   rising/churning products, and tomorrow's production plan.
 
+### Fixed
+
+- **`_migration_007_product_sku` was a no-op** — bumped version but didn't
+  add the `product.sku` column on existing databases (it relied on
+  `create_all`, which is a no-op for existing tables). Added
+  `_add_column_if_missing` helper (cross-dialect: SQLite PRAGMA table_info,
+  Postgres information_schema.columns). Fresh DBs from v0 now correctly
+  have the sku column after migration. Live Neon already had it (added
+  manually earlier); this fix prevents future migrations from the same
+  no-op pattern.
+
 - `.github/ISSUE_TEMPLATE/{bug,feature,epic}.md` for guided issue filing.
 - AGENTS.md gains "Issue templates", "Locked hotfixes", and refreshed CI
   list sections.

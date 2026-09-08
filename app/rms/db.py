@@ -182,11 +182,42 @@ def _migration_007_product_sku(conn: Any) -> None:
 
     SKU is optional; most bakeries don't print barcodes on products but
     an operator may add them later. Unique when set.
-    Schema bumps via create_all idempotency."""
+    """
+    _add_column_if_missing(conn, "product", "sku",
+                           "VARCHAR(32)", "TEXT")
     conn.execute(
         text("UPDATE app_meta SET value = '7', updated_at = :ts WHERE key = 'schema_version'"),
         {"ts": datetime.now(timezone.utc).isoformat()},
     )
+
+
+def _add_column_if_missing(conn: Any, table: str, column: str,
+                           pg_type: str, sqlite_type: str) -> None:
+    """Add a column to a table if it doesn't already exist.
+
+    Cross-dialect: SQLite uses PRAGMA table_info; Postgres uses
+    information_schema.columns.
+    """
+    dialect_name = conn.dialect.name
+    if dialect_name == "postgresql":
+        exists = conn.execute(
+            text(
+                "SELECT 1 FROM information_schema.columns "
+                "WHERE table_name = :t AND column_name = :c"
+            ),
+            {"t": table, "c": column},
+        ).first()
+        if not exists:
+            conn.execute(
+                text(f'ALTER TABLE {table} ADD COLUMN {column} {pg_type}')
+            )
+    else:
+        # SQLite
+        cols = [row[1] for row in conn.execute(text(f'PRAGMA table_info({table})')).fetchall()]
+        if column not in cols:
+            conn.execute(
+                text(f'ALTER TABLE {table} ADD COLUMN {column} {sqlite_type}')
+            )
 
 
 def _migration_006_waste_log(conn: Any) -> None:
