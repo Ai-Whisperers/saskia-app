@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ customer.name }} — Cliente{% endblock %}
+{% block content %}
+<nav class="breadcrumbs">
+  <a href="/clientes">Clientes</a> &rsaquo; {{ customer.name or customer.phone }}
+</nav>
+
+<h1>{{ customer.name or "(sin nombre)" }}</h1>
+
+<dl class="customer-meta">
+  <dt>Teléfono</dt>
+  <dd>{{ customer.phone }}</dd>
+  <dt>Nivel</dt>
+  <dd><span class="badge badge-tier-{{ stats.tier.value }}">{{ stats.tier.value.capitalize() }}</span></dd>
+  <dt>Puntos acumulados</dt>
+  <dd>{{ customer.loyalty_points }}</dd>
+  <dt>Gasto total</dt>
+  <dd>Gs. {{ "{:,.0f}".format(stats.lifetime_spend_gs) }}</dd>
+  <dt>Visitas</dt>
+  <dd>{{ stats.n_sales }}</dd>
+  <dt>Última compra</dt>
+  <dd>{{ stats.last_sale_at or "—" }}</dd>
+</dl>
+
+<h2>Historial de compras</h2>
+{% if history %}
+<table class="data">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Producto</th>
+      <th class="right">Cantidad</th>
+      <th class="right">Total (Gs.)</th>
+      <th>Estado</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in history %}
+    <tr {% if s.voided_at %}style="opacity:0.5;text-decoration:line-through"{% endif %}>
+      <td>{{ s.sold_at.strftime("%d/%m/%Y") if s.sold_at else "" }}</td>
+      <td>{{ s.product_name or "(eliminado)" }}</td>
+      <td class="right">{{ "%.2f"|format(s.qty) }}</td>
+      <td class="right">{{ "{:,.0f}".format(s.qty * s.unit_price_gs) }}</td>
+      <td>{% if s.voided_at %}<span class="badge badge-muted">Anulada</span>{% else %}<span class="badge badge-ok">Activa</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">Este cliente todavía no tiene compras registradas.</p>
+{% endif %}
+
+{% endblock %}

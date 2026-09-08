@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Clientes{% endblock %}
+{% block content %}
+<h1>Clientes</h1>
+
+<p class="hint">Programa de puntos: 1 punto por cada 1.000 Gs. gastados. 1 punto = 1.000 Gs. de descuento.</p>
+
+{% if customers %}
+<table class="data">
+  <thead>
+    <tr>
+      <th>Nombre</th>
+      <th>Teléfono</th>
+      <th class="right">Visitas</th>
+      <th class="right">Gasto total (Gs.)</th>
+      <th class="right">Puntos</th>
+      <th>Nivel</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in customers %}
+    <tr>
+      <td>{{ c.name }}</td>
+      <td>{{ c.phone }}</td>
+      <td class="right">{{ c.n_sales }}</td>
+      <td class="right">{{ "{:,.0f}".format(c.lifetime_spend_gs) }}</td>
+      <td class="right">{{ c.points }}</td>
+      <td>
+        <span class="badge badge-tier-{{ c.tier }}">{{ c.tier_label }}</span>
+      </td>
+      <td><a href="/clientes/{{ c.id }}" class="btn btn-small">Ver</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No hay clientes todavía. Los clientes se crean automáticamente al registrar una venta con un teléfono.</p>
+{% endif %}
+
+{% endblock %}
