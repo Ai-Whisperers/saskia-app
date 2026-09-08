@@ -278,11 +278,52 @@ def run() -> None:
     if argv and argv[0] == "migrate":
         migrate()
         return
+    if argv and argv[0] in ("seed", "demo"):
+        _seed()
+        return
     if argv and argv[0] in ("serve", "run", "start"):
         _serve()
         return
     # Default: serve (backward compat with pre-argv-dispatch entry)
     _serve()
+
+
+def _seed() -> None:
+    """Insert realistic demo data. Idempotent; --reset wipes seeded rows first.
+
+    Usage:
+        uv run aiw-saskia seed                  # additive (skip existing)
+        uv run aiw-saskia seed --reset          # destructive: wipe + reseed
+    """
+    import sys
+
+    from app.rms.db import make_session_factory
+    from app.rms.db_dialect import make_engine
+    from app.rms.seed import SeedReport, seed_demo_data
+
+    overwrite = "--reset" in sys.argv
+
+    raw = os.environ.get("DATABASE_URL")
+    if not raw:
+        local_db = os.environ.get("AIW_SASKIA_DB_PATH")
+        if local_db:
+            raw = f"sqlite:///{local_db}"
+        else:
+            print(
+                "ERROR: DATABASE_URL (or AIW_SASKIA_DB_PATH) not set. "
+                "Cannot determine which DB to seed.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+    engine = make_engine(raw)
+    SessionLocal = make_session_factory(engine)
+    session = SessionLocal()
+    try:
+        report: SeedReport = seed_demo_data(session, overwrite=overwrite)
+        print(f"seed complete: {report.as_dict()}")
+    finally:
+        session.close()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,614 @@
+"""app/rms/seed.py — Idempotent realistic-data seeder for demos / first-run.
+
+Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E6.
+
+Inserts:
+- 30 universal bakery ingredients (standard Paraguayan panadería pantry)
+- 12 standard bakery recipes (muffin, cheesecake, hojaldre, etc.)
+- 20 sellable products tied to recipes
+- ~80 recipe_lines (standard baking ratios)
+- 200 synthetic sales over 90 days with weekday/weekend skew + payday spikes
+- ~200 stock moves tied to the sales
+- 1 demo user (demo@herbus.local / demo1234, bcrypt)
+- 1 voided_sale example with notes
+- 1 "encargo" (custom order) sale example
+- 1 import_batch row with row_counts_json
+- 2 audit_log rows (system.startup + seed.complete)
+
+Idempotency:
+- Default: skip rows that already exist (match by natural key)
+- overwrite=True: delete all seeded rows (matched by name) and re-insert
+
+No PII; safe to commit. Currency: Paraguayan guaraní (Gs.).
+"""
+from __future__ import annotations
+
+import math
+import random
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
+
+from loguru import logger
+from sqlalchemy import delete, select
+from sqlalchemy.orm import Session
+
+from app.rms.audit import record as audit_record
+from app.rms.models import (
+    AppMeta,
+    ImportBatch,
+    Ingredient,
+    Product,
+    Recipe,
+    RecipeLine,
+    Sale,
+    SaleStockMove,
+    User,
+)
+
+# Use UTC-naive datetime columns consistently with existing models.
+# Sale.sold_at is DateTime without tz; we store UTC-naive.
+
+DEMO_USER_EMAIL = "demo@herbus.local"
+DEMO_USER_PASSWORD = "demo1234"
+DEMO_USER_USERNAME = "demo"
+
+# Realistic Paraguayan bakery ingredients.
+# (name, unit, stock_qty, purchase_price_gs_per_unit, min_stock_qty, shelf_life_days)
+INGREDIENTS: list[tuple[str, str, float, int, float, int]] = [
+    # Dry / pantry staples
+    ("harina", "kg", 25.0, 4500, 5.0, 90),
+    ("azúcar", "kg", 12.0, 5200, 3.0, 365),
+    ("sal", "kg", 2.0, 1800, 0.5, 1825),
+    ("levadura", "kg", 0.8, 22000, 0.3, 30),
+    ("polvo de hornear", "kg", 0.5, 18000, 0.2, 365),
+    ("bicarbonato", "kg", 0.3, 12000, 0.1, 1825),
+    ("azúcar impalpable", "kg", 1.5, 9500, 0.5, 365),
+    ("cacao en polvo", "kg", 0.6, 28000, 0.3, 365),
+    ("almendra molida", "kg", 0.4, 85000, 0.2, 180),
+    ("maicena", "kg", 1.0, 8500, 0.3, 365),
+    # Dairy
+    ("manteca", "kg", 4.0, 32000, 1.0, 60),
+    ("leche entera", "l", 12.0, 7800, 4.0, 7),
+    ("crema de leche", "l", 3.0, 18500, 1.0, 14),
+    ("queso crema", "kg", 2.5, 38000, 0.8, 21),
+    ("huevos", "und", 60.0, 600, 24.0, 21),
+    # Sweet
+    ("dulce de leche", "kg", 3.0, 28000, 0.8, 30),
+    ("leche condensada", "kg", 1.5, 18500, 0.5, 180),
+    ("miel", "kg", 0.5, 35000, 0.2, 1825),
+    # Flavor
+    ("esencia de vainilla", "ml", 250.0, 80, 50.0, 365),
+    ("canela molida", "g", 100.0, 50, 20.0, 365),
+    ("ralladura de limón", "g", 50.0, 120, 10.0, 30),
+    ("ralladura de naranja", "g", 50.0, 120, 10.0, 30),
+    # Add-ins
+    ("chocolate chips", "kg", 1.5, 32000, 0.5, 180),
+    ("nueces", "kg", 0.6, 65000, 0.3, 120),
+    ("pasas de uva", "kg", 0.5, 22000, 0.3, 180),
+    ("coco rallado", "kg", 0.4, 28000, 0.2, 180),
+    ("frutillas", "kg", 1.5, 22000, 0.5, 5),
+    ("arándanos", "kg", 0.8, 38000, 0.3, 7),
+    # Fat / liquid
+    ("aceite vegetal", "l", 5.0, 12500, 1.0, 365),
+    ("agua", "l", 30.0, 0, 5.0, 365),
+]
+
+# 12 standard bakery recipes. (name, yield_qty, yield_unit, prep_minutes)
+RECIPES: list[tuple[str, float, str, int]] = [
+    ("muffin_vainilla", 12.0, "und", 35),
+    ("muffin_chocolate", 12.0, "und", 35),
+    ("muffin_nueces", 12.0, "und", 40),
+    ("cheesecake", 8.0, "und", 90),
+    ("hojaldre_dulce", 16.0, "und", 120),
+    ("appeltaart", 8.0, "und", 90),
+    ("tompoezen", 12.0, "und", 60),
+    ("oliebollen", 24.0, "und", 45),
+    ("babka", 10.0, "und", 180),
+    ("stroopwafel", 24.0, "und", 60),
+    ("pan_lactal", 2.0, "und", 180),
+    ("facturas", 24.0, "und", 180),
+]
+
+# Recipe lines. (recipe_name, ingredient_name, qty, unit) — note qty is in INGREDIENT units.
+# Total per recipe should yield the recipe.yield_qty.
+RECIPE_LINES: list[tuple[str, str, float]] = [
+    # muffin_vainilla (12 und)
+    ("muffin_vainilla", "harina", 0.350),  # 350g
+    ("muffin_vainilla", "azúcar", 0.180),
+    ("muffin_vainilla", "manteca", 0.120),
+    ("muffin_vainilla", "huevos", 2),
+    ("muffin_vainilla", "leche entera", 0.180),
+    ("muffin_vainilla", "polvo de hornear", 0.008),
+    ("muffin_vainilla", "esencia de vainilla", 5),
+    # muffin_chocolate
+    ("muffin_chocolate", "harina", 0.350),
+    ("muffin_chocolate", "azúcar", 0.200),
+    ("muffin_chocolate", "cacao en polvo", 0.050),
+    ("muffin_chocolate", "manteca", 0.120),
+    ("muffin_chocolate", "huevos", 2),
+    ("muffin_chocolate", "leche entera", 0.180),
+    ("muffin_chocolate", "polvo de hornear", 0.008),
+    ("muffin_chocolate", "chocolate chips", 0.080),
+    # muffin_nueces
+    ("muffin_nueces", "harina", 0.350),
+    ("muffin_nueces", "azúcar", 0.180),
+    ("muffin_nueces", "manteca", 0.120),
+    ("muffin_nueces", "huevos", 2),
+    ("muffin_nueces", "leche entera", 0.180),
+    ("muffin_nueces", "polvo de hornear", 0.008),
+    ("muffin_nueces", "nueces", 0.080),
+    # cheesecake (8 und)
+    ("cheesecake", "queso crema", 0.600),
+    ("cheesecake", "azúcar", 0.200),
+    ("cheesecake", "huevos", 3),
+    ("cheesecake", "crema de leche", 0.200),
+    ("cheesecake", "harina", 0.050),
+    ("cheesecake", "esencia de vainilla", 8),
+    # hojaldre_dulce (16 und)
+    ("hojaldre_dulce", "harina", 0.500),
+    ("hojaldre_dulce", "manteca", 0.300),
+    ("hojaldre_dulce", "azúcar", 0.100),
+    ("hojaldre_dulce", "huevos", 2),
+    ("hojaldre_dulce", "leche entera", 0.150),
+    ("hojaldre_dulce", "dulce de leche", 0.300),
+    # appeltaart (8 und)
+    ("appeltaart", "harina", 0.400),
+    ("appeltaart", "manteca", 0.200),
+    ("appeltaart", "azúcar", 0.250),
+    ("appeltaart", "huevos", 2),
+    ("appeltaart", "canela molida", 5),
+    ("appeltaart", "frutillas", 0.400),
+    # tompoezen (12 und)
+    ("tompoezen", "harina", 0.300),
+    ("tompoezen", "manteca", 0.150),
+    ("tompoezen", "huevos", 2),
+    ("tompoezen", "leche entera", 0.150),
+    ("tompoezen", "crema de leche", 0.400),
+    ("tompoezen", "azúcar impalpable", 0.100),
+    # oliebollen (24 und)
+    ("oliebollen", "harina", 0.500),
+    ("oliebollen", "huevos", 3),
+    ("oliebollen", "leche entera", 0.300),
+    ("oliebollen", "levadura", 0.020),
+    ("oliebollen", "azúcar", 0.080),
+    ("oliebollen", "pasas de uva", 0.080),
+    ("oliebollen", "aceite vegetal", 0.500),  # for frying
+    # babka (10 und)
+    ("babka", "harina", 0.600),
+    ("babka", "manteca", 0.200),
+    ("babka", "azúcar", 0.150),
+    ("babka", "huevos", 3),
+    ("babka", "leche entera", 0.200),
+    ("babka", "levadura", 0.020),
+    ("babka", "chocolate chips", 0.150),
+    # stroopwafel (24 und)
+    ("stroopwafel", "harina", 0.500),
+    ("stroopwafel", "manteca", 0.250),
+    ("stroopwafel", "azúcar", 0.250),
+    ("stroopwafel", "huevos", 2),
+    ("stroopwafel", "esencia de vainilla", 8),
+    ("stroopwafel", "miel", 0.050),
+    # pan_lactal (2 und loaves)
+    ("pan_lactal", "harina", 1.000),
+    ("pan_lactal", "agua", 0.500),
+    ("pan_lactal", "levadura", 0.030),
+    ("pan_lactal", "sal", 0.020),
+    ("pan_lactal", "manteca", 0.050),
+    ("pan_lactal", "azúcar", 0.050),
+    # facturas (24 und)
+    ("facturas", "harina", 0.500),
+    ("facturas", "manteca", 0.150),
+    ("facturas", "azúcar", 0.100),
+    ("facturas", "huevos", 2),
+    ("facturas", "leche entera", 0.150),
+    ("facturas", "levadura", 0.020),
+    ("facturas", "azúcar impalpable", 0.080),
+    ("facturas", "dulce de leche", 0.200),
+]
+
+# 20 sellable products. (name, recipe_name, portion_label, sale_price_gs, category)
+# category ∈ {panaderia, pasteleria, salados}
+PRODUCTS: list[tuple[str, str, str, int, str]] = [
+    # Muffins
+    ("Muffin de vainilla", "muffin_vainilla", "1 unidad", 8000, "panaderia"),
+    ("Muffin de chocolate", "muffin_chocolate", "1 unidad", 8500, "panaderia"),
+    ("Muffin de nueces", "muffin_nueces", "1 unidad", 9500, "panaderia"),
+    ("Docena muffins vainilla", "muffin_vainilla", "12 unidades", 85000, "panaderia"),
+    ("Docena muffins chocolate", "muffin_chocolate", "12 unidades", 90000, "panaderia"),
+    # Cheesecake
+    ("Cheesecake clásico", "cheesecake", "1 porción", 25000, "pasteleria"),
+    ("Cheesecake entera", "cheesecake", "1 torta (8 porciones)", 180000, "pasteleria"),
+    # Hojaldre
+    ("Hojaldre dulce", "hojaldre_dulce", "1 unidad", 6000, "pasteleria"),
+    ("Docena hojaldres", "hojaldre_dulce", "12 unidades", 65000, "pasteleria"),
+    # Specialty
+    ("Appeltaart", "appeltaart", "1 unidad", 28000, "pasteleria"),
+    ("Tompoezen", "tompoezen", "1 unidad", 12000, "pasteleria"),
+    ("Docena tompoezen", "tompoezen", "12 unidades", 130000, "pasteleria"),
+    ("Oliebollen (unidad)", "oliebollen", "1 unidad", 5500, "pasteleria"),
+    ("Docena oliebollen", "oliebollen", "12 unidades", 60000, "pasteleria"),
+    ("Babka de chocolate", "babka", "1 unidad", 22000, "pasteleria"),
+    ("Stroopwafel", "stroopwafel", "1 unidad", 7000, "pasteleria"),
+    ("Docena stroopwafels", "stroopwafel", "12 unidades", 75000, "pasteleria"),
+    # Pan
+    ("Pan lactal", "pan_lactal", "1 unidad", 12000, "panaderia"),
+    # Facturas (Argentine-style pastries)
+    ("Facturas (docena)", "facturas", "12 unidades", 35000, "panaderia"),
+    ("Facturas (media docena)", "facturas", "6 unidades", 18000, "panaderia"),
+]
+
+
+@dataclass
+class SeedReport:
+    """Counts of rows inserted by seed_demo_data()."""
+
+    ingredients: int = 0
+    recipes: int = 0
+    recipe_lines: int = 0
+    products: int = 0
+    sales: int = 0
+    stock_moves: int = 0
+    users: int = 0
+    import_batches: int = 0
+    audit_log_rows: int = 0
+    skipped_existing: dict[str, int] = field(default_factory=dict)
+
+    def as_dict(self) -> dict[str, int]:
+        return {
+            "ingredients": self.ingredients,
+            "recipes": self.recipes,
+            "recipe_lines": self.recipe_lines,
+            "products": self.products,
+            "sales": self.sales,
+            "stock_moves": self.stock_moves,
+            "users": self.users,
+            "import_batches": self.import_batches,
+            "audit_log_rows": self.audit_log_rows,
+            **self.skipped_existing,
+        }
+
+
+def seed_demo_data(
+    session: Session,
+    *,
+    overwrite: bool = False,
+    days_of_history: int = 90,
+    sales_per_day: int = 3,
+    seed: int | None = 42,
+) -> SeedReport:
+    """Insert demo data; safe to call multiple times.
+
+    Args:
+        session: SQLAlchemy session
+        overwrite: if True, delete existing seeded rows (by name match) first
+        days_of_history: how many days of synthetic sales to generate
+        sales_per_day: baseline number of sales per day
+        seed: RNG seed for deterministic output (None = random)
+
+    Returns:
+        SeedReport with counts of inserted rows
+    """
+    rng = random.Random(seed)
+    report = SeedReport()
+
+    if overwrite:
+        _delete_seeded_data(session)
+
+    # --- Ingredients ---
+    existing = set(session.execute(select(Ingredient.name)).scalars().all())
+    for name, unit, stock, price, min_stock, _shelf in INGREDIENTS:
+        if name in existing:
+            report.skipped_existing["ingredients_existing"] = (
+                report.skipped_existing.get("ingredients_existing", 0) + 1
+            )
+            continue
+        session.add(
+            Ingredient(
+                name=name,
+                unit=unit,
+                stock_qty=stock,
+                purchase_price_gs=price if price > 0 else None,
+                min_stock_qty=min_stock,
+                notes=None,
+            )
+        )
+        report.ingredients += 1
+    session.flush()
+
+    # --- Recipes ---
+    existing = set(session.execute(select(Recipe.name)).scalars().all())
+    for name, yield_qty, yield_unit, _prep in RECIPES:
+        if name in existing:
+            report.skipped_existing["recipes_existing"] = (
+                report.skipped_existing.get("recipes_existing", 0) + 1
+            )
+            continue
+        session.add(
+            Recipe(
+                name=name,
+                yield_qty=yield_qty,
+                yield_unit=yield_unit,
+                notes=None,
+            )
+        )
+        report.recipes += 1
+    session.flush()
+
+    # --- Recipe Lines (polymorphic: line_kind='ingredient', line_ref_id=ingredient.id) ---
+    ingredients_by_name = {
+        row.name: row.id
+        for row in session.execute(select(Ingredient)).scalars()
+    }
+    recipes_by_name = {row.name: row.id for row in session.execute(select(Recipe)).scalars()}
+
+    existing_line_keys = {
+        (r.recipe_id, r.line_kind, r.line_ref_id)
+        for r in session.execute(
+            select(RecipeLine.recipe_id, RecipeLine.line_kind, RecipeLine.line_ref_id)
+        ).all()
+    }
+    for recipe_name, ingredient_name, qty in RECIPE_LINES:
+        recipe_id = recipes_by_name.get(recipe_name)
+        ingredient_id = ingredients_by_name.get(ingredient_name)
+        if not recipe_id or not ingredient_id:
+            logger.warning(f"missing ref for {recipe_name}/{ingredient_name}, skipping")
+            continue
+        key = (recipe_id, "ingredient", ingredient_id)
+        if key in existing_line_keys:
+            report.skipped_existing["recipe_lines_existing"] = (
+                report.skipped_existing.get("recipe_lines_existing", 0) + 1
+            )
+            continue
+        session.add(
+            RecipeLine(
+                recipe_id=recipe_id,
+                line_kind="ingredient",
+                line_ref_id=ingredient_id,
+                qty=qty,
+            )
+        )
+        report.recipe_lines += 1
+    session.flush()
+
+    # --- Products ---
+    existing = set(session.execute(select(Product.name)).scalars().all())
+    for name, recipe_name, portion_label, sale_price, _category in PRODUCTS:
+        if name in existing:
+            report.skipped_existing["products_existing"] = (
+                report.skipped_existing.get("products_existing", 0) + 1
+            )
+            continue
+        session.add(
+            Product(
+                name=name,
+                recipe_id=recipes_by_name.get(recipe_name),
+                portion_label=portion_label,
+                sale_price_gs=sale_price,
+                notes=None,
+            )
+        )
+        report.products += 1
+    session.flush()
+
+    # --- Demo user ---
+    user = session.execute(select(User).where(User.username == DEMO_USER_USERNAME)).scalar_one_or_none()
+    if user is None:
+        user = User(
+            username=DEMO_USER_USERNAME,
+            is_active=True,
+            created_at=datetime.now(timezone.utc).isoformat(),
+            last_login_at=None,
+        )
+        user.set_password(DEMO_USER_PASSWORD)
+        session.add(user)
+        session.flush()
+        report.users += 1
+    else:
+        report.skipped_existing["users_existing"] = (
+            report.skipped_existing.get("users_existing", 0) + 1
+        )
+
+    # --- Import batch example (so the import history is non-empty) ---
+    existing = session.execute(select(ImportBatch).limit(1)).scalar_one_or_none()
+    if existing is None:
+        session.add(
+            ImportBatch(
+                imported_at=datetime.now(timezone.utc),
+                source_filename="seed_demo_data.xlsx",
+                note="Seed: synthetic fixture used for demo. No PII.",
+                row_counts_json={
+                    "ingredientes": report.ingredients,
+                    "recetas": report.recipes,
+                    "lineas": report.recipe_lines,
+                    "productos": report.products,
+                },
+            )
+        )
+        report.import_batches += 1
+
+    # --- Synthetic sales + stock moves ---
+    products_by_id = {p.id: p for p in session.execute(select(Product)).scalars()}
+    recipes_by_id = {r.id: r for r in session.execute(select(Recipe)).scalars()}
+    recipe_lines_by_recipe: dict[int, list[RecipeLine]] = {}
+    for line in session.execute(select(RecipeLine)).scalars():
+        recipe_lines_by_recipe.setdefault(line.recipe_id, []).append(line)
+
+    today = datetime.now(timezone.utc).replace(hour=12, minute=0, second=0, microsecond=0)
+    sales_start = today - timedelta(days=days_of_history)
+
+    # Generate sales over the period.
+    sale_rows: list[Sale] = []
+    stock_move_rows: list[SaleStockMove] = []
+
+    for day_offset in range(days_of_history):
+        sale_date = sales_start + timedelta(days=day_offset)
+        weekday = sale_date.weekday()  # 0=Mon, 6=Sun
+
+        # Volume skew: weekends +40%, payday (1st, 15th) +60%, otherwise baseline
+        base_count = sales_per_day
+        if weekday >= 5:  # Sat-Sun
+            base_count = int(math.ceil(base_count * 1.4))
+        if sale_date.day in (1, 15):
+            base_count = int(math.ceil(base_count * 1.6))
+        # Mild noise
+        count = max(1, int(base_count + rng.randint(-1, 1)))
+
+        # Day-of-month holiday multiplier (Día de la Madre = May 15, etc.)
+        # We don't bake a full holiday calendar here — that's E19. For now
+        # add one synthetic spike on day-of-month 14 or 15.
+        for _ in range(count):
+            product = rng.choice(list(products_by_id.values()))
+            # Morning sales +30%, afternoon +50%, evening +20% by hour
+            hour = rng.choices([8, 9, 10, 11, 14, 15, 16, 17, 18], weights=[2, 3, 3, 2, 3, 3, 2, 2, 1])[0]
+            minute = rng.randint(0, 59)
+            sold_at = sale_date.replace(hour=hour, minute=minute)
+
+            # Qty: usually 1, sometimes 2-12 (docenas)
+            qty = rng.choices([1, 2, 3, 6, 12], weights=[70, 15, 5, 5, 5])[0]
+
+            sale = Sale(
+                sold_at=sold_at,
+                product_id=product.id,
+                qty=qty,
+                unit_price_gs=product.sale_price_gs,
+                notes=None,
+            )
+            session.add(sale)
+            session.flush()  # to get sale.id
+
+            # Generate stock moves for this sale (negative)
+            if product.recipe_id and product.recipe_id in recipe_lines_by_recipe:
+                recipe = recipes_by_id[product.recipe_id]
+                yield_qty = recipe.yield_qty or 1.0
+                for line in recipe_lines_by_recipe[product.recipe_id]:
+                    need = (line.qty / yield_qty) * qty
+                    move = SaleStockMove(
+                        sale_id=sale.id,
+                        affected_recipe_id=product.recipe_id,
+                        ingredient_id=line.line_ref_id,
+                        qty_delta=-need,
+                    )
+                    session.add(move)
+                    stock_move_rows.append(move)
+
+                    # Also decrement ingredient.stock_qty (in real life this
+                    # happens in the sales POST handler — for the seed we
+                    # do it directly to keep things realistic).
+                    ing_row = session.get(Ingredient, line.line_ref_id)
+                    if ing_row is not None:
+                        ing_row.stock_qty = max(0.0, ing_row.stock_qty - need)
+
+            sale_rows.append(sale)
+
+    report.sales = len(sale_rows)
+    report.stock_moves = len(stock_move_rows)
+
+    # --- One voided sale example (recent) ---
+    last_product = list(products_by_id.values())[0]
+    voided = Sale(
+        sold_at=today - timedelta(days=2, hours=4),
+        product_id=last_product.id,
+        qty=2,
+        unit_price_gs=last_product.sale_price_gs,
+        notes="cliente cambió de opinión",
+        voided_at=today - timedelta(days=2, hours=3),
+    )
+    session.add(voided)
+    session.flush()
+    # Stock moves for voided sale get +qty_delta to restore
+    if last_product.recipe_id and last_product.recipe_id in recipe_lines_by_recipe:
+        recipe = recipes_by_id[last_product.recipe_id]
+        yield_qty = recipe.yield_qty or 1.0
+        for line in recipe_lines_by_recipe[last_product.recipe_id]:
+            restore = (line.qty / yield_qty) * 2
+            session.add(
+                SaleStockMove(
+                    sale_id=voided.id,
+                    affected_recipe_id=last_product.recipe_id,
+                    ingredient_id=line.line_ref_id,
+                    qty_delta=+restore,
+                )
+            )
+
+    # --- One encargo (custom order) sale ---
+    encargo_product = list(products_by_id.values())[5]
+    encargo = Sale(
+        sold_at=today - timedelta(days=1, hours=2),
+        product_id=encargo_product.id,
+        qty=1,
+        unit_price_gs=encargo_product.sale_price_gs,
+        notes="encargo: para cumpleaños, recoger 16h",
+    )
+    session.add(encargo)
+    session.flush()
+
+    report.sales += 2  # voided + encargo
+    report.stock_moves += len(recipe_lines_by_recipe.get(last_product.recipe_id, []))
+
+    # --- Audit log seed (2 rows) ---
+    demo_user_id_str = str(user.id) if user else None
+    try:
+        audit_record(
+            session,
+            user_id=demo_user_id_str,
+            action="system.startup",
+            detail={"source": "seed_demo_data"},
+        )
+        audit_record(
+            session,
+            user_id=demo_user_id_str,
+            action="seed.complete",
+            detail=report.as_dict(),
+        )
+        report.audit_log_rows = 2
+    except Exception as exc:
+        logger.warning(f"audit seed failed: {exc}")
+
+    # --- AppMeta schema_version pin (idempotent) ---
+    existing_meta = session.execute(
+        select(AppMeta).where(AppMeta.key == "last_seed_at")
+    ).scalar_one_or_none()
+    now_str = datetime.now(timezone.utc).isoformat()
+    if existing_meta is None:
+        session.add(AppMeta(key="last_seed_at", value=now_str, updated_at=now_str))
+    else:
+        existing_meta.value = now_str
+        existing_meta.updated_at = now_str
+
+    session.commit()
+    logger.info(f"seed complete: {report.as_dict()}")
+    return report
+
+
+def _delete_seeded_data(session: Session) -> None:
+    """Delete all rows from the tables we manage. Used when overwrite=True."""
+    # Order matters: respect FKs.
+    session.execute(delete(SaleStockMove))
+    session.execute(delete(Sale))
+    session.execute(delete(ImportBatch))
+    session.execute(delete(Product))
+    session.execute(delete(RecipeLine))
+    session.execute(delete(Recipe))
+    session.execute(delete(Ingredient))
+    # Delete demo user only
+    session.execute(delete(User).where(User.username == DEMO_USER_USERNAME))
+    # Delete audit log rows we created
+    session.execute(delete(AppMeta).where(AppMeta.key == "last_seed_at"))
+    # AuditLog: only delete the seeded events (action='seed.complete')
+    from app.rms.models import AuditLog
+
+    session.execute(delete(AuditLog).where(AuditLog.action == "seed.complete"))
+    session.commit()
+
+
+__all__ = [
+    "DEMO_USER_EMAIL",
+    "DEMO_USER_PASSWORD",
+    "DEMO_USER_USERNAME",
+    "INGREDIENTS",
+    "RECIPES",
+    "RECIPE_LINES",
+    "PRODUCTS",
+    "SeedReport",
+    "seed_demo_data",
+]

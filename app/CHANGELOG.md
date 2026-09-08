@@ -17,6 +17,16 @@
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
   bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
   run against existing DBs.
+- **Realistic demo data seed (E6)** — `app/rms/seed.py` +
+  `aiw-saskia seed [--reset]`. 30 ingredients, 12 recipes, 80
+  recipe_lines, 20 products, ~200 synthetic sales over 90 days with
+  weekday/weekend skew + payday spikes, demo user, voided + encargo
+  examples, import_batch + audit_log seed rows. Idempotent.
+
+- **Dashboard TZ fix** — period_window now converts to UTC-naive
+  before DB compare (was treating Asunción-local as naive-UTC which
+  broke `today` filter outside UTC midnight).
+
 - **Complete epic plan v3 (`docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md`)** —
   25 epics across 6 phases, ~268h, no cap (gem project). Each epic has
   Why / Stories / Tasks / Effort / Depends on / Acceptance / Refs.

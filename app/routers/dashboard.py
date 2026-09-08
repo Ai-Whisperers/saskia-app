@@ -5,7 +5,7 @@ Per dev plan §9 Task 7 + v2 §11 (timezone).
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
@@ -57,12 +57,16 @@ async def dashboard(
 ) -> HTMLResponse:
     start, end = _period_window(period)
 
-    # All sales in period (UTC-naive; SQLite stores UTC-as-naive per dev plan)
-    # The data layer stores UTC; we filter by range (range is also UTC).
+    # Sales are stored naive-UTC (per the data layer convention). The
+    # period_window is computed in Asunción local TZ, so we convert both
+    # endpoints to UTC and drop tzinfo for the DB comparison.
+    start_utc_naive = start.astimezone(timezone.utc).replace(tzinfo=None)
+    end_utc_naive = end.astimezone(timezone.utc).replace(tzinfo=None)
+
     sales = session.scalars(
         select(Sale).where(
-            Sale.sold_at >= start.astimezone(ASUNCION_TZ).replace(tzinfo=None),
-            Sale.sold_at < end.astimezone(ASUNCION_TZ).replace(tzinfo=None),
+            Sale.sold_at >= start_utc_naive,
+            Sale.sold_at < end_utc_naive,
         )
     ).all()
     # The above filter is approximate since we store naive UTC; for v1 this is OK.
