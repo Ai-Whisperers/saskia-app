@@ -37,6 +37,9 @@ def _decorated(s: Sale) -> dict:
         "total_gs": int(round(s.qty * s.unit_price_gs)),
         "notes": s.notes,
         "voided_at": s.voided_at,
+        "customer_phone": s.customer.phone if s.customer else None,
+        "payment_method": s.payment_method,
+        "discount_gs": s.discount_gs,
     }
 
 
@@ -44,12 +47,41 @@ def _decorated(s: Sale) -> dict:
 async def sales_list(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     products = session.scalars(select(Product).order_by(Product.name)).all()
     sales = session.scalars(select(Sale).order_by(Sale.sold_at.desc()).limit(50)).all()
+
+    # Quick-sell: top 5 products by revenue in last 14 days
+    from datetime import timedelta
+
+    from sqlalchemy import func
+    since = datetime.now(ASUNCION_TZ) - timedelta(days=14)
+    q = (
+        select(Sale.product_id, func.sum(Sale.qty).label("units"), func.sum(Sale.qty * Sale.unit_price_gs).label("rev"))
+        .where(Sale.sold_at >= since, Sale.voided_at.is_(None))
+        .group_by(Sale.product_id)
+        .order_by(func.sum(Sale.qty * Sale.unit_price_gs).desc())
+        .limit(5)
+    )
+    quick_rows = session.execute(q).all()
+    product_by_id = {p.id: p for p in products}
+    quick_sell = []
+    for pid, units, rev in quick_rows:
+        p = product_by_id.get(pid)
+        if p is not None:
+            quick_sell.append({
+                "product_id": pid,
+                "name": p.name,
+                "sale_price_gs": p.sale_price_gs,
+                "units": float(units),
+                "revenue_gs": int(rev or 0),
+            })
+
     return render(
         request,
         "ventas.html",
         {
             "products": products,
             "sales": [_decorated(s) for s in sales],
+            "quick_sell": quick_sell,
+            "payment_methods": ["efectivo", "transferencia", "tarjeta", "otro"],
             "now_local": datetime.now(ASUNCION_TZ).strftime("%Y-%m-%dT%H:%M"),
         },
     )
@@ -83,9 +115,30 @@ async def sale_create(
         sold_at = datetime.now(ASUNCION_TZ)
 
     notes = str(form.get("notes", "")).strip() or None
+    payment_method = str(form.get("payment_method", "")).strip() or None
+    discount_raw = str(form.get("discount_gs", "0")).strip() or "0"
+    try:
+        discount_gs = max(0, int(discount_raw))
+    except ValueError:
+        discount_gs = 0
+    customer_phone = str(form.get("customer_phone", "")).strip() or None
+    customer_id: int | None = None
+    if customer_phone:
+        from app.rms.customers import ensure_customer
+        c = ensure_customer(session, name=customer_phone, phone=customer_phone)
+        customer_id = c.id
 
     try:
-        apply_sale(session, product_id, qty, sold_at, notes)
+        apply_sale(
+            session,
+            product_id,
+            qty,
+            sold_at,
+            notes,
+            customer_id=customer_id,
+            payment_method=payment_method,
+            discount_gs=discount_gs,
+        )
     except RecipeWithoutYield as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
     except ValueError as e:

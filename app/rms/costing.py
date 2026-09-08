@@ -338,6 +338,10 @@ def apply_sale(
     qty: float,
     sold_at: datetime,
     notes: str | None = None,
+    *,
+    customer_id: int | None = None,
+    payment_method: str | None = None,
+    discount_gs: int = 0,
 ) -> ApplySaleResult:
     """Record a sale. Atomic. Drops theoretical stock.
 
@@ -365,6 +369,9 @@ def apply_sale(
         qty=qty,
         unit_price_gs=unit_price_gs,
         notes=notes,
+        customer_id=customer_id,
+        payment_method=payment_method,
+        discount_gs=discount_gs,
     )
     session.add(sale)
     session.flush()  # assigns sale.id

@@ -6,6 +6,23 @@
 {% block content %}
 <h1>Ventas</h1>
 
+{% if quick_sell %}
+<h2>Quick-sell</h2>
+<p class="hint">Top 5 productos por ingreso (últimos 14 días). One-tap registra una venta rápida.</p>
+<div class="quick-sell-grid">
+  {% for q in quick_sell %}
+  <form method="post" action="/ventas/nueva" class="quick-sell-btn">
+    <input type="hidden" name="product_id" value="{{ q.product_id }}">
+    <input type="hidden" name="qty" value="1">
+    <button type="submit" class="btn btn-large">
+      <strong>{{ q.name }}</strong><br>
+      <span class="gs">{{ m.gs(q.sale_price_gs) }}</span>
+    </button>
+  </form>
+  {% endfor %}
+</div>
+{% endif %}
+
 <h2>Nueva venta</h2>
 <form method="post" action="/ventas/nueva">
   <div class="form-row">
@@ -26,7 +43,28 @@
   <div class="form-row">
     <label for="sold_at">Fecha y hora</label>
     <input type="datetime-local" id="sold_at" name="sold_at" value="{{ now_local }}">
-    <small>Por defecto: ahora. Podés corregirlo si la venta fue antes (últimos 30 días).</small>
+  </div>
+
+  <div class="form-row">
+    <label for="customer_phone">Teléfono del cliente (opcional)</label>
+    <input type="tel" id="customer_phone" name="customer_phone" placeholder="0981234567" autocomplete="tel">
+    <small>Si es nuevo, lo creamos automáticamente y suma puntos de fidelidad.</small>
+  </div>
+
+  <div class="form-row">
+    <label for="payment_method">Forma de pago</label>
+    <select id="payment_method" name="payment_method">
+      <option value="">— Sin especificar —</option>
+      {% for pm in payment_methods %}
+      <option value="{{ pm }}">{{ pm | capitalize }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label for="discount_gs">Descuento (Gs.)</label>
+    <input type="number" id="discount_gs" name="discount_gs" min="0" value="0" step="100">
+    <small>Descuento aplicado al total (opcional).</small>
   </div>
 
   <div class="form-row">
@@ -50,6 +88,8 @@
       <th class="right">Cantidad</th>
       <th class="right">Precio unit.</th>
       <th class="right">Total</th>
+      <th>Cliente</th>
+      <th>Pago</th>
       <th>Estado</th>
       <th></th>
     </tr>
@@ -62,6 +102,8 @@
       <td class="right">{{ "%.2f"|format(s.qty) }}</td>
       <td class="right">{{ m.gs(s.unit_price_gs) }}</td>
       <td class="right">{{ m.gs(s.total_gs) }}</td>
+      <td>{% if s.customer_phone %}<small>{{ s.customer_phone }}</small>{% else %}—{% endif %}</td>
+      <td>{% if s.payment_method %}<span class="badge">{{ s.payment_method }}</span>{% else %}—{% endif %}</td>
       <td>
         {% if s.voided_at %}
           <span class="badge badge-muted">Anulada</span>

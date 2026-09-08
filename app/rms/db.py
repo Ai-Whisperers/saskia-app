@@ -380,6 +380,30 @@ def _migration_010_recipe_intel(conn):
     )
 
 
+def _migration_011_sale_payment_discount(conn):
+    """Add payment_method + discount_gs to Sale (Phase 5 sales overhaul).
+
+    payment_method: nullable string (cash/transfer/card/other).
+    discount_gs: integer Gs. discount applied to the sale total.
+    Both default NULL / 0 — backward compatible with existing data.
+    """
+    conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    cols = [
+        ("payment_method", "VARCHAR(32)"),
+        ("discount_gs", "INTEGER DEFAULT 0"),
+    ]
+    for col_name, col_type in cols:
+        try:
+            conn.execute(text(f"ALTER TABLE sale ADD COLUMN {col_name} {col_type}"))
+        except Exception:
+            # Column already exists — idempotent.
+            pass
+    conn.execute(
+        text("UPDATE app_meta SET value = '11', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -391,6 +415,7 @@ MIGRATIONS = {
     8: _migration_008_tenant,
     9: _migration_009_ingredient_intel,
     10: _migration_010_recipe_intel,
+    11: _migration_011_sale_payment_discount,
 }
 
 

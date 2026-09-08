@@ -198,6 +198,9 @@ class Sale(Base):
     unit_price_gs: Mapped[int] = mapped_column(Integer, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     voided_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # Phase 5: payment + discount
+    payment_method: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    discount_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
     # Relationships
     product: Mapped["Product"] = relationship(back_populates="sales")

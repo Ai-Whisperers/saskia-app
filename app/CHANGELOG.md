@@ -26,6 +26,14 @@
 - **`/auditoria` audit log viewer** — wires `app/rms/audit.py` to a route
   with filterable / paginated view of AuditLog entries.
 
+- **Sales page overhaul (Phase 5)** — `Sale` model gets 2 new columns via
+  migration 011: `payment_method` (cash/transfer/card/other) and
+  `discount_gs` (integer Gs. discount). The `/ventas` GET handler now
+  also computes top-5 selling products for one-tap quick-sell buttons.
+  The form gained fields for customer phone (auto-create customer +
+  accrue loyalty points), payment method, and discount. 4 regression
+  tests pin the model + form behavior. Schema v10 → v11.
+
 - **`/clientes` list + detail pages** — wires the existing
   `app/rms/customers.py` module (E13) to actual routes. Operators can now
   see the customer directory with lifetime spend, visit count, points
