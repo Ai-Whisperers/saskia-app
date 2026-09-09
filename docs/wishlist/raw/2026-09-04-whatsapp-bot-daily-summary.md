@@ -18,3 +18,18 @@ Saskia is the only user and she's physically at the shop every day — she can a
 
 - Needs a `daily-summary` endpoint that returns the message payload.
 - WhatsApp integration is a separate cost line. Evolution API (already wired for AIW team) could be reused if Saskia agrees to use it.
+
+
+## Triage
+
+**Moved to triaged:** 2026-09-09
+**Status:** DEFERRED (per the wishlist's own "Why now" — Saskia is on-site
+every day and hasn't asked for it). The dispatcher script
+`scripts/daily_summary.py` exists and runs in `dryrun` mode (writes
+to `./notifications_spool/`); when Saskia asks, wire a real backend
+(Twilio or Evolution API) by setting:
+  AIW_SASKIA_NOTIFY_BACKEND=twilio
+  TWILIO_ACCOUNT_SID=...
+  TWILIO_AUTH_TOKEN=...
+  TWILIO_WHATSAPP_FROM=+14155238886
+  NOTIFY_TO_PHONE=+595...
