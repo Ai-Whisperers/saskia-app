@@ -1,7 +1,7 @@
 """tests/test_sales_overhaul.py — Phase 5 sales form features."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 
@@ -16,7 +16,7 @@ def test_sale_accepts_payment_method(session_factory):
         s.add(p)
         s.flush()
         apply_sale(
-            s, product_id=p.id, qty=1, sold_at=datetime.utcnow(),
+            s, product_id=p.id, qty=1, sold_at=datetime.now(timezone.utc),
             payment_method="cash",
         )
         s.commit()
@@ -36,7 +36,7 @@ def test_sale_accepts_discount(session_factory):
         s.add(p)
         s.flush()
         apply_sale(
-            s, product_id=p.id, qty=1, sold_at=datetime.utcnow(),
+            s, product_id=p.id, qty=1, sold_at=datetime.now(timezone.utc),
             discount_gs=500,
         )
         s.commit()
@@ -74,7 +74,7 @@ def test_ventas_filter_search_exists(client):
 
 def test_ventas_filter_by_q(client, session_factory):
     """/ventas?q=foo only returns matching sales."""
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     from app.rms.models import Product, Sale
 
@@ -83,8 +83,8 @@ def test_ventas_filter_by_q(client, session_factory):
         p2 = Product(name="Quinoa", sale_price_gs=15000, recipe_id=None)
         s.add_all([p1, p2])
         s.flush()
-        s.add(Sale(product_id=p1.id, qty=1, unit_price_gs=10000, sold_at=datetime.utcnow()))
-        s.add(Sale(product_id=p2.id, qty=1, unit_price_gs=15000, sold_at=datetime.utcnow()))
+        s.add(Sale(product_id=p1.id, qty=1, unit_price_gs=10000, sold_at=datetime.now(timezone.utc)))
+        s.add(Sale(product_id=p2.id, qty=1, unit_price_gs=15000, sold_at=datetime.now(timezone.utc)))
         s.commit()
 
     resp = client.get("/ventas?q=cabernet")
@@ -94,7 +94,7 @@ def test_ventas_filter_by_q(client, session_factory):
 
 def test_ventas_filter_by_product(client, session_factory):
     """/ventas?product_id=N filters to that product's sales."""
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     from app.rms.models import Product, Sale
 
@@ -103,8 +103,8 @@ def test_ventas_filter_by_product(client, session_factory):
         p2 = Product(name="PieFiltroDos", sale_price_gs=12000, recipe_id=None)
         s.add_all([p1, p2])
         s.flush()
-        s.add(Sale(product_id=p1.id, qty=1, unit_price_gs=20000, sold_at=datetime.utcnow()))
-        s.add(Sale(product_id=p2.id, qty=1, unit_price_gs=12000, sold_at=datetime.utcnow()))
+        s.add(Sale(product_id=p1.id, qty=1, unit_price_gs=20000, sold_at=datetime.now(timezone.utc)))
+        s.add(Sale(product_id=p2.id, qty=1, unit_price_gs=12000, sold_at=datetime.now(timezone.utc)))
         s.commit()
         p1_id = p1.id
 
@@ -119,7 +119,7 @@ def test_ventas_filter_by_product(client, session_factory):
 
 def test_ventas_filter_by_days(client, session_factory):
     """/ventas?days=7 should not 500; recent sales still appear."""
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     from app.rms.models import Product, Sale
 
@@ -128,7 +128,7 @@ def test_ventas_filter_by_days(client, session_factory):
         s.add(p)
         s.flush()
         s.add(Sale(product_id=p.id, qty=1, unit_price_gs=5000,
-                   sold_at=datetime.utcnow(), notes="X"))
+                   sold_at=datetime.now(timezone.utc), notes="X"))
         s.commit()
 
     # No 500 even with the days filter applied

@@ -6,7 +6,7 @@ the table bounded.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 def test_prune_keeps_recent_deletes_old(session_factory):
@@ -14,7 +14,7 @@ def test_prune_keeps_recent_deletes_old(session_factory):
     from app.rms.models import AuditLog
 
     with session_factory() as s:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         s.add(AuditLog(occurred_at=now, action="keep_recent", user_id=None))
         s.add(AuditLog(occurred_at=now - timedelta(days=10), action="keep_week_ago", user_id=None))
         s.add(AuditLog(occurred_at=now - timedelta(days=45), action="delete_old", user_id=None))
@@ -38,7 +38,7 @@ def test_prune_dry_run_does_not_delete(session_factory):
     with session_factory() as s:
         for _ in range(3):
             s.add(AuditLog(
-                occurred_at=datetime.utcnow() - timedelta(days=60),
+                occurred_at=datetime.now(timezone.utc) - timedelta(days=60),
                 action="old_row",
                 user_id=None,
             ))
@@ -60,9 +60,9 @@ def test_prune_zero_retention_keeps_nothing_old(session_factory):
     from app.rms.models import AuditLog
 
     with session_factory() as s:
-        s.add(AuditLog(occurred_at=datetime.utcnow(), action="today", user_id=None))
-        s.add(AuditLog(occurred_at=datetime.utcnow() - timedelta(hours=1), action="hour", user_id=None))
-        s.add(AuditLog(occurred_at=datetime.utcnow() - timedelta(days=2), action="two_days", user_id=None))
+        s.add(AuditLog(occurred_at=datetime.now(timezone.utc), action="today", user_id=None))
+        s.add(AuditLog(occurred_at=datetime.now(timezone.utc) - timedelta(hours=1), action="hour", user_id=None))
+        s.add(AuditLog(occurred_at=datetime.now(timezone.utc) - timedelta(days=2), action="two_days", user_id=None))
         s.commit()
 
     from app.rms.maintenance import prune_audit_log

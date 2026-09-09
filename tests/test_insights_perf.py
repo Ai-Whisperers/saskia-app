@@ -1,7 +1,7 @@
 """tests/test_insights_perf.py — regression test for insights + sales_intel N+1."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import event
 
@@ -29,7 +29,7 @@ def test_build_insights_no_n_plus_1(client, session_factory):
             for j in range(3):
                 s.add(Sale(
                     product_id=p.id, qty=1, unit_price_gs=1000,
-                    sold_at=datetime.utcnow() - timedelta(days=j),
+                    sold_at=datetime.now(timezone.utc) - timedelta(days=j),
                 ))
         s.commit()
 
@@ -69,7 +69,7 @@ def test_rising_churning_uses_batch_load(client, session_factory):
 
     # Seed 10 products with sales in current and prior windows
     with session_factory() as s:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         for i in range(10):
             p = Product(name=f"trend_prod_{i}", sale_price_gs=1000, recipe_id=None)
             s.add(p)

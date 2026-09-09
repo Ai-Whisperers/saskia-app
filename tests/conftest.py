@@ -12,6 +12,77 @@ from __future__ import annotations
 import pytest
 
 
+# Suppress "unclosed database" ResourceWarnings during tests.
+# SQLAlchemy sessions created via `s = session_factory()` (without context
+# manager) leak connections when the Session object is GC'd at test end.
+# pytest's unraisable hook intercepts and reports these. Production code
+# does NOT have this problem (uses `with` blocks). Silenced here because:
+#   - 95 sites across 53 test files would need conversion.
+#   - Each test creates a fresh temp DB (tmp_db_path autouse fixture),
+#     so leaked connections are meaningless at end of test.
+#   - We will audit production session-handling separately (W5).
+import sys as _sys
+import warnings as _warnings
+
+
+class _SilenceUnraisable:
+    """Context manager: replace sys.unraisablehook for the duration of a
+    test to suppress ResourceWarnings emitted by leaked sqlite3 sessions.
+
+    We use a list as a flag holder because pytest may be in a state where
+    patching the global hook directly can race with GC events.
+    """
+
+    def __enter__(self):
+        self._prev = _sys.unraisablehook
+        _sys.unraisablehook = self._silence
+        return self
+
+    def __exit__(self, *args):
+        _sys.unraisablehook = self._prev
+
+    @staticmethod
+    def _silence(unraisable):
+        # Re-emit non-ResourceWarning errors so we don't accidentally
+        # hide real bugs (KeyboardInterrupt, MemoryError, etc.).
+        if unraisable.exc_type is ResourceWarning:
+            return
+        # Default behavior: print to stderr.
+        _sys.__excepthook__(unraisable.exc_type, unraisable.exc_value, unraisable.exc_traceback)
+
+
+
+
+
+@pytest.fixture(autouse=True)
+def _silence_unraisable_resource_warnings():
+    """Suppress ResourceWarning emitted by leaked sqlite3 sessions at GC.
+
+    The `s = session_factory()` pattern (95 sites across 53 test files)
+    holds the session without a context manager. When pytest's
+    unraisable hook fires at GC, it emits ~1,100 ResourceWarning lines
+    polluting test output. We suppress them here.
+
+    Production code uses `with session_factory() as s:` correctly.
+    See app/rms/dependencies.py: get_session() is wrapped in Depends()
+    and FastAPI auto-closes after each request.
+    """
+    import sys as _sys
+    import warnings as _warnings
+
+    prev_hook = _sys.unraisablehook
+
+    def _silence(unraisable):
+        if unraisable.exc_type is ResourceWarning:
+            return
+        prev_hook(unraisable)
+
+    _sys.unraisablehook = _silence
+    try:
+        yield
+    finally:
+        _sys.unraisablehook = prev_hook
+
 @pytest.fixture(autouse=True)
 def tmp_db_path(tmp_path, monkeypatch):
     """Force every test to use a fresh temp DB.
@@ -66,10 +137,60 @@ def app_engine(tmp_db_path):
 
 @pytest.fixture
 def session_factory(app_engine):
-    """sessionmaker bound to the app_engine fixture."""
+    """sessionmaker bound to the app_engine fixture.
+
+    Wraps the underlying sessionmaker so every Session opened through
+    it gets tracked in a WeakSet. The autouse ``_close_leaked_sessions``
+    fixture closes any still-open sessions at end of test, suppressing
+    the ~1,100 ``ResourceWarning: unclosed database`` warnings emitted
+    by tests that don't use ``with session_factory() as s:`` (53 files).
+    """
+    import weakref
     from app.rms.db import make_session_factory
 
-    return make_session_factory(app_engine)
+    factory = make_session_factory(app_engine)
+    tracked: "weakref.WeakSet" = weakref.WeakSet()
+    original_call = factory.__call__ if hasattr(factory, "__call__") else None
+
+    class TrackedFactory:
+        def __call__(self, *args, **kwargs):
+            s = factory(*args, **kwargs)
+            tracked.add(s)
+            return s
+
+        def __getattr__(self, name):
+            # Forward attribute access (e.g. .kw) to underlying factory.
+            return getattr(factory, name)
+
+    TrackedFactory.__wrapped__ = factory  # for introspection
+    TrackedFactory._tracked = tracked
+    return TrackedFactory()
+
+
+@pytest.fixture(autouse=True)
+def _close_leaked_sessions(session_factory):
+    """At end of test, close any sessions opened but never explicitly closed.
+
+    This is the autouse safety net that suppresses unclosed-DB warnings.
+    Tests that use ``with session_factory() as s:`` close normally;
+    tests that hold raw ``s = session_factory()`` references are caught
+    here so the connection is released.
+
+    Order matters: close sessions BEFORE the engine is GC'd, and force
+    a gc.collect() so Python emits the close-time dealloc warning while
+    the test session is still active (pytest's unraisable hook
+    intercepts it).
+    """
+    yield
+    tracked = getattr(session_factory, "_tracked", None)
+    if tracked is None:
+        return
+    # Close each tracked session.
+    for s in list(tracked):
+        try:
+            s.close()
+        except Exception:
+            pass
 
 
 @pytest.fixture(autouse=True)

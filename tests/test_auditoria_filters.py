@@ -5,16 +5,16 @@ investigating "what happened yesterday" need date filters.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 def test_auditoria_filters_by_date_range(client, session_factory):
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
     from app.rms.models import AuditLog
 
     with session_factory() as s:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         s.add(AuditLog(occurred_at=now, action="recent", user_id=None))
         s.add(AuditLog(occurred_at=now - timedelta(days=10), action="week_ago", user_id=None))
         s.add(AuditLog(occurred_at=now - timedelta(days=40), action="month_ago", user_id=None))
@@ -33,7 +33,7 @@ def test_auditoria_combined_filter(client, session_factory):
 
     with session_factory() as s:
         s.add(AuditLog(
-            occurred_at=datetime.utcnow() - timedelta(days=60),
+            occurred_at=datetime.now(timezone.utc) - timedelta(days=60),
             action="login.success",
             user_id=None,
         ))

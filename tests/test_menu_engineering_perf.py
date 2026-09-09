@@ -14,7 +14,7 @@ def test_classify_products_uses_batch_load(client, session_factory):
     Post-fix: 2 queries (current sales window + prior window) regardless
     of product count.
     """
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
     from app.rms.models import Ingredient, Product, Sale
 
@@ -30,7 +30,7 @@ def test_classify_products_uses_batch_load(client, session_factory):
             for j in range(3):
                 s.add(Sale(
                     product_id=p.id, qty=1, unit_price_gs=1000,
-                    sold_at=datetime.utcnow() - timedelta(days=j),
+                    sold_at=datetime.now(timezone.utc) - timedelta(days=j),
                 ))
         s.commit()
 

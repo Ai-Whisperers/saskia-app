@@ -29,7 +29,7 @@ def test_healthz_errors_503_when_not_ready(client):
 
 def test_healthz_errors_counts_audit_log(client, session_factory):
     """/healthz/errors counts `action=http.500` audit rows in last 24h."""
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
     from app.rms.models import AuditLog
 
@@ -37,7 +37,7 @@ def test_healthz_errors_counts_audit_log(client, session_factory):
         # Insert 3 recent and 2 old http.500 rows
         for i in range(3):
             s.add(AuditLog(
-                occurred_at=datetime.utcnow(),
+                occurred_at=datetime.now(timezone.utc),
                 action="http.500",
                 user_id=None,
                 target_type="http_error",
@@ -46,7 +46,7 @@ def test_healthz_errors_counts_audit_log(client, session_factory):
             ))
         for i in range(2):
             s.add(AuditLog(
-                occurred_at=datetime.utcnow() - timedelta(hours=48),
+                occurred_at=datetime.now(timezone.utc) - timedelta(hours=48),
                 action="http.500",
                 user_id=None,
                 target_type="http_error",

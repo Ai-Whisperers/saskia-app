@@ -63,6 +63,15 @@ packages = ["app"]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
 pythonpath = ["."]
+filterwarnings = [
+    # starlette.testclient's BlockingPortal alias is deprecated upstream.
+    # Not our code; wait for starlette bump to remove.
+    "ignore::DeprecationWarning:starlette.testclient",
+    # SQLAlchemy 2.0.36+ internally calls datetime.utcnow() at
+    # sqlalchemy/sql/schema.py:3627. Their deprecation; will be fixed
+    # when we bump SQLAlchemy.
+    "ignore::DeprecationWarning:sqlalchemy.sql.schema",
+]
 
 # Ruff config
 [tool.ruff]
