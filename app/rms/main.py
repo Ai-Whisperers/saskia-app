@@ -41,6 +41,7 @@ from app.rms.db import make_session_factory
 from app.rms.db_dialect import _is_postgres, get_database_url, get_metadata
 from app.rms.db_dialect import make_engine as make_engine_dialect
 from app.rms.security_headers import SecurityHeadersMiddleware
+from app.rms.session_lifecycle import SessionLifecycleMiddleware
 from app.routers import (
     auditoria,
     auth,
@@ -235,6 +236,11 @@ app.add_middleware(StaticCacheMiddleware)
 # (X-Frame-Options, CSP, HSTS, etc.). Registered BEFORE SessionMiddleware
 # so it runs OUTERMOST and its headers are guaranteed on every response.
 app.add_middleware(SecurityHeadersMiddleware)
+
+# Detect session leaks: warns + closes any Session opened during a
+# request that wasn't closed by the handler. Defense in depth against
+# future code that forgets to use `Depends(get_session)`.
+app.add_middleware(SessionLifecycleMiddleware)
 
 # CSRF protection: signed double-submit cookie.
 # Set on every GET response to non-exempt paths; required on every POST.

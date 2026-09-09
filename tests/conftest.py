@@ -148,8 +148,6 @@ def session_factory(app_engine):
 
     factory = make_session_factory(app_engine)
     tracked: "weakref.WeakSet" = weakref.WeakSet()
-    original_call = factory.__call__ if hasattr(factory, "__call__") else None
-
     class TrackedFactory:
         def __call__(self, *args, **kwargs):
             s = factory(*args, **kwargs)

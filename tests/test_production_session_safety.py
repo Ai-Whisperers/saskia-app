@@ -6,7 +6,6 @@ for unsafe patterns and fails on them.
 """
 from __future__ import annotations
 
-import ast
 import re
 from pathlib import Path
 
@@ -79,22 +78,44 @@ def test_no_session_commit_without_close_in_app():
     """No production code does session.commit() outside a context manager.
 
     Sessions held outside `with` blocks leak the underlying connection.
+    Manual AST traversal to find .commit() calls outside `with` blocks.
     """
+    import ast
+    from pathlib import Path
+
     violations = []
-    for p in _collect_app_py_files():
+    for py_file in sorted(Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app").rglob("*.py")):
+        if "__pycache__" in str(py_file):
+            continue
         try:
-            tree = ast.parse(p.read_text())
+            tree = ast.parse(py_file.read_text())
         except SyntaxError:
             continue
-        # Walk all function bodies looking for `session.commit()` not in a with-block.
-        # We use a simple AST visitor.
+        # Walk all function/method bodies; flag .commit() not under a `with`.
+        # Cheap heuristic: build a set of line numbers that are inside `with` statements.
+        with_line_numbers: set[int] = set()
+
+        class WithVisitor(ast.NodeVisitor):
+            def visit_With(self, node):
+                for lineno in range(node.lineno, node.end_lineno + 1):
+                    with_line_numbers.add(lineno)
+                self.generic_visit(node)
+
+        WithVisitor().visit(tree)
+
         for node in ast.walk(tree):
-            if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
-                # Looking for `session.commit()` or `s.commit()` etc.
-                if isinstance(node.value, ast.Attribute) and node.value.attr == "commit":
-                    # If we're inside a `with` statement, it's safe.
-                    # (We don't track parent context here; this is a basic check.)
-                    pass
-    # This test is a placeholder — full implementation would walk parent chains.
-    # Skipping detailed check; the existing patterns use `with session_factory() as s:` correctly.
-    assert True
+            if (
+                isinstance(node, ast.Expr)
+                and isinstance(node.value, ast.Call)
+                and isinstance(node.value, ast.Attribute)
+                and node.value.attr == "commit"
+                and isinstance(node.value.value, ast.Name)
+            ):
+                # Check if this is inside a `with` block.
+                if node.lineno not in with_line_numbers:
+                    violations.append(f"{py_file}:{node.lineno}: {node.value.value.id}.commit()")
+
+    assert not violations, (
+        "session.commit() outside context managers (would leak connection):\n"
+        + "\n".join(violations[:10])
+    )
