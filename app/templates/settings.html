@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% block title %}Configuración{% endblock %}
+{% block content %}
+<h1>Configuración</h1>
+<p class="hint">Cambiá los ajustes del sistema. Los cambios se guardan
+  inmediatamente y quedan registrados en
+  <a href="/auditoria?action_filter=settings.update">/auditoria</a>.</p>
+
+{% for group in groups %}
+<h2>{{ group.label }}</h2>
+{% if group.rows %}
+<table class="data">
+  <thead>
+    <tr>
+      <th>Clave</th>
+      <th>Valor actual</th>
+      <th>Default</th>
+      <th>Descripción</th>
+      <th>Acción</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for row in group.rows %}
+    <tr>
+      <td><code>{{ row.key }}</code></td>
+      <td><strong>{{ row.value if row.value is not none else "—" }}</strong></td>
+      <td><code>{{ row.default }}</code></td>
+      <td>{{ row.description }}</td>
+      <td>
+        <form method="post" action="/settings" class="form-row">
+          <input type="hidden" name="key" value="{{ row.key }}">
+          <input type="text" name="value" value="{{ row.value or row.default }}" size="20">
+          <button type="submit" class="btn btn-small">Guardar</button>
+        </form>
+        <form method="post" action="/settings/reset" class="form-row">
+          <input type="hidden" name="key" value="{{ row.key }}">
+          <button type="submit" class="btn btn-small">Reset</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No hay ajustes en este grupo.</p>
+{% endif %}
+{% endfor %}
+
+<p><small>{{ total }} ajustes en total.</small></p>
+
+{% endblock %}

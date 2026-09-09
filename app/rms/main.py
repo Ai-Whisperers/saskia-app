@@ -57,6 +57,7 @@ from app.routers import (
     recipes,
     reportes,
     sales,
+    settings,
 )
 
 
@@ -304,6 +305,7 @@ app.include_router(merma.router)
 app.include_router(reportes.router)
 app.include_router(auditoria.router)
 app.include_router(ops.router)
+app.include_router(settings.router)
 
 
 def _request_id() -> str:
