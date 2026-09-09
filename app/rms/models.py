@@ -201,6 +201,11 @@ class Sale(Base):
     # Phase 5: payment + discount
     payment_method: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     discount_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    # Phase 6: timezone of the cash register that recorded the sale.
+    # Defaults to America/Asuncion since single-tenant Asunción bakery.
+    tz: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="America/Asuncion", server_default="America/Asuncion"
+    )
 
     # Relationships
     product: Mapped["Product"] = relationship(back_populates="sales")

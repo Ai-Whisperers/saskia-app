@@ -13,3 +13,11 @@ Add a `tz: str` column to `Sale`. Today everything groups by server time, which 
 ## Why now
 
 While we're touching Sale for the daily-trend chart. Single-column addition; no migration backfill needed.
+
+
+## Triage
+
+**Moved to triaged:** 2026-09-09
+**Status:** SHIPPED — `Sale.tz` column added (migration 012, schema v12).
+Defaults to `America/Asuncion`. Reports can group by `tz` for multi-region
+rollouts (currently single-tenant).

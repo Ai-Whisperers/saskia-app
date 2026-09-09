@@ -404,6 +404,31 @@ def _migration_011_sale_payment_discount(conn):
     )
 
 
+def _migration_012_sale_tz(conn):
+    """Add tz column to Sale (Phase 6 wishlist: timezone-groupby-sales).
+
+    tz: VARCHAR(64), default 'America/Asuncion'. Backward compatible:
+    existing rows get the default on Postgres (DEFAULT clause) and on
+    SQLite (we backfill below).
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    try:
+        conn.execute(text("ALTER TABLE sale ADD COLUMN tz VARCHAR(64) DEFAULT 'America/Asuncion' NOT NULL"))
+    except Exception:
+        # Column already exists — idempotent.
+        pass
+    # SQLite ALTER TABLE doesn't support DEFAULT with NOT NULL; backfill explicitly.
+    if dialect == "sqlite":
+        try:
+            conn.execute(text("UPDATE sale SET tz = 'America/Asuncion' WHERE tz IS NULL OR tz = ''"))
+        except Exception:
+            pass
+    conn.execute(
+        text("UPDATE app_meta SET value = '12', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -416,6 +441,7 @@ MIGRATIONS = {
     9: _migration_009_ingredient_intel,
     10: _migration_010_recipe_intel,
     11: _migration_011_sale_payment_discount,
+    12: _migration_012_sale_tz,
 }
 
 
