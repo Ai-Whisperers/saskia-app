@@ -12,14 +12,11 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
+from app.rms.dependencies import get_session
 from app.rms.production import plan_production
 from app.services.template_render import render
 
 router = APIRouter(prefix="/produccion", dependencies=[Depends(require_login)])
-
-
-def get_session(request: Request) -> Session:
-    return request.app.state.session_factory()
 
 
 @router.get("", response_class=HTMLResponse)

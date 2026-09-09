@@ -20,13 +20,10 @@ from app.rms.customers import (
     customer_stats,
     list_customers,
 )
+from app.rms.dependencies import get_session
 from app.services.template_render import render
 
 router = APIRouter(prefix="/clientes", dependencies=[Depends(require_login)])
-
-
-def get_session(request: Request) -> Session:
-    return request.app.state.session_factory()
 
 
 @router.get("", response_class=HTMLResponse)

@@ -13,15 +13,12 @@ from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
 from app.rms.costing import batch_products_cost_margin, product_margin, product_unit_cost_gs
+from app.rms.dependencies import get_session
 from app.rms.models import Product, Recipe, Sale
 from app.rms.money import parse_gs
 from app.services.template_render import render
 
 router = APIRouter(prefix="/productos", dependencies=[Depends(require_login)])
-
-
-def get_session(request: Request) -> Session:
-    return request.app.state.session_factory()
 
 
 def _decorate(session: Session, p: Product) -> dict:

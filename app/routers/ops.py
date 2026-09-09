@@ -10,16 +10,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
-from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
 from app.services.template_render import render
 
 router = APIRouter(prefix="/ops", dependencies=[Depends(require_login)])
-
-
-def get_session(request: Request) -> Session:
-    return request.app.state.session_factory()
 
 
 _OPERATIONAL_ENDPOINTS = [

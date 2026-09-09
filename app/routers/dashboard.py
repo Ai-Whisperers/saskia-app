@@ -23,15 +23,12 @@ from app.rms.analytics import (
 )
 from app.rms.config import ASUNCION_TZ
 from app.rms.costing import batch_products_cost_margin, batch_recipes_cost
+from app.rms.dependencies import get_session
 from app.rms.insights import build_insights
 from app.rms.models import Ingredient, Recipe, Sale
 from app.services.template_render import render
 
 router = APIRouter(dependencies=[Depends(require_login)])
-
-
-def get_session(request: Request) -> Session:
-    return request.app.state.session_factory()
 
 
 def _period_window(period: str) -> tuple[datetime, datetime]:

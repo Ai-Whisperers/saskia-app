@@ -20,15 +20,12 @@ from app.rms.costing import (
     CostResult,
     batch_recipes_cost,
 )
+from app.rms.dependencies import get_session
 from app.rms.models import Ingredient, Recipe, RecipeLine
 from app.rms.units import Unit
 from app.services.template_render import render
 
 router = APIRouter(prefix="/recetas", dependencies=[Depends(require_login)])
-
-
-def get_session(request: Request) -> Session:
-    return request.app.state.session_factory()
 
 
 def _decorate(session: Session, r: Recipe, batch: CostResult, unit: CostResult | None, line_count: int) -> dict:
