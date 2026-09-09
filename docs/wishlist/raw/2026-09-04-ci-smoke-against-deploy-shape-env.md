@@ -13,3 +13,13 @@ GitHub Actions job that boots the app with a Postgres testcontainer, applies `ap
 ## Status
 
 **Became Epic E2.S1 + E2.S2 on 2026-09-04.**
+
+
+## Triage
+
+**Moved to triaged:** 2026-09-09
+**Status:** SHIPPED — `scripts/smoke_test_deploy_shape.py` + `.github/workflows/smoke.yml`
+**Resolved by:** commit (in this turn)
+**Notes:** Boots ephemeral Postgres in CI, runs the app against it,
+probes /healthz/db + /healthz/schema for drift detection. Catches
+the class of bug that caused the 2026-09-08 schema-version outage.
