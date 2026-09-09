@@ -9,9 +9,6 @@ forces every test to use a temp directory.
 
 from __future__ import annotations
 
-import pytest
-
-
 # Suppress "unclosed database" ResourceWarnings during tests.
 # SQLAlchemy sessions created via `s = session_factory()` (without context
 # manager) leak connections when the Session object is GC'd at test end.
@@ -22,7 +19,8 @@ import pytest
 #     so leaked connections are meaningless at end of test.
 #   - We will audit production session-handling separately (W5).
 import sys as _sys
-import warnings as _warnings
+
+import pytest
 
 
 class _SilenceUnraisable:
@@ -68,7 +66,6 @@ def _silence_unraisable_resource_warnings():
     and FastAPI auto-closes after each request.
     """
     import sys as _sys
-    import warnings as _warnings
 
     prev_hook = _sys.unraisablehook
 
@@ -146,6 +143,7 @@ def session_factory(app_engine):
     by tests that don't use ``with session_factory() as s:`` (53 files).
     """
     import weakref
+
     from app.rms.db import make_session_factory
 
     factory = make_session_factory(app_engine)
