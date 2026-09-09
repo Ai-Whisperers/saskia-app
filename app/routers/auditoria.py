@@ -23,6 +23,8 @@ def auditoria_index(
     action_filter: str | None = Query(None),
     start_date: str | None = Query(None, description="ISO date YYYY-MM-DD"),
     end_date: str | None = Query(None, description="ISO date YYYY-MM-DD"),
+    ip_filter: str | None = Query(None, description="Filter by client IP"),
+    user_filter: str | None = Query(None, description="Filter by user_id"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """List recent audit log entries with optional date-range filter.
@@ -58,12 +60,20 @@ def auditoria_index(
         if ed is not None:
             rows = [r for r in rows if r.occurred_at and r.occurred_at < ed]
 
+    # IP + user_id filter (substring match for forgiving UX).
+    if ip_filter:
+        rows = [r for r in rows if r.ip and ip_filter in r.ip]
+    if user_filter:
+        rows = [r for r in rows if r.user_id and user_filter in r.user_id]
+
     return render(request, "auditoria.html", {
         "rows": rows,
         "limit": limit,
         "action_filter": action_filter,
         "start_date": start_date or "",
         "end_date": end_date or "",
+        "ip_filter": ip_filter or "",
+        "user_filter": user_filter or "",
     })
 
 
