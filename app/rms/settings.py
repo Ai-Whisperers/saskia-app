@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from sqlalchemy import select
@@ -358,11 +358,11 @@ def set_setting(
         select(AppMeta).where(AppMeta.key == key)
     ).scalar_one_or_none()
     if row is None:
-        row = AppMeta(key=key, value=raw, updated_at=datetime.utcnow().isoformat())
+        row = AppMeta(key=key, value=raw, updated_at=datetime.now(timezone.utc).isoformat())
         session.add(row)
     else:
         row.value = raw
-        row.updated_at = datetime.utcnow().isoformat()
+        row.updated_at = datetime.now(timezone.utc).isoformat()
     session.flush()
 
 
