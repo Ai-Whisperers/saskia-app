@@ -564,3 +564,24 @@ dl.summary-grid dd { margin: 0; }
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* Help link (?) — opens user guide in new tab */
+.help-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--text);
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 14px;
+  border: 1px solid var(--border);
+}
+.help-link:hover {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}

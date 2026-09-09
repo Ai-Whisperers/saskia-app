@@ -50,6 +50,7 @@ from app.routers import (
     eod,
     excel_io,
     health,
+    help,
     inventory,
     merma,
     ops,
@@ -314,6 +315,7 @@ app.include_router(auditoria.router)
 app.include_router(ops.router)
 app.include_router(settings.router)
 app.include_router(reorder.router)
+app.include_router(help.router)
 
 
 def _request_id() -> str:

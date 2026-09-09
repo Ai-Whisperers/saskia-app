@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — Guía{% endblock %}
+{% block content %}
+<main class="container guia-page">
+  <nav class="guia-toc" aria-label="Tabla de contenidos">
+    <a href="/guia">← Volver al índice</a>
+  </nav>
+  <article class="guia-content">
+    {{ body_html | safe }}
+  </article>
+</main>
+{% endblock %}
