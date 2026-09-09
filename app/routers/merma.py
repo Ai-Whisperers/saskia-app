@@ -92,10 +92,11 @@ def merma_register(
     )
 
     # Audit + commit
+    from app.auth import current_user_id
     from app.rms.audit import record as audit_record
     audit_record(
         session,
-        user_id=None,
+        user_id=current_user_id(request) or "operator",
         action="write.merma.register",
         request=request,
         detail={"ingredient_id": ingredient_id, "qty": qty, "reason": reason},

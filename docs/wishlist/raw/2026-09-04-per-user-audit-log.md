@@ -18,3 +18,10 @@ A single `AuditLog` SQLAlchemy model + a `log()` helper that wraps sensitive CRU
 
 - Triggers: `void_sale`, `login_success/failure`, `import_xlsx`, `delete_ingredient`, `delete_recipe`, `delete_product`, `user_create`.
 - Best-effort: log failure does NOT fail the original action.
+
+
+## Triage
+
+**Moved to triaged:** 2026-09-09
+**Status:** SHIPPED — `/auditoria?user_filter=` filter + all state-changing
+routers pass `current_user_id(request)` to audit_record.
