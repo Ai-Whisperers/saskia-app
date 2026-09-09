@@ -9,7 +9,7 @@ from __future__ import annotations
 
 def test_sale_create_records_operator(client, session_factory):
     """POST /ventas/nueva records the operator in audit_log."""
-    from app.rms.models import AuditLog, Product, Recipe, RecipeLine, Ingredient
+    from app.rms.models import AuditLog, Ingredient, Product, Recipe, RecipeLine
 
     with session_factory() as s:
         ing = Ingredient(name="PUser_flour", unit="kg", stock_qty=10, purchase_price_gs=5000)
