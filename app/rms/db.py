@@ -429,6 +429,22 @@ def _migration_012_sale_tz(conn):
     )
 
 
+def _migration_013_ingredient_max_stock(conn):
+    """Add max_stock_qty column to Ingredient (Phase 7 reorder feature).
+
+    max_stock_qty: nullable FLOAT. NULL means "use 2x min_stock_qty"
+    heuristic. Operators can set explicit targets via /inventario/{id}/editar.
+    """
+    try:
+        conn.execute(text("ALTER TABLE ingredient ADD COLUMN max_stock_qty FLOAT"))
+    except Exception:
+        pass  # already exists
+    conn.execute(
+        text("UPDATE app_meta SET value = '13', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -442,6 +458,7 @@ MIGRATIONS = {
     10: _migration_010_recipe_intel,
     11: _migration_011_sale_payment_discount,
     12: _migration_012_sale_tz,
+    13: _migration_013_ingredient_max_stock,
 }
 
 

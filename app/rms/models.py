@@ -68,6 +68,9 @@ class Ingredient(Base):
     )
     last_consumed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     min_stock_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    # Phase 7 reorder: target stock to refill to. Defaults to 2x min_stock_qty
+    # if not set (computed in app/rms/reorder.py).
+    max_stock_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     shelf_life_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # E26 ingredient intelligence

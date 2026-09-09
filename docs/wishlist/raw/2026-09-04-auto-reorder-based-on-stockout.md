@@ -18,3 +18,13 @@ The stockout report is the closest existing signal to "what to reorder next", bu
 
 - Saskia has ~30 ingredients, ~8 suppliers. Manual reorder takes 20-30 min/week.
 - No supplier table in DB yet — would need to add `supplier_id` FK to Ingredient.
+
+
+## Triage
+
+**Moved to triaged:** 2026-09-09
+**Status:** SHIPPED (v1) — `/reorder` (HTML + JSON) lists ingredients
+below min_stock with suggested refill qty + estimated cost. Migration 013
+added `Ingredient.max_stock_qty` column. Suppliers NOT wired (deferred —
+Saskia tracks them in a paper notebook; digital integration is
+out-of-scope until she asks).

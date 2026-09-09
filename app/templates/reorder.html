@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% block title %}Reponer stock{% endblock %}
+{% block content %}
+<h1>Reponer stock</h1>
+<p class="hint">Ingredientes con stock por debajo del mínimo. Reordenar
+  según sugerido para llegar al máximo. Total estimado:
+  <strong>Gs. {{ "{:,.0f}".format(total_cost_gs).replace(",", ".") }}</strong>.</p>
+
+{% if items %}
+<table class="data">
+  <thead>
+    <tr>
+      <th>Ingrediente</th>
+      <th class="right">Actual</th>
+      <th class="right">Mínimo</th>
+      <th class="right">Máximo</th>
+      <th class="right">Sugerido</th>
+      <th class="right">Urgencia</th>
+      <th class="right">Costo est.</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for item in items %}
+    <tr>
+      <td>{{ item.name }}</td>
+      <td class="right">{{ "%.2f"|format(item.current_stock) }} {{ item.unit }}</td>
+      <td class="right">{{ "%.2f"|format(item.min_stock) }}</td>
+      <td class="right">{{ "%.2f"|format(item.max_stock) }}</td>
+      <td class="right"><strong>{{ "%.2f"|format(item.suggested_qty) }} {{ item.unit }}</strong></td>
+      <td class="right">
+        {% if item.urgency < 0.5 %}
+          <span class="badge badge-danger">Crítico ({{ "%.0f"|format(item.urgency * 100) }}%)</span>
+        {% elif item.urgency < 1.0 %}
+          <span class="badge badge-warn">Bajo ({{ "%.0f"|format(item.urgency * 100) }}%)</span>
+        {% else %}
+          <span class="badge badge-ok">OK</span>
+        {% endif %}
+      </td>
+      <td class="right">Gs. {{ "{:,.0f}".format(item.estimated_cost_gs).replace(",", ".") }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr>
+      <th colspan="6" class="right">Total estimado</th>
+      <th class="right">Gs. {{ "{:,.0f}".format(total_cost_gs).replace(",", ".") }}</th>
+    </tr>
+  </tfoot>
+</table>
+
+<p><a href="/reorder?format=json" class="btn">Ver como JSON</a></p>
+{% else %}
+<p class="empty">No hay ingredientes por debajo del mínimo. ¡Todo en orden!</p>
+{% endif %}
+
+{% endblock %}
