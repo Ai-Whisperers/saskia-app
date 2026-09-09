@@ -23,7 +23,6 @@ from sqlalchemy.orm import Session
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.models import ImportBatch
-from app.services.import_xlsx import from_file
 from app.services.template_render import render
 
 router = APIRouter(prefix="/excel", dependencies=[Depends(require_login)])
@@ -83,6 +82,7 @@ async def excel_import(
         save_path = Path(tmp_dir) / filename
         save_path.write_bytes(content)
         try:
+            from app.services.import_xlsx import from_file
             from_file(session, save_path)
         except (FileNotFoundError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
