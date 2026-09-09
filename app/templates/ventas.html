@@ -24,13 +24,23 @@
 {% endif %}
 
 <h2>Nueva venta</h2>
-<form method="post" action="/ventas/nueva">
+<form method="post" action="/ventas/nueva" id="sale-form">
+  <div class="form-row">
+    <label for="sku">Escanear SKU (opcional)</label>
+    <input type="text" id="sku" name="sku" autocomplete="off"
+           placeholder="Escaneá o tipeá el código de barras…"
+           pattern="[A-Za-z0-9\-_]+"
+           title="Códigos alfanuméricos, guiones y guiones bajos">
+    <small>Si completás SKU, el producto se autocompleta desde
+      <code>/ventas/buscar?sku=...</code>.</small>
+  </div>
+
   <div class="form-row">
     <label for="product_id">Producto</label>
     <select id="product_id" name="product_id" required>
       <option value="">— Seleccionar producto —</option>
       {% for p in products %}
-      <option value="{{ p.id }}">{{ p.name }} ({{ m.gs(p.sale_price_gs) }})</option>
+      <option value="{{ p.id }}" data-sku="{{ p.sku or '' }}" data-price="{{ p.sale_price_gs }}">{{ p.name }} ({{ m.gs(p.sale_price_gs) }})</option>
       {% endfor %}
     </select>
   </div>
@@ -142,5 +152,34 @@
 {% else %}
 <p class="empty">No hay ventas todavía. Registrá la primera arriba.</p>
 {% endif %}
+
+
+<script>
+// SKU scan -> auto-fill product_id.
+(function() {
+  var skuInput = document.getElementById("sku");
+  var productSelect = document.getElementById("product_id");
+  if (!skuInput || !productSelect) return;
+  function lookup() {
+    var sku = (skuInput.value || "").trim();
+    if (!sku) return;
+    fetch("/ventas/buscar?sku=" + encodeURIComponent(sku))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.found) {
+          skuInput.setCustomValidity("SKU no encontrado");
+          skuInput.reportValidity();
+          return;
+        }
+        skuInput.setCustomValidity("");
+        productSelect.value = data.product_id;
+        skuInput.value = "";
+        productSelect.focus();
+      });
+  }
+  skuInput.addEventListener("change", lookup);
+  skuInput.addEventListener("blur", lookup);
+})();
+</script>
 
 {% endblock %}
