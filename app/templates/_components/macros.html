@@ -44,3 +44,10 @@ Asunción local TZ.
   <span class="badge badge-ok">{{ "%.0f"|format(margin_gs / sale_price_gs * 100) }}%</span>
 {%- endif -%}
 {%- endmacro %}
+
+{# Active-state nav link: highlights when request.path starts with the prefix.
+   Use `exact=True` for routes that should NOT match subpaths (default: prefix match). #}
+{% macro nav_link(path, label, exact=False, current_path="") -%}
+{%- set active = (current_path == path) if exact else current_path.startswith(path) -%}
+<a href="{{ path }}"{% if active %} aria-current="page"{% endif %}>{{ label }}</a>
+{%- endmacro %}

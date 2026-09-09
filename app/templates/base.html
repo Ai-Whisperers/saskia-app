@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{% import "_components/macros.html" as m %}
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -20,19 +21,19 @@
   <nav class="topnav" aria-label="Navegación principal">
     <a href="/" class="brand">🍰 Saskia RMS</a>
     <div class="nav-links">
-      <a href="/" {% if request.url.path == "/" %}aria-current="page"{% endif %}>Inicio</a>
-      <a href="/productos" {% if request.url.path.startswith("/productos") %}aria-current="page"{% endif %}>Productos</a>
-      <a href="/recetas" {% if request.url.path.startswith("/recetas") %}aria-current="page"{% endif %}>Recetas</a>
-      <a href="/inventario" {% if request.url.path.startswith("/inventario") %}aria-current="page"{% endif %}>Inventario</a>
-      <a href="/ventas" {% if request.url.path.startswith("/ventas") %}aria-current="page"{% endif %}>Ventas</a>
-      <a href="/clientes" {% if request.url.path.startswith("/clientes") %}aria-current="page"{% endif %}>Clientes</a>
-      <a href="/produccion" {% if request.url.path.startswith("/produccion") %}aria-current="page"{% endif %}>Producción</a>
-      <a href="/eod" {% if request.url.path.startswith("/eod") %}aria-current="page"{% endif %}>Cierre</a>
-      <a href="/merma" {% if request.url.path.startswith("/merma") %}aria-current="page"{% endif %}>Merma</a>
-      <a href="/reportes" {% if request.url.path.startswith("/reportes") %}aria-current="page"{% endif %}>Reportes</a>
-      <a href="/auditoria" {% if request.url.path.startswith("/auditoria") %}aria-current="page"{% endif %}>Auditoría</a>
-      <a href="/ops/status" {% if request.url.path.startswith("/ops") %}aria-current="page"{% endif %}>Ops</a>
-      <a href="/excel" {% if request.url.path.startswith("/excel") %}aria-current="page"{% endif %}>Excel</a>
+      {{ m.nav_link("/", "Inicio", exact=True, current_path=request.url.path) }}
+      {{ m.nav_link("/productos", "Productos", current_path=request.url.path) }}
+      {{ m.nav_link("/recetas", "Recetas", current_path=request.url.path) }}
+      {{ m.nav_link("/inventario", "Inventario", current_path=request.url.path) }}
+      {{ m.nav_link("/ventas", "Ventas", current_path=request.url.path) }}
+      {{ m.nav_link("/clientes", "Clientes", current_path=request.url.path) }}
+      {{ m.nav_link("/produccion", "Producción", current_path=request.url.path) }}
+      {{ m.nav_link("/eod", "Cierre", current_path=request.url.path) }}
+      {{ m.nav_link("/merma", "Merma", current_path=request.url.path) }}
+      {{ m.nav_link("/reportes", "Reportes", current_path=request.url.path) }}
+      {{ m.nav_link("/auditoria", "Auditoría", current_path=request.url.path) }}
+      {{ m.nav_link("/ops/status", "Ops", current_path=request.url.path) }}
+      {{ m.nav_link("/excel", "Excel", current_path=request.url.path) }}
     </div>
     <div class="nav-right">
       <button type="button" class="theme-toggle" id="theme-toggle"
