@@ -4,7 +4,6 @@ from __future__ import annotations
 
 def test_openpyxl_not_loaded_until_excel_endpoint_hit():
     """Without hitting /excel, openpyxl should NOT be in sys.modules."""
-    import importlib
     import sys
 
     # Ensure not loaded yet

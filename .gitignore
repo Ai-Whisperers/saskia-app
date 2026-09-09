@@ -68,3 +68,8 @@ logs/
 # Generated dashboard files (run refresh.sh to regenerate)
 docs/operations/dashboard/STATUS.html
 docs/operations/dashboard/STATUS.md
+
+# Local-only test artifacts (created during manual runs)
+notifications_spool/
+receipts/
+/tmp/aiw-saskia-backups/
