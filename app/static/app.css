@@ -16,6 +16,13 @@
   --ok: #2563eb;
   --flash-bg: #fef2f2;
   --flash-border: #dc2626;
+  /* badge surfaces (light mode) */
+  --badge-ok-bg: #dcfce7;
+  --badge-ok-fg: #14532d;
+  --badge-warn-bg: #fef3c7;
+  --badge-warn-fg: #78350f;
+  --badge-danger-bg: #fee2e2;
+  --badge-danger-fg: #7f1d1d;
 }
 
 * { box-sizing: border-box; }
@@ -177,11 +184,11 @@ table.data .right { text-align: right; }
   text-transform: uppercase;
 }
 
-.badge-ok { background: #dcfce7; color: #14532d; }
-.badge-warn { background: #fef3c7; color: #78350f; }
-.badge-danger { background: #fee2e2; color: #7f1d1d; animation: flash 1.5s infinite; }
+.badge-ok { background: var(--badge-ok-bg); color: var(--badge-ok-fg); }
+.badge-warn { background: var(--badge-warn-bg); color: var(--badge-warn-fg); }
+.badge-danger { background: var(--badge-danger-bg); color: var(--badge-danger-fg); animation: flash 1.5s infinite; }
 .badge-muted { background: var(--bg); color: var(--text-muted); }
-.badge-good { background: #dcfce7; color: #14532d; }
+.badge-good { background: var(--badge-ok-bg); color: var(--badge-ok-fg); }
 
 @keyframes flash {
   0%, 100% { background: #fee2e2; }
