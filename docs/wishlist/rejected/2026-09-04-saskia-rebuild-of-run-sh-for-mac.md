@@ -17,3 +17,9 @@ Repo is set up for cross-platform deploys but installer has Windows-only artifac
 ## Status
 
 Per `app/CHANGELOG.md` [Unreleased]: still open. Saskia is Windows so deferred unless a Mac engagement materializes.
+
+
+## Triage
+
+**Moved to rejected:** 2026-09-09
+**Status:** NOT_APPLICABLE — Project is hosted on Render (uv + Dockerfile deploy). AGENTS.md declares deployment mode = Hosted (Neon + Render + Cloudflare + Supabase Auth). Mac `installer/run.sh` was a local-first-era artifact; no Mac install is needed for the hosted deployment. Saskia is on Windows and any future tenant runs the hosted stack. Will revisit only if a true Mac local-first engagement materializes.

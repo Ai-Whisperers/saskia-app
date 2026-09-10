@@ -18,3 +18,9 @@ The import is one of the few paths where Saskia regularly breaks things on her s
 
 - Existing fixture is synthetic small. Drive-shape needs ≥ 50 ingredients, ≥ 10 recipes with sub-recipes, all 6 sheets.
 - Should be committed as a real binary in `tests/fixtures/` so future regressions catch the same shapes.
+
+
+## Triage
+
+**Moved to triaged:** 2026-09-09
+**Status:** SHIPPED — `tests/fixtures/build_herbus_drive_fixture.py` + `tests/fixtures/herbus_drive_sample.xlsx` + `tests/test_real_drive_shape_fixture.py` (21 format-drift tests). Mirrors Herbus Drive edit-pattern: ≥ 50 ingredients, ≥ 10 recipes with sub-recipes, all 6 sheets. Commit 85dc10b.

@@ -13,3 +13,9 @@ Write a `CONTRIBUTING.md` that covers bug reports, features, local dev, PR conve
 ## Why now
 
 Repo is public. Right now an outsider sees `README.md` → `AGENTS.md` but AGENTS.md is operator-facing, not contributor-facing.
+
+
+## Triage
+
+**Moved to triaged:** 2026-09-09
+**Status:** SHIPPED — `CONTRIBUTING.md` covers bug reports, features, local dev (`make install` / `make migrate` / `make seed`), PR convention (`Saskia-eng-NNN` branch names), security disclosure. Verified by `tests/test_dev_tooling.test_contributing_md_exists`. Pre-existing prior to test_dev_tooling audit.
