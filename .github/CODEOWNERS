@@ -1,19 +1,29 @@
-# Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E24.S3.
-# Routes code reviews to the right owner.
-#
-# Default: @Ai-Whisperers/saskia-maintainers
-# Docs: @Ai-Whisperers/saskia-docs
-# Migrations (db.py): @Ai-Whisperers/saskia-dba
-# Security (audit.py, security_headers.py, rate_limit.py, main.py auth): @Ai-Whisperers/saskia-security
+# CODEOWNERS
+# Auto-assign reviewers for paths in this repo.
+# https://docs.github.com/en/repositories/creating-and-managing-repositories/about-code-owners
 
-*                          @Ai-Whisperers/saskia-maintainers
-/docs/                     @Ai-Whisperers/saskia-docs
-/app/rms/db.py             @Ai-Whisperers/saskia-dba
-/app/rms/migrations.py     @Ai-Whisperers/saskia-dba
-/app/rms/audit.py          @Ai-Whisperers/saskia-security
-/app/rms/security_headers.py @Ai-Whisperers/saskia-security
-/app/rms/rate_limit.py     @Ai-Whisperers/saskia-security
-/app/rms/main.py           @Ai-Whisperers/saskia-security
-/app/routers/auth.py       @Ai-Whisperers/saskia-security
-/app/routers/audit*.py     @Ai-Whisperers/saskia-security
-/.github/                  @Ai-Whisperers/saskia-maintainers
+# Default owner for everything
+*                       @Ai-Whisperers/core-dev
+
+# Security- and reliability-critical paths require explicit review.
+# Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md §E24.S2.
+# Even though only Kiki builds today, these paths are flagged so
+# future reviewers are routed correctly.
+/app/rms/audit.py       @Ai-Whisperers/core-dev
+/app/rms/security_headers.py @Ai-Whisperers/core-dev
+/app/rms/rate_limit.py  @Ai-Whisperers/core-dev
+/app/rms/db.py          @Ai-Whisperers/core-dev
+/app/rms/csrf.py        @Ai-Whisperers/core-dev
+/app/auth.py            @Ai-Whisperers/core-dev
+
+# Tests follow production code.
+/tests/                  @Ai-Whisperers/core-dev
+
+# Docs: Kiki owns dev-facing, operator owns user-facing.
+/docs/plans/             @Ai-Whisperers/core-dev
+/docs/operations/        @Ai-Whisperers/operator
+/docs/wishlist/          @Ai-Whisperers/operator
+/docs/user-guide/        @Ai-Whisperers/operator
+AGENTS.md                @Ai-Whisperers/core-dev
+/README.md               @Ai-Whisperers/core-dev
+/CONTRIBUTING.md         @Ai-Whisperers/core-dev

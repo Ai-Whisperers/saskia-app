@@ -7,8 +7,8 @@
 version: 2
 
 updates:
-  # Python deps from pyproject.toml
-  - package-ecosystem: "pip"
+  # Python deps from pyproject.toml (uv-managed)
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"

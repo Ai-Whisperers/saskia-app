@@ -1,7 +1,7 @@
 # Saskia RMS — Makefile
 # Shortcuts for common dev tasks. Run `make help` to see all targets.
 
-.PHONY: help install test test-fast lint format serve migrate seed smoke check-warnings check-secrets clean ci
+.PHONY: help install test test-verbose test-coverage test-fast lint lint-fix format check serve migrate seed seed-reset backup fixtures clean ci-smoke pre-commit stats smoke check-warnings check-secrets ci
 
 PYTHON ?= python3
 UV ?= uv
@@ -15,14 +15,14 @@ install: ## Install all dependencies via uv.
 
 test: ## Run the full test suite.
 	unset DATABASE_URL AIW_SASKIA_DB_PATH; \
-	$(UV) run pytest -q --no-header
+	uv run pytest -q --no-header
 
 test-fast: ## Run tests without coverage (faster).
 	unset DATABASE_URL AIW_SASKIA_DB_PATH; \
 	$(UV) run pytest -q --no-header --no-cov
 
 lint: ## Run ruff linter.
-	$(UV) run ruff check .
+	uv run ruff check .
 
 format: ## Auto-format with ruff.
 	$(UV) run ruff check . --fix
@@ -52,6 +52,46 @@ check-warnings: ## Verify test suite runs with 0 warnings.
 
 check-secrets: ## Scan staged files for leaked credentials.
 	$(PYTHON) scripts/check_no_secrets.py
+
+test-verbose: ## Run tests with verbose output.
+	uv run pytest -v --no-header
+
+test-coverage: ## Run tests with coverage report.
+	uv run pytest --cov=app --cov-report=term-missing --no-header
+
+lint-fix: ## Auto-fix lint errors.
+	uv run ruff check . --fix
+
+check: ## Run pre-commit style checks (lint + warnings + secrets).
+	uv run ruff check .
+	uv run python scripts/check_warnings.py
+
+seed-reset: ## Drop and recreate demo data (DESTRUCTIVE — local dev only).
+	uv run python -c "from app.rms.seed import seed_demo_data; \
+	  from app.rms.db import init_db; from app.rms.db_dialect import make_engine; \
+	  from sqlalchemy.orm import sessionmaker; \
+	  eng = make_engine(); init_db(sessionmaker(bind=eng)()); \
+	  seed_demo_data(sessionmaker(bind=eng)())"
+
+backup: ## Run the local backup script.
+	uv run python scripts/backup.py
+
+fixtures: ## Regenerate test fixtures (incl. real Drive shape).
+	uv run python tests/fixtures/build_herbus_drive_fixture.py
+
+ci-smoke: ## Run the deploy-shape smoke test (requires Docker).
+	uv run python scripts/smoke_test_deploy_shape.py --skip-docker --skip-build --port 18999
+
+pre-commit: ## Run pre-commit hooks if installed.
+	@command -v pre-commit >/dev/null 2>&1 && pre-commit run --all-files || echo "pre-commit not installed; skipping"
+
+stats: ## Show LOC + test count summary.
+	@echo "=== LOC by area ==="
+	@find app -name "*.py" -not -path "*/__pycache__/*" | xargs wc -l | tail -1
+	@find tests -name "*.py" -not -path "*/__pycache__/*" | xargs wc -l | tail -1
+	@echo "=== Test count ==="
+	@uv run pytest --collect-only -q 2>/dev/null | tail -1
+
 
 ci: lint test ## Run everything CI runs.
 
