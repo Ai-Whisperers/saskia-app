@@ -1,97 +1,63 @@
 # Saskia RMS — Makefile
-# Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E24.S1.
-#
-# Wraps the uv + pytest + ruff workflow into single-letter commands.
-# Use `make help` for the full list.
+# Shortcuts for common dev tasks. Run `make help` to see all targets.
 
-PROJECT_NAME := saskia-rms
-PYTHON := uv run python
-PYTEST := uv run pytest
-RUFF := uv run ruff
-ENTRY := app/rms/main.py
-ENV := AIW_SASKIA_DB_URL ?= sqlite:///./saskia.db
+.PHONY: help install test test-fast lint format serve migrate seed smoke check-warnings check-secrets clean ci
 
-.DEFAULT_GOAL := help
+PYTHON ?= python3
+UV ?= uv
 
-.PHONY: help
 help: ## Show this help.
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+	  awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-.PHONY: install
-install: ## Install dev dependencies via uv.
-	uv sync --dev
+install: ## Install all dependencies via uv.
+	$(UV) sync --all-extras
 
-.PHONY: test
-test: ## Run the test suite (pytest).
-	$(PYTEST) -q
+test: ## Run the full test suite.
+	unset DATABASE_URL AIW_SASKIA_DB_PATH; \
+	$(UV) run pytest -q --no-header
 
-.PHONY: test-verbose
-test-verbose: ## Run the test suite with -v.
-	$(PYTEST) -v --no-header
+test-fast: ## Run tests without coverage (faster).
+	unset DATABASE_URL AIW_SASKIA_DB_PATH; \
+	$(UV) run pytest -q --no-header --no-cov
 
-.PHONY: test-coverage
-test-coverage: ## Run tests with coverage report.
-	$(PYTEST) --cov=app --cov-report=term-missing --cov-report=html
+lint: ## Run ruff linter.
+	$(UV) run ruff check .
 
-.PHONY: lint
-lint: ## Run ruff lint.
-	$(RUFF) check .
+format: ## Auto-format with ruff.
+	$(UV) run ruff check . --fix
+	$(UV) run ruff format .
 
-.PHONY: lint-fix
-lint-fix: ## Run ruff lint with auto-fix.
-	$(RUFF) check . --fix
+serve: ## Run the app locally on PORT (default 8000).
+	$(UV) run uvicorn app.rms.main:app --host 127.0.0.1 --port $${PORT:-8000}
 
-.PHONY: format
-format: ## Run ruff format.
-	$(RUFF) format .
+migrate: ## Apply DB migrations (idempotent).
+	$(UV) run python -c "from app.rms.db import init_db; from app.rms.db_dialect import make_engine; \
+	  from sqlalchemy.orm import sessionmaker; \
+	  Session = sessionmaker(bind=make_engine()); \
+	  init_db(Session())"
 
-.PHONY: check
-check: lint test ## Run lint + tests.
+seed: ## Seed demo data (only for local dev, NOT production).
+	$(UV) run python -c "from app.rms.seed import seed_demo_data; \
+	  from app.rms.db import init_db; from app.rms.db_dialect import make_engine; \
+	  from sqlalchemy.orm import sessionmaker; \
+	  Session = sessionmaker(bind=make_engine()); \
+	  init_db(Session()); seed_demo_data(Session())"
 
-.PHONY: serve
-serve: ## Run the local server on 127.0.0.1:8765.
-	$(PYTHON) $(ENTRY) serve --host 127.0.0.1 --port 8765
+smoke: ## Run the deploy-shape smoke test locally (requires Docker).
+	$(UV) run python scripts/smoke_test_deploy_shape.py --skip-docker --skip-build --port 18999
 
-.PHONY: migrate
-migrate: ## Apply pending schema migrations.
-	$(PYTHON) $(ENTRY) migrate
+check-warnings: ## Verify test suite runs with 0 warnings.
+	$(UV) run python scripts/check_warnings.py
 
-.PHONY: seed
-seed: ## Populate demo data (idempotent).
-	$(PYTHON) $(ENTRY) seed
+check-secrets: ## Scan staged files for leaked credentials.
+	$(PYTHON) scripts/check_no_secrets.py
 
-.PHONY: seed-reset
-seed-reset: ## Drop + re-create + reseed demo data.
-	$(PYTHON) $(ENTRY) seed --reset
+ci: lint test ## Run everything CI runs.
 
-.PHONY: backup
-backup: ## Run a backup to local + R2.
-	$(PYTHON) scripts/backup.py
-
-.PHONY: fixtures
-fixtures: ## Rebuild Drive-shape xlsx fixtures.
-	$(PYTHON) tests/fixtures/build_herbus_fixture.py
-
-.PHONY: clean
-clean: ## Remove generated artifacts (DBs, caches, .pyc).
-	find . -name "*.pyc" -delete
-	find . -name "__pycache__" -exec rm -rf {} +
-	rm -rf .pytest_cache .ruff_cache htmlcov
-	rm -f saskia.db saskia.db-journal
-
-.PHONY: ci-smoke
-ci-smoke: ## CI smoke: migrate + seed + 1 dashboard test.
-	$(PYTHON) $(ENTRY) migrate
-	$(PYTEST) tests/test_smoke.py -v --no-header
-
-.PHONY: pre-commit
-pre-commit: lint-fix format test ## Pre-commit hook equivalent.
-
-.PHONY: stats
-stats: ## Project LOC stats.
-	@echo "--- Python LOC ---"
-	@find app -name "*.py" | xargs wc -l | tail -1
-	@echo "--- Test LOC ---"
-	@find tests -name "*.py" | xargs wc -l | tail -1
-	@echo "--- Test count ---"
-	@$(PYTEST) --collect-only -q 2>/dev/null | tail -1
+clean: ## Remove build artifacts.
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete
