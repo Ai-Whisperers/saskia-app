@@ -27,7 +27,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.staticfiles import StaticFiles as _StaticFiles  # noqa: F401  (re-exported for tests)
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
@@ -263,7 +263,12 @@ app.add_middleware(
 # Mount static files (CSS, images, etc.) so templates can link /static/app.css
 _static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
 if os.path.isdir(_static_dir):
-    app.mount("/static", StaticFiles(directory=_static_dir), name="static")
+    # Use ReadyStaticFiles to gate on app.state.ready — without this, the
+    # browser fetches /static/app.css during Render cold-start (5-30s) and
+    # gets broken CSS. With the gate, the browser sees a clean 503 that
+    # triggers a natural retry once the app is ready.
+    from app.rms.ready_static import ReadyStaticFiles
+    app.mount("/static", ReadyStaticFiles(directory=_static_dir), name="static")
 
 
 # --- Auth gate (Milestone 1) ---
