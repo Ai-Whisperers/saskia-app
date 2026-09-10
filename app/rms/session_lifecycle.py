@@ -31,6 +31,13 @@ class SessionLifecycleMiddleware(BaseHTTPMiddleware):
     """Detect sessions opened during a request that weren't closed."""
 
     async def dispatch(self, request: Request, call_next):
+        # Skip the GC walk for /static/* and /healthz* — they never open
+        # DB sessions and the GC overhead would slow every static asset
+        # request (browser reloads fetch app.css on every page nav).
+        path = request.url.path
+        if path.startswith("/static/") or path.startswith("/healthz"):
+            return await call_next(request)
+
         # Snapshot open sessions before request.
         before_ids = self._open_session_ids()
 
