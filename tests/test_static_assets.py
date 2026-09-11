@@ -50,8 +50,8 @@ def test_app_css_is_minified():
 
 def test_minify_css_script_works():
     """The minify_css.py script produces consistent output (idempotent)."""
-    from pathlib import Path
     import subprocess
+    from pathlib import Path
 
     # Run the script in --check mode against the current app.css.
     result = subprocess.run(
@@ -67,14 +67,8 @@ def test_minify_css_script_works():
 
 # Helpers that don't depend on the test client fixture (so tests are faster).
 def client_get_favicon_svg():
-    import urllib.request
-    req = urllib.request.Request(
-        "https://saskia-rms.paragu-ai.com/static/favicon.svg"
-        if False  # skip live test; use local instead
-        else "http://localhost:8000/static/favicon.svg"
-    )
-    # Use TestClient via FastAPI for offline test.
     from fastapi.testclient import TestClient
+
     from app.rms.main import app
     with TestClient(app) as c:
         return c.get("/static/favicon.svg")
@@ -82,6 +76,7 @@ def client_get_favicon_svg():
 
 def client_get_favicon_ico():
     from fastapi.testclient import TestClient
+
     from app.rms.main import app
     with TestClient(app) as c:
         return c.get("/static/favicon.ico")
