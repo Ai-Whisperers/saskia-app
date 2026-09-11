@@ -9,7 +9,6 @@ def test_sentry_lazy_when_dsn_unset():
     importing sentry_sdk costs 500-700ms on every cold-start when DSN
     is configured; if not configured, we MUST NOT import it.
     """
-    import importlib
     import sys
 
     # Force a clean slate
@@ -77,6 +76,6 @@ def test_main_source_guards_sentry_behind_dsn_check():
     # The `if sentry_dsn:` line should be within 100 chars BEFORE the import.
     dsn_check_idx = src.rfind("if sentry_dsn:", sentry_idx, import_idx)
     assert dsn_check_idx > -1, (
-        f"sentry_sdk imported without `if sentry_dsn:` guard. "
-        f"Add `if sentry_dsn:` before the `import sentry_sdk` line."
+        "sentry_sdk imported without `if sentry_dsn:` guard. "
+        "Add `if sentry_dsn:` before the `import sentry_sdk` line."
     )
