@@ -249,6 +249,29 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 # that change only on deploys.
 app.add_middleware(StaticCacheMiddleware)
 
+
+class HealthCacheMiddleware(BaseHTTPMiddleware):
+    """Add short Cache-Control to /healthz* responses.
+
+    Health endpoints are idempotent and change infrequently. A 10-second
+    edge cache lets Cloudflare absorb UptimeRobot ping storms (every 5 min)
+    + the operator's manual probes without hitting the app on every check.
+
+    Per docs/operations/2026-09-09-performance-analysis.md improvement #5
+    + performance-research.md section 5 (Cloudflare caching).
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/healthz"):
+            # s-maxage is for shared caches (Cloudflare); max-age is for browsers.
+            # 10s strikes the balance between freshness and edge-cache hit rate.
+            response.headers["Cache-Control"] = "public, max-age=10, s-maxage=10"
+        return response
+
+
+app.add_middleware(HealthCacheMiddleware)
+
 # Security headers middleware: defense-in-depth HTTP response headers
 # (X-Frame-Options, CSP, HSTS, etc.). Registered BEFORE SessionMiddleware
 # so it runs OUTERMOST and its headers are guaranteed on every response.
