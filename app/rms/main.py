@@ -181,6 +181,21 @@ async def lifespan(app: FastAPI):
     app.state.is_postgres = _is_postgres(url)
     app.state.ready = True  # Readiness flag for /healthz gating
 
+    # Eager-init Supabase client on startup (when configured). The supabase-py
+    # SDK takes 1-3 seconds to construct (creates an internal httpx client +
+    # connection pool). Doing it here means /login POST doesn't pay the
+    # initialization cost on the FIRST request after cold-start.
+    # Per docs/operations/2026-09-09-performance-analysis.md improvement #3
+    # + performance-research.md section 3 (Supabase Python SDK).
+    try:
+        from app.auth import using_supabase
+        if using_supabase():
+            from app.auth_supabase import get_supabase_client
+            get_supabase_client()
+            logger.info("supabase client pre-warmed")
+    except Exception as exc:
+        logger.warning(f"supabase pre-warm failed (non-fatal): {exc!r}")
+
     # Backup scheduler: idempotent, no-op if R2 not configured.
     # Runs on a fresh session so it doesn't share state with request handlers.
     try:
