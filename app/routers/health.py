@@ -173,7 +173,16 @@ def healthz_db(request: Request) -> JSONResponse:
     Reports:
     - journal_mode on SQLite (must be 'wal' for concurrent-safe writes)
     - server version on Postgres
+    - schema_version + migrations_pending (drift detector)
+    - last_audit_at (timestamp of most recent audit log row)
     """
+    from app.rms.db import (
+        CURRENT_SCHEMA_VERSION,
+        schema_version,
+        schema_version_mismatch,
+    )
+    from app.rms.models import AuditLog
+
     engine = request.app.state.engine
     try:
         with engine.connect() as conn:
@@ -195,6 +204,32 @@ def healthz_db(request: Request) -> JSONResponse:
                 payload["dialect"] = "postgresql"
             else:
                 payload["dialect"] = dialect
+        # Schema drift + audit freshness — second roundtrip. Don't fail the
+        # 200 just because these queries fail; report them in the body.
+        try:
+            with engine.connect() as conn:
+                actual = schema_version(conn)
+                payload["schema_version"] = actual
+                payload["code_schema_version"] = CURRENT_SCHEMA_VERSION
+                payload["migrations_pending"] = schema_version_mismatch(conn)
+                # Most recent audit row — diagnostic for "is anything being
+                # written?" without exposing content. SQLite returns the
+                # timestamp as a string; Postgres returns a datetime.
+                last = conn.execute(
+                    text("SELECT MAX(occurred_at) FROM audit_log")
+                ).scalar()
+                if last is None:
+                    payload["last_audit_at"] = None
+                elif hasattr(last, "isoformat"):
+                    payload["last_audit_at"] = last.isoformat()
+                else:
+                    payload["last_audit_at"] = str(last)
+        except Exception as inner_exc:
+            # Don't 503 the whole endpoint — DB is reachable, the metadata
+            # queries aren't. Surface the detail so the operator can tell
+            # the difference between "DB down" and "audit table missing".
+            payload["db"] = "ok_no_metadata"
+            payload["metadata_error"] = str(inner_exc)
         return payload
     except Exception as exc:
         return JSONResponse({"db": "error", "detail": str(exc)}, status_code=503)

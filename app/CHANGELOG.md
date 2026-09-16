@@ -5,6 +5,20 @@
 
 ## [Unreleased]
 
+### Added (2026-09-16)
+
+- **E3.S4 — `/healthz/db` enriched payload** — now reports `schema_version`,
+  `code_schema_version`, `migrations_pending`, and `last_audit_at` alongside
+  the existing DB-reachability fields. Operator dashboards and UptimeRobot
+  alerts can now detect schema drift and write silence without hitting a
+  separate `/healthz/schema` probe. Documented in
+  `docs/operations/uptime-monitoring.md`. 1 regression test.
+
+- **F1 — root-level `/favicon.svg` + `/favicon.ico`** — browsers auto-request
+  these at the root, not under `/static/`. Two new `FileResponse` routes
+  alias the existing files in `app/static/`. Bypasses `ReadyStaticFiles`
+  intentionally (favicon must work during cold-start). 2 regression tests.
+
 ### Added (2026-09-08)
 
 - **`/produccion` production worksheet** — wires the existing
