@@ -26,7 +26,7 @@ import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles as _StaticFiles  # noqa: F401  (re-exported for tests)
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -307,6 +307,26 @@ if os.path.isdir(_static_dir):
     # triggers a natural retry once the app is ready.
     from app.rms.ready_static import ReadyStaticFiles
     app.mount("/static", ReadyStaticFiles(directory=_static_dir), name="static")
+
+    # Browsers auto-request /favicon.ico and /favicon.svg at the root (not
+    # under /static/). Without these, the browser logs a 404 and falls back
+    # to its built-in icon, which is ugly and shows up as a console error.
+    # Alias the same files so both /static/favicon.* and /favicon.* work.
+    # Bypasses ReadyStaticFiles (intentional — favicon must work during
+    # cold-start so the browser's initial request succeeds).
+    @app.get("/favicon.svg", include_in_schema=False)
+    def _favicon_svg() -> FileResponse:
+        return FileResponse(
+            os.path.join(_static_dir, "favicon.svg"),
+            media_type="image/svg+xml",
+        )
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    def _favicon_ico() -> FileResponse:
+        return FileResponse(
+            os.path.join(_static_dir, "favicon.ico"),
+            media_type="image/x-icon",
+        )
 
 
 # --- Auth gate (Milestone 1) ---

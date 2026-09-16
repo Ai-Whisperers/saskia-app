@@ -45,6 +45,7 @@ dev = [
     "hypothesis>=6.115,<7",          # Property-based testing (per tech-stack-review #9)
     "ruff>=0.7,<1",                   # Linting
     "httpx>=0.27,<1",                  # TestClient (FastAPI)
+    "testcontainers[postgresql]>=4.8,<5",  # E2.S2 — boots real PG in CI for hotfix regression coverage
 ]
 
 # Entry point for uvicorn (run from project root: uvicorn app.rms.main:app --reload)
@@ -63,6 +64,9 @@ packages = ["app"]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
 pythonpath = ["."]
+markers = [
+    "pg: real Postgres tests (testcontainers); skipped locally without Docker, run in CI",
+]
 filterwarnings = [
     # starlette.testclient's BlockingPortal alias is deprecated upstream.
     # Not our code; wait for starlette bump to remove.

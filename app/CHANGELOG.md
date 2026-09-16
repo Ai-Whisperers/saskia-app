@@ -5,6 +5,43 @@
 
 ## [Unreleased]
 
+### Added (2026-09-16)
+
+- **E3.S4 — `/healthz/db` enriched payload** — now reports `schema_version`,
+  `code_schema_version`, `migrations_pending`, and `last_audit_at` alongside
+  the existing DB-reachability fields. Operator dashboards and UptimeRobot
+  alerts can now detect schema drift and write silence without hitting a
+  separate `/healthz/schema` probe. Documented in
+  `docs/operations/uptime-monitoring.md`. 1 regression test.
+
+- **F1 — root-level `/favicon.svg` + `/favicon.ico`** — browsers auto-request
+  these at the root, not under `/static/`. Two new `FileResponse` routes
+  alias the existing files in `app/static/`. Bypasses `ReadyStaticFiles`
+  intentionally (favicon must work during cold-start). 2 regression tests.
+
+- **E4.S1 — Round 2 triage workflow** — `installer/ROUND-2-NOTES.md`
+  template (30-day, ship-it criteria only), `docs/operations/round-2-triage-process.md`
+  (the 5-step process), and `round-2` label hint added to GH bug + feature
+  templates. Round 2 = hot-patch only; bigger items route to gem-project
+  backlog as `SASKIA-NNN` tickets. Closes Phase 0 epic E4.S1.
+
+- **E2.S2 — real Postgres test infra (testcontainers)** — new
+  `tests/conftest_pg.py` + `tests/test_pg_roundtrip.py` boots a
+  `postgres:16-alpine` container and provides `pg_engine`,
+  `pg_session_factory`, `pg_session` fixtures. Tagged `@pytest.mark.pg`.
+  Local runs without Docker skip cleanly (cached probe, 1× per session).
+  CI runs `pytest -m pg` after the main suite.
+  - `testcontainers[postgresql]>=4.8,<5` added to dev deps.
+  - Closes the 5-hotfix (2026-09-04) gap: 4/5 would have been caught
+    by a real PG roundtrip. The 2 dialect-sensitive regression tests
+    in `tests/test_hotfix_regressions.py` (row_counts_json roundtrip +
+    empty-dict) are now tagged `@pytest.mark.pg`.
+  - 4 new pg tests in `test_pg_roundtrip.py`:
+    init_db migrates to CURRENT_SCHEMA_VERSION, AuditLog roundtrip,
+    ImportBatch.row_counts_json JSONB roundtrip, psycopg3 dialect
+    recognized (hotfix 32c5d32 lock-in).
+  Closes Phase 0 epic E2.S2.
+
 ### Added (2026-09-08)
 
 - **`/produccion` production worksheet** — wires the existing

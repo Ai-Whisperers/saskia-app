@@ -24,6 +24,13 @@ import json
 import re
 from pathlib import Path
 
+import pytest
+
+# E2.S2 — the row_counts_json tests are tagged @pytest.mark.pg below so they
+# auto-skip locally without Docker and run in CI. The other tests in this
+# file (HEAD /healthz, env aliases, Dockerfile inspection, deps fingerprint)
+# don't touch the DB so they stay SQLite-compatible.
+
 # ---------------------------------------------------------------------------
 # 1. f1af406 — HEAD /healthz for uptime monitors
 # ---------------------------------------------------------------------------
@@ -219,6 +226,7 @@ def test_healthz_deps_reports_package_versions(client):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.pg
 def test_row_counts_json_roundtrip_through_orm(session_factory):
     """The row_counts_json column must round-trip a dict through the ORM.
 
@@ -226,6 +234,9 @@ def test_row_counts_json_roundtrip_through_orm(session_factory):
     was to type the ORM column as JSON (which the PG dialect renders as JSONB and
     SQLite renders as TEXT). This test verifies the dict flows in and out without
     coercion.
+
+    E2.S2: tagged @pytest.mark.pg — the SQLite path is verified by the
+    other row_counts_json_* tests; this one pins PG JSONB behavior in CI.
     """
     from datetime import datetime, timezone
 
@@ -269,6 +280,7 @@ def test_row_counts_json_orm_column_type():
     assert col_type is not Text
 
 
+@pytest.mark.pg
 def test_row_counts_json_handles_empty_dict(session_factory):
     """Edge case: an empty dict (default) must persist."""
     from datetime import datetime, timezone
