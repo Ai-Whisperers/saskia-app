@@ -6,6 +6,13 @@ labels: ["enhancement"]
 assignees: []
 ---
 
+> **Before filing:** check `docs/wishlist/raw/` and `docs/wishlist/triaged/` —
+> the idea may already exist. If it does, link rather than duplicate.
+>
+> **Round 2 feedback?** Small UX polish items reported by Saskia during
+> Round 2 review should land in `docs/wishlist/raw/` instead of as issues.
+> See `installer/ROUND-2-NOTES.md` and `docs/operations/round-2-triage-process.md`.
+
 ## Problem
 
 What user pain does this solve? Who hits it (Saskia, customers, operator)?

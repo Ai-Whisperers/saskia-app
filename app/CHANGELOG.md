@@ -19,6 +19,12 @@
   alias the existing files in `app/static/`. Bypasses `ReadyStaticFiles`
   intentionally (favicon must work during cold-start). 2 regression tests.
 
+- **E4.S1 — Round 2 triage workflow** — `installer/ROUND-2-NOTES.md`
+  template (30-day, ship-it criteria only), `docs/operations/round-2-triage-process.md`
+  (the 5-step process), and `round-2` label hint added to GH bug + feature
+  templates. Round 2 = hot-patch only; bigger items route to gem-project
+  backlog as `SASKIA-NNN` tickets. Closes Phase 0 epic E4.S1.
+
 ### Added (2026-09-08)
 
 - **`/produccion` production worksheet** — wires the existing

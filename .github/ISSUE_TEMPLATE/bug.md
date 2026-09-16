@@ -6,6 +6,11 @@ labels: ["bug"]
 assignees: []
 ---
 
+> **Round 2 feedback?** If this bug was reported by Saskia during her 30-day
+> Round 2 review window (post-Round-1 close), add the `round-2` label so it
+> routes through `docs/operations/round-2-triage-process.md` instead of the
+> normal issue backlog. See `installer/ROUND-2-NOTES.md`.
+
 ## Summary
 
 One-sentence description of the bug.
