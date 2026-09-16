@@ -40,7 +40,7 @@ dependencies = [
 # Development dependencies
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.3,<9",                 # Test framework
+    "pytest>=8.3,<10",                 # Test framework
     "pytest-cov>=6,<7",                # Coverage reporting
     "hypothesis>=6.115,<7",          # Property-based testing (per tech-stack-review #9)
     "ruff>=0.7,<1",                   # Linting
