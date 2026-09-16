@@ -41,7 +41,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3,<10",                 # Test framework
-    "pytest-cov>=6,<7",                # Coverage reporting
+    "pytest-cov>=6,<8",                # Coverage reporting
     "hypothesis>=6.115,<7",          # Property-based testing (per tech-stack-review #9)
     "ruff>=0.7,<1",                   # Linting
     "httpx>=0.27,<1",                  # TestClient (FastAPI)
