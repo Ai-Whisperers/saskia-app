@@ -25,6 +25,23 @@
   templates. Round 2 = hot-patch only; bigger items route to gem-project
   backlog as `SASKIA-NNN` tickets. Closes Phase 0 epic E4.S1.
 
+- **E2.S2 — real Postgres test infra (testcontainers)** — new
+  `tests/conftest_pg.py` + `tests/test_pg_roundtrip.py` boots a
+  `postgres:16-alpine` container and provides `pg_engine`,
+  `pg_session_factory`, `pg_session` fixtures. Tagged `@pytest.mark.pg`.
+  Local runs without Docker skip cleanly (cached probe, 1× per session).
+  CI runs `pytest -m pg` after the main suite.
+  - `testcontainers[postgresql]>=4.8,<5` added to dev deps.
+  - Closes the 5-hotfix (2026-09-04) gap: 4/5 would have been caught
+    by a real PG roundtrip. The 2 dialect-sensitive regression tests
+    in `tests/test_hotfix_regressions.py` (row_counts_json roundtrip +
+    empty-dict) are now tagged `@pytest.mark.pg`.
+  - 4 new pg tests in `test_pg_roundtrip.py`:
+    init_db migrates to CURRENT_SCHEMA_VERSION, AuditLog roundtrip,
+    ImportBatch.row_counts_json JSONB roundtrip, psycopg3 dialect
+    recognized (hotfix 32c5d32 lock-in).
+  Closes Phase 0 epic E2.S2.
+
 ### Added (2026-09-08)
 
 - **`/produccion` production worksheet** — wires the existing

@@ -38,6 +38,13 @@ jobs:
       - name: Test (pytest)
         run: uv run pytest --cov=app --cov-report=term-missing
 
+      # ---- E2.S2: real Postgres tests via testcontainers ----
+      # Boots a real Postgres container (postgres:16-alpine), runs only the
+      # @pytest.mark.pg tests. Local devs without Docker get the same skip;
+      # CI has Docker so this always runs.
+      - name: Test (postgres via testcontainers)
+        run: uv run pytest -m pg --no-cov
+
       - name: Fail if coverage drops below 80%
         run: |
           coverage=$(uv run coverage report | tail -2 | head -1 | awk '{print $NF}' | tr -d '%')

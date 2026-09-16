@@ -101,6 +101,11 @@ ALLOWLIST = {
     "scripts/check_no_secrets.py",
     # Test fixtures may include placeholders
     "tests/fixtures/.gitkeep",
+    # test_hotfix_regressions.py uses "AKIAIOSFODNN7EXAMPLE" as a sentinel
+    # in test_healthz_deps_does_not_leak_env_values — verifying the env
+    # value never reaches the public URL. AWS docs use this exact string
+    # as their public example; it's never been a real key. False positive.
+    "tests/test_hotfix_regressions.py",
 }
 
 
