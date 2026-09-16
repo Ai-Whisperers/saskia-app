@@ -20,7 +20,7 @@ license = {text = "MIT"}
 # Runtime dependencies
 dependencies = [
     "fastapi>=0.115,<0.116",         # Pinned to a known-good major.minor
-    "uvicorn[standard]>=0.32,<0.33",  # [standard] = httptools + uvloop + websockets + watchfiles
+    "uvicorn[standard]>=0.32,<0.53",  # [standard] = httptools + uvloop + websockets + watchfiles
     "sqlalchemy>=2.0,<2.1",          # Sync mode (NOT async; documented in app/rms/db.py)
     "openpyxl>=3.1,<4",              # 3.x stable; 4.x may have breaking changes
     "jinja2>=3.1,<4",                # Templating for server-rendered HTML
