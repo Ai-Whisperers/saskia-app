@@ -28,6 +28,35 @@ def test_base_template_has_favicon_link():
     assert 'rel="alternate icon" type="image/png" href="/static/favicon.ico"' in content
 
 
+def test_root_favicon_svg_served():
+    """/favicon.svg (root, no /static/) returns 200 — browsers auto-request this path.
+
+    Without this alias, the browser logs a 404 and falls back to its built-in
+    icon, showing up as a console error on every page load.
+    """
+    from fastapi.testclient import TestClient
+
+    from app.rms.main import app
+    with TestClient(app) as c:
+        resp = c.get("/favicon.svg")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "image/svg+xml"
+
+
+def test_root_favicon_ico_served():
+    """/favicon.ico (root) returns 200 — same browser-auto-request reason."""
+    from fastapi.testclient import TestClient
+
+    from app.rms.main import app
+    with TestClient(app) as c:
+        resp = c.get("/favicon.ico")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] in (
+        "image/x-icon",
+        "image/vnd.microsoft.icon",
+    )
+
+
 def test_app_css_is_minified():
     """app/static/app.css must be minified (no leading newlines, no comment-only whitespace).
 
