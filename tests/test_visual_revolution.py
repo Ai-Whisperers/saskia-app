@@ -402,3 +402,73 @@ def test_quick_sell_grid_present():
     """.quick-sell-grid class must be present."""
     css = _read_css()
     assert ".quick-sell-grid" in css
+
+
+# ---- P0 visual polish tests -----------------------------------------------
+
+
+def test_card_radius_is_20px():
+    """--card-radius should be --radius-xl (20px) for the softer Square pattern."""
+    css = _read_css()
+    m = re.search(r"--card-radius:var\(--([^)]+)\)", css)
+    assert m, "--card-radius token missing"
+    token = m.group(1)
+    m2 = re.search(rf"--{token}:([^;]+);", css)
+    assert m2, f"Cannot resolve {token}"
+    assert m2.group(1) == "20px", f"card-radius should be 20px, got {m2.group(1)}"
+
+
+def test_metric_label_uses_mono_eyebrow():
+    """.metric-label should use mono font + bolder weight (eyebrow style)."""
+    css = _read_css()
+    m = re.search(r"\.metric-label\{[^}]*\}", css)
+    assert m, ".metric-label rule missing"
+    rule = m.group(0)
+    assert "font-family:var(--font-mono)" in rule, (
+        ".metric-label should use mono font (Square eyebrow pattern)"
+    )
+    assert "font-weight:600" in rule, (
+        ".metric-label should be bolder (eyebrow pattern)"
+    )
+
+
+def test_btn_pill_class_defined():
+    """.btn-pill should be defined for full-pill CTAs (login + error pages)."""
+    css = _read_css()
+    assert re.search(r"\.btn-pill\{[^}]*border-radius:var\(--radius-pill\)", css), (
+        ".btn-pill must use --radius-pill (9999px) for full-pill effect"
+    )
+
+
+def test_pill_buttons_applied_to_login_and_errors():
+    """Login + error pages should use btn-pill for primary CTAs."""
+    with open("app/templates/login.html") as f:
+        login = f.read()
+    assert "btn-pill" in login, "login.html should use btn-pill on Ingresar"
+    with open("app/templates/errors/404.html") as f:
+        e404 = f.read()
+    assert "btn-pill" in e404, "errors/404.html should use btn-pill on Volver"
+    with open("app/templates/errors/500.html") as f:
+        e500 = f.read()
+    assert "btn-pill" in e500, "errors/500.html should use btn-pill on Volver"
+
+
+def test_shortcut_help_button_in_nav():
+    """There should be a visible '?' button in nav-right for shortcut discovery."""
+    with open("app/templates/base.html") as f:
+        base = f.read()
+    assert 'id="open-shortcuts"' in base, (
+        "base.html should include an #open-shortcuts button for shortcut discovery"
+    )
+
+
+def test_shortcut_button_wired_in_js():
+    """shortcuts.js should wire the new #open-shortcuts button to showShortcutHelp()."""
+    with open("app/static/shortcuts.js") as f:
+        js = f.read()
+    assert "open-shortcuts" in js, (
+        "shortcuts.js must wire the new nav button"
+    )
+    assert "navBtn._shortcutsWired" in js, (
+        "shortcuts.js must guard against double-binding"
+    )

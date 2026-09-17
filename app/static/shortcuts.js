@@ -95,6 +95,15 @@
         if (e.target === modal) closeShortcutHelp();
       });
     }
+    // Wire up the nav button if present (added in base.html Phase 5+).
+    var navBtn = document.getElementById('open-shortcuts');
+    if (navBtn && !navBtn._shortcutsWired) {
+      navBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        showShortcutHelp();
+      });
+      navBtn._shortcutsWired = true;
+    }
     modal.style.display = 'flex';
     document.getElementById('close-shortcuts').focus();
   }
