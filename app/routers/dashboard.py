@@ -60,17 +60,41 @@ def _period_window(period: str) -> tuple[datetime, datetime]:
     return start, end
 
 
-@router.get("/", response_class=HTMLResponse)
-async def dashboard(
-    request: Request,
-    period: str = Query("today", pattern="^(today|week|month)$"),
-    session: Session = Depends(get_session),
-) -> HTMLResponse:
-    start, end = _period_window(period)
+def _prior_period_window(period: str) -> tuple[datetime, datetime]:
+    """Return [start, end) of the prior comparable period (Asunción local).
 
-    # Sales are stored naive-UTC (per the data layer convention). The
-    # period_window is computed in Asunción local TZ, so we convert both
-    # endpoints to UTC and drop tzinfo for the DB comparison.
+    today: yesterday 00:00 → 23:59:59.999
+    week:  previous Mon-Sun, ending where this week started
+    month: 1st of previous month → last day of previous month
+    """
+    now_local = datetime.now(ASUNCION_TZ)
+    if period == "today":
+        end = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+        start = end - timedelta(days=1)
+    elif period == "week":
+        iso_weekday = now_local.isoweekday()
+        this_monday_date = now_local.date() - timedelta(days=iso_weekday - 1)
+        end = datetime.combine(this_monday_date, datetime.min.time()).replace(tzinfo=ASUNCION_TZ)
+        start = end - timedelta(days=7)
+    elif period == "month":
+        first_this_month = now_local.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        end = first_this_month
+        prev_month_last_day = first_this_month - timedelta(microseconds=1)
+        start = prev_month_last_day.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:
+        raise ValueError(f"Unknown period: {period}")
+    return start, end
+
+
+def _compute_window_totals(
+    session: Session, start: datetime, end: datetime
+) -> tuple[int, int, int, list[Sale], list[Sale], dict]:
+    """Compute ventas/cogs/margen for sales in [start, end).
+
+    Returns (ventas_gs, cogs_gs, margen_gs, sales_no_recipe, sales, batch_costs).
+    batch_costs is exposed for downstream use by the ranking loop.
+    """
+    # Sales are stored naive-UTC; convert window to UTC for DB comparison.
     start_utc_naive = start.astimezone(timezone.utc).replace(tzinfo=None)
     end_utc_naive = end.astimezone(timezone.utc).replace(tzinfo=None)
 
@@ -80,22 +104,17 @@ async def dashboard(
             Sale.sold_at < end_utc_naive,
         )
     ).all()
-    # The above filter is approximate since we store naive UTC; for v1 this is OK.
-    # A more correct implementation would store tz-aware datetime in DB.
 
     ventas_gs = sum(int(round(s.qty * s.unit_price_gs)) for s in sales)
 
-    # Batch-load all product costs in ~3-4 queries (replaces N+1 loop).
-    # The batch helper caches recipes + lines + ingredients in the
-    # session identity map, so subsequent session.get() calls hit memory.
-    products_in_period = sorted(
+    products_in_window = sorted(
         {s.product for s in sales if s.product is not None},
         key=lambda p: p.id,
     )
-    batch_costs = batch_products_cost_margin(session, products_in_period)
+    batch_costs = batch_products_cost_margin(session, products_in_window)
 
     cogs_gs = 0
-    sales_no_recipe = []
+    sales_no_recipe: list[Sale] = []
     for s in sales:
         if s.product is None or s.product.recipe_id is None:
             sales_no_recipe.append(s)
@@ -107,7 +126,47 @@ async def dashboard(
         cogs_gs += int(round(s.qty * cost.batch_cost_gs))
 
     margen_gs = ventas_gs - cogs_gs
+    return ventas_gs, cogs_gs, margen_gs, sales_no_recipe, sales, batch_costs
+
+
+def _delta_pct(current: int, prior: int) -> dict[str, float | str | None]:
+    """Compute percentage delta from prior to current.
+
+    Returns {"pct": float|None, "direction": "up"|"down"|"neutral"|"new",
+             "label": "12% arriba"|"8% abajo"|"—"|None}.
+    """
+    if prior == 0 and current == 0:
+        return {"pct": None, "direction": "neutral", "label": None}
+    if prior == 0:
+        return {"pct": None, "direction": "new", "label": "nuevo"}
+    pct = (current - prior) / prior * 100
+    if abs(pct) < 0.5:
+        return {"pct": 0.0, "direction": "neutral", "label": "sin cambio"}
+    direction = "up" if pct > 0 else "down"
+    label = f"{abs(pct):.0f}% {'arriba' if pct > 0 else 'abajo'}"
+    return {"pct": pct, "direction": direction, "label": label}
+
+
+@router.get("/", response_class=HTMLResponse)
+async def dashboard(
+    request: Request,
+    period: str = Query("today", pattern="^(today|week|month)$"),
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    start, end = _period_window(period)
+    prior_start, prior_end = _prior_period_window(period)
+
+    ventas_gs, cogs_gs, margen_gs, sales_no_recipe, sales, batch_costs = _compute_window_totals(
+        session, start, end
+    )
+    prior_ventas_gs, prior_cogs_gs, prior_margen_gs, _, _, _ = _compute_window_totals(
+        session, prior_start, prior_end
+    )
     margen_pct_fmt = f"{(margen_gs / ventas_gs * 100):.1f}%" if ventas_gs > 0 else "—"
+
+    delta_ventas = _delta_pct(ventas_gs, prior_ventas_gs)
+    delta_cogs = _delta_pct(cogs_gs, prior_cogs_gs)
+    delta_margen = _delta_pct(margen_gs, prior_margen_gs)
 
     # Ranking: aggregate margin by product (reuse batch_costs — no extra queries)
     ranking_dict: dict[int, dict] = {}
@@ -167,6 +226,14 @@ async def dashboard(
         for s in sales_no_recipe[:10]
     ]
 
+    # Period label for delta sub-label ("vs. ayer", "vs. semana pasada", etc.)
+    period_labels = {
+        "today": "ayer",
+        "week": "semana pasada",
+        "month": "mes pasado",
+    }
+    prior_label = period_labels.get(period, "período anterior")
+
     return render(
         request,
         "inicio.html",
@@ -176,6 +243,11 @@ async def dashboard(
             "cogs_gs": cogs_gs,
             "margen_gs": margen_gs,
             "margen_pct_fmt": margen_pct_fmt,
+            # P1 audit #10: vs. last period delta indicators
+            "delta_ventas": delta_ventas,
+            "delta_cogs": delta_cogs,
+            "delta_margen": delta_margen,
+            "prior_label": prior_label,
             "ranking": ranking,
             "stock_low": [
                 {

@@ -29,14 +29,17 @@
   <div class="metric-card">
     <div class="metric-label">Ventas</div>
     <div class="metric-value">{{ m.gs_full(ventas_gs) }}</div>
+    {{ m.delta_pill(delta_ventas, prior_label) }}
   </div>
   <div class="metric-card">
     <div class="metric-label">Costo de lo vendido</div>
     <div class="metric-value">{{ m.gs_full(cogs_gs) }}</div>
+    {{ m.delta_pill(delta_cogs, prior_label) }}
   </div>
   <div class="metric-card">
     <div class="metric-label">Margen</div>
     <div class="metric-value">{{ m.gs_full(margen_gs) }}</div>
+    {{ m.delta_pill(delta_margen, prior_label) }}
     <div class="metric-delta is-up">{{ margen_pct_fmt }}</div>
   </div>
 </div>

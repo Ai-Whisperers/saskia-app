@@ -90,6 +90,18 @@ Asunción local TZ.
 </section>
 {%- endmacro %}
 
+{# Delta indicator — small "12% arriba vs. semana pasada" pill on metric cards.
+   Pass the delta dict from the router ({"pct": float, "direction": "up"/"down"/..., "label": str}). #}
+{% macro delta_pill(delta, prior_label="período anterior") -%}
+{%- if delta and delta.label -%}
+<span class="metric-delta is-{{ delta.direction }}" title="vs. {{ prior_label }}">
+  {% if delta.direction == "up" %}↑{% elif delta.direction == "down" %}↓{% else %}→{% endif %}
+  {{ delta.label }}
+  <span class="delta-prior">vs. {{ prior_label }}</span>
+</span>
+{%- endif -%}
+{%- endmacro %}
+
 {# Insight card — Lightspeed-style actionable insight (icon + headline + 1-sentence copy).
    `items` is a list of {title, body} dicts; severity is "ok"|"warn"|"danger".
    Used for `insights.stars`, `insights.dogs`, `insights.rising`, etc. #}

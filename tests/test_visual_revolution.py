@@ -524,3 +524,38 @@ def test_old_quadrant_unstyled_lists_removed():
     assert "<h3 class=\"quadrant-dog\">" not in inicio, (
         "Old bare <ul> quadrant-dog block should be replaced by insight_card"
     )
+
+
+# ---- P1 audit #10: vs. last period delta tests ----------------------------
+
+
+def test_delta_pill_macro_defined():
+    """The delta_pill macro should be defined in macros.html."""
+    with open("app/templates/_components/macros.html") as f:
+        macros = f.read()
+    assert "{% macro delta_pill" in macros, (
+        "macros.html must define delta_pill macro"
+    )
+    assert "metric-delta is-" in macros, (
+        "delta_pill macro must use the existing .metric-delta.is-* classes"
+    )
+
+
+def test_delta_pill_used_for_top_three_metrics():
+    """inicio.html should render delta_pill on Ventas/COGS/Margen cards."""
+    with open("app/templates/inicio.html") as f:
+        inicio = f.read()
+    assert inicio.count("m.delta_pill(") == 3, (
+        "inicio.html should call delta_pill exactly 3 times (Ventas, COGS, Margen)"
+    )
+    for label in ["delta_ventas", "delta_cogs", "delta_margen"]:
+        assert label in inicio, f"inicio.html must pass {label} to delta_pill"
+
+
+def test_delta_prior_css_rule_present():
+    """.metric-delta .delta-prior must be styled (sub-label inside pill)."""
+    css = _read_css()
+    assert re.search(
+        r"\.metric-delta \.delta-prior\{[^}]*color:var\(--color-text-subtle\)",
+        css,
+    ), "CSS rule for .delta-delta .delta-prior missing"
