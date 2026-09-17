@@ -470,6 +470,63 @@ def _migration_014_customer_cedula(conn):
     )
 
 
+def _migration_015_sale_channel(conn):
+    """Add `channel` column to Sale (Stream A prelaunch — 2026-09-17).
+
+    channel: VARCHAR(32) NOT NULL DEFAULT 'mostrador'. Allowed values:
+    mostrador, whatsapp, pedidosya, monchis, mostrador-encargo.
+
+    Existing rows get 'mostrador' via the DEFAULT (Postgres honours
+    DEFAULT on ALTER TABLE ADD COLUMN; SQLite does too in modern versions).
+    On older SQLite we backfill explicitly.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pg_type = "VARCHAR(32) NOT NULL DEFAULT 'mostrador'"
+    sqlite_type = "VARCHAR(32) DEFAULT 'mostrador' NOT NULL"
+
+    try:
+        if dialect == "postgresql":
+            conn.execute(text(f"ALTER TABLE sale ADD COLUMN channel {pg_type}"))
+        else:
+            conn.execute(text(f"ALTER TABLE sale ADD COLUMN channel {sqlite_type}"))
+    except Exception:
+        # Column already exists — idempotent.
+        pass
+
+    # SQLite before 3.31 doesn't honour DEFAULT for NOT NULL on existing
+    # rows. Backfill explicitly so legacy rows have the right value.
+    if dialect == "sqlite":
+        try:
+            conn.execute(text("UPDATE sale SET channel = 'mostrador' WHERE channel IS NULL OR channel = ''"))
+        except Exception:
+            pass
+
+    conn.execute(
+        text("UPDATE app_meta SET value = '15', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
+def _migration_016_pedidos(conn):
+    """Add Pedido + PedidoLine tables (Phase 3 — prelaunch roadmap 2026-09-17).
+
+    Tables are created via create_all() in init_db() (the model classes
+    were added in models.py at the same time as this migration). This
+    function only bumps the schema_version row.
+
+    Pedido: a pre-order with customer info, promised_date, channel, status,
+      payment_intent, notes, and a unique public_token for /p/{token} sharing.
+    PedidoLine: one product + qty + snapshot unit_price_gs + fulfilled_qty
+      per line in a pedido. Cascade-deleted with the parent pedido.
+    """
+    # create_all() in init_db() creates these tables before this migration
+    # runs. Nothing else to do here besides bumping the version row.
+    conn.execute(
+        text("UPDATE app_meta SET value = '16', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -485,6 +542,8 @@ MIGRATIONS = {
     12: _migration_012_sale_tz,
     13: _migration_013_ingredient_max_stock,
     14: _migration_014_customer_cedula,
+    15: _migration_015_sale_channel,
+    16: _migration_016_pedidos,
 }
 
 

@@ -18,6 +18,9 @@ from app.rms.costing import RecipeWithoutYield, apply_sale, void_sale
 from app.rms.dependencies import get_session
 from app.rms.models import Customer, Product, Sale
 from app.rms.schemas import (
+    ALLOWED_CHANNELS,
+    CHANNELS_DISPLAY,
+    CHANNEL_DEFAULT,
     PAYMENT_METHODS_DISPLAY,
     PAYMENT_METHOD_DEFAULT,
 )
@@ -41,6 +44,7 @@ def _decorated(s: Sale) -> dict:
         "customer_phone": s.customer.phone if s.customer else None,
         "payment_method": s.payment_method,
         "discount_gs": s.discount_gs,
+        "channel": s.channel or "mostrador",
     }
 
 
@@ -141,6 +145,8 @@ async def sales_list(
             "quick_sell": quick_sell,
             "payment_methods": list(PAYMENT_METHODS_DISPLAY),
             "payment_method_default": PAYMENT_METHOD_DEFAULT,
+            "channels": list(CHANNELS_DISPLAY),
+            "channel_default": CHANNEL_DEFAULT,
             "now_local": datetime.now(ASUNCION_TZ).strftime("%Y-%m-%dT%H:%M"),
             "totals": {
                 "count": total_count,
@@ -225,7 +231,7 @@ async def sales_export_csv(
     writer.writerow([
         "fecha", "producto", "cantidad", "precio_unitario_gs",
         "total_gs", "telefono_cliente", "forma_pago",
-        "anulada", "notas",
+        "anulada", "notas", "canal",
     ])
     for s in rows:
         writer.writerow([
@@ -238,6 +244,7 @@ async def sales_export_csv(
             s.payment_method or "",
             "sí" if s.voided_at else "no",
             s.notes or "",
+            s.channel or "mostrador",
         ])
     return Response(
         content=buf.getvalue(),
@@ -311,6 +318,7 @@ async def sale_create(
     customer_id: int | None = Form(None, gt=0),
     notes: str = Form(""),
     sold_at: str = Form(""),
+    channel: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Create a sale with stock drop.
@@ -368,6 +376,16 @@ async def sale_create(
             detail=f"Forma de pago inválida. Permitidas: {sorted(ALLOWED_PAYMENT_METHODS)}",
         )
 
+    # channel: optional, must be in ALLOWED_CHANNELS if set.
+    # Empty string defaults to CHANNEL_DEFAULT ('mostrador'). Unknown
+    # values are rejected so we don't end up with 'bitcoin' rows.
+    channel_clean = channel.strip() or CHANNEL_DEFAULT
+    if channel_clean not in ALLOWED_CHANNELS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Canal inválido. Permitidos: {sorted(ALLOWED_CHANNELS)}",
+        )
+
     notes_clean = notes.strip() or None
     # Verify the customer exists if one was picked. We no longer
     # auto-create-by-phone; the picker modal is the only path to a new
@@ -390,6 +408,7 @@ async def sale_create(
             customer_id=customer_id,
             payment_method=payment_method_clean,
             discount_gs=discount_gs,
+            channel=channel_clean,
         )
     except RecipeWithoutYield as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
@@ -407,7 +426,7 @@ async def sale_create(
         user_id=current_user_id(request) or "operator",
         action="write.sale.create",
         request=request,
-        detail={"product_id": product_id, "qty": qty, "discount_gs": discount_gs},
+        detail={"product_id": product_id, "qty": qty, "discount_gs": discount_gs, "channel": channel_clean},
     )
     session.commit()
 
