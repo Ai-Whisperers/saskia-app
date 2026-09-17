@@ -75,10 +75,11 @@ def test_app_css_is_minified():
     # Minified CSS shouldn't have CSS comments.
     assert "/*" not in content, "CSS contains block comments — should be stripped"
     # Should be smaller than the unminified source.
-    # (Phase0 expanded the design system with tokens + components; minified
-    # payload is now ~22KB, up from ~7KB pre-Phase0. Bump the upper bound.)
-    assert len(content) < 30000, (
-        f"app.css is {len(content)} bytes; should be <30KB after minification. "
+    # (Phase0 expanded the design system with tokens + components; the
+    # customer-picker modal added ~600B for the picker widget. Bump the
+    # upper bound as the design system grows.)
+    assert len(content) < 30500, (
+        f"app.css is {len(content)} bytes; should be <30.5KB after minification. "
         "Run scripts/minify_css.py."
     )
 

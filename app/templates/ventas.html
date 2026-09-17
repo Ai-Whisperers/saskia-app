@@ -56,9 +56,7 @@
   </div>
 
   <div class="form-row">
-    <label for="customer_phone">Teléfono del cliente (opcional)</label>
-    <input type="tel" id="customer_phone" name="customer_phone" placeholder="0981234567" autocomplete="tel">
-    <small>Si es nuevo, lo creamos automáticamente y suma puntos de fidelidad.</small>
+    {% include "_components/_customer_picker.html" %}
   </div>
 
   <div class="form-row">

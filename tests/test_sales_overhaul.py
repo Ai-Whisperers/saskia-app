@@ -55,11 +55,11 @@ def test_ventas_page_has_quick_sell_section(client):
 
 
 def test_ventas_page_has_payment_method_field(client):
-    """Ventas form must include payment_method + discount_gs + customer_phone."""
+    """Ventas form must include payment_method + discount_gs + customer picker."""
     resp = client.get("/ventas")
     assert resp.status_code == 200
     body = resp.text
-    for field in ["payment_method", "discount_gs", "customer_phone"]:
+    for field in ["payment_method", "discount_gs", "customer_id", "customer_picker_trigger"]:
         assert field in body, f"Missing field {field} in ventas form"
 
 

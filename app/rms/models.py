@@ -360,6 +360,7 @@ class Customer(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     phone: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
     email: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    cedula: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     loyalty_points: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)

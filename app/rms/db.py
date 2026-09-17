@@ -445,6 +445,31 @@ def _migration_013_ingredient_max_stock(conn):
     )
 
 
+def _migration_014_customer_cedula(conn):
+    """Add cedula column to Customer (sales picker overhaul).
+
+    cedula: Paraguayan CI/RUC identifier. Nullable; indexed for
+    case-insensitive lookup in /clientes/api/search.
+    """
+    _add_column_if_missing(conn, "customer", "cedula", "VARCHAR(32)", "TEXT")
+    # Index is created idempotently via CREATE INDEX IF NOT EXISTS (SQLite
+    # supports it; Postgres uses a guarded SELECT-from-pg_indexes path).
+    dialect_name = conn.dialect.name
+    if dialect_name == "postgresql":
+        existing = conn.execute(
+            text("SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname=:n"),
+            {"n": "ix_customer_cedula"},
+        ).first()
+        if existing is None:
+            conn.execute(text("CREATE INDEX ix_customer_cedula ON customer (cedula)"))
+    else:
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_customer_cedula ON customer (cedula)"))
+    conn.execute(
+        text("UPDATE app_meta SET value = '14', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -459,6 +484,7 @@ MIGRATIONS = {
     11: _migration_011_sale_payment_discount,
     12: _migration_012_sale_tz,
     13: _migration_013_ingredient_max_stock,
+    14: _migration_014_customer_cedula,
 }
 
 

@@ -1,0 +1,101 @@
+{# app/templates/_components/_customer_picker.html
+   Customer picker widget for the /ventas form.
+
+   Includes:
+   - Hidden `customer_id` field bound by JS on pick
+   - Visible trigger button that opens the modal
+   - Hint area that displays "Cliente: María T. — 12 visitas, Gs. 1.2M lifetime"
+   - Modal markup for search + results list + "+ Nuevo cliente" form
+
+   Backed by app/routers/customers.py: GET /clientes/api/search, POST /clientes/api/create
+   Logic in app/static/customer-picker.js (vanilla JS, no framework).
+#}
+<div class="customer-picker" id="customer-picker">
+  <label for="customer_picker_trigger">Cliente</label>
+  <div class="customer-picker-row">
+    <input type="hidden" id="customer_id" name="customer_id" value="">
+    <button type="button" id="customer_picker_trigger" class="btn"
+            aria-haspopup="dialog" aria-controls="customer_picker_modal">
+      <svg class="icon" aria-hidden="true"><use href="#icon-customer"/></svg>
+      <span id="customer_picker_label">Seleccionar cliente…</span>
+    </button>
+    <button type="button" id="customer_picker_clear" class="btn btn-ghost btn-sm"
+            title="Quitar cliente" hidden>Quitar</button>
+  </div>
+  <small id="customer_picker_hint" class="customer-picker-hint" hidden></small>
+  <small class="hint">
+    Buscá por nombre, teléfono, CI/RUC, email o nota. Tocá "+ Nuevo cliente"
+    para crear uno desde la venta.
+  </small>
+
+  <dialog id="customer_picker_modal" class="customer-picker-modal"
+          aria-label="Buscar cliente">
+    <form method="dialog" class="customer-picker-modal-form">
+      <header class="customer-picker-modal-header">
+        <h3>Seleccionar cliente</h3>
+        <button type="button" id="customer_picker_close" class="btn btn-ghost btn-sm"
+                aria-label="Cerrar">✕</button>
+      </header>
+
+      <div class="customer-picker-search-row">
+        <input type="search" id="customer_picker_search"
+               placeholder="Buscar por nombre, teléfono, CI/RUC, email…"
+               autocomplete="off" autofocus>
+        <button type="button" id="customer_picker_new_btn" class="btn">
+          <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+          Nuevo cliente
+        </button>
+      </div>
+
+      <div id="customer_picker_results" class="customer-picker-results"
+           role="listbox" aria-label="Resultados de búsqueda">
+        <p class="hint">Escribí arriba para buscar.</p>
+      </div>
+
+      <footer class="customer-picker-modal-footer">
+        <button type="button" id="customer_picker_cancel" class="btn btn-ghost">Cancelar</button>
+      </footer>
+    </form>
+
+    {# Inline "+ Nuevo cliente" sub-form, hidden until the "+ Nuevo" button is clicked. #}
+    <div id="customer_picker_new_panel" class="customer-picker-new-panel" hidden>
+      <header class="customer-picker-modal-header">
+        <h3>Nuevo cliente</h3>
+        <button type="button" id="customer_picker_new_close" class="btn btn-ghost btn-sm"
+                aria-label="Cerrar">✕</button>
+      </header>
+      <form id="customer_picker_new_form" autocomplete="off">
+        <div class="form-row">
+          <label for="cp_new_name">Nombre *</label>
+          <input type="text" id="cp_new_name" name="name" required maxlength="120">
+        </div>
+        <div class="form-row">
+          <label for="cp_new_phone">Teléfono</label>
+          <input type="tel" id="cp_new_phone" name="phone" maxlength="32">
+        </div>
+        <div class="form-row">
+          <label for="cp_new_cedula">CI / RUC</label>
+          <input type="text" id="cp_new_cedula" name="cedula" maxlength="32">
+        </div>
+        <div class="form-row">
+          <label for="cp_new_email">Email</label>
+          <input type="email" id="cp_new_email" name="email" maxlength="120">
+        </div>
+        <div class="form-row">
+          <label for="cp_new_notes">Notas</label>
+          <textarea id="cp_new_notes" name="notes" rows="2"></textarea>
+        </div>
+        <div id="cp_new_error" class="customer-picker-error" hidden></div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">
+            <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+            Crear y seleccionar
+          </button>
+          <button type="button" id="cp_new_cancel" class="btn btn-ghost">Atrás</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+</div>
+
+<script src="/static/customer-picker.js" defer></script>

@@ -303,7 +303,7 @@ async def sale_create(
     qty: float = Form(..., gt=0),
     payment_method: str = Form(""),
     discount_gs: int = Form(0, ge=0),
-    customer_phone: str = Form(""),
+    customer_id: int | None = Form(None, gt=0),
     notes: str = Form(""),
     sold_at: str = Form(""),
     session: Session = Depends(get_session),
@@ -364,12 +364,16 @@ async def sale_create(
         )
 
     notes_clean = notes.strip() or None
-    customer_phone_clean = customer_phone.strip() or None
-    customer_id: int | None = None
-    if customer_phone_clean:
-        from app.rms.customers import ensure_customer
-        c = ensure_customer(session, name=customer_phone_clean, phone=customer_phone_clean)
-        customer_id = c.id
+    # Verify the customer exists if one was picked. We no longer
+    # auto-create-by-phone; the picker modal is the only path to a new
+    # customer. A bogus customer_id from a stale form is a 422.
+    if customer_id is not None:
+        from app.rms.customers import get_customer
+
+        if get_customer(session, customer_id) is None:
+            raise HTTPException(
+                status_code=422, detail=f"customer_id {customer_id} not found"
+            )
 
     try:
         apply_sale(

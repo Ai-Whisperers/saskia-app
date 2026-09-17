@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.rms.models import Customer, Sale
@@ -66,29 +66,92 @@ def ensure_customer(
     phone: str | None = None,
     email: str | None = None,
     notes: str | None = None,
+    cedula: str | None = None,
 ) -> Customer:
     """Find-or-create a customer by phone (or name if no phone).
 
     Phone is the de-facto unique key. If two customers have the same
     name but different phones, they're treated as different people.
+
+    If cedula is provided and an existing customer has the same
+    cedula (non-empty match), update that row instead of creating a
+    duplicate.
     """
+    if cedula and cedula.strip():
+        cedula_clean = cedula.strip()
+        existing = session.execute(
+            select(Customer).where(Customer.cedula == cedula_clean)
+        ).scalar_one_or_none()
+        if existing is not None:
+            if name and name != existing.name:
+                existing.name = name
+            if phone and phone != existing.phone:
+                existing.phone = phone
+            if email and email != existing.email:
+                existing.email = email
+            if notes and notes != existing.notes:
+                existing.notes = notes
+            if cedula_clean and cedula_clean != existing.cedula:
+                existing.cedula = cedula_clean
+            return existing
     if phone:
         existing = session.execute(
             select(Customer).where(Customer.phone == phone)
         ).scalar_one_or_none()
         if existing is not None:
-            # Update name/email/notes if newly provided
+            # Update name/email/notes/cedula if newly provided
             if name and name != existing.name:
                 existing.name = name
             if email and email != existing.email:
                 existing.email = email
             if notes and notes != existing.notes:
                 existing.notes = notes
+            cedula_clean = (cedula or "").strip() or None
+            if cedula_clean and cedula_clean != existing.cedula:
+                existing.cedula = cedula_clean
             return existing
-    cust = Customer(name=name, phone=phone, email=email, notes=notes)
+    cust = Customer(name=name, phone=phone, email=email, notes=notes, cedula=(cedula or "").strip() or None)
     session.add(cust)
     session.flush()
     return cust
+
+
+def search_customers(
+    session: Session,
+    query: str,
+    limit: int = 10,
+) -> list[Customer]:
+    """Case-insensitive substring search across name, phone, email, cedula, notes.
+
+    Empty / whitespace query returns the most-recently-created customers
+    (newest first) up to `limit` so the picker is never empty on first open.
+    Uses ``or_`` with ``ilike`` patterns per the picker spec.
+    """
+    stmt = select(Customer).order_by(Customer.created_at.desc()).limit(limit)
+    q = (query or "").strip()
+    if q:
+        like = f"%{q}%"
+        stmt = (
+            select(Customer)
+            .where(
+                or_(
+                    Customer.name.ilike(like),
+                    Customer.phone.ilike(like),
+                    Customer.email.ilike(like),
+                    Customer.cedula.ilike(like),
+                    Customer.notes.ilike(like),
+                )
+            )
+            .order_by(Customer.created_at.desc())
+            .limit(limit)
+        )
+    return list(session.execute(stmt).scalars())
+
+
+def find_customer_by_cedula(session: Session, cedula: str) -> Customer | None:
+    return session.execute(
+        select(Customer).where(Customer.cedula == cedula)
+    ).scalar_one_or_none()
 
 
 def get_customer(session: Session, customer_id: int) -> Customer | None:
