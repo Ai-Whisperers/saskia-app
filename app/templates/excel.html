@@ -15,27 +15,47 @@
     <input type="file" id="file" name="file" accept=".xlsx" required>
     <small>Subí una copia de tu archivo de Drive (no lo modificamos, solo lo leemos).</small>
   </div>
-  <div class="form-row">
+  <fieldset class="form-row">
+    <legend>Modo de importación</legend>
     <label>
-      <input type="checkbox" name="wipe_existing" value="true">
-      Borrar ingredientes/recetas/productos existentes antes de importar
+      <input type="radio" name="mode" value="PATCH" checked>
+      <strong>Actualizar por nombre (PATCH)</strong> — recomendado. Compara por
+      nombre (o SKU para productos, teléfono para clientes) y actualiza las
+      celdas que editaste. No borra nada.
     </label>
-    <small>Si no marcás esta opción, el import es aditivo (suma sin pisar).</small>
-  </div>
+    <label>
+      <input type="radio" name="mode" value="FULL">
+      <strong>Reemplazar todo (FULL)</strong> — añade todas las filas del
+      archivo a las tablas existentes (no pisa las anteriores).
+    </label>
+  </fieldset>
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">Importar</button>
   </div>
 </form>
+
+<h2>Descargar plantilla (PATCH)</h2>
+<p>
+  <a href="/excel/plantilla" class="btn btn-secondary">Descargar plantilla editable</a>
+</p>
+<p class="muted">
+  Archivo pre-rellenado con tus productos, ingredientes y recetas actuales.
+  Editá solo las celdas que querés cambiar y volvé a subirlo en modo PATCH.
+  La hoja <strong>Clientes</strong> viene vacía (agregá clientes nuevos con
+  teléfono + nombre).
+</p>
 
 {% if last_import %}
 <h3>Último import</h3>
 <div class="metric">
   <p><strong>Archivo:</strong> {{ last_import.filename }}</p>
   <p><strong>Fecha:</strong> {{ last_import.imported_at_str }}</p>
-  <p><strong>Ingredientes importados:</strong> {{ last_import.ingredients }}</p>
-  <p><strong>Recetas importadas:</strong> {{ last_import.recipes }}</p>
+  <p><strong>Modo:</strong> {{ last_import.mode }}</p>
+  <p><strong>Ingredientes procesados:</strong> {{ last_import.ingredients }}</p>
+  <p><strong>Recetas procesadas:</strong> {{ last_import.recipes }}</p>
   <p><strong>Líneas importadas:</strong> {{ last_import.lines }}</p>
-  <p><strong>Productos importados:</strong> {{ last_import.products }}</p>
+  <p><strong>Productos procesados:</strong> {{ last_import.products }}</p>
+  <p><strong>Clientes procesados:</strong> {{ last_import.customers }}</p>
   {% if last_import.warnings %}
   <p><strong>Avisos:</strong></p>
   <ul>

@@ -337,4 +337,137 @@ def to_bytes(session: Session) -> bytes:
     return path.getvalue()
 
 
-__all__ = ["to_file", "to_bytes"]
+__all__ = ["to_file", "to_bytes", "write_patch_plantilla", "patch_plantilla_bytes"]
+
+
+# ---------------------------------------------------------------------------
+# PATCH plantilla — Stream C, prelaunch roadmap 2026-09-17
+# ---------------------------------------------------------------------------
+
+# Column shapes for the PATCH plantilla workbook. These are intentionally
+# narrower than the FULL export columns — the plantilla is a "what to edit"
+# sheet, not a "what the system tracks" sheet.
+PLANTILLA_PRODUCTOS_COLS = ["name", "sku", "sale_price_gs", "portion_label", "notes"]
+PLANTILLA_CLIENTES_COLS = ["phone", "name", "email", "cedula", "notes"]
+PLANTILLA_INGREDIENTES_COLS = [
+    "name",
+    "stock_qty",
+    "min_stock_qty",
+    "max_stock_qty",
+    "purchase_price_gs",
+    "lead_time_days",
+    "notes",
+]
+PLANTILLA_RECETAS_COLS = ["name", "yield_qty", "prep_minutes", "notes"]
+
+
+def _autosize_simple(ws, max_width: int = 40) -> None:
+    """Same as `_autosize` but operates on a fresh workbook without relying
+    on the helper being defined earlier in the module flow."""
+    for col_idx in range(1, ws.max_column + 1):
+        max_len = 0
+        for row in ws.iter_rows(min_col=col_idx, max_col=col_idx, values_only=True):
+            for cell in row:
+                if cell is None:
+                    continue
+                s = str(cell)
+                if len(s) > max_len:
+                    max_len = len(s)
+        ws.column_dimensions[get_column_letter(col_idx)].width = min(max_len + 2, max_width)
+
+
+def _build_patch_plantilla_wb(session: Session) -> "Workbook":
+    """Construct a PATCH plantilla workbook in memory.
+
+    Sheets:
+      Productos     — ALL existing products pre-populated with current data.
+        Operator edits cells in-place; empty cells = "leave unchanged".
+      Clientes      — HEADER ONLY. Empty rows for new customers. Existing
+        customers NOT listed (the operator finds them by phone in their
+        own system). Setting this empty avoids "did I just overwrite an
+        old customer?" surprise.
+      Ingredientes  — ALL existing ingredients pre-populated.
+      Recetas       — ALL existing recipes pre-populated.
+
+    The plantilla ships pre-populated so a one-time import → edit → upload
+    cycle lets the operator change one product price and re-upload.
+    """
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    default = wb.active
+    if default is not None:
+        wb.remove(default)
+
+    # --- Productos ---
+    ws = wb.create_sheet("Productos")
+    ws.append(PLANTILLA_PRODUCTOS_COLS)
+    for prod in session.scalars(select(Product).order_by(Product.name)).all():
+        ws.append(
+            [
+                prod.name,
+                prod.sku,
+                _money_cell(prod.sale_price_gs),
+                prod.portion_label,
+                prod.notes,
+            ]
+        )
+    _autosize_simple(ws)
+
+    # --- Clientes (header only) ---
+    ws = wb.create_sheet("Clientes")
+    ws.append(PLANTILLA_CLIENTES_COLS)
+    _autosize_simple(ws)
+
+    # --- Ingredientes ---
+    ws = wb.create_sheet("Ingredientes")
+    ws.append(PLANTILLA_INGREDIENTES_COLS)
+    for ing in session.scalars(select(Ingredient).order_by(Ingredient.name)).all():
+        ws.append(
+            [
+                ing.name,
+                ing.stock_qty,
+                ing.min_stock_qty,
+                ing.max_stock_qty,
+                _money_cell(ing.purchase_price_gs),
+                ing.lead_time_days,
+                ing.notes,
+            ]
+        )
+    _autosize_simple(ws)
+
+    # --- Recetas ---
+    ws = wb.create_sheet("Recetas")
+    ws.append(PLANTILLA_RECETAS_COLS)
+    for rec in session.scalars(select(Recipe).order_by(Recipe.name)).all():
+        ws.append([rec.name, rec.yield_qty, rec.prep_minutes, rec.notes])
+    _autosize_simple(ws)
+
+    return wb
+
+
+def write_patch_plantilla(session: Session, path: str | Path) -> Path:
+    """Write a PATCH plantilla workbook to disk and return the absolute Path."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    wb = _build_patch_plantilla_wb(session)
+    wb.save(str(path))
+    return path.resolve()
+
+
+def patch_plantilla_bytes(session: Session) -> bytes:
+    """Return the PATCH plantilla workbook as bytes (for streaming downloads)."""
+    from io import BytesIO
+
+    wb = _build_patch_plantilla_wb(session)
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+# Backwards-compat note: customers are intentionally NOT exported in FULL
+# mode. Customers are managed via PATCH on /excel/importar only — see
+# Stream C prelaunch roadmap 2026-09-17. If we later decide to also export
+# customers in FULL, add a Clientes sheet here AND import handling in
+# import_xlsx._import_full.
+
