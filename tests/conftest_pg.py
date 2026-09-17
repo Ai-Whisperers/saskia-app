@@ -24,8 +24,6 @@ message rather than crash.
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
 # Skip everything in this module if testcontainers isn't importable.
@@ -35,7 +33,9 @@ import pytest
 # testcontainers>=4.8 moved PostgresContainer from testcontainers.postgres
 # (deprecated) to testcontainers.community.postgres. We pin the new path.
 try:
-    from testcontainers.community.postgres import PostgresContainer  # type: ignore[import-not-found]
+    from testcontainers.community.postgres import (
+        PostgresContainer,  # type: ignore[import-not-found]
+    )
 except ImportError as exc:  # pragma: no cover — defensive only
     _IMPORT_ERROR: ImportError | None = exc
     PostgresContainer = None  # type: ignore[assignment]

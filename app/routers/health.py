@@ -181,7 +181,6 @@ def healthz_db(request: Request) -> JSONResponse:
         schema_version,
         schema_version_mismatch,
     )
-    from app.rms.models import AuditLog
 
     engine = request.app.state.engine
     try:
