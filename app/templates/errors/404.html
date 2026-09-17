@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}No encontrado{% endblock %}
+{% block content %}
+<section class="error-page">
+  <div class="error-card card text-center">
+    <div class="error-code">404</div>
+    <h1>Página no encontrada</h1>
+    <p class="text-muted">
+      La ruta <code>{{ path }}</code> no existe o se movió.
+    </p>
+    <div class="error-actions">
+      <a href="/" class="btn btn-primary">
+        <svg class="icon" aria-hidden="true"><use href="#icon-home"/></svg>
+        Volver al inicio
+      </a>
+      <a href="javascript:history.back()" class="btn btn-ghost">
+        <svg class="icon" aria-hidden="true"><use href="#icon-arrow-up"/></svg>
+        Página anterior
+      </a>
+    </div>
+  </div>
+</section>
+{% endblock %}

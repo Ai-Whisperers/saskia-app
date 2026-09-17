@@ -62,6 +62,7 @@ from app.routers import (
     sales,
     settings,
 )
+from app.services.template_render import templates
 
 
 def _configure_logging() -> None:
@@ -91,10 +92,7 @@ def _configure_logging() -> None:
             level="DEBUG",
             backtrace=True,
             diagnose=False,
-            format=(
-                "<green>{time:HH:mm:ss}</green> | "
-                "<level>{level: <7}</level> | {message}"
-            ),
+            format=("<green>{time:HH:mm:ss}</green> | <level>{level: <7}</level> | {message}"),
         )
 
 
@@ -169,6 +167,7 @@ async def lifespan(app: FastAPI):
     if os.getenv("AIW_SASKIA_RUN_MIGRATIONS", "1") != "0":
         try:
             from app.rms.db import init_db
+
             init_db(engine)
             print("MIGRATIONS: applied (idempotent, no-op if already current)", file=sys.stderr)
         except Exception as exc:
@@ -189,8 +188,10 @@ async def lifespan(app: FastAPI):
     # + performance-research.md section 3 (Supabase Python SDK).
     try:
         from app.auth import using_supabase
+
         if using_supabase():
             from app.auth_supabase import get_supabase_client
+
             get_supabase_client()
             logger.info("supabase client pre-warmed")
     except Exception as exc:
@@ -221,6 +222,7 @@ app = FastAPI(
     redoc_url=None,
     openapi_url="/api/openapi.json",
 )
+
 
 class StaticCacheMiddleware(BaseHTTPMiddleware):
     """Add Cache-Control: max-age=3600 to /static/* responses.
@@ -306,6 +308,7 @@ if os.path.isdir(_static_dir):
     # gets broken CSS. With the gate, the browser sees a clean 503 that
     # triggers a natural retry once the app is ready.
     from app.rms.ready_static import ReadyStaticFiles
+
     app.mount("/static", ReadyStaticFiles(directory=_static_dir), name="static")
 
     # Browsers auto-request /favicon.ico and /favicon.svg at the root (not
@@ -388,26 +391,50 @@ def _request_id() -> str:
     return uuid.uuid4().hex[:12]
 
 
+def _wants_html(request: Request) -> bool:
+    """True if the client likely expects HTML over JSON.
+
+    Used by error handlers to serve friendly HTML pages to browsers
+    while preserving JSON shape for API/curl clients.
+    """
+    accept = (request.headers.get("accept") or "").lower()
+    # Browsers send text/html. API clients (curl, fetch from JS) send application/json
+    # or */*. If html is explicitly preferred OR no JSON preference is set, return HTML.
+    return "text/html" in accept and "application/json" not in accept.split(";")
+
+
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
-    """Global 500 handler: log + structured JSON response.
+    """Global 500 handler.
 
-    Without this, FastAPI returns a generic HTML 500 with no info. The
-    operator sees only "Internal Server Error" and can't diagnose.
+    Behaviour:
+      - HTML-accepting browsers get a styled error page with a request_id
+        so the user can pass it to the operator for diagnosis.
+      - API/curl clients (Accept: application/json or no preference for HTML)
+        get a structured JSON response with the same request_id.
 
-    Now: logs exception to stderr (loguru) with request context, returns
-    JSON {error, type, request_id} so frontend can show the id in a
-    "report this issue" hint.
+    The raw exception text NEVER leaks to the browser — it is logged but
+    replaced with a generic message in the response.
 
     HTTPException is a control-flow exception raised by FastAPI itself
     for intentional 4xx/5xx responses (e.g. 401 auth, 403 CSRF, 405, etc).
-    Return its proper status code + detail verbatim — but emit a
-    consistent JSON shape so clients can parse it.
+    Return its proper status code + detail verbatim.
     """
     from fastapi import HTTPException
 
     if isinstance(exc, HTTPException):
-        # Re-emit as JSON with the original status_code + detail.
+        # Re-emit with the original status_code + detail.
+        # For HTML clients, render the appropriate error page (404 vs others).
+        if _wants_html(request) and exc.status_code == 404:
+            return templates.TemplateResponse(
+                request,
+                "errors/404.html",
+                {"path": request.url.path, "request": request},
+                status_code=404,
+            )
+        # Other HTTPExceptions: render as JSON even for HTML clients
+        # (most are CSRF 403, auth 401, method-not-allowed 405, etc — these
+        # come from programmatic form submissions, not page navigation).
         return JSONResponse(
             status_code=exc.status_code,
             content={
@@ -432,6 +459,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     # may be torn down or in an error state.
     try:
         from app.rms.audit import record
+
         with request.app.state.session_factory() as _s:
             record(
                 _s,
@@ -450,10 +478,23 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     except Exception:
         logger.warning("audit.record for http.500 failed (non-fatal)")
 
+    # Browsers get the styled 500 page with the request_id; API clients get JSON.
+    if _wants_html(request):
+        try:
+            return templates.TemplateResponse(
+                request,
+                "errors/500.html",
+                {"request_id": rid, "request": request},
+                status_code=500,
+            )
+        except Exception:
+            # Template render failed (very unlikely); fall through to JSON.
+            logger.warning("500 template render failed")
+
     return JSONResponse(
         status_code=500,
         content={
-            "error": str(exc) or exc.__class__.__name__,
+            "error": "internal_server_error",
             "type": exc.__class__.__name__,
             "request_id": rid,
             "hint": "Pass the request_id to the operator for diagnosis.",
@@ -463,7 +504,14 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: Exception):
-    """JSON 404 instead of HTML — consistency with 500."""
+    """404 handler — HTML for browsers, JSON for API clients."""
+    if _wants_html(request):
+        return templates.TemplateResponse(
+            request,
+            "errors/404.html",
+            {"path": request.url.path, "request": request},
+            status_code=404,
+        )
     return JSONResponse(
         status_code=404,
         content={
@@ -487,14 +535,19 @@ async def request_log_middleware(request: Request, call_next):
         except Exception:
             logger.error(
                 "request_id={} method={} path={} CRASHED",
-                rid, request.method, request.url.path,
+                rid,
+                request.method,
+                request.url.path,
             )
             raise
         elapsed_ms = (time.perf_counter() - start) * 1000
         logger.info(
             "request_id={} method={} path={} status={} elapsed_ms={:.0f}",
-            rid, request.method, request.url.path,
-            response.status_code, elapsed_ms,
+            rid,
+            request.method,
+            request.url.path,
+            response.status_code,
+            elapsed_ms,
         )
         response.headers["X-Request-Id"] = rid
         return response

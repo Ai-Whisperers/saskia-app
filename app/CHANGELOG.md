@@ -5,6 +5,75 @@
 
 ## [Unreleased]
 
+### Added (2026-09-17)
+
+- **Visual Revolution Phase 0 — Design System Token Foundation.** Complete
+  refactor of `app/static/app.css` from a flat 17-variable flat scheme to a
+  full primitive → semantic → component token model (50+ tokens). Brand
+  orange refreshed from brown `#b45309` to vibrant Tailwind-aligned
+  `#f97316`. New component classes: `.btn-primary/secondary/ghost/danger/icon/sm/lg`,
+  `.card` + `.card-header/body/footer`, `.metric-card` + `.metric-value/delta`,
+  `.badge-ok/warn/danger/info/neutral/dot/sm/lg`, `.table.is-striped/hoverable/--compact/--comfortable`,
+  `.alert-success/warn/danger/error/info`, `.modal-backdrop/dialog/header/body/footer`,
+  `.spinner`, `.skeleton` (with block/circle/line variants), `.empty-state`,
+  `.quick-sell-grid`. Full dark mode (every semantic token overridden under
+  `[data-theme="dark"]`), high-contrast support via `forced-colors` media
+  query, and `prefers-reduced-motion` global reset.
+
+- **Phase 0 — Iconography.** 28 hand-authored SVG icons in a single sprite
+  at `app/templates/_components/icons.svg`, integrated via
+  `<svg class="icon"><use href="#icon-name"/></svg>`. No font dependency, no
+  JS dependency. Nav links, action buttons, and the brand mark all use
+  icons now. Every icon button has an `aria-label`. 4 new regression tests.
+
+- **Phase 0 — Styled 404 / 500 error pages.** New
+  `app/templates/errors/404.html` and `500.html` with the same nav, friendly
+  copy in Paraguayan Spanish (vos form), and a request_id display on 500s.
+  The global exception handler in `app/rms/main.py` now serves the HTML
+  page to browsers (Accept: text/html) and structured JSON to API clients
+  (Accept: application/json). The raw exception text NEVER leaks to the
+  browser — it's logged with the request_id but replaced with a generic
+  message in the response body. 4 new regression tests.
+
+- **Phase 0 — Mobile hamburger nav.** CSS-only `<input type="checkbox">` +
+  `<label>` pattern in `base.html` for nav collapse below 768px. Zero JS
+  required. Works with assistive tech (label/checkbox pair is keyboard-
+  accessible).
+
+- **Phase 0 — `@media print` styles.** Paper-friendly rendering for EOD +
+  reports: hides nav, switches to black-on-white, removes shadows, expands
+  tables. Used by the locked `test_phase6_polish::test_css_has_print_styles`
+  regression.
+
+### Changed (2026-09-17)
+
+- **`app/templates/base.html` — nav rewritten to use `nav_link` macro with
+  icons.** All 15 nav items now have SVG icons. Theme toggle + help + health
+  + logout moved to `.btn-icon` ghost buttons with `.icon` glyphs. Mobile
+  hamburger toggle added at 768px breakpoint.
+
+- **`app/templates/_components/macros.html` — `nav_link` macro accepts
+  optional `icon="icon-…"` parameter.** Backwards-compatible: when `icon` is
+  empty, output is identical to before.
+
+- **`app/rms/main.py` — exception handlers detect browser vs API clients.**
+  Browsers (`Accept: text/html` with no `application/json` preference) get
+  the styled HTML error page; API clients get the structured JSON shape
+  they were getting before. No breaking change for existing API consumers.
+
+### Tests
+
+- `tests/test_visual_revolution.py` (NEW, 26 tests) — token system
+  completeness, dark mode overrides, high-contrast support, reduced-motion
+  reset, icon sprite + nav coverage, error page rendering + sanitization,
+  every component class is defined in CSS.
+- `tests/test_a11y_navigation.py` — 4 regex tests updated to accept the
+  new icon-prepended nav markup (regex `.*?` between the tag and the label).
+- `tests/test_static_assets.py` — CSS minification size limit bumped from
+  11KB to 30KB to reflect the Phase 0 expansion (~22KB minified, was ~7KB).
+- All 13 previously-passing test files still pass. Net: **1015 passing,
+  4 skipped, 0 failing** (was 992 before Phase 0).
+
 ### Added (2026-09-16)
 
 - **E3.S4 — `/healthz/db` enriched payload** — now reports `schema_version`,

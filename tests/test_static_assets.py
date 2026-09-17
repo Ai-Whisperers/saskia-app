@@ -1,4 +1,5 @@
 """tests/test_static_assets.py — favicon + minified CSS contract."""
+
 from __future__ import annotations
 
 
@@ -23,6 +24,7 @@ def test_favicon_ico_served():
 def test_base_template_has_favicon_link():
     """base.html includes both favicon link tags (SVG preferred, ICO fallback)."""
     from pathlib import Path
+
     content = Path("app/templates/base.html").read_text()
     assert 'rel="icon" type="image/svg+xml" href="/static/favicon.svg"' in content
     assert 'rel="alternate icon" type="image/png" href="/static/favicon.ico"' in content
@@ -37,6 +39,7 @@ def test_root_favicon_svg_served():
     from fastapi.testclient import TestClient
 
     from app.rms.main import app
+
     with TestClient(app) as c:
         resp = c.get("/favicon.svg")
     assert resp.status_code == 200
@@ -48,6 +51,7 @@ def test_root_favicon_ico_served():
     from fastapi.testclient import TestClient
 
     from app.rms.main import app
+
     with TestClient(app) as c:
         resp = c.get("/favicon.ico")
     assert resp.status_code == 200
@@ -64,15 +68,17 @@ def test_app_css_is_minified():
     + performance-research.md resources 6.1/6.4.
     """
     from pathlib import Path
+
     content = Path("app/static/app.css").read_text()
     # Minified CSS shouldn't start with a newline.
     assert not content.startswith("\n"), "CSS appears unminified (starts with newline)"
     # Minified CSS shouldn't have CSS comments.
     assert "/*" not in content, "CSS contains block comments — should be stripped"
     # Should be smaller than the unminified source.
-    # (Original was 13.8KB; minified should be <11KB.)
-    assert len(content) < 11000, (
-        f"app.css is {len(content)} bytes; should be <11KB after minification. "
+    # (Phase0 expanded the design system with tokens + components; minified
+    # payload is now ~22KB, up from ~7KB pre-Phase0. Bump the upper bound.)
+    assert len(content) < 30000, (
+        f"app.css is {len(content)} bytes; should be <30KB after minification. "
         "Run scripts/minify_css.py."
     )
 
@@ -99,6 +105,7 @@ def client_get_favicon_svg():
     from fastapi.testclient import TestClient
 
     from app.rms.main import app
+
     with TestClient(app) as c:
         return c.get("/static/favicon.svg")
 
@@ -107,5 +114,6 @@ def client_get_favicon_ico():
     from fastapi.testclient import TestClient
 
     from app.rms.main import app
+
     with TestClient(app) as c:
         return c.get("/static/favicon.ico")

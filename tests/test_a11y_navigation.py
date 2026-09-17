@@ -30,15 +30,9 @@ def test_skip_link_present(client):
     for path, _ in PAGES:
         resp = client.get(path)
         assert resp.status_code == 200, f"{path} returned {resp.status_code}"
-        assert 'class="skip-link"' in resp.text, (
-            f"{path} missing skip-link"
-        )
-        assert 'href="#main-content"' in resp.text, (
-            f"{path} skip-link points wrong target"
-        )
-        assert "Saltar al contenido principal" in resp.text, (
-            f"{path} skip-link text missing"
-        )
+        assert 'class="skip-link"' in resp.text, f"{path} missing skip-link"
+        assert 'href="#main-content"' in resp.text, f"{path} skip-link points wrong target"
+        assert "Saltar al contenido principal" in resp.text, f"{path} skip-link text missing"
 
 
 def test_nav_has_aria_label(client):
@@ -57,9 +51,10 @@ def test_healthz_nav_link_not_api(client):
 def test_aria_current_on_inicio(client):
     """On /, the Inicio link should be marked current."""
     resp = client.get("/")
-    # The Inicio <a> should contain aria-current="page"
+    # The Inicio <a> should contain aria-current="page" anywhere in the tag
     import re
-    m = re.search(r'<a href="/"[^>]*aria-current="page"[^>]*>Inicio</a>', resp.text)
+
+    m = re.search(r'<a href="/"[^>]*aria-current="page"[^>]*>.*?Inicio</a>', resp.text, re.DOTALL)
     assert m is not None, "Inicio link not marked aria-current=page on /"
 
 
@@ -67,9 +62,11 @@ def test_aria_current_on_productos(client):
     """On /productos, the Productos link should be marked current."""
     resp = client.get("/productos")
     import re
+
     m = re.search(
-        r'<a href="/productos"[^>]*aria-current="page"[^>]*>Productos</a>',
+        r'<a href="/productos"[^>]*aria-current="page"[^>]*>.*?Productos</a>',
         resp.text,
+        re.DOTALL,
     )
     assert m is not None, "Productos link not marked aria-current=page on /productos"
 
@@ -78,9 +75,11 @@ def test_aria_current_on_recetas(client):
     """On /recetas/nueva, Recetas link should be current (startswith match)."""
     resp = client.get("/recetas/nueva")
     import re
+
     m = re.search(
-        r'<a href="/recetas"[^>]*aria-current="page"[^>]*>Recetas</a>',
+        r'<a href="/recetas"[^>]*aria-current="page"[^>]*>.*?Recetas</a>',
         resp.text,
+        re.DOTALL,
     )
     assert m is not None, "Recetas link not marked on /recetas/nueva"
 
@@ -89,9 +88,11 @@ def test_no_aria_current_when_not_active(client):
     """On /, the Ventas link should NOT be marked aria-current."""
     resp = client.get("/")
     import re
+
     m = re.search(
-        r'<a href="/ventas"[^>]*aria-current="page"[^>]*>Ventas</a>',
+        r'<a href="/ventas"[^>]*aria-current="page"[^>]*>.*?Ventas</a>',
         resp.text,
+        re.DOTALL,
     )
     assert m is None, "Ventas link incorrectly marked current on /"
 
@@ -122,6 +123,7 @@ def test_html_lang_attribute(client):
 def test_single_h1_per_page(client):
     """Each page must have exactly one <h1>."""
     import re
+
     for path, _ in PAGES:
         resp = client.get(path)
         h1s = re.findall(r"<h1[\s>]", resp.text)
@@ -131,6 +133,7 @@ def test_single_h1_per_page(client):
 def test_every_page_has_title(client):
     """All pages must have a unique <title>."""
     import re
+
     for path, _ in PAGES:
         resp = client.get(path)
         m = re.search(r"<title>([^<]+)</title>", resp.text)

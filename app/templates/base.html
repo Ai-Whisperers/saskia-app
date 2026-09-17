@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 {% import "_components/macros.html" as m %}
+{% include "_components/icons.svg" %}
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -21,31 +22,46 @@
 <body>
   <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
   <nav class="topnav" aria-label="Navegación principal">
-    <a href="/" class="brand">🍰 Saskia RMS</a>
+    <a href="/" class="brand">
+      <svg class="icon" aria-hidden="true"><use href="#icon-heart"/></svg>
+      <span>Saskia RMS</span>
+    </a>
+    <input type="checkbox" id="nav-toggle-checkbox" class="nav-toggle" aria-label="Mostrar menú">
+    <label for="nav-toggle-checkbox" class="nav-toggle-label" aria-label="Mostrar menú">
+      <svg class="icon icon-lg" aria-hidden="true"><use href="#icon-search"/></svg>
+    </label>
     <div class="nav-links">
-      {{ m.nav_link("/", "Inicio", exact=True, current_path=request.url.path) }}
-      {{ m.nav_link("/productos", "Productos", current_path=request.url.path) }}
-      {{ m.nav_link("/recetas", "Recetas", current_path=request.url.path) }}
-      {{ m.nav_link("/inventario", "Inventario", current_path=request.url.path) }}
-      {{ m.nav_link("/ventas", "Ventas", current_path=request.url.path) }}
-      {{ m.nav_link("/clientes", "Clientes", current_path=request.url.path) }}
-      {{ m.nav_link("/produccion", "Producción", current_path=request.url.path) }}
-      {{ m.nav_link("/eod", "Cierre", current_path=request.url.path) }}
-      {{ m.nav_link("/merma", "Merma", current_path=request.url.path) }}
-      {{ m.nav_link("/reportes", "Reportes", current_path=request.url.path) }}
-      {{ m.nav_link("/auditoria", "Auditoría", current_path=request.url.path) }}
-      {{ m.nav_link("/ops/status", "Ops", current_path=request.url.path) }}
-      {{ m.nav_link("/excel", "Excel", current_path=request.url.path) }}
-      {{ m.nav_link("/settings", "Configuración", current_path=request.url.path) }}
-      {{ m.nav_link("/reorder", "Reponer", current_path=request.url.path) }}
+      {{ m.nav_link("/", "Inicio", icon="icon-home", exact=True, current_path=request.url.path) }}
+      {{ m.nav_link("/productos", "Productos", icon="icon-box", current_path=request.url.path) }}
+      {{ m.nav_link("/recetas", "Recetas", icon="icon-recipe", current_path=request.url.path) }}
+      {{ m.nav_link("/inventario", "Inventario", icon="icon-inventory", current_path=request.url.path) }}
+      {{ m.nav_link("/ventas", "Ventas", icon="icon-sale", current_path=request.url.path) }}
+      {{ m.nav_link("/clientes", "Clientes", icon="icon-customer", current_path=request.url.path) }}
+      {{ m.nav_link("/produccion", "Producción", icon="icon-production", current_path=request.url.path) }}
+      {{ m.nav_link("/eod", "Cierre", icon="icon-close", current_path=request.url.path) }}
+      {{ m.nav_link("/merma", "Merma", icon="icon-waste", current_path=request.url.path) }}
+      {{ m.nav_link("/reportes", "Reportes", icon="icon-report", current_path=request.url.path) }}
+      {{ m.nav_link("/auditoria", "Auditoría", icon="icon-audit", current_path=request.url.path) }}
+      {{ m.nav_link("/ops/status", "Ops", icon="icon-ops", current_path=request.url.path) }}
+      {{ m.nav_link("/excel", "Excel", icon="icon-excel", current_path=request.url.path) }}
+      {{ m.nav_link("/settings", "Configuración", icon="icon-config", current_path=request.url.path) }}
+      {{ m.nav_link("/reorder", "Reponer", icon="icon-reorder", current_path=request.url.path) }}
     </div>
     <div class="nav-right">
-      <button type="button" class="theme-toggle" id="theme-toggle"
-              aria-label="Cambiar tema claro/oscuro" title="Cambiar tema">🌙</button>
-      <a href="/guia" class="help-link" target="_blank" rel="noopener"
-         title="Guía de uso" aria-label="Guía de uso">?</a>
-      <a href="/healthz" class="health-link" title="Estado del servidor" aria-label="Estado del servidor">●</a>
-      <a href="/logout" class="logout-link" title="Cerrar sesión" aria-label="Cerrar sesión">⎋</a>
+      <button type="button" class="theme-toggle btn-ghost btn-icon" id="theme-toggle"
+              aria-label="Cambiar tema claro/oscuro" title="Cambiar tema">
+        <svg class="icon" aria-hidden="true"><use href="#icon-moon"/></svg>
+      </button>
+      <a href="/guia" class="help-link btn-ghost btn-icon" target="_blank" rel="noopener"
+         title="Guía de uso" aria-label="Guía de uso">
+        <svg class="icon" aria-hidden="true"><use href="#icon-help"/></svg>
+      </a>
+      <a href="/healthz" class="health-link btn-ghost btn-icon" title="Estado del servidor" aria-label="Estado del servidor">
+        <svg class="icon" aria-hidden="true"><use href="#icon-ops"/></svg>
+      </a>
+      <a href="/logout" class="logout-link btn-ghost btn-icon" title="Cerrar sesión" aria-label="Cerrar sesión">
+        <svg class="icon" aria-hidden="true"><use href="#icon-logout"/></svg>
+      </a>
     </div>
   </nav>
 
@@ -69,7 +85,10 @@
       if (!btn) return;
       function paint() {
         var dark = document.documentElement.getAttribute('data-theme') === 'dark';
-        btn.textContent = dark ? '☀️' : '🌙';
+        var useEl = btn.querySelector('use');
+        if (useEl) {
+          useEl.setAttribute('href', dark ? '#icon-sun' : '#icon-moon');
+        }
         btn.setAttribute('aria-pressed', String(dark));
       }
       paint();

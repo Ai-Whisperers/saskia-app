@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Error interno{% endblock %}
+{% block content %}
+<section class="error-page">
+  <div class="error-card card text-center">
+    <div class="error-code error-code-danger">500</div>
+    <h1>Algo salió mal</h1>
+    <p class="text-muted">
+      Tuvimos un problema procesando tu pedido. El equipo técnico ya tiene
+      el reporte.
+    </p>
+    {% if request_id %}
+    <div class="error-rid">
+      <small class="text-muted">Código de referencia</small>
+      <code class="rid-code">{{ request_id }}</code>
+      <p class="text-muted small">
+        Pasale este código al operador si necesitás ayuda.
+      </p>
+    </div>
+    {% endif %}
+    <div class="error-actions">
+      <a href="/" class="btn btn-primary">
+        <svg class="icon" aria-hidden="true"><use href="#icon-home"/></svg>
+        Volver al inicio
+      </a>
+      <button type="button" class="btn btn-ghost" onclick="location.reload()">
+        <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+        Reintentar
+      </button>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -46,8 +46,13 @@ Asunción local TZ.
 {%- endmacro %}
 
 {# Active-state nav link: highlights when request.path starts with the prefix.
-   Use `exact=True` for routes that should NOT match subpaths (default: prefix match). #}
-{% macro nav_link(path, label, exact=False, current_path="") -%}
+   Use `exact=True` for routes that should NOT match subpaths (default: prefix match).
+   Pass `icon="icon-home"` to prepend an SVG icon from the sprite. #}
+{% macro nav_link(path, label, exact=False, current_path="", icon="") -%}
 {%- set active = (current_path == path) if exact else current_path.startswith(path) -%}
-<a href="{{ path }}"{% if active %} aria-current="page"{% endif %}>{{ label }}</a>
+<a href="{{ path }}"{% if active %} aria-current="page"{% endif %}>
+{%- if icon %}
+  <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
+{%- endif %}
+{{ label }}</a>
 {%- endmacro %}
