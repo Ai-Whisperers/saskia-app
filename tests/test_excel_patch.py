@@ -90,6 +90,7 @@ def _seed_basic(session_factory):
         s.add_all([p1, p2])
         s.flush()
         p1_id, p2_id = p1.id, p2.id
+        s.commit()
     return {
         "ing": ("Harina", ing_id),
         "rec": ("Muffin", rec_id),
