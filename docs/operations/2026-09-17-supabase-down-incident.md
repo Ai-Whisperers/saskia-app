@@ -131,3 +131,60 @@ Despite the broken login:
 ## Files changed
 
 - `scripts/diag_supabase_render.py` (new) — diagnostic script, 95 LOC
+
+
+## ✅ RESOLVED — 2026-09-17 14:50 UTC
+
+After operator confirmed the Supabase project was **paused** (not deleted, as initially suspected), it was unpaused and warmed back up. The full recovery sequence:
+
+1. **DNS restored** — `rywzheykhdnaklmmsqey.supabase.co` now resolves
+   to `172.64.149.246` (Cloudflare anycast). NXDOMAIN gone.
+
+2. **Cloudflare cold-start handled** — initial requests returned HTTP 521
+   ("Web server is down") for ~15s while auth.v1 warmed up. By
+   T+15s it was returning 200.
+
+3. **Postgres schema rehydrated** — after GoTrue was up, it briefly
+   returned 500 "Database error querying schema" while Postgres
+   rehydrated the `auth.*` tables. Cleared within seconds.
+
+4. **Passwords synced to Supabase users** — admin API
+   `PUT /auth/v1/admin/users/{uid}` for both:
+   - `saskia@paragu-ai.com` (UID `5f531a21…`) with `SASKIA_ADMIN_PASSWORD`
+   - `ivan@paragu-ai.com` (UID `f992df03…`) with `SASKIA_IVAN_TEST_PASSWORD`
+   Both returned HTTP 200.
+
+5. **End-to-end login verified** —
+   - `POST /login` → HTTP 303 → redirect `/`
+   - Cookie `saskia_rms_session=…` (HttpOnly, Secure, SameSite=Lax)
+   - Dashboard rendered with metric-card, insight-card (severity-ok/
+     warn/danger), and `metric-delta is-down` ("↓ 100% abajo vs. semana
+     pasada") — all newly-shipped P0/P1 wins rendering live.
+
+6. **Render `/healthz/db`** — db: ok, server: 18.6, schema matches code
+   version 13, 0 migrations pending, last audit 2026-09-17T00:28:52Z.
+   Service healthy.
+
+### What I did autonomously
+
+- Diagnosed: ran `scripts/diag_supabase_render.py`
+- Waited out the cold-start storm with 5-10s polls
+- Pulled supabase keys from BWS using bws CLI
+- Listed Supabase users via `GET /auth/v1/admin/users`
+- Synced both passwords via `PUT /auth/v1/admin/users/{uid}`
+- Logged in via `POST /login` and verified full dashboard render
+- Captured the rendered HTML at `/inicio?period=week` and confirmed
+  all new visual elements (`insight-card`, `metric-delta`,
+  `data-freshness`) appear with real data.
+
+### What was the operator's piece
+
+- Unpause the Supabase project from the dashboard (2 clicks).
+
+The 30-day incident pattern holds: this is **2nd time in 12 days** the
+Supabase project has been paused due to the free-tier inactivity
+budget. If Saskia's actual sales cadence doesn't keep it warm enough,
+consider either (a) upgrading to Supabase Pro (free tier pauses after
+7 days of inactivity), (b) wiring a daily keepalive cron that pings
+the REST endpoint, or (c) moving auth off Supabase to the local bcrypt
+backend (lower-friction for low-traffic single-operator apps).
