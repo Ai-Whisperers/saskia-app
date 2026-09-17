@@ -60,6 +60,16 @@
   </div>
 
   <div class="form-row">
+    <label for="channel">Canal de venta</label>
+    <select id="channel" name="channel">
+      {% for c in channels %}
+      <option value="{{ c }}" {% if c == channel_default %}selected{% endif %}>{{ c | replace('-', ' / ') | replace('_', ' ') }}</option>
+      {% endfor %}
+    </select>
+    <small>Mostrador = venta en el local; los otros son canales digitales o encargos.</small>
+  </div>
+
+  <div class="form-row">
     <label for="payment_method">Forma de pago</label>
     <select id="payment_method" name="payment_method">
       <option value="">— Sin especificar —</option>
