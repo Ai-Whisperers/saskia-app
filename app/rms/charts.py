@@ -139,22 +139,19 @@ def line_chart(
     dots_svg = ""
     if show_dots:
         dots_svg = "".join(
-            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="{color}"/>'
-            for x, y in points
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="{color}"/>' for x, y in points
         )
 
     aria = f' role="img" aria-label="{_esc(label)}"' if label else ' role="img"'
 
     return (
         f'<svg viewBox="0 0 {width} {height}" width="100%" height="{height}"{aria}>'
-        f'<title>{_esc(label)}</title>'
+        f"<title>{_esc(label)}</title>"
         + "".join(grid_lines)
         + "".join(y_labels)
         + "".join(x_labels)
         + f'<path d="{path_d}" fill="none" stroke="{color}" stroke-width="2" '
-          f'stroke-linecap="round" stroke-linejoin="round"/>'
-        + dots_svg
-        + "</svg>"
+        f'stroke-linecap="round" stroke-linejoin="round"/>' + dots_svg + "</svg>"
     )
 
 
@@ -202,9 +199,7 @@ def bar_chart(
         aria = f' role="img" aria-label="{_esc(label)}"' if label else ' role="img"'
         return (
             f'<svg viewBox="0 0 {actual_w} {total_h}" width="100%" height="{total_h}"{aria}>'
-            f"<title>{_esc(label)}</title>"
-            + "".join(bars)
-            + "</svg>"
+            f"<title>{_esc(label)}</title>" + "".join(bars) + "</svg>"
         )
 
     # Vertical bars
@@ -233,9 +228,7 @@ def bar_chart(
     aria = f' role="img" aria-label="{_esc(label)}"' if label else ' role="img"'
     return (
         f'<svg viewBox="0 0 {width} {height}" width="100%" height="{height}"{aria}>'
-        f"<title>{_esc(label)}</title>"
-        + "".join(bars)
-        + "</svg>"
+        f"<title>{_esc(label)}</title>" + "".join(bars) + "</svg>"
     )
 
 
@@ -334,9 +327,11 @@ def pie_donut(
         f'<circle cx="{cx}" cy="{cy}" r="{r_inner}" fill="var(--color-surface)"/>'
         + "".join(segments)
         + f'<text x="{cx}" y="{cy + 4}" text-anchor="middle" '
-          f'font-size="14" font-weight="600" fill="var(--color-text)">{_esc(center_label)}</text>'
+        f'font-size="14" font-weight="600" fill="var(--color-text)">{_esc(center_label)}</text>'
         + "</svg>"
-        + '<div class="legend">' + "".join(legend_items) + "</div>"
+        + '<div class="legend">'
+        + "".join(legend_items)
+        + "</div>"
         + "</div>"
     )
 

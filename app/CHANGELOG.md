@@ -5,6 +5,29 @@
 
 ## [Unreleased]
 
+### Changed (2026-09-17) — Phase 4+5
+
+- **WCAG AA compliance — brand accent.** `--color-accent` bumped from
+  orange-500 (`#f97316`, 2.8:1 on white — failed AA) to **orange-700
+  (`#c2410c`, 5.18:1 on white — passes AA)**. Hover state bumped from
+  orange-600 to orange-800 for the same reason. Visually almost
+  identical (a slightly deeper, richer orange); accessibility gain is
+  significant. Dark mode accent (orange-400 on gray-800) was already
+  at 6.49:1 — left unchanged.
+
+- **Keyboard shortcuts.** New `app/static/shortcuts.js` provides
+  `g + <letter>` navigation (g+i → Inicio, g+v → Ventas, g+p →
+  Productos, g+r → Recetas, g+n → Inventario, g+e → Cierre, g+m →
+  Merma, g+s → Settings, g+a → Auditoria, g+o → Ops, g+x → Excel,
+  g+l → Reponer, g+t → Reportes, g+c → Clientes) plus `?` to open
+  a help modal and `Esc` to close it. Zero deps, ~100 LOC, ~4.5 KB
+  unminified. Disabled automatically when typing in form fields.
+  Modal uses ARIA `role="dialog"` + `aria-modal="true"` +
+  `aria-labelledby` + focus trap (close button auto-focuses).
+
+- **`kbd` styling.** New CSS class for `<kbd>` elements — used in the
+  shortcuts help modal.
+
 ### Added (2026-09-17) — Phase 1+3
 
 - **Visual Revolution Phase 1 — Component migration.** Migrated 14
