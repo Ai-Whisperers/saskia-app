@@ -5,6 +5,29 @@
 
 ## [Unreleased]
 
+### Added (2026-09-17) — Visual audit wins
+
+- **Insight cards on dashboard** (audit P0 #5). The five insight lists
+  (`insights.stars`, `insights.dogs`, `insights.low_stock_alerts`,
+  `insights.rising_products`, `insights.churning_products`) used to render
+  as bare unstyled `<ul>` lists with `.quadrant-star/dog` headings that
+  had no CSS. Now wrapped in a new `m.insight_card(title, items, severity,
+  icon)` macro that produces a Lightspeed-style left-bordered card with
+  severity color (ok=green / warn=amber / danger=red), icon, title, and
+  title+body items on tinted surfaces. ~46 lines removed, richer markup
+  gained.
+
+- **vs. last period deltas on top-line metrics** (audit P1 #10). The
+  three top metric cards (Ventas, Costo de lo vendido, Margen) now show
+  an arrow + percentage + "vs. ayer / semana pasada / mes pasado"
+  sub-label. Driven by new `_prior_period_window()` (today=yesterday,
+  week=prev Mon-Sun, month=full prior month) and `_delta_pct()` helpers
+  in `app/routers/dashboard.py`. Window totals extracted into
+  reusable `_compute_window_totals()` — still <60 DB queries per render
+  (verified by `tests/test_dashboard_perf.py`). 17 new tests in
+  `tests/test_dashboard_deltas.py` (window math + delta math + seeded
+  integration: today=5/yesterday=1 → "400% arriba vs. ayer").
+
 ### Changed (2026-09-17) — Phase 4+5
 
 - **WCAG AA compliance — brand accent.** `--color-accent` bumped from
