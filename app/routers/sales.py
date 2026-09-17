@@ -17,6 +17,10 @@ from app.rms.config import ASUNCION_TZ
 from app.rms.costing import RecipeWithoutYield, apply_sale, void_sale
 from app.rms.dependencies import get_session
 from app.rms.models import Customer, Product, Sale
+from app.rms.schemas import (
+    PAYMENT_METHODS_DISPLAY,
+    PAYMENT_METHOD_DEFAULT,
+)
 from app.services.template_render import render
 
 router = APIRouter(prefix="/ventas", dependencies=[Depends(require_login)])
@@ -135,7 +139,8 @@ async def sales_list(
             "products": products,
             "sales": [_decorated(s) for s in sales],
             "quick_sell": quick_sell,
-            "payment_methods": ["efectivo", "transferencia", "tarjeta", "otro"],
+            "payment_methods": list(PAYMENT_METHODS_DISPLAY),
+            "payment_method_default": PAYMENT_METHOD_DEFAULT,
             "now_local": datetime.now(ASUNCION_TZ).strftime("%Y-%m-%dT%H:%M"),
             "totals": {
                 "count": total_count,

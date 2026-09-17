@@ -64,9 +64,10 @@
     <select id="payment_method" name="payment_method">
       <option value="">— Sin especificar —</option>
       {% for pm in payment_methods %}
-      <option value="{{ pm }}">{{ pm | capitalize }}</option>
+      <option value="{{ pm }}" {% if pm == payment_method_default %}selected{% endif %}>{{ pm | capitalize }}</option>
       {% endfor %}
     </select>
+    <small>Si pagaron por transferencia/QR, pegá el alias o ID de transacción en notas.</small>
   </div>
 
   <div class="form-row">

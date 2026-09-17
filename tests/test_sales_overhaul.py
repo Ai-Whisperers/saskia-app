@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 
 def test_sale_accepts_payment_method(session_factory):
-    """apply_sale with payment_method persists it."""
+    """apply_sale with payment_method persists it (Spanish keys)."""
     from app.rms.costing import apply_sale
     from app.rms.models import Product, Sale
 
@@ -17,13 +17,13 @@ def test_sale_accepts_payment_method(session_factory):
         s.flush()
         apply_sale(
             s, product_id=p.id, qty=1, sold_at=datetime.now(timezone.utc),
-            payment_method="cash",
+            payment_method="efectivo",
         )
         s.commit()
 
     with session_factory() as s:
         sale = s.execute(select(Sale).where(Sale.product_id == p.id)).scalar_one()
-        assert sale.payment_method == "cash"
+        assert sale.payment_method == "efectivo"
 
 
 def test_sale_accepts_discount(session_factory):
