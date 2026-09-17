@@ -472,3 +472,55 @@ def test_shortcut_button_wired_in_js():
     assert "navBtn._shortcutsWired" in js, (
         "shortcuts.js must guard against double-binding"
     )
+
+
+# ---- P0 insight-card tests --------------------------------------------------
+
+
+def test_insight_card_macro_defined():
+    """The insight_card macro should be defined in macros.html (Lightspeed-style)."""
+    with open("app/templates/_components/macros.html") as f:
+        macros = f.read()
+    assert "{% macro insight_card" in macros, (
+        "macros.html must define insight_card macro"
+    )
+    assert 'severity="{{ severity }}"' in macros or "severity-" in macros, (
+        "insight_card macro must use severity-* classes"
+    )
+
+
+def test_insight_card_css_rules_present():
+    """.insight-card + .severity-ok/warn/danger rules must exist in CSS."""
+    css = _read_css()
+    for rule in [
+        r"\.insight-card\{",
+        r"\.insight-card\.severity-ok\{",
+        r"\.insight-card\.severity-warn\{",
+        r"\.insight-card\.severity-danger\{",
+        r"\.insight-list",
+        r"\.insight-item",
+        r"\.insight-grid",
+    ]:
+        assert re.search(rule, css), f"CSS rule {rule!r} missing for insight-card"
+
+
+def test_insight_card_used_for_stars_dogs():
+    """inicio.html should use m.insight_card() for stars/dogs/low_stock/rising/churning."""
+    with open("app/templates/inicio.html") as f:
+        inicio = f.read()
+    for label in ["Stars", "Dogs", "Reposición urgente", "En alza", "En baja"]:
+        assert "insight_card" in inicio and label in inicio, (
+            f"inicio.html must render {label!r} via insight_card macro"
+        )
+
+
+def test_old_quadrant_unstyled_lists_removed():
+    """The bare <ul> stars/dogs blocks should no longer be in inicio.html."""
+    with open("app/templates/inicio.html") as f:
+        inicio = f.read()
+    assert "<h3 class=\"quadrant-star\">" not in inicio, (
+        "Old bare <ul> quadrant-star block should be replaced by insight_card"
+    )
+    assert "<h3 class=\"quadrant-dog\">" not in inicio, (
+        "Old bare <ul> quadrant-dog block should be replaced by insight_card"
+    )

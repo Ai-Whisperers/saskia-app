@@ -90,6 +90,30 @@ Asunción local TZ.
 </section>
 {%- endmacro %}
 
+{# Insight card — Lightspeed-style actionable insight (icon + headline + 1-sentence copy).
+   `items` is a list of {title, body} dicts; severity is "ok"|"warn"|"danger".
+   Used for `insights.stars`, `insights.dogs`, `insights.rising`, etc. #}
+{% macro insight_card(title, items, severity="ok", icon="icon-arrow-up") -%}
+<section class="insight-card severity-{{ severity }}">
+  <h3>
+    <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
+    {{ title }}
+  </h3>
+  {% if items %}
+  <ul class="insight-list">
+    {% for it in items %}
+    <li class="insight-item">
+      <strong>{{ it.title }}</strong>
+      {% if it.body %}<span class="insight-body"> — {{ it.body }}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-muted">Sin datos todavía</p>
+  {% endif %}
+</section>
+{%- endmacro %}
+
 {# Alert-list card — for low-stock alerts, etc.
    `items` is a list of {name, severity, detail} dicts; severity is "danger"|"warn"|"ok". #}
 {% macro alert_list_card(title, items, icon="icon-warn") -%}

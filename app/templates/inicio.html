@@ -136,63 +136,33 @@
 </div>
 
 {% if insights.stars %}
-<h3 class="quadrant-star">
-  <svg class="icon" aria-hidden="true"><use href="#icon-arrow-up"/></svg>
-  Stars (alto margen + alto volumen)
-</h3>
-<ul>
-  {% for s in insights.stars %}
-  <li>{{ s.product_name }} — margen {{ m.gs(s.margin_gs) }}, volumen {{ s.volume }}</li>
-  {% endfor %}
-</ul>
+  {% set stars_items = [] %}
+  {% for s in insights.stars %}{% set _ = stars_items.append({"title": s.product_name, "body": "margen " ~ m.gs(s.margin_gs) ~ ", volumen " ~ s.volume}) %}{% endfor %}
+  {{ m.insight_card("Stars (alto margen + alto volumen)", stars_items, severity="ok", icon="icon-arrow-up") }}
 {% endif %}
 
 {% if insights.dogs %}
-<h3 class="quadrant-dog">
-  <svg class="icon" aria-hidden="true"><use href="#icon-arrow-down"/></svg>
-  Dogs (bajo margen + bajo volumen)
-</h3>
-<ul>
-  {% for d in insights.dogs %}
-  <li>{{ d.product_name }} — margen {{ m.gs(d.margin_gs) }}, volumen {{ d.volume }}</li>
-  {% endfor %}
-</ul>
+  {% set dogs_items = [] %}
+  {% for d in insights.dogs %}{% set _ = dogs_items.append({"title": d.product_name, "body": "margen " ~ m.gs(d.margin_gs) ~ ", volumen " ~ d.volume}) %}{% endfor %}
+  {{ m.insight_card("Dogs (bajo margen + bajo volumen)", dogs_items, severity="warn", icon="icon-arrow-down") }}
 {% endif %}
 
 {% if insights.low_stock_alerts %}
-<h3>
-  <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
-  Reposición urgente
-</h3>
-<ul>
-  {% for a in insights.low_stock_alerts %}
-  <li>{{ a.ingredient_name }} — quedan {{ "%.2f"|format(a.stock_qty) }}, días: {{ "%.1f"|format(a.days_of_stock or 0) if a.days_of_stock is not none else '—' }}</li>
-  {% endfor %}
-</ul>
+  {% set low_items = [] %}
+  {% for a in insights.low_stock_alerts %}{% set _ = low_items.append({"title": a.ingredient_name, "body": "quedan " ~ ("%.2f"|format(a.stock_qty)) ~ ", días: " ~ (("%.1f"|format(a.days_of_stock)) if a.days_of_stock is not none else "—")}) %}{% endfor %}
+  {{ m.insight_card("Reposición urgente", low_items, severity="warn", icon="icon-warn") }}
 {% endif %}
 
 {% if insights.rising_products %}
-<h3>
-  <svg class="icon" aria-hidden="true"><use href="#icon-arrow-up"/></svg>
-  En alza
-</h3>
-<ul>
-  {% for r in insights.rising_products %}
-  <li>{{ r.product_name }} — reciente {{ r.recent_sales }}, previo {{ r.prior_sales }} ({{ "%.0f"|format((r.change_pct or 0)*100) }}%)</li>
-  {% endfor %}
-</ul>
+  {% set rising_items = [] %}
+  {% for r in insights.rising_products %}{% set _ = rising_items.append({"title": r.product_name, "body": "reciente " ~ r.recent_sales ~ ", previo " ~ r.prior_sales ~ " (" ~ ("%.0f"|format((r.change_pct or 0)*100)) ~ "%)"}) %}{% endfor %}
+  {{ m.insight_card("En alza", rising_items, severity="ok", icon="icon-arrow-up") }}
 {% endif %}
 
 {% if insights.churning_products %}
-<h3>
-  <svg class="icon" aria-hidden="true"><use href="#icon-arrow-down"/></svg>
-  En baja
-</h3>
-<ul>
-  {% for c in insights.churning_products %}
-  <li>{{ c.product_name }} — reciente {{ c.recent_sales }}, previo {{ c.prior_sales }} ({{ "%.0f"|format((c.change_pct or 0)*100) }}%)</li>
-  {% endfor %}
-</ul>
+  {% set churning_items = [] %}
+  {% for c in insights.churning_products %}{% set _ = churning_items.append({"title": c.product_name, "body": "reciente " ~ c.recent_sales ~ ", previo " ~ c.prior_sales ~ " (" ~ ("%.0f"|format((c.change_pct or 0)*100)) ~ "%)"}) %}{% endfor %}
+  {{ m.insight_card("En baja", churning_items, severity="danger", icon="icon-arrow-down") }}
 {% endif %}
 
 {% if insights.production_tomorrow %}
