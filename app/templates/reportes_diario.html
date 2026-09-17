@@ -1,30 +1,47 @@
 {% extends "base.html" %}
 {% block title %}Resumen diario{% endblock %}
 {% block content %}
-<h1>Resumen diario — {{ for_date }}</h1>
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Resumen diario — {{ for_date }}
+</h1>
 
-<dl class="summary-grid">
-  <dt>Ingresos (Gs.)</dt>
-  <dd><strong>{{ "{:,.0f}".format(summary.revenue_gross_gs) }}</strong></dd>
-  <dt>IVA</dt>
-  <dd>{{ "{:,.0f}".format(summary.iva_gs) }}</dd>
-  <dt>COGS</dt>
-  <dd>{{ "{:,.0f}".format(summary.cogs_gs) }}</dd>
-  {% if summary.revenue_gross_gs > 0 %}
-    {% set margin_pct = (summary.margin_gs * 100.0) / summary.revenue_gross_gs %}
-  {% else %}
-    {% set margin_pct = 0.0 %}
-  {% endif %}
-  <dt>Margen bruto</dt>
-  <dd>{{ "{:,.0f}".format(summary.margin_gs) }} ({{ "%.1f"|format(margin_pct) }}%)</dd>
-  <dt>Ventas</dt>
-  <dd>{{ summary.n_sales }}</dd>
-</dl>
+<div class="grid grid-2 mb-4">
+  <div class="metric-card">
+    <div class="metric-label">Ingresos (Gs.)</div>
+    <div class="metric-value">{{ "{:,.0f}".format(summary.revenue_gross_gs) }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">IVA</div>
+    <div class="metric-value">{{ "{:,.0f}".format(summary.iva_gs) }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">COGS</div>
+    <div class="metric-value">{{ "{:,.0f}".format(summary.cogs_gs) }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Ventas</div>
+    <div class="metric-value">{{ summary.n_sales }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Margen bruto</div>
+    <div class="metric-value">{{ "{:,.0f}".format(summary.margin_gs) }}</div>
+    {% if summary.revenue_gross_gs > 0 %}
+      {% set margin_pct = (summary.margin_gs * 100.0) / summary.revenue_gross_gs %}
+    {% else %}
+      {% set margin_pct = 0.0 %}
+    {% endif %}
+    <div class="metric-delta {{ 'is-up' if margin_pct >= 40 else 'is-neutral' }}">{{ "%.1f"|format(margin_pct) }}%</div>
+  </div>
+</div>
 
-<form method="get" action="/reportes/diario">
+<form method="get" action="/reportes/diario" class="form form-row-inline">
   <label for="for_date">Fecha</label>
   <input type="date" id="for_date" name="for_date" value="{{ for_date }}">
-  <button type="submit" class="btn">Ver</button>
+  <button type="submit" class="btn btn-primary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+    Ver
+  </button>
 </form>
 
 {% endblock %}

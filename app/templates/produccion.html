@@ -15,20 +15,20 @@
 
 {% if plan.rows %}
 <h3>Productos a producir</h3>
-<table class="data">
+<table class="table is-hoverable is-striped">
   <thead>
     <tr>
       <th>Producto</th>
-      <th class="right">Cantidad</th>
+      <th class="num">Cantidad</th>
       <th>Forecast source</th>
-      <th></th>
+      <th class="actions"></th>
     </tr>
   </thead>
   <tbody>
     {% for r in plan.rows %}
     <tr>
-      <td>{{ r.product_name }}</td>
-      <td class="right">{{ "%.1f"|format(r.qty_to_produce) }}</td>
+      <td><strong>{{ r.product_name }}</strong></td>
+      <td class="num">{{ "%.1f"|format(r.qty_to_produce) }}</td>
       <td>{{ r.forecast_source }}</td>
       <td><a href="/productos/{{ r.product_id }}/editar" class="btn btn-small">Ver receta</a></td>
     </tr>
@@ -41,22 +41,22 @@
 
 {% if plan.lines %}
 <h3>Ingredientes necesarios</h3>
-<table class="data">
+<table class="table is-hoverable">
   <thead>
     <tr>
       <th>Ingrediente</th>
-      <th class="right">Cantidad</th>
-      <th class="right">Stock actual</th>
-      <th class="right">A comprar</th>
+      <th class="num">Cantidad</th>
+      <th class="num">Stock actual</th>
+      <th class="num">A comprar</th>
     </tr>
   </thead>
   <tbody>
     {% for l in plan.lines %}
     <tr>
-      <td>{{ l.ingredient_name }}</td>
-      <td class="right">{{ "%.2f"|format(l.qty_required) }} {{ l.unit }}</td>
-      <td class="right">{{ "%.2f"|format(l.stock_on_hand) }} {{ l.unit }}</td>
-      <td class="right"><strong>{{ "%.2f"|format(l.qty_to_buy) }}</strong> {{ l.unit }}</td>
+      <td><strong>{{ l.ingredient_name }}</strong></td>
+      <td class="num">{{ "%.2f"|format(l.qty_required) }} {{ l.unit }}</td>
+      <td class="num">{{ "%.2f"|format(l.stock_on_hand) }} {{ l.unit }}</td>
+      <td class="num"><strong>{{ "%.2f"|format(l.qty_to_buy) }}</strong> {{ l.unit }}</td>
     </tr>
     {% endfor %}
   </tbody>

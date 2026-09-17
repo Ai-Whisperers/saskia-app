@@ -1,38 +1,49 @@
 {% extends "base.html" %}
 {% block title %}Cierre diario{% endblock %}
 {% block content %}
-<h1>Cierre diario</h1>
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg>
+  Cierre diario
+</h1>
 
-<div class="eod-progress">
-  <strong>{{ progress.done }} / {{ progress.total }}</strong> completados
-  ({{ "%.0f"|format(progress.pct) }}%)
-  {% if progress.all_done %}
-  <span class="badge badge-ok">Listo para cerrar</span>
-  {% endif %}
+<div class="card mb-4">
+  <div class="card-header">
+    <h2>Progreso del cierre</h2>
+    <div>
+      <strong>{{ progress.done }} / {{ progress.total }}</strong>
+      ({{ "%.0f"|format(progress.pct) }}%)
+      {% if progress.all_done %}
+      <span class="badge badge-ok">Listo para cerrar</span>
+      {% endif %}
+    </div>
+  </div>
 </div>
 
 <form method="post" action="/eod/check">
-<table class="data">
-  <thead>
-    <tr>
-      <th></th>
-      <th>Item</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for item in items %}
-    <tr>
-      <td><input type="checkbox" name="{{ item.key }}" {% if item.done %}checked{% endif %}></td>
-      <td>
-        {{ item.label }}
-        {% if item.help %}<br><small class="hint">{{ item.help }}</small>{% endif %}
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-<p class="hint">El cierre se guarda cuando hacés click en "Marcar cierre del día".</p>
-<button type="submit" class="btn btn-primary">Guardar cierre</button>
+  <table class="table is-hoverable">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Item</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td><input type="checkbox" name="{{ item.key }}" {% if item.done %}checked{% endif %} aria-label="{{ item.label }}"></td>
+        <td>
+          {{ item.label }}
+          {% if item.help %}<br><small class="text-muted">{{ item.help }}</small>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="text-muted">El cierre se guarda cuando hacés click en "Marcar cierre del día".</p>
+  <button type="submit" class="btn btn-primary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+    Guardar cierre
+  </button>
 </form>
 
 {% endblock %}

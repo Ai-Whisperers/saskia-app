@@ -9,17 +9,20 @@
   Plan completo en
   <code>docs/operations/2026-09-08-incident-response.md</code>.</p>
 
-<table class="data">
+<table class="table is-hoverable">
   <thead>
-    <tr><th>Endpoint</th><th>Propósito</th><th>Acción</th></tr>
+    <tr><th>Endpoint</th><th>Propósito</th><th class="actions">Acción</th></tr>
   </thead>
   <tbody>
     {% for path, purpose in endpoints %}
     <tr>
       <td><code><a href="{{ path }}">{{ path }}</a></code></td>
       <td>{{ purpose }}</td>
-      <td>
-        <a class="btn btn-small" href="{{ path }}">Abrir</a>
+      <td class="actions">
+        <a class="btn btn-sm btn-ghost" href="{{ path }}">
+          <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+          Abrir
+        </a>
       </td>
     </tr>
     {% endfor %}

@@ -1,35 +1,42 @@
 {% extends "base.html" %}
 {% block title %}Libro IVA{% endblock %}
 {% block content %}
-<h1>Libro IVA — últimos 12 meses</h1>
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Libro IVA — últimos 12 meses
+</h1>
 
-<p class="hint">IVA 10% (Paraguay) — todos los precios son IVA incluido.</p>
+<p class="text-muted">IVA 10% (Paraguay) — todos los precios son IVA incluido.</p>
 
 {% if rows %}
-<table class="data">
+<table class="table is-hoverable">
   <thead>
     <tr>
       <th>Mes</th>
-      <th class="right">Ventas</th>
-      <th class="right">Gravado (Gs.)</th>
-      <th class="right">IVA 10% (Gs.)</th>
-      <th class="right">Total (Gs.)</th>
+      <th class="num">Ventas</th>
+      <th class="num">Gravado (Gs.)</th>
+      <th class="num">IVA 10% (Gs.)</th>
+      <th class="num">Total (Gs.)</th>
     </tr>
   </thead>
   <tbody>
     {% for r in rows %}
     <tr>
-      <td>{{ "%04d-%02d"|format(r.year, r.month) }}</td>
-      <td class="right">{{ r.n_sales }}</td>
-      <td class="right">{{ "{:,.0f}".format(r.total_base_gs) }}</td>
-      <td class="right">{{ "{:,.0f}".format(r.total_iva_gs) }}</td>
-      <td class="right"><strong>{{ "{:,.0f}".format(r.total_gross_gs) }}</strong></td>
+      <td><strong>{{ "%04d-%02d"|format(r.year, r.month) }}</strong></td>
+      <td class="num">{{ r.n_sales }}</td>
+      <td class="num">{{ "{:,.0f}".format(r.total_base_gs) }}</td>
+      <td class="num">{{ "{:,.0f}".format(r.total_iva_gs) }}</td>
+      <td class="num"><strong>{{ "{:,.0f}".format(r.total_gross_gs) }}</strong></td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 {% else %}
-<p class="empty">No hay ventas registradas en los últimos 12 meses.</p>
+<div class="empty-state">
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  <h3>No hay ventas registradas</h3>
+  <p>Cuando registres ventas van a aparecer acá mes por mes.</p>
+</div>
 {% endif %}
 
 {% endblock %}

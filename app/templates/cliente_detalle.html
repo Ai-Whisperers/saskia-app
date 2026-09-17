@@ -24,30 +24,34 @@
 
 <h2>Historial de compras</h2>
 {% if history %}
-<table class="data">
+<table class="table is-hoverable is-striped">
   <thead>
     <tr>
       <th>Fecha</th>
       <th>Producto</th>
-      <th class="right">Cantidad</th>
-      <th class="right">Total (Gs.)</th>
+      <th class="num">Cantidad</th>
+      <th class="num">Total (Gs.)</th>
       <th>Estado</th>
     </tr>
   </thead>
   <tbody>
     {% for s in history %}
     <tr {% if s.voided_at %}style="opacity:0.5;text-decoration:line-through"{% endif %}>
-      <td>{{ s.sold_at.strftime("%d/%m/%Y") if s.sold_at else "" }}</td>
-      <td>{{ s.product_name or "(eliminado)" }}</td>
-      <td class="right">{{ "%.2f"|format(s.qty) }}</td>
-      <td class="right">{{ "{:,.0f}".format(s.qty * s.unit_price_gs) }}</td>
-      <td>{% if s.voided_at %}<span class="badge badge-muted">Anulada</span>{% else %}<span class="badge badge-ok">Activa</span>{% endif %}</td>
+      <td><small>{{ s.sold_at.strftime("%d/%m/%Y") if s.sold_at else "" }}</small></td>
+      <td><strong>{{ s.product_name or "(eliminado)" }}</strong></td>
+      <td class="num">{{ "%.2f"|format(s.qty) }}</td>
+      <td class="num">{{ "{:,.0f}".format(s.qty * s.unit_price_gs) }}</td>
+      <td>{% if s.voided_at %}<span class="badge badge-neutral">Anulada</span>{% else %}<span class="badge badge-ok">Activa</span>{% endif %}</td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 {% else %}
-<p class="empty">Este cliente todavía no tiene compras registradas.</p>
+<div class="empty-state">
+  <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
+  <h3>Sin compras todavía</h3>
+  <p>Cuando el cliente compre algo va a aparecer acá.</p>
+</div>
 {% endif %}
 
 {% endblock %}

@@ -1,14 +1,29 @@
 {% extends "base.html" %}
 {% block title %}Reportes{% endblock %}
 {% block content %}
-<h1>Reportes</h1>
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Reportes
+</h1>
 
-<p class="hint">Reportes financieros y operativos.</p>
+<p class="text-muted">Reportes financieros y operativos.</p>
 
-<ul class="report-list">
-  <li><a href="/reportes/iva">📊 Libro IVA (mensual)</a> — Desglose de IVA 10% por mes</li>
-  <li><a href="/reportes/libro-ventas">📖 Libro de Ventas</a> — Ventas cronológicas con IVA</li>
-  <li><a href="/reportes/diario">📅 Resumen diario</a> — Ingresos, COGS, margen del día</li>
-</ul>
+<div class="grid grid-3">
+  <a href="/reportes/iva" class="card is-interactive">
+    <svg class="icon icon-lg" aria-hidden="true"><use href="#icon-report"/></svg>
+    <h3>Libro IVA</h3>
+    <p class="text-muted">Desglose de IVA 10% por mes</p>
+  </a>
+  <a href="/reportes/libro-ventas" class="card is-interactive">
+    <svg class="icon icon-lg" aria-hidden="true"><use href="#icon-report"/></svg>
+    <h3>Libro de Ventas</h3>
+    <p class="text-muted">Ventas cronológicas con IVA</p>
+  </a>
+  <a href="/reportes/diario" class="card is-interactive">
+    <svg class="icon icon-lg" aria-hidden="true"><use href="#icon-report"/></svg>
+    <h3>Resumen diario</h3>
+    <p class="text-muted">Ingresos, COGS, margen del día</p>
+  </a>
+</div>
 
 {% endblock %}

@@ -56,3 +56,59 @@ Asunción local TZ.
 {%- endif %}
 {{ label }}</a>
 {%- endmacro %}
+
+{# Dashboard chart card — wraps an SVG chart in a styled card with a freshness line.
+   Pass `chart_html` as the already-rendered SVG string from app.rms.charts. #}
+{% macro chart_card(title, chart_html, freshness=None) -%}
+<section class="dashboard-chart-card">
+  <h3>{{ title }}</h3>
+  {{ chart_html | safe }}
+  {% if freshness %}<p class="data-freshness">Actualizado a las {{ freshness }}</p>{% endif %}
+</section>
+{%- endmacro %}
+
+{# Top-list card — for top products, top customers, etc.
+   `items` is a list of {name, value} dicts. #}
+{% macro top_list_card(title, items, unit_prefix="Gs. ", icon="icon-arrow-up") -%}
+<section class="dashboard-chart-card">
+  <h3>
+    <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
+    {{ title }}
+  </h3>
+  {% if items %}
+  <ol class="top-list">
+    {% for it in items %}
+    <li>
+      <span class="name">{{ it.name }}</span>
+      <span class="value">{{ unit_prefix }}{{ "{:,.0f}".format(it.value).replace(",", ".") }}</span>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="text-muted">Sin datos todavía</p>
+  {% endif %}
+</section>
+{%- endmacro %}
+
+{# Alert-list card — for low-stock alerts, etc.
+   `items` is a list of {name, severity, detail} dicts; severity is "danger"|"warn"|"ok". #}
+{% macro alert_list_card(title, items, icon="icon-warn") -%}
+<section class="dashboard-chart-card">
+  <h3>
+    <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
+    {{ title }}
+  </h3>
+  {% if items %}
+  <ul class="alert-list">
+    {% for it in items %}
+    <li class="severity-{{ it.severity }}">
+      <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+      <span>{{ it.name }} — {{ it.detail }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-muted">Sin alertas</p>
+  {% endif %}
+</section>
+{%- endmacro %}

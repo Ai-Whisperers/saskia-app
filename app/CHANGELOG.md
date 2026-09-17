@@ -5,6 +5,41 @@
 
 ## [Unreleased]
 
+### Added (2026-09-17) — Phase 1+3
+
+- **Visual Revolution Phase 1 — Component migration.** Migrated 14
+  templates (`ventas`, `productos`, `recetas`, `inventario`, `merma`,
+  `clientes`, `auditoria`, `eod`, `produccion`, `reorder`, `reportes`,
+  `reportes_diario`, `reportes_iva`, `reportes_libro_ventas`, `cliente_detalle`)
+  to use the new component vocabulary: `.card` + `.card-header/body/footer`,
+  `.table.is-hoverable.is-striped` with `.num` numeric cells and `.actions`
+  right-aligned action columns, `.btn-sm`, `.btn-ghost`, `.btn-danger-ghost`,
+  `.metric-card` for KPI cards, `.empty-state` with icon + heading + CTA
+  for every list page when 0 rows, `.alert-success` for "all good" states,
+  and SVG icons on every primary action button. Tables are now striped +
+  hoverable + sticky-headered.
+
+- **Phase 3 — Data visualization dashboard.** New `app/rms/charts.py`
+  module with hand-rolled SVG chart helpers (`sparkline`, `line_chart`,
+  `bar_chart`, `pie_donut`) that use CSS custom properties so they
+  re-theme correctly. Zero JS chart library, zero new dependencies.
+  The `/` dashboard now renders **5 visual cards** alongside the
+  metric tiles:
+  - **Ventas por hora del día** — vertical bar chart bucketed by
+    Asunción-local hour
+  - **Tendencia — últimos 30 días** — line chart with grid + axis labels
+  - **Distribución de pagos** — donut chart with legend
+  - **Top productos por ventas** — horizontal bar list (top 5)
+  - **Alertas de stock bajo** — color-coded alert list (severity-aware)
+  - Every card has a "Actualizado a las HH:MM:SS" freshness timestamp
+  - Every chart has `role="img"` + `aria-label` for screen readers
+  - All chart text input is XML-escaped (XSS prevention)
+  - Charts use `var(--color-accent)` so dark mode re-themes them
+
+- **Phase 1+3 — New macros.** `chart_card`, `top_list_card`,
+  `alert_list_card` in `_components/macros.html` for consistent
+  dashboard rendering.
+
 ### Added (2026-09-17)
 
 - **Visual Revolution Phase 0 — Design System Token Foundation.** Complete

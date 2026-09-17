@@ -6,7 +6,12 @@
 {% block content %}
 <h1>Productos y precios</h1>
 
-<p><a href="/productos/nuevo" class="btn btn-primary">+ Nuevo producto</a></p>
+<p>
+  <a href="/productos/nuevo" class="btn btn-primary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+    Nuevo producto
+  </a>
+</p>
 
 <form method="get" action="/productos" class="form form-row">
   <input type="search" name="q" value="{{ q }}" placeholder="Buscar producto…">
@@ -15,43 +20,57 @@
     <option value="yes" {% if has_recipe == 'yes' %}selected{% endif %}>Con receta</option>
     <option value="no" {% if has_recipe == 'no' %}selected{% endif %}>Sin receta</option>
   </select>
-  <button type="submit" class="btn">Filtrar</button>
-  <a href="/productos" class="btn">Limpiar</a>
+  <button type="submit" class="btn">
+    <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+    Filtrar
+  </button>
+  <a href="/productos" class="btn btn-ghost">Limpiar</a>
 </form>
 
 {% if products %}
-<table class="data">
+<table class="table is-hoverable is-striped">
   <thead>
     <tr>
       <th>Nombre</th>
       <th>Porción</th>
-      <th class="right">Precio venta</th>
+      <th class="num">Precio venta</th>
       <th>Receta</th>
-      <th class="right">Costo</th>
-      <th class="right">Margen</th>
-      <th class="right">Margen %</th>
-      <th></th>
+      <th class="num">Costo</th>
+      <th class="num">Margen</th>
+      <th class="num">Margen %</th>
+      <th class="actions"></th>
     </tr>
   </thead>
   <tbody>
     {% for p in products %}
     <tr>
-      <td>{{ p.name }}</td>
+      <td><strong>{{ p.name }}</strong></td>
       <td>{{ p.portion_label }}</td>
-      <td class="right">{{ m.gs_full(p.sale_price_gs) }}</td>
+      <td class="num">{{ m.gs_full(p.sale_price_gs) }}</td>
       <td>{% if p.recipe_name %}{{ p.recipe_name }}{% else %}<em class="muted">sin receta</em>{% endif %}</td>
-      <td class="right">{% if p.cost_gs is none %}<em class="muted">falta precio</em>{% else %}{{ m.gs(p.cost_gs) }}{% endif %}</td>
-      <td class="right">{% if p.margin_gs is none %}<em class="muted">—</em>{% else %}{{ m.gs(p.margin_gs) }}{% endif %}</td>
-      <td class="right">{% if p.margin_ratio is none %}<em class="muted">—</em>{% else %}{{ "%.0f"|format(p.margin_ratio * 100) }}%{% endif %}</td>
-      <td>
-        <a href="/productos/{{ p.id }}/editar" class="btn btn-small">Editar</a>
+      <td class="num">{% if p.cost_gs is none %}<em class="muted">falta precio</em>{% else %}{{ m.gs(p.cost_gs) }}{% endif %}</td>
+      <td class="num">{% if p.margin_gs is none %}<em class="muted">—</em>{% else %}{{ m.gs(p.margin_gs) }}{% endif %}</td>
+      <td class="num">{% if p.margin_ratio is none %}<em class="muted">—</em>{% else %}{{ m.margin_pct(p.margin_gs, p.sale_price_gs) }}{% endif %}</td>
+      <td class="actions">
+        <a href="/productos/{{ p.id }}/editar" class="btn btn-sm btn-ghost">
+          <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+          Editar
+        </a>
       </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 {% else %}
-<p class="empty">Todavía no cargaste productos. <a href="/productos/nuevo">Agregá el primero.</a></p>
+<div class="empty-state">
+  <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
+  <h3>Todavía no cargaste productos</h3>
+  <p>Empezá por los productos más vendidos — los que más factura tu local.</p>
+  <a href="/productos/nuevo" class="btn btn-primary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+    Agregá el primero
+  </a>
+</div>
 {% endif %}
 
 {% endblock %}

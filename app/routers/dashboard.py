@@ -21,6 +21,11 @@ from app.rms.analytics import (
     stock_turnover,
     top_margin_products,
 )
+from app.rms.charts import (
+    bar_chart,
+    line_chart,
+    pie_donut,
+)
 from app.rms.config import ASUNCION_TZ
 from app.rms.costing import batch_products_cost_margin, batch_recipes_cost
 from app.rms.dependencies import get_session
@@ -148,7 +153,8 @@ async def dashboard(
     all_recipes = list(session.scalars(select(Recipe)).all())
     batch_recipe_results = batch_recipes_cost(session, all_recipes)
     recipes_no_cost = [
-        r for r in all_recipes
+        r
+        for r in all_recipes
         if batch_recipe_results[r.id][0].batch_cost_gs is None and len(r.lines) > 0
     ]
 
@@ -196,8 +202,139 @@ async def dashboard(
             "complexity": recipe_complexity(session),
             # E34: consolidated insights panel
             "insights": build_insights(session),
+            # Phase 3 visual dashboard — charts + freshness
+            "chart_hourly": _build_hourly_sales_chart(sales, ASUNCION_TZ),
+            "chart_30day": _build_30day_sales_chart(session),
+            "chart_payment_methods": _build_payment_methods_donut(sales),
+            "top_products_revenue": _build_top_products_revenue(ranking),
+            "low_stock_alerts": [
+                {
+                    "name": i.name,
+                    "stock_qty": i.stock_qty,
+                    "min_stock_qty": i.min_stock_qty,
+                    "unit": i.unit,
+                }
+                for i in stock_low[:5]
+            ],
+            "low_stock_alerts_with_severity": [
+                {
+                    "name": i.name,
+                    "severity": "danger" if i.stock_qty < 0 else "warn",
+                    "detail": f"{i.stock_qty:.2f} {i.unit} (mínimo {i.min_stock_qty:.2f} {i.unit})",
+                }
+                for i in stock_low[:5]
+            ],
+            "data_freshness": datetime.now(ASUNCION_TZ).strftime("%H:%M:%S"),
         },
     )
 
 
 __all__ = ["router"]
+
+
+# ---- Phase 3 visual dashboard helpers --------------------------------------
+
+
+def _build_hourly_sales_chart(sales: list[Sale], tz) -> str:
+    """Build an SVG bar chart of sales by hour for the current period.
+
+    Returns an empty-state message if no sales.
+    """
+    if not sales:
+        return '<p class="text-muted">Sin ventas todavía</p>'
+
+    # Bucket by hour of day (0-23) in Asunción local
+    buckets = [0] * 24
+    for s in sales:
+        if s.sold_at is None:
+            continue
+        # sold_at is naive UTC per the data layer convention
+        local = s.sold_at.replace(tzinfo=timezone.utc).astimezone(tz)
+        buckets[local.hour] += int(round(s.qty * s.unit_price_gs))
+
+    # Build bar chart
+    values = [(f"{h:02d}h", float(v)) for h, v in enumerate(buckets) if v > 0]
+    if not values:
+        return '<p class="text-muted">Sin ventas todavía</p>'
+
+    return bar_chart(
+        values,
+        width=700,
+        height=180,
+        label="Ventas por hora del día (Asunción local)",
+        color="var(--color-accent)",
+    )
+
+
+def _build_30day_sales_chart(session: Session) -> str:
+    """Build an SVG line chart of sales over the last 30 days."""
+    end = datetime.now(ASUNCION_TZ).replace(hour=23, minute=59, second=59)
+    start = (end - timedelta(days=29)).replace(hour=0, minute=0, second=0)
+
+    # Query sales in the range
+    start_utc = start.astimezone(timezone.utc).replace(tzinfo=None)
+    end_utc = end.astimezone(timezone.utc).replace(tzinfo=None)
+
+    sales_30d = session.scalars(
+        select(Sale).where(
+            Sale.sold_at >= start_utc,
+            Sale.sold_at <= end_utc,
+        )
+    ).all()
+
+    if not sales_30d:
+        return '<p class="text-muted">Sin ventas en los últimos 30 días</p>'
+
+    # Bucket by day
+    buckets: dict[str, int] = {}
+    for s in sales_30d:
+        if s.sold_at is None:
+            continue
+        local = s.sold_at.replace(tzinfo=timezone.utc).astimezone(ASUNCION_TZ)
+        key = local.strftime("%d/%m")
+        buckets[key] = buckets.get(key, 0) + int(round(s.qty * s.unit_price_gs))
+
+    # Fill in missing days with 0
+    values = []
+    cur = start
+    while cur <= end:
+        key = cur.strftime("%d/%m")
+        values.append((key, float(buckets.get(key, 0))))
+        cur += timedelta(days=1)
+
+    return line_chart(
+        values,
+        width=700,
+        height=180,
+        label="Ventas — últimos 30 días (Gs.)",
+        y_format="{:,.0f}",
+        color="var(--color-accent)",
+        show_dots=False,
+    )
+
+
+def _build_payment_methods_donut(sales: list[Sale]) -> str:
+    """Build a donut chart of payment method distribution."""
+    buckets: dict[str, int] = {}
+    for s in sales:
+        pm = s.payment_method or "Sin especificar"
+        buckets[pm] = buckets.get(pm, 0) + int(round(s.qty * s.unit_price_gs))
+
+    if not buckets:
+        return '<p class="text-muted">Sin datos de pagos</p>'
+
+    values = [(k, float(v)) for k, v in sorted(buckets.items(), key=lambda x: -x[1])]
+    return pie_donut(
+        values,
+        size=140,
+        label="Distribución de pagos",
+    )
+
+
+def _build_top_products_revenue(ranking: list[dict]) -> list[dict]:
+    """Return top 5 products by revenue (already sorted by margin in dashboard).
+
+    Re-sorts by revenue for the visual ranking.
+    """
+    by_revenue = sorted(ranking, key=lambda r: r["ventas_gs"], reverse=True)[:5]
+    return [{"name": r["name"], "value": r["ventas_gs"]} for r in by_revenue]

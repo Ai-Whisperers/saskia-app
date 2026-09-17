@@ -6,39 +6,55 @@
 {% block content %}
 <h1>Inventario</h1>
 
-<p><a href="/inventario/nuevo" class="btn btn-primary">+ Nuevo ingrediente</a></p>
+<p>
+  <a href="/inventario/nuevo" class="btn btn-primary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+    Nuevo ingrediente
+  </a>
+</p>
 
 {% if ingredients %}
-<table class="data">
+<table class="table is-hoverable is-striped">
   <thead>
     <tr>
       <th>Nombre</th>
       <th>Unidad</th>
-      <th class="right">Stock actual</th>
-      <th class="right">Stock mínimo</th>
-      <th class="right">Precio compra (Gs.)</th>
+      <th class="num">Stock actual</th>
+      <th class="num">Stock mínimo</th>
+      <th class="num">Precio compra (Gs.)</th>
       <th>Estado</th>
-      <th></th>
+      <th class="actions"></th>
     </tr>
   </thead>
   <tbody>
     {% for i in ingredients %}
     <tr>
-      <td>{{ i.name }}</td>
+      <td><strong>{{ i.name }}</strong></td>
       <td>{{ i.unit }}</td>
-      <td class="right">{{ "%.2f"|format(i.stock_qty) }}</td>
-      <td class="right">{{ "%.2f"|format(i.min_stock_qty) }}</td>
-      <td class="right">{% if i.purchase_price_gs is none %}<em class="muted">sin precio</em>{% else %}{{ m.gs_full(i.purchase_price_gs) }}{% endif %}</td>
+      <td class="num">{{ "%.2f"|format(i.stock_qty) }}</td>
+      <td class="num">{{ "%.2f"|format(i.min_stock_qty) }}</td>
+      <td class="num">{% if i.purchase_price_gs is none %}<em class="muted">sin precio</em>{% else %}{{ m.gs_full(i.purchase_price_gs) }}{% endif %}</td>
       <td>{{ m.stock_badge(i.stock_qty, i.min_stock_qty) }}</td>
-      <td>
-        <a href="/inventario/{{ i.id }}/editar" class="btn btn-small">Editar</a>
+      <td class="actions">
+        <a href="/inventario/{{ i.id }}/editar" class="btn btn-sm btn-ghost">
+          <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+          Editar
+        </a>
       </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 {% else %}
-<p class="empty">Todavía no cargaste ingredientes. <a href="/inventario/nuevo">Agregá el primero.</a></p>
+<div class="empty-state">
+  <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
+  <h3>Empezá cargando tus ingredientes</h3>
+  <p>Harina, azúcar, aceite, queso — los básicos para producir.</p>
+  <a href="/inventario/nuevo" class="btn btn-primary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+    Agregá el primero
+  </a>
+</div>
 {% endif %}
 
 {% endblock %}

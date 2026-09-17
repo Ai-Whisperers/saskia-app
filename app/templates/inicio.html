@@ -7,7 +7,10 @@
 {% if alerts %}
 <div class="alerts-bar">
   {% for alert in alerts %}
-  <div class="alert alert-{{ alert.severity }}">{{ alert.text }}</div>
+  <div class="alert alert-{{ alert.severity }}" role="status">
+    <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+    {{ alert.text }}
+  </div>
   {% endfor %}
 </div>
 {% endif %}
@@ -16,58 +19,75 @@
 {% block content %}
 <h1>Inicio</h1>
 
-<div class="period-toggle">
-  <a href="?period=today" class="btn {% if period == 'today' %}btn-active{% endif %}">Hoy</a>
-  <a href="?period=week"  class="btn {% if period == 'week'  %}btn-active{% endif %}">Semana</a>
-  <a href="?period=month" class="btn {% if period == 'month' %}btn-active{% endif %}">Mes</a>
+<div class="period-toggle flex gap-2 mb-4">
+  <a href="?period=today" class="btn {% if period == 'today' %}btn-primary{% endif %}">Hoy</a>
+  <a href="?period=week"  class="btn {% if period == 'week'  %}btn-primary{% endif %}">Semana</a>
+  <a href="?period=month" class="btn {% if period == 'month' %}btn-primary{% endif %}">Mes</a>
 </div>
 
-<div class="metrics-grid">
-  <div class="metric">
+<div class="grid grid-3 mb-4">
+  <div class="metric-card">
     <div class="metric-label">Ventas</div>
     <div class="metric-value">{{ m.gs_full(ventas_gs) }}</div>
   </div>
-  <div class="metric">
+  <div class="metric-card">
     <div class="metric-label">Costo de lo vendido</div>
     <div class="metric-value">{{ m.gs_full(cogs_gs) }}</div>
   </div>
-  <div class="metric">
+  <div class="metric-card">
     <div class="metric-label">Margen</div>
-    <div class="metric-value">{{ m.gs_full(margen_gs) }} ({{ margen_pct_fmt }})</div>
+    <div class="metric-value">{{ m.gs_full(margen_gs) }}</div>
+    <div class="metric-delta is-up">{{ margen_pct_fmt }}</div>
   </div>
+</div>
+
+<div class="dashboard-grid mb-4">
+  {{ m.chart_card("Ventas por hora del día", chart_hourly, data_freshness) }}
+  {{ m.chart_card("Tendencia — últimos 30 días", chart_30day, data_freshness) }}
+  {{ m.chart_card("Distribución de pagos", chart_payment_methods | safe, None) }}
+  {{ m.top_list_card("Top productos por ventas", top_products_revenue, "Gs. ", "icon-arrow-up") }}
+  {{ m.alert_list_card("Alertas de stock bajo", low_stock_alerts_with_severity, "icon-warn") }}
 </div>
 
 <h2>Ranking de productos</h2>
 {% if ranking %}
-<table class="data">
+<table class="table is-hoverable is-striped">
   <thead>
     <tr>
       <th>Producto</th>
-      <th class="right">Ventas (Gs.)</th>
-      <th class="right">Margen (Gs.)</th>
-      <th class="right">Margen %</th>
-      <th class="right">Cantidad vendida</th>
+      <th class="num">Ventas (Gs.)</th>
+      <th class="num">Margen (Gs.)</th>
+      <th class="num">Margen %</th>
+      <th class="num">Cantidad vendida</th>
     </tr>
   </thead>
   <tbody>
     {% for r in ranking %}
     <tr>
-      <td>{{ r.name }}</td>
-      <td class="right">{{ m.gs(r.ventas_gs) }}</td>
-      <td class="right">{{ m.gs(r.margen_gs) }}</td>
-      <td class="right">{{ "%.0f"|format(r.margen_ratio * 100) if r.margen_ratio is not none else '—' }}%</td>
-      <td class="right">{{ "%.1f"|format(r.qty) }}</td>
+      <td><strong>{{ r.name }}</strong></td>
+      <td class="num">{{ m.gs(r.ventas_gs) }}</td>
+      <td class="num">{{ m.gs(r.margen_gs) }}</td>
+      <td class="num">{{ m.margin_pct(r.margen_gs, r.ventas_gs) }}</td>
+      <td class="num">{{ "%.1f"|format(r.qty) }}</td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 {% else %}
-<p class="empty">No hay ventas en este período todavía.</p>
+<div class="empty-state">
+  <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
+  <h3>No hay ventas en este período</h3>
+  <p>Cuando registres ventas van a aparecer acá.</p>
+  <a href="/ventas" class="btn btn-primary">Registrar venta</a>
+</div>
 {% endif %}
 
 <h2>Avisos</h2>
 {% if not stock_low and not recipes_no_cost and not sales_no_recipe %}
-<p class="empty">No hay avisos. Todo en orden.</p>
+<div class="alert alert-success" role="status">
+  <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+  Todo en orden. No hay avisos por ahora.
+</div>
 {% else %}
 <ul class="avisos">
   {% for s in stock_low %}
@@ -89,25 +109,25 @@
 {% endif %}
 
 <h2>Inteligencia (E26-E34)</h2>
-<div class="metrics-grid">
-  <div class="metric">
+<div class="grid grid-4 mb-4">
+  <div class="metric-card">
     <div class="metric-label">Capital en inventario</div>
     <div class="metric-value">{{ m.gs_full(insights.inventory_capital_gs) }}</div>
   </div>
-  <div class="metric">
+  <div class="metric-card">
     <div class="metric-label">Hora pico de ventas</div>
     <div class="metric-value">
       {% if insights.sales_peak_hour >= 0 %}{{ insights.sales_peak_hour }}:00{% else %}—{% endif %}
     </div>
   </div>
-  <div class="metric">
+  <div class="metric-card">
     <div class="metric-label">Día pico de ventas</div>
     <div class="metric-value">
       {% set dow_names = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'] %}
       {% if insights.sales_peak_dow >= 0 %}{{ dow_names[insights.sales_peak_dow] }}{% else %}—{% endif %}
     </div>
   </div>
-  <div class="metric">
+  <div class="metric-card">
     <div class="metric-label">Food cost % (30d)</div>
     <div class="metric-value">
       {{ "%.1f"|format(insights.food_cost.theoretical_food_cost_pct) }}%
@@ -116,7 +136,10 @@
 </div>
 
 {% if insights.stars %}
-<h3 class="quadrant-star">⭐ Stars (alto margen + alto volumen)</h3>
+<h3 class="quadrant-star">
+  <svg class="icon" aria-hidden="true"><use href="#icon-arrow-up"/></svg>
+  Stars (alto margen + alto volumen)
+</h3>
 <ul>
   {% for s in insights.stars %}
   <li>{{ s.product_name }} — margen {{ m.gs(s.margin_gs) }}, volumen {{ s.volume }}</li>
@@ -125,7 +148,10 @@
 {% endif %}
 
 {% if insights.dogs %}
-<h3 class="quadrant-dog">🐕 Dogs (bajo margen + bajo volumen)</h3>
+<h3 class="quadrant-dog">
+  <svg class="icon" aria-hidden="true"><use href="#icon-arrow-down"/></svg>
+  Dogs (bajo margen + bajo volumen)
+</h3>
 <ul>
   {% for d in insights.dogs %}
   <li>{{ d.product_name }} — margen {{ m.gs(d.margin_gs) }}, volumen {{ d.volume }}</li>
@@ -134,7 +160,10 @@
 {% endif %}
 
 {% if insights.low_stock_alerts %}
-<h3>⚠ Reposición urgente</h3>
+<h3>
+  <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+  Reposición urgente
+</h3>
 <ul>
   {% for a in insights.low_stock_alerts %}
   <li>{{ a.ingredient_name }} — quedan {{ "%.2f"|format(a.stock_qty) }}, días: {{ "%.1f"|format(a.days_of_stock or 0) if a.days_of_stock is not none else '—' }}</li>
@@ -143,7 +172,10 @@
 {% endif %}
 
 {% if insights.rising_products %}
-<h3>📈 En alza</h3>
+<h3>
+  <svg class="icon" aria-hidden="true"><use href="#icon-arrow-up"/></svg>
+  En alza
+</h3>
 <ul>
   {% for r in insights.rising_products %}
   <li>{{ r.product_name }} — reciente {{ r.recent_sales }}, previo {{ r.prior_sales }} ({{ "%.0f"|format((r.change_pct or 0)*100) }}%)</li>
@@ -152,7 +184,10 @@
 {% endif %}
 
 {% if insights.churning_products %}
-<h3>📉 En baja</h3>
+<h3>
+  <svg class="icon" aria-hidden="true"><use href="#icon-arrow-down"/></svg>
+  En baja
+</h3>
 <ul>
   {% for c in insights.churning_products %}
   <li>{{ c.product_name }} — reciente {{ c.recent_sales }}, previo {{ c.prior_sales }} ({{ "%.0f"|format((c.change_pct or 0)*100) }}%)</li>
@@ -161,15 +196,18 @@
 {% endif %}
 
 {% if insights.production_tomorrow %}
-<h3>📦 Producción de mañana</h3>
-<table class="data">
-  <thead><tr><th>Producto</th><th class="right">Cantidad</th><th class="right">Batches</th><th>Motivo</th></tr></thead>
+<h3>
+  <svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>
+  Producción de mañana
+</h3>
+<table class="table is-hoverable">
+  <thead><tr><th>Producto</th><th class="num">Cantidad</th><th class="num">Batches</th><th>Motivo</th></tr></thead>
   <tbody>
     {% for p in insights.production_tomorrow %}
     <tr>
-      <td>{{ p.product_name }}</td>
-      <td class="right">{{ p.target_qty }}</td>
-      <td class="right">{{ p.batch_count }}</td>
+      <td><strong>{{ p.product_name }}</strong></td>
+      <td class="num">{{ p.target_qty }}</td>
+      <td class="num">{{ p.batch_count }}</td>
       <td>{{ p.reason }}</td>
     </tr>
     {% endfor %}
