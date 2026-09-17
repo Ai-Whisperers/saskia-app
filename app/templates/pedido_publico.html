@@ -1,0 +1,93 @@
+{# Public pickup-share page — NO AUTH, renderable by the customer from WhatsApp.
+
+   URL: /p/{public_token}
+   Renders just the pedido info: what they ordered, when to come, the
+   customer's name, items. Minimal styling; no nav (operator would never
+   see this). Print-friendly (the print stylesheet in app.css hides nav).
+#}
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% block title %}Tu pedido{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 480px;">
+  <div class="card" style="text-align: center;">
+    <h1 style="font-size: var(--text-xl); margin-bottom: var(--space-2);">
+      <svg class="icon" aria-hidden="true"><use href="#icon-heart"/></svg>
+      {{ shop_name }}
+    </h1>
+    <p class="text-muted" style="font-size: var(--text-sm); margin: 0;">
+      Confirmación de pedido
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Pedido #{{ pedido.id }}</div>
+    <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
+      <span>Cliente</span>
+      <strong>{{ pedido.customer_name }}</strong>
+    </div>
+    {% if pedido.customer_phone %}
+    <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
+      <span>Teléfono</span>
+      <span>{{ pedido.customer_phone }}</span>
+    </div>
+    {% endif %}
+    <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
+      <span>Retirar</span>
+      <strong>
+        {{ pedido.promised_date.strftime("%d/%m/%Y") if pedido.promised_date else "—" }}
+        {% if pedido.promised_time %} a las {{ pedido.promised_time }}{% endif %}
+      </strong>
+    </div>
+    <hr>
+    <p style="font-weight: 600; margin-bottom: var(--space-2);">Tu pedido:</p>
+    <ul style="list-style: none; padding: 0; margin: 0;">
+      {% for ln in pedido.lines %}
+      <li style="display: flex; justify-content: space-between; padding: var(--space-1) 0;">
+        <span>
+          {{ "%.0f"|format(ln.qty) }} × {{ ln.product_name }}
+        </span>
+        <span>{{ currency_label }} {{ m.gs(ln.line_total_gs) }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <hr>
+    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+      <strong>Total estimado</strong>
+      <strong style="font-size: var(--text-lg);">{{ currency_label }} {{ m.gs(pedido.total_gs) }}</strong>
+    </div>
+    {% if pedido.payment_intent %}
+    <p class="text-muted" style="font-size: var(--text-xs); margin-top: var(--space-2);">
+      Forma de pago esperada: <strong>{{ pedido.payment_intent }}</strong>
+    </p>
+    {% endif %}
+  </div>
+
+  {% if pedido.notes %}
+  <div class="card">
+    <div class="metric-label">Notas</div>
+    <p style="font-size: var(--text-sm); margin: 0;">{{ pedido.notes }}</p>
+  </div>
+  {% endif %}
+
+  {% if pedido.status == "fulfilled" %}
+  <div class="alert alert-success" role="status">
+    <strong>¡Entregado!</strong> Gracias por tu compra.
+  </div>
+  {% elif pedido.status == "cancelled" %}
+  <div class="alert alert-danger" role="alert">
+    <strong>Cancelado</strong> — este pedido fue anulado. Contactanos si tenés dudas.
+  </div>
+  {% elif pedido.status == "ready" %}
+  <div class="alert alert-success" role="status">
+    <strong>¡Listo para retirar!</strong> Pasá a buscarlo cuando puedas.
+  </div>
+  {% endif %}
+
+  <div class="text-center text-muted" style="font-size: var(--text-xs); padding: var(--space-4) 0;">
+    <p>Guardá este link o esta página para revisar tu pedido.</p>
+    <p>Si necesitás cambiar algo, respondé por WhatsApp.</p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Pedido #{{ pedido.id }}{% endblock %}
+
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
+  Pedido #{{ pedido.id }}
+  {% if pedido.status == "pending" %}<span class="badge badge-warn">Pendiente</span>
+  {% elif pedido.status == "confirmed" %}<span class="badge badge-info">Confirmado</span>
+  {% elif pedido.status == "ready" %}<span class="badge badge-ok">Listo</span>
+  {% elif pedido.status == "fulfilled" %}<span class="badge badge-good">Entregado</span>
+  {% elif pedido.status == "cancelled" %}<span class="badge badge-neutral">Cancelado</span>
+  {% endif %}
+</h1>
+
+<div class="grid grid-2 mb-4">
+  <div class="card">
+    <h2>Cliente</h2>
+    <p>
+      <strong>{{ pedido.customer_name }}</strong>
+      {% if pedido.customer_phone %}<br><small class="text-muted">{{ pedido.customer_phone }}</small>{% endif %}
+      {% if pedido.spend_30d_gs and pedido.spend_30d_gs > 0 %}
+      <br><small class="text-muted" title="Compras últimos 30 días">Últ. 30d: Gs. {{ m.gs(pedido.spend_30d_gs) }}</small>
+      {% endif %}
+    </p>
+  </div>
+  <div class="card">
+    <h2>Prometido</h2>
+    <p>
+      <strong>{{ pedido.promised_date.strftime("%d/%m/%Y") if pedido.promised_date else "—" }}</strong>
+      {% if pedido.promised_time %} a las <strong>{{ pedido.promised_time }}</strong>{% endif %}
+      <br>
+      <span class="badge badge-neutral">{{ pedido.channel }}</span>
+      <span class="badge badge-neutral" style="margin-left: var(--space-1);">pago: {{ pedido.payment_intent }}</span>
+    </p>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <h2>
+    <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
+    Ítems
+  </h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="num">Cantidad</th>
+        <th class="num">Precio unit.</th>
+        <th class="num">Subtotal</th>
+        <th class="num">Cumplido</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ln in pedido.lines %}
+      <tr>
+        <td>{{ ln.product_name }}</td>
+        <td class="num">{{ "%.2f"|format(ln.qty) }}</td>
+        <td class="num">Gs. {{ m.gs(ln.unit_price_gs) }}</td>
+        <td class="num">Gs. {{ m.gs(ln.line_total_gs) }}</td>
+        <td class="num">
+          {% if ln.fulfilled_qty and ln.fulfilled_qty > 0 %}
+            <span class="badge badge-good">{{ "%.2f"|format(ln.fulfilled_qty) }}</span>
+          {% else %}
+            <span class="badge badge-neutral">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td colspan="3"><strong>Total</strong></td>
+        <td class="num"><strong>Gs. {{ m.gs(pedido.total_gs) }}</strong></td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+  {% if pedido.notes %}
+  <p class="mt-2"><strong>Notas:</strong> {{ pedido.notes }}</p>
+  {% endif %}
+</div>
+
+<div class="card mb-4">
+  <h2>
+    <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+    Link para el cliente
+  </h2>
+  <p class="hint">Compartí este link por WhatsApp para que vea su pedido sin login.</p>
+  <code style="display:block; padding: var(--space-3); background: var(--color-surface-2, #f4f4f4); border-radius: 4px;">
+    {{ pedido.public_url }}
+  </code>
+  <a href="{{ pedido.public_url }}" class="btn btn-sm mt-2" target="_blank" rel="noopener">
+    Vista previa
+  </a>
+</div>
+
+<div class="card mb-4">
+  <h2>
+    <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+    Acciones
+  </h2>
+  <div class="form-actions" style="gap: var(--space-2);">
+    {% if can_fulfill %}
+    <form method="post" action="/pedidos/{{ pedido.id }}/fulfill" style="display: inline;">
+      <button type="submit" class="btn btn-primary"
+              onclick="return confirm('¿Cumplir este pedido? Se crearán las ventas y se descontará stock.')">
+        <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+        Cumplir (crear ventas)
+      </button>
+    </form>
+    {% endif %}
+
+    {% for t in transitions %}
+    <form method="post" action="/pedidos/{{ pedido.id }}/status" style="display: inline;">
+      <input type="hidden" name="new_status" value="{{ t }}">
+      <button type="submit" class="btn">
+        {% if t == "confirmed" %}
+          <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+          Confirmar
+        {% elif t == "ready" %}
+          <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
+          Marcar listo
+        {% elif t == "cancelled" %}
+          <svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg>
+          Cancelar
+        {% else %}
+          {{ t | capitalize }}
+        {% endif %}
+      </button>
+    </form>
+    {% endfor %}
+
+    {% if pedido.fulfilled_sale_id %}
+    <a href="/ventas/{{ pedido.fulfilled_sale_id }}/recibo" class="btn btn-ghost" target="_blank" rel="noopener">
+      Recibo
+    </a>
+    {% endif %}
+  </div>
+  <p class="text-muted mt-2" style="font-size: var(--text-xs);">
+    Transiciones permitidas: <strong>{{ pedido.status }}</strong> →
+    {% if transitions %}{{ transitions | join(", ") }}{% else %}(terminal){% endif %}
+  </p>
+</div>
+
+<a href="/pedidos" class="btn btn-ghost">
+  <svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" style="transform: rotate(180deg);"/></svg>
+  Volver al listado
+</a>
+
+{% endblock %}

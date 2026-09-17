@@ -54,6 +54,7 @@ from app.routers import (
     inventory,
     merma,
     ops,
+    pedidos,
     produccion,
     products,
     recipes,
@@ -382,6 +383,8 @@ app.include_router(ops.router)
 app.include_router(settings.router)
 app.include_router(reorder.router)
 app.include_router(help.router)
+app.include_router(pedidos.public_router)
+app.include_router(pedidos.router)
 
 
 def _request_id() -> str:

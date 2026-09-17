@@ -342,6 +342,7 @@ def apply_sale(
     customer_id: int | None = None,
     payment_method: str | None = None,
     discount_gs: int = 0,
+    channel: str | None = None,
 ) -> ApplySaleResult:
     """Record a sale. Atomic. Drops theoretical stock.
 
@@ -372,6 +373,7 @@ def apply_sale(
         customer_id=customer_id,
         payment_method=payment_method,
         discount_gs=discount_gs,
+        channel=channel or "mostrador",
     )
     session.add(sale)
     session.flush()  # assigns sale.id

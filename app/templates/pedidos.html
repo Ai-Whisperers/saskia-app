@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Pedidos{% endblock %}
+
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
+  Pedidos
+</h1>
+<p class="hint">
+  Pedidos pre-cargados para pickup. La mayoría entran por WhatsApp el día anterior o la mañana.
+  Los grupos son <strong>Hoy/Mañana</strong>, <strong>Esta semana</strong> y <strong>Pendientes viejos</strong>
+  (status <code>pending</code> con fecha pasada — flag para hacer follow-up).
+</p>
+
+<div class="card mb-4">
+  <a href="/pedidos/nuevo" class="btn btn-primary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+    Nuevo pedido
+  </a>
+  <span class="text-muted" style="margin-left: var(--space-3); font-size: var(--text-xs);">
+    Hoy es <strong>{{ today_human }}</strong>
+  </span>
+</div>
+
+{% set groups_ordered = [
+  ("hoy_manana", "Hoy / Mañana", "danger"),
+  ("esta_semana", "Esta semana", "info"),
+  ("pendientes_viejos", "Pendientes viejos", "warn"),
+] %}
+
+{% for key, label, severity in groups_ordered %}
+<section class="card mb-4" aria-label="{{ label }}">
+  <h2 style="display: flex; align-items: center; gap: var(--space-2);">
+    <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+    {{ label }}
+    <span class="badge badge-{{ severity }}" style="margin-left: auto;">
+      {{ groups[key] | length }}
+    </span>
+  </h2>
+
+  {% if groups[key] %}
+  <table class="table is-hoverable is-striped">
+    <thead>
+      <tr>
+        <th>Cliente</th>
+        <th>Fecha / hora</th>
+        <th>Canales</th>
+        <th class="num">Líneas</th>
+        <th class="num">Total Gs.</th>
+        <th>Estado</th>
+        <th>Edad</th>
+        <th class="actions"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in groups[key] %}
+      <tr>
+        <td>
+          <strong>{{ p.customer_name }}</strong>
+          {% if p.customer_phone %}<br><small class="text-muted">{{ p.customer_phone }}</small>{% endif %}
+          {% if p.spend_30d_gs and p.spend_30d_gs > 0 %}
+          <br><small class="text-muted" title="Compras últimos 30 días">últ. 30d: {{ m.gs(p.spend_30d_gs) }}</small>
+          {% endif %}
+        </td>
+        <td>
+          {{ p.promised_date.strftime("%d/%m") }}
+          {% if p.promised_time %}<br><small class="text-muted">{{ p.promised_time }}</small>{% endif %}
+        </td>
+        <td>
+          <span class="badge badge-neutral">{{ p.channel }}</span>
+        </td>
+        <td class="num">{{ p.n_lines }}</td>
+        <td class="num">Gs. {{ m.gs(p.total_gs) }}</td>
+        <td>
+          {% if p.status == "pending" %}
+            <span class="badge badge-warn">Pendiente</span>
+          {% elif p.status == "confirmed" %}
+            <span class="badge badge-info">Confirmado</span>
+          {% elif p.status == "ready" %}
+            <span class="badge badge-ok">Listo</span>
+          {% elif p.status == "fulfilled" %}
+            <span class="badge badge-good">Entregado</span>
+          {% elif p.status == "cancelled" %}
+            <span class="badge badge-neutral">Cancelado</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if p.age_days == 0 %}
+            <small class="text-muted">hoy</small>
+          {% elif p.age_days == 1 %}
+            <small class="text-muted">mañana</small>
+          {% elif p.age_days > 1 %}
+            <small class="text-muted">+{{ p.age_days }}d</small>
+          {% elif p.age_days < 0 %}
+            <span class="badge badge-danger">¡{{ -p.age_days }}d atrasado!</span>
+          {% endif %}
+        </td>
+        <td class="actions">
+          <a href="/pedidos/{{ p.id }}" class="btn btn-sm">Ver</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <p class="text-muted">
+      {% if key == "hoy_manana" %}
+      No hay pedidos para hoy ni mañana. Cargá uno cuando entre por WhatsApp.
+      {% elif key == "esta_semana" %}
+      Sin pedidos para los próximos 7 días.
+      {% else %}
+      Nada pendiente atrasado. ¡Bien!
+      {% endif %}
+    </p>
+  </div>
+  {% endif %}
+</section>
+{% endfor %}
+
+{% endblock %}

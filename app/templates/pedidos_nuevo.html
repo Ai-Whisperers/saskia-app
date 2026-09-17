@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Nuevo pedido{% endblock %}
+
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+  Nuevo pedido
+</h1>
+
+<form method="post" action="/pedidos/nuevo" id="pedido-form">
+  <div class="form-row">
+    <label for="customer_name">Cliente (nombre)</label>
+    <input type="text" id="customer_name" name="customer_name"
+           placeholder="María González" autocomplete="off">
+    <small>Si es un cliente conocido, también podés asociar el ID abajo.</small>
+  </div>
+
+  <div class="form-row">
+    <label for="customer_id">Cliente existente (opcional)</label>
+    <select id="customer_id" name="customer_id">
+      <option value="">— Cliente nuevo o desconocido —</option>
+      {% for c in customers %}
+      <option value="{{ c.id }}">{{ c.name }}{% if c.phone %} — {{ c.phone }}{% endif %}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label for="customer_phone">Teléfono</label>
+    <input type="text" id="customer_phone" name="customer_phone"
+           placeholder="+595 9XX XXXXX" autocomplete="off">
+  </div>
+
+  <div class="grid grid-2">
+    <div class="form-row">
+      <label for="promised_date">Fecha prometida</label>
+      <input type="date" id="promised_date" name="promised_date"
+             value="{{ default_promised_date }}" required>
+    </div>
+    <div class="form-row">
+      <label for="promised_time">Hora (opcional)</label>
+      <input type="time" id="promised_time" name="promised_time">
+    </div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="form-row">
+      <label for="channel">Canal</label>
+      <select id="channel" name="channel">
+        {% for ch in channels %}
+        <option value="{{ ch }}" {% if ch == "whatsapp" %}selected{% endif %}>{{ ch | capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row">
+      <label for="payment_intent">Forma de pago esperada</label>
+      <select id="payment_intent" name="payment_intent">
+        {% for pm in payment_methods %}
+        <option value="{{ pm }}" {% if pm == "efectivo" %}selected{% endif %}>{{ pm | capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label for="notes">Notas</label>
+    <textarea id="notes" name="notes" rows="2"
+              placeholder="Sin TACC, retirar antes de las 17h, etc."></textarea>
+  </div>
+
+  <h2 style="margin-top: var(--space-5);">
+    <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
+    Ítems del pedido
+  </h2>
+  <p class="hint">Tocá «+ Agregar ítem» para sumar líneas. El precio se snapshot al crear el pedido.</p>
+
+  <table class="table" id="lines-table">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="num" style="width: 100px;">Cantidad</th>
+        <th class="num" style="width: 130px;">Precio unit. (Gs.)</th>
+        <th class="actions"></th>
+      </tr>
+    </thead>
+    <tbody id="lines-body">
+      <tr class="line-row">
+        <td>
+          <select name="line_product_id" required>
+            <option value="">— Seleccionar producto —</option>
+            {% for p in products %}
+            <option value="{{ p.id }}" data-price="{{ p.sale_price_gs }}">{{ p.name }} ({{ m.gs(p.sale_price_gs) }})</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td class="num">
+          <input type="number" name="line_qty" min="0.01" step="0.01" value="1" required>
+        </td>
+        <td class="num">
+          <input type="number" name="line_unit_price_gs" min="0" step="100" value="0">
+        </td>
+        <td class="actions">
+          <button type="button" class="btn btn-sm btn-danger-ghost" onclick="removeLine(this)">Quitar</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <button type="button" class="btn" id="add-line-btn">
+    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+    Agregar ítem
+  </button>
+
+  <div class="form-actions mt-4">
+    <button type="submit" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+      Crear pedido
+    </button>
+    <a href="/pedidos" class="btn btn-ghost">Cancelar</a>
+  </div>
+</form>
+
+<template id="line-row-template">
+  <tr class="line-row">
+    <td>
+      <select name="line_product_id" required>
+        <option value="">— Seleccionar producto —</option>
+        {% for p in products %}
+        <option value="{{ p.id }}" data-price="{{ p.sale_price_gs }}">{{ p.name }} ({{ m.gs(p.sale_price_gs) }})</option>
+        {% endfor %}
+      </select>
+    </td>
+    <td class="num">
+      <input type="number" name="line_qty" min="0.01" step="0.01" value="1" required>
+    </td>
+    <td class="num">
+      <input type="number" name="line_unit_price_gs" min="0" step="100" value="0">
+    </td>
+    <td class="actions">
+      <button type="button" class="btn btn-sm btn-danger-ghost" onclick="removeLine(this)">Quitar</button>
+    </td>
+  </tr>
+</template>
+
+<script>
+(function() {
+  var addBtn = document.getElementById("add-line-btn");
+  var tmpl = document.getElementById("line-row-template");
+  var body = document.getElementById("lines-body");
+  if (!addBtn || !tmpl || !body) return;
+  addBtn.addEventListener("click", function() {
+    var clone = tmpl.content.cloneNode(true);
+    body.appendChild(clone);
+  });
+  // Auto-fill price from product on change
+  body.addEventListener("change", function(e) {
+    if (e.target && e.target.tagName === "SELECT" && e.target.name === "line_product_id") {
+      var row = e.target.closest("tr");
+      if (!row) return;
+      var opt = e.target.options[e.target.selectedIndex];
+      var priceInput = row.querySelector('input[name="line_unit_price_gs"], input[name="line_unit_price_gs"]');
+      if (priceInput && opt && opt.dataset.price) {
+        priceInput.value = opt.dataset.price;
+      }
+    }
+  });
+})();
+
+function removeLine(btn) {
+  var row = btn.closest("tr");
+  if (!row) return;
+  var body = document.getElementById("lines-body");
+  if (body && body.querySelectorAll(".line-row").length > 1) {
+    row.remove();
+  } else {
+    // Last row — clear instead of removing.
+    row.querySelector('select[name="line_product_id"]').value = "";
+    row.querySelector('input[name="line_qty"]').value = "1";
+    row.querySelector('input[name="line_unit_price_gs"]').value = "0";
+  }
+}
+</script>
+
+{% endblock %}

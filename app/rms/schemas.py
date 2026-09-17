@@ -33,6 +33,25 @@ PAYMENT_METHODS_DISPLAY: tuple[str, ...] = (
 )
 PAYMENT_METHOD_DEFAULT = "efectivo"
 
+# Stream A prelaunch: which sales channel produced this sale.
+# mostrador = walk-in counter; whatsapp/pedidosya/monchis = delivery apps
+# / aggregators; mostrador-encargo = in-person pre-order pickup.
+ALLOWED_CHANNELS = frozenset({
+    "mostrador",
+    "whatsapp",
+    "pedidosya",
+    "monchis",
+    "mostrador-encargo",
+})
+CHANNELS_DISPLAY: tuple[str, ...] = (
+    "mostrador",
+    "mostrador-encargo",
+    "whatsapp",
+    "pedidosya",
+    "monchis",
+)
+CHANNEL_DEFAULT = "mostrador"
+
 
 # Re-export common constants. Routers import these for validation.
 __all__ = [
@@ -41,4 +60,7 @@ __all__ = [
     "ALLOWED_PAYMENT_METHODS",
     "PAYMENT_METHODS_DISPLAY",
     "PAYMENT_METHOD_DEFAULT",
+    "ALLOWED_CHANNELS",
+    "CHANNELS_DISPLAY",
+    "CHANNEL_DEFAULT",
 ]
