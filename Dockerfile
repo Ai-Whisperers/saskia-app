@@ -37,6 +37,11 @@ RUN pip install --upgrade pip && \
 COPY app ./app
 COPY installer ./installer
 
+# User guide (read at runtime by /guia route). Without this copy, the
+# /guia route always 404s on Render because app/routers/help.py looks
+# up files at /app/docs/user-guide/*.md relative to the WORKDIR.
+COPY docs ./docs
+
 # Non-root user
 RUN useradd --create-home --shell /bin/bash appuser && \
     chown -R appuser:appuser /app
