@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
@@ -78,16 +78,43 @@ async def sales_list(
         )
     sales = session.scalars(sales_q.limit(50)).all()
 
+    # Aggregate totals (excluding voided) for the filtered set — used by
+    # both the HTML summary card and the CSV export. We apply the same
+    # filters onto a count/sum aggregate (no 50-row limit).
+    totals_q = select(
+        func.count(Sale.id),
+        func.coalesce(func.sum(Sale.qty * Sale.unit_price_gs), 0),
+    ).where(Sale.voided_at.is_(None))
+    if product_id is not None:
+        totals_q = totals_q.where(Sale.product_id == product_id)
+    if days is not None and days > 0:
+        cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
+        totals_q = totals_q.where(Sale.sold_at >= cutoff)
+    if q:
+        like = f"%{q.lower()}%"
+        totals_q = totals_q.outerjoin(Product, Sale.product_id == Product.id).outerjoin(
+        Customer, Sale.customer_id == Customer.id
+    ).where(
+        or_(
+            func.lower(Product.name).like(like),
+            func.lower(Sale.notes).like(like),
+            func.lower(Customer.phone).like(like),
+        )
+    )
+    row = session.execute(totals_q).one()
+    total_count = int(row[0] or 0)
+    total_gs = int(row[1] or 0)
+
     # Quick-sell: top 5 products by revenue in last 14 days
     since = datetime.now(ASUNCION_TZ) - timedelta(days=14)
-    q = (
+    quick_sell_q = (
         select(Sale.product_id, func.sum(Sale.qty).label("units"), func.sum(Sale.qty * Sale.unit_price_gs).label("rev"))
         .where(Sale.sold_at >= since, Sale.voided_at.is_(None))
         .group_by(Sale.product_id)
         .order_by(func.sum(Sale.qty * Sale.unit_price_gs).desc())
         .limit(5)
     )
-    quick_rows = session.execute(q).all()
+    quick_rows = session.execute(quick_sell_q).all()
     product_by_id = {p.id: p for p in products}
     quick_sell = []
     for pid, units, rev in quick_rows:
@@ -110,6 +137,132 @@ async def sales_list(
             "quick_sell": quick_sell,
             "payment_methods": ["efectivo", "transferencia", "tarjeta", "otro"],
             "now_local": datetime.now(ASUNCION_TZ).strftime("%Y-%m-%dT%H:%M"),
+            "totals": {
+                "count": total_count,
+                "total_gs": total_gs,
+                "avg_ticket_gs": int(total_gs / total_count) if total_count else 0,
+                "filters": _filter_summary(
+                    q=q, product_id=product_id, days=days, products=products
+                ),
+            },
+        },
+    )
+
+
+def _filter_summary(q, product_id, days, products):
+    """Human-readable description of the active filter (shown in the summary card)."""
+    parts = []
+    if days is not None and days > 0:
+        parts.append(f"últimos {days} días")
+    if product_id is not None:
+        prod = next((p for p in products if p.id == product_id), None)
+        if prod is not None:
+            parts.append(f"producto: {prod.name}")
+    if q:
+        parts.append(f"«{q}»")
+    if not parts:
+        return "todos los registros activos"
+    return ", ".join(parts)
+
+
+def _build_filtered_sales_query(q, product_id, days):
+    """Build a Sale query applying the same filters as sales_list.
+
+    Used by both the HTML view and the CSV export so they stay
+    consistent. Caller is responsible for any further ordering/limits.
+    """
+    sales_q = select(Sale).order_by(Sale.sold_at.desc())
+    if product_id is not None:
+        sales_q = sales_q.where(Sale.product_id == product_id)
+    if days is not None and days > 0:
+        cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
+        sales_q = sales_q.where(Sale.sold_at >= cutoff)
+    if q:
+        like = f"%{q.lower()}%"
+        sales_q = (
+            sales_q
+            .outerjoin(Product, Sale.product_id == Product.id)
+            .outerjoin(Customer, Sale.customer_id == Customer.id)
+            .where(
+                or_(
+                    func.lower(Product.name).like(like),
+                    func.lower(Sale.notes).like(like),
+                    func.lower(Customer.phone).like(like),
+                )
+            )
+        )
+    return sales_q
+
+
+@router.get("/export.csv")
+async def sales_export_csv(
+    q: str | None = None,
+    product_id: int | None = None,
+    days: int | None = None,
+    session: Session = Depends(get_session),
+) -> Response:
+    """CSV export of the sales history (matches the filters on /ventas).
+
+    No row limit — operators want full records for accounting / IVA.
+    Content-disposition: attachment so browsers download instead of
+    rendering. UTF-8 BOM-prefixed so Excel opens it correctly in PY.
+    """
+    sales_q = _build_filtered_sales_query(q=q, product_id=product_id, days=days)
+    rows = session.scalars(sales_q).all()
+
+    import csv
+    import io
+
+    buf = io.StringIO()
+    # UTF-8 BOM — Excel reads this as "UTF-8 with BOM" and renders accents.
+    buf.write("\ufeff")
+    writer = csv.writer(buf)
+    writer.writerow([
+        "fecha", "producto", "cantidad", "precio_unitario_gs",
+        "total_gs", "telefono_cliente", "forma_pago",
+        "anulada", "notas",
+    ])
+    for s in rows:
+        writer.writerow([
+            s.sold_at.strftime("%Y-%m-%d %H:%M"),
+            s.product.name if s.product else "(deleted)",
+            f"{s.qty:.2f}",
+            s.unit_price_gs,
+            int(round(s.qty * s.unit_price_gs)),
+            s.customer.phone if s.customer else "",
+            s.payment_method or "",
+            "sí" if s.voided_at else "no",
+            s.notes or "",
+        ])
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="ventas.csv"',
+        },
+    )
+
+
+@router.get("/{sale_id}/recibo", response_class=HTMLResponse)
+async def sale_receipt(
+    request: Request,
+    sale_id: int,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Printable single-sale receipt for handing to the customer.
+
+    Renders a minimal A6-friendly page with title, date, line, total,
+    payment method, and a "thank you" footer. Print stylesheet hides
+    the nav. Operator can press ⌘P / Ctrl+P to print or save as PDF.
+    """
+    sale = session.get(Sale, sale_id)
+    if sale is None:
+        raise HTTPException(status_code=404, detail="Venta no encontrada")
+    return render(
+        request,
+        "recibo.html",
+        {
+            "sale": _decorated(sale),
         },
     )
 

@@ -1,0 +1,88 @@
+{# Printable single-sale receipt (A6-friendly, narrow).
+
+   Rendered by `GET /ventas/{sale_id}/recibo`. Operator hits ⌘P / Ctrl+P
+   to print or save as PDF; the print stylesheet in app.css hides the nav.
+#}
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% block title %}Recibo #{{ sale.id }}{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 360px;">
+
+  <div class="card" style="text-align: center;">
+    <h1 style="font-size: var(--text-xl); margin-bottom: var(--space-2);">
+      <svg class="icon" aria-hidden="true"><use href="#icon-heart"/></svg>
+      Saskia RMS
+    </h1>
+    <p class="text-muted" style="font-size: var(--text-sm); margin: 0;">
+      Recibo de venta
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Venta</div>
+    <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
+      <span>Número</span>
+      <strong>#{{ sale.id }}</strong>
+    </div>
+    <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
+      <span>Fecha</span>
+      <span>{{ sale.sold_at_str }}</span>
+    </div>
+    <hr>
+    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-3);">
+      <div>
+        <strong>{{ sale.product_name }}</strong><br>
+        <small class="text-muted">{{ "%.2f"|format(sale.qty) }} × Gs. {{ m.gs(sale.unit_price_gs) }}</small>
+      </div>
+      <strong style="font-size: var(--text-lg);">Gs. {{ m.gs(sale.total_gs) }}</strong>
+    </div>
+
+    {% if sale.discount_gs and sale.discount_gs > 0 %}
+    <div style="display: flex; justify-content: space-between; color: var(--color-danger); margin-bottom: var(--space-2);">
+      <span>Descuento</span>
+      <span>− Gs. {{ m.gs(sale.discount_gs) }}</span>
+    </div>
+    {% endif %}
+
+    {% if sale.payment_method %}
+    <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
+      <span>Pago</span>
+      <span class="badge badge-neutral">{{ sale.payment_method }}</span>
+    </div>
+    {% endif %}
+
+    {% if sale.customer_phone %}
+    <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
+      <span>Cliente</span>
+      <span>{{ sale.customer_phone }}</span>
+    </div>
+    {% endif %}
+
+    {% if sale.voided_at %}
+    <div class="alert alert-danger mt-2" role="alert">
+      <strong>Venta anulada</strong> — {{ sale.voided_at.strftime('%d/%m/%Y %H:%M') }}
+    </div>
+    {% endif %}
+
+    {% if sale.notes %}
+    <hr>
+    <div>
+      <div class="metric-label">Notas</div>
+      <p style="font-size: var(--text-sm);">{{ sale.notes }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="text-center text-muted" style="font-size: var(--text-xs); padding: var(--space-4) 0;">
+    <p>¡Gracias por tu compra!</p>
+    <p>Este recibo no es un comprobante fiscal.</p>
+    <button type="button" class="btn btn-primary mt-2 no-print" onclick="window.print()">
+      <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+      Imprimir
+    </button>
+    <a href="/ventas" class="btn btn-ghost mt-2 no-print">Volver al historial</a>
+  </div>
+</div>
+{% endblock %}

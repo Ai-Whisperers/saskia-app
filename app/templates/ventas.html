@@ -92,6 +92,38 @@
 </form>
 
 <h2>Historial</h2>
+
+<div class="card mb-4" aria-label="Resumen del historial">
+  <div class="grid grid-3">
+    <div>
+      <div class="metric-label">Ventas activas</div>
+      <div class="metric-value">{{ totals.count }}</div>
+    </div>
+    <div>
+      <div class="metric-label">Total recaudado</div>
+      <div class="metric-value">Gs. {{ m.gs(totals.total_gs) }}</div>
+    </div>
+    <div>
+      <div class="metric-label">Ticket promedio</div>
+      <div class="metric-value">Gs. {{ m.gs(totals.avg_ticket_gs) }}</div>
+    </div>
+  </div>
+  <p class="text-muted mt-2" style="font-size:var(--text-xs);">
+    Filtro actual: {{ totals.filters }}
+    <span class="flash" style="margin-left:var(--space-3); padding:var(--space-1) var(--space-2); display:inline-block;">
+      Mostrando últimas 50 ventas
+    </span>
+    {% set csv_query = dict(request.query_params.multi_items()) %}
+    {% set _ = csv_query.update({'format': 'csv'}) %}
+    <a href="{{ request.url.path }}?{{ csv_query|urlencode }}" class="btn btn-sm"
+       style="margin-left:var(--space-3);"
+       download="ventas-{{ now_local[:10] }}.csv">
+      <svg class="icon" aria-hidden="true"><use href="#icon-excel"/></svg>
+      Exportar CSV
+    </a>
+  </p>
+</div>
+
 <form method="get" action="/ventas" class="form form-row">
   <input type="search" name="q" value="{{ request.query_params.get('q','') }}" placeholder="Buscar producto, nota o teléfono">
   <select name="product_id">
@@ -145,6 +177,10 @@
         {% endif %}
       </td>
       <td class="actions">
+        <a href="/ventas/{{ s.id }}/recibo" class="btn btn-sm" target="_blank" rel="noopener" title="Imprimir recibo">
+          <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+          Recibo
+        </a>
         {% if not s.voided_at %}
         <form method="post" action="/ventas/{{ s.id }}/anular" style="display: inline;">
           <button type="submit" class="btn btn-sm btn-danger-ghost" onclick="return confirm('¿Anular esta venta? Se devuelve el stock.')">Anular</button>
