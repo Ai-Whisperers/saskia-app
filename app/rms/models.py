@@ -15,7 +15,7 @@ Tables:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy import (
@@ -481,6 +481,34 @@ class TagLink(Base):
     tag: Mapped["Tag"] = relationship("Tag", back_populates="links")
 
 
+
+
+class ProductionCompletion(Base):
+    """How much of a planned product was actually produced on a given day.
+
+    Saskia review T5: "Al final del dia debe registrarse cuanto de la
+    produccion se completo". One row per (product, date) — re-recording
+    updates in place via upsert_completion().
+    """
+
+    __tablename__ = "production_completion"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("product.id"), nullable=False, index=True
+    )
+    for_date: Mapped[date] = mapped_column(Date, nullable=False)
+    completed_qty: Mapped[float] = mapped_column(Float, nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("completed_qty >= 0", name="ck_completion_qty_nonneg"),
+        UniqueConstraint("product_id", "for_date", name="uq_completion_product_date"),
+    )
+
+    # Relationships
+    product: Mapped["Product"] = relationship("Product")
 
 
 class WasteLog(Base):

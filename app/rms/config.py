@@ -68,7 +68,7 @@ BACKUP_THRESHOLD_HOURS = int(os.getenv("AIW_SASKIA_BACKUP_HOURS", "24"))
 KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_SASKIA_KEEP_LOCAL_DAYS", "30"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 18  # 018 = ingredient_price_event (Phase B — Q1 core)
+CURRENT_SCHEMA_VERSION = 19  # 019 = production_completion (Phase C — T5)
 
 
 def ensure_dirs() -> None:

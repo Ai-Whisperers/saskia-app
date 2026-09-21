@@ -661,6 +661,20 @@ def _migration_018_price_event(conn):
     )
 
 
+def _migration_019_production_completion(conn):
+    """Add production_completion table (Saskia review round 1, T5).
+
+    Table is created via create_all() in init_db() (the model class was
+    added to models.py at the same time). This stub only bumps the
+    schema_version row. One row per (product_id, for_date) — upserted
+    by app/rms/eod_completions.upsert_completion().
+    """
+    conn.execute(
+        text("UPDATE app_meta SET value = '19', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -680,6 +694,7 @@ MIGRATIONS = {
     16: _migration_016_pedidos,
     17: _migration_017_recipe_line_unit,
     18: _migration_018_price_event,
+    19: _migration_019_production_completion,
 }
 
 
