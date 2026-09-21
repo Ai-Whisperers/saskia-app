@@ -152,14 +152,26 @@ def _delta_pct(current: int, prior: int) -> dict[str, float | str | None]:
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(
     request: Request,
-    period: str = Query("today", pattern="^(today|week|month)$"),
+    period: str = Query("today", pattern="^(today|week|month|custom)$"),
+    start: str | None = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
+    end: str | None = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    start, end = _period_window(period)
-    prior_start, prior_end = _prior_period_window(period)
+    if period == "custom" and start and end:
+        try:
+            from datetime import datetime as dt_cls
+            start_dt = dt_cls.strptime(start, "%Y-%m-%d")
+            end_dt = dt_cls.strptime(end, "%Y-%m-%d")
+            range_start = start_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+            range_end = end_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+        except ValueError:
+            range_start, range_end = _period_window("today")
+    else:
+        range_start, range_end = _period_window(period)
+    prior_start, prior_end = _prior_period_window(period if period != "custom" else "today")
 
     ventas_gs, cogs_gs, margen_gs, sales_no_recipe, sales, batch_costs = _compute_window_totals(
-        session, start, end
+        session, range_start, range_end
     )
     prior_ventas_gs, prior_cogs_gs, prior_margen_gs, _, _, _ = _compute_window_totals(
         session, prior_start, prior_end
@@ -241,6 +253,8 @@ async def dashboard(
         "inicio.html",
         {
             "period": period,
+            "start_date_val": range_start.strftime("%Y-%m-%d") if range_start else "",
+            "end_date_val": range_end.strftime("%Y-%m-%d") if range_end else "",
             "ventas_gs": ventas_gs,
             "cogs_gs": cogs_gs,
             "margen_gs": margen_gs,

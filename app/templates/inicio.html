@@ -23,6 +23,14 @@
   <a href="?period=today" class="btn {% if period == 'today' %}btn-primary{% endif %}" aria-current="{% if period == 'today' %}true{% endif %}">Hoy<span class="sr-only">{% if period == 'today' %} (período activo){% endif %}</span></a>
   <a href="?period=week"  class="btn {% if period == 'week'  %}btn-primary{% endif %}" aria-current="{% if period == 'week' %}true{% endif %}">Semana<span class="sr-only">{% if period == 'week' %} (período activo){% endif %}</span></a>
   <a href="?period=month" class="btn {% if period == 'month' %}btn-primary{% endif %}" aria-current="{% if period == 'month' %}true{% endif %}">Mes<span class="sr-only">{% if period == 'month' %} (período activo){% endif %}</span></a>
+  <span class="divider-v" style="width:1px;height:24px;background:var(--color-border);display:inline-block;vertical-align:middle;margin:0 .25rem;"></span>
+  <form method="get" action="/" style="display:inline-flex;gap:.4rem;align-items:center;" novalidate>
+    <input type="date" name="start" value="{{ start_date_val }}" aria-label="Fecha inicio" style="padding:.3rem .5rem;border-radius:6px;border:1px solid var(--color-border);font-size:var(--text-sm);">
+    <span style="color:var(--color-text-muted);font-size:var(--text-sm);">→</span>
+    <input type="date" name="end" value="{{ end_date_val }}" aria-label="Fecha fin" style="padding:.3rem .5rem;border-radius:6px;border:1px solid var(--color-border);font-size:var(--text-sm);">
+    <input type="hidden" name="period" value="custom">
+    <button type="submit" class="btn btn-sm {% if period == 'custom' %}btn-primary{% endif %}">Aplicar</button>
+  </form>
 </div>
 
 <div class="grid grid-3 mb-4">
