@@ -18,6 +18,7 @@
       <th class="num">Sugerido</th>
       <th class="num">Urgencia</th>
       <th class="num">Costo est.</th>
+      <th>Reponer</th>
     </tr>
   </thead>
   <tbody>
@@ -25,8 +26,8 @@
     <tr>
       <td><strong>{{ item.name }}</strong></td>
       <td class="num">{{ "%.2f"|format(item.current_stock) }} {{ item.unit }}</td>
-      <td class="num">{{ "%.2f"|format(item.min_stock) }}</td>
-      <td class="num">{{ "%.2f"|format(item.max_stock) }}</td>
+      <td class="num">{{ "%.2f"|format(item.min_stock) }} {{ item.unit }}</td>
+      <td class="num">{{ "%.2f"|format(item.max_stock) }} {{ item.unit }}</td>
       <td class="num"><strong>{{ "%.2f"|format(item.suggested_qty) }} {{ item.unit }}</strong></td>
       <td class="num">
         {% if item.urgency < 0.5 %}
@@ -38,6 +39,21 @@
         {% endif %}
       </td>
       <td class="num">{{ m.gs(item.estimated_cost_gs) }}</td>
+      <td>
+        <form method="post" action="/reorder/registrar" class="restock-form">
+          <input type="hidden" name="ingredient_id" value="{{ item.ingredient_id }}">
+          <input type="hidden" name="notes" value="">
+          <label class="sr-only" for="rq-{{ item.ingredient_id }}">Cantidad {{ item.name }}</label>
+          <input type="number" id="rq-{{ item.ingredient_id }}" name="qty" step="0.5" min="0" size="4"
+                 value="{{ "%.2f"|format(item.suggested_qty) }}"
+                 aria-label="Cantidad a reponer: {{ item.name }}">
+          <label class="sr-only" for="rp-{{ item.ingredient_id }}">Precio {{ item.name }}</label>
+          <input type="number" id="rp-{{ item.ingredient_id }}" name="price_gs" step="100" min="0" size="6"
+                 value="{{ item.purchase_price_gs if item.purchase_price_gs is not none else '' }}"
+                 aria-label="Precio pagado por {{ item.unit }} de {{ item.name }}">
+          <button type="submit" class="btn btn-sm btn-primary">Reponer</button>
+        </form>
+      </td>
     </tr>
   {% endfor %}
   </tbody>
@@ -45,6 +61,7 @@
     <tr>
       <th colspan="6" class="num">Total estimado</th>
       <th class="num">{{ m.gs(total_cost_gs) }}</th>
+      <th></th>
     </tr>
   </tfoot>
 </table>

@@ -7,6 +7,14 @@
 
 ### Added (2026-09-21) — Saskia review round 1 (Thu 18-sep)
 
+- **/reorder — restock flow (read-only → actionable)** (Saskia review Q1).
+  The suggestions table now has a per-row "Reponer" form (qty prefilled with
+  the suggested qty, price prefilled with the current purchase price).
+  `POST /reorder/registrar` bumps `Ingredient.stock_qty`, appends a
+  `restock` price event (so the price history starts filling from real
+  purchases), audits `write.reorder.restock`, and rate-limits 10/min.
+  Validates qty>0 and price≥0 (400) and unknown ingredient (404).
+
 - **/produccion — "Ver receta" routes to the recipe, not the product** (Saskia
   feedback). `ProductionRow` now carries `recipe_id`; the action button links
   to `/recetas/{recipe_id}/editar` and hides when the product has no recipe.
