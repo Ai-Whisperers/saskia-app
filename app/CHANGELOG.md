@@ -7,6 +7,11 @@
 
 ### Added (2026-09-21) — Saskia review round 1 (Thu 18-sep)
 
+- **/inventario — price strip + sparkline** (Saskia review Q1). Under the
+  purchase-price cell, ingredients with >=2 price events in the last 90 days
+  show a muted "90d: min X · max Y" line (money via m.gs); >=3 events also
+  render a sparkline SVG of the series (app/rms/charts.sparkline, ARIA-labeled).
+
 - **/reorder — restock flow (read-only → actionable)** (Saskia review Q1).
   The suggestions table now has a per-row "Reponer" form (qty prefilled with
   the suggested qty, price prefilled with the current purchase price).

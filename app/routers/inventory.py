@@ -12,9 +12,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
+from app.rms.charts import sparkline
 from app.rms.dependencies import get_session
-from app.rms.models import Ingredient, RecipeLine
-from app.rms.price_history import record_price_event
+from app.rms.models import Ingredient, IngredientPriceEvent, RecipeLine
+from app.rms.price_history import price_history, price_stats, record_price_event
 from app.rms.units import Unit
 from app.services.template_render import render
 
@@ -25,10 +26,34 @@ router = APIRouter(prefix="/inventario", dependencies=[Depends(require_login)])
 def inventory_list(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     """List all ingredients with stock badge."""
     ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
+
+    # Phase D — Q1 surface: price-history enrichment per ingredient.
+    # Ingredients with >=2 events in the last 90d get a muted min/max line
+    # under the price cell; >=3 events also get a sparkline SVG.
+    price_info: dict[int, dict] = {}
+    ing_ids_with_events = set(
+        session.scalars(
+            select(IngredientPriceEvent.ingredient_id).distinct()
+        ).all()
+    )
+    for ing in ingredients:
+        if ing.id not in ing_ids_with_events:
+            continue
+        stats = price_stats(session, ing.id, days=90)
+        if stats["count"] >= 2:
+            info: dict = {"stats": stats, "sparkline_svg": ""}
+            if stats["count"] >= 3:
+                history = price_history(session, ing.id, days=90)
+                info["sparkline_svg"] = sparkline(
+                    [p for _, p in history],
+                    label=f"histórico de precio de {ing.name}",
+                )
+            price_info[ing.id] = info
+
     return render(
         request,
         "inventario.html",
-        {"ingredients": ingredients},
+        {"ingredients": ingredients, "price_info": price_info},
     )
 
 
