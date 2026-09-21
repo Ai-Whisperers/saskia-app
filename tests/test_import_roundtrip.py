@@ -177,21 +177,31 @@ def test_export_to_bytes_returns_valid_xlsx(session_factory, mini_xlsx_path: Pat
 
 
 def test_import_result_row_counts_has_all_keys(session_factory, mini_xlsx_path: Path):
-    """row_counts() returns dict with all 6 entity counts."""
+    """row_counts() returns the 6 entity counts + mode + customers.
+
+    History: at this test's authoring, ImportResult had 6 fields.
+    Round-1 (PR #9, 2026-09-21) added `mode` and `customers` to the
+    dataclass; row_counts() now returns 8 keys. The 6 entity counts
+    (ingredients, recipes, lines, products, sales, stock_moves) are
+    the load-bearing contract — assertions check those specifically
+    rather than asserting exact key set equality (so future adds
+    don't break this test).
+    """
     from app.services.import_xlsx import from_file
 
     with session_factory() as s:
         result = from_file(s, mini_xlsx_path)
 
     counts = result.row_counts()
-    assert set(counts.keys()) == {
-        "ingredients",
-        "recipes",
-        "lines",
-        "products",
-        "sales",
-        "stock_moves",
-    }
+
+    # Load-bearing contract: the 6 entity counts are present and int-valued
+    for key in ("ingredients", "recipes", "lines", "products", "sales", "stock_moves"):
+        assert key in counts, f"missing required key {key!r}; got {set(counts.keys())}"
+        assert isinstance(counts[key], int), f"{key!r} must be int, got {type(counts[key])}"
+
+    # Round-1 additions: mode + customers
+    assert "mode" in counts, "round-1 added `mode` key"
+    assert "customers" in counts, "round-1 added `customers` key"
 
 
 def test_import_skips_malformed_row_with_warning(session_factory, tmp_path: Path):

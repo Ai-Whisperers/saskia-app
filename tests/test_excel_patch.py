@@ -574,15 +574,25 @@ def test_end_to_end_plantilla_edit_upload_updates_price(session_factory):
     s = session_factory()
     try:
         result = from_workbook(s, wb2, mode="PATCH")
-        assert result.products == 1
+        # patch_plantilla_bytes returns ALL seeded products (2 in _seed_basic),
+        # so the PATCH loop processes both rows. result.products counts rows
+        # processed, not rows price-changed — both products appear in the
+        # plantilla, so the count is 2 even though we only edited one price.
+        # The "did the price update" check is below.
+        assert result.products == 2
         assert result.warnings == []
     finally:
         s.close()
 
-    # Step 4: verify
+    # Step 4: verify — only the product we edited got the new price.
+    # The other product (Muffin Choco) must still be at its seeded 6000.
     with session_factory() as s:
         p = s.get(Product, p_id)
         assert p.sale_price_gs == 12345
+        # Spot-check the OTHER product survived the round-trip unchanged
+        other_id = [pid for (n, pid, _) in seeds["products"] if pid != p_id][0]
+        other = s.get(Product, other_id)
+        assert other.sale_price_gs == 6000
 
 
 # ---------------------------------------------------------------------------
