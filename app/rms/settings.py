@@ -1,24 +1,20 @@
-"""app/rms/settings.py — Operator-facing settings (E10).
-
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E10.
-
-Backed by the AppMeta key-value table; 30 settings in 7 categories.
-Each setting has: key, default, validator, description, group.
-
-Settings are read on demand (no in-process cache). Mutations are
-logged to the audit log so operators can see who changed what.
-"""
-from __future__ import annotations
-
+"""Optimized settings.py with N+1 query elimination."""
 import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.rms.models import AppMeta
+
+if TYPE_CHECKING:
+    from . import main
+
+logger = logging.getLogger(__name__)
 
 
 class SettingGroup(str, Enum):
@@ -31,9 +27,6 @@ class SettingGroup(str, Enum):
     BACKUP = "backup"
     SESSION = "session"
     DEMO = "demo"
-
-
-# --- Setting dataclasses (pure data) ---
 
 
 @dataclass
@@ -76,10 +69,7 @@ VALIDATORS = {
     "json": _json_validator,
 }
 
-
-# --- All 30 settings (data, not code) ---
-
-
+# All 30 settings (data, not code)
 SETTINGS: list[Setting] = [
     # GENERAL (6)
     Setting(
@@ -310,11 +300,66 @@ SETTINGS: list[Setting] = [
 ]
 
 
-# --- Public API ---
+# --- Public API (OPTIMIZED) ---
 
 
 def get_setting(session: Session, key: str) -> str | None:
     """Read a single setting; returns None if not set (use default)."""
+    row = session.execute(
+        select(AppMeta).where(AppMeta.key == key)
+    ).scalar_one_or_none()
+    return row.value if row else None
+
+
+def get_setting_value_optimized(spec: Setting, raw: str | None) -> object:
+    """Get value from raw data + default (no DB calls)."""
+    if raw is None:
+        raw = spec.default
+    validator = VALIDATORS[spec.validator]
+    return validator(raw)
+
+
+def fetch_all_settings_once(session: Session) -> dict[str, str]:
+    """Fetch ALL settings in 1 query instead of N+1."""
+    logger.debug("Fetching all settings in single query")
+    rows = session.execute(
+        select(AppMeta.key, AppMeta.value).where(
+            AppMeta.key.in_(s.key for s in SETTINGS)
+        )
+    ).all()
+    return {r.key: r.value for r in rows}
+
+
+def list_settings_optimized(session: Session) -> list[dict]:
+    """Return all settings with current value, using 1 DB query."""
+    all_settings = fetch_all_settings_once(session)  # 1 query total
+    
+    out: list[dict] = []
+    for spec in SETTINGS:
+        stored = all_settings.get(spec.key)  # No DB call, use cache
+        current = get_setting_value_optimized(spec, stored)  # No DB call
+        out.append({
+            "key": spec.key,
+            "value": current,
+            "default": spec.default,
+            "stored_raw": stored,
+            "description": spec.description,
+            "group": spec.group.value,
+            "choices": spec.choices,
+        })
+    return out
+
+
+def settings_by_group_optimized(session: Session) -> dict[str, list[dict]]:
+    """Return settings grouped by group, using optimized list_settings."""
+    grouped: dict[str, list[dict]] = {}
+    for entry in list_settings_optimized(session):
+        grouped.setdefault(entry["group"], []).append(entry)
+    return grouped
+
+
+def get_setting_optimized(session: Session, key: str) -> str | None:
+    """Get single setting with single query (no N+1)."""
     row = session.execute(
         select(AppMeta).where(AppMeta.key == key)
     ).scalar_one_or_none()
@@ -358,30 +403,16 @@ def set_setting(
         select(AppMeta).where(AppMeta.key == key)
     ).scalar_one_or_none()
     if row is None:
-        row = AppMeta(key=key, value=raw, updated_at=datetime.now(timezone.utc).isoformat())
+        row = AppMeta(
+            key=key,
+            value=raw,
+            updated_at=datetime.now(timezone.utc).isoformat()
+        )
         session.add(row)
     else:
         row.value = raw
         row.updated_at = datetime.now(timezone.utc).isoformat()
     session.flush()
-
-
-def list_settings(session: Session) -> list[dict]:
-    """Return all settings with their current value, default, description, group."""
-    out: list[dict] = []
-    for spec in SETTINGS:
-        stored = get_setting(session, spec.key)
-        current = get_setting_value(session, spec.key)
-        out.append({
-            "key": spec.key,
-            "value": current,
-            "default": spec.default,
-            "stored_raw": stored,
-            "description": spec.description,
-            "group": spec.group.value,
-            "choices": spec.choices,
-        })
-    return out
 
 
 def reset_setting_to_default(session: Session, key: str) -> None:
@@ -394,12 +425,20 @@ def reset_setting_to_default(session: Session, key: str) -> None:
         session.flush()
 
 
+# Backwards compatibility - use optimized versions
+def list_settings(session: Session) -> list[dict]:
+    """Return all settings with their current value, using optimized version."""
+    return list_settings_optimized(session)
+
+
 def settings_by_group(session: Session) -> dict[str, list[dict]]:
-    """Return settings grouped by SettingGroup value."""
-    grouped: dict[str, list[dict]] = {}
-    for entry in list_settings(session):
-        grouped.setdefault(entry["group"], []).append(entry)
-    return grouped
+    """Return settings grouped by SettingGroup value, using optimized version."""
+    return settings_by_group_optimized(session)
+
+
+def get_setting_cached(session: Session, key: str) -> str | None:
+    """Get single setting optimized (single query)."""
+    return get_setting_optimized(session, key)
 
 
 __all__ = [
@@ -411,6 +450,11 @@ __all__ = [
     "get_setting_value",
     "set_setting",
     "list_settings",
+    "list_settings_optimized",
+    "fetch_all_settings_once",
+    "get_setting_optimized",
+    "get_setting_cached",
     "reset_setting_to_default",
     "settings_by_group",
+    "settings_by_group_optimized",
 ]
