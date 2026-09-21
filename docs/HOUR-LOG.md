@@ -32,7 +32,7 @@ Saskia PDF's 97h budget (70h original scope + 27h contingency).
 | 2026-09-21 | T1       |     3.0 |    2.5 | scope  | done    | Recipe line unit + grams input       |
 | 2026-09-21 | Q1-core  |     4.0 |    3.5 | scope  | done    | Schema v18 + restock write           |
 | 2026-09-21 | Q2-prep  |     1.0 |    1.5 | scope  | done    | Calendar grid component shell        |
-| 2026-09-21 | T5       |     2.0 |    1.0 | scope  | done    | EOD production-completed section     |
+| 2026-09-21 | T5       |     2.0 |    1.5 | scope  | done    | EOD completion persistence (Plan/Hecho) |
 | 2026-09-21 | T6       |     2.0 |    2.0 | scope  | done    | Merma whole-batch flow               |
 | 2026-09-21 | T8       |     2.0 |    1.5 | scope  | done    | Cross-page consistency               |
 | 2026-09-21 | Q1-sfc   |     5.0 |        | scope  | pending | Surface + reportes/precios + insight |
@@ -46,15 +46,15 @@ Saskia PDF's 97h budget (70h original scope + 27h contingency).
 
 | Bucket        | Planned | Actual |
 |---------------|--------:|-------:|
-| scope         |    40.0 |   16.0 |
+| scope         |    40.0 |   16.5 |
 | contingency   |     0.0 |    0.0 |
 | overflow      |     0.0 |    0.0 |
-| **TOTAL**     |    40.0 |   16.0 |
+| **TOTAL**     |    40.0 |   16.5 |
 
 | Threshold            | Limit | Current | Margin |
 |----------------------|------:|--------:|-------:|
-| Extras vs contingency |   27h |    16.0 |  11.0h |
-| Total vs PDF         |   97h |    16.0 |  81.0h |
+| Extras vs contingency |   27h |    16.5 |  10.5h |
+| Total vs PDF         |   97h |    16.5 |  80.5h |
 
 ### Status flags
 
