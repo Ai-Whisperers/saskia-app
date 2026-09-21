@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.rms.models import (
     Ingredient,
+    Recipe,
     Product,
     RecipeLine,
     Sale,
@@ -150,6 +151,10 @@ def plan_production(
         prod = session.get(Product, prod_id)
         if prod is None or prod.recipe_id is None:
             continue
+        recipe = session.get(Recipe, prod.recipe_id)
+        if recipe is None or recipe.yield_qty is None or recipe.yield_qty <= 0:
+            continue  # no yield -> can't scale batches (guarded upstream too)
+        batches = qty_to_produce / recipe.yield_qty  # portions -> batches
         recipe_lines = list(
             session.execute(
                 select(RecipeLine).where(RecipeLine.recipe_id == prod.recipe_id)
@@ -176,7 +181,7 @@ def plan_production(
                 # least shows something. The recipe form is where this gets
                 # fixed (visual error message + missing list from costing).
                 qty_in_ingredient_unit = line_qty_dec
-            qty_needed = float(qty_in_ingredient_unit) * qty_to_produce
+            qty_needed = float(qty_in_ingredient_unit) * batches
             entry = ingredient_requirements.setdefault(
                 ing.id,
                 {"qty": 0.0, "unit": ing.unit, "name": ing.name},

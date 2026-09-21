@@ -3,6 +3,12 @@
 {% block content %}
 <h1>Plan de producción</h1>
 
+<nav class="status-filter" aria-label="Vista del calendario" style="display:inline-flex;gap:var(--space-1);margin-bottom:var(--space-4);padding:2px;background:var(--color-surface-subtle);border-radius:var(--radius);">
+  <a href="/produccion?view=day" class="btn btn-sm btn-primary" aria-current="page">Día</a>
+  <a href="/produccion?view=week" class="btn btn-sm btn-ghost">Semana</a>
+  <a href="/produccion?view=month" class="btn btn-sm btn-ghost">Mes</a>
+</nav>
+
 {% if plan.notes %}
 <div class="alerts-info">
   {% for n in plan.notes %}
@@ -20,7 +26,7 @@
     <tr>
       <th>Producto</th>
       <th class="num">Cantidad</th>
-      <th>Forecast source</th>
+      <th>Cómo se calcula</th>
       <th class="actions"></th>
     </tr>
   </thead>
@@ -29,8 +35,17 @@
     <tr>
       <td><strong>{{ r.product_name }}</strong></td>
       <td class="num">{{ "%.1f"|format(r.qty_to_produce) }}</td>
-      <td>{{ r.forecast_source }}</td>
-      <td class="actions">{% if r.recipe_id %}<a href="/recetas/{{ r.recipe_id }}/editar" class="btn btn-small">Ver receta</a>{% endif %}</td>
+      <td><span title="{{ source_help.get(r.forecast_source, '') }}">{{ source_labels.get(r.forecast_source, r.forecast_source) }}</span></td>
+      <td class="actions" style="white-space:nowrap;">
+          <form method="post" action="/produccion/override" style="display:inline-flex;gap:var(--space-1);align-items:center;">
+            <input type="hidden" name="for_date" value="{{ for_date }}">
+            <input type="hidden" name="product_id" value="{{ r.product_id }}">
+            <input type="number" name="qty" step="0.5" min="0" size="4" value="{{ '%.1f'|format(r.qty_to_produce) }}"
+                   aria-label="Cantidad a producir: {{ r.product_name }}">
+            <button type="submit" class="btn btn-sm" aria-label="Usar cantidad para {{ r.product_name }}">Usar</button>
+          </form>
+          {% if r.recipe_id %}<a href="/recetas/{{ r.recipe_id }}/editar" class="btn btn-small">Ver receta</a>{% endif %}
+        </td>
     </tr>
     {% endfor %}
   </tbody>

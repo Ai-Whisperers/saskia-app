@@ -85,6 +85,23 @@
   No business logic — Phase D wires the per-day production-plan +
   per-product override editor on top of these macros.
 
+- **Production calendar (week + month views) + the multiplication bug
+  fix** (Saskia feedback, Q2 (c) + Q3). /produccion gains ?view=day|
+  week|month with a Día|Semana|Mes pill switcher. Week view: 7-column
+  grid (Lun-Dom) with per-day product counts; month view: full month
+  grid; both link each day to the detailed day plan. Day view rows get
+  an inline qty override (POST /produccion/override, query-param
+  persistence ov_{id}=qty — a what-if re-plan, not a DB edit).
+  forecast_source now renders in Spanish ('Promedio 14 días' etc.)
+  with an explanatory tooltip; column header 'Cómo se calcula'.
+  **Bug fixed (Saskia's report confirmed):** plan_production multiplied
+  PORTIONS by per-batch line qty directly — producing 24 muffins
+  demanded 7.2 kg flour instead of 0.6 kg (12x, the yield_qty). Now
+  ingredient math divides by yield_qty first (batches = portions /
+  yield). Regression test covers 2x and 0.5x scaling.
+  Seasonal-multiplier editor intentionally absent — blocked on T-0.1
+  (forecast_source semantics clarification with Saskia).
+
 - **Dashboard 'Precios en alza' insight** (Saskia feedback, Q1 surface D4).
   build_insights() now computes price_fluctuation: ingredients whose
   current price is >20% above their 30-day average, sorted by pct.
