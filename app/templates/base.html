@@ -18,8 +18,8 @@
 
   <link rel="alternate icon" type="image/png" href="/static/favicon.ico">
 
-  <link rel="stylesheet" href="/static/app.css">
-  <link rel="stylesheet" href="/static/calendar.css">
+  <link rel="stylesheet" href="/static/app.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/calendar.css?v={{ asset_version() }}">
   {% block head_extra %}{% endblock %}
 
   <script>

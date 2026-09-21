@@ -20,9 +20,34 @@ def _now_year() -> int:
     return datetime.now().year
 
 
-# Register as a Jinja2 "global function" so {{ now_year() }} works in templates.
+def _asset_version() -> str:
+    """Cache-busting suffix for static assets.
+
+    Derived from the newest mtime among the static files, computed once
+    at import. Any deploy that changes app.css / calendar.css / *.js
+    changes the query string, so browsers drop their cached copy.
+    (Static files are served with Cache-Control: max-age=3600 — without
+    a version param a stale sheet can outlive a deploy by up to an hour,
+    which broke the nav dropdown right after PR #10 shipped.)
+    """
+    import os
+
+    try:
+        static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
+        newest = max(
+            os.path.getmtime(os.path.join(static_dir, f))
+            for f in os.listdir(static_dir)
+            if os.path.isfile(os.path.join(static_dir, f))
+        )
+        return str(int(newest))
+    except OSError:
+        return "0"
+
+
+# Register as Jinja2 "global functions" so {{ now_year() }} works in templates.
 # Without the parens Jinja would print the function repr.
 templates.env.globals["now_year"] = _now_year
+templates.env.globals["asset_version"] = _asset_version
 
 
 def render(
