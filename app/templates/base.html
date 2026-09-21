@@ -56,43 +56,34 @@
 
     </a>
 
-    <input type="checkbox" id="nav-toggle-checkbox" class="nav-toggle" aria-label="Mostrar menú">
-
-    <label for="nav-toggle-checkbox" class="nav-toggle-label" aria-label="Mostrar menú">
-
-      <svg class="icon icon-lg" aria-hidden="true"><use href="#icon-search"/></svg>
-
-    </label>
-
-    <div class="nav-links">
-
-      {{ m.nav_link("/", "Inicio", icon="icon-home", exact=True, current_path=request.url.path) }}
-
-      {{ m.nav_link("/productos", "Productos", icon="icon-box", current_path=request.url.path) }}
-
-      {{ m.nav_link("/recetas", "Recetas", icon="icon-recipe", current_path=request.url.path) }}
-
-      {{ m.nav_link("/inventario", "Inventario", icon="icon-inventory", current_path=request.url.path) }}
-
-      {{ m.nav_link("/ventas", "Ventas", icon="icon-sale", current_path=request.url.path) }}
-
-      {{ m.nav_link("/clientes", "Clientes", icon="icon-customer", current_path=request.url.path) }}
-
-      {{ m.nav_link("/produccion", "Producción", icon="icon-production", current_path=request.url.path) }}
-
-      {{ m.nav_link("/eod", "Cierre", icon="icon-close", current_path=request.url.path) }}
-
-      {{ m.nav_link("/merma", "Merma", icon="icon-waste", current_path=request.url.path) }}
-
-      {{ m.nav_link("/reportes", "Reportes", icon="icon-report", current_path=request.url.path) }}
-
-      {{ m.nav_link("/excel", "Excel", icon="icon-excel", current_path=request.url.path) }}
-
-      {{ m.nav_link("/settings", "Configuración", icon="icon-config", current_path=request.url.path) }}
-
-      {{ m.nav_link("/reorder", "Reponer", icon="icon-reorder", current_path=request.url.path) }}
-
-    </div>
+    <div class="nav-menu" id="nav-menu">
+      <button type="button" class="menu-btn" id="nav-menu-btn"
+              aria-haspopup="true" aria-expanded="false" aria-controls="nav-menu-panel">
+        <svg class="icon" aria-hidden="true"><use href="#icon-menu"/></svg>
+        <span>Menú</span>
+        <svg class="icon chev" aria-hidden="true"><use href="#icon-chevron-down"/></svg>
+      </button>
+      <div class="menu-panel" id="nav-menu-panel" role="menu" aria-label="Secciones">
+        <div class="menu-section">Día a día</div>
+        {{ m.nav_link("/", "Inicio", icon="icon-home", exact=True, current_path=request.url.path) }}
+        {{ m.nav_link("/ventas", "Ventas", icon="icon-sale", current_path=request.url.path) }}
+        {{ m.nav_link("/pedidos", "Pedidos", icon="icon-box", current_path=request.url.path) }}
+        {{ m.nav_link("/clientes", "Clientes", icon="icon-customer", current_path=request.url.path) }}
+        <div class="menu-section">Producción</div>
+        {{ m.nav_link("/produccion", "Producción", icon="icon-production", current_path=request.url.path) }}
+        {{ m.nav_link("/recetas", "Recetas", icon="icon-recipe", current_path=request.url.path) }}
+        {{ m.nav_link("/productos", "Productos", icon="icon-box", current_path=request.url.path) }}
+        {{ m.nav_link("/inventario", "Inventario", icon="icon-inventory", current_path=request.url.path) }}
+        {{ m.nav_link("/reorder", "Reponer", icon="icon-reorder", current_path=request.url.path) }}
+        <div class="menu-section">Gestión</div>
+        {{ m.nav_link("/reportes", "Reportes", icon="icon-report", current_path=request.url.path) }}
+        {{ m.nav_link("/eod", "Cierre del día", icon="icon-close", current_path=request.url.path) }}
+        {{ m.nav_link("/merma", "Merma", icon="icon-waste", current_path=request.url.path) }}
+        <div class="menu-section">Sistema</div>
+        {{ m.nav_link("/excel", "Excel", icon="icon-excel", current_path=request.url.path) }}
+        {{ m.nav_link("/settings", "Configuración", icon="icon-config", current_path=request.url.path) }}
+      </div>
+    
 
     <div class="nav-right">
 
@@ -163,6 +154,29 @@
   </footer>
 
 
+
+<script>
+    // Nav dropdown menu (Saskia round-1 visual pass).
+    (function() {
+      var wrap = document.getElementById('nav-menu');
+      var btn = document.getElementById('nav-menu-btn');
+      if (!wrap || !btn) return;
+      function setOpen(open) {
+        wrap.classList.toggle('is-open', open);
+        btn.setAttribute('aria-expanded', String(open));
+      }
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        setOpen(!wrap.classList.contains('is-open'));
+      });
+      document.addEventListener('click', function(e) {
+        if (!wrap.contains(e.target)) setOpen(false);
+      });
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') setOpen(false);
+      });
+    })();
+  </script>
 
   <script>
 
