@@ -5,6 +5,17 @@
 
 ## [Unreleased]
 
+### Fixed (2026-09-21) — static-asset cache busting
+
+- **Versioned static links.** app.css / calendar.css now load as
+  ?v=<newest-static-mtime> so any deploy that changes a stylesheet
+  immediately invalidates browser caches. Root cause: PR #10's new
+  menu styles shipped in calendar.css, but browsers kept serving the
+  pre-PR cached copy for up to 1h (Cache-Control: max-age=3600),
+  rendering the nav as an always-expanded unstyled list — the exact
+  broken layout K.W. screenshotted post-deploy.
+
+
 ### Changed (2026-09-21) — Nav dropdown (round-1 visual pass)
 
 - **Main nav is now a dropdown menu.** The 13 flat topnav links are
