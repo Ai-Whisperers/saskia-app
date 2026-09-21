@@ -46,4 +46,43 @@
   </button>
 </form>
 
+<section class="card mt-4">
+  <div class="card-header">
+    <h2>
+      <svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>
+      Producción del día
+    </h2>
+    <small class="text-muted">{{ today_iso }}</small>
+  </div>
+  {% if today_plan.rows %}
+  <p class="text-muted">
+    Cuanto produzcas hoy confrontalo con este plan. Si algo no se terminó,
+    registrá la diferencia en <a href="/merma">merma</a>.
+  </p>
+  <table class="table is-hoverable is-striped">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="num">Plan</th>
+        <th class="num">Hecho</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in today_plan.rows %}
+      <tr>
+        <td><strong>{{ r.product_name }}</strong></td>
+        <td class="num">{{ "%.1f"|format(r.qty_to_produce) }}</td>
+        <td class="num text-muted">
+          {# Completion state not yet persisted; column reserved for future phase. #}
+          —
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No hay plan de producción para hoy. Revisá las ventas de los últimos 14 días.</p>
+  {% endif %}
+</section>
+
 {% endblock %}

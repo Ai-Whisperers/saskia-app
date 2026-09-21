@@ -16,9 +16,11 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.rms.models import Ingredient
+from app.rms.models import Recipe, RecipeLine
 from app.rms.waste import (
     WasteReason,
     list_waste,
+    record_recipe_waste,
     record_waste,
     waste_as_pct_of_revenue,
     waste_impact,
@@ -199,5 +201,97 @@ def test_waste_as_pct_of_revenue(session_factory):
             s, start_date=start, end_date=end, revenue_gs=0
         )
         assert pct_zero_revenue == 0.0
+    finally:
+        s.close()
+
+
+
+def test_record_recipe_waste_creates_one_log_per_ingredient(session_factory):
+    """Whole-batch waste expands a recipe into per-ingredient WasteLog rows.
+
+    Recipe: 12 muffins using 0.5 kg flour + 0.3 kg sugar + 4 und eggs.
+    Batch_qty=2.0 wastes 2x the recipe → 1.0 kg flour, 0.6 kg sugar, 8 eggs.
+    """
+    s = session_factory()
+    try:
+        flour = Ingredient(name="flour", unit="kg", stock_qty=10.0, purchase_price_gs=2000)
+        sugar = Ingredient(name="sugar", unit="kg", stock_qty=10.0, purchase_price_gs=1500)
+        eggs = Ingredient(name="eggs", unit="und", stock_qty=100.0, purchase_price_gs=500)
+        s.add_all([flour, sugar, eggs])
+        s.flush()
+
+        rec = Recipe(name="Muffin x12", yield_qty=12, yield_unit="und")
+        s.add(rec)
+        s.flush()
+        s.add_all([
+            RecipeLine(recipe_id=rec.id, line_kind="ingredient",
+                       line_ref_id=flour.id, qty=0.5, line_unit="kg"),
+            RecipeLine(recipe_id=rec.id, line_kind="ingredient",
+                       line_ref_id=sugar.id, qty=0.3, line_unit="kg"),
+            RecipeLine(recipe_id=rec.id, line_kind="ingredient",
+                       line_ref_id=eggs.id, qty=4, line_unit="und"),
+        ])
+        s.flush()
+
+        result = record_recipe_waste(
+            s, recipe_id=rec.id, batch_qty=2.0, reason=WasteReason.QUEMADA
+        )
+        s.commit()
+
+        assert result.recipe_id == rec.id
+        assert result.batch_qty == 2.0
+        assert len(result.waste_logs) == 3
+
+        # Stock decremented
+        s.refresh(flour); s.refresh(sugar); s.refresh(eggs)
+        assert flour.stock_qty == pytest.approx(9.0)  # 10 - 1.0
+        assert sugar.stock_qty == pytest.approx(9.4)  # 10 - 0.6
+        assert eggs.stock_qty == pytest.approx(92.0)  # 100 - 8
+
+        # Cost denormalized per ingredient
+        # flour: 1.0 kg * 2000 = 2000
+        # sugar: 0.6 kg * 1500 = 900
+        # eggs:  8 und * 500  = 4000
+        assert result.cost_gs == 2000 + 900 + 4000
+
+        # All logs share the same reason + timestamp
+        assert all(log.reason == "quemada" for log in result.waste_logs)
+    finally:
+        s.close()
+
+
+def test_record_recipe_waste_rejects_unknown_recipe(session_factory):
+    s = session_factory()
+    try:
+        with pytest.raises(ValueError, match="not found"):
+            record_recipe_waste(
+                s, recipe_id=99999, batch_qty=1.0, reason=WasteReason.OTRA
+            )
+    finally:
+        s.close()
+
+
+def test_record_recipe_waste_rejects_missing_yield(session_factory):
+    s = session_factory()
+    try:
+        rec = Recipe(name="NoYield", yield_qty=None, yield_unit="und")
+        s.add(rec); s.flush()
+        with pytest.raises(ValueError, match="sin rendimiento"):
+            record_recipe_waste(
+                s, recipe_id=rec.id, batch_qty=1.0, reason=WasteReason.OTRA
+            )
+    finally:
+        s.close()
+
+
+def test_record_recipe_waste_rejects_zero_batch(session_factory):
+    s = session_factory()
+    try:
+        rec = Recipe(name="x", yield_qty=12, yield_unit="und")
+        s.add(rec); s.flush()
+        with pytest.raises(ValueError, match="mayor a 0"):
+            record_recipe_waste(
+                s, recipe_id=rec.id, batch_qty=0.0, reason=WasteReason.OTRA
+            )
     finally:
         s.close()
