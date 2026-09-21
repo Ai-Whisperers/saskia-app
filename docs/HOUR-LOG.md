@@ -39,8 +39,8 @@ Saskia PDF's 97h budget (70h original scope + 27h contingency).
 | 2026-09-21 | Q2-fin   |     9.0 |    5.0 | scope  | done    | Full calendar + interactions (mult. bug fixed) |
 | 2026-09-21 | Q3       |     2.0 |    0.5 | scope  | done    | forecast_source label (folded into Q2) |
 | 2026-09-21 | T9       |     4.0 |    2.5 | scope  | done    | QA plan + user-journey tests         |
-| 2026-09-21 | DEP      |     1.0 |        | scope  | pending | Hosted deploy verification           |
-| 2026-09-21 | BUF      |     2.0 |        | scope  | pending | Cross-cutting fixes from review      |
+| 2026-09-21 | DEP      |     1.0 |    0.5 | scope  | partial | PR #9 open; deploy blocked on Actions budget |
+| 2026-09-21 | BUF      |     2.0 |    2.0 | scope  | done    | Subagent salvage + fixes (B/C/D/E)   |
 
 ### Running totals
 
