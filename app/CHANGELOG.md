@@ -32,14 +32,28 @@
   column lets Saskia type `250 g` of flour even though flour is stored in
   `kg`. The recipe form gains a unit dropdown next to the qty input per
   line. The costing walk (and `plan_production`'s ingredient aggregator)
-  normalizes the line qty into the linked ingredient's unit before
+  normalize the line qty into the linked ingredient's unit before
   multiplying against the per-unit purchase price. Cross-family
-    conversion (g→L, g→und, etc.) raises ValueError with a clear message
-    and surfaces as a missing-line entry in `CostResult`. Legacy rows
+  conversion (g→L, g→und, etc.) raises ValueError with a clear message
+  and surfaces as a missing-line entry in `CostResult`. Legacy rows
   with `line_unit=''` behave as if line_unit matched the linked
   ingredient's unit (backward compat — historical imports assumed
   same-unit at qty time). Migration v17 backfills existing rows from
   the linked ingredient's unit.
+
+- **Ingredient purchase-price history** (Saskia feedback: restock + price
+  history). New `ingredient_price_event(ingredient_id, price_gs,
+  recorded_at, source)` table appended every time an operator changes
+  an ingredient's purchase price via `/inventario`. Sources: `restock`,
+  `manual`, `excel_import`. New helpers in `app/rms/price_history.py`:
+  `record_price_event()` writes the row + updates the ingredient's
+  denormalized `purchase_price_gs` and `purchase_price_updated_at`
+  fields atomically; `price_history()` returns the time series for an
+  ingredient over a sliding window (default 90 days); `price_stats()`
+  returns `{current, min, max, avg, count}` for the same window.
+  Migration v18 creates the table + the `(ingredient_id, recorded_at)`
+  index. Phase D wires the restock form surface and the dashboard
+  sparkline / fluctuation insight on top of these helpers.
 
 ### Tests
 

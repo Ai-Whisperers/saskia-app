@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.models import Ingredient, RecipeLine
+from app.rms.price_history import record_price_event
 from app.rms.units import Unit
 from app.services.template_render import render
 
@@ -80,6 +81,22 @@ def inventory_create(
         raise HTTPException(
             status_code=409, detail=f"Ya existe un ingrediente con nombre {name!r}"
         ) from None
+
+    # Phase B — Q1 core: when an operator creates an ingredient with a price,
+    # record the first price event so the history starts populated.
+    if price is not None:
+        try:
+            record_price_event(session, ing.id, price, source="manual")
+            session.commit()
+        except Exception:
+            # Don't fail the whole request on a price-history write error.
+            from loguru import logger
+
+            logger.warning(
+                f"record_price_event failed for new ingredient {ing.id}",
+                exc_info=True,
+            )
+
     return RedirectResponse(url="/inventario", status_code=303)
 
 
@@ -129,6 +146,12 @@ def inventory_update(
     ing.min_stock_qty = min_stock_qty
     ing.purchase_price_gs = price
     ing.notes = notes.strip() or None
+
+    # Phase B — Q1 core: record a price event when the operator changes the
+    # price. We always record when the new price is non-null — even if it
+    # matches the previous value (auditability beats optimization here).
+    should_record = price is not None
+
     try:
         session.commit()
     except IntegrityError:
@@ -136,6 +159,19 @@ def inventory_update(
         raise HTTPException(
             status_code=409, detail=f"Ya existe otro ingrediente con nombre {name!r}"
         ) from None
+
+    if should_record:
+        try:
+            record_price_event(session, ing.id, price, source="manual")
+            session.commit()
+        except Exception:
+            from loguru import logger
+
+            logger.warning(
+                f"record_price_event failed for ingredient {ing.id} update",
+                exc_info=True,
+            )
+
     return RedirectResponse(url="/inventario", status_code=303)
 
 

@@ -586,6 +586,81 @@ def _migration_017_recipe_line_unit(conn):
     )
 
 
+def _migration_018_price_event(conn):
+    """Create ingredient_price_event table (Phase B — Q1 core).
+
+    Append-only purchase-price history for each ingredient. Powers the
+    price-strip + sparkline on /inventario and the dashboard "fluctuation"
+    insight (Phase D surfaces).
+
+    The table is created via SQLAlchemy's create_all() in init_db() (the
+    IngredientPriceEvent model class was added in models.py at the same
+    time). This migration just bumps schema_version and ensures the
+    (ingredient_id, recorded_at) index is present on dialects that don't
+    auto-create it from the model.
+
+    Index: (ingredient_id, recorded_at) — needed for the common access
+    pattern `WHERE ingredient_id = ? AND recorded_at >= ?` (price_history).
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+
+    # Defensive: the table may already exist if init_db() ran before this
+    # migration got registered (e.g. for older DBs being upgraded). Idempotent.
+    if dialect == "postgresql":
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS ingredient_price_event ("
+                "id SERIAL PRIMARY KEY, "
+                "ingredient_id INTEGER NOT NULL REFERENCES ingredient(id) "
+                "ON DELETE CASCADE, "
+                "price_gs INTEGER NOT NULL, "
+                "recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+                "source VARCHAR(32) NOT NULL DEFAULT 'restock'"
+                ")"
+            )
+        )
+        existing = conn.execute(
+            text(
+                "SELECT 1 FROM pg_indexes WHERE schemaname='public' "
+                "AND indexname=:n"
+            ),
+            {"n": "ix_ingredient_price_event_ingredient_time"},
+        ).first()
+        if existing is None:
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS "
+                    "ix_ingredient_price_event_ingredient_time "
+                    "ON ingredient_price_event (ingredient_id, recorded_at)"
+                )
+            )
+    else:
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS ingredient_price_event ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "ingredient_id INTEGER NOT NULL REFERENCES ingredient(id) "
+                "ON DELETE CASCADE, "
+                "price_gs INTEGER NOT NULL, "
+                "recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+                "source VARCHAR(32) NOT NULL DEFAULT 'restock'"
+                ")"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS "
+                "ix_ingredient_price_event_ingredient_time "
+                "ON ingredient_price_event (ingredient_id, recorded_at)"
+            )
+        )
+
+    conn.execute(
+        text("UPDATE app_meta SET value = '18', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -604,6 +679,7 @@ MIGRATIONS = {
     15: _migration_015_sale_channel,
     16: _migration_016_pedidos,
     17: _migration_017_recipe_line_unit,
+    18: _migration_018_price_event,
 }
 
 
