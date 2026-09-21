@@ -5,6 +5,20 @@
 
 ## [Unreleased]
 
+### Changed (2026-09-21) — Nav dropdown (round-1 visual pass)
+
+- **Main nav is now a dropdown menu.** The 13 flat topnav links are
+  replaced by a single «Menú» button opening a grouped panel: Día a
+  día (Inicio, Ventas, Pedidos, Clientes) · Producción (Producción,
+  Recetas, Productos, Inventario, Reponer) · Gestión (Reportes,
+  Cierre del día, Merma) · Sistema (Excel, Configuración). Active
+  page highlighted; Esc / outside-click closes; ARIA
+  aria-haspopup/aria-expanded/role=menu wiring; works identically on
+  mobile (supersedes the old checkbox hamburger). Styles in
+  calendar.css (site-wide, keeps app.css under its size gate); two
+  new sprite icons (icon-menu, icon-chevron-down). Mock approved by
+  K.W. before implementation.
+
 ### Added (2026-09-21) — Saskia review round 1 (Thu 18-sep)
 
 - **/reportes/precios — price-history report** (Saskia review Q1). List view
