@@ -675,6 +675,44 @@ def _migration_019_production_completion(conn):
     )
 
 
+def _migration_020_sale_date_voided_index(conn):
+    """Add composite index on Sale(sold_at, voided_at).
+
+    Covers every date-range + void-filter query: dashboards, daily/weekly
+    summaries, libro_ventas, IVA reports, customer stats. Postgres uses
+    CREATE INDEX CONCURRENTLY to avoid locking writes. SQLite uses
+    CREATE INDEX IF NOT EXISTS (supported since SQLite 3.9.0).
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    if dialect == "postgresql":
+        existing = conn.execute(
+            text(
+                "SELECT 1 FROM pg_indexes WHERE schemaname='public' "
+                "AND indexname=:n"
+            ),
+            {"n": "ix_sale_sold_at_voided"},
+        ).first()
+        if existing is None:
+            conn.execute(
+                text(
+                    "CREATE INDEX CONCURRENTLY ix_sale_sold_at_voided "
+                    "ON sale (sold_at, voided_at)"
+                )
+            )
+    else:
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_sale_sold_at_voided "
+                "ON sale (sold_at, voided_at)"
+            )
+        )
+
+    conn.execute(
+        text("UPDATE app_meta SET value = '20', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -695,6 +733,7 @@ MIGRATIONS = {
     17: _migration_017_recipe_line_unit,
     18: _migration_018_price_event,
     19: _migration_019_production_completion,
+    20: _migration_020_sale_date_voided_index,
 }
 
 
