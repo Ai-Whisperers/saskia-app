@@ -32,6 +32,7 @@ class ProductionRow:
 
     product_id: int
     product_name: str
+    recipe_id: int | None  # None when product has no recipe attached
     qty_to_produce: float
     forecast_source: str  # "rolling_14d_avg" | "seasonal_event" | "manual"
 
@@ -134,6 +135,7 @@ def plan_production(
                 ProductionRow(
                     product_id=prod.id,
                     product_name=prod.name,
+                    recipe_id=prod.recipe_id,
                     qty_to_produce=qty,
                     forecast_source=source,
                 )

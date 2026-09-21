@@ -5,6 +5,35 @@
 
 ## [Unreleased]
 
+### Added (2026-09-21) — Saskia review round 1 (Thu 18-sep)
+
+- **/produccion — "Ver receta" routes to the recipe, not the product** (Saskia
+  feedback). `ProductionRow` now carries `recipe_id`; the action button links
+  to `/recetas/{recipe_id}/editar` and hides when the product has no recipe.
+
+- **/pedidos — status filter (Pendientes / Terminados / Todos)** (Saskia
+  feedback). New `?status_filter=` query param; "pendientes" is the default
+  to preserve current behavior (pending/confirmed/ready). Visual: pill-row
+  above the existing date-bucket cards.
+
+- **/settings — per-row form with labels, a11y, and visual-noise cleanup**
+  (Saskia feedback). Replaced the wide 5-column table with a stacked
+  card-style list: each row has a `<label>`, helper text, and either a
+  `<select>` (when the setting has bounded `choices`) or a labeled text
+  input. Default value shown inline. "Reset" action moved to `formaction`
+  on the same form (no second form per row). Responsive: collapses to
+  one column under 768px. Removed the redundant "N ajustes" badge.
+
+- **Topnav cleanup** (Saskia feedback). Removed "Auditoría" and "Ops" links
+  from the main topnav — both routes still work via direct URL.
+
+### Tests
+
+- 58 tests pass across touched areas (production, settings, pedidos,
+  a11y navigation). One pre-existing unrelated failure
+  (`test_public_pickup_page_works_without_login`) confirmed to fail on
+  `main` before this commit; tracked separately.
+
 ### Added (2026-09-17) — Visual audit wins
 
 - **Insight cards on dashboard** (audit P0 #5). The five insight lists

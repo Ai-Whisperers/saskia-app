@@ -22,6 +22,18 @@
   <span class="text-muted" style="margin-left: var(--space-3); font-size: var(--text-xs);">
     Hoy es <strong>{{ today_human }}</strong>
   </span>
+  <nav class="status-filter" aria-label="Filtrar por estado" style="display: inline-flex; gap: var(--space-1); margin-left: var(--space-4); padding: 2px; background: var(--color-surface-subtle); border-radius: var(--radius);">
+    {% set opts = [
+        ("pendientes", "Pendientes"),
+        ("terminados", "Terminados"),
+        ("todos", "Todos"),
+      ] %}
+    {% for value, label in opts %}
+    <a href="/pedidos?status_filter={{ value }}"
+       class="btn btn-sm {% if status_filter == value %}btn-primary{% else %}btn-ghost{% endif %}"
+       {% if status_filter == value %}aria-current="page"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </nav>
 </div>
 
 {% set groups_ordered = [

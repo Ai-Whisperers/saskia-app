@@ -1,113 +1,111 @@
-<!DOCTYPE html>
-{% import "_components/macros.html" as m %}
-{% include "_components/icons.svg" %}
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Sistema de gestión{% endblock %} — Saskia RMS</title>
-  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-  <link rel="alternate icon" type="image/png" href="/static/favicon.ico">
-  <link rel="stylesheet" href="/static/app.css">
-  <script>
-    // Theme persistence — read before paint to avoid flash.
-    (function() {
-      try {
-        var t = localStorage.getItem('saskia-theme');
-        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-      } catch (e) {}
-    })();
-  </script>
-</head>
-<body>
-  <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
-  <nav class="topnav" aria-label="Navegación principal">
-    <a href="/" class="brand">
-      <svg class="icon" aria-hidden="true"><use href="#icon-heart"/></svg>
-      <span>Saskia RMS</span>
-    </a>
-    <input type="checkbox" id="nav-toggle-checkbox" class="nav-toggle" aria-label="Mostrar menú">
-    <label for="nav-toggle-checkbox" class="nav-toggle-label" aria-label="Mostrar menú">
-      <svg class="icon icon-lg" aria-hidden="true"><use href="#icon-search"/></svg>
-    </label>
-    <div class="nav-links">
-      {{ m.nav_link("/", "Inicio", icon="icon-home", exact=True, current_path=request.url.path) }}
-      {{ m.nav_link("/productos", "Productos", icon="icon-box", current_path=request.url.path) }}
-      {{ m.nav_link("/recetas", "Recetas", icon="icon-recipe", current_path=request.url.path) }}
-      {{ m.nav_link("/inventario", "Inventario", icon="icon-inventory", current_path=request.url.path) }}
-      {{ m.nav_link("/ventas", "Ventas", icon="icon-sale", current_path=request.url.path) }}
-      {{ m.nav_link("/clientes", "Clientes", icon="icon-customer", current_path=request.url.path) }}
-      {{ m.nav_link("/produccion", "Producción", icon="icon-production", current_path=request.url.path) }}
-      {{ m.nav_link("/eod", "Cierre", icon="icon-close", current_path=request.url.path) }}
-      {{ m.nav_link("/merma", "Merma", icon="icon-waste", current_path=request.url.path) }}
-      {{ m.nav_link("/reportes", "Reportes", icon="icon-report", current_path=request.url.path) }}
-      {{ m.nav_link("/auditoria", "Auditoría", icon="icon-audit", current_path=request.url.path) }}
-      {{ m.nav_link("/ops/status", "Ops", icon="icon-ops", current_path=request.url.path) }}
-      {{ m.nav_link("/excel", "Excel", icon="icon-excel", current_path=request.url.path) }}
-      {{ m.nav_link("/settings", "Configuración", icon="icon-config", current_path=request.url.path) }}
-      {{ m.nav_link("/reorder", "Reponer", icon="icon-reorder", current_path=request.url.path) }}
-    </div>
-    <div class="nav-right">
-      <button type="button" class="theme-toggle btn-ghost btn-icon" id="theme-toggle"
-              aria-label="Cambiar tema claro/oscuro" title="Cambiar tema">
-        <svg class="icon" aria-hidden="true"><use href="#icon-moon"/></svg>
-      </button>
-      <button type="button" class="shortcut-help-btn btn-ghost btn-icon" id="open-shortcuts"
-              aria-label="Mostrar atajos de teclado" title="Atajos de teclado (?)">
-        <svg class="icon" aria-hidden="true"><use href="#icon-help"/></svg>
-      </button>
-      <a href="/guia" class="help-link btn-ghost btn-icon" target="_blank" rel="noopener"
-         title="Guía de uso" aria-label="Guía de uso">
-        <svg class="icon" aria-hidden="true"><use href="#icon-help"/></svg>
-      </a>
-      <a href="/healthz" class="health-link btn-ghost btn-icon" title="Estado del servidor" aria-label="Estado del servidor">
-        <svg class="icon" aria-hidden="true"><use href="#icon-ops"/></svg>
-      </a>
-      <a href="/logout" class="logout-link btn-ghost btn-icon" title="Cerrar sesión" aria-label="Cerrar sesión">
-        <svg class="icon" aria-hidden="true"><use href="#icon-logout"/></svg>
-      </a>
-    </div>
-  </nav>
-
-  <div class="alerts-region" aria-live="polite" aria-atomic="true">
-    {% block alerts %}{% endblock %}
-  </div>
-
-
-  <main class="container" id="main-content" tabindex="-1">
-    {% block content %}{% endblock %}
-  </main>
-
-  <footer class="footer">
-    <small>Sistema local · {{ now_year() }} · {{ "Gs." }} integer</small>
-  </footer>
-
-  <script>
-    // Dark mode toggle (per stack audit 2026-09-02).
-    (function() {
-      var btn = document.getElementById('theme-toggle');
-      if (!btn) return;
-      function paint() {
-        var dark = document.documentElement.getAttribute('data-theme') === 'dark';
-        var useEl = btn.querySelector('use');
-        if (useEl) {
-          useEl.setAttribute('href', dark ? '#icon-sun' : '#icon-moon');
-        }
-        btn.setAttribute('aria-pressed', String(dark));
-      }
-      paint();
-      btn.addEventListener('click', function() {
-        var dark = document.documentElement.getAttribute('data-theme') === 'dark';
-        if (dark) {
-          document.documentElement.removeAttribute('data-theme');
-          try { localStorage.setItem('saskia-theme', 'light'); } catch (e) {}
-        } else {
-          document.documentElement.setAttribute('data-theme', 'dark');
-          try { localStorage.setItem('saskia-theme', 'dark'); } catch (e) {}
-        }
-        paint();
-      });
-    })();
-  </script>
-</body>
-</html>
+<!DOCTYPE html>
+{% import "_components/macros.html" as m %}
+{% include "_components/icons.svg" %}
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Sistema de gestión{% endblock %} — Saskia RMS</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="alternate icon" type="image/png" href="/static/favicon.ico">
+  <link rel="stylesheet" href="/static/app.css">
+  <script>
+    // Theme persistence — read before paint to avoid flash.
+    (function() {
+      try {
+        var t = localStorage.getItem('saskia-theme');
+        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+  <nav class="topnav" aria-label="Navegación principal">
+    <a href="/" class="brand">
+      <svg class="icon" aria-hidden="true"><use href="#icon-heart"/></svg>
+      <span>Saskia RMS</span>
+    </a>
+    <input type="checkbox" id="nav-toggle-checkbox" class="nav-toggle" aria-label="Mostrar menú">
+    <label for="nav-toggle-checkbox" class="nav-toggle-label" aria-label="Mostrar menú">
+      <svg class="icon icon-lg" aria-hidden="true"><use href="#icon-search"/></svg>
+    </label>
+    <div class="nav-links">
+      {{ m.nav_link("/", "Inicio", icon="icon-home", exact=True, current_path=request.url.path) }}
+      {{ m.nav_link("/productos", "Productos", icon="icon-box", current_path=request.url.path) }}
+      {{ m.nav_link("/recetas", "Recetas", icon="icon-recipe", current_path=request.url.path) }}
+      {{ m.nav_link("/inventario", "Inventario", icon="icon-inventory", current_path=request.url.path) }}
+      {{ m.nav_link("/ventas", "Ventas", icon="icon-sale", current_path=request.url.path) }}
+      {{ m.nav_link("/clientes", "Clientes", icon="icon-customer", current_path=request.url.path) }}
+      {{ m.nav_link("/produccion", "Producción", icon="icon-production", current_path=request.url.path) }}
+      {{ m.nav_link("/eod", "Cierre", icon="icon-close", current_path=request.url.path) }}
+      {{ m.nav_link("/merma", "Merma", icon="icon-waste", current_path=request.url.path) }}
+      {{ m.nav_link("/reportes", "Reportes", icon="icon-report", current_path=request.url.path) }}
+      {{ m.nav_link("/excel", "Excel", icon="icon-excel", current_path=request.url.path) }}
+      {{ m.nav_link("/settings", "Configuración", icon="icon-config", current_path=request.url.path) }}
+      {{ m.nav_link("/reorder", "Reponer", icon="icon-reorder", current_path=request.url.path) }}
+    </div>
+    <div class="nav-right">
+      <button type="button" class="theme-toggle btn-ghost btn-icon" id="theme-toggle"
+              aria-label="Cambiar tema claro/oscuro" title="Cambiar tema">
+        <svg class="icon" aria-hidden="true"><use href="#icon-moon"/></svg>
+      </button>
+      <button type="button" class="shortcut-help-btn btn-ghost btn-icon" id="open-shortcuts"
+              aria-label="Mostrar atajos de teclado" title="Atajos de teclado (?)">
+        <svg class="icon" aria-hidden="true"><use href="#icon-help"/></svg>
+      </button>
+      <a href="/guia" class="help-link btn-ghost btn-icon" target="_blank" rel="noopener"
+         title="Guía de uso" aria-label="Guía de uso">
+        <svg class="icon" aria-hidden="true"><use href="#icon-help"/></svg>
+      </a>
+      <a href="/healthz" class="health-link btn-ghost btn-icon" title="Estado del servidor" aria-label="Estado del servidor">
+        <svg class="icon" aria-hidden="true"><use href="#icon-ops"/></svg>
+      </a>
+      <a href="/logout" class="logout-link btn-ghost btn-icon" title="Cerrar sesión" aria-label="Cerrar sesión">
+        <svg class="icon" aria-hidden="true"><use href="#icon-logout"/></svg>
+      </a>
+    </div>
+  </nav>
+
+  <div class="alerts-region" aria-live="polite" aria-atomic="true">
+    {% block alerts %}{% endblock %}
+  </div>
+
+
+  <main class="container" id="main-content" tabindex="-1">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <small>Sistema local · {{ now_year() }} · {{ "Gs." }} integer</small>
+  </footer>
+
+  <script>
+    // Dark mode toggle (per stack audit 2026-09-02).
+    (function() {
+      var btn = document.getElementById('theme-toggle');
+      if (!btn) return;
+      function paint() {
+        var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        var useEl = btn.querySelector('use');
+        if (useEl) {
+          useEl.setAttribute('href', dark ? '#icon-sun' : '#icon-moon');
+        }
+        btn.setAttribute('aria-pressed', String(dark));
+      }
+      paint();
+      btn.addEventListener('click', function() {
+        var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (dark) {
+          document.documentElement.removeAttribute('data-theme');
+          try { localStorage.setItem('saskia-theme', 'light'); } catch (e) {}
+        } else {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          try { localStorage.setItem('saskia-theme', 'dark'); } catch (e) {}
+        }
+        paint();
+      });
+    })();
+  </script>
+</body>
+</html>

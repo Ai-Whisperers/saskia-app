@@ -30,7 +30,7 @@
       <td><strong>{{ r.product_name }}</strong></td>
       <td class="num">{{ "%.1f"|format(r.qty_to_produce) }}</td>
       <td>{{ r.forecast_source }}</td>
-      <td><a href="/productos/{{ r.product_id }}/editar" class="btn btn-small">Ver receta</a></td>
+      <td class="actions">{% if r.recipe_id %}<a href="/recetas/{{ r.recipe_id }}/editar" class="btn btn-small">Ver receta</a>{% endif %}</td>
     </tr>
     {% endfor %}
   </tbody>
