@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_components/macros.html" as m %}
 {% block title %}{{ customer.name }} — Cliente{% endblock %}
 {% block content %}
 <nav class="breadcrumbs">
@@ -15,7 +16,7 @@
   <dt>Puntos acumulados</dt>
   <dd>{{ customer.loyalty_points }}</dd>
   <dt>Gasto total</dt>
-  <dd>Gs. {{ "{:,.0f}".format(stats.lifetime_spend_gs) }}</dd>
+  <dd>{{ m.gs_full(stats.lifetime_spend_gs) }}</dd>
   <dt>Visitas</dt>
   <dd>{{ stats.n_sales }}</dd>
   <dt>Última compra</dt>
@@ -40,7 +41,7 @@
       <td><small>{{ s.sold_at.strftime("%d/%m/%Y") if s.sold_at else "" }}</small></td>
       <td><strong>{{ s.product_name or "(eliminado)" }}</strong></td>
       <td class="num">{{ "%.2f"|format(s.qty) }}</td>
-      <td class="num">{{ "{:,.0f}".format(s.qty * s.unit_price_gs) }}</td>
+      <td class="num">{{ m.gs(s.qty * s.unit_price_gs) }}</td>
       <td>{% if s.voided_at %}<span class="badge badge-neutral">Anulada</span>{% else %}<span class="badge badge-ok">Activa</span>{% endif %}</td>
     </tr>
     {% endfor %}

@@ -67,6 +67,32 @@
 - **Schema-version test relaxed** to assert `>= 15` (was `== 15`) so it
   doesn't break on every future schema bump.
 
+- **EOD surfaces today's production plan** (Saskia feedback, T5).
+  `/eod` now shows the day's forecast next to the checklist so Saskia
+  can reconcile what was actually produced. The "Hecho" column is
+  rendered with a `—` placeholder today; persisting completions is a
+  separate model decision (deferred — see `.hermes/plans/`).
+
+- **Whole-batch merma flow** (Saskia feedback, T6 — "Aveces hay mermas
+  de recetas completas"). New `record_recipe_waste()` helper expands a
+  recipe into per-ingredient `WasteLog` rows using the same walker as
+  `apply_sale` (sub-recipes recurse). New `/merma/receta` POST +
+  recipe-picker form on `/merma`. Four new tests in `tests/test_waste.py`
+  cover: expansion math, missing recipe, missing yield, zero/negative
+  batch.
+
+- **Cross-page consistency pass** (Saskia feedback, T8 — "Debe coincidir
+  con los registros de las demás páginas"). Money formatting in
+  `/clientes`, `/cliente_detalle`, `/merma`, `/reportes_diario`,
+  `/reportes_iva`, `/reportes_libro_ventas` migrated from inline
+  `"Gs. {{ '{:,.0f}'.format(x) }}"` (comma thousands separator — wrong
+  for Paraguay) to the `{{ m.gs_full(x) }}` / `{{ m.gs(x) }}` macros
+  (period thousands separator — correct). Audit timestamps in
+  `/auditoria` moved from `%Y-%m-%d %H:%M:%S` (ISO) to `%d/%m/%Y %H:%M`
+  to match the rest of the operator pages. Column-header labels still
+  say "Gs." as expected.
+
+
 ### Tests
 
 - 1208 pass, 17 fail (all pre-existing environmental failures unrelated

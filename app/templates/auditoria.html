@@ -65,7 +65,7 @@
   <tbody>
     {% for r in rows %}
     <tr>
-      <td><small>{{ r.occurred_at.strftime("%Y-%m-%d %H:%M:%S") if r.occurred_at else "" }}</small></td>
+      <td><small>{{ r.occurred_at.strftime("%d/%m/%Y %H:%M") if r.occurred_at else "" }}</small></td>
       <td>{{ r.user_id or "—" }}</td>
       <td><code>{{ r.action }}</code></td>
       <td>{{ r.target_type or "" }}{% if r.target_id %} #{{ r.target_id }}{% endif %}</td>

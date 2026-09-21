@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_components/macros.html" as m %}
 {% block title %}Libro IVA{% endblock %}
 {% block content %}
 <h1>
@@ -24,9 +25,9 @@
     <tr>
       <td><strong>{{ "%04d-%02d"|format(r.year, r.month) }}</strong></td>
       <td class="num">{{ r.n_sales }}</td>
-      <td class="num">{{ "{:,.0f}".format(r.total_base_gs) }}</td>
-      <td class="num">{{ "{:,.0f}".format(r.total_iva_gs) }}</td>
-      <td class="num"><strong>{{ "{:,.0f}".format(r.total_gross_gs) }}</strong></td>
+      <td class="num">{{ m.gs(r.total_base_gs) }}</td>
+      <td class="num">{{ m.gs(r.total_iva_gs) }}</td>
+      <td class="num"><strong>{{ m.gs(r.total_gross_gs) }}</strong></td>
     </tr>
     {% endfor %}
   </tbody>
