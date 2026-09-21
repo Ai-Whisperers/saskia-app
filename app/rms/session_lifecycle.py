@@ -14,11 +14,16 @@ Activate in app/rms/main.py:
 Detection: we use gc.get_referrers() in a finalizer to find any Session
 object still referencing the request. If we find one, we close it +
 log a warning.
+
+NOTE: DISABLED in production (SASKIA_DEBUG only). The gc.get_objects()
+walk is too expensive on every request. Leaking sessions are better
+caught via the dependency pattern + explicit session.close() calls.
 """
 from __future__ import annotations
 
 import gc
 import logging
+import os
 
 from fastapi import Request
 from sqlalchemy.orm import Session
@@ -31,9 +36,11 @@ class SessionLifecycleMiddleware(BaseHTTPMiddleware):
     """Detect sessions opened during a request that weren't closed."""
 
     async def dispatch(self, request: Request, call_next):
-        # Skip the GC walk for /static/* and /healthz* — they never open
-        # DB sessions and the GC overhead would slow every static asset
-        # request (browser reloads fetch app.css on every page nav).
+        # Skip entirely in production — gc.get_objects() is too expensive
+        if not os.getenv("SASKIA_DEBUG"):
+            return await call_next(request)
+
+        # Skip for /static/* and /healthz* — they never open DB sessions
         path = request.url.path
         if path.startswith("/static/") or path.startswith("/healthz"):
             return await call_next(request)

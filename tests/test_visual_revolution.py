@@ -383,16 +383,15 @@ def test_loading_classes_present():
 
 def test_mobile_nav_breakpoint():
     """Responsive breakpoint exists; nav is now the dropdown menu
-    (nav-menu, in calendar.css) which works at all widths — the old
+    (nav-menu, in app.css) which works at all widths — the old
     checkbox hamburger (.nav-toggle-label) is legacy dead CSS kept
     only for backward compat."""
     css = _read_css()
     css_compact = css.replace(" ", "")
     assert "@media(max-width:768px)" in css_compact
-    # Dropdown menu styles live in calendar.css (site-wide, not size-gated)
-    cal_css = (Path(__file__).parent.parent / "app" / "static" / "calendar.css").read_text()
-    assert ".nav-menu" in cal_css
-    assert ".menu-panel" in cal_css
+    # Dropdown menu styles live in app.css (site-wide, not size-gated)
+    assert ".nav-menu" in css_compact
+    assert ".menu-panel" in css_compact
 
 
 def test_empty_state_class_present():

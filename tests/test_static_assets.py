@@ -78,8 +78,8 @@ def test_app_css_is_minified():
     # (Phase0 expanded the design system with tokens + components; the
     # customer-picker modal added ~600B for the picker widget. Bump the
     # upper bound as the design system grows.)
-    assert len(content) < 30500, (
-        f"app.css is {len(content)} bytes; should be <30.5KB after minification. "
+    assert len(content) < 33500, (
+        f"app.css is {len(content)} bytes; should be <33.5KB after minification. "
         "Run scripts/minify_css.py."
     )
 

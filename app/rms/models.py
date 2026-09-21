@@ -145,7 +145,7 @@ class RecipeLine(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     recipe_id: Mapped[int] = mapped_column(
-        ForeignKey("recipe.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("recipe.id", ondelete="CASCADE"), nullable=False, index=True
     )
     line_kind: Mapped[str] = mapped_column(String(16), nullable=False)
     line_ref_id: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -179,7 +179,7 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
     portion_label: Mapped[str] = mapped_column(String(60), nullable=False, default="1 unidad")
     sale_price_gs: Mapped[int] = mapped_column(Integer, nullable=False)
-    recipe_id: Mapped[Optional[int]] = mapped_column(ForeignKey("recipe.id"), nullable=True)
+    recipe_id: Mapped[Optional[int]] = mapped_column(ForeignKey("recipe.id"), nullable=True, index=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     sku: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, unique=True, index=True)  # E23.S1 barcode
 
@@ -248,7 +248,7 @@ class SaleStockMove(Base):
     sale_id: Mapped[int] = mapped_column(
         ForeignKey("sale.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    affected_recipe_id: Mapped[int] = mapped_column(ForeignKey("recipe.id"), nullable=False)
+    affected_recipe_id: Mapped[int] = mapped_column(ForeignKey("recipe.id"), nullable=False, index=True)
     ingredient_id: Mapped[int] = mapped_column(
         ForeignKey("ingredient.id"), nullable=False, index=True
     )
@@ -464,7 +464,7 @@ class TagLink(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tag_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("tag.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey("tag.id", ondelete="CASCADE"), nullable=False, index=True
     )
     target_kind: Mapped[str] = mapped_column(String(16), nullable=False)
     target_id: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -603,7 +603,7 @@ class Pedido(Base):
     )
     fulfilled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     fulfilled_sale_id: Mapped[int | None] = mapped_column(
-        ForeignKey("sale.id"), nullable=True
+        ForeignKey("sale.id"), nullable=True, index=True
     )
 
     # Relationships
