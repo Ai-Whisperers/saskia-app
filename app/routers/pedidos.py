@@ -539,20 +539,24 @@ def public_pedido(request: Request, token: str) -> HTMLResponse:
     resistance comes from the random token + the bounded single-tenant
     volume of pedidos.
 
-    Note: uses its own session independent of `app.state` so it works
-    even when the app isn't fully lifespan-initialized (e.g. in tests
-    that hit `/p/{token}` with a fresh TestClient).
+    Uses ``request.app.state.session_factory`` so the test engine
+    (injected by the ``client`` fixture's monkey-patch of
+    ``make_engine_dialect``) is honored — calling ``make_engine()`` here
+    would bypass the test engine and read the production DB, breaking
+    the round-trip test that posts a pedido in the test DB and reads it
+    back via this endpoint.
     """
-    from app.rms.db import make_session_factory
-    from app.rms.db_dialect import make_engine
-
-    engine = make_engine()
-    session_factory = make_session_factory(engine)
-    session = session_factory()
-    try:
-        pedido = session.get(
-            Pedido, token, options=[selectinload(Pedido.lines)]
-        )
+    with request.app.state.session_factory() as session:
+        # Pedido.id is an Integer PK; look up by public_token instead
+        # so /p/{token} resolves to the pedido sharing that token.
+        # (Earlier this used session.get(Pedido, token), which queried
+        # by the int PK and silently returned None for valid string
+        # tokens — making the page 404 for every real customer.)
+        pedido = session.execute(
+            select(Pedido)
+            .where(Pedido.public_token == token)
+            .options(selectinload(Pedido.lines))
+        ).scalar_one_or_none()
         if pedido is None:
             raise HTTPException(
                 status_code=404, detail="Pedido no encontrado"
@@ -576,8 +580,6 @@ def public_pedido(request: Request, token: str) -> HTMLResponse:
                 "currency_label": "Gs.",
             },
         )
-    finally:
-        session.close()
 
 
 __all__ = ["router", "public_router"]
