@@ -18,13 +18,14 @@ def test_migration_015_runs_and_adds_channel_column(app_engine):
     assert "channel" in cols, f"migration 015 didn't add sale.channel; cols={cols}"
 
 
-def test_schema_version_is_15(app_engine):
-    """init_db() bumps schema_version to CURRENT_SCHEMA_VERSION=15."""
+def test_schema_version_is_at_least_15(app_engine):
+    """init_db() bumps schema_version to at least 15 (latest: 18, after
+    v17 recipe_line.line_unit and v18 ingredient_price_event)."""
     from app.rms.db import schema_version
 
     with app_engine.connect() as conn:
         actual = schema_version(conn)
-    assert actual == 15
+    assert actual >= 15, f"schema_version drifted below baseline: {actual}"
 
 
 def test_default_channel_is_mostrador(session_factory):

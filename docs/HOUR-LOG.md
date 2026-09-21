@@ -29,9 +29,9 @@ Saskia PDF's 97h budget (70h original scope + 27h contingency).
 | 2026-09-21 | T3       |     1.0 |    1.0 | scope  | done    | Ver-receta routes to recipe          |
 | 2026-09-21 | T4       |     1.5 |    1.0 | scope  | done    | Pedidos status filter                |
 | 2026-09-21 | T7       |     2.0 |    1.5 | scope  | done    | Settings polish + visual-noise cut   |
-| 2026-09-21 | T1       |     3.0 |    2.5 | scope  | done    | Recipe line unit selector — grams input |
-| 2026-09-21 | Q1-core  |     4.0 |    3.5 | scope  | done    | Schema v18 + restock write + history  |
-| 2026-09-21 | Q2-prep  |     1.0 |        | scope  | pending | Calendar grid component shell        |
+| 2026-09-21 | T1       |     3.0 |    2.5 | scope  | done    | Recipe line unit + grams input       |
+| 2026-09-21 | Q1-core  |     4.0 |    3.5 | scope  | done    | Schema v18 + restock write           |
+| 2026-09-21 | Q2-prep  |     1.0 |    1.5 | scope  | done    | Calendar grid component shell        |
 | 2026-09-21 | T5       |     2.0 |        | scope  | pending | EOD production-completed section     |
 | 2026-09-21 | T6       |     2.0 |        | scope  | pending | Merma whole-batch flow               |
 | 2026-09-21 | T8       |     2.0 |        | scope  | pending | Cross-page consistency               |
@@ -46,15 +46,15 @@ Saskia PDF's 97h budget (70h original scope + 27h contingency).
 
 | Bucket        | Planned | Actual |
 |---------------|--------:|-------:|
-| scope         |    40.0 |    4.0 |
+| scope         |    40.0 |   11.5 |
 | contingency   |     0.0 |    0.0 |
 | overflow      |     0.0 |    0.0 |
-| **TOTAL**     |    40.0 |    4.0 |
+| **TOTAL**     |    40.0 |   11.5 |
 
 | Threshold            | Limit | Current | Margin |
 |----------------------|------:|--------:|-------:|
-| Extras vs contingency |   27h |     4.0 |  23.0h |
-| Total vs PDF         |   97h |     4.0 |  93.0h |
+| Extras vs contingency |   27h |    11.5 |  15.5h |
+| Total vs PDF         |   97h |    11.5 |  85.5h |
 
 ### Status flags
 
