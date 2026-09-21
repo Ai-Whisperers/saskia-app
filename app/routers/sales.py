@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.auth import require_login_or_disabled as require_login
 from app.rms.config import ASUNCION_TZ
@@ -180,9 +180,13 @@ def _build_filtered_sales_query(q, product_id, days):
     """Build a Sale query applying the same filters as sales_list.
 
     Used by both the HTML view and the CSV export so they stay
-    consistent. Caller is responsible for any further ordering/limits.
+    consistent. Eager-loads product + customer to avoid N+1 in _decorated.
     """
-    sales_q = select(Sale).order_by(Sale.sold_at.desc())
+    sales_q = (
+        select(Sale)
+        .options(selectinload(Sale.product), selectinload(Sale.customer))
+        .order_by(Sale.sold_at.desc())
+    )
     if product_id is not None:
         sales_q = sales_q.where(Sale.product_id == product_id)
     if days is not None and days > 0:

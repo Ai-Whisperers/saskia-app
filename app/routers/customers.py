@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
 from app.rms.customers import (
+    batch_customer_stats,
     customer_purchase_history,
     customer_stats,
     list_customers,
@@ -59,8 +60,11 @@ def clientes_list(
                 or (c.phone and ql in c.phone)
             ]
         rows = []
+        all_stats = batch_customer_stats(session, customers)
         for c in customers:
-            stats = customer_stats(session, c)
+            stats = all_stats.get(c.id)
+            if stats is None:
+                continue
             if stats.tier.value == tier:
                 rows.append({
                     "id": c.id, "name": c.name or "(sin nombre)", "phone": c.phone,
@@ -82,9 +86,13 @@ def clientes_list(
             ]
         else:
             customers = list_customers(session)
+        # Batch-fetch all stats in one query instead of N queries
+        all_stats = batch_customer_stats(session, customers)
         rows = []
         for c in customers:
-            stats = customer_stats(session, c)
+            stats = all_stats.get(c.id)
+            if stats is None:
+                continue
             rows.append({
                 "id": c.id, "name": c.name or "(sin nombre)", "phone": c.phone,
                 "lifetime_spend_gs": stats.lifetime_spend_gs,
@@ -103,8 +111,12 @@ def clientes_list(
     })
 
 
-def _customer_to_api_payload(c: Customer, session: Session) -> dict:
-    """Serialize a Customer row + computed stats for the picker UI."""
+def customer_to_api_payload(c: Customer, session: Session) -> dict:
+    """Serialize a Customer row + computed stats for the picker UI.
+
+    For a single customer (N=1) — calls customer_stats() which makes 1 query.
+    For lists use batch_customer_stats() instead.
+    """
     stats = customer_stats(session, c)
     lifetime_label = _format_gs_compact(stats.lifetime_spend_gs)
     return {
@@ -146,7 +158,29 @@ def customer_search_api(
     Used by the customer picker modal on /ventas.
     """
     rows = search_customers(session, q, limit=limit)
-    payload = [_customer_to_api_payload(c, session) for c in rows]
+    if not rows:
+        return JSONResponse({"results": [], "count": 0})
+    all_stats = batch_customer_stats(session, rows)
+    payload = []
+    for c in rows:
+        stats = all_stats.get(c.id)
+        if stats is None:
+            continue
+        lifetime_label = _format_gs_compact(stats.lifetime_spend_gs)
+        payload.append({
+            "id": c.id,
+            "name": c.name or "",
+            "phone": c.phone or "",
+            "email": c.email or "",
+            "cedula": c.cedula or "",
+            "notes": c.notes or "",
+            "loyalty_points": c.loyalty_points,
+            "n_sales": stats.n_sales,
+            "lifetime_spend_gs": stats.lifetime_spend_gs,
+            "lifetime_label": lifetime_label,
+            "tier": stats.tier.value,
+            "hint": f"{c.name} — {stats.n_sales} visitas, {lifetime_label} lifetime",
+        })
     return JSONResponse({"results": payload, "count": len(payload)})
 
 
@@ -194,7 +228,7 @@ async def customer_create_api(
     return JSONResponse({
         "id": customer.id,
         "created": True,
-        "customer": _customer_to_api_payload(customer, session),
+        "customer": customer_to_api_payload(customer, session),
     })
 
 

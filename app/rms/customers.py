@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.rms.models import Customer, Sale
@@ -225,20 +225,79 @@ def tier_for_spend(lifetime_spend_gs: int) -> LoyaltyTier:
     return LoyaltyTier.BRONZE
 
 
+def batch_customer_stats(
+    session: Session, customers: list[Customer]
+) -> dict[int, CustomerStats]:
+    """Compute stats for multiple customers in a single query.
+
+    Replaces N calls to customer_stats() — 2 queries per customer → 1 query total.
+    """
+    if not customers:
+        return {}
+
+    ids = [c.id for c in customers]
+    rows = session.execute(
+        select(
+            Sale.customer_id,
+            func.count(Sale.id).label("n_sales"),
+            func.coalesce(func.sum(Sale.qty * Sale.unit_price_gs), 0).label("lifetime_spend_gs"),
+            func.max(Sale.sold_at).label("last_sale_at"),
+        )
+        .where(Sale.customer_id.in_(ids), Sale.voided_at.is_(None))
+        .group_by(Sale.customer_id)
+    ).all()
+    stats_by_cid = {
+        r.customer_id: _raw_stats_to_customer_stats(session, r, customers)
+        for r in rows
+    }
+    # Customers with zero sales won't appear in the aggregation — fill them in
+    for c in customers:
+        if c.id not in stats_by_cid:
+            stats_by_cid[c.id] = CustomerStats(
+                customer_id=c.id,
+                name=c.name,
+                phone=c.phone,
+                email=c.email,
+                loyalty_points=c.loyalty_points,
+                lifetime_spend_gs=0,
+                last_sale_at=None,
+                n_sales=0,
+                tier=LoyaltyTier.BRONZE,
+            )
+    return stats_by_cid
+
+
+def _raw_stats_to_customer_stats(
+    session: Session, row, customers: list[Customer]
+) -> CustomerStats:
+    """Convert an aggregated DB row to CustomerStats for one customer."""
+    # Find the Customer object for this id
+    customer = next((c for c in customers if c.id == row.customer_id), None)
+    lifetime_spend = int(row.lifetime_spend_gs or 0)
+    return CustomerStats(
+        customer_id=row.customer_id,
+        name=customer.name if customer else "",
+        phone=customer.phone if customer else None,
+        email=customer.email if customer else None,
+        loyalty_points=customer.loyalty_points if customer else 0,
+        lifetime_spend_gs=lifetime_spend,
+        last_sale_at=row.last_sale_at,
+        n_sales=row.n_sales or 0,
+        tier=tier_for_spend(lifetime_spend),
+    )
+
+
 def customer_stats(session: Session, customer: Customer) -> CustomerStats:
     """Compute lifetime spend, n_sales, last_sale_at for one customer."""
-    sales = list(
-        session.execute(
-            select(Sale.sold_at, Sale.qty, Sale.unit_price_gs)
-            .where(Sale.customer_id == customer.id, Sale.voided_at.is_(None))
-            .order_by(Sale.sold_at.desc())
-        ).all()
-    )
-    n_sales = len(sales)
-    lifetime_spend = sum(
-        int(round(s.qty * s.unit_price_gs)) for s in sales
-    )
-    last_sale_at = sales[0].sold_at if sales else None
+    rows = session.execute(
+        select(
+            func.count(Sale.id).label("n_sales"),
+            func.coalesce(func.sum(Sale.qty * Sale.unit_price_gs), 0).label("lifetime_spend_gs"),
+            func.max(Sale.sold_at).label("last_sale_at"),
+        )
+        .where(Sale.customer_id == customer.id, Sale.voided_at.is_(None))
+    ).one()
+    lifetime_spend = int(rows.lifetime_spend_gs or 0)
     return CustomerStats(
         customer_id=customer.id,
         name=customer.name,
@@ -246,8 +305,8 @@ def customer_stats(session: Session, customer: Customer) -> CustomerStats:
         email=customer.email,
         loyalty_points=customer.loyalty_points,
         lifetime_spend_gs=lifetime_spend,
-        last_sale_at=last_sale_at,
-        n_sales=n_sales,
+        last_sale_at=rows.last_sale_at,
+        n_sales=rows.n_sales or 0,
         tier=tier_for_spend(lifetime_spend),
     )
 
@@ -267,6 +326,7 @@ def customer_purchase_history(
 
 
 __all__ = [
+    "batch_customer_stats",
     "LoyaltyTier",
     "TIER_THRESHOLDS",
     "POINTS_PER_GS",

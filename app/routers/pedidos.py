@@ -369,7 +369,10 @@ def pedidos_detail(
 ) -> HTMLResponse:
     """Show one pedido with customer, lines, status buttons, public share URL."""
     pedido = session.get(
-        Pedido, pedido_id, options=[selectinload(Pedido.lines), selectinload(Pedido.customer)]
+        Pedido, pedido_id, options=[
+            selectinload(Pedido.lines).selectinload(PedidoLine.product),
+            selectinload(Pedido.customer),
+        ]
     )
     if pedido is None:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")

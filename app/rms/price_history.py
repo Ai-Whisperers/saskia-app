@@ -113,6 +113,57 @@ def price_history(
     return [(ts, int(price)) for ts, price in rows]
 
 
+def batch_price_stats(
+    session: Session, ingredient_ids: list[int], days: int = 90
+) -> dict[int, dict]:
+    """Return {ingredient_id: {current, min, max, avg, count}} for multiple ingredients.
+
+    Replaces N separate price_stats() calls — 3 queries each (price_history × 2,
+    then the same data re-parsed) → 1 query total.
+    """
+    if not ingredient_ids:
+        return {}
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    rows = session.execute(
+        select(
+            IngredientPriceEvent.ingredient_id,
+            IngredientPriceEvent.price_gs,
+            IngredientPriceEvent.recorded_at,
+        )
+        .where(
+            IngredientPriceEvent.ingredient_id.in_(ingredient_ids),
+            IngredientPriceEvent.recorded_at >= cutoff,
+        )
+        .order_by(IngredientPriceEvent.ingredient_id, IngredientPriceEvent.recorded_at.asc())
+    ).all()
+
+    result: dict[int, dict] = {iid: {"current": None, "min": None, "max": None, "avg": None, "count": 0} for iid in ingredient_ids}
+    for row in rows:
+        iid, price_gs, recorded_at = row
+        d = result[iid]
+        d["count"] += 1
+        p = int(price_gs)
+        if d["min"] is None or p < d["min"]:
+            d["min"] = p
+        if d["max"] is None or p > d["max"]:
+            d["max"] = p
+        d["current"] = p  # last in asc order
+
+    for iid in ingredient_ids:
+        d = result[iid]
+        if d["count"] > 0:
+            avg = sum(
+                Decimal(r.price_gs) for r in rows if r.ingredient_id == iid
+            ) / Decimal(d["count"])
+            d["avg"] = int(avg)
+        else:
+            d["current"] = None
+
+    return result
+
+
 def price_stats(
     session: Session,
     ingredient_id: int,
@@ -149,4 +200,5 @@ __all__ = [
     "record_price_event",
     "price_history",
     "price_stats",
+    "batch_price_stats",
 ]

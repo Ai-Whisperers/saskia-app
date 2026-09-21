@@ -232,6 +232,10 @@ class Sale(Base):
     __table_args__ = (
         CheckConstraint("qty > 0", name="ck_sale_qty_positive"),
         CheckConstraint("unit_price_gs >= 0", name="ck_sale_price_nonneg"),
+        # Covers: sales list by date range, dashboard charts, daily/weekly summaries,
+        # libro_ventas, IVA reports, customer stats — every query that filters
+        # sold_at AND ignores voided sales in the same pass.
+        Index("ix_sale_sold_at_voided", "sold_at", "voided_at"),
     )
 
 

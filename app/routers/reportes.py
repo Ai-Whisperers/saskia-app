@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, Response
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
@@ -19,7 +19,7 @@ from app.rms.accounting import daily_summary, libro_ventas, monthly_iva_breakdow
 from app.rms.charts import fmt_short_date, line_chart
 from app.rms.dependencies import get_session
 from app.rms.models import Ingredient, IngredientPriceEvent
-from app.rms.price_history import price_history, price_stats
+from app.rms.price_history import batch_price_stats, price_history, price_stats
 from app.services.template_render import render
 
 router = APIRouter(prefix="/reportes", dependencies=[Depends(require_login)])
@@ -94,27 +94,51 @@ def reportes_diario(
 def _precio_rows(session: Session, days: int) -> list[dict]:
     """One summary row per ingredient that has events in the window."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    rows: list[dict] = []
-    ingredients = session.scalars(
-        select(Ingredient).order_by(Ingredient.name)
-    ).all()
-    for ing in ingredients:
-        stats = price_stats(session, ing.id, days=days)
-        if stats["count"] == 0:
-            continue
-        last_ts = session.scalar(
-            select(IngredientPriceEvent.recorded_at)
-            .where(IngredientPriceEvent.ingredient_id == ing.id)
+
+    # Fetch all ingredients with events in the window — single query
+    ingredient_ids = [
+        row[0] for row in session.execute(
+            select(IngredientPriceEvent.ingredient_id.distinct())
             .where(IngredientPriceEvent.recorded_at >= cutoff)
-            .order_by(IngredientPriceEvent.recorded_at.desc())
-            .limit(1)
-        )
+        ).all()
+    ]
+
+    # Batch-fetch all price stats — single query (was N queries)
+    stats_map = batch_price_stats(session, ingredient_ids, days=days)
+
+    # Fetch ingredient objects for name/unit lookup
+    ingredients = {
+        ing.id: ing for ing in
+        session.scalars(select(Ingredient).where(Ingredient.id.in_(ingredient_ids))).all()
+    }
+
+    # Last event timestamp per ingredient — single query (was N queries)
+    last_ts_map = dict(
+        session.execute(
+            select(
+                IngredientPriceEvent.ingredient_id,
+                func.max(IngredientPriceEvent.recorded_at),
+            )
+            .where(
+                IngredientPriceEvent.ingredient_id.in_(ingredient_ids),
+                IngredientPriceEvent.recorded_at >= cutoff,
+            )
+            .group_by(IngredientPriceEvent.ingredient_id)
+        ).all()
+    )
+
+    rows = []
+    for iid in ingredient_ids:
+        stats = stats_map.get(iid, {})
+        if stats.get("count", 0) == 0:
+            continue
+        ing = ingredients.get(iid)
         rows.append({
-            "ingredient_id": ing.id,
-            "name": ing.name,
-            "unit": ing.unit,
+            "ingredient_id": iid,
+            "name": ing.name if ing else f"#{iid}",
+            "unit": ing.unit if ing else "",
             **stats,
-            "last_event_at": last_ts,
+            "last_event_at": last_ts_map.get(iid),
         })
     return rows
 
