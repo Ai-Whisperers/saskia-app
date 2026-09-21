@@ -195,13 +195,15 @@ def _apply_lines_from_form(session: Session, recipe_id: int, form) -> None:
     kinds = form.getlist("line_kind")
     target_ids = form.getlist("line_target_id")
     qtys = form.getlist("line_qty")
+    line_units = form.getlist("line_unit")
     notes_list = form.getlist("line_notes")
 
-    n = max(len(kinds), len(target_ids), len(qtys))
+    n = max(len(kinds), len(target_ids), len(qtys), len(line_units))
     for i in range(n):
         kind = str(kinds[i]).strip() if i < len(kinds) else ""
         target = str(target_ids[i]).strip() if i < len(target_ids) else ""
         qty_raw = str(qtys[i]).strip() if i < len(qtys) else ""
+        ln_unit_raw = str(line_units[i]).strip() if i < len(line_units) else ""
         ln_notes = str(notes_list[i]).strip() if i < len(notes_list) else ""
 
         if not kind or not target or not qty_raw:
@@ -214,12 +216,23 @@ def _apply_lines_from_form(session: Session, recipe_id: int, form) -> None:
         if qty <= 0 or target_id <= 0:
             continue
 
+        # Validate the unit (if supplied) against the canonical enum.
+        # On invalid value, fall back to empty string — the costing walk will
+        # then default to the linked ingredient's unit (back-compat).
+        line_unit_value = ""
+        if ln_unit_raw:
+            try:
+                line_unit_value = Unit.coerce(ln_unit_raw).value
+            except ValueError:
+                line_unit_value = ""
+
         session.add(
             RecipeLine(
                 recipe_id=recipe_id,
                 line_kind=kind,
                 line_ref_id=target_id,
                 qty=qty,
+                line_unit=line_unit_value,
                 notes=ln_notes or None,
             )
         )

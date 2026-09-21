@@ -151,3 +151,155 @@ def test_recipe_line_rejects_negative_qty(session_factory):
         s.add(RecipeLine(recipe_id=rec.id, line_kind="ingredient", line_ref_id=ing.id, qty=-1.0))
         with pytest.raises(sqlalchemy.exc.IntegrityError):
             s.commit()
+
+
+# --- Phase B — T1 recipe line unit selector roundtrip ---
+
+
+def test_recipe_line_stores_line_unit(session_factory):
+    """RecipeLine model persists line_unit alongside qty."""
+    from app.rms.models import Ingredient, Recipe, RecipeLine
+
+    with session_factory() as s:
+        ing = Ingredient(name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
+        rec = Recipe(name="R", yield_qty=10.0, yield_unit="und")
+        s.add_all([ing, rec])
+        s.flush()
+        s.add(
+            RecipeLine(
+                recipe_id=rec.id,
+                line_kind="ingredient",
+                line_ref_id=ing.id,
+                qty=250,
+                line_unit="g",
+            )
+        )
+        s.commit()
+        line_id = s.query(RecipeLine).first().id
+
+    with session_factory() as s:
+        line = s.get(RecipeLine, line_id)
+    assert line.line_unit == "g"
+    assert line.qty == 250
+
+
+def test_recipe_line_defaults_line_unit_to_empty_string(session_factory):
+    """Newly created RecipeLine (without line_unit) defaults to ''."""
+    from app.rms.models import Ingredient, Recipe, RecipeLine
+
+    with session_factory() as s:
+        ing = Ingredient(name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
+        rec = Recipe(name="R", yield_qty=10.0, yield_unit="und")
+        s.add_all([ing, rec])
+        s.flush()
+        s.add(
+            RecipeLine(
+                recipe_id=rec.id,
+                line_kind="ingredient",
+                line_ref_id=ing.id,
+                qty=0.3,
+            )
+        )
+        s.commit()
+        line_id = s.query(RecipeLine).first().id
+
+    with session_factory() as s:
+        line = s.get(RecipeLine, line_id)
+    assert line.line_unit == ""
+
+
+def test_costing_uses_line_unit_for_cross_unit_recipe(session_factory):
+    """Roundtrip: 250 g of flour (ingredient in kg, Gs. 5000/kg) → Gs. 1250 cost."""
+    from decimal import Decimal
+
+    from app.rms.costing import recipe_batch_cost_gs
+    from app.rms.models import Ingredient, Recipe, RecipeLine
+
+    with session_factory() as s:
+        flour = Ingredient(name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
+        s.add(flour)
+        s.flush()
+        rec = Recipe(name="Torta", yield_qty=12.0, yield_unit="und")
+        s.add(rec)
+        s.flush()
+        # 250 g of flour into a kg ingredient → 0.25 kg × Gs. 5000 = Gs. 1250
+        s.add(
+            RecipeLine(
+                recipe_id=rec.id,
+                line_kind="ingredient",
+                line_ref_id=flour.id,
+                qty=250,
+                line_unit="g",
+            )
+        )
+        s.commit()
+        recipe_id = rec.id
+
+    with session_factory() as s:
+        result = recipe_batch_cost_gs(s, recipe_id)
+    assert result.batch_cost_gs == 1250
+    assert not result.missing_ingredient_names
+
+
+def test_costing_same_unit_recipe_unchanged(session_factory):
+    """When line_unit == ingredient_unit, costing is unaffected (qty × price)."""
+    from app.rms.costing import recipe_batch_cost_gs
+    from app.rms.models import Ingredient, Recipe, RecipeLine
+
+    with session_factory() as s:
+        flour = Ingredient(name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
+        s.add(flour)
+        s.flush()
+        rec = Recipe(name="Torta", yield_qty=12.0, yield_unit="und")
+        s.add(rec)
+        s.flush()
+        s.add(
+            RecipeLine(
+                recipe_id=rec.id,
+                line_kind="ingredient",
+                line_ref_id=flour.id,
+                qty=0.3,
+                line_unit="kg",
+            )
+        )
+        s.commit()
+        recipe_id = rec.id
+
+    with session_factory() as s:
+        result = recipe_batch_cost_gs(s, recipe_id)
+    assert result.batch_cost_gs == 1500  # 0.3 × 5000
+
+
+def test_costing_handles_empty_line_unit_as_legacy(session_factory):
+    """Legacy rows with line_unit='' behave as if line_unit matched ingredient unit.
+
+    Backward compat: pre-T1 recipes had no line_unit. Default to the linked
+    ingredient's unit (no conversion). This matches the historical behavior
+    where recipe qty was assumed to match ingredient unit at import time.
+    """
+    from app.rms.costing import recipe_batch_cost_gs
+    from app.rms.models import Ingredient, Recipe, RecipeLine
+
+    with session_factory() as s:
+        flour = Ingredient(name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
+        s.add(flour)
+        s.flush()
+        rec = Recipe(name="Torta", yield_qty=12.0, yield_unit="und")
+        s.add(rec)
+        s.flush()
+        # line_unit="" is the legacy/default value — assume ingredient unit
+        s.add(
+            RecipeLine(
+                recipe_id=rec.id,
+                line_kind="ingredient",
+                line_ref_id=flour.id,
+                qty=0.3,
+                line_unit="",
+            )
+        )
+        s.commit()
+        recipe_id = rec.id
+
+    with session_factory() as s:
+        result = recipe_batch_cost_gs(s, recipe_id)
+    assert result.batch_cost_gs == 1500  # 0.3 × 5000

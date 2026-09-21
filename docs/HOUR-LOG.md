@@ -29,7 +29,7 @@ Saskia PDF's 97h budget (70h original scope + 27h contingency).
 | 2026-09-21 | T3       |     1.0 |    1.0 | scope  | done    | Ver-receta routes to recipe          |
 | 2026-09-21 | T4       |     1.5 |    1.0 | scope  | done    | Pedidos status filter                |
 | 2026-09-21 | T7       |     2.0 |    1.5 | scope  | done    | Settings polish + visual-noise cut   |
-| 2026-09-21 | T1       |     3.0 |        | scope  | pending | Recipe line unit + grams input       |
+| 2026-09-21 | T1       |     3.0 |    2.5 | scope  | done    | Recipe line unit selector — grams input |
 | 2026-09-21 | Q1-core  |     4.0 |        | scope  | pending | Schema v4 + restock write            |
 | 2026-09-21 | Q2-prep  |     1.0 |        | scope  | pending | Calendar grid component shell        |
 | 2026-09-21 | T5       |     2.0 |        | scope  | pending | EOD production-completed section     |

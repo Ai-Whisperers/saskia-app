@@ -64,3 +64,92 @@ def test_init_db_creates_all_required_tables(tmp_path):
         found = {r[0] for r in rows}
     missing = expected_tables - found
     assert not missing, f"Missing tables: {missing}"
+
+
+# --- Phase B — T1 migration v17 (recipe_line.line_unit) ---
+
+
+def test_migration_017_adds_line_unit_column(tmp_path):
+    """migration v17 adds line_unit VARCHAR(8) NOT NULL DEFAULT '' to recipe_line."""
+    from sqlalchemy import text
+
+    from app.rms.db import _migration_017_recipe_line_unit
+
+    db = tmp_path / "test.db"
+    engine = create_engine(f"sqlite:///{db}")
+    init_db(engine)  # creates all tables including recipe_line
+
+    # Sanity: line_unit doesn't exist yet because CURRENT_SCHEMA_VERSION is 17
+    # and init_db() already ran migration 17. Drop the column to test the
+    # migration in isolation.
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE recipe_line DROP COLUMN line_unit"))
+        conn.commit()
+
+    with engine.connect() as conn:
+        _migration_017_recipe_line_unit(conn)
+        conn.commit()
+        cols = [row[1] for row in conn.execute(text("PRAGMA table_info(recipe_line)")).fetchall()]
+    assert "line_unit" in cols
+
+
+def test_migration_017_is_idempotent(tmp_path):
+    """Re-running migration 017 on a DB that already has line_unit does nothing destructive."""
+    from app.rms.db import _migration_017_recipe_line_unit
+
+    db = tmp_path / "test.db"
+    engine = create_engine(f"sqlite:///{db}")
+    init_db(engine)
+
+    with engine.connect() as conn:
+        # Run twice — should not raise
+        _migration_017_recipe_line_unit(conn)
+        conn.commit()
+        _migration_017_recipe_line_unit(conn)
+        conn.commit()
+
+
+def test_migration_017_backfills_existing_rows(tmp_path):
+    """Existing recipe_line rows get line_unit = linked ingredient's unit."""
+    from sqlalchemy import text
+
+    from app.rms.db import _migration_017_recipe_line_unit
+    from app.rms.db import init_db
+
+    db = tmp_path / "test.db"
+    engine = create_engine(f"sqlite:///{db}")
+    init_db(engine)
+
+    # Pre-seed with a recipe_line that has line_unit = '' (the legacy default).
+    with engine.connect() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO ingredient (name, unit, stock_qty, min_stock_qty, lead_time_days) "
+                "VALUES ('Harina', 'kg', 5.0, 0.0, 3)"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO recipe (name, yield_qty, yield_unit) "
+                "VALUES ('Torta', 12.0, 'und')"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO recipe_line (recipe_id, line_kind, line_ref_id, qty, line_unit) "
+                "VALUES (1, 'ingredient', 1, 0.3, '')"
+            )
+        )
+        conn.commit()
+
+    # Now reset line_unit to '' to simulate a pre-migration row, then run v17.
+    with engine.connect() as conn:
+        conn.execute(text("UPDATE recipe_line SET line_unit = ''"))
+        conn.commit()
+        _migration_017_recipe_line_unit(conn)
+        conn.commit()
+        row = conn.execute(
+            text("SELECT line_unit FROM recipe_line WHERE id = 1")
+        ).first()
+    assert row is not None
+    assert row[0] == "kg"  # backfilled from linked ingredient

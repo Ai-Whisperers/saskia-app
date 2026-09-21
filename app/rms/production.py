@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -24,6 +25,7 @@ from app.rms.models import (
     RecipeLine,
     Sale,
 )
+from app.rms.units import normalize_recipe_line_qty
 
 
 @dataclass
@@ -159,9 +161,22 @@ def plan_production(
             ing = session.get(Ingredient, line.line_ref_id)
             if ing is None:
                 continue
-            # Convert qty to ingredient's unit (assume recipe qty in same unit
-            # for now; in v2 we'd add unit conversion)
-            qty_needed = line.qty * qty_to_produce
+            # Phase B — T1: line_unit is the unit Saskia typed the qty in.
+            # Convert qty → ingredient.unit (cross-family raises — we fall
+            # back to legacy "same-unit" assumption so the production sheet
+            # still renders; the recipe form will surface the real error).
+            line_qty_dec = Decimal(str(line.qty))
+            line_unit = line.line_unit if line.line_unit else ing.unit
+            try:
+                qty_in_ingredient_unit = normalize_recipe_line_qty(
+                    line_qty_dec, line_unit, ing.unit
+                )
+            except ValueError:
+                # Cross-family: keep the raw qty so the production sheet at
+                # least shows something. The recipe form is where this gets
+                # fixed (visual error message + missing list from costing).
+                qty_in_ingredient_unit = line_qty_dec
+            qty_needed = float(qty_in_ingredient_unit) * qty_to_produce
             entry = ingredient_requirements.setdefault(
                 ing.id,
                 {"qty": 0.0, "unit": ing.unit, "name": ing.name},

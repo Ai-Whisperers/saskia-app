@@ -527,6 +527,65 @@ def _migration_016_pedidos(conn):
     )
 
 
+def _migration_017_recipe_line_unit(conn):
+    """Add `line_unit` to recipe_line (Phase B — T1: recipe line unit selector).
+
+    Per Saskia's review ("Se debe de poder agregar en gramos la cantidad"), each
+    recipe line now stores the unit Saskia typed the qty in. Costing walks use
+    this to convert qty → ingredient unit before multiplying against the
+    ingredient's per-unit price.
+
+    Column: VARCHAR(8) NOT NULL DEFAULT ''.
+
+    Backfill: existing recipe_line rows get the unit of the linked ingredient
+    (or '' for sub_recipe lines, where the legacy assumption is the recipe's
+    yield_unit; the costing walk handles both). The backfill runs only when
+    the row's line_unit is empty so re-runs are idempotent.
+    """
+    _add_column_if_missing(
+        conn,
+        "recipe_line",
+        "line_unit",
+        "VARCHAR(8) NOT NULL DEFAULT ''",
+        "VARCHAR(8) DEFAULT '' NOT NULL",
+    )
+
+    # Backfill existing rows: line_unit = linked ingredient's unit (ingredient
+    # lines) or '' (sub_recipe lines — sub-recipe yield_unit isn't 1:1 with
+    # the parent's yield_unit, so we leave '' and let the costing walk default
+    # to the sub-recipe's yield_unit). Idempotent: skip rows where line_unit
+    # is already non-empty.
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    if dialect == "postgresql":
+        conn.execute(
+            text(
+                "UPDATE recipe_line rl "
+                "SET line_unit = COALESCE(i.unit, '') "
+                "FROM ingredient i "
+                "WHERE rl.line_kind = 'ingredient' "
+                "AND rl.line_ref_id = i.id "
+                "AND (rl.line_unit IS NULL OR rl.line_unit = '')"
+            )
+        )
+    else:
+        conn.execute(
+            text(
+                "UPDATE recipe_line "
+                "SET line_unit = COALESCE("
+                "(SELECT i.unit FROM ingredient i "
+                "WHERE i.id = recipe_line.line_ref_id), ''"
+                ") "
+                "WHERE line_kind = 'ingredient' "
+                "AND (line_unit IS NULL OR line_unit = '')"
+            )
+        )
+
+    conn.execute(
+        text("UPDATE app_meta SET value = '17', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -544,6 +603,7 @@ MIGRATIONS = {
     14: _migration_014_customer_cedula,
     15: _migration_015_sale_channel,
     16: _migration_016_pedidos,
+    17: _migration_017_recipe_line_unit,
 }
 
 

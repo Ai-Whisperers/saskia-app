@@ -40,6 +40,7 @@ from app.rms.models import (
     SaleStockMove,
 )
 from app.rms.money import to_int_gs
+from app.rms.units import normalize_recipe_line_qty
 
 
 def resolve_line_target(session: Session, line: RecipeLine) -> Ingredient | Recipe | None:
@@ -126,7 +127,13 @@ def _walk_recipe_cost(
     lines = session.scalars(select(RecipeLine).where(RecipeLine.recipe_id == recipe.id)).all()
 
     for line in lines:
-        line_qty = Decimal(str(line.qty))
+        # Phase B — T1: line_unit is the unit Saskia typed the qty in.
+        # Default to the linked ingredient's unit (backward compat for
+        # legacy rows with line_unit=''). normalize_recipe_line_qty raises
+        # ValueError on cross-family conversion (g→l, etc.) — the costing
+        # walk surfaces this via missing[] so the UI can show "unidades
+        # incompatibles" instead of crashing.
+        line_qty_raw = Decimal(str(line.qty))
         target = resolve_line_target(session, line)
         if line.line_kind == "ingredient":
             ingredient = target  # type: ignore[assignment]
@@ -136,10 +143,22 @@ def _walk_recipe_cost(
             if ingredient.purchase_price_gs is None:
                 missing.append(f"ingredient:{ingredient.name} (sin precio)")
                 return None
-            # ingredient.purchase_price_gs is per the ingredient's *unit*, which
-            # matches the recipe line's unit at import time. We trust that.
-            # (If units differ, the importer normalizes them via convert_qty.)
-            line_cost = line_qty * Decimal(str(ingredient.purchase_price_gs))
+            # Resolve which unit to normalize qty INTO: prefer line_unit when
+            # set, else fall back to ingredient.unit (legacy/back-compat).
+            line_unit = line.line_unit if line.line_unit else ingredient.unit
+            try:
+                line_qty_in_ingredient_unit = normalize_recipe_line_qty(
+                    line_qty_raw, line_unit, ingredient.unit
+                )
+            except ValueError as exc:
+                missing.append(
+                    f"line:{line.id} ({line_unit!r}→{ingredient.unit!r} requiere densidad: {exc})"
+                )
+                return None
+            # Multiply the normalized qty against the ingredient's per-unit price.
+            line_cost = line_qty_in_ingredient_unit * Decimal(
+                str(ingredient.purchase_price_gs)
+            )
             total += line_cost
 
         elif line.line_kind == "sub_recipe":
@@ -156,7 +175,7 @@ def _walk_recipe_cost(
                 return None
             # Scale: line_qty is in (sub_recipe's yield unit). Convert:
             # line_cost = line_qty × (sub_cost / sub_recipe.yield_qty)
-            ratio = line_qty / Decimal(str(sub_recipe.yield_qty))
+            ratio = line_qty_raw / Decimal(str(sub_recipe.yield_qty))
             total += ratio * sub_cost
 
         else:
