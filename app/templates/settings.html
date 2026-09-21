@@ -14,41 +14,45 @@
       <svg class="icon" aria-hidden="true"><use href="#icon-config"/></svg>
       {{ group.label }}
     </h2>
-    <span class="badge badge-neutral">{{ group.rows | length }} ajustes</span>
   </div>
   {% if group.rows %}
-  <table class="table is-hoverable">
-    <thead>
-      <tr>
-        <th>Clave</th>
-        <th>Valor actual</th>
-        <th>Default</th>
-        <th>Descripción</th>
-        <th class="actions">Acción</th>
-      </tr>
-    </thead>
-    <tbody>
+  <div class="settings-list">
     {% for row in group.rows %}
-      <tr>
-        <td><code>{{ row.key }}</code></td>
-        <td><strong>{{ row.value if row.value is not none else "—" }}</strong></td>
-        <td><code>{{ row.default }}</code></td>
-        <td>{{ row.description }}</td>
-        <td class="actions">
-          <form method="post" action="/settings" class="form-row-inline">
-            <input type="hidden" name="key" value="{{ row.key }}">
-            <input type="text" name="value" value="{{ row.value or row.default }}" size="20">
-            <button type="submit" class="btn btn-sm btn-primary">Guardar</button>
-          </form>
-          <form method="post" action="/settings/reset" class="form-row-inline">
-            <input type="hidden" name="key" value="{{ row.key }}">
-            <button type="submit" class="btn btn-sm btn-ghost">Reset</button>
-          </form>
-        </td>
-      </tr>
+    <div class="settings-row">
+      <div class="settings-row-label">
+        <label for="setting-{{ row.key | replace('.', '-') }}">
+          <code>{{ row.key }}</code>
+        </label>
+        <p class="text-muted">{{ row.description }}</p>
+      </div>
+      <form method="post" action="/settings" class="settings-row-form">
+        <input type="hidden" name="key" value="{{ row.key }}">
+        {% if row.choices %}
+          {# Drop-down for bounded keys (Saskia feedback round 1) #}
+          <select id="setting-{{ row.key | replace('.', '-') }}"
+                  name="value"
+                  class="settings-row-input"
+                  aria-describedby="setting-help-{{ row.key | replace('.', '-') }}">
+            {% for choice in row.choices %}
+              <option value="{{ choice }}" {% if (row.value if row.value is not none else row.default) == choice %}selected{% endif %}>{{ choice }}</option>
+            {% endfor %}
+          </select>
+          <small id="setting-help-{{ row.key | replace('.', '-') }}" class="text-muted sr-only">Elegí una opción.</small>
+        {% else %}
+          <input id="setting-{{ row.key | replace('.', '-') }}"
+                 type="text"
+                 name="value"
+                 class="settings-row-input"
+                 value="{{ row.value if row.value is not none else row.default }}"
+                 aria-describedby="setting-help-{{ row.key | replace('.', '-') }}">
+          <small id="setting-help-{{ row.key | replace('.', '-') }}" class="text-muted">Default: <code>{{ row.default }}</code></small>
+        {% endif %}
+        <button type="submit" class="btn btn-sm btn-primary">Guardar</button>
+        <button type="submit" formaction="/settings/reset" class="btn btn-sm btn-ghost" aria-label="Restablecer {{ row.key }} al valor por defecto">Reset</button>
+      </form>
+    </div>
     {% endfor %}
-    </tbody>
-  </table>
+  </div>
   {% else %}
   <p class="empty-state">
     <svg class="icon" aria-hidden="true"><use href="#icon-config"/></svg>
@@ -58,6 +62,20 @@
 </section>
 {% endfor %}
 
-<p><small class="text-muted">{{ total }} ajustes en total.</small></p>
+<style>
+  .settings-list { display: flex; flex-direction: column; gap: var(--space-3); }
+  .settings-row { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(320px, 2fr); gap: var(--space-4); padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); align-items: start; }
+  .settings-row:last-child { border-bottom: 0; }
+  .settings-row-label label { font-weight: 500; }
+  .settings-row-label p { margin: var(--space-1) 0 0 0; font-size: var(--text-xs); }
+  .settings-row-form { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+  .settings-row-input { flex: 1; min-width: 200px; }
+  .settings-row-form small { font-size: var(--text-xs); }
+  @media (max-width: 768px) {
+    .settings-row { grid-template-columns: 1fr; }
+    .settings-row-form { flex-direction: column; align-items: stretch; }
+    .settings-row-input { min-width: 0; }
+  }
+</style>
 
 {% endblock %}

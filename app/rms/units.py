@@ -160,4 +160,38 @@ def convert_qty(qty, from_unit: Unit, to_unit: Unit):
     return qty_dec * factor
 
 
-__all__ = ["Unit", "can_convert", "convert_qty"]
+def normalize_recipe_line_qty(line_qty, line_unit, ingredient_unit) -> Decimal:
+    """Normalize a recipe line's quantity into the linked ingredient's unit.
+
+    This is the helper used by the recipe line unit selector (Phase B — T1):
+    Saskia may type "250 g" of flour in a recipe line, while the ingredient
+    itself is stored in "kg". Before computing cost or stock moves, we convert
+    250 g → 0.25 kg so the multiplication against the ingredient's
+    purchase_price_gs (which is per the ingredient's native unit) is correct.
+
+    Cross-family conversion (g→l, g→und, etc.) raises ValueError because
+    it would need ingredient-specific density — out of scope for fase 1.
+
+    Inputs are coerced via Unit.coerce (accepts "g", "gramos", "kg", "kilo",
+    "ml", "mililitros", "l", "litros", "und", "u", "porcion", ...) and via
+    to_decimal (accepts Decimal / float / str / int, rejects None / NaN).
+
+    Examples:
+        >>> normalize_recipe_line_qty(Decimal("250"), "g", "kg")
+        Decimal('0.25')
+        >>> normalize_recipe_line_qty(Decimal("0.5"), "kilo", "g")
+        Decimal('500')
+        >>> normalize_recipe_line_qty(Decimal("100"), "g", "l")
+        Traceback (most recent exception being shown): ...
+        ValueError: Cannot convert g to l (cross-family)
+        >>> normalize_recipe_line_qty("250", "gramos", "kg")
+        Decimal('0.25')
+    """
+    from app.rms.money import to_decimal
+
+    from_u = Unit.coerce(line_unit)
+    to_u = Unit.coerce(ingredient_unit)
+    return convert_qty(to_decimal(line_qty), from_u, to_u)
+
+
+__all__ = ["Unit", "can_convert", "convert_qty", "normalize_recipe_line_qty"]

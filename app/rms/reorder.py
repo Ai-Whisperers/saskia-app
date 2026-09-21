@@ -30,6 +30,7 @@ class ReorderItem:
     max_stock: float
     suggested_qty: float
     estimated_cost_gs: int
+    purchase_price_gs: int | None  # current price, prefilled in the restock form
     urgency: float  # 0.0 = out of stock, 1.0 = at min, >1.0 = above min
 
 
@@ -58,6 +59,7 @@ def compute_reorder_list(session: Session) -> list[ReorderItem]:
             max_stock=max_q,
             suggested_qty=suggested,
             estimated_cost_gs=cost,
+            purchase_price_gs=ing.purchase_price_gs,
             urgency=urgency,
         ))
     # Smallest urgency ratio = most urgent first.

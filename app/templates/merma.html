@@ -12,8 +12,56 @@
 <section class="card">
   <div class="card-header">
     <h2>
+      <svg class="icon" aria-hidden="true"><use href="#icon-recipe"/></svg>
+      Merma de receta completa
+    </h2>
+    <small class="text-muted">Se descontará stock de todos los ingredientes proporcionalmente</small>
+  </div>
+  {% if recipes %}
+  <form method="post" action="/merma/receta" class="form">
+    <div class="form-row">
+      <label for="recipe_id">Receta</label>
+      <select id="recipe_id" name="recipe_id" required>
+        <option value="">— Seleccionar —</option>
+        {% for r in recipes %}
+        <option value="{{ r.id }}">{{ r.name }} (rinde {{ r.yield_qty }} {{ r.yield_unit }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row">
+      <label for="batch_qty">Cantidad de lotes perdidos</label>
+      <input type="number" id="batch_qty" name="batch_qty" required step="0.01" min="0.01" value="1">
+      <small class="text-muted">1 = un lote entero; 0.5 = media tanda.</small>
+    </div>
+    <div class="form-row">
+      <label for="recipe_reason">Motivo</label>
+      <select id="recipe_reason" name="reason" required>
+        {% for r in reasons %}
+        <option value="{{ r }}">{{ r }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row">
+      <label for="recipe_notes">Notas</label>
+      <textarea id="recipe_notes" name="notes" rows="2"></textarea>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">
+        <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+        Registrar merma de receta
+      </button>
+    </div>
+  </form>
+  {% else %}
+  <p class="empty-state text-muted">No hay recetas con rendimiento cargado todavía.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-header">
+    <h2>
       <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
-      Registrar merma
+      Registrar merma de ingrediente
     </h2>
   </div>
   <form method="post" action="/merma/registrar" class="form">
@@ -64,7 +112,7 @@
   <div class="grid grid-2 mb-4">
     <div class="metric-card">
       <div class="metric-label">Costo total</div>
-      <div class="metric-value">Gs. {{ "{:,.0f}".format(impact.total_cost_gs) }}</div>
+      <div class="metric-value">{{ m.gs_full(impact.total_cost_gs) }}</div>
     </div>
     <div class="metric-card">
       <div class="metric-label">Eventos</div>
@@ -78,7 +126,7 @@
     <thead><tr><th>Motivo</th><th class="num">Costo (Gs.)</th></tr></thead>
     <tbody>
       {% for reason, cost in impact.by_reason.items() %}
-      <tr><td>{{ reason }}</td><td class="num">{{ "{:,.0f}".format(cost) }}</td></tr>
+      <tr><td>{{ reason }}</td><td class="num">{{ m.gs(cost) }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -105,7 +153,7 @@
         <td>{{ w.ingredient.name if w.ingredient else "?" }}</td>
         <td class="num">{{ "%.2f"|format(w.qty) }}</td>
         <td><span class="badge badge-neutral">{{ w.reason }}</span></td>
-        <td class="num">{{ "{:,.0f}".format(w.cost_gs) }}</td>
+        <td class="num">{{ m.gs(w.cost_gs) }}</td>
       </tr>
       {% endfor %}
     </tbody>

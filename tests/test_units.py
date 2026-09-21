@@ -6,7 +6,7 @@ from decimal import Decimal
 
 import pytest
 
-from app.rms.units import Unit, can_convert, convert_qty
+from app.rms.units import Unit, can_convert, convert_qty, normalize_recipe_line_qty
 
 # --- Coercion of common aliases ---
 
@@ -129,3 +129,82 @@ def test_unit_display():
 def test_unit_allowed_values_for_docs():
     """Used in error messages and API responses."""
     assert Unit.allowed_values() == ["g", "kg", "ml", "l", "und"]
+
+
+# --- normalize_recipe_line_qty (Phase B — T1 recipe line unit selector) ---
+
+
+@pytest.mark.parametrize(
+    ("line_qty", "line_unit", "ingredient_unit", "expected"),
+    [
+        # Same-unit identity (no conversion)
+        (Decimal("250"), "g", "g", Decimal("250")),
+        (Decimal("0.25"), "kg", "kg", Decimal("0.25")),
+        (Decimal("500"), "ml", "ml", Decimal("500")),
+        (Decimal("1.5"), "l", "l", Decimal("1.5")),
+        (Decimal("12"), "und", "und", Decimal("12")),
+        # g ↔ kg
+        (Decimal("250"), "g", "kg", Decimal("0.25")),
+        (Decimal("0.25"), "kg", "g", Decimal("250")),
+        (Decimal("1500"), "g", "kg", Decimal("1.5")),
+        # ml ↔ l
+        (Decimal("500"), "ml", "l", Decimal("0.5")),
+        (Decimal("0.5"), "l", "ml", Decimal("500")),
+        (Decimal("2000"), "ml", "l", Decimal("2")),
+    ],
+)
+def test_normalize_recipe_line_qty_same_family(line_qty, line_unit, ingredient_unit, expected):
+    """Same-family conversions: 250 g into a kg ingredient → 0.25 kg."""
+    actual = normalize_recipe_line_qty(line_qty, line_unit, ingredient_unit)
+    assert actual == expected
+    assert isinstance(actual, Decimal)
+
+
+def test_normalize_recipe_line_qty_accepts_floats():
+    """Inputs may be float (SQLite Float column). Coerced to Decimal internally."""
+    actual = normalize_recipe_line_qty(250.0, "g", "kg")
+    assert actual == Decimal("0.25")
+    assert isinstance(actual, Decimal)
+
+
+def test_normalize_recipe_line_qty_accepts_strings():
+    """Inputs may be string (form POST). Coerced to Decimal internally."""
+    actual = normalize_recipe_line_qty("250", "g", "kg")
+    assert actual == Decimal("0.25")
+
+
+@pytest.mark.parametrize(
+    ("line_qty", "line_unit", "ingredient_unit"),
+    [
+        # Mass ↔ volume is forbidden (would need density)
+        (Decimal("250"), "g", "l"),
+        (Decimal("250"), "g", "ml"),
+        (Decimal("1"), "kg", "l"),
+        (Decimal("1"), "kg", "ml"),
+        # Mass/volume ↔ countable is forbidden
+        (Decimal("12"), "und", "g"),
+        (Decimal("12"), "und", "kg"),
+        (Decimal("12"), "und", "ml"),
+        (Decimal("12"), "und", "l"),
+        (Decimal("100"), "g", "und"),
+        (Decimal("100"), "kg", "und"),
+        (Decimal("100"), "ml", "und"),
+        (Decimal("100"), "l", "und"),
+    ],
+)
+def test_normalize_recipe_line_qty_cross_family_forbidden(line_qty, line_unit, ingredient_unit):
+    """Cross-family conversion raises ValueError (no density lookup)."""
+    with pytest.raises(ValueError, match="cross-family"):
+        normalize_recipe_line_qty(line_qty, line_unit, ingredient_unit)
+
+
+def test_normalize_recipe_line_qty_bad_unit_string():
+    """An unknown unit string raises ValueError (coerce fails first)."""
+    with pytest.raises(ValueError, match="unknown unit"):
+        normalize_recipe_line_qty(Decimal("100"), "stones", "kg")
+
+
+def test_normalize_recipe_line_qty_zero_qty_allowed():
+    """Zero qty is not rejected by the converter — CHECK constraint catches negatives."""
+    # Note: normalize_recipe_line_qty itself only does conversion; 0 is a no-op.
+    assert normalize_recipe_line_qty(Decimal("0"), "g", "kg") == Decimal("0")

@@ -15,7 +15,7 @@ Tables:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy import (
@@ -150,6 +150,10 @@ class RecipeLine(Base):
     line_kind: Mapped[str] = mapped_column(String(16), nullable=False)
     line_ref_id: Mapped[int] = mapped_column(Integer, nullable=False)
     qty: Mapped[float] = mapped_column(Float, nullable=False)
+    # Phase B — T1: per-line unit. Lets Saskia type "250 g" while the linked
+    # ingredient is in "kg". Default "" for backward compat (legacy rows assume
+    # the ingredient's unit at costing time). Allowed: g, kg, ml, l, und.
+    line_unit: Mapped[str] = mapped_column(String(8), nullable=False, default="")
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships
@@ -354,6 +358,48 @@ class AuditLog(Base):
 
 
 
+class IngredientPriceEvent(Base):
+    """A purchase-price update for an ingredient (Phase B — Q1 core).
+
+    Append-only. Every time Ingredient.purchase_price_gs changes, a row is
+    written here so price-history queries (90-day sparkline, current/min/
+    max strip on /inventario, fluctuation insight on the dashboard) have a
+    real time series instead of just "the current price".
+
+    Fields:
+      id             — PK
+      ingredient_id  — FK to ingredient.id; cascade-deleted with the ingredient
+      price_gs       — int Gs. snapshot at the time of the event
+      recorded_at    — UTC datetime; default now()
+      source         — how the price changed:
+                         * 'restock'      — written by an inventory restock flow
+                         * 'manual'       — operator typed/changed it in /inventario
+                         * 'excel_import' — set during an Excel import run
+    """
+
+    __tablename__ = "ingredient_price_event"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ingredient_id: Mapped[int] = mapped_column(
+        ForeignKey("ingredient.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    price_gs: Mapped[int] = mapped_column(Integer, nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="restock")
+
+    __table_args__ = (
+        Index(
+            "ix_ingredient_price_event_ingredient_time",
+            "ingredient_id",
+            "recorded_at",
+        ),
+    )
+
+
 class Customer(Base):
     """A customer record (E13).
 
@@ -435,6 +481,34 @@ class TagLink(Base):
     tag: Mapped["Tag"] = relationship("Tag", back_populates="links")
 
 
+
+
+class ProductionCompletion(Base):
+    """How much of a planned product was actually produced on a given day.
+
+    Saskia review T5: "Al final del dia debe registrarse cuanto de la
+    produccion se completo". One row per (product, date) — re-recording
+    updates in place via upsert_completion().
+    """
+
+    __tablename__ = "production_completion"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("product.id"), nullable=False, index=True
+    )
+    for_date: Mapped[date] = mapped_column(Date, nullable=False)
+    completed_qty: Mapped[float] = mapped_column(Float, nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("completed_qty >= 0", name="ck_completion_qty_nonneg"),
+        UniqueConstraint("product_id", "for_date", name="uq_completion_product_date"),
+    )
+
+    # Relationships
+    product: Mapped["Product"] = relationship("Product")
 
 
 class WasteLog(Base):
@@ -602,6 +676,7 @@ __all__ = [
     "AppMeta",
     "AuditLog",
     "Ingredient",
+    "IngredientPriceEvent",
     "Recipe",
     "RecipeLine",
     "Product",

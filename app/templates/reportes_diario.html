@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_components/macros.html" as m %}
 {% block title %}Resumen diario{% endblock %}
 {% block content %}
 <h1>
@@ -9,15 +10,15 @@
 <div class="grid grid-2 mb-4">
   <div class="metric-card">
     <div class="metric-label">Ingresos (Gs.)</div>
-    <div class="metric-value">{{ "{:,.0f}".format(summary.revenue_gross_gs) }}</div>
+    <div class="metric-value">{{ m.gs(summary.revenue_gross_gs) }}</div>
   </div>
   <div class="metric-card">
     <div class="metric-label">IVA</div>
-    <div class="metric-value">{{ "{:,.0f}".format(summary.iva_gs) }}</div>
+    <div class="metric-value">{{ m.gs(summary.iva_gs) }}</div>
   </div>
   <div class="metric-card">
     <div class="metric-label">COGS</div>
-    <div class="metric-value">{{ "{:,.0f}".format(summary.cogs_gs) }}</div>
+    <div class="metric-value">{{ m.gs(summary.cogs_gs) }}</div>
   </div>
   <div class="metric-card">
     <div class="metric-label">Ventas</div>
@@ -25,7 +26,7 @@
   </div>
   <div class="metric-card">
     <div class="metric-label">Margen bruto</div>
-    <div class="metric-value">{{ "{:,.0f}".format(summary.margin_gs) }}</div>
+    <div class="metric-value">{{ m.gs(summary.margin_gs) }}</div>
     {% if summary.revenue_gross_gs > 0 %}
       {% set margin_pct = (summary.margin_gs * 100.0) / summary.revenue_gross_gs %}
     {% else %}

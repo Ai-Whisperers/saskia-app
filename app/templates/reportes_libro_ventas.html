@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_components/macros.html" as m %}
 {% block title %}Libro de Ventas{% endblock %}
 {% block content %}
 <h1>
@@ -46,9 +47,9 @@
       <td>{{ r.customer_name or "—" }}</td>
       <td>{{ r.product_name }}</td>
       <td class="num">{{ "%.2f"|format(r.qty) }}</td>
-      <td class="num">{{ "{:,.0f}".format(r.base_gs) }}</td>
-      <td class="num">{{ "{:,.0f}".format(r.iva_gs) }}</td>
-      <td class="num"><strong>{{ "{:,.0f}".format(r.total_gross_gs) }}</strong></td>
+      <td class="num">{{ m.gs(r.base_gs) }}</td>
+      <td class="num">{{ m.gs(r.iva_gs) }}</td>
+      <td class="num"><strong>{{ m.gs(r.total_gross_gs) }}</strong></td>
     </tr>
     {% endfor %}
   </tbody>

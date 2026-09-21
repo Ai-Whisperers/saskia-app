@@ -12,8 +12,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
+from app.rms.charts import sparkline
 from app.rms.dependencies import get_session
-from app.rms.models import Ingredient, RecipeLine
+from app.rms.models import Ingredient, IngredientPriceEvent, RecipeLine
+from app.rms.price_history import price_history, price_stats, record_price_event
 from app.rms.units import Unit
 from app.services.template_render import render
 
@@ -24,10 +26,34 @@ router = APIRouter(prefix="/inventario", dependencies=[Depends(require_login)])
 def inventory_list(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     """List all ingredients with stock badge."""
     ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
+
+    # Phase D — Q1 surface: price-history enrichment per ingredient.
+    # Ingredients with >=2 events in the last 90d get a muted min/max line
+    # under the price cell; >=3 events also get a sparkline SVG.
+    price_info: dict[int, dict] = {}
+    ing_ids_with_events = set(
+        session.scalars(
+            select(IngredientPriceEvent.ingredient_id).distinct()
+        ).all()
+    )
+    for ing in ingredients:
+        if ing.id not in ing_ids_with_events:
+            continue
+        stats = price_stats(session, ing.id, days=90)
+        if stats["count"] >= 2:
+            info: dict = {"stats": stats, "sparkline_svg": ""}
+            if stats["count"] >= 3:
+                history = price_history(session, ing.id, days=90)
+                info["sparkline_svg"] = sparkline(
+                    [p for _, p in history],
+                    label=f"histórico de precio de {ing.name}",
+                )
+            price_info[ing.id] = info
+
     return render(
         request,
         "inventario.html",
-        {"ingredients": ingredients},
+        {"ingredients": ingredients, "price_info": price_info},
     )
 
 
@@ -80,6 +106,22 @@ def inventory_create(
         raise HTTPException(
             status_code=409, detail=f"Ya existe un ingrediente con nombre {name!r}"
         ) from None
+
+    # Phase B — Q1 core: when an operator creates an ingredient with a price,
+    # record the first price event so the history starts populated.
+    if price is not None:
+        try:
+            record_price_event(session, ing.id, price, source="manual")
+            session.commit()
+        except Exception:
+            # Don't fail the whole request on a price-history write error.
+            from loguru import logger
+
+            logger.warning(
+                f"record_price_event failed for new ingredient {ing.id}",
+                exc_info=True,
+            )
+
     return RedirectResponse(url="/inventario", status_code=303)
 
 
@@ -129,6 +171,12 @@ def inventory_update(
     ing.min_stock_qty = min_stock_qty
     ing.purchase_price_gs = price
     ing.notes = notes.strip() or None
+
+    # Phase B — Q1 core: record a price event when the operator changes the
+    # price. We always record when the new price is non-null — even if it
+    # matches the previous value (auditability beats optimization here).
+    should_record = price is not None
+
     try:
         session.commit()
     except IntegrityError:
@@ -136,6 +184,19 @@ def inventory_update(
         raise HTTPException(
             status_code=409, detail=f"Ya existe otro ingrediente con nombre {name!r}"
         ) from None
+
+    if should_record:
+        try:
+            record_price_event(session, ing.id, price, source="manual")
+            session.commit()
+        except Exception:
+            from loguru import logger
+
+            logger.warning(
+                f"record_price_event failed for ingredient {ing.id} update",
+                exc_info=True,
+            )
+
     return RedirectResponse(url="/inventario", status_code=303)
 
 

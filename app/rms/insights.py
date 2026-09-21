@@ -13,7 +13,7 @@ route can render in one query. Splits into:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
@@ -29,7 +29,8 @@ from app.rms.menu_engineering import (
     Quadrant,
     classify_products,
 )
-from app.rms.models import Product
+from app.rms.models import Ingredient, Product
+from app.rms.price_history import price_stats
 from app.rms.production_scheduler import batch_production_plans
 from app.rms.sales_intel import (
     churning_products,
@@ -52,6 +53,7 @@ class InsightsPanel:
     churning_products: list
     stars: list
     dogs: list
+    price_fluctuation: list = field(default_factory=list)  # [{name, pct_above_avg}]
 
 
 def build_insights(session: Session) -> InsightsPanel:
@@ -88,6 +90,20 @@ def build_insights(session: Session) -> InsightsPanel:
     rising = rising_products(session)[:3]
     churning = churning_products(session)[:3]
 
+    # Price fluctuation (Saskia review Q1): ingredients >20% above 30d avg
+    price_fluctuation: list[dict] = []
+    for ing in session.scalars(select(Ingredient)).all():
+        stats = price_stats(session, ing.id, days=30)
+        if stats["count"] < 2 or not stats["avg"]:
+            continue
+        pct = (stats["current"] - stats["avg"]) / stats["avg"] * 100
+        if pct > 20:
+            price_fluctuation.append({
+                "name": ing.name,
+                "pct_above_avg": round(pct, 1),
+            })
+    price_fluctuation.sort(key=lambda x: -x["pct_above_avg"])
+
     return InsightsPanel(
         generated_at=now.isoformat(),
         inventory_capital_gs=capital,
@@ -101,6 +117,7 @@ def build_insights(session: Session) -> InsightsPanel:
         churning_products=churning,
         stars=stars,
         dogs=dogs,
+        price_fluctuation=price_fluctuation,
     )
 
 

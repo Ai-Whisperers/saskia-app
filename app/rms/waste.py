@@ -20,7 +20,7 @@ from enum import Enum
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.rms.models import Ingredient, WasteLog
+from app.rms.models import Ingredient, Recipe, WasteLog
 
 
 class WasteReason(str, Enum):
@@ -185,10 +185,106 @@ def waste_as_pct_of_revenue(
     return (impact.total_cost_gs / revenue_gs) * 100
 
 
+@dataclass
+class RecipeWasteResult:
+    """Result of record_recipe_waste(). One WasteLog row per ingredient."""
+
+    recipe_id: int
+    recipe_name: str
+    batch_qty: float
+    cost_gs: int
+    waste_logs: list[WasteLog] = field(default_factory=list)
+
+
+def record_recipe_waste(
+    session: Session,
+    *,
+    recipe_id: int,
+    batch_qty: float,
+    reason: WasteReason,
+    recorded_by: str | None = None,
+    notes: str | None = None,
+) -> RecipeWasteResult:
+    """Log a whole-batch waste event for a recipe (Saskia review T6).
+
+    A whole-batch waste ("se quemó la masa") reduces stock of every
+    ingredient in the recipe proportionally. Implemented by walking the
+    recipe tree (same path costing.apply_sale uses) and creating one
+    WasteLog row per ingredient, with the recipe's yield_qty as the
+    denominator. Sub-recipes recurse, so a top-level recipe waste that
+    references a sub-recipe also wastes the sub-recipe's ingredients.
+
+    Cost is computed per-ingredient at insert time using the ingredient's
+    current purchase_price_gs (same denormalization policy as record_waste).
+
+    Raises ValueError if the recipe has no yield_qty or doesn't exist.
+    Atomic: all waste logs + stock decrements land in one session commit.
+    """
+    if batch_qty <= 0:
+        raise ValueError("batch_qty debe ser mayor a 0")
+
+    recipe = session.get(Recipe, recipe_id)
+    if recipe is None:
+        raise ValueError(f"Recipe {recipe_id} not found")
+    if recipe.yield_qty is None or recipe.yield_qty <= 0:
+        raise ValueError(
+            f"Receta '{recipe.name}' sin rendimiento. Cargá el rendimiento antes de registrar merma."
+        )
+
+    # Lazy import to avoid circular: costing imports waste transitively in some paths.
+    from app.rms.costing import _compute_stock_moves
+
+    # The recipe walker expects (sale_qty) in "output units" (e.g. muffins).
+    # batch_qty is the multiplier on yield — e.g. 2.0 means "2 batches".
+    sale_qty = float(recipe.yield_qty) * batch_qty
+    moves = _compute_stock_moves(session, recipe, sale_qty, set())
+
+    logs: list[WasteLog] = []
+    total_cost = 0
+    now = datetime.now(timezone.utc)
+
+    for _affected_recipe_id, ingredient_id, qty_delta in moves:
+        qty = abs(qty_delta)
+        if qty <= 0:
+            continue
+        ing = session.get(Ingredient, ingredient_id)
+        if ing is None:
+            continue
+        cost_gs = (
+            int(round(qty * ing.purchase_price_gs))
+            if ing.purchase_price_gs is not None
+            else 0
+        )
+        log = WasteLog(
+            ingredient_id=ingredient_id,
+            qty=qty,
+            reason=reason.value,
+            cost_gs=cost_gs,
+            recorded_at=now,
+            recorded_by=recorded_by,
+            notes=notes,
+        )
+        session.add(log)
+        ing.stock_qty = max(0.0, (ing.stock_qty or 0) - qty)
+        logs.append(log)
+        total_cost += cost_gs
+
+    session.flush()
+    return RecipeWasteResult(
+        recipe_id=recipe.id,
+        recipe_name=recipe.name,
+        batch_qty=batch_qty,
+        cost_gs=total_cost,
+        waste_logs=logs,
+    )
+
+
 __all__ = [
     "WasteReason",
     "WasteImpact",
+    "RecipeWasteResult",
     "record_waste",
+    "record_recipe_waste",
     "list_waste",
     "waste_impact",
     "waste_as_pct_of_revenue",

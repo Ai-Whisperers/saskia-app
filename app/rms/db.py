@@ -527,6 +527,154 @@ def _migration_016_pedidos(conn):
     )
 
 
+def _migration_017_recipe_line_unit(conn):
+    """Add `line_unit` to recipe_line (Phase B — T1: recipe line unit selector).
+
+    Per Saskia's review ("Se debe de poder agregar en gramos la cantidad"), each
+    recipe line now stores the unit Saskia typed the qty in. Costing walks use
+    this to convert qty → ingredient unit before multiplying against the
+    ingredient's per-unit price.
+
+    Column: VARCHAR(8) NOT NULL DEFAULT ''.
+
+    Backfill: existing recipe_line rows get the unit of the linked ingredient
+    (or '' for sub_recipe lines, where the legacy assumption is the recipe's
+    yield_unit; the costing walk handles both). The backfill runs only when
+    the row's line_unit is empty so re-runs are idempotent.
+    """
+    _add_column_if_missing(
+        conn,
+        "recipe_line",
+        "line_unit",
+        "VARCHAR(8) NOT NULL DEFAULT ''",
+        "VARCHAR(8) DEFAULT '' NOT NULL",
+    )
+
+    # Backfill existing rows: line_unit = linked ingredient's unit (ingredient
+    # lines) or '' (sub_recipe lines — sub-recipe yield_unit isn't 1:1 with
+    # the parent's yield_unit, so we leave '' and let the costing walk default
+    # to the sub-recipe's yield_unit). Idempotent: skip rows where line_unit
+    # is already non-empty.
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    if dialect == "postgresql":
+        conn.execute(
+            text(
+                "UPDATE recipe_line rl "
+                "SET line_unit = COALESCE(i.unit, '') "
+                "FROM ingredient i "
+                "WHERE rl.line_kind = 'ingredient' "
+                "AND rl.line_ref_id = i.id "
+                "AND (rl.line_unit IS NULL OR rl.line_unit = '')"
+            )
+        )
+    else:
+        conn.execute(
+            text(
+                "UPDATE recipe_line "
+                "SET line_unit = COALESCE("
+                "(SELECT i.unit FROM ingredient i "
+                "WHERE i.id = recipe_line.line_ref_id), ''"
+                ") "
+                "WHERE line_kind = 'ingredient' "
+                "AND (line_unit IS NULL OR line_unit = '')"
+            )
+        )
+
+    conn.execute(
+        text("UPDATE app_meta SET value = '17', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
+def _migration_018_price_event(conn):
+    """Create ingredient_price_event table (Phase B — Q1 core).
+
+    Append-only purchase-price history for each ingredient. Powers the
+    price-strip + sparkline on /inventario and the dashboard "fluctuation"
+    insight (Phase D surfaces).
+
+    The table is created via SQLAlchemy's create_all() in init_db() (the
+    IngredientPriceEvent model class was added in models.py at the same
+    time). This migration just bumps schema_version and ensures the
+    (ingredient_id, recorded_at) index is present on dialects that don't
+    auto-create it from the model.
+
+    Index: (ingredient_id, recorded_at) — needed for the common access
+    pattern `WHERE ingredient_id = ? AND recorded_at >= ?` (price_history).
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+
+    # Defensive: the table may already exist if init_db() ran before this
+    # migration got registered (e.g. for older DBs being upgraded). Idempotent.
+    if dialect == "postgresql":
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS ingredient_price_event ("
+                "id SERIAL PRIMARY KEY, "
+                "ingredient_id INTEGER NOT NULL REFERENCES ingredient(id) "
+                "ON DELETE CASCADE, "
+                "price_gs INTEGER NOT NULL, "
+                "recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+                "source VARCHAR(32) NOT NULL DEFAULT 'restock'"
+                ")"
+            )
+        )
+        existing = conn.execute(
+            text(
+                "SELECT 1 FROM pg_indexes WHERE schemaname='public' "
+                "AND indexname=:n"
+            ),
+            {"n": "ix_ingredient_price_event_ingredient_time"},
+        ).first()
+        if existing is None:
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS "
+                    "ix_ingredient_price_event_ingredient_time "
+                    "ON ingredient_price_event (ingredient_id, recorded_at)"
+                )
+            )
+    else:
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS ingredient_price_event ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "ingredient_id INTEGER NOT NULL REFERENCES ingredient(id) "
+                "ON DELETE CASCADE, "
+                "price_gs INTEGER NOT NULL, "
+                "recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+                "source VARCHAR(32) NOT NULL DEFAULT 'restock'"
+                ")"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS "
+                "ix_ingredient_price_event_ingredient_time "
+                "ON ingredient_price_event (ingredient_id, recorded_at)"
+            )
+        )
+
+    conn.execute(
+        text("UPDATE app_meta SET value = '18', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
+def _migration_019_production_completion(conn):
+    """Add production_completion table (Saskia review round 1, T5).
+
+    Table is created via create_all() in init_db() (the model class was
+    added to models.py at the same time). This stub only bumps the
+    schema_version row. One row per (product_id, for_date) — upserted
+    by app/rms/eod_completions.upsert_completion().
+    """
+    conn.execute(
+        text("UPDATE app_meta SET value = '19', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -544,6 +692,9 @@ MIGRATIONS = {
     14: _migration_014_customer_cedula,
     15: _migration_015_sale_channel,
     16: _migration_016_pedidos,
+    17: _migration_017_recipe_line_unit,
+    18: _migration_018_price_event,
+    19: _migration_019_production_completion,
 }
 
 

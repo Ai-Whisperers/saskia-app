@@ -46,4 +46,63 @@
   </button>
 </form>
 
+<section class="card mt-4">
+  <div class="card-header">
+    <h2>
+      <svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>
+      Producción del día
+    </h2>
+    <small class="text-muted">{{ today_iso }}</small>
+  </div>
+  {% if today_plan.rows %}
+  <p class="text-muted">
+    Cuanto produzcas hoy confrontalo con este plan. Si algo no se terminó,
+    registrá la diferencia en <a href="/merma">merma</a>.
+  </p>
+  <table class="table is-hoverable is-striped">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="num">Plan</th>
+        <th class="num">Hecho</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in today_plan.rows %}
+      {% set hecho = completions.get(r.product_id) %}
+      <tr>
+        <td><strong>{{ r.product_name }}</strong></td>
+        <td class="num">{{ "%.1f"|format(r.qty_to_produce) }}</td>
+        <td class="num">
+          <form method="post" action="/eod/completar" style="display:inline-flex;gap:var(--space-1);align-items:center;">
+            <input type="hidden" name="product_id" value="{{ r.product_id }}">
+            <input type="hidden" name="for_date" value="{{ today_iso }}">
+            <input type="number" name="completed_qty" step="0.5" min="0" size="4"
+                   value="{{ '%.1f'|format(hecho) if hecho is not none else '' }}"
+                   aria-label="Hecho: {{ r.product_name }}">
+            <button type="submit" class="btn btn-sm" aria-label="Guardar {{ r.product_name }}">✓</button>
+          </form>
+          {% if hecho is not none %}
+          {% set delta = hecho - r.qty_to_produce %}
+            {% if delta > 0.05 %}
+            <small class="text-success">+{{ "%.1f"|format(delta) }}</small>
+            {% elif delta < -0.05 %}
+            <small class="text-danger">{{ "%.1f"|format(delta) }}</small>
+            {% else %}
+            <small class="text-muted">en plan</small>
+            {% endif %}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="text-muted" style="font-size:var(--text-xs);margin-top:var(--space-2);">
+    Plan = pronóstico · Hecho = lo que realmente produciste
+  </p>
+  {% else %}
+  <p class="empty">No hay plan de producción para hoy. Revisá las ventas de los últimos 14 días.</p>
+  {% endif %}
+</section>
+
 {% endblock %}

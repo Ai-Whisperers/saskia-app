@@ -23,7 +23,7 @@ from collections.abc import Iterable
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Path, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Path, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
@@ -170,9 +170,19 @@ def _group_pedidos(
 @router.get("", response_class=HTMLResponse)
 def pedidos_list(
     request: Request,
+    status_filter: str = Query(
+        "pendientes",
+        pattern="^(pendientes|terminados|todos)$",
+    ),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    """List pedidos grouped by urgency (Hoy/Mañana, Esta semana, viejos)."""
+    """List pedidos grouped by urgency (Hoy/Mañana, Esta semana, viejos).
+
+    `status_filter` controls the active scope:
+      - pendientes (default): pending + confirmed + ready (anything not finished)
+      - terminados: fulfilled only
+      - todos: no status filter
+    """
     today = date.today()
     horizon = today + timedelta(days=7)
     # Pull everything active (not cancelled/fulfilled) within 7-day horizon +
@@ -187,6 +197,11 @@ def pedidos_list(
         )
         .order_by(Pedido.promised_date.asc(), Pedido.promised_time.asc())
     )
+    if status_filter == "pendientes":
+        stmt = stmt.where(Pedido.status.in_(["pending", "confirmed", "ready"]))
+    elif status_filter == "terminados":
+        stmt = stmt.where(Pedido.status == "fulfilled")
+    # "todos" leaves the where clause untouched (no status filter)
     pedidos = list(session.scalars(stmt))
     grouped = _group_pedidos(session, pedidos)
     return render(
@@ -196,6 +211,7 @@ def pedidos_list(
             "groups": grouped,
             "today_iso": today.isoformat(),
             "today_human": today.strftime("%d/%m/%Y"),
+            "status_filter": status_filter,
             "group_labels": {
                 "hoy_manana": "Hoy / Mañana",
                 "esta_semana": "Esta semana",

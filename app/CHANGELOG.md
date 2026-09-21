@@ -5,6 +5,146 @@
 
 ## [Unreleased]
 
+### Added (2026-09-21) — Saskia review round 1 (Thu 18-sep)
+
+- **/reportes/precios — price-history report** (Saskia review Q1). List view
+  of every ingredient with price events (current/min/max/avg + last change,
+  90d default, adjustable 7/30/90/365), detail view per ingredient with a
+  line chart of the series and the event table (source labels in Spanish:
+  Reposición / Manual / Importación Excel), and a CSV export at
+  /reportes/precios/csv following the ventas.csv pattern. Card added to the
+  /reportes hub (topnav untouched).
+
+- **/inventario — price strip + sparkline** (Saskia review Q1). Under the
+  purchase-price cell, ingredients with >=2 price events in the last 90 days
+  show a muted "90d: min X · max Y" line (money via m.gs); >=3 events also
+  render a sparkline SVG of the series (app/rms/charts.sparkline, ARIA-labeled).
+
+- **/reorder — restock flow (read-only → actionable)** (Saskia review Q1).
+  The suggestions table now has a per-row "Reponer" form (qty prefilled with
+  the suggested qty, price prefilled with the current purchase price).
+  `POST /reorder/registrar` bumps `Ingredient.stock_qty`, appends a
+  `restock` price event (so the price history starts filling from real
+  purchases), audits `write.reorder.restock`, and rate-limits 10/min.
+  Validates qty>0 and price≥0 (400) and unknown ingredient (404).
+
+- **/produccion — "Ver receta" routes to the recipe, not the product** (Saskia
+  feedback). `ProductionRow` now carries `recipe_id`; the action button links
+  to `/recetas/{recipe_id}/editar` and hides when the product has no recipe.
+
+- **/pedidos — status filter (Pendientes / Terminados / Todos)** (Saskia
+  feedback). New `?status_filter=` query param; "pendientes" is the default
+  to preserve current behavior (pending/confirmed/ready). Visual: pill-row
+  above the existing date-bucket cards.
+
+- **/settings — per-row form with labels, a11y, and visual-noise cleanup**
+  (Saskia feedback). Replaced the wide 5-column table with a stacked
+  card-style list: each row has a `<label>`, helper text, and either a
+  `<select>` (when the setting has bounded `choices`) or a labeled text
+  input. Default value shown inline. "Reset" action moved to `formaction`
+  on the same form (no second form per row). Responsive: collapses to
+  one column under 768px. Removed the redundant "N ajustes" badge.
+
+- **Topnav cleanup** (Saskia feedback). Removed "Auditoría" and "Ops" links
+  from the main topnav — both routes still work via direct URL.
+
+- **Recipe lines can be entered in any unit** (Saskia feedback: "Se debe de
+  poder agregar en gramos la cantidad"). New `recipe_line.line_unit`
+  column lets Saskia type `250 g` of flour even though flour is stored in
+  `kg`. The recipe form gains a unit dropdown next to the qty input per
+  line. The costing walk (and `plan_production`'s ingredient aggregator)
+  normalize the line qty into the linked ingredient's unit before
+  multiplying against the per-unit purchase price. Cross-family
+  conversion (g→L, g→und, etc.) raises ValueError with a clear message
+  and surfaces as a missing-line entry in `CostResult`. Legacy rows
+  with `line_unit=''` behave as if line_unit matched the linked
+  ingredient's unit (backward compat — historical imports assumed
+  same-unit at qty time). Migration v17 backfills existing rows from
+  the linked ingredient's unit.
+
+- **Ingredient purchase-price history** (Saskia feedback: restock + price
+  history). New `ingredient_price_event(ingredient_id, price_gs,
+  recorded_at, source)` table appended every time an operator changes
+  an ingredient's purchase price via `/inventario`. Sources: `restock`,
+  `manual`, `excel_import`. New helpers in `app/rms/price_history.py`:
+  `record_price_event()` writes the row + updates the ingredient's
+  denormalized `purchase_price_gs` and `purchase_price_updated_at`
+  fields atomically; `price_history()` returns the time series for an
+  ingredient over a sliding window (default 90 days); `price_stats()`
+  returns `{current, min, max, avg, count}` for the same window.
+  Migration v18 creates the table + the `(ingredient_id, recorded_at)`
+  index. Phase D wires the restock form surface and the dashboard
+  sparkline / fluctuation insight on top of these helpers.
+
+- **Calendar grid component shell** (Saskia feedback, Q2 (c)). New
+  `app/templates/_components/calendar.html` macro file with `week_grid`
+  and `month_grid` macros — 7-column CSS grid, is-today / is-selected
+  states, prev/next navigation, Spanish-vos copy, mobile collapse to
+  a 1-column day list. New `app/static/calendar.css` (separate
+  stylesheet to keep `app.css` under the 30.5KB minified-size gate).
+  No business logic — Phase D wires the per-day production-plan +
+  per-product override editor on top of these macros.
+
+- **Production calendar (week + month views) + the multiplication bug
+  fix** (Saskia feedback, Q2 (c) + Q3). /produccion gains ?view=day|
+  week|month with a Día|Semana|Mes pill switcher. Week view: 7-column
+  grid (Lun-Dom) with per-day product counts; month view: full month
+  grid; both link each day to the detailed day plan. Day view rows get
+  an inline qty override (POST /produccion/override, query-param
+  persistence ov_{id}=qty — a what-if re-plan, not a DB edit).
+  forecast_source now renders in Spanish ('Promedio 14 días' etc.)
+  with an explanatory tooltip; column header 'Cómo se calcula'.
+  **Bug fixed (Saskia's report confirmed):** plan_production multiplied
+  PORTIONS by per-batch line qty directly — producing 24 muffins
+  demanded 7.2 kg flour instead of 0.6 kg (12x, the yield_qty). Now
+  ingredient math divides by yield_qty first (batches = portions /
+  yield). Regression test covers 2x and 0.5x scaling.
+  Seasonal-multiplier editor intentionally absent — blocked on T-0.1
+  (forecast_source semantics clarification with Saskia).
+
+- **Dashboard 'Precios en alza' insight** (Saskia feedback, Q1 surface D4).
+  build_insights() now computes price_fluctuation: ingredients whose
+  current price is >20% above their 30-day average, sorted by pct.
+  Rendered on /inicio as a severity-warn insight card ('Harina: +27%
+  vs. 30d promedio'). No crossers → no card.
+
+- **Schema-version test relaxed** to assert `>= 15` (was `== 15`) so it
+  doesn't break on every future schema bump.
+
+- **EOD surfaces today's production plan** (Saskia feedback, T5).
+  `/eod` now shows the day's forecast next to the checklist so Saskia
+  can reconcile what was actually produced. The "Hecho" column is
+  rendered with a `—` placeholder today; persisting completions is a
+  separate model decision (deferred — see `.hermes/plans/`).
+
+- **Whole-batch merma flow** (Saskia feedback, T6 — "Aveces hay mermas
+  de recetas completas"). New `record_recipe_waste()` helper expands a
+  recipe into per-ingredient `WasteLog` rows using the same walker as
+  `apply_sale` (sub-recipes recurse). New `/merma/receta` POST +
+  recipe-picker form on `/merma`. Four new tests in `tests/test_waste.py`
+  cover: expansion math, missing recipe, missing yield, zero/negative
+  batch.
+
+- **Cross-page consistency pass** (Saskia feedback, T8 — "Debe coincidir
+  con los registros de las demás páginas"). Money formatting in
+  `/clientes`, `/cliente_detalle`, `/merma`, `/reportes_diario`,
+  `/reportes_iva`, `/reportes_libro_ventas` migrated from inline
+  `"Gs. {{ '{:,.0f}'.format(x) }}"` (comma thousands separator — wrong
+  for Paraguay) to the `{{ m.gs_full(x) }}` / `{{ m.gs(x) }}` macros
+  (period thousands separator — correct). Audit timestamps in
+  `/auditoria` moved from `%Y-%m-%d %H:%M:%S` (ISO) to `%d/%m/%Y %H:%M`
+  to match the rest of the operator pages. Column-header labels still
+  say "Gs." as expected.
+
+
+### Tests
+
+- 1208 pass, 17 fail (all pre-existing environmental failures unrelated
+  to Phase B: Windows path quirks, hardcoded `/opt/data/profiles/ivan/...`
+  paths from a different machine, missing `py.typed` marker). The
+  touched-area tests (recipe units, costing, calendar macro, settings,
+  production, sales channel, price history) all pass clean.
+
 ### Added (2026-09-17) — Visual audit wins
 
 - **Insight cards on dashboard** (audit P0 #5). The five insight lists
