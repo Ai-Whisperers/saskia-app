@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% block title %}Precios{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Precios
+</h1>
+
+<div class="period-toggle flex gap-2 mb-4">
+  {% for d in [7, 30, 90, 365] %}
+  <a href="?{% if detail %}ingredient_id={{ detail.ingredient.id }}&amp;{% endif %}days={{ d }}"
+     class="btn {% if days == d %}btn-primary{% endif %}">{{ d }}d</a>
+  {% endfor %}
+  <a href="/reportes/precios/csv?days={{ days }}" class="btn">Exportar CSV</a>
+</div>
+
+{% if detail %}
+<p><a href="/reportes/precios?days={{ days }}" class="btn btn-sm btn-ghost">← Todos los ingredientes</a></p>
+<h2>{{ detail.ingredient.name }}</h2>
+
+{% if detail.stats.count %}
+<div class="grid grid-4 mb-4">
+  <div class="metric-card">
+    <div class="metric-label">Actual</div>
+    <div class="metric-value">{{ m.gs_full(detail.stats.current) }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Mínimo ({{ days }}d)</div>
+    <div class="metric-value">{{ m.gs_full(detail.stats.min) }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Máximo ({{ days }}d)</div>
+    <div class="metric-value">{{ m.gs_full(detail.stats.max) }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Promedio ({{ days }}d)</div>
+    <div class="metric-value">{{ m.gs_full(detail.stats.avg | round | int) }}</div>
+  </div>
+</div>
+
+{{ detail.chart_svg | safe }}
+
+<h3>Eventos</h3>
+<table class="table is-hoverable is-striped">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th class="num">Precio</th>
+      <th>Origen</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ev in detail_events | reverse %}
+    <tr>
+      <td>{{ ev.date.strftime("%d/%m/%Y") }}</td>
+      <td class="num">{{ m.gs_full(ev.price_gs) }}</td>
+      <td>{{ ev.source }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">Sin eventos de precio en los últimos {{ days }} días.</p>
+{% endif %}
+
+{% else %}
+
+{% if rows %}
+<table class="table is-hoverable is-striped">
+  <thead>
+    <tr>
+      <th>Ingrediente</th>
+      <th class="num">Actual</th>
+      <th class="num">Mínimo</th>
+      <th class="num">Máximo</th>
+      <th class="num">Promedio</th>
+      <th>Último cambio</th>
+      <th class="actions"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td><strong>{{ r.name }}</strong></td>
+      <td class="num">{{ m.gs(r.current) }}</td>
+      <td class="num">{{ m.gs(r.min) }}</td>
+      <td class="num">{{ m.gs(r.max) }}</td>
+      <td class="num">{{ m.gs(r.avg | round | int) }}</td>
+      <td>{{ r.last_event_at.strftime("%d/%m/%Y") if r.last_event_at else "—" }}</td>
+      <td class="actions">
+        <a href="/reportes/precios?ingredient_id={{ r.ingredient_id }}&amp;days={{ days }}" class="btn btn-sm btn-ghost">Ver detalle</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">Todavía no hay precios cargados. Registrá una reposición desde <a href="/reorder">Reponer stock</a> o editá un ingrediente en el <a href="/inventario">inventario</a>.</p>
+{% endif %}
+{% endif %}
+
+{% endblock %}

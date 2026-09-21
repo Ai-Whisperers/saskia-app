@@ -7,6 +7,14 @@
 
 ### Added (2026-09-21) — Saskia review round 1 (Thu 18-sep)
 
+- **/reportes/precios — price-history report** (Saskia review Q1). List view
+  of every ingredient with price events (current/min/max/avg + last change,
+  90d default, adjustable 7/30/90/365), detail view per ingredient with a
+  line chart of the series and the event table (source labels in Spanish:
+  Reposición / Manual / Importación Excel), and a CSV export at
+  /reportes/precios/csv following the ventas.csv pattern. Card added to the
+  /reportes hub (topnav untouched).
+
 - **/inventario — price strip + sparkline** (Saskia review Q1). Under the
   purchase-price cell, ingredients with >=2 price events in the last 90 days
   show a muted "90d: min X · max Y" line (money via m.gs); >=3 events also
