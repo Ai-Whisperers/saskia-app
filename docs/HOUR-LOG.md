@@ -35,7 +35,7 @@ Saskia PDF's 97h budget (70h original scope + 27h contingency).
 | 2026-09-21 | T5       |     2.0 |    1.5 | scope  | done    | EOD completion persistence (Plan/Hecho) |
 | 2026-09-21 | T6       |     2.0 |    2.0 | scope  | done    | Merma whole-batch flow               |
 | 2026-09-21 | T8       |     2.0 |    1.5 | scope  | done    | Cross-page consistency               |
-| 2026-09-21 | Q1-sfc   |     5.0 |        | scope  | pending | Surface + reportes/precios + insight |
+| 2026-09-21 | Q1-sfc   |     5.0 |    4.0 | scope  | done    | Surface + reportes/precios + insight |
 | 2026-09-21 | Q2-fin   |     9.0 |        | scope  | pending | Full calendar + interactions         |
 | 2026-09-21 | Q3       |     2.0 |        | scope  | pending | forecast_source label + override     |
 | 2026-09-21 | T9       |     4.0 |        | scope  | pending | QA plan + tests                      |

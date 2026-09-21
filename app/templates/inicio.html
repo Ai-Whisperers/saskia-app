@@ -162,6 +162,12 @@
   {{ m.insight_card("En alza", rising_items, severity="ok", icon="icon-arrow-up") }}
 {% endif %}
 
+{% if insights.price_fluctuation %}
+  {% set price_items = [] %}
+  {% for p_ in insights.price_fluctuation %}{% set _ = price_items.append({"title": p_.name, "body": "+" ~ ("%.0f"|format(p_.pct_above_avg)) ~ "% vs. 30d promedio"}) %}{% endfor %}
+  {{ m.insight_card("Precios en alza", price_items, severity="warn", icon="icon-arrow-up") }}
+{% endif %}
+
 {% if insights.churning_products %}
   {% set churning_items = [] %}
   {% for c in insights.churning_products %}{% set _ = churning_items.append({"title": c.product_name, "body": "reciente " ~ c.recent_sales ~ ", previo " ~ c.prior_sales ~ " (" ~ ("%.0f"|format((c.change_pct or 0)*100)) ~ "%)"}) %}{% endfor %}

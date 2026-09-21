@@ -85,6 +85,12 @@
   No business logic — Phase D wires the per-day production-plan +
   per-product override editor on top of these macros.
 
+- **Dashboard 'Precios en alza' insight** (Saskia feedback, Q1 surface D4).
+  build_insights() now computes price_fluctuation: ingredients whose
+  current price is >20% above their 30-day average, sorted by pct.
+  Rendered on /inicio as a severity-warn insight card ('Harina: +27%
+  vs. 30d promedio'). No crossers → no card.
+
 - **Schema-version test relaxed** to assert `>= 15` (was `== 15`) so it
   doesn't break on every future schema bump.
 
