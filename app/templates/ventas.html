@@ -11,10 +11,10 @@
 <p class="hint">Top 5 productos por ingreso (últimos 14 días). One-tap registra una venta rápida.</p>
 <div class="quick-sell-grid">
   {% for q in quick_sell %}
-  <form method="post" action="/ventas/nueva" class="quick-sell-btn">
+  <form method="post" action="/ventas/nueva" class="quick-sell-btn" aria-label="Venta rápida: {{ q.name }}">
     <input type="hidden" name="product_id" value="{{ q.product_id }}">
     <input type="hidden" name="qty" value="1">
-    <button type="submit" class="btn btn-large">
+    <button type="submit" class="btn btn-large" aria-label="Registrar venta de {{ q.name }} por {{ m.gs(q.sale_price_gs) }}">
       <strong>{{ q.name }}</strong><br>
       <span class="gs">{{ m.gs(q.sale_price_gs) }}</span>
     </button>
@@ -119,7 +119,7 @@
   </div>
   <p class="text-muted mt-2" style="font-size:var(--text-xs);">
     Filtro actual: {{ totals.filters }}
-    <span class="flash" style="margin-left:var(--space-3); padding:var(--space-1) var(--space-2); display:inline-block;">
+    <span class="badge badge-info" style="margin-left:var(--space-3);">
       Mostrando últimas 50 ventas
     </span>
     {% set csv_query = dict(request.query_params.multi_items()) %}
@@ -133,8 +133,9 @@
   </p>
 </div>
 
-<form method="get" action="/ventas" class="form form-row">
-  <input type="search" name="q" value="{{ request.query_params.get('q','') }}" placeholder="Buscar producto, nota o teléfono">
+<form method="get" action="/ventas" class="form form-row" aria-label="Filtrar historial de ventas">
+  <label for="sales-search" class="sr-only">Buscar producto, nota o teléfono</label>
+  <input type="search" id="sales-search" name="q" value="{{ request.query_params.get('q','') }}" placeholder="Buscar producto, nota o teléfono" aria-label="Buscar producto, nota o teléfono">
   <select name="product_id">
     <option value="">— Todos los productos —</option>
     {% for p in products %}
@@ -216,6 +217,8 @@
   var skuInput = document.getElementById("sku");
   var productSelect = document.getElementById("product_id");
   if (!skuInput || !productSelect) return;
+
+  var debounceTimer = null;
   function lookup() {
     var sku = (skuInput.value || "").trim();
     if (!sku) return;
@@ -234,7 +237,18 @@
       });
   }
   skuInput.addEventListener("change", lookup);
-  skuInput.addEventListener("blur", lookup);
+  skuInput.addEventListener("blur", function() {
+    // Debounce: wait 150ms so rapid scans don't race
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(lookup, 150);
+  });
+  skuInput.addEventListener("keydown", function(e) {
+    // Enter key: submit the form immediately without debounce
+    if (e.key === "Enter") {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      lookup();
+    }
+  });
 })();
 </script>
 

@@ -50,7 +50,7 @@ Asunción local TZ.
    Pass `icon="icon-home"` to prepend an SVG icon from the sprite. #}
 {% macro nav_link(path, label, exact=False, current_path="", icon="") -%}
 {%- set active = (current_path == path) if exact else current_path.startswith(path) -%}
-<a href="{{ path }}"{% if active %} aria-current="page"{% endif %}>
+<a href="{{ path }}" role="menuitem"{% if active %} aria-current="page"{% endif %}>
 {%- if icon %}
   <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
 {%- endif %}
@@ -60,7 +60,7 @@ Asunción local TZ.
 {# Dashboard chart card — wraps an SVG chart in a styled card with a freshness line.
    Pass `chart_html` as the already-rendered SVG string from app.rms.charts. #}
 {% macro chart_card(title, chart_html, freshness=None) -%}
-<section class="dashboard-chart-card">
+<section class="dashboard-chart-card" aria-label="{{ title }}">
   <h3>{{ title }}</h3>
   {{ chart_html | safe }}
   {% if freshness %}<p class="data-freshness">Actualizado a las {{ freshness }}</p>{% endif %}

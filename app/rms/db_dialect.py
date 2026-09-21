@@ -24,6 +24,7 @@ Test usage (default):
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 from pathlib import Path
 
 from sqlalchemy import create_engine, event
@@ -32,6 +33,7 @@ from sqlalchemy.engine import Engine
 from app.rms.config import DB_PATH
 
 
+@lru_cache(maxsize=1)
 def _is_postgres(url: str) -> bool:
     """True if the URL is a Postgres connection string.
 
@@ -61,6 +63,7 @@ def _set_sqlite_pragmas(dbapi_conn, _):
     cursor.close()
 
 
+@lru_cache(maxsize=1)
 def get_database_url() -> str:
     """Return the database URL, defaulting to local SQLite.
 
@@ -69,11 +72,7 @@ def get_database_url() -> str:
     2. AIW_SASKIA_DB_PATH env var (test/dev: SQLite at custom path)
     3. config.DB_PATH (default: ~/.local/share/AIW-Saskia/rms.sqlite)
 
-    For Postgres, we add the `+psycopg` driver prefix if not present so
-    SQLAlchemy uses psycopg3 (the version pinned in pyproject.toml) instead
-    of the legacy psycopg2 (which isn't installed). See commit history:
-    this caught us during the 2026-09-02 deploy when the dialect detection
-    was correct but SQLAlchemy defaulted to psycopg2 and crashed.
+    Result is cached after first call — the URL never changes at runtime.
     """
     url = os.getenv("DATABASE_URL")
     if url:
@@ -129,6 +128,7 @@ def make_engine(url: str | None = None, *, for_tests: bool = False) -> Engine:
     return engine
 
 
+@lru_cache(maxsize=1)
 def get_metadata():
     """Return the right Base.metadata for the configured DATABASE_URL.
 
@@ -137,6 +137,8 @@ def get_metadata():
 
     Importing both modules unconditionally is fine — they have no side
     effects until Base.metadata.create_all() is called.
+
+    Cached: the metadata returned never changes at runtime.
     """
     if _is_postgres(get_database_url()):
         from app.rms import schema_postgres

@@ -19,10 +19,10 @@
 {% block content %}
 <h1>Inicio</h1>
 
-<div class="period-toggle flex gap-2 mb-4">
-  <a href="?period=today" class="btn {% if period == 'today' %}btn-primary{% endif %}">Hoy</a>
-  <a href="?period=week"  class="btn {% if period == 'week'  %}btn-primary{% endif %}">Semana</a>
-  <a href="?period=month" class="btn {% if period == 'month' %}btn-primary{% endif %}">Mes</a>
+<div class="period-toggle flex gap-2 mb-4" role="group" aria-label="Seleccionar período">
+  <a href="?period=today" class="btn {% if period == 'today' %}btn-primary{% endif %}" aria-current="{% if period == 'today' %}true{% endif %}">Hoy<span class="sr-only">{% if period == 'today' %} (período activo){% endif %}</span></a>
+  <a href="?period=week"  class="btn {% if period == 'week'  %}btn-primary{% endif %}" aria-current="{% if period == 'week' %}true{% endif %}">Semana<span class="sr-only">{% if period == 'week' %} (período activo){% endif %}</span></a>
+  <a href="?period=month" class="btn {% if period == 'month' %}btn-primary{% endif %}" aria-current="{% if period == 'month' %}true{% endif %}">Mes<span class="sr-only">{% if period == 'month' %} (período activo){% endif %}</span></a>
 </div>
 
 <div class="grid grid-3 mb-4">

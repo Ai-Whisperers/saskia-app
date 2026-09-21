@@ -2,7 +2,7 @@
 
 Verifies:
 - HTML responses are gzipped when client sends Accept-Encoding: gzip
-- CSS responses get Cache-Control: max-age=3600, public
+- CSS responses get Cache-Control: max-age=31536000, immutable (version-busted assets)
 """
 from __future__ import annotations
 
@@ -22,12 +22,11 @@ def test_gzip_skips_tiny_responses(client):
 
 
 def test_static_cache_control_set(client):
-    """Static asset responses must include Cache-Control: max-age=3600, public."""
+    """Static asset responses must include Cache-Control: max-age=31536000, immutable."""
     resp = client.get("/static/app.css")
     assert resp.status_code == 200
     cc = resp.headers.get("cache-control", "")
-    assert "max-age=3600" in cc, f"Missing cache-control header (got: {cc!r})"
-    assert "public" in cc, f"Cache-Control must be 'public' (got: {cc!r})"
+    assert "max-age=31536000" in cc, f"Missing cache-control header (got: {cc!r})"
 
 
 def test_static_cache_control_not_applied_to_routes(client):

@@ -35,6 +35,7 @@ Reference:
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 from typing import Optional
 
 from fastapi import Depends, HTTPException, Request, status
@@ -52,15 +53,17 @@ if not SESSION_SECRET:
 # --- Backend detection ---
 
 
+@lru_cache(maxsize=1)
 def _supabase_enabled() -> bool:
-    """True if Supabase Auth is configured."""
+    """True if Supabase Auth is configured. Cached — env vars don't change at runtime."""
     from app.auth_supabase import is_supabase_auth_enabled
 
     return is_supabase_auth_enabled()
 
 
+@lru_cache(maxsize=1)
 def using_supabase() -> bool:
-    """Public check: is this deployment using Supabase Auth?"""
+    """Public check: is this deployment using Supabase Auth? Cached — env vars don't change at runtime."""
     return _supabase_enabled()
 
 

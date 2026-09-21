@@ -88,9 +88,12 @@ def _login_supabase(
     request: Request, email: str, password: str, safe_next: str
 ) -> RedirectResponse:
     """Sign in via Supabase Auth."""
-    from app.auth_supabase import sign_in_with_password, store_session
+    from app.auth_supabase import get_supabase_client, store_session
 
-    session_data = sign_in_with_password(email, password)
+    client = get_supabase_client()
+    session_data = client.auth.sign_in_with_password(
+        {"username": email, "password": password}
+    )
     if session_data is None:
         return RedirectResponse(
             url=f"/login?next={safe_next}&error=credenciales+inv%C3%A1lidas",

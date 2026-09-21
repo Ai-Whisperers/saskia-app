@@ -140,6 +140,69 @@ def stock_turnover(
     )
 
 
+def batch_stock_turnover(
+    session: Session, ingredient_ids: list[int], days: int = 30
+) -> dict[int, StockTurnover]:
+    """Return StockTurnover for multiple ingredients in a single query.
+
+    Replaces N separate stock_turnover() calls (1 query each) with a single
+    batch query. Callers pass the list of ingredient IDs they need; this
+    function handles the rest.
+    """
+    if not ingredient_ids:
+        return {}
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    # Single query: get consumed qty for all ingredients at once
+    consumed_rows = dict(
+        session.execute(
+            select(SaleStockMove.ingredient_id, func.coalesce(func.sum(SaleStockMove.qty_delta), 0.0))
+            .where(
+                SaleStockMove.ingredient_id.in_(ingredient_ids),
+                SaleStockMove.qty_delta < 0,
+                SaleStockMove.sale_id.is_not(None),
+            )
+            .join(Sale, Sale.id == SaleStockMove.sale_id)
+            .where(Sale.sold_at >= cutoff.replace(tzinfo=None))
+            .group_by(SaleStockMove.ingredient_id)
+        ).all()
+    )
+
+    # Single query: get all ingredient data at once
+    ingredients = {
+        ing.id: ing
+        for ing in session.execute(
+            select(Ingredient).where(Ingredient.id.in_(ingredient_ids))
+        ).scalars().all()
+    }
+
+    result = {}
+    for ingredient_id in ingredient_ids:
+        ing = ingredients.get(ingredient_id)
+        if ing is None:
+            continue
+        consumed_abs = abs(float(consumed_rows.get(ingredient_id, 0.0)))
+        current_stock = float(ing.stock_qty)
+        avg_stock = max(current_stock, (current_stock + consumed_abs) / 2) or 0.01
+        turnover = consumed_abs / avg_stock if avg_stock > 0 else 0.0
+        days_of_stock: int | None = None
+        if consumed_abs > 0:
+            per_day = consumed_abs / days
+            days_of_stock = int(current_stock / per_day) if per_day > 0 else None
+        result[ingredient_id] = StockTurnover(
+            ingredient_id=ingredient_id,
+            ingredient_name=ing.name,
+            unit=ing.unit,
+            period_days=days,
+            consumed_qty=consumed_abs,
+            avg_stock=avg_stock,
+            turnover_ratio=turnover,
+            days_of_stock=days_of_stock,
+        )
+    return result
+
+
 def all_stock_turnover(session: Session, days: int = 30) -> list[StockTurnover]:
     """Return StockTurnover for every ingredient that had consumption in the period."""
     ingredient_ids = session.execute(select(Ingredient.id)).scalars().all()

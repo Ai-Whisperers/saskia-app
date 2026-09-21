@@ -226,19 +226,21 @@ app = FastAPI(
 
 
 class StaticCacheMiddleware(BaseHTTPMiddleware):
-    """Add Cache-Control: max-age=3600 to /static/* responses.
+    """Add Cache-Control: max-age=1year, immutable to /static/* responses.
 
-    CSS/JS/image assets change only on deploys. Browser revalidation on
-    every page load wastes RTT. 1-hour cache balances freshness with
-    performance.
-
-    Not applied to other paths — those have session-aware content.
+    Assets behind /static/* are version-busted via the ?v= query parameter
+    (e.g. app.css?v=1790018202). When the server deploys a new version,
+    the v= value changes, producing a new URL — the old URL is never
+    re-requested. Therefore these responses can be cached "forever" in
+    both browser and CDN with the immutable directive, which suppresses
+    all conditional revalidation (If-Modified-Since, ETag) for maximum
+    perf.
     """
 
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
         if request.url.path.startswith("/static/"):
-            response.headers["Cache-Control"] = "max-age=3600, public"
+            response.headers["Cache-Control"] = "max-age=31536000, immutable"
         return response
 
 
