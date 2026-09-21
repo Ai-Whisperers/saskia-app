@@ -9,7 +9,7 @@ Built on top of app/rms/customers.py which has all the helpers:
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Path, Query, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -34,6 +34,8 @@ def clientes_list(
     request: Request,
     q: str | None = None,
     tier: str | None = None,
+    sort: str | None = Query(None, description="Sort column: name, phone, n_sales, lifetime_spend_gs, points, tier"),
+    dir: str | None = Query("asc", pattern="^(asc|desc)$"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Customer directory with loyalty tiers + points + filters."""
@@ -103,11 +105,24 @@ def clientes_list(
                 "points": c.loyalty_points,
             })
 
+    # Apply sorting
+    sort_col = sort or "name"
+    reverse = (dir == "desc")
+    col_map = {
+        "name": "name", "phone": "phone", "n_sales": "n_sales",
+        "lifetime_spend_gs": "lifetime_spend_gs", "points": "points", "tier": "tier",
+    }
+    col = col_map.get(sort_col, "name")
+    if rows and col in rows[0]:
+        rows.sort(key=lambda r: (r.get(col) or "" if isinstance(r.get(col), str) else r.get(col) or 0), reverse=reverse)
+
     return render(request, "clientes.html", {
         "customers": rows,
         "q": q or "",
         "tier": tier or "",
         "tiers": ["bronze", "silver", "gold", "platinum"],
+        "sort": sort or "",
+        "dir": dir or "asc",
     })
 
 
@@ -257,3 +272,40 @@ def cliente_detail(
 
 
 __all__ = ["router"]
+
+
+@router.post("/bulk-eliminar")
+def clientes_bulk_delete(
+    request: Request,
+    ids: str = Form(""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Delete multiple customers at once. Skips any with sales."""
+    deleted = 0
+    skipped = 0
+    for cid in ids.split(","):
+        cid = cid.strip()
+        if not cid:
+            continue
+        try:
+            c = session.get(Customer, int(cid))
+        except ValueError:
+            continue
+        if c is None:
+            continue
+        # Check for sales
+        from app.rms.models import Sale
+        has_sales = session.scalar(
+            select(Sale).where(Sale.customer_id == c.id).limit(1)
+        )
+        if has_sales is not None:
+            skipped += 1
+            continue
+        session.delete(c)
+        deleted += 1
+
+    session.commit()
+    flash = f"{deleted} cliente(s) eliminado(s)"
+    if skipped:
+        flash += f", {skipped} omitido(s) por tener ventas"
+    return RedirectResponse(url=f"/clientes?flash={flash}", status_code=303)

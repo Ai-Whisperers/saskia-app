@@ -7,6 +7,13 @@
   Clientes
 </h1>
 
+{% if request.query_params.get('flash') %}
+<div class="alert alert-success" role="alert" aria-live="polite">
+  <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+  {{ request.query_params.get('flash') }}
+</div>
+{% endif %}
+
 <p class="text-muted">Programa de puntos: 1 punto por cada 1.000 Gs. gastados. 1 punto = 1.000 Gs. de descuento.</p>
 
 <form method="get" action="/clientes" class="form form-row">
@@ -25,21 +32,42 @@
 </form>
 
 {% if customers %}
+<div id="bulk-actions-clients" style="display:none;margin:.5rem 0;padding:.5rem .75rem;background:var(--color-surface-raised);border-radius:var(--card-radius);border:1px solid var(--color-border);display:flex;align-items:center;gap:.75rem;">
+  <span id="bulk-count-clients" style="font-weight:600;"></span>
+  <button type="button" class="btn btn-sm btn-danger-ghost" onclick="bulkDeleteClients()">
+    <svg class="icon" aria-hidden="true"><use href="#icon-delete"/></svg>
+    Eliminar seleccionados
+  </button>
+</div>
 <table class="table is-hoverable is-striped">
   <thead>
     <tr>
-      <th>Nombre</th>
-      <th>Teléfono</th>
-      <th class="num">Visitas</th>
-      <th class="num">Gasto total (Gs.)</th>
-      <th class="num">Puntos</th>
-      <th>Nivel</th>
+      <th><input type="checkbox" id="select-all-clients" aria-label="Seleccionar todos"></th>
+      {% macro th(col, label) %}
+      {% set current = (sort == col) %}
+      <th class="{% if current %}sorted{% endif %}">
+        <a href="?sort={{ col }}&amp;dir={% if current and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&amp;q={{ q }}{% endif %}{% if tier %}&amp;tier={{ tier }}{% endif %}"
+           style="color:inherit;text-decoration:none;display:flex;align-items:center;gap:4px;justify-content:flex-end{% if col == 'num' or col in ['n_sales','lifetime_spend_gs','points']%};text-align:right{% endif %}">
+          {{ label }}
+          {% if current %}
+            {% if dir == 'asc' %}↑{% else %}↓{% endif %}
+          {% else %}↕{% endif %}
+        </a>
+      </th>
+      {% endmacro %}
+      {{ th("name", "Nombre") }}
+      {{ th("phone", "Teléfono") }}
+      {{ th("n_sales", "Visitas") }}
+      {{ th("lifetime_spend_gs", "Gasto total (Gs.)") }}
+      {{ th("points", "Puntos") }}
+      {{ th("tier", "Nivel") }}
       <th class="actions"></th>
     </tr>
   </thead>
   <tbody>
     {% for c in customers %}
-    <tr>
+    <tr data-id="{{ c.id }}">
+      <td><input type="checkbox" name="selected_clients" value="{{ c.id }}" aria-label="Seleccionar {{ c.name }}"></td>
       <td><strong>{{ c.name }}</strong></td>
       <td>{{ c.phone }}</td>
       <td class="num">{{ c.n_sales }}</td>
@@ -63,5 +91,34 @@
   <a href="/ventas" class="btn btn-primary">Registrar venta</a>
 </div>
 {% endif %}
+
+<script>
+(function() {
+  var selAll = document.getElementById('select-all-clients');
+  var checks = document.querySelectorAll('input[name=selected_clients]');
+  var bulkDiv = document.getElementById('bulk-actions-clients');
+  var countSpan = document.getElementById('bulk-count-clients');
+  function update() {
+    var checked = document.querySelectorAll('input[name=selected_clients]:checked');
+    bulkDiv.style.display = checked.length ? 'flex' : 'none';
+    countSpan.textContent = checked.length + ' seleccionado(s)';
+  }
+  if (selAll) selAll.addEventListener('change', function() { checks.forEach(function(c){c.checked=selAll.checked;}); update(); });
+  checks.forEach(function(c){ c.addEventListener('change', update); });
+})();
+function bulkDeleteClients() {
+  var checked = Array.from(document.querySelectorAll('input[name=selected_clients]:checked'));
+  if (!checked.length) return;
+  var ids = checked.map(function(c){ return c.value; });
+  SaskiaConfirmModal.show({
+    title: '¿Eliminar ' + ids.length + ' cliente(s)?',
+    body: 'Se eliminarán los clientes que no tengan ventas registradas.',
+    action: '/clientes/bulk-eliminar',
+    confirmLabel: 'Sí, eliminar',
+    danger: true,
+    extraInputs: '<input type="hidden" name="ids" value="' + ids.join(',') + '">'
+  });
+}
+</script>
 
 {% endblock %}
