@@ -67,7 +67,7 @@ def _md_to_html(md_text: str) -> str:
         return "".join(html)
 
     def _inline(text: str) -> str:
-        # Escape HTML first.
+        # Escape HTML first so markdown syntax chars are inert.
         text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         # Bold: **text**
         text = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", text)
@@ -75,13 +75,20 @@ def _md_to_html(md_text: str) -> str:
         text = re.sub(r"(?<![*\w])\*([^*\n]+)\*(?![*\w])", r"<em>\1</em>", text)
         # Inline code: `text`
         text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
-        # Links: [text](url)
+        # Links: [text](url) — href sanitized to safe schemes only.
         text = re.sub(
             r"\[([^\]]+)\]\(([^)]+)\)",
-            lambda m: f'<a href="{m.group(2)}">{m.group(1)}</a>',
+            lambda m: f'<a href="{_safe_url(m.group(2))}">{m.group(1)}</a>',
             text,
         )
         return text
+
+    def _safe_url(url: str) -> str:
+        """Allow only http/https/relative paths; block javascript: and data:."""
+        url = url.strip()
+        if re.match(r"https?://", url) or url.startswith("/"):
+            return url
+        return "#"
 
     i = 0
     while i < len(lines):
