@@ -6,12 +6,26 @@
 {% block content %}
 <h1>Ventas</h1>
 
+{# ── Flash messages ── #}
+{% if request.query_params.get('flash') == 'sale_created' %}
+<div class="alert alert-success" role="alert" aria-live="polite">
+  <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+  Venta registrada correctamente.
+</div>
+{% elif request.query_params.get('flash') == 'sale_void_ok' %}
+<div class="alert alert-success" role="alert" aria-live="polite">
+  <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+  Venta anulada y stock recuperado.
+</div>
+{% endif %}
+
 {% if quick_sell %}
 <h2>Quick-sell</h2>
 <p class="hint">Top 5 productos por ingreso (últimos 14 días). One-tap registra una venta rápida.</p>
 <div class="quick-sell-grid">
   {% for q in quick_sell %}
-  <form method="post" action="/ventas/nueva" class="quick-sell-btn" aria-label="Venta rápida: {{ q.name }}">
+  <form method="post" action="/ventas/nueva" class="quick-sell-btn" aria-label="Venta rápida: {{ q.name }}"
+        onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='…';">
     <input type="hidden" name="product_id" value="{{ q.product_id }}">
     <input type="hidden" name="qty" value="1">
     <button type="submit" class="btn btn-large" aria-label="Registrar venta de {{ q.name }} por {{ m.gs(q.sale_price_gs) }}">
@@ -92,7 +106,8 @@
   </div>
 
   <div class="form-actions">
-    <button type="submit" class="btn btn-primary">
+    <button type="submit" class="btn btn-primary" id="sale-submit-btn"
+            onclick="this.disabled=true;this.innerHTML='<svg class=\'icon\' aria-hidden=\'true\'><use href=\'#icon-check\'/></svg> Registrando…';">
       <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
       Registrá venta
     </button>
@@ -193,7 +208,8 @@
         </a>
         {% if not s.voided_at %}
         <form method="post" action="/ventas/{{ s.id }}/anular" style="display: inline;">
-          <button type="submit" class="btn btn-sm btn-danger-ghost" onclick="return confirm('¿Anular esta venta? Se devuelve el stock.')">Anular</button>
+          <button type="button" class="btn btn-sm btn-danger-ghost"
+                onclick="SaskiaConfirmModal.show({title:'¿Anular venta?',body:'Se devolverá el stock al inventario.',action:'/ventas/{{ s.id }}/anular',confirmLabel:'Sí, anular',danger:true})">Anular</button>
         </form>
         {% endif %}
       </td>

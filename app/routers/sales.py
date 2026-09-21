@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi import Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -438,7 +439,7 @@ async def sale_create(
     # Failures are logged but never block the sale.
     _fire_printer_for_sale(session, request, product_id, qty, discount_gs, payment_method_clean, notes_clean)
 
-    return RedirectResponse(url="/ventas", status_code=303)
+    return RedirectResponse(url="/ventas?flash=sale_created", status_code=303)
 
 
 def _fire_printer_for_sale(
@@ -502,7 +503,7 @@ async def sale_void(
         void_sale(session, sale_id)
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
-    return RedirectResponse(url="/ventas", status_code=303)
+    return RedirectResponse(url="/ventas?flash=sale_void_ok", status_code=303)
 
 
 __all__ = ["router"]

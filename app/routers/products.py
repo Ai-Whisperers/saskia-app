@@ -211,4 +211,37 @@ def product_delete(
     return RedirectResponse(url="/productos", status_code=303)
 
 
+@router.post("/bulk-eliminar")
+def product_bulk_delete(
+    request: Request,
+    ids: str = Form(""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Delete multiple products at once. Skips any that have sales."""
+    deleted = 0
+    skipped = 0
+    for pid in ids.split(","):
+        pid = pid.strip()
+        if not pid:
+            continue
+        try:
+            p = session.get(Product, int(pid))
+        except ValueError:
+            continue
+        if p is None:
+            continue
+        usage = session.scalar(select(Sale).where(Sale.product_id == p.id).limit(1))
+        if usage is not None:
+            skipped += 1
+            continue
+        session.delete(p)
+        deleted += 1
+
+    session.commit()
+    flash = f"{deleted} producto(s) eliminado(s)"
+    if skipped:
+        flash += f", {skipped} omitido(s) por tener ventas"
+    return RedirectResponse(url=f"/productos?flash={flash}", status_code=303)
+
+
 __all__ = ["router"]

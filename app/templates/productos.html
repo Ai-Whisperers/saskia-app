@@ -6,6 +6,13 @@
 {% block content %}
 <h1>Productos y precios</h1>
 
+{% if request.query_params.get('flash') %}
+<div class="alert alert-success" role="alert" aria-live="polite">
+  <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+  {{ request.query_params.get('flash') }}
+</div>
+{% endif %}
+
 <p>
   <a href="/productos/nuevo" class="btn btn-primary">
     <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
@@ -27,10 +34,19 @@
   <a href="/productos" class="btn btn-ghost">Limpiar</a>
 </form>
 
+<div id="bulk-actions" style="display:none;margin:.75rem 0;padding:.5rem .75rem;background:var(--color-surface-raised);border-radius:var(--card-radius);border:1px solid var(--color-border);display:flex;align-items:center;gap:.75rem;">
+  <span id="bulk-count" style="font-weight:600;"></span>
+  <button type="button" class="btn btn-sm btn-danger-ghost" onclick="bulkDeleteProducts()">
+    <svg class="icon" aria-hidden="true"><use href="#icon-delete"/></svg>
+    Eliminar seleccionados
+  </button>
+</div>
+
 {% if products %}
 <table class="table is-hoverable is-striped">
   <thead>
     <tr>
+      <th><input type="checkbox" id="select-all" aria-label="Seleccionar todos"></th>
       <th>Nombre</th>
       <th>Porción</th>
       <th class="num">Precio venta</th>
@@ -43,7 +59,8 @@
   </thead>
   <tbody>
     {% for p in products %}
-    <tr>
+    <tr data-id="{{ p.id }}">
+      <td><input type="checkbox" name="selected" value="{{ p.id }}" aria-label="Seleccionar {{ p.name }}"></td>
       <td><strong>{{ p.name }}</strong></td>
       <td>{{ p.portion_label }}</td>
       <td class="num">{{ m.gs_full(p.sale_price_gs) }}</td>
@@ -72,5 +89,45 @@
   </a>
 </div>
 {% endif %}
+
+<script>
+(function() {
+  var selAll = document.getElementById('select-all');
+  var checks = document.querySelectorAll('input[name=selected]');
+  var bulkDiv = document.getElementById('bulk-actions');
+  var countSpan = document.getElementById('bulk-count');
+
+  function updateBulkUI() {
+    var checked = document.queryAll('input[name=selected]:checked');
+    if (checked.length > 0) {
+      bulkDiv.style.display = 'flex';
+      countSpan.textContent = checked.length + ' seleccionado(s)';
+    } else {
+      bulkDiv.style.display = 'none';
+    }
+  }
+
+  selAll.addEventListener('change', function() {
+    checks.forEach(function(c) { c.checked = selAll.checked; });
+    updateBulkUI();
+  });
+
+  checks.forEach(function(c) { c.addEventListener('change', updateBulkUI); });
+})();
+
+function bulkDeleteProducts() {
+  var checked = Array.from(document.querySelectorAll('input[name=selected]:checked'));
+  if (checked.length === 0) return;
+  var ids = checked.map(function(c) { return c.value; });
+  SaskiaConfirmModal.show({
+    title: '¿Eliminar ' + ids.length + ' producto(s)?',
+    body: 'Esta acción no se puede deshacer.',
+    action: '/productos/bulk-eliminar',
+    confirmLabel: 'Sí, eliminar',
+    danger: true,
+    extraInputs: '<input type="hidden" name="ids" value="' + ids.join(',') + '">'
+  });
+}
+</script>
 
 {% endblock %}

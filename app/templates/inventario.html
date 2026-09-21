@@ -36,6 +36,11 @@
       <td class="num">{% if i.purchase_price_gs is none %}<em class="muted">sin precio</em>{% else %}{{ m.gs_full(i.purchase_price_gs) }}{% endif %}{% if price_info.get(i.id) %}<div class="price-strip">90d: min {{ m.gs(price_info[i.id].stats.min) }} · max {{ m.gs(price_info[i.id].stats.max) }}{% if price_info[i.id].sparkline_svg %} {{ price_info[i.id].sparkline_svg | safe }}{% endif %}</div>{% endif %}</td>
       <td>{{ m.stock_badge(i.stock_qty, i.min_stock_qty) }}</td>
       <td class="actions">
+        <button type="button" class="btn btn-sm btn-ghost" aria-label="Ajustar stock de {{ i.name }}"
+                onclick="var m=document.getElementById('stock-adjust-modal');m.querySelector('form').action='/inventario/{{ i.id }}/ajustar';document.getElementById('adj-ing-id').value='{{ i.id }}';document.getElementById('adj-ing-name').textContent='{{ i.name }}';document.getElementById('adj-ing-current').textContent='{{ "%.2f"|format(i.stock_qty) }} {{ i.unit }}';document.getElementById('adj-amount').value='';document.getElementById('adj-reason').value='';m.showModal();">
+          <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+          Ajustar
+        </button>
         <a href="/inventario/{{ i.id }}/editar" class="btn btn-sm btn-ghost">
           <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
           Editar
@@ -56,5 +61,55 @@
   </a>
 </div>
 {% endif %}
+
+{# ── Stock adjustment modal ── #}
+<dialog id="stock-adjust-modal" class="modal" aria-labelledby="adj-title" aria-modal="true">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h2 id="adj-title">
+        <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+        Ajustar stock
+      </h2>
+      <button type="button" class="btn btn-sm btn-ghost" onclick="this.closest('dialog').close()" aria-label="Cerrar">
+        <svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg>
+      </button>
+    </div>
+    <form method="post" id="stock-adjust-form" onsubmit="return validateAdjustment(this)">
+      <div class="modal-body">
+        <p><strong id="adj-ing-name"></strong> — Stock actual: <span id="adj-ing-current"></span></p>
+        <input type="hidden" name="ing_id" id="adj-ing-id" value="">
+        <div class="form-row">
+          <label for="adj-amount">Cantidad a ajustar</label>
+          <input type="number" step="0.01" id="adj-amount" name="adjustment" required
+                 placeholder="Positivo = agregar stock. Negativo = quitar.">
+          <small>Ejemplos: <code>+5</code> (encontraste 5 más en almacén) · <code>-2</code> (rotura de envase)</small>
+        </div>
+        <div class="form-row">
+          <label for="adj-reason">Motivo (opcional)</label>
+          <input type="text" id="adj-reason" name="reason" maxlength="200"
+                 placeholder="Ej: rotura, conteo físico, merma">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar ajuste</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<script>
+function validateAdjustment(form) {
+  var amt = parseFloat(document.getElementById('adj-amount').value);
+  if (isNaN(amt) || amt === 0) {
+    alert('La cantidad debe ser distinta de cero.');
+    return false;
+  }
+  var btn = form.querySelector('[type=submit]');
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+  return true;
+}
+</script>
 
 {% endblock %}

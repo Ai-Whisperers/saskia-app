@@ -104,7 +104,7 @@
     {% if can_fulfill %}
     <form method="post" action="/pedidos/{{ pedido.id }}/fulfill" style="display: inline;">
       <button type="submit" class="btn btn-primary"
-              onclick="return confirm('¿Cumplir este pedido? Se crearán las ventas y se descontará stock.')">
+              onclick="SaskiaConfirmModal.show({title:'¿Cumplir pedido?',body:'Se crearán las ventas y se descontará stock.',action:'/pedidos/{{ pedido.id }}/fulfill',confirmLabel:'Sí, cumplir',danger:true})">
         <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
         Cumplir (crear ventas)
       </button>

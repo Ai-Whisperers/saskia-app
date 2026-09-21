@@ -221,6 +221,44 @@ def pedidos_list(
     )
 
 
+@router.get("/board", response_class=HTMLResponse)
+def pedidos_board(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Kitchen display: large cards for prep staff. Auto-refreshes every 30s.
+    Shows pending + confirmed + ready orders grouped by time slot."""
+    today = date.today()
+    horizon = today + timedelta(days=3)
+
+    stmt = (
+        select(Pedido)
+        .options(selectinload(Pedido.lines), selectinload(Pedido.customer))
+        .where(
+            Pedido.status.in_(["pending", "confirmed", "ready"]),
+            Pedido.promised_date <= horizon,
+        )
+        .order_by(Pedido.promised_date.asc(), Pedido.promised_time.asc())
+    )
+    pedidos = list(session.scalars(stmt))
+
+    # Separate into time buckets
+    hoy = [p for p in pedidos if p.promised_date == today]
+    manana = [p for p in pedidos if p.promised_date == today + timedelta(days=1)]
+    semana = [p for p in pedidos if p.promised_date > today + timedelta(days=1)]
+
+    return render(
+        request,
+        "pedido_board.html",
+        {
+            "pedidos_hoy": hoy,
+            "pedidos_manana": manana,
+            "pedidos_semana": semana,
+            "now": datetime.now(),
+        },
+    )
+
+
 @router.get("/nuevo", response_class=HTMLResponse)
 def pedidos_new_form(
     request: Request,

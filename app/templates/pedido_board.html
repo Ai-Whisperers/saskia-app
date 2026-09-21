@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Pedidos — Board{% endblock %}
+
+{% block extra_head %}
+<meta http-equiv="refresh" content="30">
+<style>
+  body { background: #111; color: #eee; font-size: 18px; }
+  h1 { color: #fff; margin-bottom: .5em; }
+  h2 { color: #aaa; font-size: 1.1rem; text-transform: uppercase; letter-spacing: .1em; margin: 1.5em 0 .5em; }
+  .board-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+  .order-card {
+    background: #1a1a1a;
+    border: 2px solid #333;
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+  }
+  .order-card.is-pending { border-color: #f59e0b; }
+  .order-card.is-confirmed { border-color: #3b82f6; }
+  .order-card.is-ready { border-color: #22c55e; }
+  .order-card.overdue { border-color: #ef4444; }
+  .card-header { display: flex; justify-content: space-between; align-items: center; }
+  .card-id { font-size: 1.4rem; font-weight: 700; color: #fff; }
+  .card-status {
+    padding: .2em .6em;
+    border-radius: 4px;
+    font-size: .75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .status-pending { background: #92400e; color: #fde68a; }
+  .status-confirmed { background: #1e3a8a; color: #bfdbfe; }
+  .status-ready { background: #14532d; color: #bbf7d0; }
+  .card-promise {
+    font-size: 1rem;
+    color: #9ca3af;
+  }
+  .card-promise.is-overdue { color: #f87171; font-weight: 700; }
+  .card-customer { font-weight: 600; color: #e5e7eb; }
+  .card-items { list-style: none; padding: 0; margin: 0; border-top: 1px solid #333; padding-top: .5rem; }
+  .card-items li { padding: .2rem 0; font-size: 1rem; }
+  .card-items .item-qty { color: #60a5fa; font-weight: 700; margin-right: .3em; }
+  .card-items .item-name { color: #d1d5db; }
+  .card-items .item-note { font-size: .85em; color: #6b7280; margin-left: 1.2em; }
+  .card-footer { border-top: 1px solid #333; padding-top: .5rem; font-size: .9rem; color: #6b7280; }
+  .board-nav { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+  .board-nav a { color: #60a5fa; font-size: .9rem; }
+  .count-badge { background: #333; color: #fff; border-radius: 50%; width: 1.5em; height: 1.5em; display: inline-flex; align-items: center; justify-content: center; font-size: .8rem; margin-left: .3em; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="board-nav">
+  <a href="/pedidos">← Volver a pedidos</a>
+  <span style="color:#555;font-size:.9rem;">Auto-refresh cada 30s · {{ now.strftime("%H:%M:%S") }}</span>
+</div>
+
+<h1>🍳 Kitchen Board</h1>
+
+{% macro render_group(label, pedidos) %}
+{% if pedidos %}
+<h2>{{ label }} <span class="count-badge">{{ pedidos|length }}</span></h2>
+<div class="board-grid">
+  {% for p in pedidos %}
+  <div class="order-card is-{{ p.status }}{% if p.promised_date < today and p.status == 'pending' %} overdue{% endif %}">
+    <div class="card-header">
+      <span class="card-id">#{{ p.id }}</span>
+      <span class="card-status status-{{ p.status }}">
+        {% if p.status == 'pending' %}Pendiente
+        {% elif p.status == 'confirmed' %}Confirmado
+        {% elif p.status == 'ready' %}Listo
+        {% endif %}
+      </span>
+    </div>
+    <div class="card-promise{% if p.promised_date < today and p.status == 'pending' %} is-overdue{% endif %}">
+      📅 {{ p.promised_date.strftime("%d/%m") }}{% if p.promised_time %} · {{ p.promised_time.strftime("%H:%M") }}{% endif %}
+      {% if p.channel %} · {{ p.channel }}{% endif %}
+    </div>
+    {% if p.customer %}<div class="card-customer">{{ p.customer.name }}</div>{% endif %}
+    <ul class="card-items">
+      {% for line in p.lines %}
+      <li>
+        <span class="item-qty">{{ "%.0f"|format(line.qty) }}×</span>
+        <span class="item-name">{{ line.product_name }}</span>
+        {% if line.notes %}<div class="item-note">📝 {{ line.notes }}</div>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% if p.notes %}<div class="card-footer">📋 {{ p.notes }}</div>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{{ render_group("Hoy", pedidos_hoy) }}
+{{ render_group("Mañana", pedidos_manana) }}
+{{ render_group("Esta semana", pedidos_semana) }}
+
+{% if not pedidos_hoy and not pedidos_manana and not pedidos_semana %}
+<p style="color:#555;margin-top:2rem;">No hay pedidos pendientes. 🍰</p>
+{% endif %}
+
+{% endblock %}

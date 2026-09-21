@@ -231,6 +231,29 @@ def inventory_delete(
     return RedirectResponse(url="/inventario", status_code=303)
 
 
+@router.post("/{ing_id}/ajustar")
+def inventory_adjust(
+    ing_id: int,
+    request: Request,
+    adjustment: float = Form(...),
+    reason: str = Form(""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Record a stock adjustment (wastage, breakage, count correction).
+    Pass positive adjustment to add stock, negative to remove.
+    """
+    ing = session.get(Ingredient, ing_id)
+    if ing is None:
+        raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
+
+    if adjustment == 0:
+        return RedirectResponse(url="/inventario", status_code=303)
+
+    ing.stock_qty = max(0.0, ing.stock_qty + adjustment)
+    session.commit()
+    return RedirectResponse(url="/inventario", status_code=303)
+
+
 def _parse_price(raw: str) -> int | None:
     """Parse the purchase_price_gs form field. Empty string → None."""
     raw = raw.strip()
