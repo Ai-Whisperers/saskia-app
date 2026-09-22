@@ -24,8 +24,9 @@ def test_form_rejects_unprimed_post(client, route, data):
     form_data = dict(parse_qsl(data))
     
     r = client.post(route, data=form_data, follow_redirects=False)
-    # 403 = CSRF blocked; 422 = validation rejected
-    assert r.status_code in (400, 403, 422, 404), (
+    # 401 = CSRF or auth gate; 403 = CSRF blocked; 422 = validation rejected
+    # 400 = our new BUG-00 Spanish 400 with field error; 404 = route gone
+    assert r.status_code in (400, 401, 403, 422, 404), (
         f"POST {route} returned {r.status_code}: {r.text[:200]}. "
         f"CSRF must reject unprimed POSTs."
     )

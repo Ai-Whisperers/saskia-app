@@ -186,36 +186,53 @@ def product_new(request: Request, session: Session = Depends(get_session)) -> HT
 @router.post("/nuevo")
 def product_create(
     request: Request,
-    name: str = Form(...),
+    name: str = Form(""),
     portion_label: str = Form("1 unidad"),
-    sale_price_gs: str = Form(...),
+    sale_price_gs: str = Form(""),
     recipe_id: str = Form(""),
     notes: str = Form(""),
     sku: str = Form(""),
     is_available: str = Form("on"),
     image_url: str = Form(""),
     category: str = Form(""),
+    tags: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
-    """Create new product."""
-    try:
-        price = parse_gs(sale_price_gs)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Precio inválido: {e}") from e
+    """Create new product.
+
+    Centralized validation (app.rms.validation) returns Spanish 400s on
+    bad input. Tags are stored as a comma-separated string per the model.
+    """
+    from app.rms.validation import (
+        require_text, optional_text, parse_money_gs, parse_date_iso,
+        validate_url, parse_quantity,
+    )
+
+    clean_name = require_text(name, field="nombre", max_len=120)
+    portion_label_clean = optional_text(portion_label, max_len=60) or "1 unidad"
+    price = parse_money_gs(sale_price_gs, allow_zero=True)
+    if price < 0:
+        raise HTTPException(status_code=400, detail="Precio no puede ser negativo")
 
     rid = int(recipe_id) if recipe_id else None
     available = is_available == "on"
+    notes_clean = optional_text(notes, max_len=2000)
+    sku_clean = optional_text(sku, max_len=32)
+    image_url_clean = validate_url(image_url)
+    category_clean = optional_text(category, max_len=32)
+    tags_clean = optional_text(tags, max_len=500)
 
     product = Product(
-        name=name.strip(),
-        portion_label=portion_label.strip() or "1 unidad",
+        name=clean_name,
+        portion_label=portion_label_clean,
         sale_price_gs=price,
         recipe_id=rid,
-        notes=notes.strip() or None,
-        sku=sku.strip() or None,
+        notes=notes_clean,
+        sku=sku_clean,
         is_available=available,
-        image_url=image_url.strip() or None,
-        category=category.strip() or None,
+        image_url=image_url_clean,
+        category=category_clean,
+        tags=tags_clean,
     )
     session.add(product)
     try:
@@ -223,7 +240,7 @@ def product_create(
     except IntegrityError:
         session.rollback()
         raise HTTPException(
-            status_code=409, detail=f"Ya existe un producto con nombre {name!r}"
+            status_code=409, detail=f"Ya existe un producto con nombre {clean_name!r}"
         ) from None
     return RedirectResponse(url="/productos", status_code=303)
 
@@ -250,44 +267,57 @@ def product_edit(
 def product_update(
     p_id: int,
     request: Request,
-    name: str = Form(...),
+    name: str = Form(""),
     portion_label: str = Form("1 unidad"),
-    sale_price_gs: str = Form(...),
+    sale_price_gs: str = Form(""),
     recipe_id: str = Form(""),
     notes: str = Form(""),
     sku: str = Form(""),
     is_available: str = Form("on"),
     image_url: str = Form(""),
     category: str = Form(""),
+    tags: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Update existing product."""
+    from app.rms.validation import (
+        require_text, optional_text, parse_money_gs, validate_url,
+    )
+
     p = session.get(Product, p_id)
     if p is None:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
-    try:
-        price = parse_gs(sale_price_gs)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Precio inválido: {e}") from e
+    clean_name = require_text(name, field="nombre", max_len=120)
+    portion_label_clean = optional_text(portion_label, max_len=60) or "1 unidad"
+    price = parse_money_gs(sale_price_gs, allow_zero=True)
+    if price < 0:
+        raise HTTPException(status_code=400, detail="Precio no puede ser negativo")
 
     rid = int(recipe_id) if recipe_id else None
     available = is_available == "on"
-    p.name = name.strip()
-    p.portion_label = portion_label.strip() or "1 unidad"
+    notes_clean = optional_text(notes, max_len=2000)
+    sku_clean = optional_text(sku, max_len=32)
+    image_url_clean = validate_url(image_url)
+    category_clean = optional_text(category, max_len=32)
+    tags_clean = optional_text(tags, max_len=500)
+
+    p.name = clean_name
+    p.portion_label = portion_label_clean
     p.sale_price_gs = price
     p.recipe_id = rid
-    p.notes = notes.strip() or None
-    p.sku = sku.strip() or None
+    p.notes = notes_clean
+    p.sku = sku_clean
     p.is_available = available
-    p.image_url = image_url.strip() or None
-    p.category = category.strip() or None
+    p.image_url = image_url_clean
+    p.category = category_clean
+    p.tags = tags_clean
     try:
         session.commit()
     except IntegrityError:
         session.rollback()
         raise HTTPException(
-            status_code=409, detail=f"Ya existe otro producto con nombre {name!r}"
+            status_code=409, detail=f"Ya existe otro producto con nombre {clean_name!r}"
         ) from None
     return RedirectResponse(url="/productos", status_code=303)
 

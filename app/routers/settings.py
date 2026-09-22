@@ -5,6 +5,7 @@ Business information, theme settings, fiscal configuration, and application sett
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
@@ -78,24 +79,34 @@ def save_business_settings(
     business_phone: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
-    """Save business information settings."""
-    # Upsert settings
+    """Save business information settings.
+
+    Validates business_ruc (Paraguay format) and business_phone (digits).
+    """
+    from app.rms.validation import (
+        optional_text, validate_ruc, validate_phone,
+    )
+
+    name = optional_text(business_name, max_len=200)
+    ruc = validate_ruc(business_ruc)
+    address = optional_text(business_address, max_len=300)
+    phone = validate_phone(business_phone)
+
     settings = [
-        ("business_name", business_name),
-        ("business_ruc", business_ruc),
-        ("business_address", business_address),
-        ("business_phone", business_phone),
+        ("business_name", name or ""),
+        ("business_ruc", ruc or ""),
+        ("business_address", address or ""),
+        ("business_phone", phone or ""),
     ]
-    
+    now_iso = datetime.now(timezone.utc).isoformat()
     for key, value in settings:
         existing = session.scalar(select(AppMeta).where(AppMeta.key == key))
         if existing:
             existing.value = value
-            existing.updated_at = "now"
+            existing.updated_at = now_iso
         else:
-            new = AppMeta(key=key, value=value, updated_at="now")
-            session.add(new)
-    
+            session.add(AppMeta(key=key, value=value, updated_at=now_iso))
+
     session.commit()
     return RedirectResponse(url="/settings?flash=Información+guardada", status_code=303)
 

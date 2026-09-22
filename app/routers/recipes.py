@@ -174,7 +174,16 @@ async def recipe_create(
             status_code=409, detail=f"Ya existe una receta con nombre {name!r}"
         ) from None
 
-    _apply_lines_from_form(session, recipe.id, form)
+    skipped = _apply_lines_from_form(session, recipe.id, form)
+    if skipped:
+        # BUG-00: surface WHY a line was rejected instead of silently dropping it.
+        # Roll back so the operator can fix and retry without orphans.
+        session.rollback()
+        from fastapi import HTTPException as _HTTPExc
+        detail = "Algunas líneas no se pudieron guardar. " + "; ".join(skipped[:5])
+        if len(skipped) > 5:
+            detail += f" (y {len(skipped) - 5} más)"
+        raise _HTTPExc(status_code=400, detail=detail)
     return RedirectResponse(url="/recetas", status_code=303)
 
 
@@ -331,22 +340,33 @@ async def recipe_update(
     for old in list(r.lines):
         session.delete(old)
     session.flush()
-    _apply_lines_from_form(session, r.id, form)
+    skipped = _apply_lines_from_form(session, r.id, form)
+    if skipped:
+        session.rollback()
+        from fastapi import HTTPException as _HTTPExc
+        detail = "Algunas líneas no se pudieron guardar. " + "; ".join(skipped[:5])
+        if len(skipped) > 5:
+            detail += f" (y {len(skipped) - 5} más)"
+        raise _HTTPExc(status_code=400, detail=detail)
     session.commit()
     return RedirectResponse(url="/recetas", status_code=303)
 
 
-def _apply_lines_from_form(session: Session, recipe_id: int, form) -> None:
+def _apply_lines_from_form(session: Session, recipe_id: int, form) -> list[str]:
     """Parse repeated form fields for recipe lines and persist them.
 
     Expected form keys (each repeated for N lines):
       line_kind (str: 'ingredient' or 'sub_recipe')
       line_target_id (str: integer ID as string)
       line_qty (str: float as string)
+      line_unit (str: optional unit override)
       line_notes (str, optional)
 
-    Lines with empty kind or target_id or qty <= 0 are skipped silently.
+    Lines with empty kind or target_id or qty <= 0 return their reason in the
+    skipped list. The caller can choose to surface these as a Spanish 400 (so
+    the operator knows WHY a line was ignored instead of silently dropping it).
     """
+    skipped: list[str] = []
     kinds = form.getlist("line_kind")
     target_ids = form.getlist("line_target_id")
     qtys = form.getlist("line_qty")
@@ -362,13 +382,21 @@ def _apply_lines_from_form(session: Session, recipe_id: int, form) -> None:
         ln_notes = str(notes_list[i]).strip() if i < len(notes_list) else ""
 
         if not kind or not target or not qty_raw:
+            skipped.append(f"Línea {i + 1}: tipo, ingrediente o cantidad vacíos")
             continue
         try:
             qty = float(qty_raw)
             target_id = int(target)
         except ValueError:
+            skipped.append(
+                f"Línea {i + 1}: cantidad '{qty_raw}' o id '{target}' inválidos"
+            )
             continue
-        if qty <= 0 or target_id <= 0:
+        if qty <= 0:
+            skipped.append(f"Línea {i + 1}: cantidad debe ser mayor a 0")
+            continue
+        if target_id <= 0:
+            skipped.append(f"Línea {i + 1}: id de ingrediente inválido")
             continue
 
         # Validate the unit (if supplied) against the canonical enum.
@@ -391,6 +419,8 @@ def _apply_lines_from_form(session: Session, recipe_id: int, form) -> None:
                 notes=ln_notes or None,
             )
         )
+
+    return skipped
 
 
 __all__ = ["router"]

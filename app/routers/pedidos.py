@@ -379,20 +379,46 @@ async def pedidos_create(
     qtys = form.getlist("line_qty")
     unit_prices = form.getlist("line_unit_price_gs")
     if not product_ids:
-        raise HTTPException(status_code=422, detail="Al menos una línea es requerida")
+        raise HTTPException(
+            status_code=400, detail="Al menos una línea es obligatoria"
+        )
 
     lines: list[dict[str, Any]] = []
-    for pid_raw, qty_raw, price_raw in zip(product_ids, qtys, unit_prices):
-        try:
-            pid = int(str(pid_raw))
-            qty = float(str(qty_raw))
-            price = int(str(price_raw))
-        except (TypeError, ValueError):
+    skipped: list[str] = []  # human-readable reasons for ignored lines
+    for idx, (pid_raw, qty_raw, price_raw) in enumerate(
+        zip(product_ids, qtys, unit_prices), start=1
+    ):
+        # BUG-00: surface WHY a line was rejected, not silently drop it.
+        pid_s = str(pid_raw).strip()
+        qty_s = str(qty_raw).strip()
+        price_s = str(price_raw).strip()
+        if not pid_s or not qty_s:
+            skipped.append(f"Línea {idx}: producto o cantidad vacíos")
             continue
-        if qty <= 0 or price < 0:
+        try:
+            pid = int(pid_s)
+        except (TypeError, ValueError):
+            skipped.append(f"Línea {idx}: producto inválido ({pid_raw!r})")
+            continue
+        try:
+            qty = float(qty_s)
+        except (TypeError, ValueError):
+            skipped.append(f"Línea {idx}: cantidad inválida ({qty_raw!r})")
+            continue
+        try:
+            price = int(price_s) if price_s else 0
+        except (TypeError, ValueError):
+            skipped.append(f"Línea {idx}: precio inválido ({price_raw!r})")
+            continue
+        if qty <= 0:
+            skipped.append(f"Línea {idx}: cantidad debe ser mayor a 0")
+            continue
+        if price < 0:
+            skipped.append(f"Línea {idx}: precio no puede ser negativo")
             continue
         product = session.get(Product, pid)
         if product is None:
+            skipped.append(f"Línea {idx}: producto {pid} no existe")
             continue
         # Snapshot the product's current sale_price_gs if user submitted 0/missing.
         if price <= 0:
@@ -401,10 +427,12 @@ async def pedidos_create(
             {"product_id": pid, "qty": qty, "unit_price_gs": price}
         )
     if not lines:
-        raise HTTPException(
-            status_code=422,
-            detail="Las líneas deben tener producto, cantidad > 0 y precio ≥ 0",
-        )
+        detail = "Las líneas válidas son obligatorias. "
+        if skipped:
+            detail += "Problemas: " + "; ".join(skipped[:5])
+            if len(skipped) > 5:
+                detail += f" (y {len(skipped) - 5} más)"
+        raise HTTPException(status_code=400, detail=detail)
 
     # Parse promised_date
     try:
@@ -419,7 +447,7 @@ async def pedidos_create(
     if customer_id:
         cust_obj = session.get(Customer, int(customer_id))
         if cust_obj is None:
-            raise HTTPException(status_code=422, detail="customer_id inválido")
+            raise HTTPException(status_code=400, detail="cliente no encontrado")
         cust_name = cust_name or cust_obj.name
 
     # Normalize channel to canonical display name

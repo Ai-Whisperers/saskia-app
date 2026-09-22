@@ -91,6 +91,7 @@ def reorder_registrar(
     request: Request,
     ingredient_id: int = Form(...),
     qty: float = Form(...),
+    qty_unit: str = Form(""),
     price_gs: int = Form(...),
     notes: str = Form(""),
     session: Session = Depends(get_session),
@@ -100,6 +101,10 @@ def reorder_registrar(
     Phase D — Q1 surface. Saskia: cada vez que restockea carga los
     precios, así los paneles muestran cuánto gana realmente aunque los
     precios fluctúen.
+
+    MER-01 (cross-cutting): qty_unit lets the operator enter the buy in
+    any unit from the same family as the ingredient's stock unit (e.g.
+    5000 g instead of 5 kg). Cross-family conversion raises a 400.
     """
     if is_write_rate_limited(session, request, max_per_minute=10):
         raise HTTPException(
@@ -116,7 +121,21 @@ def reorder_registrar(
     if ing is None:
         raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
 
-    ing.stock_qty = ing.stock_qty + qty
+    # Convert qty from the form unit to the ingredient's stock unit so
+    # "5000 g" on the form lands as +5.00 kg on the ingredient.
+    from app.rms.units import Unit, can_convert, convert_qty
+    qty_in_stock_unit = qty
+    if qty_unit and ing.unit and qty_unit != ing.unit:
+        from_unit = Unit.coerce(qty_unit)
+        to_unit = Unit.coerce(ing.unit)
+        if not can_convert(from_unit, to_unit):
+            raise HTTPException(
+                status_code=400,
+                detail=f"No se puede convertir {qty_unit} a {ing.unit} (familia distinta)",
+            )
+        qty_in_stock_unit = float(convert_qty(qty, from_unit, to_unit))
+
+    ing.stock_qty = ing.stock_qty + qty_in_stock_unit
     record_price_event(session, ingredient_id, price_gs, source="restock")
     audit_record(
         session,
@@ -125,7 +144,8 @@ def reorder_registrar(
         request=request,
         detail={
             "ingredient_id": ingredient_id,
-            "qty": qty,
+            "qty": qty_in_stock_unit,
+            "qty_unit": qty_unit or ing.unit,
             "price_gs": price_gs,
             "notes": notes or None,
         },

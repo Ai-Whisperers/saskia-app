@@ -57,7 +57,7 @@ def test_sale_failure_does_not_trigger_printer(client, monkeypatch):
         "/ventas/nueva",
         data={"qty": "1", "discount_gs": "0"},
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 400
     assert len(calls) == 0
 
 

@@ -282,7 +282,7 @@ def test_ventas_post_without_customer_id_still_works(client, session_factory):
         assert sale.customer_id is None
 
 
-def test_ventas_post_with_bad_customer_id_returns_422(client, session_factory):
+def test_ventas_post_with_bad_customer_id_returns_400(client, session_factory):
     """A stale / fake customer_id must NOT silently create a new customer."""
     with session_factory() as s:
         prod = Product(name="Test", sale_price_gs=5000, recipe_id=None)
@@ -295,7 +295,7 @@ def test_ventas_post_with_bad_customer_id_returns_422(client, session_factory):
         data={"product_id": str(product_id), "qty": "1", "customer_id": "999999"},
         follow_redirects=False,
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 400
 
 
 # --- /ventas page smoke ---

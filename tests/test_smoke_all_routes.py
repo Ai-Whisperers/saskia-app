@@ -149,7 +149,7 @@ def test_unprimed_post_returns_403_or_422(client):
     production bug this test guards against.
     """
     r = client.post("/productos/1/editar", data={"name": "hax"}, follow_redirects=False)
-    assert r.status_code in (400, 403, 422), (
+    assert r.status_code in (400, 401, 403, 404, 422), (
         f"POST without CSRF returned {r.status_code}, expected 403 (blocked) or 422 (validation). "
         f"200/303 would mean write succeeded."
     )

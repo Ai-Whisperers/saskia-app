@@ -9,24 +9,34 @@
 <form method="post" action="/productos{{ '/nuevo' if mode == 'new' else '/' ~ product.id ~ '/editar' }}">
   <div class="form-row">
     <label for="name">Nombre</label>
-    <input type="text" id="name" name="name" required value="{{ product.name if product else '' }}" placeholder="Ej: Muffin de chocolate">
+    <input type="text" id="name" name="name" required maxlength="120" value="{{ product.name if product else '' }}" placeholder="Ej: Muffin de chocolate">
   </div>
 
   <div class="form-row">
     <label for="sku">SKU / Código de barras</label>
-    <input type="text" id="sku" name="sku" value="{{ product.sku if product and product.sku else '' }}" placeholder="Ej: E23.S1 o código de barras">
+    <input type="text" id="sku" name="sku" maxlength="32" value="{{ product.sku if product and product.sku else '' }}" placeholder="Ej: E23.S1 o código de barras">
     <small class="muted">Opcional. Usado para ventas rápidas por SKU.</small>
   </div>
 
   <div class="form-row">
     <label for="category">Categoría</label>
-    <input type="text" id="category" name="category" value="{{ product.category if product and product.category else '' }}" placeholder="Ej: Panadería, Bollería, Bebidas">
+    <input type="text" id="category" name="category" maxlength="32"
+           value="{{ product.category if product and product.category else '' }}"
+           placeholder="Ej: Panadería, Bollería, Bebidas">
     <small class="muted">Opcional. Para filtrar productos por categoría.</small>
   </div>
 
   <div class="form-row">
+    <label for="tags">Etiquetas</label>
+    <input type="text" id="tags" name="tags" maxlength="500"
+           value="{{ product.tags if product and product.tags else '' }}"
+           placeholder="Ej: sin gluten, vegano, sin azúcar">
+    <small class="muted">Opcional. Separá con comas. Útil para búsquedas y filtros rápidos.</small>
+  </div>
+
+  <div class="form-row">
     <label for="portion_label">Etiqueta de porción</label>
-    <input type="text" id="portion_label" name="portion_label" required value="{{ product.portion_label if product else '1 unidad' }}">
+    <input type="text" id="portion_label" name="portion_label" maxlength="60" required value="{{ product.portion_label if product else '1 unidad' }}">
   </div>
 
   <div class="form-row">

@@ -67,36 +67,41 @@ def users_list(
 @router.post("/crear", response_class=RedirectResponse)
 def users_create(
     request: Request,
-    username: str = Form(...),
-    password: str = Form(...),
+    username: str = Form(""),
+    password: str = Form(""),
     role: str = Form("cashier"),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Create a new user (admin only)."""
+    from app.rms.validation import require_text, optional_text
+
     admin_user = _require_admin(request)
-    
+
+    clean_username = require_text(username, field="nombre de usuario", max_len=120)
+    clean_password = require_text(password, field="contraseña", max_len=200)
+
     if role not in VALID_ROLES:
         raise HTTPException(status_code=422, detail=f"Rol inválido: {role}")
-    
-    if len(password) < 6:
+
+    if len(clean_password) < 6:
         return RedirectResponse(
             url="/users?flash=La+contraseña+debe+tener+al+menos+6+caracteres",
             status_code=303,
         )
     
     User = get_user_model()
-    
+
     # Check username uniqueness
-    existing = session.query(User).filter(User.username == username).first()
+    existing = session.query(User).filter(User.username == clean_username).first()
     if existing:
         return RedirectResponse(
             url="/users?flash=El+nombre+de+usuario+ya+existe",
             status_code=303,
         )
-    
+
     user = User(
-        username=username,
-        password_hash=hash_password(password),
+        username=clean_username,
+        password_hash=hash_password(clean_password),
         role=role,
         is_active=True,
         created_at=datetime.now(timezone.utc).isoformat(),
@@ -106,7 +111,7 @@ def users_create(
         session,
         user_id=current_user_id(request),
         action="user.create",
-        detail={"username": username, "role": role},
+        detail={"username": clean_username, "role": role},
     )
     session.commit()
     
@@ -117,27 +122,31 @@ def users_create(
 def users_edit(
     request: Request,
     user_id: int,
-    username: str = Form(...),
-    role: str = Form(...),
+    username: str = Form(""),
+    role: str = Form("cashier"),
     is_active: bool = Form(False),
     new_password: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Edit an existing user (admin only)."""
+    from app.rms.validation import require_text, optional_text
+
     admin_user = _require_admin(request)
-    
+
+    clean_username = require_text(username, field="nombre de usuario", max_len=120)
+
     if role not in VALID_ROLES:
         raise HTTPException(status_code=422, detail=f"Rol inválido: {role}")
-    
+
     User = get_user_model()
     user = session.get(User, user_id)
-    
+
     if user is None:
         return RedirectResponse(url="/users?flash=Usuario+no+encontrado", status_code=303)
-    
+
     # Check username uniqueness (excluding self)
     existing = session.query(User).filter(
-        User.username == username,
+        User.username == clean_username,
         User.id != user_id,
     ).first()
     if existing:
@@ -145,11 +154,11 @@ def users_edit(
             url="/users?flash=El+nombre+de+usuario+ya+existe",
             status_code=303,
         )
-    
-    user.username = username
+
+    user.username = clean_username
     user.role = role
     user.is_active = is_active
-    
+
     if new_password:
         if len(new_password) < 6:
             return RedirectResponse(
@@ -161,7 +170,7 @@ def users_edit(
             session,
             user_id=current_user_id(request),
             action="user.password_change",
-            detail={"target_user": username, "changed_by": admin_user.username if hasattr(admin_user, 'username') else str(admin_user)},
+            detail={"target_user": clean_username, "changed_by": admin_user.username if hasattr(admin_user, 'username') else str(admin_user)},
         )
     
     audit_record(

@@ -260,10 +260,15 @@ async def customer_create_api(
     if not name:
         raise HTTPException(status_code=422, detail="nombre es obligatorio")
 
-    phone = (str(data.get("phone") or "")).strip() or None
-    email = (str(data.get("email") or "")).strip() or None
-    cedula = (str(data.get("cedula") or "")).strip() or None
-    notes = (str(data.get("notes") or "")).strip() or None
+    # Use centralized validation for email/phone/cedula so we don't accept
+    # garbage like "nope" as an email or "abc" as a phone.
+    from app.rms.validation import (
+        optional_text, validate_email, validate_phone, validate_cedula,
+    )
+    phone = validate_phone(str(data.get("phone") or ""))
+    email = validate_email(str(data.get("email") or ""))
+    cedula = validate_cedula(str(data.get("cedula") or ""))
+    notes = optional_text(str(data.get("notes") or ""), max_len=2000)
 
     from app.rms.customers import ensure_customer
 
@@ -334,15 +339,18 @@ def cliente_update(
 ) -> RedirectResponse:
     """Update an existing customer's fields."""
     from app.rms.audit import record
+    from app.rms.validation import (
+        require_text, optional_text, validate_email, validate_phone, validate_cedula,
+    )
 
     customer = session.get(Customer, customer_id)
     if customer is None:
         return RedirectResponse(url="/clientes", status_code=303)
-    customer.name = name.strip() or "(sin nombre)"
-    customer.phone = phone.strip() or None
-    customer.email = email.strip() or None
-    customer.cedula = cedula.strip() or None
-    customer.notes = notes.strip() or None
+    customer.name = require_text(name, field="nombre", max_len=120)
+    customer.phone = validate_phone(phone)
+    customer.email = validate_email(email)
+    customer.cedula = validate_cedula(cedula)
+    customer.notes = optional_text(notes, max_len=2000)
     session.commit()
     record(
         session,

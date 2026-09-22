@@ -393,8 +393,8 @@ async def sale_create(
         product_id = result.product.id
     if not product_id:
         raise HTTPException(
-            status_code=422,
-            detail="product_id o sku requerido",
+            status_code=400,
+            detail="Elegí un producto o escaneá un SKU",
         )
     # Form(...) didn't enforce upper bounds here because Form() with `le=`
     # requires a literal value, not a constant. So we re-check explicitly.
@@ -402,9 +402,15 @@ async def sale_create(
     # FastAPI). For " > MAX_QTY specifically, raise 422 in the route via
     # the same alias — but that's overcomplicated. Keep 400 for these.
     if qty > MAX_QTY:
-        raise HTTPException(status_code=422, detail=f"qty must be ≤ {MAX_QTY}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"cantidad no puede ser mayor a {MAX_QTY}",
+        )
     if discount_gs > MAX_DISCOUNT_GS:
-        raise HTTPException(status_code=422, detail=f"discount_gs must be ≤ {MAX_DISCOUNT_GS}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"descuento no puede ser mayor a {MAX_DISCOUNT_GS} Gs.",
+        )
 
     # Parse sold_at (defaults to now in Asunción TZ)
     sold_at_raw = sold_at.strip()
@@ -414,7 +420,9 @@ async def sale_create(
             naive = datetime.fromisoformat(sold_at_raw)
             sold_at_dt = naive.replace(tzinfo=ASUNCION_TZ).astimezone(ASUNCION_TZ)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=f"Fecha inválida: {sold_at_raw!r}") from e
+            raise HTTPException(
+                status_code=400, detail=f"Fecha inválida: {sold_at_raw!r}"
+            ) from e
     else:
         sold_at_dt = datetime.now(ASUNCION_TZ)
 
@@ -445,7 +453,7 @@ async def sale_create(
 
         if get_customer(session, customer_id) is None:
             raise HTTPException(
-                status_code=422, detail=f"customer_id {customer_id} not found"
+                status_code=400, detail=f"cliente {customer_id} no existe"
             )
 
     try:

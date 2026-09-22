@@ -37,7 +37,7 @@ def supplier_new(request: Request) -> HTMLResponse:
 @router.post("/nuevo")
 def supplier_create(
     request: Request,
-    name: str = Form(...),
+    name: str = Form(""),
     contact_name: str = Form(""),
     phone: str = Form(""),
     email: str = Form(""),
@@ -45,17 +45,32 @@ def supplier_create(
     notes: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
-    """Create a supplier."""
-    if not name.strip():
-        raise HTTPException(status_code=400, detail="Nombre es obligatorio")
+    """Create a supplier.
+
+    Centralized validation (app.rms.validation):
+      - name is required, max 120 chars
+      - phone must be digits (Paraguay format)
+      - email must be RFC-shaped
+      - notes/address/contact_name max 500 chars
+    """
+    from app.rms.validation import (
+        require_text, optional_text, validate_email, validate_phone,
+    )
+
+    name_clean = require_text(name, field="nombre", max_len=120)
+    contact_clean = optional_text(contact_name, max_len=120)
+    phone_clean = validate_phone(phone)
+    email_clean = validate_email(email)
+    address_clean = optional_text(address, max_len=200)
+    notes_clean = optional_text(notes, max_len=2000)
 
     supplier = Supplier(
-        name=name.strip(),
-        contact_name=contact_name.strip() or None,
-        phone=phone.strip() or None,
-        email=email.strip() or None,
-        address=address.strip() or None,
-        notes=notes.strip() or None,
+        name=name_clean,
+        contact_name=contact_clean,
+        phone=phone_clean,
+        email=email_clean,
+        address=address_clean,
+        notes=notes_clean,
     )
     session.add(supplier)
     session.commit()
@@ -75,7 +90,7 @@ def supplier_edit(s_id: int, request: Request, session: Session = Depends(get_se
 def supplier_update(
     s_id: int,
     request: Request,
-    name: str = Form(...),
+    name: str = Form(""),
     contact_name: str = Form(""),
     phone: str = Form(""),
     email: str = Form(""),
@@ -84,18 +99,20 @@ def supplier_update(
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Update a supplier."""
+    from app.rms.validation import (
+        require_text, optional_text, validate_email, validate_phone,
+    )
+
     supplier = session.get(Supplier, s_id)
     if supplier is None:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
-    if not name.strip():
-        raise HTTPException(status_code=400, detail="Nombre es obligatorio")
 
-    supplier.name = name.strip()
-    supplier.contact_name = contact_name.strip() or None
-    supplier.phone = phone.strip() or None
-    supplier.email = email.strip() or None
-    supplier.address = address.strip() or None
-    supplier.notes = notes.strip() or None
+    supplier.name = require_text(name, field="nombre", max_len=120)
+    supplier.contact_name = optional_text(contact_name, max_len=120)
+    supplier.phone = validate_phone(phone)
+    supplier.email = validate_email(email)
+    supplier.address = optional_text(address, max_len=200)
+    supplier.notes = optional_text(notes, max_len=2000)
     session.commit()
     return RedirectResponse(url="/suppliers", status_code=303)
 

@@ -298,10 +298,10 @@ def inventory_edit(
 def inventory_update(
     ing_id: int,
     request: Request,
-    name: str = Form(...),
-    unit: str = Form(...),
-    stock_qty: float = Form(0.0),
-    min_stock_qty: float = Form(0.0),
+    name: str = Form(""),
+    unit: str = Form(""),
+    stock_qty: str = Form("0"),
+    min_stock_qty: str = Form("0"),
     purchase_price_gs: str = Form(""),
     notes: str = Form(""),
     category: str = Form(""),
@@ -310,27 +310,45 @@ def inventory_update(
     reorder_point: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
-    """Update an existing ingredient."""
+    """Update an existing ingredient.
+
+    Centralized validation (app.rms.validation) replaces inline checks.
+    """
+    from app.rms.validation import (
+        require_text, parse_quantity, parse_money_gs, parse_unit,
+        parse_date_iso, optional_text,
+    )
+
     ing = session.get(Ingredient, ing_id)
     if ing is None:
         raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
 
-    try:
-        unit_enum = Unit.coerce(unit)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Unidad inválida: {e}") from e
+    name_clean = require_text(name, field="nombre", max_len=120)
+    unit_enum = parse_unit(unit)
+    stock = parse_quantity(stock_qty, field="stock", allow_zero=True)
+    min_stock = parse_quantity(min_stock_qty, field="stock mínimo", allow_zero=True)
+    price = parse_money_gs(purchase_price_gs, allow_zero=True)
 
-    price = _parse_price(purchase_price_gs)
-    ing.name = name.strip()
+    ing.name = name_clean
     ing.unit = unit_enum.value
-    ing.stock_qty = stock_qty
-    ing.min_stock_qty = min_stock_qty
+    ing.stock_qty = stock
+    ing.min_stock_qty = min_stock
     ing.purchase_price_gs = price
-    ing.notes = notes.strip() or None
-    ing.category = category.strip() or None
-    ing.opening_stock_qty = float(opening_stock_qty) if opening_stock_qty.strip() else None
-    ing.opening_stock_date = opening_stock_date.strip() or None
-    ing.reorder_point = float(reorder_point) if reorder_point.strip() else None
+    ing.notes = optional_text(notes, max_len=2000)
+    ing.category = optional_text(category, max_len=32)
+
+    # Opening stock — only update if both qty and date are provided
+    op_qty_raw = (opening_stock_qty or "").strip()
+    op_date_raw = (opening_stock_date or "").strip()
+    if op_qty_raw and op_date_raw:
+        ing.opening_stock_qty = parse_quantity(op_qty_raw, field="stock inicial")
+        ing.opening_stock_date = parse_date_iso(op_date_raw, field="fecha de stock inicial")
+    else:
+        ing.opening_stock_qty = None
+        ing.opening_stock_date = None
+
+    rp_raw = (reorder_point or "").strip()
+    ing.reorder_point = parse_quantity(rp_raw, field="punto de reorden", allow_zero=True) if rp_raw else None
 
     # Phase B — Q1 core: record a price event when the operator changes the
     # price. We always record when the new price is non-null — even if it
@@ -342,7 +360,7 @@ def inventory_update(
     except IntegrityError:
         session.rollback()
         raise HTTPException(
-            status_code=409, detail=f"Ya existe otro ingrediente con nombre {name!r}"
+            status_code=409, detail=f"Ya existe otro ingrediente con nombre {name_clean!r}"
         ) from None
 
     if should_record:
@@ -413,7 +431,13 @@ def inventory_adjust(
         raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
 
     if adjustment == 0:
-        return RedirectResponse(url="/inventario", status_code=303)
+        # Don't silently accept a no-op. Tell the operator what happened.
+        from urllib.parse import urlencode
+        params = urlencode({
+            "flash": "no_op:El ajuste fue 0 — no se modificó el stock.",
+            "ing_id": ing_id,
+        })
+        return RedirectResponse(url=f"/inventario?{params}", status_code=303)
 
     # Reject negative resulting stock without explicit confirmation
     if ing.stock_qty + adjustment < 0 and confirm_negative != "yes":

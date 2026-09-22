@@ -222,7 +222,7 @@ def test_create_pedido_with_two_lines(client, session_factory):
 
 
 def test_create_pedido_requires_at_least_one_line(client):
-    """POST with no line_product_id returns 422."""
+    """POST with no line_product_id returns 400 (BUG-00: Spanish, not 422)."""
     resp = client.post(
         "/pedidos/nuevo",
         data={
@@ -231,7 +231,7 @@ def test_create_pedido_requires_at_least_one_line(client):
         },
         follow_redirects=False,
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 400
 
 
 # --- fulfill ----------------------------------------------------------------
