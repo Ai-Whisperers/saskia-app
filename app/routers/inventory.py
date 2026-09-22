@@ -136,43 +136,6 @@ def inventory_list(
     )
 
 
-@router.get("/{ing_id}", response_class=HTMLResponse)
-def inventory_detail(
-    ing_id: int,
-    request: Request,
-    session: Session = Depends(get_session),
-) -> HTMLResponse:
-    """Show ingredient detail page with 'used in recipes' list."""
-    ing = session.get(Ingredient, ing_id)
-    if ing is None:
-        raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
-
-    # Find all recipes that use this ingredient
-    recipe_lines = session.scalars(
-        select(RecipeLine).where(
-            RecipeLine.line_kind == "ingredient",
-            RecipeLine.line_ref_id == ing_id,
-        )
-    ).all()
-
-    recipes = []
-    for line in recipe_lines:
-        recipe = session.get(Recipe, line.recipe_id)
-        if recipe:
-            recipes.append({
-                "id": recipe.id,
-                "name": recipe.name,
-                "qty": line.qty,
-                "line_unit": line.line_unit,
-            })
-
-    return render(
-        request,
-        "ingrediente_detalle.html",
-        {"ingredient": ing, "recipes": recipes},
-    )
-
-
 @router.get("/nuevo", response_class=HTMLResponse)
 def inventory_new(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     """Show the new-ingredient form."""
@@ -268,6 +231,43 @@ def inventory_create(
             )
 
     return RedirectResponse(url="/inventario", status_code=303)
+
+
+@router.get("/{ing_id}", response_class=HTMLResponse)
+def inventory_detail(
+    ing_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Show ingredient detail page with 'used in recipes' list."""
+    ing = session.get(Ingredient, ing_id)
+    if ing is None:
+        raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
+
+    # Find all recipes that use this ingredient
+    recipe_lines = session.scalars(
+        select(RecipeLine).where(
+            RecipeLine.line_kind == "ingredient",
+            RecipeLine.line_ref_id == ing_id,
+        )
+    ).all()
+
+    recipes = []
+    for line in recipe_lines:
+        recipe = session.get(Recipe, line.recipe_id)
+        if recipe:
+            recipes.append({
+                "id": recipe.id,
+                "name": recipe.name,
+                "qty": line.qty,
+                "line_unit": line.line_unit,
+            })
+
+    return render(
+        request,
+        "ingrediente_detalle.html",
+        {"ingredient": ing, "recipes": recipes},
+    )
 
 
 @router.get("/{ing_id}/editar", response_class=HTMLResponse)

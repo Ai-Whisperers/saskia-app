@@ -17,18 +17,14 @@ def test_healthz_payload_serializeable():
     assert "ok" in s
 
 
-def test_healthz_db_returns_schema_version_and_drift():
+def test_healthz_db_returns_schema_version_and_drift(client):
     """E3.S4: /healthz/db reports schema_version + migrations_pending + last_audit_at.
 
     Locks the contract documented in
     docs/operations/uptime-monitoring.md — UptimeRobot and operator dashboards
     depend on these fields to detect DB drift and write silence.
     """
-    from fastapi.testclient import TestClient
-
-    from app.rms.main import app
-    with TestClient(app) as c:
-        resp = c.get("/healthz/db")
+    resp = client.get("/healthz/db")
     assert resp.status_code == 200
     body = resp.json()
     assert body["db"] == "ok"

@@ -203,6 +203,8 @@ def reset_app_state():
         del app.state.engine
     if hasattr(app.state, "session_factory"):
         del app.state.session_factory
+    if hasattr(app.state, "ready"):
+        del app.state.ready
     yield
 
 

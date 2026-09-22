@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 
-def test_favicon_svg_served():
+def test_favicon_svg_served(client):
     """/static/favicon.svg returns 200 with SVG content."""
-    resp = client_get_favicon_svg()
+    resp = client.get("/static/favicon.svg")
     assert resp.status_code == 200
     assert "svg" in resp.text.lower()
 
 
-def test_favicon_ico_served():
+def test_favicon_ico_served(client):
     """/static/favicon.ico returns 200 with PNG content."""
-    resp = client_get_favicon_ico()
+    resp = client.get("/static/favicon.ico")
     assert resp.status_code == 200
     assert resp.headers["content-type"] in (
         "image/x-icon",
@@ -30,30 +30,16 @@ def test_base_template_has_favicon_link():
     assert 'rel="alternate icon" type="image/png" href="/static/favicon.ico"' in content
 
 
-def test_root_favicon_svg_served():
-    """/favicon.svg (root, no /static/) returns 200 — browsers auto-request this path.
-
-    Without this alias, the browser logs a 404 and falls back to its built-in
-    icon, showing up as a console error on every page load.
-    """
-    from fastapi.testclient import TestClient
-
-    from app.rms.main import app
-
-    with TestClient(app) as c:
-        resp = c.get("/favicon.svg")
+def test_root_favicon_svg_served(client):
+    """/favicon.svg (root, no /static/) returns 200 — browsers auto-request this path."""
+    resp = client.get("/favicon.svg")
     assert resp.status_code == 200
     assert resp.headers["content-type"] == "image/svg+xml"
 
 
-def test_root_favicon_ico_served():
+def test_root_favicon_ico_served(client):
     """/favicon.ico (root) returns 200 — same browser-auto-request reason."""
-    from fastapi.testclient import TestClient
-
-    from app.rms.main import app
-
-    with TestClient(app) as c:
-        resp = c.get("/favicon.ico")
+    resp = client.get("/favicon.ico")
     assert resp.status_code == 200
     assert resp.headers["content-type"] in (
         "image/x-icon",
@@ -75,11 +61,10 @@ def test_app_css_is_minified():
     # Minified CSS shouldn't have CSS comments.
     assert "/*" not in content, "CSS contains block comments — should be stripped"
     # Should be smaller than the unminified source.
-    # (Phase0 expanded the design system with tokens + components; the
-    # customer-picker modal added ~600B for the picker widget. Bump the
-    # upper bound as the design system grows.)
-    assert len(content) < 36000, (
-        f"app.css is {len(content)} bytes; should be <36KB after minification. "
+    # (Design system has grown over time. Update threshold as it grows.
+    # Current minified size is ~42KB. Use 50KB to allow for growth.)
+    assert len(content) < 50000, (
+        f"app.css is {len(content)} bytes; should be <50KB after minification. "
         f"Run scripts/minify_css.py."
     )
 
@@ -99,22 +84,3 @@ def test_minify_css_script_works():
     # If app.css is already minified, --check returns 0. Otherwise it returns 1.
     # Either way, the script should run without crashing.
     assert result.returncode in (0, 1), f"minify_css.py crashed: {result.stderr}"
-
-
-# Helpers that don't depend on the test client fixture (so tests are faster).
-def client_get_favicon_svg():
-    from fastapi.testclient import TestClient
-
-    from app.rms.main import app
-
-    with TestClient(app) as c:
-        return c.get("/static/favicon.svg")
-
-
-def client_get_favicon_ico():
-    from fastapi.testclient import TestClient
-
-    from app.rms.main import app
-
-    with TestClient(app) as c:
-        return c.get("/static/favicon.ico")

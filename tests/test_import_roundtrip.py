@@ -73,9 +73,29 @@ def test_export_produces_valid_workbook(session_factory, mini_xlsx_path: Path, t
         "Recetas",
         "Lineas",
         "Productos",
+        "Clientes",
         "Ventas",
         "StockMoves",
     }
+
+
+def test_export_creates_seven_sheets(tmp_path, session_factory, mini_xlsx_path: Path):
+    """After Clientes audit item shipped, exports have 7 sheets not 6."""
+    from app.services.export_xlsx import to_file
+
+    _seed(session_factory, mini_xlsx_path)
+
+    out_path = tmp_path / "exported7.xlsx"
+    with session_factory() as s:
+        to_file(s, out_path)
+
+    wb = load_workbook(str(out_path))
+    assert len(wb.sheetnames) == 7, (
+        f"Expected 7 sheets, got {len(wb.sheetnames)}: {wb.sheetnames}"
+    )
+    assert "Clientes" in wb.sheetnames, (
+        f"Clientes sheet missing. Got: {wb.sheetnames}"
+    )
 
 
 def test_export_roundtrip_row_counts(session_factory, mini_xlsx_path: Path, tmp_path: Path):
@@ -235,8 +255,8 @@ def test_import_skips_malformed_row_with_warning(session_factory, tmp_path: Path
     assert any("sin nombre" in w for w in result.warnings)
 
 
-def test_export_creates_six_sheets(session_factory, mini_xlsx_path: Path, tmp_path: Path):
-    """Export always has 6 sheets, even if some are empty."""
+def test_export_creates_seven_sheets_legacy(session_factory, mini_xlsx_path: Path, tmp_path: Path):
+    """Export always has 7 sheets (was 6 before Clientes audit item)."""
     from app.services.export_xlsx import to_file
 
     _seed(session_factory, mini_xlsx_path)
@@ -246,7 +266,9 @@ def test_export_creates_six_sheets(session_factory, mini_xlsx_path: Path, tmp_pa
         to_file(s, out)
 
     wb = load_workbook(str(out))
-    assert len(wb.sheetnames) == 6
+    assert len(wb.sheetnames) == 7, (
+        f"Expected 7 sheets, got {len(wb.sheetnames)}: {wb.sheetnames}"
+    )
 
 
 def test_import_lineas_use_polymorphic_kind(session_factory, mini_xlsx_path: Path):
