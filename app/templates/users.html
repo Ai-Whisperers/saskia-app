@@ -42,7 +42,7 @@
     {% for u in users %}
     <tr data-id="{{ u.id }}">
       <td>
-        <strong>{{ u.username }}</strong>
+        <strong data-copy="{{ u.id }}">{{ u.username }}</strong>
         {% if u.id == current_user_id %}
         <span class="badge badge-info" style="margin-left: 0.5rem;">Tú</span>
         {% endif %}
@@ -77,6 +77,11 @@
     {% endfor %}
   </tbody>
 </table>
+{% if users %}
+<div class="table-info">
+  <span>Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ total }}</strong> usuarios</span>
+</div>
+{% endif %}
 {% else %}
 <div class="empty-state">
   <svg class="icon" aria-hidden="true"><use href="#icon-users"/></svg>

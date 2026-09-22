@@ -58,6 +58,9 @@ def users_list(
     return render(request, "users.html", {
         "users": users,
         "current_user_id": current_user_id(request),
+        "total": len(users),
+        "page_start": 1,
+        "page_end": len(users),
     })
 
 
