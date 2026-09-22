@@ -165,11 +165,13 @@
     {% endif %}
     {% endfor %}
 
-    {# Duplicate button #}
-    <a href="/pedidos/{{ pedido.id }}/duplicate" class="btn btn-ghost">
-      <svg class="icon" aria-hidden="true"><use href="#icon-copy"/></svg>
-      Duplicar
-    </a>
+    {# Duplicate button — POST to avoid the GET-mutates-state antipattern #}
+    <form method="post" action="/pedidos/{{ pedido.id }}/duplicate" style="display:inline;">
+      <button type="submit" class="btn btn-ghost">
+        <svg class="icon" aria-hidden="true"><use href="#icon-copy"/></svg>
+        Duplicar
+      </button>
+    </form>
 
     {% if pedido.fulfilled_sale_id %}
     <a href="/ventas/{{ pedido.fulfilled_sale_id }}/recibo" class="btn btn-ghost" target="_blank" rel="noopener">

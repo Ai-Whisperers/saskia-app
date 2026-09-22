@@ -30,7 +30,7 @@
     <tbody>
       {% for item in items %}
       <tr>
-        <td><input type="checkbox" name="{{ item.key }}" {% if item.done %}checked{% endif %} aria-label="{{ item.label }}"></td>
+        <td><input type="checkbox" name="{{ item.key }}" {% if item.status.value == 'done' %}checked{% endif %} aria-label="{{ item.label }}"></td>
         <td>
           {{ item.label }}
           {% if item.help %}<br><small class="text-muted">{{ item.help }}</small>{% endif %}
@@ -40,6 +40,11 @@
     </tbody>
   </table>
   <p class="text-muted">El cierre se guarda cuando hacés click en "Marcar cierre del día".</p>
+  <div class="form-row">
+    <label for="notes_for_next">Notas para el turno siguiente</label>
+    <textarea id="notes_for_next" name="notes_for_next" rows="2" maxlength="2000"
+              placeholder="Ej: mañana llega pedido de harina; cliente X retira a las 10">{{ saved_notes or '' }}</textarea>
+  </div>
   <button type="submit" class="btn btn-primary">
     <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
     Guardar cierre

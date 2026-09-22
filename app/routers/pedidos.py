@@ -807,7 +807,8 @@ def pedidos_stock_preview(
 # --- Duplicate pedido ----------------------------------------------------------
 
 
-@router.get("/{pedido_id}/duplicate")
+@router.post("/{pedido_id}/duplicate")
+@router.get("/{pedido_id}/duplicate", deprecated=True)
 def pedidos_duplicate(
     request: Request,
     pedido_id: int = Path(...),
@@ -817,6 +818,9 @@ def pedidos_duplicate(
 
     The duplicated pedido is set to 'pending' with a fresh token so the
     customer can receive a new share link.
+
+    This is a state-mutating operation — POST is required. The GET route
+    is preserved as deprecated so any existing bookmarks don't 405.
     """
     original = session.get(
         Pedido, pedido_id, options=[selectinload(Pedido.lines)]
