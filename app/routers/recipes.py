@@ -9,9 +9,9 @@ only handles single values.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from sqlalchemy import func, or_, select
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -26,38 +26,6 @@ from app.rms.units import Unit
 from app.services.template_render import render
 
 router = APIRouter(prefix="/recetas", dependencies=[Depends(require_login)])
-
-
-@router.get("/api/search", response_class=JSONResponse)
-def recipes_api_search(
-    q: str = Query("", description="Search query"),
-    limit: int = Query(50, ge=1, le=200),
-    exclude_id: int | None = Query(None, description="Recipe to exclude (the one being edited)"),
-    session: Session = Depends(get_session),
-) -> JSONResponse:
-    """Search recipes by name for sub-recipe picker.
-
-    Used by /recetas/nueva + /recetas/{id}/editar line_target_id combobox
-    when line_kind = 'sub_recipe'. Optionally excludes the recipe being
-    edited to prevent circular sub-recipes.
-    """
-    stmt = select(Recipe)
-    if exclude_id is not None:
-        stmt = stmt.where(Recipe.id != exclude_id)
-    if q and q.strip():
-        like = f"%{q.strip().lower()}%"
-        stmt = stmt.where(func.lower(Recipe.name).like(like))
-    rows = session.scalars(stmt.order_by(Recipe.name).limit(limit)).all()
-    payload = [
-        {
-            "id": r.id,
-            "name": r.name,
-            "yield_qty": r.yield_qty,
-            "yield_unit": r.yield_unit,
-        }
-        for r in rows
-    ]
-    return JSONResponse({"results": payload, "count": len(payload)})
 
 
 def _decorate(session: Session, r: Recipe, batch: CostResult, unit: CostResult | None, line_count: int) -> dict:
@@ -168,6 +136,8 @@ async def recipes_list(
 
 @router.get("/nueva", response_class=HTMLResponse)
 async def recipe_new(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
+    ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
+    other_recipes = session.scalars(select(Recipe).order_by(Recipe.name)).all()
     return render(
         request,
         "receta_form.html",
@@ -177,8 +147,8 @@ async def recipe_new(request: Request, session: Session = Depends(get_session)) 
             "action": "Nueva",
             "lines": [],
             "units": [u.value for u in Unit],
-            "ingredients": [],  # legacy: was used by old <select> for line_target_id
-            "other_recipes": [],  # legacy: was used by old <select> for sub_recipes
+            "ingredients": ingredients,
+            "other_recipes": other_recipes,
         },
     )
 
@@ -314,23 +284,10 @@ async def recipe_edit(
     lines = session.scalars(
         select(RecipeLine).where(RecipeLine.recipe_id == r_id).order_by(RecipeLine.id)
     ).all()
-
-    # Resolve targets for display names (used by the combobox to pre-fill
-    # visible text after server-side render).
-    from app.rms.costing import resolve_line_target
-    decorated_lines = []
-    for ln in lines:
-        target = resolve_line_target(session, ln)
-        decorated_lines.append({
-            "line": ln,
-            "target": target,
-            "line_kind": ln.line_kind,
-            "line_ref_id": ln.line_ref_id,
-            "line_target_name": target.name if target else f"#{ln.line_ref_id}",
-            "qty": ln.qty,
-            "line_unit": ln.line_unit,
-            "notes": ln.notes,
-        })
+    ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
+    other_recipes = session.scalars(
+        select(Recipe).where(Recipe.id != r_id).order_by(Recipe.name)
+    ).all()
 
     # Cost breakdown for the recipe detail
     from app.rms.costing import recipe_batch_cost_gs, recipe_unit_cost_gs
@@ -356,10 +313,10 @@ async def recipe_edit(
             "mode": "edit",
             "recipe": r,
             "action": "Editar",
-            "lines": decorated_lines,
+            "lines": lines,
             "units": [u.value for u in Unit],
-            "ingredients": [],  # legacy: <select for ingredient combobox no longer used
-            "other_recipes": [],  # legacy: <select for sub-recipe combobox no longer used
+            "ingredients": ingredients,
+            "other_recipes": other_recipes,
             "batch_cost_gs": batch_cost.batch_cost_gs,
             "unit_cost_gs": unit_cost.batch_cost_gs if unit_cost else None,
             "products_using": [{"id": p.id, "name": p.name} for p in products_using],

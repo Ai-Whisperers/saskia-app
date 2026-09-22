@@ -45,24 +45,13 @@
   </div>
 
   <div class="form-row">
-    <label for="recipe_combo">Receta</label>
-    {# Combobox replaces 12+ recipe <select>. Empty recipe_id means
-       "sin receta" (sales aren't cost-decremented). #}
-    <div class="saskia-combo"
-         data-source="/recetas/api/search"
-         data-display="name"
-         data-value="id"
-         data-min-chars="1"
-         data-row-builder="recipeRowLabel">
-      <input type="text"
-             id="recipe_combo"
-             class="combo-input"
-             placeholder="Buscar receta…"
-             autocomplete="off">
-      <input type="hidden" id="recipe_id" name="recipe_id"
-             value="{{ product.recipe_id if product and product.recipe_id else '' }}">
-      <div class="combo-results" role="listbox" hidden></div>
-    </div>
+    <label for="recipe_id">Receta</label>
+    <select id="recipe_id" name="recipe_id">
+      <option value="">— Sin receta —</option>
+      {% for r in recipes %}
+      <option value="{{ r.id }}" {% if product and product.recipe_id == r.id %}selected{% endif %}>{{ r.name }}</option>
+      {% endfor %}
+    </select>
     <small class="muted">Sin receta: las ventas se registran pero no bajan stock ni calculan margen.</small>
   </div>
 
