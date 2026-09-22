@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Path, Query, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from starlette.responses import RedirectResponse as StarletteRedirectResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
@@ -29,6 +30,9 @@ from app.services.template_render import render
 router = APIRouter(prefix="/clientes", dependencies=[Depends(require_login)])
 
 
+PAGE_SIZE = 50
+
+
 @router.get("", response_class=HTMLResponse)
 def clientes_list(
     request: Request,
@@ -36,6 +40,7 @@ def clientes_list(
     tier: str | None = None,
     sort: str | None = Query(None, description="Sort column: name, phone, n_sales, lifetime_spend_gs, points, tier"),
     dir: str | None = Query("asc", pattern="^(asc|desc)$"),
+    page: int = Query(1, ge=1),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Customer directory with loyalty tiers + points + filters."""
@@ -72,6 +77,7 @@ def clientes_list(
                     "tier": stats.tier.value,
                     "tier_label": stats.tier.value.capitalize(),
                     "points": c.loyalty_points,
+                    "created_at": c.created_at,
                 })
     else:
         # No tier filter — search only.
@@ -99,6 +105,7 @@ def clientes_list(
                 "tier": stats.tier.value,
                 "tier_label": stats.tier.value.capitalize(),
                 "points": c.loyalty_points,
+                "created_at": c.created_at,
             })
 
     # Apply sorting
@@ -112,7 +119,15 @@ def clientes_list(
     if rows and col in rows[0]:
         rows.sort(key=lambda r: (r.get(col) or "" if isinstance(r.get(col), str) else r.get(col) or 0), reverse=reverse)
 
-    # --- CSV export ---
+    # Pagination
+    total = len(rows)
+    total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+    page = min(page, total_pages)
+    start = (page - 1) * PAGE_SIZE
+    end = start + PAGE_SIZE
+    page_rows = rows[start:end]
+
+    # --- CSV export (all rows, not just current page) ---
     if request.query_params.get("format") == "csv":
         export_rows = []
         for r in rows:
@@ -121,9 +136,10 @@ def clientes_list(
                 "n_sales": r["n_sales"], "lifetime_spend_gs": r["lifetime_spend_gs"],
                 "tier": r["tier"], "points": r["points"],
                 "last_sale_at": r["last_sale_at"].iso if r["last_sale_at"] else "",
+                "created_at": r["created_at"].iso if r["created_at"] else "",
             })
         buf = io.StringIO()
-        w = csv.DictWriter(buf, fieldnames=["id","name","phone","n_sales","lifetime_spend_gs","tier","points","last_sale_at"])
+        w = csv.DictWriter(buf, fieldnames=["id","name","phone","n_sales","lifetime_spend_gs","tier","points","last_sale_at","created_at"])
         w.writeheader()
         w.writerows(export_rows)
         return StreamingResponse(
@@ -133,12 +149,14 @@ def clientes_list(
         )
 
     return render(request, "clientes.html", {
-        "customers": rows,
+        "customers": page_rows,
         "q": q or "",
         "tier": tier or "",
         "tiers": ["bronze", "silver", "gold", "platinum"],
         "sort": sort or "",
         "dir": dir or "asc",
+        "page": page,
+        "total_pages": total_pages,
     })
 
 
@@ -287,7 +305,52 @@ def cliente_detail(
     })
 
 
-__all__ = ["router"]
+@router.get("/{customer_id}/editar", response_class=HTMLResponse)
+def cliente_edit(
+    request: Request,
+    customer_id: int = Path(...),
+    session: Session = Depends(get_session),
+):
+    """Edit form for an existing customer."""
+    customer = session.get(Customer, customer_id)
+    if customer is None:
+        return StarletteRedirectResponse(url="/clientes", status_code=303)
+    return render(request, "cliente_editar.html", {"customer": customer})
+
+
+@router.post("/{customer_id}/editar")
+def cliente_update(
+    request: Request,
+    customer_id: int = Path(...),
+    name: str = Form(""),
+    phone: str = Form(""),
+    email: str = Form(""),
+    cedula: str = Form(""),
+    notes: str = Form(""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Update an existing customer's fields."""
+    from app.rms.audit import record
+
+    customer = session.get(Customer, customer_id)
+    if customer is None:
+        return RedirectResponse(url="/clientes", status_code=303)
+    customer.name = name.strip() or "(sin nombre)"
+    customer.phone = phone.strip() or None
+    customer.email = email.strip() or None
+    customer.cedula = cedula.strip() or None
+    customer.notes = notes.strip() or None
+    session.commit()
+    record(
+        session,
+        user_id=None,
+        action="customer.updated",
+        target_type="customer",
+        target_id=str(customer_id),
+        detail={"name": customer.name},
+        request=request,
+    )
+    return RedirectResponse(url=f"/clientes/{customer_id}?flash=Cliente+actualizado", status_code=303)
 
 
 @router.post("/bulk-eliminar")
@@ -297,6 +360,8 @@ def clientes_bulk_delete(
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Delete multiple customers at once. Skips any with sales."""
+    from app.rms.audit import record
+
     deleted = 0
     skipped = 0
     for cid in ids.split(","):
@@ -309,14 +374,24 @@ def clientes_bulk_delete(
             continue
         if c is None:
             continue
-        # Check for sales
+        # Check for sales — use limit(1) for efficiency
         from app.rms.models import Sale
         has_sales = session.scalar(
-            select(Sale).where(Sale.customer_id == c.id).limit(1)
+            select(Sale.id).where(Sale.customer_id == c.id).limit(1)
         )
         if has_sales is not None:
             skipped += 1
             continue
+        # Log deletion before deleting
+        record(
+            session,
+            user_id=None,  # session-based auth; user_id not yet available
+            action="customer.deleted",
+            target_type="customer",
+            target_id=c.id,
+            detail={"name": c.name, "phone": c.phone},
+            request=request,
+        )
         session.delete(c)
         deleted += 1
 

@@ -11,6 +11,7 @@ Adds:
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -19,6 +20,8 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.rms.models import Customer, Sale
+
+logger = logging.getLogger(__name__)
 
 
 class LoyaltyTier(str, Enum):
@@ -99,6 +102,12 @@ def ensure_customer(
             select(Customer).where(Customer.phone == phone)
         ).scalar_one_or_none()
         if existing is not None:
+            # Warn if this is a duplicate-phone merge (two customers with same phone)
+            if name and name != existing.name:
+                logger.warning(
+                    "ensure_customer: duplicate phone merge — phone=%r existing_name=%r incoming_name=%r",
+                    phone, existing.name, name,
+                )
             # Update name/email/notes/cedula if newly provided
             if name and name != existing.name:
                 existing.name = name

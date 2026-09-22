@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% block title %}Editar {{ customer.name }} — Cliente{% endblock %}
+{% block content %}
+<nav class="breadcrumbs">
+  <a href="/clientes">Clientes</a> &rsaquo;
+  <a href="/clientes/{{ customer.id }}">{{ customer.name or customer.phone or customer.id }}</a> &rsaquo;
+  Editar
+</nav>
+
+<h1>Editar cliente</h1>
+
+<form method="post" action="/clientes/{{ customer.id }}/editar" class="card" style="max-width:560px;">
+  <div class="form-row is-required">
+    <label for="name">Nombre</label>
+    <input type="text" id="name" name="name" value="{{ customer.name or '' }}" required maxlength="120" autofocus>
+  </div>
+
+  <div class="form-row">
+    <label for="phone">Teléfono</label>
+    <input type="tel" id="phone" name="phone" value="{{ customer.phone or '' }}" maxlength="32">
+  </div>
+
+  <div class="form-row">
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email" value="{{ customer.email or '' }}" maxlength="120">
+  </div>
+
+  <div class="form-row">
+    <label for="cedula">CI / RUC</label>
+    <input type="text" id="cedula" name="cedula" value="{{ customer.cedula or '' }}" maxlength="32">
+  </div>
+
+  <div class="form-row">
+    <label for="notes">Notas</label>
+    <textarea id="notes" name="notes" rows="3" maxlength="2000">{{ customer.notes or '' }}</textarea>
+    <span class="form-help">Notas internas — no son visibles para el cliente.</span>
+  </div>
+
+  <div class="form-actions">
+    <a href="/clientes/{{ customer.id }}" class="btn btn-ghost">Cancelar</a>
+    <button type="submit" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+      Guardar cambios
+    </button>
+  </div>
+</form>
+{% endblock %}

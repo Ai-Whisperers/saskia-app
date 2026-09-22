@@ -6,11 +6,28 @@
   <a href="/clientes">Clientes</a> &rsaquo; {{ customer.name or customer.phone }}
 </nav>
 
-<h1>{{ customer.name or "(sin nombre)" }}</h1>
+{% if request.query_params.get('flash') %}
+<div class="alert alert-success" role="alert" aria-live="polite">
+  <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+  {{ request.query_params.get('flash') }}
+</div>
+{% endif %}
+
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem;">
+  <h1 style="margin-bottom:0;">{{ customer.name or "(sin nombre)" }}</h1>
+  <a href="/clientes/{{ customer.id }}/editar" class="btn btn-sm btn-secondary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+    Editar
+  </a>
+</div>
 
 <dl class="customer-meta">
   <dt>Teléfono</dt>
-  <dd>{{ customer.phone }}</dd>
+  <dd>{{ customer.phone or "—" }}</dd>
+  <dt>Email</dt>
+  <dd>{{ customer.email or "—" }}</dd>
+  <dt>CI / RUC</dt>
+  <dd>{{ customer.cedula or "—" }}</dd>
   <dt>Nivel</dt>
   <dd><span class="badge badge-tier-{{ stats.tier.value }}">{{ stats.tier.value.capitalize() }}</span></dd>
   <dt>Puntos acumulados</dt>
@@ -20,8 +37,54 @@
   <dt>Visitas</dt>
   <dd>{{ stats.n_sales }}</dd>
   <dt>Última compra</dt>
-  <dd>{{ stats.last_sale_at or "—" }}</dd>
+  <dd>{{ stats.last_sale_at.strftime("%d/%m/%Y") if stats.last_sale_at else "—" }}</dd>
+  <dt>Registrado</dt>
+  <dd>{{ customer.created_at.strftime("%d/%m/%Y") if customer.created_at else "—" }}</dd>
 </dl>
+
+{# Activity timeline #}
+<section style="margin-top:1.5rem;">
+  <h2>Actividad</h2>
+  <ul class="timeline" style="list-style:none;padding:0;margin:0;">
+    <li class="timeline-item">
+      <span class="timeline-marker" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-success);margin-right:.5rem;flex-shrink:0;"></span>
+      <span style="color:var(--color-text-muted);font-size:var(--text-xs);">
+        {{ customer.created_at.strftime("%d/%m/%Y %H:%M") if customer.created_at else "—" }}
+      </span>
+      <span>Cliente registrado</span>
+    </li>
+    {% if stats.last_sale_at %}
+    <li class="timeline-item">
+      <span class="timeline-marker" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-accent);margin-right:.5rem;flex-shrink:0;"></span>
+      <span style="color:var(--color-text-muted);font-size:var(--text-xs);">
+        {{ stats.last_sale_at.strftime("%d/%m/%Y %H:%M") }}
+      </span>
+      <span>Última compra — {{ m.gs_full(stats.lifetime_spend_gs) }} total lifetime</span>
+    </li>
+    {% endif %}
+    {% if customer.updated_at and customer.updated_at != customer.created_at %}
+    <li class="timeline-item">
+      <span class="timeline-marker" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-info);margin-right:.5rem;flex-shrink:0;"></span>
+      <span style="color:var(--color-text-muted);font-size:var(--text-xs);">
+        {{ customer.updated_at.strftime("%d/%m/%Y %H:%M") }}
+      </span>
+      <span>Última actualización</span>
+    </li>
+    {% endif %}
+  </ul>
+</section>
+
+{# Notes section #}
+<section style="margin-top:1.5rem;">
+  <h2>Notas</h2>
+  {% if customer.notes %}
+  <div class="card" style="background:var(--color-surface-subtle);">
+    <p style="margin:0;white-space:pre-wrap;">{{ customer.notes }}</p>
+  </div>
+  {% else %}
+  <p style="color:var(--color-text-muted);font-size:var(--text-sm);">Sin notas.</p>
+  {% endif %}
+</section>
 
 <h2>Historial de compras</h2>
 {% if history %}
