@@ -775,6 +775,24 @@ def _migration_021_stock_movement(conn):
     )
 
 
+def _migration_022_user_roles(conn):
+    """Add role column to User table for multi-user support.
+
+    role: VARCHAR(32) NOT NULL DEFAULT 'admin'. Values: admin, cashier, manager.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    col_type = "VARCHAR(32) NOT NULL DEFAULT 'admin'" if dialect == "postgresql" else "TEXT DEFAULT 'admin' NOT NULL"
+    try:
+        conn.execute(text(f"ALTER TABLE user ADD COLUMN role {col_type}"))
+    except Exception:
+        pass  # already exists
+
+    conn.execute(
+        text("UPDATE app_meta SET value = '22', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -797,6 +815,7 @@ MIGRATIONS = {
     19: _migration_019_production_completion,
     20: _migration_020_sale_date_voided_index,
     21: _migration_021_stock_movement,
+    22: _migration_022_user_roles,
 }
 
 
