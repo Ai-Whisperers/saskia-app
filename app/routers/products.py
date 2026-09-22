@@ -82,6 +82,10 @@ def products_list(
         session.scalars(select(Sale.product_id).distinct()).all()
     )
 
+    # Apply pagination
+    offset = (page - 1) * PER_PAGE
+    stmt = stmt.offset(offset).limit(PER_PAGE)
+
     products = session.scalars(stmt).all()
     # One batch call replaces N+1 cost/margin queries (Neon round-trips).
     batch_results = batch_products_cost_margin(session, list(products))
