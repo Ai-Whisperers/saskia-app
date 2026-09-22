@@ -20,6 +20,7 @@ from typing import Optional
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -182,6 +183,10 @@ class Product(Base):
     recipe_id: Mapped[Optional[int]] = mapped_column(ForeignKey("recipe.id"), nullable=True, index=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     sku: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, unique=True, index=True)  # E23.S1 barcode
+    is_available: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)  # Toggle to hide from POS
+    image_url: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)  # Product image URL
+    category: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # Product category
+    tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Comma-separated tags
 
     # Relationships
     recipe: Mapped[Optional["Recipe"]] = relationship(back_populates="products")
@@ -293,6 +298,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str] = mapped_column(String(32), nullable=False, default="admin")  # admin, cashier, manager
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
     created_at: Mapped[str] = mapped_column(Text, nullable=False)
     last_login_at: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

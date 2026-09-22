@@ -219,6 +219,7 @@ class DailySummary:
     iva_gs: int
     cogs_gs: int  # Cost of goods sold (recipe cost x qty)
     margin_gs: int
+    expenses_gs: int = 0  # Operational expenses for the day
 
 
 def daily_summary(
@@ -269,6 +270,7 @@ def daily_summary(
         iva_gs=iva.iva_gs,
         cogs_gs=int(cogs),
         margin_gs=iva.gross_gs - int(cogs),
+        expenses_gs=0,  # TODO: wire Expense model when added
     )
 
 
@@ -367,6 +369,156 @@ def product_margin_summary(
     return out
 
 
+def cross_period_comparison(
+    session: Session,
+    period1_start: datetime,
+    period1_end: datetime,
+    period2_start: datetime,
+    period2_end: datetime,
+) -> dict:
+    """Compare sales between two periods (this month vs last month)."""
+    def _period_summary(s_start, s_end):
+        sales = list(session.execute(
+            select(Sale).where(
+                Sale.sold_at >= s_start,
+                Sale.sold_at < s_end,
+                Sale.voided_at.is_(None),
+            )
+        ).scalars())
+        revenue = sum(int(round(s.qty * s.unit_price_gs)) for s in sales)
+        iva = extract_iva(revenue)
+        cogs = session.execute(
+            select(func.coalesce(func.sum(func.abs(SaleStockMove.qty_delta) * Ingredient.purchase_price_gs), 0))
+            .select_from(SaleStockMove)
+            .join(Sale, Sale.id == SaleStockMove.sale_id)
+            .join(Ingredient, Ingredient.id == SaleStockMove.ingredient_id)
+            .where(Sale.sold_at >= s_start, Sale.sold_at < s_end, Sale.voided_at.is_(None))
+        ).scalar() or 0
+        return {
+            "n_sales": len(sales),
+            "revenue_gs": iva.gross_gs,
+            "iva_gs": iva.iva_gs,
+            "cogs_gs": int(cogs),
+            "margin_gs": iva.gross_gs - int(cogs),
+        }
+
+    p1 = _period_summary(period1_start, period1_end)
+    p2 = _period_summary(period2_start, period2_end)
+
+    def _diff(current, prior):
+        if prior == 0:
+            return None
+        return ((current - prior) / prior) * 100
+
+    return {
+        "period1": {**p1, "start": period1_start, "end": period1_end},
+        "period2": {**p2, "start": period2_start, "end": period2_end},
+        "revenue_change_pct": _diff(p1["revenue_gs"], p2["revenue_gs"]),
+        "sales_count_change_pct": _diff(p1["n_sales"], p2["n_sales"]),
+        "margin_change_pct": _diff(p1["margin_gs"], p2["margin_gs"]),
+    }
+
+
+def top_products_report(
+    session: Session,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+    limit: int = 20,
+) -> list[dict]:
+    """Top products by revenue in a date range."""
+    if end_date is None:
+        end_date = datetime.now(timezone.utc)
+    if start_date is None:
+        start_date = end_date - timedelta(days=30)
+
+    sales = list(session.execute(
+        select(Sale).where(
+            Sale.sold_at >= start_date,
+            Sale.sold_at <= end_date,
+            Sale.voided_at.is_(None),
+        )
+    ).scalars())
+
+    by_product: dict[int, dict] = {}
+    for s in sales:
+        d = by_product.setdefault(s.product_id, {"product_id": s.product_id, "n_sold": 0, "revenue_gs": 0})
+        d["n_sold"] += 1
+        d["revenue_gs"] += int(round(s.qty * s.unit_price_gs))
+
+    prod_ids = list(by_product.keys())
+    prods = {p.id: p for p in session.execute(select(Product).where(Product.id.in_(prod_ids))).scalars()}
+    rows = []
+    for pid, d in by_product.items():
+        prod = prods.get(pid)
+        rows.append({
+            "product_id": pid,
+            "product_name": prod.name if prod else f"#{pid}",
+            "n_sold": d["n_sold"],
+            "revenue_gs": d["revenue_gs"],
+        })
+    rows.sort(key=lambda r: r["revenue_gs"], reverse=True)
+    return rows[:limit]
+
+
+def average_order_value(
+    session: Session,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> float:
+    """Average order value (revenue per sale)."""
+    if end_date is None:
+        end_date = datetime.now(timezone.utc)
+    if start_date is None:
+        start_date = end_date - timedelta(days=30)
+
+    sales = list(session.execute(
+        select(Sale).where(
+            Sale.sold_at >= start_date,
+            Sale.sold_at <= end_date,
+            Sale.voided_at.is_(None),
+        )
+    ).scalars())
+    if not sales:
+        return 0.0
+    total = sum(int(round(s.qty * s.unit_price_gs)) for s in sales)
+    return total / len(sales)
+
+
+def sales_by_payment_method(
+    session: Session,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> dict[str, dict]:
+    """Breakdown of sales by payment method."""
+    if end_date is None:
+        end_date = datetime.now(timezone.utc)
+    if start_date is None:
+        start_date = end_date - timedelta(days=30)
+
+    rows = session.execute(
+        select(
+            Sale.payment_method,
+            func.count(Sale.id).label("n_sales"),
+            func.sum(Sale.qty * Sale.unit_price_gs).label("total_gs"),
+        )
+        .where(
+            Sale.sold_at >= start_date,
+            Sale.sold_at <= end_date,
+            Sale.voided_at.is_(None),
+        )
+        .group_by(Sale.payment_method)
+    ).all()
+
+    result = {}
+    for payment_method, n_sales, total_gs in rows:
+        key = payment_method or "SIN METODO"
+        result[key] = {
+            "n_sales": n_sales,
+            "total_gs": int(total_gs or 0),
+        }
+    return result
+
+
 __all__ = [
     "PARAGUAY_IVA_RATE",
     "IVA_DIVISOR",
@@ -380,4 +532,8 @@ __all__ = [
     "libro_ventas",
     "daily_summary",
     "product_margin_summary",
+    "cross_period_comparison",
+    "top_products_report",
+    "average_order_value",
+    "sales_by_payment_method",
 ]
