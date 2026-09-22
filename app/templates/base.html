@@ -72,19 +72,18 @@
       <div class="menu-panel" id="nav-menu-panel" role="menu" aria-label="Secciones">
         <div class="menu-section">Día a día</div>
         {{ m.nav_link("/", "Inicio", icon="icon-home", exact=True, current_path=request.url.path) }}
+        {{ m.nav_link("/productos", "Productos", icon="icon-box", current_path=request.url.path) }}
+        {{ m.nav_link("/recetas", "Recetas", icon="icon-recipe", current_path=request.url.path) }}
+        {{ m.nav_link("/inventario", "Inventario", icon="icon-inventory", current_path=request.url.path) }}
         {{ m.nav_link("/ventas", "Ventas", icon="icon-sale", current_path=request.url.path) }}
+        {{ m.nav_link("/produccion", "Producción", icon="icon-production", current_path=request.url.path) }}
+        {{ m.nav_link("/eod", "Cierre del día", icon="icon-close", current_path=request.url.path) }}
+        <div class="menu-section">Más</div>
         {{ m.nav_link("/pedidos", "Pedidos", icon="icon-box", current_path=request.url.path) }}
         {{ m.nav_link("/clientes", "Clientes", icon="icon-customer", current_path=request.url.path) }}
-        <div class="menu-section">Producción</div>
-        {{ m.nav_link("/produccion", "Producción", icon="icon-production", current_path=request.url.path) }}
-        {{ m.nav_link("/recetas", "Recetas", icon="icon-recipe", current_path=request.url.path) }}
-        {{ m.nav_link("/productos", "Productos", icon="icon-box", current_path=request.url.path) }}
-        {{ m.nav_link("/inventario", "Inventario", icon="icon-inventory", current_path=request.url.path) }}
         {{ m.nav_link("/reorder", "Reponer", icon="icon-reorder", current_path=request.url.path) }}
         {{ m.nav_link("/suppliers", "Proveedores", icon="icon-supplier", current_path=request.url.path) }}
-        <div class="menu-section">Gestión</div>
         {{ m.nav_link("/reportes", "Reportes", icon="icon-report", current_path=request.url.path) }}
-        {{ m.nav_link("/eod", "Cierre del día", icon="icon-close", current_path=request.url.path) }}
         {{ m.nav_link("/merma", "Merma", icon="icon-waste", current_path=request.url.path) }}
         <div class="menu-section">Sistema</div>
         {{ m.nav_link("/excel", "Excel", icon="icon-excel", current_path=request.url.path) }}
