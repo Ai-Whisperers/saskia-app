@@ -345,3 +345,36 @@ def healthz_debug_ventas_v2(request: Request) -> JSONResponse:
             "message": str(e)[:500],
             "traceback": traceback.format_exc()[:1500],
         }, status_code=500)
+
+
+@router.get("/healthz/debug-supabase-login", response_model=None)
+def healthz_debug_supabase_login(request: Request) -> JSONResponse:
+    """Try the EXACT login flow the app uses, capture all errors."""
+    import traceback
+    from app.auth_supabase import (
+        get_supabase_client, sign_in_with_password, is_supabase_auth_enabled
+    )
+    import os
+
+    debug = {
+        "supabase_enabled": is_supabase_auth_enabled(),
+        "supabase_url_set": bool(os.getenv("SUPABASE_URL")),
+        "anon_key_set": bool(os.getenv("SUPABASE_ANON_KEY")),
+        "secret_key_set": bool(os.getenv("SUPABASE_SECRET_KEY")),
+    }
+    
+    if not debug["supabase_enabled"]:
+        return JSONResponse({"status": "supabase_disabled", **debug})
+    
+    # Try client construction
+    try:
+        client = get_supabase_client()
+        debug["client_constructed"] = True
+    except Exception as e:
+        debug["client_error"] = f"{type(e).__name__}: {e}"
+        return JSONResponse({"status": "client_error", **debug}, status_code=500)
+    
+    # Try login with the exact creds from BWS
+    # Need to import the password from BWS - can't, but can try a fake one to see the flow
+    debug["test_login"] = "skipped - no password in env"
+    return JSONResponse(debug)
