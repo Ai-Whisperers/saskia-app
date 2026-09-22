@@ -12,6 +12,7 @@ Adds:
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
@@ -133,6 +134,11 @@ def plan_production(
             )
             qty = base * seasonal_multiplier
             source = "rolling_14d_avg"
+        # PRO-02: a bakery cannot bake 0.1 of a muffin. Round the suggested
+        # forecast UP to a whole piece. Manual overrides are kept as typed
+        # (operator-entered) and only auto-suggestions are rounded.
+        if source != "manual" and qty > 0:
+            qty = math.ceil(qty)
         if qty > 0:
             rows.append(
                 ProductionRow(

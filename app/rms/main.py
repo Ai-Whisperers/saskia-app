@@ -385,8 +385,17 @@ app.include_router(produccion.router)
 app.include_router(eod.router)
 app.include_router(merma.router)
 app.include_router(reportes.router)
-app.include_router(auditoria.router)
-app.include_router(ops.router)
+# NAV-02: Auditoría and Ops are internal-only. The product surface does
+# not include them (Saskia does not run audits). In production they
+# 404; in tests / dev they are still mounted so the test suite can
+# exercise them.
+#
+# Default behaviour (no env var): NOT mounted (production).
+# Set AIW_SASKIA_INTERNAL_ROUTES=1 to mount (tests, internal admin).
+# This env var must be set BEFORE app.rms.main is imported.
+if os.getenv("AIW_SASKIA_INTERNAL_ROUTES") == "1":
+    app.include_router(auditoria.router)
+    app.include_router(ops.router)
 app.include_router(settings.router)
 app.include_router(users.router)
 app.include_router(reorder.router)

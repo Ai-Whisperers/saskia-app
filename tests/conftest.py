@@ -9,6 +9,15 @@ forces every test to use a temp directory.
 
 from __future__ import annotations
 
+import os as _os
+
+# Mount internal routes (Auditoría, Ops) BEFORE app.rms.main is imported.
+# NAV-02: these routes are internal-only and gated off in production.
+# This MUST be set before the app is constructed (router include happens
+# at module import time in main.py).
+_os.environ.setdefault("AIW_SASKIA_INTERNAL_ROUTES", "1")
+_os.environ.setdefault("SASKIA_TEST_AUTH_DISABLED", "1")
+
 # Suppress "unclosed database" ResourceWarnings during tests.
 # SQLAlchemy sessions created via `s = session_factory()` (without context
 # manager) leak connections when the Session object is GC'd at test end.
@@ -240,8 +249,8 @@ def client(session_factory, monkeypatch):
         return test_engine
 
     monkeypatch.setattr(main_module, "make_engine_dialect", _make_engine_for_test)
-    # Bypass auth gate for non-auth tests
-    monkeypatch.setenv("SASKIA_TEST_AUTH_DISABLED", "1")
+    # Env vars are set in conftest.py top-level (before app.rms.main import)
+    # because router mounting happens at import time, not request time.
 
     from fastapi.testclient import TestClient
 

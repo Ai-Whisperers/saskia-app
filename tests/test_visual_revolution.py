@@ -175,37 +175,25 @@ def test_icon_sprite_exists():
     assert len(symbols) >= 20, f"Only {len(symbols)} icons defined; need >=20"
 
 
-def test_icon_sprite_included_in_base():
+def test_icon_sprite_included_in_base(client):
     """Every page must include the icon sprite so <use href> resolves."""
-    from starlette.testclient import TestClient
-
-    from app.rms.main import app
-
-    client = TestClient(app)
     for path in ["/login", "/"]:
         resp = client.get(path, headers={"Accept": "text/html"})
+        assert resp.status_code == 200, f"{path} returned {resp.status_code}"
         assert 'id="icon-home"' in resp.text, f"{path} missing icon sprite"
 
 
-def test_nav_links_have_icons():
+def test_nav_links_have_icons(client):
     """Every nav link should have an icon (Phase 2 deliverable)."""
-    from starlette.testclient import TestClient
-
-    from app.rms.main import app
-
-    client = TestClient(app)
     resp = client.get("/login", headers={"Accept": "text/html"})
+    assert resp.status_code == 200
     assert 'href="#icon-home"' in resp.text or 'href="#icon-heart"' in resp.text
 
 
-def test_icon_only_buttons_have_aria_label():
+def test_icon_only_buttons_have_aria_label(client):
     """Every icon-only button in nav-right must have an accessible name."""
-    from starlette.testclient import TestClient
-
-    from app.rms.main import app
-
-    client = TestClient(app)
     resp = client.get("/login", headers={"Accept": "text/html"})
+    assert resp.status_code == 200
     for label in [
         "Cambiar tema claro/oscuro",
         "Guía de uso",

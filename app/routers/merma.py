@@ -80,9 +80,14 @@ def merma_list(
             Sale.sold_at >= start_date, Sale.voided_at.is_(None)
         )
     ).scalar() or 0
-    pct = waste_as_pct_of_revenue(
-        session, start_date=start_date, end_date=end_date, revenue_gs=int(rev_total)
-    )
+    # pct is None when there is no revenue in the window, so the template
+    # can show the "no hay ventas todavía" copy from MER-03.
+    if rev_total > 0:
+        pct = waste_as_pct_of_revenue(
+            session, start_date=start_date, end_date=end_date, revenue_gs=int(rev_total)
+        )
+    else:
+        pct = None
     # List of ingredients for the form dropdown
     ingredients = list(session.scalars(select(Ingredient).order_by(Ingredient.name)).all())
     # Recipes with a yield_qty for the whole-batch waste form (T6)

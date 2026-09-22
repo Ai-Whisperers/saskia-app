@@ -28,7 +28,11 @@
   </form>
 </div>
 
-<p class="text-muted">Registrá toda merma para mantener el food cost bajo control. Benchmark: &lt; 5% es saludable.</p>
+<p class="text-muted">
+  Anotá lo que tiraste: un ingrediente vencido, o una bandeja entera.
+  <strong>Ejemplo:</strong> se vencieron 200 g de crema — elegí el ingrediente, poné <code>200</code>, motivo <em>vencida</em>.
+  Si tiraste una bandeja entera de muffins, usá el bloque <em>Merma de receta completa</em> abajo.
+</p>
 
 <section class="card">
   <div class="card-header">
@@ -125,8 +129,12 @@
   <div class="card-header">
     <h2>Resumen {% if days == 7 %}últimos 7 días{% elif days == 90 %}últimos 90 días{% else %}últimos 30 días{% endif %}</h2>
     <div>
-      <span class="badge {{ 'badge-ok' if pct < 3 else 'badge-warn' if pct < 5 else 'badge-danger' }}">
-        {{ "%.1f"|format(pct) }}% de ingresos
+      <span class="badge {{ 'badge-ok' if pct is none else ('badge-ok' if pct < 3 else 'badge-warn' if pct < 5 else 'badge-danger') }}">
+        {% if pct is none %}
+          Todavía no hay ventas para comparar
+        {% else %}
+          Esto es el {{ "%.1f"|format(pct) }}% de lo que vendiste en {{ days }} días
+        {% endif %}
       </span>
     </div>
   </div>

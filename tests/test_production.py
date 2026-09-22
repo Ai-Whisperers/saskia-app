@@ -126,9 +126,10 @@ def test_plan_production_computes_lines_from_recipes(session_factory):
 
         plan = plan_production(s, for_date=date(2026, 6, 1))  # no event
         assert len(plan.rows) == 1
-        # qty_to_produce = forecast (5/14 ≈ 0.36)
-        assert 0 < plan.rows[0].qty_to_produce < 1
-        # Ingredient requirement: forecast_qty * 0.3 kg/muffin
+        # PRO-02 fix: forecast_sales returns ~0.36 muffins, but we round UP
+        # to a whole piece before display (a bakery cannot bake 0.1 of a muffin).
+        assert plan.rows[0].qty_to_produce == 1
+        # Ingredient requirement: forecast_qty * 0.3 kg/muffin (uses pre-rounding qty)
         assert len(plan.lines) == 1
         assert plan.lines[0].ingredient_name == "harina"
         assert plan.lines[0].unit == "kg"
@@ -139,7 +140,7 @@ def test_plan_production_computes_lines_from_recipes(session_factory):
 
 
 def test_plan_production_with_seasonal_multiplier(session_factory):
-    """Multiplicador 2x duplica el forecast."""
+    """Multiplicador 2x duplica el forecast (PRO-02: both round UP to integer)."""
     s = session_factory()
     try:
         prod = Product(name="Torta", sale_price_gs=25000, recipe_id=None)
@@ -155,16 +156,39 @@ def test_plan_production_with_seasonal_multiplier(session_factory):
             ))
         s.commit()
 
-        # Without seasonal (1.0)
+        # Without seasonal (1.0): forecast = 7/14 = 0.5, rounds UP to 1
         plan_normal = plan_production(
             s, for_date=date(2026, 1, 1), seasonal_multiplier=1.0
         )
-        # With 2x seasonal (e.g. Día de la Madre)
+        # With 2x seasonal: forecast = 1.0, rounds UP to 1
         plan_double = plan_production(
             s, for_date=date(2026, 1, 1), seasonal_multiplier=2.0
         )
-        assert plan_double.rows[0].qty_to_produce > plan_normal.rows[0].qty_to_produce
-        assert abs(plan_double.rows[0].qty_to_produce - 2 * plan_normal.rows[0].qty_to_produce) < 0.01
+        # PRO-02: both are now whole integers. Before the ceiling rule
+        # these would have been 0.5 and 1.0 (asserting 0.5 < 1.0).
+        assert plan_normal.rows[0].qty_to_produce == 1
+        assert plan_double.rows[0].qty_to_produce == 1
+
+        # Use a scenario where the multiplier DOES bump the count:
+        # 11 sales over 14d = 0.79, with 2x = 1.57 -> rounds up to 2.
+        prod2 = Product(name="Torta grande", sale_price_gs=50000, recipe_id=None)
+        s.add(prod2)
+        s.flush()
+        for i in range(11):
+            s.add(Sale(
+                sold_at=now - timedelta(days=i % 14),
+                product_id=prod2.id,
+                qty=1,
+                unit_price_gs=50000,
+            ))
+        s.commit()
+        plan2_normal = plan_production(s, for_date=date(2026, 1, 1), seasonal_multiplier=1.0)
+        plan2_double = plan_production(s, for_date=date(2026, 1, 1), seasonal_multiplier=2.0)
+        # Find the Torta grande row (rows[0] is "Torta" because of insertion order)
+        tgrande_normal = next(r for r in plan2_normal.rows if r.product_name == "Torta grande")
+        tgrande_double = next(r for r in plan2_double.rows if r.product_name == "Torta grande")
+        assert tgrande_normal.qty_to_produce == 1
+        assert tgrande_double.qty_to_produce == 2
     finally:
         s.close()
 
