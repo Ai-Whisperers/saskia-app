@@ -74,6 +74,20 @@
   };
 
   /**
+   * Product row: name + price
+   */
+  window.productRowLabel = function (item, isCreateOption) {
+    var label = item.name || "Producto sin nombre";
+    if (item.sale_price_gs) {
+      label += " - " + escapeHtml(window.saskia_gs(item.sale_price_gs));
+    }
+    if (isCreateOption) {
+      return '<div class="combo-row combo-row-create">+ Crear: ' + label + '</div>';
+    }
+    return '<div class="combo-row">' + label + '</div>';
+  };
+  
+  /**
    * Recipe row: name + yield + cost
    */
   window.recipeRowLabel = function (item) {

@@ -73,19 +73,39 @@
   <div class="grid grid-2">
     <div class="form-row">
       <label for="channel">Canal</label>
-      <select id="channel" name="channel">
-        {% for ch in channels %}
-        <option value="{{ ch }}" {% if ch == "whatsapp" %}selected{% endif %}>{{ ch | capitalize }}</option>
-        {% endfor %}
-      </select>
+      <div class="saskia-combo" 
+           data-source="data:application/json,[{% for ch in channels %}{'name': '{{ ch | capitalize }}'}{% if not loop.last %},{% endif %}{% endfor %}]"
+           data-display="name"
+           data-value="name"
+           data-min-chars="0"
+           data-allow-freeform="false">
+        <input type="text"
+               id="channel"
+               class="combo-input"
+               name="channel"
+               placeholder="Seleccioná canal..."
+               autocomplete="off">
+        <input type="hidden" name="channel" value="">
+        <div class="combo-results" role="listbox" aria-label="Canales" hidden></div>
+      </div>
     </div>
     <div class="form-row">
       <label for="payment_intent">Forma de pago esperada</label>
-      <select id="payment_intent" name="payment_intent">
-        {% for pm in payment_methods %}
-        <option value="{{ pm }}" {% if pm == "efectivo" %}selected{% endif %}>{{ pm | capitalize }}</option>
-        {% endfor %}
-      </select>
+      <div class="saskia-combo" 
+           data-source="data:application/json,[{% for pm in payment_methods %}{'name': '{{ pm | capitalize }}'}{% if not loop.last %},{% endif %}{% endfor %}]"
+           data-display="name"
+           data-value="name"
+           data-min-chars="0"
+           data-allow-freeform="false">
+        <input type="text"
+               id="payment_intent"
+               class="combo-input"
+               name="payment_intent"
+               placeholder="Seleccioná forma de pago..."
+               autocomplete="off">
+        <input type="hidden" name="payment_intent" value="">
+        <div class="combo-results" role="listbox" aria-label="Formas de pago" hidden></div>
+      </div>
     </div>
   </div>
 

@@ -65,12 +65,22 @@
 
   <div class="form-row">
     <label for="product_id">Producto</label>
-    <select id="product_id" name="product_id" required>
-      <option value="">— Seleccionar producto —</option>
-      {% for p in products %}
-      <option value="{{ p.id }}" data-sku="{{ p.sku or '' }}" data-price="{{ p.sale_price_gs }}">{{ p.name }} ({{ m.gs(p.sale_price_gs) }})</option>
-      {% endfor %}
-    </select>
+    <div class="saskia-combo" 
+         data-source="/productos/api/search"
+         data-display="name"
+         data-value="id"
+         data-min-chars="0"
+         data-row-builder="productRowLabel">
+      <input type="text"
+             id="product_id"
+             class="combo-input"
+             name="product_name"
+             placeholder="Buscá producto..."
+             autocomplete="off">
+      <input type="hidden" name="product_id" value="">
+      <div class="combo-results" role="listbox" aria-label="Productos" hidden></div>
+    </div>
+    <small>Escaneá SKU o tipeá el nombre del producto</small>
   </div>
 
   <div class="form-row">
@@ -89,22 +99,41 @@
 
   <div class="form-row">
     <label for="channel">Canal de venta</label>
-    <select id="channel" name="channel">
-      {% for c in channels %}
-      <option value="{{ c }}" {% if c == channel_default %}selected{% endif %}>{{ c | replace('-', ' / ') | replace('_', ' ') }}</option>
-      {% endfor %}
-    </select>
+    <div class="saskia-combo" 
+         data-source="data:application/json,[{% for c in channels %}{'name': '{{ c }}'}{% if not loop.last %},{% endif %}{% endfor %}]"
+         data-display="name"
+         data-value="name"
+         data-min-chars="0"
+         data-allow-freeform="false">
+      <input type="text"
+             id="channel"
+             class="combo-input"
+             name="channel"
+             placeholder="Seleccioná canal..."
+             autocomplete="off">
+      <input type="hidden" name="channel" value="">
+      <div class="combo-results" role="listbox" aria-label="Canales de venta" hidden></div>
+    </div>
     <small>Mostrador = venta en el local; los otros son canales digitales o encargos.</small>
   </div>
 
   <div class="form-row">
     <label for="payment_method">Forma de pago</label>
-    <select id="payment_method" name="payment_method">
-      <option value="">— Sin especificar —</option>
-      {% for pm in payment_methods %}
-      <option value="{{ pm }}" {% if pm == payment_method_default %}selected{% endif %}>{{ pm | capitalize }}</option>
-      {% endfor %}
-    </select>
+    <div class="saskia-combo" 
+         data-source="data:application/json,[{% for pm in payment_methods %}{'name': '{{ pm }}'}{% if not loop.last %},{% endif %}{% endfor %}]"
+         data-display="name"
+         data-value="name"
+         data-min-chars="0"
+         data-allow-freeform="false">
+      <input type="text"
+             id="payment_method"
+             class="combo-input"
+             name="payment_method"
+             placeholder="Seleccioná forma de pago..."
+             autocomplete="off">
+      <input type="hidden" name="payment_method" value="">
+      <div class="combo-results" role="listbox" aria-label="Formas de pago" hidden></div>
+    </div>
     <small>Si pagaron por transferencia/QR, pegá el alias o ID de transacción en notas.</small>
   </div>
 
@@ -161,27 +190,48 @@
   </p>
 </div>
 
-<form method="get" action="/ventas" class="form form-row" aria-label="Filtrar historial de ventas">
+<div class="form-row">
   <label for="sales-search" class="sr-only">Buscar producto, nota o teléfono</label>
   <input type="search" id="sales-search" name="q" value="{{ request.query_params.get('q','') }}" placeholder="Buscar producto, nota o teléfono" aria-label="Buscar producto, nota o teléfono">
-  <select name="product_id">
-    <option value="">— Todos los productos —</option>
-    {% for p in products %}
-    <option value="{{ p.id }}" {% if request.query_params.get('product_id')|int == p.id %}selected{% endif %}>{{ p.name }}</option>
-    {% endfor %}
-  </select>
-  <select name="days">
-    <option value="">— Todo el historial —</option>
-    <option value="7" {% if request.query_params.get('days') == '7' %}selected{% endif %}>Últimos 7 días</option>
-    <option value="30" {% if request.query_params.get('days') == '30' %}selected{% endif %}>Últimos 30 días</option>
-    <option value="90" {% if request.query_params.get('days') == '90' %}selected{% endif %}>Últimos 90 días</option>
-  </select>
+  <div class="saskia-combo" 
+       data-source="data:application/json,[{'name': 'Todos los productos', 'id': ''}{% for p in products %},{'name': '{{ p.name }}', 'id': {{ p.id }}}{% if not loop.last %},{% endif %}{% endfor %}]"
+       data-display="name"
+       data-value="id"
+       data-min-chars="0"
+       data-allow-freeform="false">
+    <input type="text"
+           id="product-filter"
+           class="combo-input"
+           name="product_name"
+           placeholder="Filtrar por producto..."
+           autocomplete="off">
+    <input type="hidden" name="product_id" value="{{ request.query_params.get('product_id') }}">
+    <div class="combo-results" role="listbox" aria-label="Productos" hidden></div>
+  </div>
+  <div class="saskia-combo" 
+       data-source="data:application/json,[{'name': 'Todo el historial'}, {'name': 'Últimos 7 días'}, {'name': 'Últimos 30 días'}, {'name': 'Últimos 90 días'}]"
+       data-display="name"
+       data-value="name"
+       data-min-chars="0"
+       data-allow-freeform="false">
+    <input type="text"
+           id="days-filter"
+           class="combo-input"
+           name="days"
+           placeholder="Seleccionar período..."
+           autocomplete="off">
+    <input type="hidden" name="days" value="{{ request.query_params.get('days') }}">
+    <div class="combo-results" role="listbox" aria-label="Períodos" hidden></div>
+  </div>
   <button type="submit" class="btn">
     <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
     Filtrar
   </button>
   <a href="/ventas" class="btn btn-ghost">Limpiar</a>
 </form>
+
+<form method="get" action="/ventas" class="form form-row" aria-label="Filtrar historial de ventas">
+  <div class="form-row">
 {% if sales %}
 <table class="table is-hoverable is-striped">
   <thead>

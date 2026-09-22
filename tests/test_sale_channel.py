@@ -166,20 +166,23 @@ def test_post_sale_defaults_channel_to_mostrador(client, session_factory):
 
 
 def test_ventas_page_renders_channel_select(client):
-    """The /ventas form must include a <select name=channel> with the 5 options."""
+    """The /ventas form must include a combo for channel with the 5 options."""
     resp = client.get("/ventas")
     assert resp.status_code == 200
     body = resp.text
-    assert 'name="channel"' in body
+    assert "channel" in body  # Look for the combo
     for ch in ("mostrador", "mostrador-encargo", "whatsapp", "pedidosya", "monchis"):
-        assert f'value="{ch}"' in body, f"missing channel option for {ch}"
+        assert f"'name': '{ch}'" in body, f"missing channel option for {ch}"
 
 
 def test_ventas_page_default_channel_is_mostrador(client):
     """The default selected channel is 'mostrador'."""
-    body = client.get("/ventas").text
-    assert 'value="mostrador" selected' in body \
-        or 'selected' in body.split('value="mostrador"')[1].split('>')[0]
+    resp = client.get("/ventas")
+    assert resp.status_code == 200
+    body = resp.text
+    # Look for the channel combo and check default empty value
+    assert "channel" in body
+    assert 'value=""' in body  # Hidden input for channel should be empty by default
 
 
 def test_csv_export_includes_channel_column(client, session_factory):

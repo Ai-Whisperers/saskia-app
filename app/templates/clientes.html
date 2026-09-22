@@ -31,12 +31,21 @@
 
 <form method="get" action="/clientes" class="form form-row">
   <input type="search" name="q" value="{{ q }}" placeholder="Buscar nombre o teléfono…">
-  <select name="tier">
-    <option value="">— Todos los niveles —</option>
-    {% for t in tiers %}
-    <option value="{{ t }}" {% if tier == t %}selected{% endif %}>{{ t | capitalize }}</option>
-    {% endfor %}
-  </select>
+  <div class="saskia-combo" 
+       data-source="data:application/json,[{'name': 'Todos los niveles'}{% for t in tiers %},{'name': '{{ t | capitalize }}'}{% if not loop.last %},{% endif %}{% endfor %}]"
+       data-display="name"
+       data-value="name"
+       data-min-chars="0"
+       data-allow-freeform="false">
+    <input type="text"
+           id="tier-filter"
+           class="combo-input"
+           name="tier"
+           placeholder="Seleccionar nivel..."
+           autocomplete="off">
+    <input type="hidden" name="tier" value="{{ tier }}">
+    <div class="combo-results" role="listbox" aria-label="Niveles" hidden></div>
+  </div>
   <button type="submit" class="btn">
     <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
     Filtrar

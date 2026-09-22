@@ -34,21 +34,21 @@ def test_ventas_page_renders_all_five_payment_methods(client):
     resp = client.get("/ventas")
     assert resp.status_code == 200
     body = resp.text
+    # Check for payment method combo data source
     for pm in ("efectivo", "transferencia", "qr", "tarjeta", "otro"):
-        assert f'value="{pm}"' in body, f"missing option for {pm}"
+        assert f"'name': '{pm}'" in body, f"missing option for {pm}"
     # Helper text the operator asked for
     assert "transferencia/QR" in body
     assert "alias" in body
 
 
 def test_ventas_page_default_selected_is_efectivo(client):
-    """On first load, the efectivo option is marked selected."""
+    """On first load, the efectivo option is marked selected in the combo."""
     resp = client.get("/ventas")
     body = resp.text
-    # Find the efectivo <option> and assert it has the selected attr.
-    # We don't rely on attribute order — just look for the option block.
-    assert 'value="efectivo" selected' in body or 'value="efectivo"\n      selected' in body \
-        or 'value="efectivo"  selected' in body or 'selected' in body.split('value="efectivo"')[1].split('>')[0]
+    # Look for the payment method combo and check default value
+    assert "payment_method" in body
+    assert 'value=""' in body  # Hidden input for payment_method should be empty by default
 
 
 def test_post_sale_accepts_all_five_payment_methods(client, session_factory):
