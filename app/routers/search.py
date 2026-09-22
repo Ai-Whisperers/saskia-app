@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 
-from app.rms.database import get_session
+from app.rms.dependencies import get_session
 from app.rms.models import Customer, Product, Recipe, Pedido
 
 router = APIRouter(prefix="/api", tags=["search"])
