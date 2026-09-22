@@ -113,9 +113,19 @@ def sign_in_with_password(email: str, password: str) -> Optional[dict]:
         response = client.auth.sign_in_with_password({"email": email, "password": password})
     except Exception as exc:
         # Supabase raises on bad creds; we want a clean None return.
+        # Narrow exception check to only catch auth failures, not config bugs.
         msg = str(exc).lower()
-        if "invalid" in msg or "credentials" in msg or "401" in msg:
+        exc_type = type(exc).__name__
+        is_auth_error = (
+            "invalid" in msg
+            or "credentials" in msg
+            or "401" in msg
+            or exc_type == "AuthApiError"
+            or exc_type == "AuthInvalidCredentialsError"
+        )
+        if is_auth_error:
             return None
+        # Re-raise configuration errors (None client, missing env, etc.)
         raise
     if response is None or response.session is None:
         return None
