@@ -370,3 +370,31 @@ def healthz_debug_ventas_v3(request: Request) -> JSONResponse:
             "message": str(e)[:500],
             "traceback": traceback.format_exc()[:1500],
         }, status_code=500)
+
+
+@router.get("/healthz/debug-ventas-v4", response_model=None)
+def healthz_debug_ventas_v4(request: Request) -> JSONResponse:
+    """Run the actual /ventas route function and capture exception."""
+    import traceback
+    from app.routers import sales as sales_module
+    from app.rms.dependencies import get_session
+    try:
+        session = get_session(request)
+        # Call the actual ventas route with the session
+        result = sales_module.sales_list(
+            request=request,
+            q=None,
+            product_id=None,
+            days=None,
+            offset=None,
+            session=session,
+        )
+        body = result.body.decode() if hasattr(result, 'body') else str(result)[:500]
+        return JSONResponse({"status": "ok", "body_length": len(body)})
+    except Exception as e:
+        return JSONResponse({
+            "status": "error",
+            "exception_type": type(e).__name__,
+            "message": str(e)[:500],
+            "traceback": traceback.format_exc()[:2000],
+        }, status_code=500)
