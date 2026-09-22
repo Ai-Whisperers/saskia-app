@@ -1,5 +1,4 @@
 """Health endpoints — /healthz and /healthz/db.
-from sqlalchemy.orm import selectinload
 
 Per docs/operations/2026-09-fase-1-specs.md §C.
 
@@ -23,6 +22,9 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy import text
+from sqlalchemy.orm import selectinload
+
+from app.rms.dependencies import get_session
 
 router = APIRouter()
 
