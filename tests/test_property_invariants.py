@@ -20,13 +20,11 @@ Tagged with ``pytest.mark.analytics`` so the suite is gated under the
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from decimal import Decimal
 from typing import Final
 
 import pytest
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
-from sqlalchemy import delete
 
 from app.rms.accounting import extract_iva
 from app.rms.money import format_gs

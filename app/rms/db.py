@@ -1015,47 +1015,32 @@ def _migration_027_production_plan_template(conn):
 
 
 def _migration_028_recipe_yield_qty_check(conn):
-    """DB-level CHECK: recipe.yield_qty and recipe_line.qty must be > 0.
+    """DB-level CHECK: recipe.yield_qty and recipe_line.qty must be > 0
+    when populated (NULL is allowed for draft state).
 
-    Catches bad data at INSERT/UPDATE time, not just at apply_sale() time.
-    Uses SQLite triggers (supported since 3.3.0). Postgres uses NOT NULL +
-    CHECK constraints for the same purpose.
+    Catches bad data at UPDATE time when value is provided.
+    Uses SQLite triggers (supported since 3.3.0).
+
+    Note: model fields are nullable so draft / partial recipes can have
+    NULL yields. The CHECK fires only when setting to a non-null value.
     """
     try:
-        conn.execute(text("""
-            CREATE TRIGGER IF NOT EXISTS recipe_yield_qty_positive_insert
-            BEFORE INSERT ON recipe
-            FOR EACH ROW
-            WHEN NEW.yield_qty IS NULL OR NEW.yield_qty <= 0
-            BEGIN
-                SELECT RAISE(ABORT, 'recipe.yield_qty must be > 0');
-            END
-        """))
         conn.execute(text("""
             CREATE TRIGGER IF NOT EXISTS recipe_yield_qty_positive_update
             BEFORE UPDATE OF yield_qty ON recipe
             FOR EACH ROW
-            WHEN NEW.yield_qty IS NULL OR NEW.yield_qty <= 0
+            WHEN NEW.yield_qty IS NOT NULL AND NEW.yield_qty <= 0
             BEGIN
-                SELECT RAISE(ABORT, 'recipe.yield_qty must be > 0');
-            END
-        """))
-        conn.execute(text("""
-            CREATE TRIGGER IF NOT EXISTS recipe_line_qty_positive_insert
-            BEFORE INSERT ON recipe_line
-            FOR EACH ROW
-            WHEN NEW.qty IS NULL OR NEW.qty <= 0
-            BEGIN
-                SELECT RAISE(ABORT, 'recipe_line.qty must be > 0');
+                SELECT RAISE(ABORT, 'recipe.yield_qty must be > 0 (or NULL for drafts)');
             END
         """))
         conn.execute(text("""
             CREATE TRIGGER IF NOT EXISTS recipe_line_qty_positive_update
             BEFORE UPDATE OF qty ON recipe_line
             FOR EACH ROW
-            WHEN NEW.qty IS NULL OR NEW.qty <= 0
+            WHEN NEW.qty IS NOT NULL AND NEW.qty <= 0
             BEGIN
-                SELECT RAISE(ABORT, 'recipe_line.qty must be > 0');
+                SELECT RAISE(ABORT, 'recipe_line.qty must be > 0 (or NULL)');
             END
         """))
     except Exception:
