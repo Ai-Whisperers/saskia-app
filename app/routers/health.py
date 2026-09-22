@@ -398,3 +398,36 @@ def healthz_debug_ventas_v4(request: Request) -> JSONResponse:
             "message": str(e)[:500],
             "traceback": traceback.format_exc()[:2000],
         }, status_code=500)
+
+
+@router.get("/healthz/debug-ventas-v5", response_model=None)
+def healthz_debug_ventas_v5(request: Request) -> JSONResponse:
+    """Use FastAPI's TestClient to render the page, catching any error."""
+    import traceback
+    from fastapi.testclient import TestClient
+    from app.rms.main import app as main_app
+
+    try:
+        # Use TestClient (handles async routes correctly)
+        # Need to ensure session_factory is set
+        from app.rms.dependencies import get_session
+        from app.rms.db import make_session_factory
+        if not hasattr(request.app.state, "session_factory"):
+            from app.auth_supabase import get_supabase_client  # noqa
+
+        tc = TestClient(main_app)
+        # Use the live DB's session_factory
+        with tc:
+            r = tc.get("/ventas")
+            return JSONResponse({
+                "status": r.status_code,
+                "body_length": len(r.text),
+                "body_preview": r.text[:500] if r.status_code != 200 else "OK 200",
+            })
+    except Exception as e:
+        return JSONResponse({
+            "status": "error",
+            "exception_type": type(e).__name__,
+            "message": str(e)[:500],
+            "traceback": traceback.format_exc()[:2000],
+        }, status_code=500)
