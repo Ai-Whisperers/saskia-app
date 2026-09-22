@@ -44,6 +44,7 @@ def clientes_list(
     import csv
     import io
 
+    q = q or ""
     like = f"%{q.lower()}%"
 
     if tier:

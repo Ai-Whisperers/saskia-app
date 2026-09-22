@@ -97,6 +97,7 @@
         <td>
           <strong>{{ p.customer_name }}</strong>
           {% if p.customer_phone %}<br><small class="text-muted">{{ p.customer_phone }}</small>{% endif %}
+          {% if p.spend_30d_gs and p.spend_30d_gs > 0 %}
           <br><small class="text-muted" title="Compras últimos 30 días">últ. 30d: {{ m.gs(p.spend_30d_gs) }}</small>
           {% endif %}
         </td>

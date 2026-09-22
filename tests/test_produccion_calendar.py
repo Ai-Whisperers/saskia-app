@@ -134,7 +134,7 @@ def test_week_view_renders_seven_cells(client, session_factory):
         monday -= timedelta(days=1)
     r = client.get(f"/produccion?view=week&week={monday.isoformat()}")
     assert r.status_code == 200
-    assert r.text.count("calendar-day-cell") >= 7
+    assert r.text.count('<th class="num">') >= 7
     assert "Lun" in r.text and "Dom" in r.text
     assert "Semana anterior" in r.text and "Semana siguiente" in r.text
 
