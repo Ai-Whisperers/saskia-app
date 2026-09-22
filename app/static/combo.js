@@ -86,6 +86,8 @@
           minChars: 0,
           debounceMs: 180,
           allowFreeForm: true,
+          allowCreate: false,
+          onCreate: null,
           buildRow: null,
           emptyMessage:
             '<div class="combo-empty">No hay coincidencias.</div>',
@@ -114,7 +116,7 @@
 
     _wire() {
       var self = this;
-      this.input.addEventListener("input", function () {
+      this._inputHandler = function () {
         var q = self.input.value.trim();
         // Free-form text + value cleared
         if (self.hidden) self.hidden.value = "";
@@ -129,21 +131,26 @@
         self.debounceTimer = setTimeout(function () {
           self._fetch(q);
         }, self.opts.debounceMs);
-      });
-      this.input.addEventListener("keydown", function (e) {
+      };
+      this._keyHandler = function (e) {
         if (self._handleKey(e)) return;
-      });
-      this.input.addEventListener("focus", function () {
+      };
+      this._focusHandler = function () {
         if (self.matches.length === 0 && self.input.value.trim().length >= self.opts.minChars) {
           self._fetch(self.input.value.trim());
         } else if (self.opts.minChars === 0 && self.matches.length === 0) {
           self._fetch("");
         }
-      });
-      this.input.addEventListener("blur", function () {
+      };
+      this._blurHandler = function () {
         // delay so clicks on results register first
         setTimeout(function () { self._hide(); }, 200);
-      });
+      };
+      
+      this.input.addEventListener("input", this._inputHandler);
+      this.input.addEventListener("keydown", this._keyHandler);
+      this.input.addEventListener("focus", this._focusHandler);
+      this.input.addEventListener("blur", this._blurHandler);
       document.addEventListener("click", function (e) {
         if (!self.root.contains(e.target)) self._hide();
       });
@@ -182,7 +189,7 @@
 
     _buildRow(item, idx) {
       if (this.opts.buildRow) {
-        return this.opts.buildRow(item, idx);
+        return this.opts.buildRow(item, idx, item._isCreate);
       }
       var label = defaultLabel(item, this.opts.displayField);
       return (
@@ -243,6 +250,24 @@
     }
 
     _pick(item) {
+      // Handle creation items
+      if (item && item._isCreate) {
+        this.input.value = item.name;
+        if (this.hidden) {
+          this.hidden.value = item.name; // Store the text value for creation
+        }
+        this.input.classList.add("is-selected");
+        this.input.dataset.selectedName = item.name;
+        this._hide();
+        
+        // Trigger a callback so parent can handle creation
+        if (this.opts.onCreate) {
+          this.opts.onCreate(item.name);
+        }
+        return;
+      }
+      
+      // Normal pick behavior
       var value = item && typeof item === "object"
         ? item[this.opts.valueField]
         : item;
@@ -269,6 +294,16 @@
       promise.then(function (data) {
         if (token !== self.lastFetchToken) return;
         var items = (data && data.results) ? data.results : [];
+        
+        // If allowCreate is enabled and input has value not in results, add create option
+        if (self.opts.allowCreate && q && !items.some(item => item.name === q)) {
+          items.push({
+            name: q,
+            isCreateOption: true,
+            _isCreate: true
+          });
+        }
+        
         self._render(items);
       }).catch(function () { self._hide(); });
     }
@@ -282,6 +317,17 @@
       this.input.classList.remove("is-selected");
       if (this.hidden) this.hidden.value = "";
       this._hide();
+    }
+    
+    destroy() {
+      // Clean up event listeners and references
+      this.input.removeEventListener("input", this._inputHandler);
+      this.input.removeEventListener("keydown", this._keyHandler);
+      this.input.removeEventListener("focus", this._focusHandler);
+      this.input.removeEventListener("blur", this._blurHandler);
+      if (this.root._saskiaCombo === this) {
+        delete this.root._saskiaCombo;
+      }
     }
   }
 

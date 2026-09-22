@@ -86,6 +86,22 @@
   };
 
   /**
+   * Category row: just name, with "Crear" for new items
+   */
+  window.categoryRowLabel = function (item, isCreateOption) {
+    if (isCreateOption) {
+      return (
+        '<span class="combo-row-main combo-row-create">' +
+        '+ Crear: ' + escapeHtml(item.name) + "</span>" +
+        '<span class="combo-row-sub"> nueva categoría</span>'
+      );
+    }
+    return (
+      '<span class="combo-row-main">' + escapeHtml(item.name) + "</span>"
+    );
+  };
+
+  /**
    * Generic fallback (used when no row builder specified)
    */
   window.genericRowLabel = function (item) {

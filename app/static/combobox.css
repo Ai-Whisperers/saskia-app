@@ -73,6 +73,11 @@
   font-weight: 600;
 }
 
+.combo-row-create {
+  color: var(--color-accent);
+  font-weight: 500;
+}
+
 .combo-empty {
   padding: var(--space-3);
   text-align: center;

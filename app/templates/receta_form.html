@@ -78,8 +78,24 @@
     </div>
 
     <div class="form-row">
-      <label for="family">Familia / Categoría</label>
-      <input type="text" id="family" name="family" maxlength="60" value="{{ recipe.family if recipe and recipe.family else '' }}" placeholder="Ej: Panadería, Pastelería">
+      <label for="family_combo">Familia / Categoría</label>
+    {# Combo supports creating new categories. No API — just creates on submit. #}
+    <div class="saskia-combo"
+         data-source=""
+         data-display="name"
+         data-value="value"
+         data-min-chars="1"
+         data-row-builder="categoryRowLabel"
+         data-allow-create="true">
+      <input type="text"
+             id="family_combo"
+             class="combo-input"
+             name="family"
+             maxlength="60"
+             value="{{ recipe.family if recipe and recipe.family else '' }}"
+             placeholder="Ej: Panadería, Pastelería, Dulces">
+      <input type="hidden" name="family" value="{{ recipe.family if recipe and recipe.family else '' }}">
+      <div class="combo-results" role="listbox" hidden></div>
     </div>
   </div>
 
@@ -111,18 +127,25 @@
           <option value="ingredient" {% if line.line_kind == 'ingredient' %}selected{% endif %}>Ingrediente</option>
           <option value="sub_recipe" {% if line.line_kind == 'sub_recipe' %}selected{% endif %}>Sub-receta</option>
         </select>
-        <select name="line_target_id">
-          <option value="">— Seleccionar —</option>
-          {% if line.line_kind == 'ingredient' %}
-            {% for ing in ingredients %}
-            <option value="{{ ing.id }}" {% if ing.id == line.line_ref_id %}selected{% endif %}>{{ ing.name }}</option>
-            {% endfor %}
-          {% else %}
-            {% for sub in other_recipes %}
-            <option value="{{ sub.id }}" {% if sub.id == line.line_ref_id %}selected{% endif %}>{{ sub.name }}</option>
-            {% endfor %}
-          {% endif %}
-        </select>
+        <div class="form-row">
+            <label>Item</label>
+            <div class="saskia-combo"
+                 data-source="/inventario/api/search"
+                 data-display="name"
+                 data-value="id"
+                 data-min-chars="1"
+                 data-row-builder="ingredientRowLabel"
+                 data-line-kind="ingredient">
+                <input type="text"
+                       class="combo-input"
+                       name="line_target_id"
+                       placeholder="Buscar ingrediente…"
+                       autocomplete="off"
+                       value="">
+                <input type="hidden" name="line_target_id" value="{{ line.line_ref_id if line.line_ref_id else '' }}">
+                <div class="combo-results" role="listbox" hidden></div>
+            </div>
+        </div>
         <input type="number" name="line_qty" step="0.01" min="0" required value="{{ "%.4f"|format(line.qty * scale_factor if mode == 'edit' else line.qty) }}" placeholder="Cantidad">
         <select name="line_unit" aria-label="Unidad de la cantidad">
           {% for u in units %}
@@ -156,15 +179,29 @@ document.getElementById('add-line').addEventListener('click', function() {
   row.className = 'line-row';
   row.style.cssText = 'display: grid; grid-template-columns: 100px 1fr 90px 60px 1fr 30px; gap: 8px; align-items: end; margin-bottom: 8px;';
   row.innerHTML = `
-    <select name="line_kind">
+    <select name="line_kind" onchange="updateLineSource(this.parentElement)">
       <option value="ingredient">Ingrediente</option>
       <option value="sub_recipe">Sub-receta</option>
     </select>
-    <select name="line_target_id">
-      <option value="">— Seleccionar —</option>
-    </select>
+    <div class="form-row">
+      <label>Item</label>
+      <div class="saskia-combo"
+           data-source="/inventario/api/search"
+           data-display="name"
+           data-value="id"
+           data-min-chars="1"
+           data-row-builder="ingredientRowLabel">
+        <input type="text"
+               class="combo-input"
+               name="line_target_id"
+               placeholder="Buscar ingrediente…"
+               autocomplete="off">
+        <input type="hidden" name="line_target_id">
+        <div class="combo-results" role="listbox" hidden></div>
+      </div>
+    </div>
     <input type="number" name="line_qty" step="0.01" min="0" required placeholder="Cantidad">
-    <select name="line_unit" aria-label="Unidad de la cantidad">
+    <select name="line_unit">
       <option value="g">g</option>
       <option value="kg">kg</option>
       <option value="ml">ml</option>
@@ -175,6 +212,72 @@ document.getElementById('add-line').addEventListener('click', function() {
     <button type="button" class="btn btn-small" onclick="this.parentElement.remove()">×</button>
   `;
   container.appendChild(row);
+  
+  // Initialize the new combobox
+  const newCombo = row.querySelector('.saskia-combo');
+  if (window SaskiaCombo) {
+    new SaskiaCombo(newCombo);
+  }
+});
+
+// Function to update combo source when line kind changes
+function updateLineSource(lineRow) {
+  const kindSelect = lineRow.querySelector('select[name="line_kind"]');
+  const combo = lineRow.querySelector('.saskia-combo');
+  const input = combo.querySelector('.combo-input');
+  const hiddenInput = combo.querySelector('input[type="hidden"]');
+  const results = combo.querySelector('.combo-results');
+  
+  const kind = kindSelect.value;
+  let sourceUrl = '';
+  let placeholder = '';
+  let allowCreate = false;
+  
+  if (kind === 'ingredient') {
+    sourceUrl = '/inventario/api/search';
+    placeholder = 'Buscar ingrediente…';
+    allowCreate = true; // Allow creating new categories for ingredients?
+  } else if (kind === 'sub_recipe') {
+    sourceUrl = '/recetas/api/search';
+    placeholder = 'Buscar sub-receta…';
+    allowCreate = false; // Can't create new recipes from here
+  }
+  
+  // Update combo attributes
+  combo.dataset.source = sourceUrl;
+  input.placeholder = placeholder;
+  
+  // Clear current values
+  input.value = '';
+  hiddenInput.value = '';
+  results.innerHTML = '';
+  results.hidden = true;
+  
+  // Reinitialize combo with new options
+  if (window SaskiaCombo) {
+    // Destroy existing instance first
+    const existingInstance = combo._saskiaCombo;
+    if (existingInstance) {
+      existingInstance.destroy();
+    }
+    
+    // Create new instance with updated options
+    combo._saskiaCombo = new SaskiaCombo(combo, {
+      allowCreate: allowCreate,
+      onCreate: (newName) => {
+        console.log('Creating new item:', newName);
+        // For now, just log. We could add actual creation logic here.
+      }
+    });
+  }
+}
+
+// Initialize existing combos on page load
+document.addEventListener('DOMContentLoaded', function() {
+  const combos = document.querySelectorAll('.saskia-combo[data-line-kind]');
+  if (window SaskiaCombo) {
+    combos.forEach(combo => new SaskiaCombo(combo));
+  }
 });
 </script>
 
