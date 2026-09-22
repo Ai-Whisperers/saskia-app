@@ -141,6 +141,8 @@ def auditoria_index(
         "target_type": target_type or "",
         "target_id": target_id or "",
         "presets": presets,
+        "page_start": (page - 1) * 50 + 1,
+        "page_end": min(page * 50, total_count),
     })
 
 

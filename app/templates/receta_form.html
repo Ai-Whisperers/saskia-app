@@ -6,28 +6,101 @@
 {% block content %}
 <h1>{{ action }} receta</h1>
 
+{# Yield scaling control (only in edit mode) #}
+{% if mode == 'edit' and recipe and recipe.yield_qty %}
+<div class="card mb-4">
+  <div class="card-header">
+    <h2>Escalar rendimiento</h2>
+  </div>
+  <p class="text-muted">Vizualizá la receta con cantidades multiplicadas. No cambia la receta original.</p>
+  <form method="get" action="/recetas/{{ recipe.id }}/editar" style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+    <label for="scale">Multiplicador:</label>
+    <select id="scale" name="scale" onchange="this.form.submit()">
+      {% for mult in [0.25, 0.5, 1, 1.5, 2, 3, 4, 5] %}
+      <option value="{{ mult }}" {% if scale_factor == mult %}selected{% endif %}>{{ mult }}x</option>
+      {% endfor %}
+    </select>
+    <span class="text-muted">Rinde: {{ "%.2f"|format(recipe.yield_qty * scale_factor) }} {{ recipe.yield_unit }}</span>
+  </form>
+</div>
+{% endif %}
+
+{# Cost breakdown (edit mode) #}
+{% if mode == 'edit' and batch_cost_gs is not none %}
+<div class="card mb-4">
+  <div class="card-header"><h2>Desglose de costo</h2></div>
+  <div class="grid grid-2">
+    <div class="metric-card">
+      <div class="metric-label">Costo del lote</div>
+      <div class="metric-value">{{ m.gs_full(batch_cost_gs) }}</div>
+    </div>
+    {% if unit_cost_gs is not none %}
+    <div class="metric-card">
+      <div class="metric-label">Costo por porción</div>
+      <div class="metric-value">{{ m.gs_full(unit_cost_gs) }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{# Used by products (edit mode) #}
+{% if mode == 'edit' and products_using %}
+<div class="card mb-4">
+  <div class="card-header"><h2>Usada por productos</h2></div>
+  <ul>
+    {% for p in products_using %}
+    <li><a href="/productos/{{ p.id }}/editar">{{ p.name }}</a></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
 <form method="post" action="/recetas{{ '/nueva' if mode == 'new' else '/' ~ recipe.id ~ '/editar' }}">
   <div class="form-row">
     <label for="name">Nombre</label>
     <input type="text" id="name" name="name" required value="{{ recipe.name if recipe else '' }}" placeholder="Ej: Muffin de chocolate">
   </div>
 
-  <div class="form-row">
-    <label for="yield_qty">Rinde (cantidad)</label>
-    <input type="number" id="yield_qty" name="yield_qty" step="0.01" min="0" value="{{ "%.2f"|format(recipe.yield_qty) if recipe and recipe.yield_qty is not none else '12' }}">
+  <div class="grid grid-3" style="gap:var(--space-3);">
+    <div class="form-row">
+      <label for="yield_qty">Rinde (cantidad)</label>
+      <input type="number" id="yield_qty" name="yield_qty" step="0.01" min="0" value="{{ "%.2f"|format(recipe.yield_qty) if recipe and recipe.yield_qty is not none else '12' }}">
+    </div>
+
+    <div class="form-row">
+      <label for="yield_unit">Unidad del rinde</label>
+      <select id="yield_unit" name="yield_unit" required>
+        {% for u in units %}
+        <option value="{{ u }}" {% if recipe and recipe.yield_unit == u %}selected{% endif %}>{{ u }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label for="family">Familia / Categoría</label>
+      <input type="text" id="family" name="family" value="{{ recipe.family if recipe and recipe.family else '' }}" placeholder="Ej: Panadería, Pastelería">
+    </div>
   </div>
 
-  <div class="form-row">
-    <label for="yield_unit">Unidad del rinde</label>
-    <select id="yield_unit" name="yield_unit" required>
-      {% for u in units %}
-      <option value="{{ u }}" {% if recipe and recipe.yield_unit == u %}selected{% endif %}>{{ u }}</option>
-      {% endfor %}
-    </select>
-    <small>Para 12 muffins, poné rinde = 12 und.</small>
+  <div class="grid grid-3" style="gap:var(--space-3);">
+    <div class="form-row">
+      <label for="prep_minutes">Tiempo de prep (min)</label>
+      <input type="number" id="prep_minutes" name="prep_minutes" min="0" value="{{ recipe.prep_minutes if recipe and recipe.prep_minutes is not none else '' }}" placeholder="Ej: 15">
+    </div>
+
+    <div class="form-row">
+      <label for="cook_minutes">Tiempo de cocción (min)</label>
+      <input type="number" id="cook_minutes" name="cook_minutes" min="0" value="{{ recipe.cook_minutes if recipe and recipe.cook_minutes is not none else '' }}" placeholder="Ej: 30">
+    </div>
+
+    <div class="form-row">
+      <label for="dietary_tags">Etiquetas dietarias</label>
+      <input type="text" id="dietary_tags" name="dietary_tags" value="{{ recipe.dietary_tags if recipe and recipe.dietary_tags else '' }}" placeholder="Ej: sin gluten, vegana">
+    </div>
   </div>
 
-  <h2>Líneas</h2>
+  <h2>Líneas{% if mode == 'edit' and recipe and scale_factor != 1 %} <small>(×{{ scale_factor }})</small>{% endif %}</h2>
 
   <p class="muted">Las líneas son los ingredientes que entran en la receta. Para sub-recetas (masa choux usada en pastel), agregá la sub-receta como línea con tipo "sub-receta".</p>
 
@@ -50,7 +123,7 @@
             {% endfor %}
           {% endif %}
         </select>
-        <input type="number" name="line_qty" step="0.01" min="0" required value="{{ line.qty }}" placeholder="Cantidad">
+        <input type="number" name="line_qty" step="0.01" min="0" required value="{{ "%.4f"|format(line.qty * scale_factor if mode == 'edit' else line.qty) }}" placeholder="Cantidad">
         <select name="line_unit" aria-label="Unidad de la cantidad">
           {% for u in units %}
           <option value="{{ u }}" {% if line.line_unit == u %}selected{% endif %}>{{ u }}</option>
@@ -102,9 +175,6 @@ document.getElementById('add-line').addEventListener('click', function() {
     <button type="button" class="btn btn-small" onclick="this.parentElement.remove()">×</button>
   `;
   container.appendChild(row);
-  // Reload selects with current options
-  // (server doesn't know about new rows; user picks and the selects auto-populate
-  // when they submit and re-render the form with errors)
 });
 </script>
 

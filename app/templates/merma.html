@@ -7,6 +7,21 @@
   Merma (desperdicio)
 </h1>
 
+{# --- Date range presets --- #}
+<div class="filters-form" style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;margin-bottom:var(--space-4);">
+  <a href="{{ preset_url_7 }}" class="btn btn-sm {% if days == 7 %}btn-primary{% else %}btn-ghost{% endif %}">7 días</a>
+  <a href="{{ preset_url_30 }}" class="btn btn-sm {% if days == 30 %}btn-primary{% else %}btn-ghost{% endif %}">30 días</a>
+  <a href="{{ preset_url_90 }}" class="btn btn-sm {% if days == 90 %}btn-primary{% else %}btn-ghost{% endif %}">90 días</a>
+  <form method="get" action="/merma" style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;">
+    <label for="since">Desde:</label>
+    <input type="date" id="since" name="since" value="{{ since }}">
+    <label for="until">Hasta:</label>
+    <input type="date" id="until" name="until" value="{{ until }}">
+    <input type="hidden" name="days" value="{{ days }}">
+    <button type="submit" class="btn btn-sm">Aplicar</button>
+  </form>
+</div>
+
 <p class="text-muted">Registrá toda merma para mantener el food cost bajo control. Benchmark: &lt; 5% es saludable.</p>
 
 <section class="card">
@@ -102,7 +117,7 @@
 
 <section class="card">
   <div class="card-header">
-    <h2>Resumen últimos 30 días</h2>
+    <h2>Resumen {% if days == 7 %}últimos 7 días{% elif days == 90 %}últimos 90 días{% else %}últimos 30 días{% endif %}</h2>
     <div>
       <span class="badge {{ 'badge-ok' if pct < 3 else 'badge-warn' if pct < 5 else 'badge-danger' }}">
         {{ "%.1f"|format(pct) }}% de ingresos
@@ -120,6 +135,22 @@
     </div>
   </div>
 
+  {# Top merma ingredients #}
+  {% if top_ingredients %}
+  <h3>Por ingrediente (top 10)</h3>
+  <table class="table is-hoverable">
+    <thead><tr><th>Ingrediente</th><th class="num">Costo (Gs.)</th></tr></thead>
+    <tbody>
+      {% for ing_id, ing_name, cost in top_ingredients %}
+      <tr>
+        <td>{{ ing_name }}</td>
+        <td class="num">{{ m.gs(cost) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
   {% if impact.by_reason %}
   <h3>Por motivo</h3>
   <table class="table is-hoverable">
@@ -135,7 +166,7 @@
 
 {% if items %}
 <section class="card">
-  <h3>Últimos eventos</h3>
+  <h3>Eventos</h3>
   <table class="table is-hoverable is-striped">
     <thead>
       <tr>
@@ -150,7 +181,7 @@
       {% for w in items %}
       <tr>
         <td>{{ w.recorded_at.strftime("%d/%m/%Y") if w.recorded_at else "" }}</td>
-        <td>{{ w.ingredient.name if w.ingredient else "?" }}</td>
+        <td data-copy="{{ w.ingredient.id if w.ingredient else '' }}">{{ w.ingredient.name if w.ingredient else "?" }}</td>
         <td class="num">{{ "%.2f"|format(w.qty) }}</td>
         <td><span class="badge badge-neutral">{{ w.reason }}</span></td>
         <td class="num">{{ m.gs(w.cost_gs) }}</td>
@@ -158,11 +189,16 @@
       {% endfor %}
     </tbody>
   </table>
+  {% if items %}
+  <div class="table-info">
+    <span>Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ total }}</strong> eventos</span>
+  </div>
+  {% endif %}
 </section>
 {% else %}
 <div class="empty-state">
   <svg class="icon" aria-hidden="true"><use href="#icon-waste"/></svg>
-  <h3>No hay merma registrada todavía</h3>
+  <h3>No hay merma registrada en este período</h3>
   <p>Cuando registres un evento de desperdicio va a aparecer acá.</p>
 </div>
 {% endif %}

@@ -24,7 +24,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Path, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -59,6 +59,29 @@ PEDIDO_TRANSITIONS: dict[str, frozenset[str]] = {
 }
 
 CHANNELS = ("whatsapp", "pedidosya", "mostrador", "phone", "other")
+
+# Channel value normalisation map — raw input → canonical value
+_CHANNEL_NORMALIZE: dict[str, str] = {
+    "whatsapp": "WhatsApp",
+    "wa": "WhatsApp",
+    "whats": "WhatsApp",
+    "wsp": "WhatsApp",
+    "whatsapp": "WhatsApp",
+    "pedidosya": "PedidosYa",
+    "mostrador": "Mostrador",
+    "phone": "Phone",
+    "tel": "Phone",
+    "telefono": "Phone",
+    "other": "Other",
+    "instagram": "Instagram",
+    "ig": "Instagram",
+}
+
+
+def normalize_channel(raw: str) -> str:
+    """Return a canonical channel display name from a free-text input."""
+    key = (raw or "").strip().lower()
+    return _CHANNEL_NORMALIZE.get(key, "WhatsApp")
 
 
 def generate_public_token() -> str:
@@ -101,7 +124,7 @@ def _decorate_pedido(p: Pedido, session: Session) -> dict:
     """Build the dict used in /pedidos list views.
 
     Denormalizes: customer_name (already on the model), 30d spend, total Gs,
-    qty total, line count, age in days.
+    qty total, line count, age in days, normalized channel display.
     """
     today = date.today()
     promised = p.promised_date.date() if isinstance(p.promised_date, datetime) else p.promised_date
@@ -116,10 +139,12 @@ def _decorate_pedido(p: Pedido, session: Session) -> dict:
         "promised_date": promised,
         "promised_date_iso": promised.isoformat() if promised else "",
         "promised_time": p.promised_time or "",
-        "channel": p.channel,
+        "channel": normalize_channel(p.channel),  # normalized display name
+        "channel_raw": p.channel,  # original DB value for CSV export
         "status": p.status,
         "payment_intent": p.payment_intent,
         "notes": p.notes,
+        "cancel_reason": p.cancel_reason,
         "public_token": p.public_token,
         "public_url": f"/p/{p.public_token}",
         "total_gs": _pedido_total_gs(p),
@@ -129,6 +154,7 @@ def _decorate_pedido(p: Pedido, session: Session) -> dict:
         "spend_30d_gs": _customer_30d_spend_gs(session, p.customer_id),
         "fulfilled_at": p.fulfilled_at,
         "fulfilled_sale_id": p.fulfilled_sale_id,
+        "created_at": p.created_at,
     }
 
 
@@ -174,6 +200,9 @@ def pedidos_list(
         "pendientes",
         pattern="^(pendientes|terminados|todos)$",
     ),
+    search: str = Query("", description="Buscar por nombre o teléfono del cliente"),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """List pedidos grouped by urgency (Hoy/Mañana, Esta semana, viejos).
@@ -182,28 +211,64 @@ def pedidos_list(
       - pendientes (default): pending + confirmed + ready (anything not finished)
       - terminados: fulfilled only
       - todos: no status filter
+
+    `search` filters by customer name or phone (partial match).
+
+    Results are paginated; the groups are computed from the full filtered set,
+    then sliced per page for display.
     """
     today = date.today()
     horizon = today + timedelta(days=7)
-    # Pull everything active (not cancelled/fulfilled) within 7-day horizon +
-    # pending+past-due (old pending pedidos). One query with UNION would be
-    # nicer but this is fine for a single-tenant bakery's volume.
-    stmt = (
+
+    stmt_base = (
         select(Pedido)
         .options(selectinload(Pedido.lines), selectinload(Pedido.customer))
         .where(
             (Pedido.promised_date <= horizon)
             | ((Pedido.status == "pending") & (Pedido.promised_date < today))
         )
-        .order_by(Pedido.promised_date.asc(), Pedido.promised_time.asc())
     )
     if status_filter == "pendientes":
-        stmt = stmt.where(Pedido.status.in_(["pending", "confirmed", "ready"]))
+        stmt_base = stmt_base.where(Pedido.status.in_(["pending", "confirmed", "ready"]))
     elif status_filter == "terminados":
-        stmt = stmt.where(Pedido.status == "fulfilled")
-    # "todos" leaves the where clause untouched (no status filter)
+        stmt_base = stmt_base.where(Pedido.status == "fulfilled")
+
+    # Search: customer name or phone
+    if search := search.strip():
+        stmt_base = stmt_base.where(
+            (
+                Pedido.customer_name.ilike(f"%{search}%")
+                | Pedido.customer_phone.ilike(f"%{search}%")
+            )
+        )
+
+    # Count total for pagination (reuse the base where, no order/offset/limit)
+    count_stmt = select(func.count()).select_from(stmt_base.subquery())
+    total_count = session.scalar(count_stmt) or 0
+
+    # Paginate: apply order then offset/limit
+    stmt = (
+        stmt_base
+        .order_by(Pedido.promised_date.asc(), Pedido.promised_time.asc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+    )
     pedidos = list(session.scalars(stmt))
     grouped = _group_pedidos(session, pedidos)
+
+    # Pagination metadata
+    total_pages = max(1, (total_count + per_page - 1) // per_page)
+    pagination = {
+        "page": page,
+        "per_page": per_page,
+        "total_count": total_count,
+        "total_pages": total_pages,
+        "has_prev": page > 1,
+        "has_next": page < total_pages,
+        "prev_url": f"/pedidos?status_filter={status_filter}&search={search}&page={page-1}" if page > 1 else None,
+        "next_url": f"/pedidos?status_filter={status_filter}&search={search}&page={page+1}" if page < total_pages else None,
+        "pages": list(range(max(1, page - 2), min(total_pages + 1, page + 3))),
+    }
     return render(
         request,
         "pedidos.html",
@@ -212,11 +277,15 @@ def pedidos_list(
             "today_iso": today.isoformat(),
             "today_human": today.strftime("%d/%m/%Y"),
             "status_filter": status_filter,
+            "search": search,
             "group_labels": {
                 "hoy_manana": "Hoy / Mañana",
                 "esta_semana": "Esta semana",
                 "pendientes_viejos": "Pendientes viejos",
             },
+            "pagination": pagination,
+            "page_start": (page - 1) * per_page + 1,
+            "page_end": min(page * per_page, total_count),
         },
     )
 
@@ -354,13 +423,16 @@ async def pedidos_create(
             raise HTTPException(status_code=422, detail="customer_id inválido")
         cust_name = cust_name or cust_obj.name
 
+    # Normalize channel to canonical display name
+    channel_normalized = normalize_channel(channel)
+
     pedido = Pedido(
         customer_id=cust_obj.id if cust_obj else None,
         customer_name=cust_name,
         customer_phone=cust_phone or (cust_obj.phone if cust_obj else None),
         promised_date=datetime.combine(promised, datetime.min.time()),
         promised_time=promised_time.strip() or None,
-        channel=(channel or "whatsapp").strip().lower(),
+        channel=channel_normalized,
         status="pending",
         payment_intent=(payment_intent or "efectivo").strip().lower(),
         notes=(notes or "").strip() or None,
@@ -388,7 +460,7 @@ async def pedidos_create(
         target_id=str(pedido.id),
         detail={
             "n_lines": len(lines),
-            "channel": pedido.channel,
+            "channel": channel_normalized,
             "promised_date": pedido.promised_date.isoformat(),
             "total_gs": sum(l["qty"] * l["unit_price_gs"] for l in lines),
         },
@@ -449,11 +521,13 @@ async def pedidos_status(
     request: Request,
     pedido_id: int = Path(...),
     new_status: str = Form(...),
+    cancel_reason: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Transition a pedido to a new status. Rejects invalid transitions.
 
-    Used for the manual status buttons on the detail page. The /fulfill
+    Used for the manual status buttons on the detail page. If new_status is
+    'cancelled', cancel_reason is saved to the pedido record. The /fulfill
     endpoint is a separate workflow that creates Sale rows + stock moves.
     """
     pedido = session.get(Pedido, pedido_id)
@@ -477,13 +551,20 @@ async def pedidos_status(
 
     old = pedido.status
     pedido.status = new
+    if new == "cancelled":
+        reason = (cancel_reason or "").strip() or None
+        pedido.cancel_reason = reason
     audit_record(
         session,
         user_id=current_user_id(request) or "operator",
         action="write.pedido.status",
         target_type="pedido",
         target_id=str(pedido.id),
-        detail={"from": old, "to": new},
+        detail={
+            "from": old,
+            "to": new,
+            **({"cancel_reason": pedido.cancel_reason} if new == "cancelled" else {}),
+        },
         request=request,
     )
     session.commit()
@@ -563,6 +644,218 @@ def pedidos_fulfill(
     session.commit()
 
     return RedirectResponse(url=f"/pedidos/{pedido.id}", status_code=303)
+
+
+# --- Stock preview (pre-fulfill) ---------------------------------------------
+# Preview what ingredients will be consumed before confirming fulfillment.
+
+
+@router.get("/{pedido_id}/stock-preview", response_class=HTMLResponse)
+def pedidos_stock_preview(
+    request: Request,
+    pedido_id: int = Path(...),
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Show what ingredients will be consumed if this pedido is fulfilled.
+
+    Used as a confirmation step before calling /fulfill — lets the operator
+    see stock warnings before committing to the sale.
+    """
+    from app.rms.costing import _compute_stock_moves
+
+    pedido = session.get(
+        Pedido, pedido_id, options=[selectinload(Pedido.lines).selectinload(PedidoLine.product)]
+    )
+    if pedido is None:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+
+    Ingredient = None
+    try:
+        from app.rms.models import Ingredient
+    except ImportError:
+        pass
+
+    warnings: list[dict] = []
+    consumed: list[dict] = []
+
+    for ln in pedido.lines:
+        if ln.qty <= 0:
+            continue
+        product = ln.product
+        if product is None or product.recipe_id is None:
+            continue
+        recipe = session.get("Recipe", product.recipe_id)  # type: ignore
+        if recipe is None:
+            continue
+        try:
+            moves = _compute_stock_moves(session, recipe, float(ln.qty), set())
+        except Exception:
+            continue
+        for affected_recipe_id, ingredient_id, qty_delta in moves:
+            ing = session.get("Ingredient", ingredient_id) if Ingredient else None  # type: ignore
+            ing_name = ing.name if ing else f"# {ingredient_id}"
+            current = ing.stock_qty if ing else 0
+            after = current - abs(qty_delta)
+            consumed.append({
+                "ingredient": ing_name,
+                "product": product.name,
+                "qty_needed": round(abs(qty_delta), 3),
+                "current_stock": round(current, 3) if current else 0,
+                "after_stock": round(after, 3),
+                "warning": after < 0,
+            })
+            if after < 0:
+                warnings.append({
+                    "ingredient": ing_name,
+                    "shortfall": round(abs(after), 3),
+                    "product": product.name,
+                })
+
+    return render(
+        request,
+        "pedido_stock_preview.html",
+        {
+            "pedido_id": pedido_id,
+            "consumed": consumed,
+            "warnings": warnings,
+        },
+    )
+
+
+# --- Duplicate pedido ----------------------------------------------------------
+
+
+@router.get("/{pedido_id}/duplicate")
+def pedidos_duplicate(
+    request: Request,
+    pedido_id: int = Path(...),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Create a copy of an existing pedido with a new public token and status.
+
+    The duplicated pedido is set to 'pending' with a fresh token so the
+    customer can receive a new share link.
+    """
+    original = session.get(
+        Pedido, pedido_id, options=[selectinload(Pedido.lines)]
+    )
+    if original is None:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+
+    copy = Pedido(
+        customer_id=original.customer_id,
+        customer_name=original.customer_name,
+        customer_phone=original.customer_phone,
+        promised_date=original.promised_date,
+        promised_time=original.promised_time,
+        channel=original.channel,
+        status="pending",
+        payment_intent=original.payment_intent,
+        notes=original.notes,
+        public_token=generate_public_token(),
+    )
+    session.add(copy)
+    session.flush()
+
+    for ln in original.lines:
+        session.add(
+            PedidoLine(
+                pedido_id=copy.id,
+                product_id=ln.product_id,
+                qty=ln.qty,
+                unit_price_gs=ln.unit_price_gs,
+                fulfilled_qty=0,
+            )
+        )
+
+    audit_record(
+        session,
+        user_id=current_user_id(request) or "operator",
+        action="write.pedido.duplicate",
+        target_type="pedido",
+        target_id=str(copy.id),
+        detail={"original_id": original.id},
+        request=request,
+    )
+    session.commit()
+
+    return RedirectResponse(url=f"/pedidos/{copy.id}", status_code=303)
+
+
+# --- CSV export --------------------------------------------------------------
+
+
+@router.get("/export-csv")
+def pedidos_export_csv(
+    request: Request,
+    status_filter: str = Query("todos", pattern="^(pendientes|terminados|todos)$"),
+    search: str = Query(""),
+    session: Session = Depends(get_session),
+) -> StreamingResponse:
+    """Export filtered pedidos as a CSV download.
+
+    Respects the same search and status_filter as the list view.
+    """
+    import csv
+    import io
+
+    today = date.today()
+    horizon = today + timedelta(days=365)  # full history
+
+    stmt = (
+        select(Pedido)
+        .options(selectinload(Pedido.lines), selectinload(Pedido.customer))
+        .where(Pedido.promised_date <= horizon)
+    )
+    if status_filter == "pendientes":
+        stmt = stmt.where(Pedido.status.in_(["pending", "confirmed", "ready"]))
+    elif status_filter == "terminados":
+        stmt = stmt.where(Pedido.status == "fulfilled")
+
+    if search := search.strip():
+        stmt = stmt.where(
+            (
+                Pedido.customer_name.ilike(f"%{search}%")
+                | Pedido.customer_phone.ilike(f"%{search}%")
+            )
+        )
+
+    stmt = stmt.order_by(Pedido.promised_date.asc())
+    pedidos = list(session.scalars(stmt))
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "ID", "Fecha prometida", "Hora prometida", "Cliente", "Teléfono",
+        "Canal", "Estado", "Líneas", "Total Gs.", "Notas",
+        "Razón cancelación", "Creado", "Cumplido",
+    ])
+    for p in pedidos:
+        decorated = _decorate_pedido(p, session)
+        writer.writerow([
+            p.id,
+            p.promised_date.strftime("%d/%m/%Y"),
+            p.promised_time or "",
+            p.customer_name,
+            p.customer_phone or "",
+            p.channel,
+            p.status,
+            len(p.lines),
+            _pedido_total_gs(p),
+            (p.notes or "").replace("\n", " "),
+            p.cancel_reason or "",
+            p.created_at.strftime("%d/%m/%Y %H:%M") if p.created_at else "",
+            p.fulfilled_at.strftime("%d/%m/%Y %H:%M") if p.fulfilled_at else "",
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode("utf-8")),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=pedidos_{date.today().isoformat()}.csv"
+        },
+    )
 
 
 # --- Public pickup-share endpoint (NO AUTH) ---------------------------------

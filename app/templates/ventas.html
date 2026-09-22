@@ -48,7 +48,7 @@
 <form method="post" action="/ventas/nueva" id="sale-form">
   <div class="form-row">
     <label for="sku">Escanear SKU (opcional)</label>
-    <input type="text" id="sku" name="sku" autocomplete="off"
+    <input type="text" id="sku" name="sku" autocomplete="off" autofocus
            placeholder="Escaneá o tipeá el código de barras…"
            pattern="[A-Za-z0-9\-_]+"
            title="Códigos alfanuméricos, guiones y guiones bajos">
@@ -269,10 +269,15 @@
   // ── Item 3: Auto-focus on SKU/product field ──────────────────────────
   var skuInput = document.getElementById("sku");
   var productSelect = document.getElementById("product_id");
-  if (skuInput) {
-    skuInput.focus();
-  } else if (productSelect) {
-    productSelect.focus();
+  function doAutoFocus() {
+    if (skuInput) {
+      skuInput.focus();
+    } else if (productSelect) {
+      productSelect.focus();
+    }
+  }
+  if (!("autofocus" in document.createElement("input")) || !skuInput || skuInput !== document.activeElement) {
+    doAutoFocus();
   }
 
   // ── SKU scan -> auto-fill product_id ──────────────────────────────────
@@ -374,6 +379,26 @@
 
   if (saleForm) {
     restoreForm();
+    // Show toast when draft was recovered
+    if (sessionStorage.getItem(STORAGE_KEY)) {
+      (function() {
+        var toast = document.createElement("div");
+        toast.className = "alert alert-success";
+        toast.style.position = "fixed";
+        toast.style.bottom = "1.5rem";
+        toast.style.right = "1.5rem";
+        toast.style.zIndex = 9999;
+        toast.style.maxWidth = "320px";
+        toast.setAttribute("role", "alert");
+        toast.innerHTML = '<svg class="icon" aria-hidden="true" style="flex-shrink:0"><use href="#icon-check"/></svg> Borrador recuperado.';
+        document.body.appendChild(toast);
+        setTimeout(function() {
+          toast.style.opacity = "0";
+          toast.style.transition = "opacity 0.4s";
+          setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 400);
+        }, 3000);
+      })();
+    }
     saleForm.addEventListener("input", saveForm);
     saleForm.addEventListener("change", saveForm);
     saleForm.addEventListener("submit", function() {

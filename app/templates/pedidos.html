@@ -29,11 +29,31 @@
         ("todos", "Todos"),
       ] %}
     {% for value, label in opts %}
-    <a href="/pedidos?status_filter={{ value }}"
+    <a href="/pedidos?status_filter={{ value }}&search={{ search }}"
        class="btn btn-sm {% if status_filter == value %}btn-primary{% else %}btn-ghost{% endif %}"
        {% if status_filter == value %}aria-current="page"{% endif %}>{{ label }}</a>
     {% endfor %}
   </nav>
+</div>
+
+{# Search + export bar #}
+<div class="card mb-4" style="display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap;">
+  <form method="get" action="/pedidos" style="display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap;">
+    <input type="hidden" name="status_filter" value="{{ status_filter }}">
+    <label for="search-pedidos" class="text-muted" style="font-size: var(--text-sm);">Buscar:</label>
+    <input type="text" id="search-pedidos" name="search" value="{{ search }}"
+           placeholder="Nombre o teléfono del cliente…"
+           style="padding: .3rem .6rem; border: 1px solid var(--color-border); border-radius: var(--radius); min-width: 200px;">
+    <button type="submit" class="btn btn-sm">🔍</button>
+    {% if search %}
+    <a href="/pedidos?status_filter={{ status_filter }}" class="btn btn-sm btn-ghost">✕</a>
+    {% endif %}
+  </form>
+  <a href="/pedidos/export-csv?status_filter={{ status_filter }}&search={{ search }}"
+     class="btn btn-sm btn-ghost" style="margin-left: auto;">
+    <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+    CSV
+  </a>
 </div>
 
 {% set groups_ordered = [
@@ -156,6 +176,27 @@
   {% endif %}
 </section>
 {% endfor %}
+
+{# Pagination #}
+{% if pagination and pagination.total_pages > 1 %}
+<div style="display: flex; justify-content: center; gap: .5rem; margin-top: var(--space-4); align-items: center; flex-wrap: wrap;">
+  {% if pagination.has_prev %}
+  <a href="{{ pagination.prev_url }}" class="btn btn-sm">← Anterior</a>
+  {% endif %}
+  {% for p in pagination.pages %}
+  <a href="/pedidos?status_filter={{ status_filter }}&search={{ search }}&page={{ p }}"
+     class="btn btn-sm {% if p == pagination.page %}btn-primary{% else %}btn-ghost{% endif %}">
+    {{ p }}
+  </a>
+  {% endfor %}
+  {% if pagination.has_next %}
+  <a href="{{ pagination.next_url }}" class="btn btn-sm">Siguiente →</a>
+  {% endif %}
+  <span class="text-muted" style="font-size: var(--text-xs);">
+    ({{ pagination.total_count }} pedidos)
+  </span>
+</div>
+{% endif %}
 
 <script>
 (function () {

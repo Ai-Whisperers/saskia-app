@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% block title %}Proveedores{% endblock %}
+{% block content %}
+<h1>Proveedores</h1>
+
+<p>
+  <a href="/suppliers/nuevo" class="btn btn-primary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+    Nuevo proveedor
+  </a>
+</p>
+
+{% if suppliers %}
+<table class="table is-hoverable is-striped">
+  <thead>
+    <tr>
+      <th>Nombre</th>
+      <th>Contacto</th>
+      <th>Teléfono</th>
+      <th>Email</th>
+      <th>Ingredientes</th>
+      <th class="actions"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in suppliers %}
+    <tr>
+      <td><strong>{{ s.name }}</strong></td>
+      <td>{{ s.contact_name or "—" }}</td>
+      <td>{{ s.phone or "—" }}</td>
+      <td>{{ s.email or "—" }}</td>
+      <td>
+        {% if s.ingredients %}
+          <span class="badge badge-neutral">{{ s.ingredients|length }}</span>
+          {% for ing in s.ingredients[:3] %}{{ ing.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+          {% if s.ingredients|length > 3 %}…{% endif %}
+        {% else %}
+          <em class="muted">ninguno</em>
+        {% endif %}
+      </td>
+      <td class="actions">
+        <a href="/suppliers/{{ s.id }}/editar" class="btn btn-sm btn-ghost">
+          <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+          Editar
+        </a>
+        {% if not s.ingredients %}
+        <form method="post" action="/suppliers/{{ s.id }}/eliminar" style="display:inline;"
+              onsubmit="return confirm('¿Eliminar {{ s.name }}?');">
+          <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <svg class="icon" aria-hidden="true"><use href="#icon-supplier"/></svg>
+  <h3>No hay proveedores todavía</h3>
+  <p>Agregá proveedores para poder contactarlos desde la página de reorden.</p>
+  <a href="/suppliers/nuevo" class="btn btn-primary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+    Agregar el primero
+  </a>
+</div>
+{% endif %}
+
+{% endblock %}

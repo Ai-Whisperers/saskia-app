@@ -69,8 +69,13 @@
   </thead>
   <tbody>
     {% for l in plan.lines %}
-    <tr>
-      <td><strong>{{ l.ingredient_name }}</strong></td>
+    <tr {% if l.stock_on_hand < l.qty_required %}style="background-color:var(--color-danger-bg);" title="Stock insuficiente"{% endif %}>
+      <td>
+        <strong>{{ l.ingredient_name }}</strong>
+        {% if l.stock_on_hand < l.qty_required %}
+        <span class="badge badge-danger">¡Falta!</span>
+        {% endif %}
+      </td>
       <td class="num">{{ "%.2f"|format(l.qty_required) }} {{ l.unit }}</td>
       <td class="num">{{ "%.2f"|format(l.stock_on_hand) }} {{ l.unit }}</td>
       <td class="num"><strong>{{ "%.2f"|format(l.qty_to_buy) }}</strong> {{ l.unit }}</td>
@@ -90,6 +95,7 @@
 </div>
 
 {% if week_plan and week_plan.rows %}
+<h3>Producción por día</h3>
 <table class="table is-hoverable is-striped">
   <thead>
     <tr>
@@ -111,6 +117,41 @@
 {% else %}
 <p class="empty">No hay producción planificada para esta semana.</p>
 {% endif %}
+
+{% if week_ingredients %}
+<h3>Ingredientes de la semana</h3>
+<table class="table is-hoverable">
+  <thead>
+    <tr>
+      <th>Ingrediente</th>
+      <th class="num">Requerido</th>
+      <th class="num">Stock actual</th>
+      <th class="num">A comprar</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for l in week_ingredients %}
+    <tr {% if l.stock_on_hand < l.qty_required %}style="background-color:var(--color-danger-bg);" title="Stock insuficiente"{% endif %}>
+      <td>
+        <strong>{{ l.ingredient_name }}</strong>
+        {% if l.stock_on_hand < l.qty_required %}
+        <span class="badge badge-danger">¡Falta!</span>
+        {% endif %}
+      </td>
+      <td class="num">{{ "%.2f"|format(l.qty_required) }} {{ l.unit }}</td>
+      <td class="num">{{ "%.2f"|format(l.stock_on_hand) }} {{ l.unit }}</td>
+      <td class="num">
+        {% if l.stock_on_hand < l.qty_required %}
+          <strong>{{ "%.2f"|format(l.qty_required - l.stock_on_hand) }}</strong>
+        {% else %}
+          —
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
 {% endif %}
 
 {# ====== MONTH VIEW ====== #}
@@ -122,6 +163,7 @@
 </div>
 
 {% if month_plan and month_plan.rows %}
+<h3>Producción por día</h3>
 <table class="table is-hoverable is-striped">
   <thead>
     <tr>
@@ -142,6 +184,41 @@
 </table>
 {% else %}
 <p class="empty">No hay producción planificada para este mes.</p>
+{% endif %}
+
+{% if month_ingredients %}
+<h3>Ingredientes del mes</h3>
+<table class="table is-hoverable">
+  <thead>
+    <tr>
+      <th>Ingrediente</th>
+      <th class="num">Requerido</th>
+      <th class="num">Stock actual</th>
+      <th class="num">A comprar</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for l in month_ingredients %}
+    <tr {% if l.stock_on_hand < l.qty_required %}style="background-color:var(--color-danger-bg);" title="Stock insuficiente"{% endif %}>
+      <td>
+        <strong>{{ l.ingredient_name }}</strong>
+        {% if l.stock_on_hand < l.qty_required %}
+        <span class="badge badge-danger">¡Falta!</span>
+        {% endif %}
+      </td>
+      <td class="num">{{ "%.2f"|format(l.qty_required) }} {{ l.unit }}</td>
+      <td class="num">{{ "%.2f"|format(l.stock_on_hand) }} {{ l.unit }}</td>
+      <td class="num">
+        {% if l.stock_on_hand < l.qty_required %}
+          <strong>{{ "%.2f"|format(l.qty_required - l.stock_on_hand) }}</strong>
+        {% else %}
+          —
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% endif %}
 {% endif %}
 

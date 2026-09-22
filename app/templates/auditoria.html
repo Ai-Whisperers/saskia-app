@@ -85,7 +85,7 @@
 </section>
 
 {% if formatted_rows %}
-<p class="text-muted mb-3">Mostrando {{ (page - 1) * 50 + 1 }}–{{ [page * 50, total_count] | min }} de {{ total_count }} entradas</p>
+<p class="text-muted mb-3 table-info">Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ total_count }}</strong> entradas</p>
 
 <nav class="pagination mb-3" aria-label="paginación de auditoría">
   {% if page > 1 %}
@@ -116,7 +116,7 @@
       <td><small>{{ r.occurred_at.strftime("%d/%m/%Y %H:%M") if r.occurred_at else "" }}</small></td>
       <td>{{ r.user_id or "—" }}</td>
       <td><code>{{ r.action }}</code></td>
-      <td>{{ r.target_type or "" }}{% if r.target_id %} #{{ r.target_id }}{% endif %}</td>
+      <td data-copy="{{ r.target_id }}">{{ r.target_type or "" }}{% if r.target_id %} #{{ r.target_id }}{% endif %}</td>
       <td><small>{{ r.ip or "" }}</small></td>
       <td><small class="text-muted" title="{{ r.user_agent or '' }}">{{ item.user_agent_short or "—" }}</small></td>
       <td>

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -29,11 +29,38 @@ router = APIRouter(prefix="/merma", dependencies=[Depends(require_login)])
 
 
 @router.get("", response_class=HTMLResponse)
-def merma_list(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
-    """List recent waste + summary."""
-    items = list_waste(session, limit=50)
-    end_date = datetime.now(timezone.utc)
-    start_date = end_date - timedelta(days=30)
+def merma_list(
+    request: Request,
+    days: int = Query(30, description="Days to look back (7, 30, 90, or custom)"),
+    since: str | None = Query(None, description="ISO date start override"),
+    until: str | None = Query(None, description="ISO date end override"),
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """List recent waste + summary with date range filter.
+
+    Presets: 7, 30, 90 days. Custom range via since/until ISO dates.
+    """
+    # Resolve date range
+    today = datetime.now(timezone.utc)
+    if since:
+        try:
+            start_date = datetime.strptime(since, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            start_date = today - timedelta(days=days)
+    else:
+        start_date = today - timedelta(days=days)
+
+    if until:
+        try:
+            end_date = datetime.strptime(until, "%Y-%m-%d").replace(tzinfo=timezone.utc).replace(
+                hour=23, minute=59, second=59
+            )
+        except ValueError:
+            end_date = today
+    else:
+        end_date = today
+
+    items = list_waste(session, start_date=start_date, end_date=end_date, limit=200)
     impact = waste_impact(session, start_date=start_date, end_date=end_date)
     # Estimate revenue from sales in same window
     from app.rms.models import Sale
@@ -55,6 +82,14 @@ def merma_list(request: Request, session: Session = Depends(get_session)) -> HTM
             .order_by(Recipe.name)
         ).all()
     )
+    # Top merma ingredients: group impact.by_ingredient and sort descending
+    top_ingredients = sorted(impact.by_ingredient, key=lambda x: x[2], reverse=True)[:10]
+
+    # Build preset query strings
+    def preset_url(d: int) -> str:
+        sd = (today - timedelta(days=d)).strftime("%Y-%m-%d")
+        return f"/merma?days={d}&since={sd}"
+
     return render(request, "merma.html", {
         "items": items,
         "impact": impact,
@@ -62,6 +97,16 @@ def merma_list(request: Request, session: Session = Depends(get_session)) -> HTM
         "reasons": [r.value for r in WasteReason],
         "ingredients": ingredients,
         "recipes": recipes_with_yield,
+        "top_ingredients": top_ingredients,
+        "days": days,
+        "since": start_date.strftime("%Y-%m-%d"),
+        "until": end_date.strftime("%Y-%m-%d"),
+        "preset_url_7": preset_url(7),
+        "preset_url_30": preset_url(30),
+        "preset_url_90": preset_url(90),
+        "total": len(items),
+        "page_start": 1,
+        "page_end": len(items),
     })
 
 

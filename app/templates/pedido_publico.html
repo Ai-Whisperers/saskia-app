@@ -85,6 +85,40 @@
   </div>
   {% endif %}
 
+  {#
+    Order status progression stepper — shown for active (non-fulfilled/cancelled) pedidos.
+    Steps: Pendiente → Confirmado → Listo → Retirado
+  #}
+  {% if pedido.status not in ("fulfilled", "cancelled") %}
+  <div class="card" style="padding: 1.5rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;position:relative;">
+      {# Connecting line #}
+      <div style="position:absolute;top:18px;left:24px;right:24px;height:2px;background:#e5e7eb;z-index:0;"></div>
+      {% set steps = [
+        ("pending", "Pendiente", "pending"),
+        ("confirmed", "Confirmado", "confirmed"),
+        ("ready", "Listo", "ready"),
+        ("fulfilled", "Retirado", "fulfilled")
+      ] %}
+      {% set status_order = ["pending", "confirmed", "ready", "fulfilled"] %}
+      {% set current_idx = status_order.index(pedido.status) if pedido.status in status_order else 0 %}
+      {% for step_id, step_label, step_icon in steps %}
+        {% set step_idx = loop.index0 %}
+        {% set is_done = step_idx < current_idx %}
+        {% set is_current = step_idx == current_idx %}
+        <div style="display:flex;flex-direction:column;align-items:center;gap:.3rem;z-index:1;flex:1;">
+          <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+            {% if is_done %}background:#22c55e;color:#fff;{% elif is_current %}background:#3b82f6;color:#fff;{% else %}background:#e5e7eb;color:#9ca3af;{% endif %}
+            font-size:1.1rem;font-weight:700;">
+            {% if is_done %}✓{% elif is_current %}●{% else %}○{% endif %}
+          </div>
+          <span style="font-size:.7rem;text-align:center;{% if is_done or is_current %}font-weight:600;color:#374151;{% else %}color:#9ca3af;{% endif %}">{{ step_label }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   <div class="text-center text-muted" style="font-size: var(--text-xs); padding: var(--space-4) 0;">
     <p>Guardá este link o esta página para revisar tu pedido.</p>
     <p>Si necesitás cambiar algo, respondé por WhatsApp.</p>

@@ -81,6 +81,7 @@
         {{ m.nav_link("/productos", "Productos", icon="icon-box", current_path=request.url.path) }}
         {{ m.nav_link("/inventario", "Inventario", icon="icon-inventory", current_path=request.url.path) }}
         {{ m.nav_link("/reorder", "Reponer", icon="icon-reorder", current_path=request.url.path) }}
+        {{ m.nav_link("/suppliers", "Proveedores", icon="icon-supplier", current_path=request.url.path) }}
         <div class="menu-section">Gestión</div>
         {{ m.nav_link("/reportes", "Reportes", icon="icon-report", current_path=request.url.path) }}
         {{ m.nav_link("/eod", "Cierre del día", icon="icon-close", current_path=request.url.path) }}
@@ -92,6 +93,28 @@
     
 
     <div class="nav-right">
+
+      <button type="button" class="search-btn btn-ghost btn-icon" id="global-search-btn"
+              aria-label="Buscar (Cmd+K)" title="Buscar (⌘K)">
+        <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+      </button>
+
+      <div class="notif-center" id="notif-center">
+        <button type="button" class="notif-btn btn-ghost btn-icon" id="notif-btn"
+                aria-label="Notificaciones" aria-haspopup="true" aria-expanded="false">
+          <svg class="icon" aria-hidden="true"><use href="#icon-bell"/></svg>
+          <span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+        </button>
+        <div class="notif-dropdown" id="notif-dropdown" role="menu" aria-label="Notificaciones">
+          <div class="notif-header">
+            <span>Notificaciones</span>
+            <button type="button" class="btn-ghost btn-sm" id="notif-clear" style="font-size:var(--text-xs);">Limpiar</button>
+          </div>
+          <div class="notif-list" id="notif-list">
+            <p class="notif-empty">Sin notificaciones</p>
+          </div>
+        </div>
+      </div>
 
       <button type="button" class="theme-toggle btn-ghost btn-icon" id="theme-toggle"
 
@@ -170,7 +193,7 @@
 
   <footer class="footer">
 
-    <small>Sistema local · {{ now_year() }} · {{ "Gs." }} integer</small>
+    <small>Saskia RMS v1.0 · Sistema local · {{ now_year() }}</small>
 
   </footer>
 
@@ -277,7 +300,28 @@
     })();
 
   </script>
+
+  {# ── Global Search Modal ── #}
+  <div class="search-modal" id="search-modal" role="dialog" aria-modal="true" aria-label="Búsqueda global" style="display:none;">
+    <div class="search-backdrop" id="search-backdrop"></div>
+    <div class="search-dialog">
+      <div class="search-header">
+        <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+        <input type="search" id="global-search-input" placeholder="Buscar clientes, productos, pedidos, recetas…"
+               autocomplete="off" aria-label="Búsqueda global">
+        <kbd>Esc</kbd>
+      </div>
+      <div class="search-results" id="search-results">
+        <p class="search-hint">Escribí para buscar en clientes, productos, pedidos y recetas.</p>
+      </div>
+    </div>
+  </div>
+
   {% include "_components/confirm_modal.html" %}
+
+  {# ── Global JS: search modal, notification center, copy-to-clipboard, Cmd+K ── #}
+  <script src="/static/app.js?v={{ asset_version() }}" defer></script>
+  {% block page_scripts %}{% endblock %}
 </body>
 
 </html>

@@ -157,6 +157,9 @@ def clientes_list(
         "dir": dir or "asc",
         "page": page,
         "total_pages": total_pages,
+        "total": total,
+        "page_start": (page - 1) * 50 + 1,
+        "page_end": min(page * 50, total),
     })
 
 

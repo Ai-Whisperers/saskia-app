@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Stock preview — Pedido #{{ pedido_id }}{% endblock %}
+
+{% block content %}
+<a href="/pedidos/{{ pedido_id }}" class="btn btn-ghost mb-4">← Volver al pedido</a>
+
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
+  Preview de stock — Pedido #{{ pedido_id }}
+</h1>
+<p class="hint">Esto es lo que se va a descontar al cumplir el pedido.</p>
+
+{% if warnings %}
+<div class="alert alert-danger mb-4" role="alert">
+  <strong>⚠️ Stock insuficiente</strong> — {{ warnings|length }} ingrediente(s) quedarían en negativo.
+</div>
+{% endif %}
+
+{% if consumed %}
+<div class="card mb-4">
+  <h2>Ingredientes a consumir</h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Ingrediente</th>
+        <th>Producto</th>
+        <th class="num">Stock actual</th>
+        <th class="num">A consumir</th>
+        <th class="num">Después</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in consumed %}
+      <tr class="{% if row.warning %}alert-danger{% endif %}">
+        <td>{{ row.ingredient }}</td>
+        <td>{{ row.product }}</td>
+        <td class="num">{{ row.current_stock }}</td>
+        <td class="num" style="color: var(--color-danger);">−{{ row.qty_needed }}</td>
+        <td class="num {% if row.warning %}text-danger{% endif %}">
+          {{ row.after_stock }}
+          {% if row.warning %}⚠️{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <p class="text-muted">No hay productos con receta para este pedido.</p>
+</div>
+{% endif %}
+
+<div style="display: flex; gap: var(--space-2); margin-top: var(--space-4);">
+  <a href="/pedidos/{{ pedido_id }}" class="btn btn-ghost">← Volver</a>
+  <form method="post" action="/pedidos/{{ pedido_id }}/fulfill" style="display: inline;">
+    <button type="submit" class="btn btn-primary"
+            onclick="SaskiaConfirmModal.show({title:'¿Cumplir pedido?',body:'Se crearán las ventas y se descontará stock.',action:'/pedidos/{{ pedido_id }}/fulfill',confirmLabel:'Sí, cumplir',danger:true})">
+      <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+      Confirmar cumplimiento
+    </button>
+  </form>
+</div>
+
+{% endblock %}

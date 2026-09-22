@@ -93,6 +93,8 @@ def produccion_worksheet(
         days = [week_start + timedelta(days=i) for i in range(7)]
         # Build week plan: aggregate plan_production() across all 7 days
         product_rows: dict[int, dict] = {}
+        # Ingredient aggregation across the week
+        ing_required: dict[int, dict] = {}  # ing_id -> {name, unit, required, stock}
         for d in days:
             plan = plan_production(session, for_date=d)
             for r in plan.rows:
@@ -106,11 +108,24 @@ def produccion_worksheet(
                     }
                 day_idx = (d - week_start).days
                 product_rows[r.product_id]["daily_qtys"][day_idx] = r.qty_to_produce
+            # Aggregate ingredients
+            for l in plan.lines:
+                if l.ingredient_id not in ing_required:
+                    ing_required[l.ingredient_id] = {
+                        "ingredient_name": l.ingredient_name,
+                        "unit": l.unit,
+                        "qty_required": 0.0,
+                        "stock_on_hand": l.stock_on_hand,
+                        "ingredient_id": l.ingredient_id,
+                    }
+                ing_required[l.ingredient_id]["qty_required"] += l.qty_required
+
         week_plan_rows = [
             {"product_name": v["product_name"], "product_id": pid,
              "recipe_id": v["recipe_id"], "daily_qtys": v["daily_qtys"]}
             for pid, v in sorted(product_rows.items(), key=lambda x: x[1]["product_name"])
         ]
+        week_ingredients = sorted(ing_required.values(), key=lambda x: x["ingredient_name"])
         prev_week = (week_start - timedelta(days=7)).isoformat()
         next_week = (week_start + timedelta(days=7)).isoformat()
         return render(request, "produccion.html", {
@@ -118,6 +133,7 @@ def produccion_worksheet(
             "week_start": week_start.strftime("%d %b %Y"),
             "weekdays": ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
             "week_plan": type("obj", (object,), {"rows": week_plan_rows})(),
+            "week_ingredients": week_ingredients,
             "prev_week_iso": prev_week,
             "next_week_iso": next_week,
         })
@@ -131,6 +147,7 @@ def produccion_worksheet(
         days = [date(year, mon, d) for d in range(1, ndays + 1)]
         # Build month plan: aggregate plan_production() across all days
         product_rows: dict[int, dict] = {}
+        ing_required: dict[int, dict] = {}
         for d in days:
             plan = plan_production(session, for_date=d)
             for r in plan.rows:
@@ -143,11 +160,23 @@ def produccion_worksheet(
                         "daily_qtys": [0.0] * ndays,
                     }
                 product_rows[r.product_id]["daily_qtys"][d.day - 1] = r.qty_to_produce
+            for l in plan.lines:
+                if l.ingredient_id not in ing_required:
+                    ing_required[l.ingredient_id] = {
+                        "ingredient_name": l.ingredient_name,
+                        "unit": l.unit,
+                        "qty_required": 0.0,
+                        "stock_on_hand": l.stock_on_hand,
+                        "ingredient_id": l.ingredient_id,
+                    }
+                ing_required[l.ingredient_id]["qty_required"] += l.qty_required
+
         month_plan_rows = [
             {"product_name": v["product_name"], "product_id": pid,
              "recipe_id": v["recipe_id"], "daily_qtys": v["daily_qtys"]}
             for pid, v in sorted(product_rows.items(), key=lambda x: x[1]["product_name"])
         ]
+        month_ingredients = sorted(ing_required.values(), key=lambda x: x["ingredient_name"])
         month_names = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
                        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
         prev_month = date(year, mon, 1) - timedelta(days=1)
@@ -159,6 +188,7 @@ def produccion_worksheet(
             "month_name": month_names[mon],
             "month_days": list(range(1, ndays + 1)),
             "month_plan": type("obj", (object,), {"rows": month_plan_rows})(),
+            "month_ingredients": month_ingredients,
             "prev_month_iso": prev_month.strftime("%Y-%m"),
             "next_month_iso": next_month.strftime("%Y-%m"),
         })

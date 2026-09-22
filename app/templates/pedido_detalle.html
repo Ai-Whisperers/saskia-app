@@ -79,6 +79,9 @@
   {% if pedido.notes %}
   <p class="mt-2"><strong>Notas:</strong> {{ pedido.notes }}</p>
   {% endif %}
+  {% if pedido.cancel_reason %}
+  <p class="mt-2"><strong>Razón de cancelación:</strong> {{ pedido.cancel_reason }}</p>
+  {% endif %}
 </div>
 
 <div class="card mb-4">
@@ -102,16 +105,49 @@
   </h2>
   <div class="form-actions" style="gap: var(--space-2);">
     {% if can_fulfill %}
-    <form method="post" action="/pedidos/{{ pedido.id }}/fulfill" style="display: inline;">
+    {# Stock preview first #}
+    <a href="/pedidos/{{ pedido.id }}/stock-preview"
+       class="btn btn-primary"
+       onclick="this.style.display='none';document.getElementById('fulfill-form-{{ pedido.id }}').style.display='inline';return false;">
+      <svg class="icon" aria-hidden="true"><use href="#icon-eye"/></svg>
+      Ver stock antes de cumplir
+    </a>
+    <form method="post" action="/pedidos/{{ pedido.id }}/fulfill" id="fulfill-form-{{ pedido.id }}" style="display:none; inline;">
       <button type="submit" class="btn btn-primary"
               onclick="SaskiaConfirmModal.show({title:'¿Cumplir pedido?',body:'Se crearán las ventas y se descontará stock.',action:'/pedidos/{{ pedido.id }}/fulfill',confirmLabel:'Sí, cumplir',danger:true})">
         <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-        Cumplir (crear ventas)
+        Confirmar cumplimiento
       </button>
     </form>
     {% endif %}
 
     {% for t in transitions %}
+    {% if t == "cancelled" %}
+    {# Cancel requires a reason #}
+    <button type="button" class="btn" onclick="showCancelModal()">
+      <svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg>
+      Cancelar
+    </button>
+    <dialog id="cancel-modal" style="border:none;padding:1.5rem;border-radius:var(--radius);background:var(--color-surface);min-width:320px;">
+      <h3 style="margin-top:0;">Cancelar pedido</h3>
+      <p class="text-muted" style="font-size:var(--text-sm);">¿Por qué se cancela este pedido?</p>
+      <form method="post" action="/pedidos/{{ pedido.id }}/status">
+        <input type="hidden" name="new_status" value="cancelled">
+        <textarea name="cancel_reason" rows="3" placeholder="Ej: cliente no respondió, producto agotado…"
+                  style="width:100%;margin-bottom:.75rem;"></textarea>
+        <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+          <button type="button" class="btn btn-ghost" onclick="document.getElementById('cancel-modal').close()">Volver</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </dialog>
+    <script>
+    function showCancelModal() {
+      var d = document.getElementById('cancel-modal');
+      d.showModal();
+    }
+    </script>
+    {% else %}
     <form method="post" action="/pedidos/{{ pedido.id }}/status" style="display: inline;">
       <input type="hidden" name="new_status" value="{{ t }}">
       <button type="submit" class="btn">
@@ -121,15 +157,19 @@
         {% elif t == "ready" %}
           <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
           Marcar listo
-        {% elif t == "cancelled" %}
-          <svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg>
-          Cancelar
         {% else %}
           {{ t | capitalize }}
         {% endif %}
       </button>
     </form>
+    {% endif %}
     {% endfor %}
+
+    {# Duplicate button #}
+    <a href="/pedidos/{{ pedido.id }}/duplicate" class="btn btn-ghost">
+      <svg class="icon" aria-hidden="true"><use href="#icon-copy"/></svg>
+      Duplicar
+    </a>
 
     {% if pedido.fulfilled_sale_id %}
     <a href="/ventas/{{ pedido.fulfilled_sale_id }}/recibo" class="btn btn-ghost" target="_blank" rel="noopener">

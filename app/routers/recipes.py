@@ -9,7 +9,7 @@ only handles single values.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -21,7 +21,7 @@ from app.rms.costing import (
     batch_recipes_cost,
 )
 from app.rms.dependencies import get_session
-from app.rms.models import Ingredient, Recipe, RecipeLine
+from app.rms.models import Ingredient, Product, Recipe, RecipeLine
 from app.rms.units import Unit
 from app.services.template_render import render
 
@@ -39,19 +39,74 @@ def _decorate(session: Session, r: Recipe, batch: CostResult, unit: CostResult |
         "batch_cost_gs": batch.batch_cost_gs,
         "unit_cost_gs": unit.batch_cost_gs if unit else None,
         "notes": r.notes,
+        "prep_minutes": r.prep_minutes,
+        "cook_minutes": r.cook_minutes,
+        "family": r.family,
+        "dietary_tags": r.dietary_tags,
     }
 
 
 @router.get("", response_class=HTMLResponse)
-async def recipes_list(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
-    """List recipes with batch + unit cost. Batch-loaded to avoid N+1 on Neon."""
-    recipes = session.scalars(select(Recipe).order_by(Recipe.name)).all()
+async def recipes_list(
+    request: Request,
+    q: str = Query("", description="Search by recipe name"),
+    ingredient_id: int | None = Query(None, description="Filter by ingredient"),
+    sort: str = Query("name", pattern="^(name|yield_qty|batch_cost_gs)$"),
+    dir: str = Query("asc", pattern="^(asc|desc)$"),
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """List recipes with batch + unit cost, search, filter by ingredient, and column sort.
+
+    Batch-loaded to avoid N+1 on Neon.
+    """
+    # Base query
+    stmt = select(Recipe)
+
+    # Search filter
+    if q:
+        stmt = stmt.where(Recipe.name.ilike(f"%{q}%"))
+
+    # Ingredient filter: find recipes that use this ingredient
+    if ingredient_id is not None:
+        stmt = stmt.join(RecipeLine).where(
+            RecipeLine.line_kind == "ingredient",
+            RecipeLine.line_ref_id == ingredient_id,
+        )
+
+    # Sorting
+    sort_col = {
+        "name": Recipe.name,
+        "yield_qty": Recipe.yield_qty,
+        "batch_cost_gs": Recipe.id,  # Will override after cost calc
+    }.get(sort, Recipe.name)
+    if dir == "desc":
+        stmt = stmt.order_by(sort_col.desc())
+    else:
+        stmt = stmt.order_by(sort_col.asc())
+
+    recipes = session.scalars(stmt.distinct()).all()
     batch_results = batch_recipes_cost(session, list(recipes))
     decorated = [
         _decorate(session, r, batch_results[r.id][0], batch_results[r.id][1], batch_results[r.id][2])
         for r in recipes
     ]
-    return render(request, "recetas.html", {"recipes": decorated})
+
+    # Sort by cost after decoration if needed
+    if sort == "batch_cost_gs":
+        decorated.sort(key=lambda x: x["batch_cost_gs"] or 0, reverse=(dir == "desc"))
+
+    # Ingredient list for filter dropdown
+    all_ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
+
+    return render(request, "recetas.html", {
+        "recipes": decorated,
+        "q": q,
+        "ingredient_id": ingredient_id,
+        "sort": sort,
+        "dir": dir,
+        "ingredients": all_ingredients,
+        "total": len(decorated),
+    })
 
 
 @router.get("/nueva", response_class=HTMLResponse)
@@ -83,6 +138,10 @@ async def recipe_create(
     yield_qty_raw = str(form.get("yield_qty", "")).strip()
     yield_unit_raw = str(form.get("yield_unit", "und")).strip()
     notes = str(form.get("notes", "")).strip()
+    prep_minutes_raw = str(form.get("prep_minutes", "")).strip()
+    cook_minutes_raw = str(form.get("cook_minutes", "")).strip()
+    family = str(form.get("family", "")).strip() or None
+    dietary_tags = str(form.get("dietary_tags", "")).strip() or None
 
     if not name:
         raise HTTPException(status_code=400, detail="Nombre es obligatorio")
@@ -93,12 +152,18 @@ async def recipe_create(
         raise HTTPException(status_code=400, detail=f"Unidad inválida: {e}") from e
 
     y_qty = float(yield_qty_raw) if yield_qty_raw else None
+    prep_min = int(prep_minutes_raw) if prep_minutes_raw else None
+    cook_min = int(cook_minutes_raw) if cook_minutes_raw else None
 
     recipe = Recipe(
         name=name,
         yield_qty=y_qty,
         yield_unit=y_unit.value,
         notes=notes or None,
+        prep_minutes=prep_min,
+        cook_minutes=cook_min,
+        family=family,
+        dietary_tags=dietary_tags,
     )
     session.add(recipe)
     try:
@@ -129,6 +194,24 @@ async def recipe_edit(
     other_recipes = session.scalars(
         select(Recipe).where(Recipe.id != r_id).order_by(Recipe.name)
     ).all()
+
+    # Cost breakdown for the recipe detail
+    from app.rms.costing import recipe_batch_cost_gs, recipe_unit_cost_gs
+    batch_cost = recipe_batch_cost_gs(session, r_id)
+    unit_cost = recipe_unit_cost_gs(session, r_id)
+
+    # Used by products
+    products_using = session.scalars(
+        select(Product).where(Product.recipe_id == r_id)
+    ).all()
+
+    # Yield scaling: if scale param is passed, compute scaled quantities
+    scale = request.query_params.get("scale", "1")
+    try:
+        scale_factor = max(0.25, min(10.0, float(scale)))
+    except ValueError:
+        scale_factor = 1.0
+
     return render(
         request,
         "receta_form.html",
@@ -140,6 +223,10 @@ async def recipe_edit(
             "units": [u.value for u in Unit],
             "ingredients": ingredients,
             "other_recipes": other_recipes,
+            "batch_cost_gs": batch_cost.batch_cost_gs,
+            "unit_cost_gs": unit_cost.batch_cost_gs if unit_cost else None,
+            "products_using": [{"id": p.id, "name": p.name} for p in products_using],
+            "scale_factor": scale_factor,
         },
     )
 
@@ -159,6 +246,10 @@ async def recipe_update(
     yield_qty_raw = str(form.get("yield_qty", "")).strip()
     yield_unit_raw = str(form.get("yield_unit", "und")).strip()
     notes = str(form.get("notes", "")).strip()
+    prep_minutes_raw = str(form.get("prep_minutes", "")).strip()
+    cook_minutes_raw = str(form.get("cook_minutes", "")).strip()
+    family = str(form.get("family", "")).strip() or None
+    dietary_tags = str(form.get("dietary_tags", "")).strip() or None
 
     if not name:
         raise HTTPException(status_code=400, detail="Nombre es obligatorio")
@@ -171,6 +262,10 @@ async def recipe_update(
     r.yield_qty = float(yield_qty_raw) if yield_qty_raw else None
     r.yield_unit = y_unit.value
     r.notes = notes or None
+    r.prep_minutes = int(prep_minutes_raw) if prep_minutes_raw else None
+    r.cook_minutes = int(cook_minutes_raw) if cook_minutes_raw else None
+    r.family = family
+    r.dietary_tags = dietary_tags
 
     # Replace lines
     for old in list(r.lines):

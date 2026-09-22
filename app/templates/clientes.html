@@ -82,7 +82,7 @@
     {% for c in customers %}
     <tr data-id="{{ c.id }}">
       <td><input type="checkbox" name="selected_clients" value="{{ c.id }}" aria-label="Seleccionar {{ c.name }}"></td>
-      <td><strong>{{ c.name }}</strong></td>
+      <td><strong data-copy="{{ c.id }}" title="Click to copy ID">{{ c.name }}</strong></td>
       <td>{{ c.phone }}</td>
       <td class="num">{{ c.n_sales }}</td>
       <td class="num">{{ m.gs(c.lifetime_spend_gs) }}</td>
@@ -98,6 +98,12 @@
     {% endfor %}
   </tbody>
 </table>
+
+{% if total > 0 %}
+<div class="table-info">
+  <span>Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ total }}</strong> clientes</span>
+</div>
+{% endif %}
 
 {# Pagination #}
 {% if total_pages > 1 %}

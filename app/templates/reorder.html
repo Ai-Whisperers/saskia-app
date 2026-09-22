@@ -3,14 +3,47 @@
 {% block title %}Reponer stock{% endblock %}
 {% block content %}
 <h1>Reponer stock</h1>
-<p class="hint">Ingredientes con stock por debajo del mínimo. Reordenar
-  según sugerido para llegar al máximo. Total estimado:
+<p class="hint">Ingredientes con stock por debajo del mínimo. Total estimado:
   <strong>{{ m.gs_full(total_cost_gs) }}</strong>.</p>
 
 {% if items %}
+{# Bulk actions bar #}
+<form method="post" action="/reorder/generate-po" id="bulk-form">
+  <input type="hidden" name="selected" id="bulk-selected" value="">
+  <div class="filters-form" style="display:flex;gap:var(--space-2);align-items:center;margin-bottom:var(--space-3);flex-wrap:wrap;">
+    <label style="display:flex;align-items:center;gap:var(--space-1);cursor:pointer;">
+      <input type="checkbox" id="select-all" aria-label="Seleccionar todos">
+      <span>Seleccionar todos</span>
+    </label>
+    <button type="submit" class="btn btn-primary" id="generate-po-btn" disabled>
+      <svg class="icon" aria-hidden="true"><use href="#icon-whatsapp"/></svg>
+      Generar pedido por WhatsApp
+    </button>
+  </div>
+</form>
+
+<script>
+document.getElementById('select-all').addEventListener('change', function() {
+  var checkboxes = document.querySelectorAll('.item-checkbox');
+  checkboxes.forEach(function(cb) { cb.checked = this.checked; }.bind(this));
+  updateBulkBtn();
+});
+document.querySelectorAll('.item-checkbox').forEach(function(cb) {
+  cb.addEventListener('change', updateBulkBtn);
+});
+function updateBulkBtn() {
+  var checked = document.querySelectorAll('.item-checkbox:checked');
+  var btn = document.getElementById('generate-po-btn');
+  var hidden = document.getElementById('bulk-selected');
+  btn.disabled = checked.length === 0;
+  hidden.value = Array.from(checked).map(function(c){ return c.value; }).join(',');
+}
+</script>
+
 <table class="table is-hoverable is-striped">
   <thead>
     <tr>
+      <th style="width:2rem;"></th>
       <th>Ingrediente</th>
       <th class="num">Actual</th>
       <th class="num">Mínimo</th>
@@ -18,13 +51,18 @@
       <th class="num">Sugerido</th>
       <th class="num">Urgencia</th>
       <th class="num">Costo est.</th>
+      <th>Proveedor</th>
       <th>Reponer</th>
     </tr>
   </thead>
   <tbody>
   {% for item in items %}
+    {% set supplier_info = supplier_map.get(item.ingredient_id, (None, '')) %}
     <tr>
-      <td><strong>{{ item.name }}</strong></td>
+      <td>
+        <input type="checkbox" class="item-checkbox" value="{{ item.ingredient_id }}" aria-label="Seleccionar {{ item.name }}">
+      </td>
+      <td><strong data-copy="{{ item.ingredient_id }}">{{ item.name }}</strong></td>
       <td class="num">{{ "%.2f"|format(item.current_stock) }} {{ item.unit }}</td>
       <td class="num">{{ "%.2f"|format(item.min_stock) }} {{ item.unit }}</td>
       <td class="num">{{ "%.2f"|format(item.max_stock) }} {{ item.unit }}</td>
@@ -39,6 +77,18 @@
         {% endif %}
       </td>
       <td class="num">{{ m.gs(item.estimated_cost_gs) }}</td>
+      <td>
+        {% if supplier_info[0] %}
+          <span>{{ supplier_info[0] }}</span>
+          {% if supplier_info[1] %}
+            <a href="https://wa.me/{{ supplier_info[1]|replace('+','')|replace(' ','') }}?text=Hola%2C%20necesito%20hacer%20un%20pedido" target="_blank" rel="noopener" class="btn btn-sm" aria-label="WhatsApp a {{ supplier_info[0] }}">
+              <svg class="icon" aria-hidden="true" style="color:var(--color-whatsapp);"><use href="#icon-whatsapp"/></svg>
+            </a>
+          {% endif %}
+        {% else %}
+          <em class="muted">sin proveedor</em>
+        {% endif %}
+      </td>
       <td>
         <form method="post" action="/reorder/registrar" class="restock-form">
           <input type="hidden" name="ingredient_id" value="{{ item.ingredient_id }}">
@@ -59,14 +109,20 @@
   </tbody>
   <tfoot>
     <tr>
-      <th colspan="6" class="num">Total estimado</th>
+      <th colspan="7" class="num">Total estimado</th>
       <th class="num">{{ m.gs(total_cost_gs) }}</th>
+      <th></th>
       <th></th>
     </tr>
   </tfoot>
 </table>
 
-<p><a href="/reorder?format=json" class="btn">Ver como JSON</a></p>
+<div class="table-info">
+  <span>Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ count }}</strong> ingredientes</span>
+</div>
+
+<p><a href="/reorder?format=json" class="btn">Ver como JSON</a>
+| <a href="/suppliers" class="btn">Administrar proveedores</a></p>
 {% else %}
 <p class="empty">No hay ingredientes por debajo del mínimo. ¡Todo en orden!</p>
 {% endif %}

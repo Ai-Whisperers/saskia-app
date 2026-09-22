@@ -13,8 +13,10 @@
   <div class="form-row">
     <label for="customer_name">Cliente (nombre)</label>
     <input type="text" id="customer_name" name="customer_name"
-           placeholder="María González" autocomplete="off">
-    <small>Si es un cliente conocido, también podés asociar el ID abajo.</small>
+           list="customer-suggestions" autocomplete="off"
+           placeholder="María González">
+    <datalist id="customer-suggestions"></datalist>
+    <small>Escribí para buscar clientes existentes. También podés asociar el ID abajo.</small>
   </div>
 
   <div class="form-row">
@@ -146,6 +148,7 @@
 
 <script>
 (function() {
+  // --- Line add / auto-price ---
   var addBtn = document.getElementById("add-line-btn");
   var tmpl = document.getElementById("line-row-template");
   var body = document.getElementById("lines-body");
@@ -166,6 +169,47 @@
       }
     }
   });
+
+  // --- Customer autocomplete ---
+  var customerInput = document.getElementById("customer_name");
+  var suggestions = document.getElementById("customer-suggestions");
+  var phoneInput = document.getElementById("customer_phone");
+  var customerSelect = document.getElementById("customer_id");
+  if (customerInput && suggestions) {
+    var lastQuery = "";
+    var debounceTimer = null;
+    customerInput.addEventListener("input", function() {
+      var q = customerInput.value.trim();
+      if (q.length < 2) { suggestions.innerHTML = ""; return; }
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(function() {
+        fetch("/customers/api/search?q=" + encodeURIComponent(q))
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            suggestions.innerHTML = "";
+            (data.results || []).forEach(function(c) {
+              var opt = document.createElement("option");
+              opt.value = c.name;
+              opt.dataset.phone = c.phone || "";
+              opt.dataset.id = c.id || "";
+              suggestions.appendChild(opt);
+            });
+          })
+          .catch(function() {});
+      }, 300);
+    });
+    // Fill phone when a suggestion is selected
+    customerInput.addEventListener("change", function() {
+      var opts = Array.from(suggestions.options);
+      var sel = opts.find(function(o) { return o.value === customerInput.value; });
+      if (sel && phoneInput) {
+        phoneInput.value = sel.dataset.phone || "";
+      }
+      if (sel && customerSelect) {
+        customerSelect.value = sel.dataset.id || "";
+      }
+    });
+  }
 })();
 
 function removeLine(btn) {

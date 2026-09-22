@@ -13,14 +13,50 @@
   </a>
 </p>
 
+{# --- Filters + Search --- #}
+<form method="get" action="/recetas" class="filters-form" style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:end;margin-bottom:var(--space-4);">
+  <div class="form-row" style="margin-bottom:0;">
+    <label for="q">Buscar</label>
+    <input type="text" id="q" name="q" value="{{ q }}" placeholder="Nombre de receta…">
+  </div>
+  <div class="form-row" style="margin-bottom:0;">
+    <label for="ingredient_id">Ingrediente</label>
+    <select id="ingredient_id" name="ingredient_id">
+      <option value="">Todos los ingredientes</option>
+      {% for ing in ingredients %}
+      <option value="{{ ing.id }}" {% if ingredient_id == ing.id %}selected{% endif %}>{{ ing.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn btn-primary">Filtrar</button>
+  {% if q or ingredient_id %}
+  <a href="/recetas" class="btn btn-ghost">Limpiar</a>
+  {% endif %}
+</form>
+
 {% if recipes %}
 <table class="table is-hoverable is-striped">
   <thead>
     <tr>
-      <th>Nombre</th>
-      <th class="num">Rinde</th>
+      <th>
+        Nombre
+        <a href="?sort=name&dir={% if sort == 'name' and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}{% if ingredient_id %}&ingredient_id={{ ingredient_id }}{% endif %}" aria-label="Ordenar por nombre">
+          {% if sort == 'name' %}<strong>{% endif %}{% if sort == 'name' and dir == 'desc' %}▼{% elif sort == 'name' %}▲{% else %}⇅{% endif %}{% if sort == 'name' %}</strong>{% endif %}
+        </a>
+      </th>
+      <th class="num">
+        Rinde
+        <a href="?sort=yield_qty&dir={% if sort == 'yield_qty' and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}{% if ingredient_id %}&ingredient_id={{ ingredient_id }}{% endif %}" aria-label="Ordenar por rinde">
+          {% if sort == 'yield_qty' %}<strong>{% endif %}{% if sort == 'yield_qty' and dir == 'desc' %}▼{% elif sort == 'yield_qty' %}▲{% else %}⇅{% endif %}{% if sort == 'yield_qty' %}</strong>{% endif %}
+        </a>
+      </th>
       <th>Líneas</th>
-      <th class="num">Costo del lote (Gs.)</th>
+      <th class="num">
+        Costo del lote (Gs.)
+        <a href="?sort=batch_cost_gs&dir={% if sort == 'batch_cost_gs' and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}{% if ingredient_id %}&ingredient_id={{ ingredient_id }}{% endif %}" aria-label="Ordenar por costo">
+          {% if sort == 'batch_cost_gs' %}<strong>{% endif %}{% if sort == 'batch_cost_gs' and dir == 'desc' %}▼{% elif sort == 'batch_cost_gs' %}▲{% else %}⇅{% endif %}{% if sort == 'batch_cost_gs' %}</strong>{% endif %}
+        </a>
+      </th>
       <th class="num">Costo / porción (Gs.)</th>
       <th class="actions"></th>
     </tr>
@@ -28,7 +64,9 @@
   <tbody>
     {% for r in recipes %}
     <tr>
-      <td><strong>{{ r.name }}</strong></td>
+      <td><strong data-copy="{{ r.id }}">{{ r.name }}</strong>
+        {% if r.family %}<span class="badge badge-neutral">{{ r.family }}</span>{% endif %}
+      </td>
       <td class="num">
         {% if r.yield_qty is none %}
           <em class="muted">sin rinde</em>
@@ -49,6 +87,11 @@
     {% endfor %}
   </tbody>
 </table>
+{% if total > 0 %}
+<div class="table-info">
+  <span>Mostrando <strong>1–{{ total }}</strong> de <strong>{{ total }}</strong> recetas</span>
+</div>
+{% endif %}
 {% else %}
 <div class="empty-state">
   <svg class="icon" aria-hidden="true"><use href="#icon-recipe"/></svg>

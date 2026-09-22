@@ -61,7 +61,9 @@ from app.routers import (
     reorder,
     reportes,
     sales,
+    search,
     settings,
+    suppliers,
     users,
 )
 from app.services.template_render import templates
@@ -373,8 +375,10 @@ app.include_router(health.router)
 app.include_router(dashboard.router)
 app.include_router(inventory.router)
 app.include_router(recipes.router)
+app.include_router(suppliers.router)
 app.include_router(products.router)
 app.include_router(sales.router)
+app.include_router(search.router)
 app.include_router(excel_io.router)
 app.include_router(customers.router)
 app.include_router(produccion.router)
