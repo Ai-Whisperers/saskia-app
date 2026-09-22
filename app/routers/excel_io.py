@@ -6,6 +6,7 @@ Endpoints:
 - GET  /excel                    — page listing recent import batches
 - POST /excel/importar?mode=...  — upload .xlsx, import into DB
                                    mode=PATCH (default) | FULL
+- GET  /excel/validar            — dry-run: validate file and return errors without writing
 - GET  /excel/exportar           — download current DB state as .xlsx (FULL)
 - GET  /excel/plantilla          — download PATCH plantilla (.xlsx)
 """
@@ -25,21 +26,17 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
+from app.rms.audit import record
 from app.rms.dependencies import get_session
 from app.rms.models import ImportBatch
 from app.services.template_render import render
 
 router = APIRouter(prefix="/excel", dependencies=[Depends(require_login)])
 
-# Mode whitelist — anything else raises 422.
-VALID_MODES = ("PATCH", "FULL")
+VALID_MODES = ("PATCH", "FULL", "APPEND")
 
 
 def _resolve_mode(mode: str | None) -> str:
-    """Validate mode query param. None or empty → PATCH (safer default).
-
-    Raises HTTPException(422) on invalid value.
-    """
     if mode is None or mode == "":
         return "PATCH"
     normalized = mode.upper()
@@ -51,15 +48,18 @@ def _resolve_mode(mode: str | None) -> str:
     return normalized
 
 
+# ─── Home page ──────────────────────────────────────────────────────────────
+
+
 @router.get("", response_class=HTMLResponse)
 async def excel_home(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     """Excel page: list recent import batches + import/export buttons."""
     batches = session.scalars(
-        select(ImportBatch).order_by(ImportBatch.imported_at.desc()).limit(10)
+        select(ImportBatch).order_by(ImportBatch.imported_at.desc()).limit(20)
     ).all()
-    last_import = None
-    if batches:
-        b = batches[0]
+
+    import_history = []
+    for b in batches:
         raw = b.row_counts_json
         if isinstance(raw, str):
             try:
@@ -68,34 +68,139 @@ async def excel_home(request: Request, session: Session = Depends(get_session)) 
                 counts = {}
         else:
             counts = raw or {}
-        last_import = {
+
+        # Parse warnings
+        warnings_raw = counts.get("warnings", [])
+        if isinstance(warnings_raw, str):
+            try:
+                warnings_raw = json.loads(warnings_raw)
+            except (json.JSONDecodeError, TypeError):
+                warnings_raw = [warnings_raw] if warnings_raw else []
+
+        import_history.append({
+            "id": b.id,
             "filename": b.source_filename,
-            "imported_at_str": b.imported_at.strftime("%d/%m/%Y %H:%M"),
+            "imported_at_str": b.imported_at.strftime("%d/%m/%Y %H:%M") if b.imported_at else "",
             "mode": counts.get("mode", "FULL"),
             "ingredients": counts.get("ingredients", 0),
             "recipes": counts.get("recipes", 0),
             "lines": counts.get("lines", 0),
             "products": counts.get("products", 0),
             "customers": counts.get("customers", 0),
-            "warnings": counts.get("warnings", []),
-        }
+            "warnings": warnings_raw,
+        })
 
-    return render(request, "excel.html", {"last_import": last_import})
+    return render(request, "excel.html", {"import_history": import_history})
+
+
+# ─── Mode guidance ───────────────────────────────────────────────────────────
+
+
+@router.get("/mode-guidance", response_class=HTMLResponse)
+async def excel_mode_guidance(request: Request) -> HTMLResponse:
+    """Explain the three import modes: FULL, PATCH, APPEND."""
+    guidance = [
+        {
+            "mode": "PATCH",
+            "label": "Actualizar por nombre (PATCH)",
+            "summary": "Recomendado para mantener tus datos actualizados.",
+            "how": "Compara por nombre (productos, ingredientes, recetas) o teléfono (clientes). "
+                   "Actualiza las celdas que editás en el archivo. No borra nada existente.",
+            "use_case": "Editaste precios de productos en la планilla y querés subir los cambios.",
+            "danger": "safe",
+            "color": "#22c55e",
+        },
+        {
+            "mode": "FULL",
+            "label": "Reemplazar todo (FULL)",
+            "summary": "Añade filas del archivo SIN pisar las anteriores. No recomendado para actualizaciones.",
+            "how": "Añade todas las filas del archivo a las tablas existentes. "
+                   "Si ya existe un producto con el mismo nombre, se crea otro igual (duplicado).",
+            "use_case": "Necesitás restaurar un backup completo sin perder datos previos.",
+            "danger": "caution",
+            "color": "#f59e0b",
+        },
+        {
+            "mode": "APPEND",
+            "label": "Solo añadir (APPEND)",
+            "summary": "Añade filas únicamente — sin actualizar nada existente.",
+            "how": "Toma cada fila del archivo y la inserta como nueva. "
+                   "Los datos existentes quedan intactos.",
+            "use_case": "Cargaste clientes nuevos a la планilla y querés agregarlos sin tocar los existentes.",
+            "danger": "safe",
+            "color": "#22c55e",
+        },
+    ]
+    return render(request, "excel_mode_guidance.html", {"guidance": guidance})
+
+
+# ─── Pre-import validation (dry-run) ───────────────────────────────────────
+
+
+@router.post("/validar")
+async def excel_validate(
+    request: Request,
+    session: Session = Depends(get_session),
+    mode: str = Query(default="PATCH"),
+) -> HTMLResponse:
+    """Dry-run: validate an uploaded .xlsx without writing to DB.
+
+    Returns a list of errors (row, field, message) and warnings.
+    """
+    resolved_mode = _resolve_mode(mode)
+    form = await request.form()
+    file = form.get("file")
+    if file is None or not hasattr(file, "filename"):
+        raise HTTPException(status_code=400, detail="Subí un archivo .xlsx")
+    filename = getattr(file, "filename", "") or ""
+    if not filename.lower().endswith(".xlsx"):
+        raise HTTPException(status_code=400, detail="El archivo tiene que ser .xlsx")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Archivo vacío")
+
+    errors: list[dict] = []
+    warnings: list[dict] = []
+
+    with tempfile.TemporaryDirectory(prefix="saskia-validate-") as tmp_dir:
+        save_path = Path(tmp_dir) / filename
+        save_path.write_bytes(content)
+        try:
+            from app.services.import_xlsx import DryRunResult, from_file
+
+            result: DryRunResult = from_file(session, save_path, mode=resolved_mode, dry_run=True)  # type: ignore[arg-type]
+            errors = result.errors
+            warnings = result.warnings
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=400, detail=f"Sheet no encontrado: {exc}") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return render(request, "excel_validate.html", {
+        "filename": filename,
+        "mode": resolved_mode,
+        "errors": errors,
+        "warnings": warnings,
+        "has_errors": bool(errors),
+    })
+
+
+# ─── Actual import (with audit log) ─────────────────────────────────────────
 
 
 @router.post("/importar")
 async def excel_import(
     request: Request,
     session: Session = Depends(get_session),
-    mode: str = Query(default="PATCH", description="PATCH (default) | FULL"),
+    mode: str = Query(default="PATCH"),
 ) -> RedirectResponse:
     """Import an uploaded .xlsx file.
 
-    `mode=PATCH` (default) updates existing rows by natural key — Productos
-    by name or sku, Clientes by phone (creating new ones), Ingredientes and
-    Recetas by name. No data is destroyed.
-
-    `mode=FULL` is the legacy additive import — appends rows to existing tables.
+    `mode=PATCH` (default) updates existing rows by natural key.
+    `mode=FULL` appends all rows from the file.
+    `mode=APPEND` only inserts new rows (no updates).
+    Results are logged to the audit log.
     """
     resolved_mode = _resolve_mode(mode)
 
@@ -104,27 +209,51 @@ async def excel_import(
     if file is None or not hasattr(file, "filename"):
         raise HTTPException(status_code=400, detail="Subí un archivo .xlsx")
     filename = getattr(file, "filename", "") or ""
-    if not filename or not filename.lower().endswith(".xlsx"):
+    if not filename.lower().endswith(".xlsx"):
         raise HTTPException(status_code=400, detail="El archivo tiene que ser .xlsx")
 
-    # Save uploaded file to a secure temp location
     content = await file.read()
     if not content:
         raise HTTPException(status_code=400, detail="Archivo vacío")
 
-    # Use a per-request temp dir so concurrent imports don't clash
+    row_counts: dict = {}
+
     with tempfile.TemporaryDirectory(prefix="saskia-import-") as tmp_dir:
         save_path = Path(tmp_dir) / filename
         save_path.write_bytes(content)
         try:
             from app.services.import_xlsx import from_file
 
-            from_file(session, save_path, mode=resolved_mode)  # type: ignore[arg-type]
-        except (FileNotFoundError, ValueError) as exc:
+            result = from_file(session, save_path, mode=resolved_mode)  # type: ignore[arg-type]
+            row_counts = result.row_counts()
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    # Redirect back to /excel with the last batch shown
+    # Record import in audit log
+    try:
+        record(
+            session,
+            user_id=request.state.user_id if hasattr(request.state, "user_id") else None,
+            action="excel.import",
+            target_type="import_batch",
+            target_id=str(row_counts.get("batch_id", "")),
+            detail={
+                "filename": filename,
+                "mode": resolved_mode,
+                **row_counts,
+            },
+            request=request,
+        )
+        session.commit()
+    except Exception:
+        session.rollback()
+
     return RedirectResponse(url="/excel", status_code=303)
+
+
+# ─── Export ──────────────────────────────────────────────────────────────────
 
 
 @router.get("/exportar")
@@ -132,20 +261,17 @@ async def excel_export(request: Request, session: Session = Depends(get_session)
     """Export current DB state to a HEREBUS-format .xlsx."""
     from app.services.export_xlsx import to_file
 
-    # Use a temp file so concurrent exports don't overwrite each other
     fd, tmp_path_str = tempfile.mkstemp(prefix="saskia-export-", suffix=".xlsx")
-    os.close(fd)  # let openpyxl open it
+    os.close(fd)
     tmp_path = Path(tmp_path_str)
     try:
         written = to_file(session, tmp_path)
-        # FileResponse will read + delete via the temp file pattern
         return FileResponse(
             path=str(written),
             filename="saskia-rms-export.xlsx",
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
     except Exception:
-        # Clean up temp file on failure
         try:
             tmp_path.unlink()
         except OSError:
@@ -159,10 +285,7 @@ async def excel_plantilla(
 ) -> Response:
     """Download a PATCH plantilla (.xlsx) pre-populated with current rows.
 
-    The operator can edit it at home (Drive, Excel, Numbers, etc.) and
-    re-upload via POST /excel/importar?mode=PATCH for incremental updates.
-
-    Filename: saskia-import-YYYYMMDD.xlsx
+    Columns marked as [REQUIRED] or [OPTIONAL] in the header row.
     """
     from app.services.export_xlsx import patch_plantilla_bytes
 

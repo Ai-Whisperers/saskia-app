@@ -6,7 +6,13 @@
   Auditoría
 </h1>
 
-<section class="card">
+{% if request.query_params.get('pruned') %}
+<div class="alert alert-info" role="status">
+  Se eliminaron {{ request.query_params.get('pruned') }} entradas antiguas.
+</div>
+{% endif %}
+
+<section class="card mb-4">
   <div class="card-header">
     <h2>Filtros</h2>
   </div>
@@ -36,10 +42,24 @@
                value="{{ user_filter or '' }}" placeholder="saskia">
       </div>
       <div class="form-row">
-        <label for="limit">Límite</label>
-        <input type="number" id="limit" name="limit" value="{{ limit }}" min="1" max="500">
+        <label for="target_type">Tipo de registro</label>
+        <input type="text" id="target_type" name="target_type"
+               value="{{ target_type or '' }}" placeholder="product, sale, customer ...">
+      </div>
+      <div class="form-row">
+        <label for="target_id">ID del registro</label>
+        <input type="text" id="target_id" name="target_id"
+               value="{{ target_id or '' }}" placeholder="42">
       </div>
     </div>
+
+    <div class="form-row">
+      <span class="text-muted" style="font-size: 12px;">Accesos rápidos:</span>
+      {% for label, (ps, pe) in presets.items() %}
+      <a href="?start_date={{ ps }}&end_date={{ pe }}" class="btn btn-ghost btn-sm">{{ label }}</a>
+      {% endfor %}
+    </div>
+
     <div class="form-actions">
       <button type="submit" class="btn btn-primary">
         <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
@@ -50,7 +70,33 @@
   </form>
 </section>
 
-{% if rows %}
+<section class="card mb-4">
+  <div class="card-header">
+    <h2>Retención de datos</h2>
+  </div>
+  <p class="text-muted mb-3">Las entradas de auditoría se eliminan automáticamente después de 1 año.
+     Podés eliminar las entradas más antiguas manualmente.</p>
+  <form method="post" action="/auditoria/prune" onsubmit="return confirm('¿Eliminar entradas de hace más de 1 año? Esta acción no se puede deshacer.')">
+    <button type="submit" class="btn btn-danger">
+      <svg class="icon" aria-hidden="true"><use href="#icon-trash"/></svg>
+      Eliminar entradas de más de 1 año
+    </button>
+  </form>
+</section>
+
+{% if formatted_rows %}
+<p class="text-muted mb-3">Mostrando {{ (page - 1) * 50 + 1 }}–{{ [page * 50, total_count] | min }} de {{ total_count }} entradas</p>
+
+<nav class="pagination mb-3" aria-label="paginación de auditoría">
+  {% if page > 1 %}
+  <a href="?page={{ page - 1 }}&start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}" class="btn btn-ghost">← Anterior</a>
+  {% endif %}
+  <span class="pagination-info">Página {{ page }} de {{ total_pages }}</span>
+  {% if page < total_pages %}
+  <a href="?page={{ page + 1 }}&start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}" class="btn btn-ghost">Siguiente →</a>
+  {% endif %}
+</nav>
+
 <table class="table is-striped">
   <thead>
     <tr>
@@ -59,22 +105,49 @@
       <th>Acción</th>
       <th>Target</th>
       <th>IP</th>
+      <th>User Agent</th>
       <th>Detalle</th>
     </tr>
   </thead>
   <tbody>
-    {% for r in rows %}
+    {% for item in formatted_rows %}
+    {% set r = item.row %}
     <tr>
       <td><small>{{ r.occurred_at.strftime("%d/%m/%Y %H:%M") if r.occurred_at else "" }}</small></td>
       <td>{{ r.user_id or "—" }}</td>
       <td><code>{{ r.action }}</code></td>
       <td>{{ r.target_type or "" }}{% if r.target_id %} #{{ r.target_id }}{% endif %}</td>
       <td><small>{{ r.ip or "" }}</small></td>
-      <td><code class="text-muted"><small>{{ (r.detail or {}) | tojson }}</small></code></td>
+      <td><small class="text-muted" title="{{ r.user_agent or '' }}">{{ item.user_agent_short or "—" }}</small></td>
+      <td>
+        {% if item.detail_pairs %}
+        <details>
+          <summary class="text-muted" style="cursor:pointer">Ver detalle</summary>
+          <dl style="font-size: 12px; margin-top: 4px;">
+            {% for k, v in item.detail_pairs %}
+            <dt><strong>{{ k }}:</strong></dt>
+            <dd style="margin-left: 1rem;">{{ v }}</dd>
+            {% endfor %}
+          </dl>
+        </details>
+        {% else %}
+        <span class="text-muted">—</span>
+        {% endif %}
+      </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+
+<nav class="pagination mt-3" aria-label="paginación de auditoría">
+  {% if page > 1 %}
+  <a href="?page={{ page - 1 }}&start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}" class="btn btn-ghost">← Anterior</a>
+  {% endif %}
+  <span class="pagination-info">Página {{ page }} de {{ total_pages }}</span>
+  {% if page < total_pages %}
+  <a href="?page={{ page + 1 }}&start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}" class="btn btn-ghost">Siguiente →</a>
+  {% endif %}
+</nav>
 {% else %}
 <div class="empty-state">
   <svg class="icon" aria-hidden="true"><use href="#icon-audit"/></svg>

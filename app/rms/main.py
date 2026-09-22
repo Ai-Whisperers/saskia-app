@@ -62,6 +62,7 @@ from app.routers import (
     reportes,
     sales,
     settings,
+    users,
 )
 from app.services.template_render import templates
 
@@ -383,6 +384,7 @@ app.include_router(reportes.router)
 app.include_router(auditoria.router)
 app.include_router(ops.router)
 app.include_router(settings.router)
+app.include_router(users.router)
 app.include_router(reorder.router)
 app.include_router(help.router)
 app.include_router(pedidos.public_router)

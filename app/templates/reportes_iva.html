@@ -9,6 +9,25 @@
 
 <p class="text-muted">IVA 10% (Paraguay) — todos los precios son IVA incluido.</p>
 
+<div class="form-actions mb-4">
+  <a href="/reportes/iva/pdf" class="btn btn-secondary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+    Exportar PDF
+  </a>
+</div>
+
+{% if ytd %}
+<div class="metric-card mb-4" style="max-width: 400px; background: #f0f4ff; border-left: 4px solid #3b82f6;">
+  <div class="metric-label">Acumulado del año (YTD)</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+    <div><span class="text-muted">Ventas:</span> {{ ytd.n_sales }}</div>
+    <div><span class="text-muted">Base imponible:</span> {{ m.gs(ytd.total_base_gs) }}</div>
+    <div><span class="text-muted">IVA 10%:</span> {{ m.gs(ytd.total_iva_gs) }}</div>
+    <div><span class="text-muted">Total:</span> <strong>{{ m.gs(ytd.total_gross_gs) }}</strong></div>
+  </div>
+</div>
+{% endif %}
+
 {% if rows %}
 <table class="table is-hoverable">
   <thead>

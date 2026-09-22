@@ -60,7 +60,16 @@ from app.rms.models import (
 )
 from app.rms.money import parse_gs, to_int_gs
 
-ImportMode = Literal["FULL", "PATCH"]
+ImportMode = Literal["FULL", "PATCH", "APPEND"]
+
+ImportModeAll = Literal["FULL", "PATCH", "APPEND"]
+
+
+@dataclass
+class DryRunResult:
+    """Result of a dry-run import validation."""
+    errors: list[dict] = field(default_factory=list)  # [{row, field, message}]
+    warnings: list[dict] = field(default_factory=list)  # [{row, field, message}]
 
 
 @dataclass
@@ -77,7 +86,7 @@ class ImportResult:
     customers: int = 0
     sales: int = 0
     stock_moves: int = 0
-    warnings: list[str] = field(default_factory=list)
+    warnings: list[str | dict] = field(default_factory=list)  # mix of strings and {row,field,message} dicts
 
     def row_counts(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -148,7 +157,7 @@ def _opt_int(value) -> int | None:
     return int(f)
 
 
-def _money_int_gs(value, *, field_name: str, warnings: list[str]) -> int | None:
+def _money_int_gs(value, *, field_name: str, warnings: list) -> int | None:
     """Cell value → integer Gs. via parse_gs (accepts 'Gs. 5.000' format) or
     to_int_gs (accepts numeric).
 
@@ -177,9 +186,172 @@ def _money_int_gs(value, *, field_name: str, warnings: list[str]) -> int | None:
         return None
 
 
-# ---------------------------------------------------------------------------
+# --------------------------------------------------------------------------_
+# Validation (dry-run)
+# --------------------------------------------------------------------------_
+
+
+def _validate_workbook(wb, mode: str) -> tuple[list[dict], list[dict]]:
+    """Validate all sheets without writing. Returns (errors, warnings)."""
+    errors: list[dict] = []
+    warnings: list[dict] = []
+
+    def _err(row_num, field, msg):
+        errors.append({"row": row_num, "field": field, "message": msg})
+
+    def _warn(row_num, field, msg):
+        warnings.append({"row": row_num, "field": field, "message": msg})
+
+    # Ingredientes
+    for row_num, row in enumerate(_rows(_sheet(wb, "Ingredientes")), start=2):
+        name = _opt_str(row.get("name"))
+        if not name:
+            _err(row_num, "name", "Nombre requerido")
+        stock = _opt_float(row.get("stock_qty"))
+        if stock is not None and stock < 0:
+            _err(row_num, "stock_qty", f"stock_qty no puede ser negativo: {stock}")
+        price = row.get("purchase_price_gs")
+        if price is not None:
+            try:
+                if isinstance(price, (int, float)):
+                    to_int_gs(price)
+                else:
+                    parse_gs(str(price))
+            except (ValueError, TypeError):
+                _err(row_num, "purchase_price_gs", f"No se pudo parsear precio: {price!r}")
+
+    # Recetas
+    for row_num, row in enumerate(_rows(_sheet(wb, "Recetas")), start=2):
+        name = _opt_str(row.get("name"))
+        if not name:
+            _err(row_num, "name", "Nombre requerido")
+
+    # Lineas
+    for row_num, row in enumerate(_rows(_sheet(wb, "Lineas")), start=2):
+        recipe_name = _opt_str(row.get("recipe_name"))
+        if not recipe_name:
+            _warn(row_num, "recipe_name", "recipe_name vacío")
+        line_kind = _opt_str(row.get("line_kind"))
+        if line_kind and line_kind not in ("ingredient", "sub_recipe"):
+            _err(row_num, "line_kind", f"line_kind debe ser 'ingredient' o 'sub_recipe', recibido: {line_kind!r}")
+        qty = _opt_float(row.get("qty"))
+        if qty is not None and qty <= 0:
+            _err(row_num, "qty", f"qty debe ser > 0, recibido: {qty}")
+
+    # Productos
+    for row_num, row in enumerate(_rows(_sheet(wb, "Productos")), start=2):
+        name = _opt_str(row.get("name"))
+        if not name:
+            _err(row_num, "name", "Nombre requerido")
+        price = row.get("sale_price_gs")
+        if price is not None:
+            try:
+                if isinstance(price, (int, float)):
+                    to_int_gs(price)
+                else:
+                    parse_gs(str(price))
+            except (ValueError, TypeError):
+                _err(row_num, "sale_price_gs", f"No se pudo parsear precio: {price!r}")
+
+    # Ventas
+    for row_num, row in enumerate(_rows(_sheet(wb, "Ventas")), start=2):
+        sold_at = row.get("sold_at")
+        if sold_at is None:
+            _err(row_num, "sold_at", "sold_at requerido")
+        elif isinstance(sold_at, datetime):
+            if sold_at > datetime.now():
+                _warn(row_num, "sold_at", f"Fecha en el futuro: {sold_at}")
+        product_id = _opt_int(row.get("product_id"))
+        if product_id is None:
+            _err(row_num, "product_id", "product_id requerido")
+        qty = _opt_float(row.get("qty"))
+        if qty is not None and qty <= 0:
+            _err(row_num, "qty", f"qty debe ser > 0")
+
+    return errors, warnings
+
+
+# --------------------------------------------------------------------------
+# APPEND mode — insert rows without updating existing
+# --------------------------------------------------------------------------
+
+def _import_append(session: Session, wb, result: ImportResult) -> None:
+    """APPEND mode: insert new rows without modifying existing ones.
+
+    Matches by natural key but does NOT update — only inserts rows that
+    don't already exist. Recipes/Ingredients cannot be auto-created in APPEND
+    since they have no phone/name natural key for easy duplicate detection;
+    they are skipped with a warning unless they already exist exactly.
+    """
+    # Ingredientes — no append (would create exact duplicates; skip with warning)
+    ing_rows = _rows(_sheet(wb, "Ingredientes"))
+    if ing_rows:
+        result.warnings.append(
+            f"APPEND: Ingredientes sheet tiene {len(ing_rows)} filas — "
+            "se ignoran en modo APPEND (usá PATCH para actualizar)"
+        )
+
+    # Clientes — insert only if phone not already in DB
+    customers_index: dict[str, int] = {}
+    existing_phones = {
+        r[0] for r in session.execute(
+            select(Customer.phone).where(Customer.phone.isnot(None))
+        ).all()
+    }
+    for row in _rows(_sheet(wb, "Clientes")):
+        phone = _opt_str(row.get("telefono")) or _opt_str(row.get("phone"))
+        name = _opt_str(row.get("nombre")) or _opt_str(row.get("name"))
+        if not phone:
+            result.warnings.append("Clientes: fila sin teléfono, saltada")
+            continue
+        if phone in existing_phones:
+            result.warnings.append(f"Clientes: {phone} ya existe, saltada")
+            continue
+        cust = Customer(phone=phone, name=name or "Sin nombre")
+        session.add(cust)
+        session.flush()
+        existing_phones.add(phone)
+        customers_index[phone] = cust.id
+        result.customers += 1
+
+    # Recetas / Lineas / Productos — skip in APPEND mode (too risky without natural key dedup)
+    for sheet in ("Recetas", "Lineas", "Productos"):
+        rows = _rows(_sheet(wb, sheet))
+        if rows:
+            result.warnings.append(
+                f"APPEND: {sheet} sheet tiene {len(rows)} filas — "
+                "se ignoran en modo APPEND (usá PATCH para actualizar)"
+            )
+
+    # Ventas — insert as-is (append-only)
+    for row in _rows(_sheet(wb, "Ventas")):
+        sold_at = row.get("sold_at")
+        if sold_at is None:
+            result.warnings.append("Ventas: fila sin sold_at, saltada")
+            continue
+        product_id_val = _opt_int(row.get("product_id"))
+        if product_id_val is None:
+            result.warnings.append("Ventas: fila sin product_id, saltada")
+            continue
+        qty = _opt_float(row.get("qty")) or 1.0
+        unit_price = _money_int_gs(row.get("unit_price_gs"), field_name="Ventas.unit_price", warnings=result.warnings)
+        if unit_price is None:
+            result.warnings.append("Ventas: unit_price_gs requerido")
+            continue
+        sale = Sale(
+            sold_at=sold_at if isinstance(sold_at, datetime) else datetime.now(),
+            product_id=product_id_val,
+            qty=qty,
+            unit_price_gs=unit_price,
+            notes=_opt_str(row.get("notes")),
+        )
+        session.add(sale)
+        result.sales += 1
+
+
+# --------------------------------------------------------------------------
 # FULL mode — additive (legacy behavior preserved)
-# ---------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 
 
 def _import_full(session: Session, wb, result: ImportResult) -> None:
@@ -644,7 +816,8 @@ def from_file(
     path: str | Path,
     *,
     mode: ImportMode = "FULL",
-) -> ImportResult:
+    dry_run: bool = False,
+) -> ImportResult | DryRunResult:
     """Import a HEREBUS .xlsx into the DB via `session`.
 
     Caller owns the session (we commit at the end). Caller must run
@@ -662,13 +835,22 @@ def from_file(
         raise ValueError(f"Expected .xlsx, got {path.suffix}")
 
     wb = load_workbook(filename=str(path), data_only=True, read_only=True)
+
+    # In dry-run mode, validate without writing
+    if dry_run:
+        errors, warnings = _validate_workbook(wb, str(mode).upper())
+        return DryRunResult(errors=errors, warnings=warnings)
+
     warnings: list[str] = []
     result = ImportResult(
         batch_id=-1, source_filename=path.name, mode=str(mode), warnings=warnings
     )
 
-    if str(mode).upper() == "PATCH":
+    mode_upper = str(mode).upper()
+    if mode_upper == "PATCH":
         _import_patch(session, wb, result)
+    elif mode_upper == "APPEND":
+        _import_append(session, wb, result)
     else:
         _import_full(session, wb, result)
 

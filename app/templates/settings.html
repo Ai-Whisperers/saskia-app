@@ -1,81 +1,434 @@
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
-{% block title %}Configuración{% endblock %}
-{% block content %}
-<h1>Configuración</h1>
-<p class="text-muted">Cambiá los ajustes del sistema. Los cambios se guardan
-  inmediatamente y quedan registrados en
-  <a href="/auditoria?action_filter=settings.update">/auditoria</a>.</p>
 
-{% for group in groups %}
-<section class="card">
-  <div class="card-header">
-    <h2>
-      <svg class="icon" aria-hidden="true"><use href="#icon-config"/></svg>
-      {{ group.label }}
-    </h2>
-  </div>
-  {% if group.rows %}
-  <div class="settings-list">
-    {% for row in group.rows %}
-    <div class="settings-row">
-      <div class="settings-row-label">
-        <label for="setting-{{ row.key | replace('.', '-') }}">
-          <code>{{ row.key }}</code>
-        </label>
-        <p class="text-muted">{{ row.description }}</p>
-      </div>
-      <form method="post" action="/settings" class="settings-row-form">
-        <input type="hidden" name="key" value="{{ row.key }}">
-        {% if row.choices %}
-          {# Drop-down for bounded keys (Saskia feedback round 1) #}
-          <select id="setting-{{ row.key | replace('.', '-') }}"
-                  name="value"
-                  class="settings-row-input"
-                  aria-describedby="setting-help-{{ row.key | replace('.', '-') }}">
-            {% for choice in row.choices %}
-              <option value="{{ choice }}" {% if (row.value if row.value is not none else row.default) == choice %}selected{% endif %}>{{ choice }}</option>
-            {% endfor %}
-          </select>
-          <small id="setting-help-{{ row.key | replace('.', '-') }}" class="text-muted sr-only">Elegí una opción.</small>
-        {% else %}
-          <input id="setting-{{ row.key | replace('.', '-') }}"
-                 type="text"
-                 name="value"
-                 class="settings-row-input"
-                 value="{{ row.value if row.value is not none else row.default }}"
-                 aria-describedby="setting-help-{{ row.key | replace('.', '-') }}">
-          <small id="setting-help-{{ row.key | replace('.', '-') }}" class="text-muted">Default: <code>{{ row.default }}</code></small>
-        {% endif %}
-        <button type="submit" class="btn btn-sm btn-primary">Guardar</button>
-        <button type="submit" formaction="/settings/reset" class="btn btn-sm btn-ghost" aria-label="Restablecer {{ row.key }} al valor por defecto">Reset</button>
-      </form>
+{% block title %}Configuración{% endblock %}
+
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg>
+  Configuración
+</h1>
+
+{% if request.query_params.get('flash') %}
+<div class="alert alert-success" role="alert" aria-live="polite">
+  <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+  {{ request.query_params.get('flash') }}
+</div>
+{% endif %}
+
+<div class="settings-tabs">
+  <button type="button" class="tab-btn active" data-tab="business">Información de negocio</button>
+  <button type="button" class="tab-btn" data-tab="fiscal">Configuración fiscal</button>
+  <button type="button" class="tab-btn" data-tab="theme">Tema y apariencia</button>
+</div>
+
+<!-- Business Info Tab -->
+<div id="business-tab" class="tab-content">
+  <form method="post" action="/settings/business" class="form">
+    <h2>Información de Negocio</h2>
+    <p class="text-muted">Estos datos aparecen en recibos y documentos comerciales.</p>
+    
+    <div class="form-group">
+      <label for="business_name">Nombre legal del negocio</label>
+      <input type="text" id="business_name" name="business_name" 
+             value="{{ business_name }}" placeholder="Ejemplo: Panadería Saskia S.A." required>
     </div>
-    {% endfor %}
+    
+    <div class="form-group">
+      <label for="business_ruc">RUC</label>
+      <input type="text" id="business_ruc" name="business_ruc" 
+             value="{{ business_ruc }}" placeholder="Ejemplo: 123-456789-1" pattern="[0-9-]+">
+    </div>
+    
+    <div class="form-group">
+      <label for="business_address">Dirección</label>
+      <textarea id="business_address" name="business_address" rows="3"
+                placeholder="Ejemplo: Calle Principal 123, Asunción, Paraguay">{{ business_address }}</textarea>
+    </div>
+    
+    <div class="form-group">
+      <label for="business_phone">Teléfono</label>
+      <input type="tel" id="business_phone" name="business_phone" 
+             value="{{ business_phone }}" placeholder="Ejemplo: +595 981 234 567">
+    </div>
+    
+    <button type="submit" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-save"/></svg>
+      Guardar información de negocio
+    </button>
+  </form>
+</div>
+
+<!-- Fiscal Config Tab -->
+<div id="fiscal-tab" class="tab-content" style="display: none;">
+  <form method="post" action="/settings/fiscal" class="form">
+    <h2>Configuración Fiscal</h2>
+    <p class="text-muted">Datos para facturación electrónica de Paraguay (SET).</p>
+    
+    <div class="form-group">
+      <label for="timbrado">Número de timbrado</label>
+      <input type="text" id="timbrado" name="timbrado" 
+             value="{{ timbrado }}" placeholder="Ejemplo: 001-123456789-001" required>
+    </div>
+    
+    <div class="form-group">
+      <label for="punto_expedicion">Punto de expedición</label>
+      <input type="text" id="punto_expedicion" name="punto_expedicion" 
+             value="{{ punto_expedicion }}" placeholder="Ejemplo: 0001" required>
+    </div>
+    
+    <div class="form-group">
+      <label for="invoice_sequence">Secuencia de facturas</label>
+      <input type="number" id="invoice_sequence" name="invoice_sequence" 
+             value="{{ invoice_sequence or '1' }}" min="1" required>
+      <small>Próximo número de factura para facturación electrónica</small>
+    </div>
+    
+    <div class="alert alert-info">
+      <svg class="icon" aria-hidden="true"><use href="#icon-info"/></svg>
+      <strong>Importante:</strong> La configuración fiscal requerida por la SET de Paraguay 
+      para facturación electrónica. Contacte a su contador antes de modificar estos valores.
+    </div>
+    
+    <button type="submit" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-save"/></svg>
+      Guardar configuración fiscal
+    </button>
+  </form>
+</div>
+
+<!-- Theme Tab -->
+<div id="theme-tab" class="tab-content" style="display: none;">
+  <form method="post" action="/settings/theme" class="form">
+    <h2>Tema y apariencia</h2>
+    <p class="text-muted">Personalice la apariencia de la aplicación.</p>
+    
+    <div class="form-group">
+      <label>Tema preferido</label>
+      <div class="radio-group">
+        <label class="radio-option">
+          <input type="radio" name="theme" value="light" {% if theme == 'light' %}checked{% endif %}>
+          <div class="radio-content">
+            <svg class="icon" aria-hidden="true"><use href="#icon-sun"/></svg>
+            <span>Claro</span>
+          </div>
+        </label>
+        
+        <label class="radio-option">
+          <input type="radio" name="theme" value="dark" {% if theme == 'dark' %}checked{% endif %}>
+          <div class="radio-content">
+            <svg class="icon" aria-hidden="true"><use href="#icon-moon"/></svg>
+            <span>Oscuro</span>
+          </div>
+        </label>
+        
+        <label class="radio-option">
+          <input type="radio" name="theme" value="system" {% if theme == 'system' %}checked{% endif %}>
+          <div class="radio-content">
+            <svg class="icon" aria-hidden="true"><use href="#icon-desktop"/></svg>
+            <span>Del sistema</span>
+            <small>Usa la configuración de su sistema operativo</small>
+          </div>
+        </label>
+      </div>
+    </div>
+    
+    <div class="preview-box">
+      <h3>Vista previa</h3>
+      <div class="theme-preview light">
+        <div class="preview-header">
+          <h4>Vista clara</h4>
+        </div>
+        <div class="preview-content">
+          <p style="color: #333;">Texto oscuro sobre fondo claro</p>
+          <p style="color: #666;">Texto secundario</p>
+        </div>
+      </div>
+      <div class="theme-preview dark" style="display: none;">
+        <div class="preview-header">
+          <h4 style="color: #fff;">Vista oscura</h4>
+        </div>
+        <div class="preview-content">
+          <p style="color: #fff;">Texto claro sobre fondo oscuro</p>
+          <p style="color: #ccc;">Texto secundario</p>
+        </div>
+      </div>
+    </div>
+    
+    <button type="submit" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-save"/></svg>
+      Guardar preferencias de tema
+    </button>
+  </form>
+</div>
+
+<!-- System Info -->
+<div class="system-info">
+  <h3>Información del sistema</h3>
+  <div class="info-grid">
+    <div>
+      <strong>Versión</strong>
+      <div>Saskia RMS v1.0.0</div>
+    </div>
+    <div>
+      <strong>Sistema</strong>
+      <div>{{ current_user.username }}</div>
+    </div>
+    <div>
+      <strong>Rol</strong>
+      <div>{{ current_user.role | capitalize }}</div>
+    </div>
+    <div>
+      <strong>Último acceso</strong>
+      <div>{{ current_user.last_login_at or 'Nunca' }}</div>
+    </div>
   </div>
-  {% else %}
-  <p class="empty-state">
-    <svg class="icon" aria-hidden="true"><use href="#icon-config"/></svg>
-    No hay ajustes en este grupo.
-  </p>
-  {% endif %}
-</section>
-{% endfor %}
+</div>
+
+<script>
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const tabName = this.dataset.tab;
+    
+    // Update buttons
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    
+    // Update content
+    document.querySelectorAll('.tab-content').forEach(content => {
+      content.style.display = content.id === tabName + '-tab' ? 'block' : 'none';
+    });
+    
+    // Show/hide theme preview based on theme tab
+    if (tabName === 'theme') {
+      const theme = document.querySelector('input[name="theme"]:checked').value;
+      document.querySelector('.theme-preview.light').style.display = theme === 'light' ? 'block' : 'none';
+      document.querySelector('.theme-preview.dark').style.display = theme === 'dark' ? 'block' : 'none';
+    }
+  });
+});
+
+// Theme preview updates
+document.querySelectorAll('input[name="theme"]').forEach(radio => {
+  radio.addEventListener('change', function() {
+    const lightPreview = document.querySelector('.theme-preview.light');
+    const darkPreview = document.querySelector('.theme-preview.dark');
+    
+    if (this.value === 'light') {
+      lightPreview.style.display = 'block';
+      darkPreview.style.display = 'none';
+    } else if (this.value === 'dark') {
+      lightPreview.style.display = 'none';
+      darkPreview.style.display = 'block';
+    } else {
+      // System mode - show system preference (light for demo)
+      lightPreview.style.display = 'block';
+      darkPreview.style.display = 'none';
+    }
+  });
+});
+</script>
 
 <style>
-  .settings-list { display: flex; flex-direction: column; gap: var(--space-3); }
-  .settings-row { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(320px, 2fr); gap: var(--space-4); padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); align-items: start; }
-  .settings-row:last-child { border-bottom: 0; }
-  .settings-row-label label { font-weight: 500; }
-  .settings-row-label p { margin: var(--space-1) 0 0 0; font-size: var(--text-xs); }
-  .settings-row-form { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
-  .settings-row-input { flex: 1; min-width: 200px; }
-  .settings-row-form small { font-size: var(--text-xs); }
-  @media (max-width: 768px) {
-    .settings-row { grid-template-columns: 1fr; }
-    .settings-row-form { flex-direction: column; align-items: stretch; }
-    .settings-row-input { min-width: 0; }
-  }
-</style>
+/* Settings styling */
+.settings-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 2rem;
+  gap: 0;
+}
 
+.tab-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.tab-btn.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: 600;
+}
+
+.tab-btn:hover {
+  color: var(--color-text);
+}
+
+.tab-content {
+  background: var(--color-surface-raised);
+  border-radius: var(--card-radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.form-group small {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.alert {
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+  margin-bottom: 1.5rem;
+}
+
+.alert-info {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+}
+
+/* Radio group styling */
+.radio-group {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.radio-option {
+  flex: 1;
+  min-width: 200px;
+  cursor: pointer;
+}
+
+.radio-option input[type="radio"] {
+  display: none;
+}
+
+.radio-content {
+  padding: 1rem;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.radio-content .icon {
+  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
+}
+
+.radio-content span {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.radio-option input[type="radio"]:checked + .radio-content {
+  border-color: var(--color-primary);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.radio-option input[type="radio"]:checked + .radio-content svg {
+  color: var(--color-primary);
+}
+
+/* Theme preview */
+.theme-preview {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-top: 1rem;
+}
+
+.preview-header {
+  padding: 0.75rem;
+  background: var(--color-border);
+}
+
+.preview-content {
+  padding: 1rem;
+}
+
+/* System info */
+.system-info {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: var(--color-surface-raised);
+  border-radius: var(--card-radius);
+  border: 1px solid var(--color-border);
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.info-grid strong {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.info-grid div:last-child {
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .settings-tabs {
+    flex-wrap: wrap;
+  }
+  
+  .tab-btn {
+    flex: 1 1 50%;
+    min-width: 150px;
+  }
+  
+  .radio-group {
+    flex-direction: column;
+  }
+  
+  .radio-option {
+    min-width: auto;
+  }
+  
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
 {% endblock %}

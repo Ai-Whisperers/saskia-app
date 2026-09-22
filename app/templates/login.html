@@ -1,12 +1,23 @@
 {% extends "base.html" %}
-{% block title %}Iniciar sesión{% endblock %}
+{% block title %}Iniciar sesión — Saskia RMS{% endblock %}
 {% block content %}
 <main class="container" style="max-width: 440px;">
-  <h1>Iniciar sesión</h1>
+
+  {# Branding header #}
+  <div style="text-align: center; margin-bottom: 2rem;">
+    {# TODO: replace with real logo — add /static/logo.png #}
+    <div style="width: 64px; height: 64px; background: #3b82f6; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+        <path d="M2 17l10 5 10-5"/>
+        <path d="M2 12l10 5 10-5"/>
+      </svg>
+    </div>
+    <h1 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 4px;">Saskia RMS</h1>
+    <p class="text-muted" style="font-size: 14px;">Panadería / Bakery — Sistema de gestión</p>
+  </div>
 
   {% if error %}
-  {# Inline error shown ABOVE the form so it's impossible to miss.
-     role="alert" + aria-live="assertive" forces screen readers to announce immediately. #}
   <div class="alert alert-error" role="alert" aria-live="assertive">
     <div>
       <strong>No pudimos entrar.</strong><br>
@@ -21,6 +32,16 @@
   </div>
   {% endif %}
 
+  {# Show last user for returning users #}
+  <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 10px 14px; margin-bottom: 1rem; font-size: 14px;">
+    <svg class="icon" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;" aria-hidden="true"><use href="#icon-user"/></svg>
+    {% if last_username %}
+    Sesión anterior como <strong>{{ last_username }}</strong>
+    {% else %}
+    Ingresá tu usuario para continuar
+    {% endif %}
+  </div>
+
   <form method="post" action="/login" class="form" novalidate>
     <input type="hidden" name="next" value="{{ next }}">
 
@@ -32,6 +53,7 @@
         type="{% if using_supabase %}email{% else %}text{% endif %}"
         id="username"
         name="username"
+        value="{{ last_username or '' }}"
         autocomplete="{% if using_supabase %}email{% else %}username{% endif %}"
         required
         {% if not error %}autofocus{% endif %}
@@ -51,16 +73,47 @@
       >
     </div>
 
+    <div class="form-row">
+      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+        <input type="checkbox" name="stay_logged_in" id="stay_logged_in" style="width: auto; margin: 0;">
+        <span>Mantener sesión abierta</span>
+      </label>
+      <small class="text-muted" style="font-size: 12px; margin-left: 24px;">
+        No uses esto en equipos compartidos.
+      </small>
+    </div>
+
     <div class="form-actions">
-      <button type="submit" class="btn btn-primary btn-pill">
+      <button type="submit" class="btn btn-primary btn-pill" style="width: 100%;">
         <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
         Ingresar
       </button>
     </div>
   </form>
 
+  <div style="margin-top: 1.5rem; border-top: 1px solid #e5e7eb; padding-top: 1rem;">
+    <p style="font-size: 12px; color: #6b7280;">
+      Al usar este sistema aceptás los
+      <a href="/guia/accesibilidad" style="color: #3b82f6;">términos de accesibilidad</a>.
+    </p>
+
+    {# Accessibility statement #}
+    <details style="margin-top: 8px;">
+      <summary style="cursor: pointer; font-size: 12px; color: #6b7280;">
+        Declaración de accesibilidad
+      </summary>
+      <div style="font-size: 12px; color: #6b7280; margin-top: 6px; line-height: 1.5;">
+        <p> Saskia RMS strives to conform to WCAG 2.1 Level AA.</p>
+        <p>Si tenés dificultades para usar la interfaz (navegación por teclado,
+        lector de pantalla, contraste, etc.), contactá a
+        <a href="mailto:ivan@ai-whisperers.dev">ivan@ai-whisperers.dev</a>
+        para recibir asistencia.</p>
+      </div>
+    </details>
+  </div>
+
   {% if using_supabase %}
-  <p class="hint">
+  <p class="hint" style="margin-top: 1.5rem;">
     ¿Problemas para entrar?
     <a href="/login" id="forgot-link">Recuperar contraseña</a>
     ·
@@ -77,7 +130,7 @@
       var email = emailEl.value;
       if (!email || email.indexOf('@') === -1) {
         emailEl.focus();
-        // Inline alert instead of native alert() — better UX + accessibility.
+        // Inline styled error — not native alert()
         var existing = document.getElementById('forgot-inline-err');
         if (existing) existing.remove();
         var div = document.createElement('div');
@@ -100,7 +153,7 @@
     });
   </script>
   {% else %}
-  <p class="hint">
+  <p class="hint" style="margin-top: 1.5rem;">
     ¿Problemas para entrar? Escribile a Iván (es tu hermano, no se cobra).
   </p>
   {% endif %}

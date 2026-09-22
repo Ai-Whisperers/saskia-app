@@ -6,29 +6,22 @@
   Reportes
 </h1>
 
-<p class="text-muted">Reportes financieros y operativos.</p>
+<p class="text-muted">Reportes financieros y operativos. Cada reporte tiene un botón de exporte PDF y filtros por fecha.</p>
 
 <div class="grid grid-3">
-  <a href="/reportes/iva" class="card is-interactive">
-    <svg class="icon icon-lg" aria-hidden="true"><use href="#icon-report"/></svg>
-    <h3>Libro IVA</h3>
-    <p class="text-muted">Desglose de IVA 10% por mes</p>
+  {% for r in reports %}
+  <a href="{{ r.url }}" class="card is-interactive">
+    <svg class="icon icon-lg" aria-hidden="true"><use href="{{ r.icon }}"/></svg>
+    <h3>{{ r.name }}</h3>
+    <p class="text-muted">{{ r.desc }}</p>
+    {% if r.help %}
+    <p class="text-muted" style="font-size: 12px; margin-top: 4px;">
+      <svg class="icon" style="width:12px;height:12px" aria-hidden="true"><use href="#icon-help"/></svg>
+      {{ r.help }}
+    </p>
+    {% endif %}
   </a>
-  <a href="/reportes/libro-ventas" class="card is-interactive">
-    <svg class="icon icon-lg" aria-hidden="true"><use href="#icon-report"/></svg>
-    <h3>Libro de Ventas</h3>
-    <p class="text-muted">Ventas cronológicas con IVA</p>
-  </a>
-  <a href="/reportes/diario" class="card is-interactive">
-    <svg class="icon icon-lg" aria-hidden="true"><use href="#icon-report"/></svg>
-    <h3>Resumen diario</h3>
-    <p class="text-muted">Ingresos, COGS, margen del día</p>
-  </a>
-  <a href="/reportes/precios" class="card is-interactive">
-    <svg class="icon icon-lg" aria-hidden="true"><use href="#icon-report"/></svg>
-    <h3>Precios</h3>
-    <p class="text-muted">Histórico de precios de ingredientes</p>
-  </a>
+  {% endfor %}
 </div>
 
 {% endblock %}

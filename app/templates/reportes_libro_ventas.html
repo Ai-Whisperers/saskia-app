@@ -7,6 +7,15 @@
   Libro de Ventas
 </h1>
 
+<p class="text-muted">Libro registro cronológico de ventas conforme al formato SET (Paraguay).</p>
+
+<div class="form-actions mb-3">
+  <a href="/reportes/libro-ventas/set-pdf?start={{ start_date }}&end={{ end_date }}" class="btn btn-secondary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+    Exportar PDF (formato SET)
+  </a>
+</div>
+
 <form method="get" action="/reportes/libro-ventas" class="form">
   <div class="grid grid-3">
     <div class="form-row">
@@ -25,9 +34,17 @@
       </button>
     </div>
   </div>
+  <div class="form-row" style="margin-top: 8px;">
+    <span class="text-muted" style="font-size: 12px;">Accesos rápidos:</span>
+    <a href="?preset=today" class="btn btn-ghost btn-sm">Hoy</a>
+    <a href="?preset=week" class="btn btn-ghost btn-sm">Esta semana</a>
+    <a href="?preset=month" class="btn btn-ghost btn-sm">Este mes</a>
+    <a href="?preset=last_month" class="btn btn-ghost btn-sm">Mes pasado</a>
+  </div>
 </form>
 
 {% if rows %}
+<p class="text-muted mb-3">Total: {{ rows|length }} líneas</p>
 <table class="table is-hoverable is-striped">
   <thead>
     <tr>

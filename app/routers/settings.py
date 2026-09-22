@@ -1,88 +1,164 @@
-"""app/routers/settings.py — operator UI for /settings.
+"""app/routers/settings.py — settings management + business info.
 
-The settings module (app/rms/settings.py) provides 30 settings with
-5 validators. This router surfaces them as a simple HTML form so
-the operator can change values without `psql`.
+Business information, theme settings, fiscal configuration, and application settings.
 """
+
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
-from app.rms.audit import record as audit_record
+from app.rms.models import AppMeta, User
 from app.rms.dependencies import get_session
-from app.rms.settings import (
-    get_setting_cached,
-    list_settings,
-    reset_setting_to_default,
-    set_setting,
-    settings_by_group,
-)
 from app.services.template_render import render
 
 router = APIRouter(prefix="/settings", dependencies=[Depends(require_login)])
 
 
 @router.get("", response_class=HTMLResponse)
-def settings_index(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
-    """Render settings grouped by category."""
-    grouped = settings_by_group(session)
-    theme_setting = get_setting_cached(session, "ui.theme") or "system"
-    # Convert to a structure templates can iterate easily.
-    groups = []
-    for group_name, rows in grouped.items():
-        groups.append({"name": group_name, "label": group_name.capitalize(), "rows": rows})
+def settings_page(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Settings page with business info, theme, and fiscal config."""
+    from app.auth import current_user_id
+
+    user_id = current_user_id(request)
+    
+    # Get business settings
+    business_name = session.scalar(select(AppMeta).where(AppMeta.key == "business_name"))
+    business_ruc = session.scalar(select(AppMeta).where(AppMeta.key == "business_ruc"))
+    business_address = session.scalar(select(AppMeta).where(AppMeta.key == "business_address"))
+    business_phone = session.scalar(select(AppMeta).where(AppMeta.key == "business_phone"))
+    
+    # Get fiscal settings
+    timbrado = session.scalar(select(AppMeta).where(AppMeta.key == "timbrado"))
+    punto_expedicion = session.scalar(select(AppMeta).where(AppMeta.key == "punto_expedicion"))
+    invoice_sequence = session.scalar(select(AppMeta).where(AppMeta.key == "invoice_sequence"))
+    
+    # Get theme setting
+    theme = session.scalar(select(AppMeta).where(AppMeta.key == "theme"))
+    
     return render(request, "settings.html", {
-        "groups": groups,
-        "total": len(list_settings(session)),
-        "theme_setting": theme_setting,
+        "business_name": business_name.value if business_name else "",
+        "business_ruc": business_ruc.value if business_ruc else "",
+        "business_address": business_address.value if business_address else "",
+        "business_phone": business_phone.value if business_phone else "",
+        "timbrado": timbrado.value if timbrado else "",
+        "punto_expedicion": punto_expedicion.value if punto_expedicion else "",
+        "invoice_sequence": invoice_sequence.value if invoice_sequence else "",
+        "theme": theme.value if theme else "system",
+        "current_user": session.get(User, user_id),
     })
 
 
-@router.post("")
-def settings_update(
+@router.post("/business", response_class=RedirectResponse)
+def save_business_settings(
     request: Request,
-    key: str = Form(...),
-    value: str = Form(""),
+    business_name: str = Form(""),
+    business_ruc: str = Form(""),
+    business_address: str = Form(""),
+    business_phone: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
-    """Persist a single setting change."""
-    try:
-        set_setting(session, key, value, user_id="operator")
-        audit_record(
-            session,
-            user_id="operator",
-            action="settings.update",
-            request=request,
-            detail={"key": key, "value": value[:100]},
-        )
-        session.commit()
-    except Exception:
-        # Reset to default if the value is invalid.
-        reset_setting_to_default(session, key)
-        session.commit()
-    return RedirectResponse(url="/settings", status_code=303)
-
-
-@router.post("/reset")
-def settings_reset(
-    request: Request,
-    key: str = Form(...),
-    session: Session = Depends(get_session),
-) -> RedirectResponse:
-    """Reset a setting to its default."""
-    reset_setting_to_default(session, key)
-    audit_record(
-        session,
-        user_id="operator",
-        action="settings.reset",
-        request=request,
-        detail={"key": key},
-    )
+    """Save business information settings."""
+    # Upsert settings
+    settings = [
+        ("business_name", business_name),
+        ("business_ruc", business_ruc),
+        ("business_address", business_address),
+        ("business_phone", business_phone),
+    ]
+    
+    for key, value in settings:
+        existing = session.scalar(select(AppMeta).where(AppMeta.key == key))
+        if existing:
+            existing.value = value
+            existing.updated_at = "now"
+        else:
+            new = AppMeta(key=key, value=value, updated_at="now")
+            session.add(new)
+    
     session.commit()
-    return RedirectResponse(url="/settings", status_code=303)
+    return RedirectResponse(url="/settings?flash=Información+guardada", status_code=303)
+
+
+@router.post("/fiscal", response_class=RedirectResponse)
+def save_fiscal_settings(
+    request: Request,
+    timbrado: str = Form(""),
+    punto_expedicion: str = Form(""),
+    invoice_sequence: str = Form(""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Save fiscal configuration settings."""
+    from app.rms.audit import record as audit_record
+    from app.auth import current_user_id
+
+    user_id = current_user_id(request)
+    
+    # Upsert fiscal settings
+    settings = [
+        ("timbrado", timbrado),
+        ("punto_expedicion", punto_expedicion),
+        ("invoice_sequence", invoice_sequence),
+    ]
+    
+    for key, value in settings:
+        existing = session.scalar(select(AppMeta).where(AppMeta.key == key))
+        if existing:
+            old_value = existing.value
+            existing.value = value
+            existing.updated_at = "now"
+            
+            # Audit change
+            audit_record(session, user_id=user_id, action="settings.change", 
+                        detail={"setting": key, "old_value": old_value, "new_value": value})
+        else:
+            new = AppMeta(key=key, value=value, updated_at="now")
+            session.add(new)
+            audit_record(session, user_id=user_id, action="settings.create", 
+                        detail={"setting": key, "value": value})
+    
+    session.commit()
+    return RedirectResponse(url="/settings?flash=Configuración+fiscal+guardada", status_code=303)
+
+
+@router.post("/theme", response_class=RedirectResponse)
+def save_theme_settings(
+    request: Request,
+    theme: str = Form("", pattern="^(light|dark|system)$"),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Save theme preference."""
+    from app.rms.audit import record as audit_record
+    from app.auth import current_user_id
+
+    user_id = current_user_id(request)
+    
+    # Validate theme
+    if theme not in ["light", "dark", "system"]:
+        raise HTTPException(status_code=422, detail="Invalid theme value")
+    
+    # Save theme preference
+    existing = session.scalar(select(AppMeta).where(AppMeta.key == "theme"))
+    if existing:
+        old_value = existing.value
+        existing.value = theme
+        existing.updated_at = "now"
+        audit_record(session, user_id=user_id, action="settings.change", 
+                    detail={"setting": "theme", "old_value": old_value, "new_value": theme})
+    else:
+        new = AppMeta(key="theme", value=theme, updated_at="now")
+        session.add(new)
+        audit_record(session, user_id=user_id, action="settings.create", 
+                    detail={"setting": "theme", "value": theme})
+    
+    session.commit()
+    return RedirectResponse(url=f"/settings?flash=Tema+{theme}+guardado", status_code=303)
 
 
 __all__ = ["router"]

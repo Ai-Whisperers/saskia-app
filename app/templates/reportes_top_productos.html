@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% block title %}Top productos{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Top productos
+</h1>
+
+<p class="text-muted">Ranking de productos por revenue en el período seleccionado.</p>
+
+<form method="get" action="/reportes/top-productos" class="form mb-4">
+  <div class="grid grid-3">
+    <div class="form-row">
+      <label for="start">Desde</label>
+      <input type="date" id="start" name="start" value="{{ start_date }}">
+    </div>
+    <div class="form-row">
+      <label for="end">Hasta</label>
+      <input type="date" id="end" name="end" value="{{ end_date }}">
+    </div>
+    <div class="form-row">
+      <label for="limit">Cantidad</label>
+      <input type="number" id="limit" name="limit" value="{{ limit }}" min="5" max="100">
+    </div>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Ver</button>
+  </div>
+</form>
+
+{% if rows %}
+<table class="table is-hoverable">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Producto</th>
+      <th class="num">Unidades vendidas</th>
+      <th class="num">Revenue (Gs.)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td><strong>{{ r.product_name }}</strong></td>
+      <td class="num">{{ r.n_sold }}</td>
+      <td class="num"><strong>{{ m.gs(r.revenue_gs) }}</strong></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  <h3>No hay ventas registradas</h3>
+  <p>Cuando registres ventas van a aparecer acá.</p>
+</div>
+{% endif %}
+
+{% endblock %}

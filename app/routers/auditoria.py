@@ -4,77 +4,156 @@ Built on app/rms/audit.py list_recent() + AuditLog model.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse
+from datetime import datetime, timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
-from app.rms.audit import list_recent
+from app.rms.audit import list_recent, prune_audit_log, search_by_target
 from app.rms.dependencies import get_session
 from app.services.template_render import render
 
 router = APIRouter(prefix="/auditoria", dependencies=[Depends(require_login)])
 
+PAGE_SIZE = 50
+
+
+def _parse_date(val: str | None) -> datetime | None:
+    if not val:
+        return None
+    try:
+        return datetime.fromisoformat(val)
+    except ValueError:
+        return None
+
+
+def _date_presets() -> dict[str, tuple[str, str]]:
+    """Return {label: (start, end)} for common date ranges."""
+    today = datetime.utcnow().date().isoformat()
+    yesterday = (datetime.utcnow() - timedelta(days=1)).date().isoformat()
+    week_start = (datetime.utcnow() - timedelta(days=7)).date().isoformat()
+    month_start = (datetime.utcnow() - timedelta(days=30)).date().isoformat()
+    return {
+        "today": (today, today),
+        "yesterday": (yesterday, yesterday),
+        "last_7d": (week_start, today),
+        "last_30d": (month_start, today),
+    }
+
 
 @router.get("", response_class=HTMLResponse)
 def auditoria_index(
     request: Request,
+    page: int = Query(1, ge=1),
     limit: int = Query(100, ge=1, le=500),
     action_filter: str | None = Query(None),
     start_date: str | None = Query(None, description="ISO date YYYY-MM-DD"),
     end_date: str | None = Query(None, description="ISO date YYYY-MM-DD"),
     ip_filter: str | None = Query(None, description="Filter by client IP"),
     user_filter: str | None = Query(None, description="Filter by user_id"),
+    target_type: str | None = Query(None, description="Filter by target type (e.g. product)"),
+    target_id: str | None = Query(None, description="Filter by record ID (e.g. 42)"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    """List recent audit log entries with optional date-range filter.
+    """List recent audit log entries with optional filters and pagination.
 
-    start_date / end_date are ISO dates (YYYY-MM-DD). Filter is
-    inclusive of the start date and exclusive of end_date (+1 day
-    recommended for a single-day filter).
-
-    audit_log.occurred_at is stored as UTC-naive datetime (legacy);
-    we compare naive UTC explicitly.
+    Supports:
+    - Date range presets (today, yesterday, last 7d, last 30d)
+    - Pagination (50 per page)
+    - Record ID search (target_type + target_id)
+    - JSON detail formatted as readable key-value pairs
     """
-    from datetime import datetime, timedelta
+    # Handle record-ID search (find all changes to product #42)
+    if target_type and target_id:
+        rows = list(search_by_target(session, target_type, target_id, limit=limit))
+        total_count = len(rows)
+    else:
+        rows = list(
+            list_recent(
+                session,
+                limit=limit,
+                action_filter=action_filter,
+                user_filter=user_filter,
+            )
+        )
+        total_count = len(rows)
 
-    rows = list_recent(
-        session,
-        limit=limit,
-        action_filter=action_filter,
-    )
+    # Apply date-range filter in Python (limit=500 bounds memory).
+    sd = _parse_date(start_date)
+    ed = _parse_date(end_date)
+    if ed:
+        ed = ed + timedelta(days=1)  # inclusive
 
-    # Apply date-range filter in Python (limit=100 bounds memory).
-    if start_date:
-        try:
-            sd = datetime.fromisoformat(start_date)
-        except ValueError:
-            sd = None
-        if sd is not None:
-            rows = [r for r in rows if r.occurred_at and r.occurred_at >= sd]
-    if end_date:
-        try:
-            ed = datetime.fromisoformat(end_date) + timedelta(days=1)
-        except ValueError:
-            ed = None
-        if ed is not None:
-            rows = [r for r in rows if r.occurred_at and r.occurred_at < ed]
+    if sd:
+        rows = [r for r in rows if r.occurred_at and r.occurred_at >= sd]
+    if ed:
+        rows = [r for r in rows if r.occurred_at and r.occurred_at < ed]
 
-    # IP + user_id filter (substring match for forgiving UX).
+    # IP filter
     if ip_filter:
         rows = [r for r in rows if r.ip and ip_filter in r.ip]
-    if user_filter:
-        rows = [r for r in rows if r.user_id and user_filter in r.user_id]
+
+    # Total for pagination
+    total_count = len(rows)
+
+    # Paginate
+    total_pages = max(1, (total_count + PAGE_SIZE - 1) // PAGE_SIZE)
+    page = min(page, total_pages)
+    offset = (page - 1) * PAGE_SIZE
+    paginated = rows[offset : offset + PAGE_SIZE]
+
+    # Format detail JSON as readable key-value list
+    def fmt_detail(detail: dict) -> list[tuple[str, str]]:
+        if not detail:
+            return []
+        items = []
+        for k, v in detail.items():
+            if isinstance(v, dict):
+                for sub_k, sub_v in v.items():
+                    items.append((k + "." + sub_k, str(sub_v)))
+            else:
+                items.append((k, str(v)))
+        return items
+
+    formatted_rows = []
+    for r in paginated:
+        formatted_rows.append({
+            "row": r,
+            "detail_pairs": fmt_detail(r.detail or {}),
+            "user_agent_short": (r.user_agent[:60] + "...") if r.user_agent and len(r.user_agent) > 60 else r.user_agent,
+        })
+
+    presets = _date_presets()
 
     return render(request, "auditoria.html", {
-        "rows": rows,
+        "formatted_rows": formatted_rows,
+        "page": page,
+        "total_pages": total_pages,
+        "total_count": total_count,
         "limit": limit,
-        "action_filter": action_filter,
+        "action_filter": action_filter or "",
         "start_date": start_date or "",
         "end_date": end_date or "",
         "ip_filter": ip_filter or "",
         "user_filter": user_filter or "",
+        "target_type": target_type or "",
+        "target_id": target_id or "",
+        "presets": presets,
     })
+
+
+@router.post("/prune")
+def auditoria_prune(
+    request: Request,
+    older_than_days: int = Query(365, ge=1, le=3650),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Delete audit entries older than N days. Admin only."""
+    deleted = prune_audit_log(session, older_than_days=older_than_days)
+    session.commit()
+    return RedirectResponse(url=f"/auditoria?pruned={deleted}", status_code=303)
 
 
 __all__ = ["router"]

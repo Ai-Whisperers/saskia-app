@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% block title %}Valor promedio del pedido{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Valor promedio del pedido
+</h1>
+
+<p class="text-muted">Revenue total dividido por cantidad de ventas. Indicador clave para entender el ticket promedio.</p>
+
+<form method="get" action="/reportes/valor-pedido" class="form mb-4">
+  <div class="grid grid-2">
+    <div class="form-row">
+      <label for="start">Desde</label>
+      <input type="date" id="start" name="start" value="{{ start_date }}">
+    </div>
+    <div class="form-row">
+      <label for="end">Hasta</label>
+      <input type="date" id="end" name="end" value="{{ end_date }}">
+    </div>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Ver</button>
+  </div>
+</form>
+
+{% if aov > 0 %}
+<div class="metric-card mb-4" style="max-width: 400px;">
+  <div class="metric-label">Valor promedio del pedido (AOV)</div>
+  <div class="metric-value" style="font-size: 2rem;">{{ m.gs(aov | int) }}</div>
+  <div class="text-muted">Gs. por venta en el período</div>
+</div>
+{% else %}
+<div class="empty-state">
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  <h3>No hay ventas registradas</h3>
+  <p>Cuando registres ventas va a aparecer el promedio.</p>
+</div>
+{% endif %}
+
+{% endblock %}

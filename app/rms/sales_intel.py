@@ -331,6 +331,58 @@ def sales_summary(session: Session) -> dict:
     }
 
 
+def customer_retention(
+    session: Session,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> dict:
+    """New vs returning customers in a period.
+
+    Returns counts of:
+    - new_customers: customers with their first-ever sale in the window
+    - returning_customers: customers who also had sales before the window
+    """
+    if end_date is None:
+        end_date = datetime.now(timezone.utc)
+    if start_date is None:
+        start_date = end_date - timedelta(days=30)
+
+    # All customers who bought in the window
+    window_customers = set(
+        r[0] for r in session.execute(
+            select(Sale.customer_id).where(
+                Sale.sold_at >= start_date,
+                Sale.sold_at <= end_date,
+                Sale.voided_at.is_(None),
+                Sale.customer_id.isnot(None),
+            ).distinct()
+        ).all()
+    )
+
+    if not window_customers:
+        return {"new_customers": 0, "returning_customers": 0, "total": 0}
+
+    # Customers with sales BEFORE the window
+    prior_customers = set(
+        r[0] for r in session.execute(
+            select(Sale.customer_id).where(
+                Sale.sold_at < start_date,
+                Sale.voided_at.is_(None),
+                Sale.customer_id.isnot(None),
+            ).distinct()
+        ).all()
+    )
+
+    new_c = window_customers - prior_customers
+    returning_c = window_customers & prior_customers
+
+    return {
+        "new_customers": len(new_c),
+        "returning_customers": len(returning_c),
+        "total": len(window_customers),
+    }
+
+
 __all__ = [
     "TrendResult",
     "churning_products",

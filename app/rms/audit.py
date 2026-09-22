@@ -54,7 +54,7 @@ Notes:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 from loguru import logger
@@ -119,6 +119,38 @@ def record(
     except Exception as exc:  # pragma: no cover — defensive
         # Audit must NEVER break the caller. Log and move on.
         logger.warning(f"audit.record failed for action={action!r}: {exc!r}")
+
+
+def prune_audit_log(session: "Session", older_than_days: int = 365) -> int:
+    """Delete audit entries older than N days. Returns count of deleted rows."""
+    from app.rms.models import AuditLog
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=older_than_days)
+    deleted = session.execute(
+        AuditLog.__table__.delete().where(AuditLog.occurred_at < cutoff)
+    )
+    return deleted.rowcount
+
+
+def search_by_target(
+    session: "Session",
+    target_type: str,
+    target_id: str,
+    limit: int = 100,
+):
+    """Find all audit entries for a specific record (e.g. product #42)."""
+    from sqlalchemy import desc, select
+
+    from app.rms.models import AuditLog
+
+    stmt = (
+        select(AuditLog)
+        .where(AuditLog.target_type == target_type)
+        .where(AuditLog.target_id == str(target_id))
+        .order_by(desc(AuditLog.occurred_at))
+        .limit(limit)
+    )
+    return list(session.execute(stmt).scalars())
 
 
 def list_recent(

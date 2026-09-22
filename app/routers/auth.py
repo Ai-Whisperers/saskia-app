@@ -40,6 +40,15 @@ def login_form(
     message: str | None = None,
 ) -> HTMLResponse:
     """Render login form."""
+    # Remember last username via cookie for returning users
+    last_username = ""
+    cookie_header = request.headers.get("cookie", "")
+    for chunk in cookie_header.split(";"):
+        key, _, val = chunk.strip().partition("=")
+        if key == "last_username":
+            last_username = val or ""
+            break
+
     return render(
         request,
         "login.html",
@@ -48,6 +57,7 @@ def login_form(
             "error": error,
             "message": message,
             "using_supabase": using_supabase(),
+            "last_username": last_username,
         },
     )
 
@@ -58,6 +68,7 @@ def login_submit(
     username: str = Form(...),  # email for Supabase, username for bcrypt
     password: str = Form(...),
     next: str = Form("/"),
+    stay_logged_in: bool = Form(False),
     session: Session = Depends(get_db_session),
 ) -> RedirectResponse:
     """Sign in. Dispatch to Supabase Auth or local bcrypt based on config."""
@@ -80,12 +91,12 @@ def login_submit(
             )
 
     if using_supabase():
-        return _login_supabase(request, username, password, safe_next)
-    return _login_local(request, username, password, safe_next, session)
+        return _login_supabase(request, username, password, safe_next, stay_logged_in)
+    return _login_local(request, username, password, safe_next, session, stay_logged_in)
 
 
 def _login_supabase(
-    request: Request, email: str, password: str, safe_next: str
+    request: Request, email: str, password: str, safe_next: str, stay_logged_in: bool = False
 ) -> RedirectResponse:
     """Sign in via Supabase Auth."""
     from app.auth_supabase import get_supabase_client, store_session
@@ -106,7 +117,14 @@ def _login_supabase(
         user_id=session_data["user_id"],
         email=session_data["email"],
     )
-    return RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
+    from fastapi import Response
+
+    resp = RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
+    # Remember username for next login
+    resp.set_cookie(
+        "last_username", email, max_age=86400 * 30, httponly=True, samesite="lax"
+    )
+    return resp
 
 
 def _login_local(
@@ -115,9 +133,11 @@ def _login_local(
     password: str,
     safe_next: str,
     session: Session,
+    stay_logged_in: bool = False,
 ) -> RedirectResponse:
     """Sign in via local bcrypt (test/dev path)."""
     from app.auth import get_user_model, verify_password
+    from fastapi import Response
 
     User = get_user_model()
     user = (
@@ -150,7 +170,11 @@ def _login_local(
         detail={"backend": "local", "username": username},
     )
     session.commit()
-    return RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
+    resp = RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
+    resp.set_cookie(
+        "last_username", username, max_age=86400 * 30, httponly=True, samesite="lax"
+    )
+    return resp
 
 
 @router.post("/logout")

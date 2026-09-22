@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% block title %}Comparación de períodos{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Comparación de períodos
+</h1>
+
+<p class="text-muted">Compara ventas, cantidad de operaciones y margen entre dos períodos.</p>
+
+<form method="get" action="/reportes/comparacion" class="form mb-4">
+  <div class="grid grid-2">
+    <fieldset>
+      <legend>Período 1 (más reciente)</legend>
+      <div class="form-row">
+        <label for="start1">Desde</label>
+        <input type="date" id="start1" name="start1" value="{{ start1 }}">
+      </div>
+      <div class="form-row">
+        <label for="end1">Hasta</label>
+        <input type="date" id="end1" name="end1" value="{{ end1 }}">
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Período 2 (anterior)</legend>
+      <div class="form-row">
+        <label for="start2">Desde</label>
+        <input type="date" id="start2" name="start2" value="{{ start2 }}">
+      </div>
+      <div class="form-row">
+        <label for="end2">Hasta</label>
+        <input type="date" id="end2" name="end2" value="{{ end2 }}">
+      </div>
+    </fieldset>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Comparar</button>
+  </div>
+</form>
+
+{% if comparison %}
+<div class="grid grid-2 mb-4">
+  <div class="metric-card">
+    <div class="metric-label">Período 1 — Ingresos</div>
+    <div class="metric-value">{{ m.gs(comparison.period1.revenue_gs) }}</div>
+    <div class="metric-label">Ventas: {{ comparison.period1.n_sales }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Período 2 — Ingresos</div>
+    <div class="metric-value">{{ m.gs(comparison.period2.revenue_gs) }}</div>
+    <div class="metric-label">Ventas: {{ comparison.period2.n_sales }}</div>
+  </div>
+</div>
+
+{% if comparison.revenue_change_pct is not none %}
+<h3>Cambios</h3>
+<table class="table is-hoverable">
+  <thead>
+    <tr>
+      <th>Métrica</th>
+      <th class="num">Período 1</th>
+      <th class="num">Período 2</th>
+      <th class="num">Cambio %</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Ingresos</td>
+      <td class="num">{{ m.gs(comparison.period1.revenue_gs) }}</td>
+      <td class="num">{{ m.gs(comparison.period2.revenue_gs) }}</td>
+      <td class="num {{ 'is-up' if comparison.revenue_change_pct > 0 else 'is-down' if comparison.revenue_change_pct < 0 else '' }}">
+        {{ "%.1f"|format(comparison.revenue_change_pct) }}%
+      </td>
+    </tr>
+    <tr>
+      <td>Cantidad de ventas</td>
+      <td class="num">{{ comparison.period1.n_sales }}</td>
+      <td class="num">{{ comparison.period2.n_sales }}</td>
+      <td class="num {{ 'is-up' if comparison.sales_count_change_pct and comparison.sales_count_change_pct > 0 else 'is-down' if comparison.sales_count_change_pct and comparison.sales_count_change_pct < 0 else '' }}">
+        {{ "%.1f"|format(comparison.sales_count_change_pct) }}%{% if comparison.sales_count_change_pct is none %}—{% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td>Margen bruto</td>
+      <td class="num">{{ m.gs(comparison.period1.margin_gs) }}</td>
+      <td class="num">{{ m.gs(comparison.period2.margin_gs) }}</td>
+      <td class="num {{ 'is-up' if comparison.margin_change_pct and comparison.margin_change_pct > 0 else 'is-down' if comparison.margin_change_pct and comparison.margin_change_pct < 0 else '' }}">
+        {{ "%.1f"|format(comparison.margin_change_pct) }}%{% if comparison.margin_change_pct is none %}—{% endif %}
+      </td>
+    </tr>
+  </tbody>
+</table>
+{% endif %}
+{% endif %}
+
+{% endblock %}

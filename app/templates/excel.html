@@ -8,67 +8,132 @@
 
 <p class="muted">Tu sistema lee y escribe archivos .xlsx. El backup principal es el archivo exportado; podés guardarlo en Drive o donde quieras.</p>
 
-<h2>Importar desde Excel</h2>
-<form method="post" action="/excel/importar" enctype="multipart/form-data">
-  <div class="form-row">
-    <label for="file">Archivo .xlsx</label>
-    <input type="file" id="file" name="file" accept=".xlsx" required>
-    <small>Subí una copia de tu archivo de Drive (no lo modificamos, solo lo leemos).</small>
-  </div>
-  <fieldset class="form-row">
-    <legend>Modo de importación</legend>
-    <label>
-      <input type="radio" name="mode" value="PATCH" checked>
-      <strong>Actualizar por nombre (PATCH)</strong> — recomendado. Compara por
-      nombre (o SKU para productos, teléfono para clientes) y actualiza las
-      celdas que editaste. No borra nada.
-    </label>
-    <label>
-      <input type="radio" name="mode" value="FULL">
-      <strong>Reemplazar todo (FULL)</strong> — añade todas las filas del
-      archivo a las tablas existentes (no pisa las anteriores).
-    </label>
-  </fieldset>
-  <div class="form-actions">
-    <button type="submit" class="btn btn-primary">Importar</button>
-  </div>
-</form>
+<div class="grid grid-2 mb-4">
+  <section class="card">
+    <h2>Importar desde Excel</h2>
+    <form method="post" action="/excel/importar" enctype="multipart/form-data" id="import-form">
+      <div class="form-row">
+        <label for="file">Archivo .xlsx</label>
+        <input type="file" id="file" name="file" accept=".xlsx" required>
+        <small>Subí una copia de tu archivo de Drive (no lo modificamos, solo lo leemos).</small>
+      </div>
 
-<h2>Descargar plantilla (PATCH)</h2>
-<p>
-  <a href="/excel/plantilla" class="btn btn-secondary">Descargar plantilla editable</a>
-</p>
-<p class="muted">
-  Archivo pre-rellenado con tus productos, ingredientes y recetas actuales.
-  Editá solo las celdas que querés cambiar y volvé a subirlo en modo PATCH.
-  La hoja <strong>Clientes</strong> viene vacía (agregá clientes nuevos con
-  teléfono + nombre).
-</p>
+      <fieldset class="form-row">
+        <legend>Modo de importación</legend>
+        <div class="grid grid-3" style="gap: 8px;">
+          <label class="card is-interactive" style="cursor: pointer; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
+            <input type="radio" name="mode" value="PATCH" checked style="margin-right: 6px;">
+            <strong>PATCH</strong><br>
+            <small class="text-muted">Actualizar por nombre (recomendado)</small>
+          </label>
+          <label class="card is-interactive" style="cursor: pointer; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
+            <input type="radio" name="mode" value="APPEND" style="margin-right: 6px;">
+            <strong>APPEND</strong><br>
+            <small class="text-muted">Solo añadir filas nuevas</small>
+          </label>
+          <label class="card is-interactive" style="cursor: pointer; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
+            <input type="radio" name="mode" value="FULL" style="margin-right: 6px;">
+            <strong>FULL</strong><br>
+            <small class="text-muted">Reemplazar todo (avanzado)</small>
+          </label>
+        </div>
+        <p class="text-muted mt-2" style="font-size: 12px;">
+          ¿No sabés cuál elegir? <a href="/excel/mode-guidance">Ver guía de modos →</a>
+        </p>
+      </fieldset>
 
-{% if last_import %}
-<h3>Último import</h3>
-<div class="metric">
-  <p><strong>Archivo:</strong> {{ last_import.filename }}</p>
-  <p><strong>Fecha:</strong> {{ last_import.imported_at_str }}</p>
-  <p><strong>Modo:</strong> {{ last_import.mode }}</p>
-  <p><strong>Ingredientes procesados:</strong> {{ last_import.ingredients }}</p>
-  <p><strong>Recetas procesadas:</strong> {{ last_import.recipes }}</p>
-  <p><strong>Líneas importadas:</strong> {{ last_import.lines }}</p>
-  <p><strong>Productos procesados:</strong> {{ last_import.products }}</p>
-  <p><strong>Clientes procesados:</strong> {{ last_import.customers }}</p>
-  {% if last_import.warnings %}
-  <p><strong>Avisos:</strong></p>
-  <ul>
-    {% for w in last_import.warnings %}
-    <li>{{ w }}</li>
-    {% endfor %}
-  </ul>
-  {% endif %}
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" onclick="this.innerHTML='Importando…'; this.disabled=true; document.getElementById('import-form').submit();">
+          Importar
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('validate-form').submit();">
+          Vista previa (dry-run)
+        </button>
+      </div>
+    </form>
+
+    <form method="post" action="/excel/validar" enctype="multipart/form-data" id="validate-form" target="_blank" style="display:none;">
+      <input type="file" id="file" name="file" accept=".xlsx" required>
+      <input type="radio" name="mode" value="PATCH" checked style="display:none;">
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Descargar plantilla</h2>
+    <p class="text-muted mb-3">
+      La plantilla viene pre-rellenada con tus productos, ingredientes y recetas actuales.
+      Las columnas están marcadas como <strong>[REQUIRED]</strong> o <strong>[OPTIONAL]</strong>.
+    </p>
+    <ul style="font-size: 13px; color: #6b7280; margin-bottom: 1rem; padding-left: 1.2rem;">
+      <li><strong>Ingredientes</strong> — [REQUIRED] name, unit; [OPTIONAL] stock_qty, purchase_price_gs, min_stock_qty</li>
+      <li><strong>Recetas</strong> — [REQUIRED] name; [OPTIONAL] yield_qty, yield_unit, notes</li>
+      <li><strong>Lineas</strong> — [REQUIRED] recipe_name, line_kind (ingredient/sub_recipe), target_name, qty; [OPTIONAL] notes</li>
+      <li><strong>Productos</strong> — [REQUIRED] name, sale_price_gs; [OPTIONAL] portion_label, recipe_id, notes</li>
+      <li><strong>Clientes</strong> — [REQUIRED] telefono, nombre; [OPTIONAL] email, cedula, notes</li>
+    </ul>
+    <p>
+      <a href="/excel/plantilla" class="btn btn-secondary">
+        <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+        Descargar plantilla editable
+      </a>
+    </p>
+
+    <h2 class="mt-4">Exportar a Excel (backup)</h2>
+    <p class="text-muted mb-3">
+      El archivo tiene 6 hojas: Ingredientes, Recetas, Lineas, Productos, Ventas, Clientes, StockMoves.
+    </p>
+    <p><a href="/excel/exportar" class="btn btn-primary">Descargar backup (.xlsx)</a></p>
+  </section>
 </div>
-{% endif %}
 
-<h2>Exportar a Excel (backup)</h2>
-<p><a href="/excel/exportar" class="btn btn-primary">Descargar backup (.xlsx)</a></p>
-<p class="muted">El archivo tiene 6 hojas: Ingredientes, Recetas, Lineas, Productos, Ventas, StockMoves.</p>
+{% if import_history %}
+<h2>Historial de importaciones</h2>
+<table class="table is-hoverable is-striped">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Archivo</th>
+      <th>Modo</th>
+      <th>Ingredientes</th>
+      <th>Recetas</th>
+      <th>Líneas</th>
+      <th>Productos</th>
+      <th>Clientes</th>
+      <th>Avisos</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for h in import_history %}
+    <tr>
+      <td><small>{{ h.imported_at_str }}</small></td>
+      <td>{{ h.filename }}</td>
+      <td><code>{{ h.mode }}</code></td>
+      <td class="num">{{ h.ingredients }}</td>
+      <td class="num">{{ h.recipes }}</td>
+      <td class="num">{{ h.lines }}</td>
+      <td class="num">{{ h.products }}</td>
+      <td class="num">{{ h.customers }}</td>
+      <td>
+        {% if h.warnings %}
+        <details>
+          <summary class="text-muted" style="cursor:pointer">{{ h.warnings|length }} avisos</summary>
+          <ul style="font-size: 12px;">
+            {% for w in h.warnings[:5] %}
+            <li>{{ w if w is string else w.message }}</li>
+            {% endfor %}
+            {% if h.warnings|length > 5 %}
+            <li>…y {{ h.warnings|length - 5 }} más</li>
+            {% endif %}
+          </ul>
+        </details>
+        {% else %}
+        <span class="text-muted">—</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
 
 {% endblock %}

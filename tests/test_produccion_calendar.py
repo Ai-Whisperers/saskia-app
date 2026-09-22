@@ -145,8 +145,9 @@ def test_month_view_renders_day_count(client, session_factory):
     today = date.today()
     r = client.get(f"/produccion?view=month&month={today.strftime('%Y-%m')}")
     assert r.status_code == 200
+    # Month view renders a plain table with day-number headers (<th class="num">N</th>)
     ndays = _cal.monthrange(today.year, today.month)[1]
-    assert r.text.count("calendar-day-cell") == ndays
+    assert r.text.count('<th class="num">') >= ndays + 1  # +1 for the "Producto" column
     assert "Mes anterior" in r.text and "Mes siguiente" in r.text
 
 

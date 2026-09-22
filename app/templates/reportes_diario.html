@@ -7,7 +7,7 @@
   Resumen diario — {{ for_date }}
 </h1>
 
-<div class="grid grid-2 mb-4">
+<div class="grid grid-3 mb-4">
   <div class="metric-card">
     <div class="metric-label">Ingresos (Gs.)</div>
     <div class="metric-value">{{ m.gs(summary.revenue_gross_gs) }}</div>
@@ -19,6 +19,10 @@
   <div class="metric-card">
     <div class="metric-label">COGS</div>
     <div class="metric-value">{{ m.gs(summary.cogs_gs) }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Gastos</div>
+    <div class="metric-value">{{ m.gs(summary.expenses_gs) }}</div>
   </div>
   <div class="metric-card">
     <div class="metric-label">Ventas</div>
@@ -34,6 +38,13 @@
     {% endif %}
     <div class="metric-delta {{ 'is-up' if margin_pct >= 40 else 'is-neutral' }}">{{ "%.1f"|format(margin_pct) }}%</div>
   </div>
+</div>
+
+<div class="form-actions mb-4">
+  <a href="/reportes/diario/pdf?for_date={{ for_date }}" class="btn btn-secondary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+    Exportar PDF
+  </a>
 </div>
 
 <form method="get" action="/reportes/diario" class="form form-row-inline">

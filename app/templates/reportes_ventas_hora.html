@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% block title %}Ventas por hora{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Ventas por hora
+</h1>
+
+<p class="text-muted">Cantidad de ventas por cada hora (0–23). Útil para planificar personal y producción.</p>
+
+{% if peak_hour >= 0 %}
+<p class="text-muted mb-4">Hora pico: <strong>{{ "%02d:00"|format(peak_hour) }}</strong></p>
+{% endif %}
+
+{% if by_hour %}
+<table class="table is-hoverable">
+  <thead>
+    <tr>
+      <th>Hora</th>
+      <th class="num">Ventas</th>
+      <th>Barra</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for hour in range(24) %}
+    {% set count = by_hour.get(hour, 0) %}
+    <tr>
+      <td><strong>{{ "%02d:00"|format(hour) }}</strong></td>
+      <td class="num">{{ count }}</td>
+      <td>
+        {% if count > 0 %}
+        {% set max_count = by_hour.values() | max %}
+        <div style="background:#3b82f6; height: 16px; width: {{ (count / max_count * 100) | int }}%; border-radius: 2px;"></div>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  <h3>No hay ventas registradas</h3>
+</div>
+{% endif %}
+
+{% endblock %}

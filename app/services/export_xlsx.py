@@ -21,48 +21,62 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.rms.models import Ingredient, Product, Recipe, Sale
+from app.rms.models import Customer, Ingredient, Product, Recipe, Sale
 from app.rms.money import format_gs
 
 # Sheet column definitions — single source of truth for import + export.
 INGREDIENTES_COLS = [
     "id",
-    "name",
-    "unit",
-    "stock_qty",
-    "purchase_price_gs",
-    "min_stock_qty",
-    "notes",
+    "name [REQUIRED]",
+    "unit [REQUIRED]",
+    "stock_qty [OPTIONAL]",
+    "purchase_price_gs [OPTIONAL]",
+    "min_stock_qty [OPTIONAL]",
+    "notes [OPTIONAL]",
 ]
-RECETAS_COLS = ["id", "name", "yield_qty", "yield_unit", "notes"]
+RECETAS_COLS = [
+    "id",
+    "name [REQUIRED]",
+    "yield_qty [OPTIONAL]",
+    "yield_unit [OPTIONAL]",
+    "notes [OPTIONAL]",
+]
 LINEAS_COLS = [
     "id",
-    "recipe_id",
-    "recipe_name",
-    "line_kind",
-    "line_ref_id",
-    "target_name",
-    "qty",
-    "notes",
+    "recipe_id [REQUIRED]",
+    "recipe_name [REQUIRED]",
+    "line_kind [REQUIRED]",
+    "line_ref_id [REQUIRED]",
+    "target_name [REQUIRED]",
+    "qty [REQUIRED]",
+    "notes [OPTIONAL]",
 ]
 PRODUCTOS_COLS = [
     "id",
-    "name",
-    "portion_label",
-    "sale_price_gs",
-    "recipe_id",
-    "recipe_name",
-    "notes",
+    "name [REQUIRED]",
+    "portion_label [OPTIONAL]",
+    "sale_price_gs [REQUIRED]",
+    "recipe_id [OPTIONAL]",
+    "recipe_name [OPTIONAL]",
+    "notes [OPTIONAL]",
+]
+CLIENTES_COLS = [
+    "id",
+    "telefono [REQUIRED]",
+    "nombre [REQUIRED]",
+    "email [OPTIONAL]",
+    "cedula [OPTIONAL]",
+    "notes [OPTIONAL]",
 ]
 VENTAS_COLS = [
     "id",
-    "sold_at",
-    "product_id",
-    "product_name",
-    "qty",
-    "unit_price_gs",
-    "notes",
-    "voided_at",
+    "sold_at [REQUIRED]",
+    "product_id [REQUIRED]",
+    "product_name [REQUIRED]",
+    "qty [REQUIRED]",
+    "unit_price_gs [REQUIRED]",
+    "notes [OPTIONAL]",
+    "voided_at [OPTIONAL]",
 ]
 STOCKMOVES_COLS = [
     "id",
@@ -182,6 +196,20 @@ def to_file(session: Session, path: str | Path) -> Path:
                 prod.notes,
             ]
         )
+    _autosize(ws)
+
+    # --- Clientes ---
+    ws = wb.create_sheet("Clientes")
+    _write_header(ws, CLIENTES_COLS)
+    for cust in session.scalars(select(Customer).order_by(Customer.id)).all():
+        ws.append([
+            cust.id,
+            cust.phone,
+            cust.name,
+            getattr(cust, "email", None),
+            getattr(cust, "cedula", None),
+            cust.notes,
+        ])
     _autosize(ws)
 
     # --- Ventas ---
