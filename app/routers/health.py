@@ -278,3 +278,43 @@ def healthz_schema(request: Request) -> JSONResponse:
         return JSONResponse(status_code=500, content=body)
     body["status"] = "in_sync"
     return JSONResponse(status_code=200, content=body)
+
+# --- Debug endpoint for Ivan (remove after diagnosis) ---
+import logging
+logger2 = logging.getLogger("uvicorn.error")
+
+@router.get("/healthz/debug-user", response_model=None)
+def healthz_debug_user(request: Request) -> JSONResponse:
+    """Diagnose current_user_id for the logged-in session."""
+    from app.auth import current_user_id, get_current_user, _supabase_enabled
+    from app.rms.dependencies import get_session
+    from sqlalchemy import select
+    from app.rms.models import User
+
+    uid = current_user_id(request)
+    supabase = _supabase_enabled()
+    result = {
+        "supabase_enabled": supabase,
+        "user_id": str(uid) if uid is not None else None,
+        "user_id_type": type(uid).__name__,
+    }
+    
+    if uid is not None:
+        try:
+            if supabase:
+                # UUID string - try to find local user
+                session = get_session(request)
+                user = session.get(User, uid)
+                result["local_user_found"] = user is not None
+                if user:
+                    result["local_user_email"] = user.email
+            else:
+                session = get_session(request)
+                user = session.get(User, uid)
+                result["local_user_found"] = user is not None
+                if user:
+                    result["local_user_email"] = user.email
+        except Exception as e:
+            result["session_error"] = str(e)[:200]
+    
+    return result
