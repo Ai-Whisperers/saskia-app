@@ -118,6 +118,31 @@
 <p class="empty">No hay producción planificada para esta semana.</p>
 {% endif %}
 
+{# Sales summary for the week #}
+{% if week_sales %}
+<div class="card mb-4">
+  <div class="card-header"><h3>Ventas reales de la semana</h3></div>
+  <table class="table is-hoverable is-striped">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="num">Unidades vendidas</th>
+        <th class="num">Operaciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in week_sales %}
+      <tr>
+        <td>{{ s.product_name }}</td>
+        <td class="num"><strong>{{ "%.1f"|format(s.total_qty) }}</strong></td>
+        <td class="num">{{ s.n_sales }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
 {% if week_ingredients %}
 <h3>Ingredientes de la semana</h3>
 <table class="table is-hoverable">
@@ -184,6 +209,39 @@
 </table>
 {% else %}
 <p class="empty">No hay producción planificada para este mes.</p>
+{% endif %}
+
+{# Sales summary for the month #}
+{% if month_sales %}
+<div class="card mb-4">
+  <div class="card-header"><h3>Ventas reales del mes</h3></div>
+  {% if month_revenue_gs %}
+  <div class="metric-card mb-3" style="display:inline-flex;gap:var(--space-4);padding:var(--space-2) var(--space-3);">
+    <div>
+      <div class="metric-label">Ingresos del mes</div>
+      <div class="metric-value">{{ m.gs_full(month_revenue_gs) }}</div>
+    </div>
+  </div>
+  {% endif %}
+  <table class="table is-hoverable is-striped">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="num">Unidades vendidas</th>
+        <th class="num">Operaciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in month_sales %}
+      <tr>
+        <td>{{ s.product_name }}</td>
+        <td class="num"><strong>{{ "%.1f"|format(s.total_qty) }}</strong></td>
+        <td class="num">{{ s.n_sales }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endif %}
 
 {% if month_ingredients %}

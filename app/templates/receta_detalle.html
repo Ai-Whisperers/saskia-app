@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}{{ recipe.name }} — Receta{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:baseline;gap:var(--space-3);margin-bottom:var(--space-4);">
+  <h1>{{ recipe.name }}</h1>
+  <a href="/recetas/{{ recipe.id }}/editar" class="btn btn-sm btn-ghost">
+    <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+    Editar
+  </a>
+</div>
+
+{# Tags #}
+{% if tags %}
+<p>
+  {% for t in tags %}
+  <span class="badge" style="background-color:{{ t.color }};color:#fff;">{{ t.name }}</span>
+  {% endfor %}
+</p>
+{% endif %}
+
+{# Meta #}
+<div class="grid grid-3 mb-4" style="gap:var(--space-3);">
+  {% if recipe.yield_qty %}
+  <div class="metric-card">
+    <div class="metric-label">Rinde</div>
+    <div class="metric-value">{{ "%.1f"|format(recipe.yield_qty) }} {{ recipe.yield_unit }}</div>
+  </div>
+  {% endif %}
+  {% if recipe.prep_minutes %}
+  <div class="metric-card">
+    <div class="metric-label">Preparación</div>
+    <div class="metric-value">{{ recipe.prep_minutes }} min</div>
+  </div>
+  {% endif %}
+  {% if recipe.cook_minutes %}
+  <div class="metric-card">
+    <div class="metric-label">Cocción</div>
+    <div class="metric-value">{{ recipe.cook_minutes }} min</div>
+  </div>
+  {% endif %}
+</div>
+
+{# Cost breakdown #}
+<div class="card mb-4">
+  <div class="card-header">
+    <h2>Desglose de costo</h2>
+  </div>
+  <div class="grid grid-2" style="gap:var(--space-3);margin-bottom:var(--space-3);">
+    <div class="metric-card">
+      <div class="metric-label">Costo del lote</div>
+      <div class="metric-value">
+        {% if batch_cost.batch_cost_gs is not none %}
+          {{ m.gs_full(batch_cost.batch_cost_gs) }}
+        {% else %}
+          <span class="text-muted">sin datos</span>
+        {% endif %}
+      </div>
+    </div>
+    {% if unit_cost.batch_cost_gs is not none and recipe.yield_qty %}
+    <div class="metric-card">
+      <div class="metric-label">Costo / porción</div>
+      <div class="metric-value">{{ m.gs_full(unit_cost.batch_cost_gs) }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {# Line-level cost breakdown #}
+  {% if resolved_lines and batch_cost.batch_cost_gs %}
+  <h3>Ingredientes y sub-recetas</h3>
+  <table class="table is-hoverable">
+    <thead>
+      <tr>
+        <th>Tipo</th>
+        <th>Nombre</th>
+        <th class="num">Cantidad</th>
+        <th class="num">Costo (Gs.)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in resolved_lines %}
+      {% if item.is_ingredient and item.target %}
+      {% set ing = item.target %}
+      {% set line_qty = item.line.qty %}
+      {% set unit_price = ing.purchase_price_gs if ing.purchase_price_gs else 0 %}
+      {% set line_cost = (line_qty * unit_price)|round|int %}
+      <tr>
+        <td><span class="badge badge-neutral">Ingrediente</span></td>
+        <td>{{ item.target_name }}</td>
+        <td class="num">{{ "%.2f"|format(item.line.qty) }} {{ item.line.line_unit or ing.unit }}</td>
+        <td class="num">{{ m.gs(line_cost) }}</td>
+      </tr>
+      {% elif not item.is_ingredient %}
+      <tr>
+        <td><span class="badge badge-warn">Sub-receta</span></td>
+        <td><a href="/recetas/{{ item.line.line_ref_id }}">{{ item.target_name }}</a></td>
+        <td class="num">{{ "%.2f"|format(item.line.qty) }}</td>
+        <td class="num">—</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td><span class="badge badge-neutral">Ingrediente</span></td>
+        <td><em class="muted">{{ item.target_name }} (no encontrado)</em></td>
+        <td class="num">{{ "%.2f"|format(item.line.qty) }}</td>
+        <td class="num">—</td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {# Missing ingredients alert #}
+  {% if batch_cost.missing_ingredient_names %}
+  <div class="alerts-warn" style="margin-top:var(--space-3);">
+    <strong>Faltan datos de precio para:</strong>
+    <ul style="margin:var(--space-1) 0 0 var(--space-3);">
+      {% for name in batch_cost.missing_ingredient_names %}
+      <li>{{ name }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+
+{# Used by products #}
+{% if products_using %}
+<div class="card mb-4">
+  <div class="card-header">
+    <h2>Usada por productos</h2>
+  </div>
+  <ul>
+    {% for p in products_using %}
+    <li><a href="/productos/{{ p.id }}/editar">{{ p.name }}</a></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{# Notes #}
+{% if recipe.notes %}
+<div class="card mb-4">
+  <div class="card-header"><h2>Notas</h2></div>
+  <p>{{ recipe.notes }}</p>
+</div>
+{% endif %}
+
+{# Recipe lines table #}
+{% if resolved_lines %}
+<div class="card mb-4">
+  <div class="card-header"><h2>Ingredientes y sub-recetas</h2></div>
+  <table class="table is-hoverable">
+    <thead>
+      <tr>
+        <th>Tipo</th>
+        <th>Nombre</th>
+        <th class="num">Cantidad</th>
+        <th>Unidad</th>
+        <th>Notas</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in resolved_lines %}
+      <tr>
+        <td>
+          {% if item.is_ingredient %}
+          <span class="badge badge-neutral">Ingrediente</span>
+          {% else %}
+          <span class="badge badge-warn">Sub-receta</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if item.is_ingredient %}
+            {{ item.target_name }}
+          {% else %}
+            <a href="/recetas/{{ item.line.line_ref_id }}">{{ item.target_name }}</a>
+          {% endif %}
+        </td>
+        <td class="num">{{ "%.3f"|format(item.line.qty) }}</td>
+        <td>{{ item.line.line_unit or (item.target.unit if item.target else '—') }}</td>
+        <td class="muted">{{ item.line.notes or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<p><a href="/recetas" class="btn btn-ghost">&larr; Volver a recetas</a></p>
+
+{% endblock %}

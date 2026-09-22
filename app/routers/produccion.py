@@ -17,15 +17,16 @@ Seasonal-multiplier editor intentionally absent: blocked on T-0.1
 from __future__ import annotations
 
 import calendar as _calendar
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
-from app.rms.models import Product
+from app.rms.models import Product, Sale
 from app.rms.production import plan_production
 from app.services.template_render import render
 
@@ -128,6 +129,22 @@ def produccion_worksheet(
         week_ingredients = sorted(ing_required.values(), key=lambda x: x["ingredient_name"])
         prev_week = (week_start - timedelta(days=7)).isoformat()
         next_week = (week_start + timedelta(days=7)).isoformat()
+
+        # Sales data for this week (actual sales in the period)
+        from datetime import datetime as dt_cls, timezone as tz_cls
+        week_end_dt = datetime.combine(week_start + timedelta(days=6), datetime.max.time()).replace(tzinfo=tz_cls.utc)
+        week_start_dt = datetime.combine(week_start, datetime.min.time()).replace(tzinfo=tz_cls.utc)
+        sales_rows = session.execute(
+            select(
+                Sale.product_id, Product.name, func.sum(Sale.qty), func.count(Sale.id)
+            )
+            .join(Product, Sale.product_id == Product.id)
+            .where(Sale.sold_at >= week_start_dt, Sale.sold_at <= week_end_dt, Sale.voided_at.is_(None))
+            .group_by(Sale.product_id, Product.name)
+            .order_by(func.sum(Sale.qty).desc())
+        ).all()
+        week_sales = [{"product_id": r[0], "product_name": r[1], "total_qty": float(r[2]), "n_sales": r[3]} for r in sales_rows]
+
         return render(request, "produccion.html", {
             "view": "week",
             "week_start": week_start.strftime("%d %b %Y"),
@@ -136,6 +153,7 @@ def produccion_worksheet(
             "week_ingredients": week_ingredients,
             "prev_week_iso": prev_week,
             "next_week_iso": next_week,
+            "week_sales": week_sales,
         })
 
     if view == "month":
@@ -181,6 +199,27 @@ def produccion_worksheet(
                        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
         prev_month = date(year, mon, 1) - timedelta(days=1)
         next_month = date(year, mon, ndays) + timedelta(days=1)
+
+        # Sales data for this month (actual sales)
+        from datetime import datetime as dt_cls, timezone as tz_cls
+        month_end_dt = datetime(year, mon, ndays, 23, 59, 59).replace(tzinfo=tz_cls.utc)
+        month_start_dt = datetime(year, mon, 1, 0, 0, 0).replace(tzinfo=tz_cls.utc)
+        sales_rows = session.execute(
+            select(
+                Sale.product_id, Product.name, func.sum(Sale.qty), func.count(Sale.id)
+            )
+            .join(Product, Sale.product_id == Product.id)
+            .where(Sale.sold_at >= month_start_dt, Sale.sold_at <= month_end_dt, Sale.voided_at.is_(None))
+            .group_by(Sale.product_id, Product.name)
+            .order_by(func.sum(Sale.qty).desc())
+        ).all()
+        month_sales = [{"product_id": r[0], "product_name": r[1], "total_qty": float(r[2]), "n_sales": r[3]} for r in sales_rows]
+        total_revenue = session.execute(
+            select(func.sum(Sale.qty * Sale.unit_price_gs)).where(
+                Sale.sold_at >= month_start_dt, Sale.sold_at <= month_end_dt, Sale.voided_at.is_(None)
+            )
+        ).scalar() or 0
+
         return render(request, "produccion.html", {
             "view": "month",
             "year": year,
@@ -191,6 +230,8 @@ def produccion_worksheet(
             "month_ingredients": month_ingredients,
             "prev_month_iso": prev_month.strftime("%Y-%m"),
             "next_month_iso": next_month.strftime("%Y-%m"),
+            "month_sales": month_sales,
+            "month_revenue_gs": int(total_revenue),
         })
 
     # day view (default)

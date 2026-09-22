@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Pedido a {{ supplier.name }}{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:baseline;gap:var(--space-3);margin-bottom:var(--space-4);">
+  <h1>Pedido a {{ supplier.name }}</h1>
+  <a href="/suppliers/{{ supplier.id }}/editar" class="btn btn-sm btn-ghost">
+    <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+    Editar proveedor
+  </a>
+</div>
+
+{% if supplier.contact_name or supplier.phone or supplier.email %}
+<div class="card mb-4">
+  <h3>Datos de contacto</h3>
+  {% if supplier.contact_name %}<p><strong>Contacto:</strong> {{ supplier.contact_name }}</p>{% endif %}
+  {% if supplier.phone %}<p><strong>Teléfono:</strong> {{ supplier.phone }}</p>{% endif %}
+  {% if supplier.email %}<p><strong>Email:</strong> {{ supplier.email }}</p>{% endif %}
+</div>
+{% endif %}
+
+{% if wa_url %}
+<div class="card mb-4">
+  <div class="card-header">
+    <h2>
+      <svg class="icon" aria-hidden="true" style="color:var(--color-whatsapp);"><use href="#icon-whatsapp"/></svg>
+      Enviar pedido por WhatsApp
+    </h2>
+  </div>
+  <p>El mensaje incluye todos los ingredientes bajo mínimo de este proveedor.</p>
+  <a href="{{ wa_url }}" target="_blank" rel="noopener" class="btn btn-primary">
+    <svg class="icon" aria-hidden="true" style="color:#fff;"><use href="#icon-whatsapp"/></svg>
+    Abrir WhatsApp
+  </a>
+</div>
+{% elif not items %}
+<div class="card mb-4">
+  <div class="card-header"><h2>Ingredientes bajo mínimo</h2></div>
+  <p class="text-muted">No hay ingredientes de este proveedor que estén bajo el mínimo de stock.</p>
+</div>
+{% endif %}
+
+{% if items %}
+<div class="card mb-4">
+  <div class="card-header">
+    <h2>Ingredientes para reponer</h2>
+    <div class="metric-value">{{ items|length }}</div>
+  </div>
+  <table class="table is-hoverable is-striped">
+    <thead>
+      <tr>
+        <th>Ingrediente</th>
+        <th class="num">Stock actual</th>
+        <th class="num">Mínimo</th>
+        <th class="num">Sugerido</th>
+        <th class="num">Costo est.</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td><strong data-copy="{{ item.ingredient_id }}">{{ item.name }}</strong></td>
+        <td class="num">{{ "%.2f"|format(item.current_stock) }} {{ item.unit }}</td>
+        <td class="num">{{ "%.2f"|format(item.min_stock) }} {{ item.unit }}</td>
+        <td class="num"><strong>{{ "%.2f"|format(item.suggested_qty) }} {{ item.unit }}</strong></td>
+        <td class="num">{{ m.gs(item.estimated_cost_gs) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <th colspan="4" class="num">Total estimado</th>
+        <th class="num">{{ m.gs(total_cost) }}</th>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+{% endif %}
+
+<p><a href="/suppliers" class="btn btn-ghost">&larr; Volver a proveedores</a></p>
+
+{% endblock %}

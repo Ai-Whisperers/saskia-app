@@ -17,7 +17,13 @@
     <input type="date" id="since" name="since" value="{{ since }}">
     <label for="until">Hasta:</label>
     <input type="date" id="until" name="until" value="{{ until }}">
-    <input type="hidden" name="days" value="{{ days }}">
+    <label for="reason_filter">Motivo:</label>
+    <select id="reason_filter" name="reason" style="min-width:120px;">
+      <option value="">Todos</option>
+      {% for r in reasons %}
+      <option value="{{ r }}" {% if selected_reason == r %}selected{% endif %}>{{ r }}</option>
+      {% endfor %}
+    </select>
     <button type="submit" class="btn btn-sm">Aplicar</button>
   </form>
 </div>
@@ -149,6 +155,24 @@
       {% endfor %}
     </tbody>
   </table>
+
+  {# ASCII bar chart for top ingredients #}
+  {% if impact.total_cost_gs > 0 %}
+  <div style="margin-top:var(--space-3);">
+    <h4>Gráfico de merma</h4>
+    {% for ing_id, ing_name, cost in top_ingredients[:8] %}
+    {% set pct = (cost / impact.total_cost_gs * 100)|round(1) %}
+    {% set bar_len = (pct / 5)|round|int %}
+    <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:2px;">
+      <span style="min-width:12rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.85rem;">{{ ing_name }}</span>
+      <div style="display:inline-flex;width:{{ (bar_len * 10) + 40 }}px;min-width:40px;">
+        <div style="background:var(--color-danger);height:1rem;border-radius:2px;width:{{ bar_len * 10 }}px;"></div>
+      </div>
+      <span class="num" style="font-size:0.85rem;min-width:4rem;text-align:right;">{{ "%.0f"|format(pct) }}%</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
   {% endif %}
 
   {% if impact.by_reason %}
@@ -189,11 +213,9 @@
       {% endfor %}
     </tbody>
   </table>
-  {% if items %}
   <div class="table-info">
     <span>Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ total }}</strong> eventos</span>
   </div>
-  {% endif %}
 </section>
 {% else %}
 <div class="empty-state">

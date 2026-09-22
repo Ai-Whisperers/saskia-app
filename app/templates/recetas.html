@@ -64,7 +64,7 @@
   <tbody>
     {% for r in recipes %}
     <tr>
-      <td><strong data-copy="{{ r.id }}">{{ r.name }}</strong>
+      <td><strong data-copy="{{ r.id }}"><a href="/recetas/{{ r.id }}">{{ r.name }}</a></strong>
         {% if r.family %}<span class="badge badge-neutral">{{ r.family }}</span>{% endif %}
       </td>
       <td class="num">

@@ -34,11 +34,13 @@ def merma_list(
     days: int = Query(30, description="Days to look back (7, 30, 90, or custom)"),
     since: str | None = Query(None, description="ISO date start override"),
     until: str | None = Query(None, description="ISO date end override"),
+    reason: str | None = Query(None, description="Filter by waste reason"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """List recent waste + summary with date range filter.
 
     Presets: 7, 30, 90 days. Custom range via since/until ISO dates.
+    Optional reason filter.
     """
     # Resolve date range
     today = datetime.now(timezone.utc)
@@ -60,7 +62,16 @@ def merma_list(
     else:
         end_date = today
 
-    items = list_waste(session, start_date=start_date, end_date=end_date, limit=200)
+    # Validate reason filter
+    reason_filter: WasteReason | None = None
+    if reason:
+        try:
+            reason_filter = WasteReason(reason)
+        except ValueError:
+            reason_filter = None
+
+    items = list_waste(session, start_date=start_date, end_date=end_date,
+                       reason=reason_filter, limit=200)
     impact = waste_impact(session, start_date=start_date, end_date=end_date)
     # Estimate revenue from sales in same window
     from app.rms.models import Sale
@@ -88,13 +99,14 @@ def merma_list(
     # Build preset query strings
     def preset_url(d: int) -> str:
         sd = (today - timedelta(days=d)).strftime("%Y-%m-%d")
-        return f"/merma?days={d}&since={sd}"
+        return f"/merma?days={d}&since={sd}&reason={reason or ''}"
 
     return render(request, "merma.html", {
         "items": items,
         "impact": impact,
         "pct": pct,
         "reasons": [r.value for r in WasteReason],
+        "selected_reason": reason or "",
         "ingredients": ingredients,
         "recipes": recipes_with_yield,
         "top_ingredients": top_ingredients,

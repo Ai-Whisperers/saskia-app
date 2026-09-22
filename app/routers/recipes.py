@@ -178,6 +178,66 @@ async def recipe_create(
     return RedirectResponse(url="/recetas", status_code=303)
 
 
+@router.get("/{r_id}", response_class=HTMLResponse)
+async def recipe_detail(
+    r_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Read-only recipe detail with cost breakdown and used-by products."""
+    r = session.get(Recipe, r_id)
+    if r is None:
+        raise HTTPException(status_code=404, detail="Receta no encontrada")
+    lines = session.scalars(
+        select(RecipeLine).where(RecipeLine.recipe_id == r_id).order_by(RecipeLine.id)
+    ).all()
+
+    # Resolve line targets for display
+    from app.rms.costing import resolve_line_target
+    resolved_lines = []
+    for ln in lines:
+        target = resolve_line_target(session, ln)
+        resolved_lines.append({
+            "line": ln,
+            "target": target,
+            "target_name": target.name if target else f"#{ln.line_ref_id}",
+            "is_ingredient": ln.line_kind == "ingredient",
+        })
+
+    # Cost breakdown
+    from app.rms.costing import recipe_batch_cost_gs, recipe_unit_cost_gs
+    batch_cost = recipe_batch_cost_gs(session, r_id)
+    unit_cost = recipe_unit_cost_gs(session, r_id)
+
+    # Used by products
+    products_using = session.scalars(
+        select(Product).where(Product.recipe_id == r_id)
+    ).all()
+
+    # Tags for this recipe
+    from app.rms.models import TagLink
+    tag_links = session.scalars(
+        select(TagLink).where(
+            TagLink.target_kind == "recipe",
+            TagLink.target_id == r_id,
+        )
+    ).all()
+    tag_ids = [tl.tag_id for tl in tag_links]
+    tags = []
+    if tag_ids:
+        from app.rms.models import Tag
+        tags = list(session.scalars(select(Tag).where(Tag.id.in_(tag_ids))))
+
+    return render(request, "receta_detalle.html", {
+        "recipe": r,
+        "resolved_lines": resolved_lines,
+        "batch_cost": batch_cost,
+        "unit_cost": unit_cost,
+        "products_using": [{"id": p.id, "name": p.name} for p in products_using],
+        "tags": [{"id": t.id, "name": t.name, "color": t.color} for t in tags],
+    })
+
+
 @router.get("/{r_id}/editar", response_class=HTMLResponse)
 async def recipe_edit(
     r_id: int,
