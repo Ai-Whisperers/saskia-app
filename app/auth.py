@@ -219,8 +219,24 @@ def require_login_or_disabled(request: Request):
 
 
 def get_db_session(request: Request) -> Session:
-    """FastAPI dependency: open a session from app.state.session_factory."""
-    return request.app.state.session_factory()
+    """FastAPI dependency: open a session from app.state.session_factory.
+
+    Defensive: if session_factory isn't set yet (server is still initializing
+    or running without the lifespan hook), create a ephemeral engine for this
+    request. This prevents 500 crashes during cold-start or on pre-lifespan code.
+    """
+    sf = getattr(request.app.state, "session_factory", None)
+    if sf is None:
+        # Server is still starting or running old code without lifespan.
+        # Create an ephemeral engine just for this request — no pooling, no persist.
+        from sqlalchemy import create_engine
+        import os
+        db_url = os.getenv("DATABASE_URL")
+        if not db_url:
+            raise RuntimeError("DATABASE_URL env var not set")
+        engine = create_engine(db_url, pool_pre_ping=True)
+        return engine.connect()
+    return sf()
 
 
 def get_current_user(
