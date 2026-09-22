@@ -390,7 +390,7 @@ def healthz_debug_ventas_v4(request: Request) -> JSONResponse:
             session=session,
         )
         body = result.body.decode() if hasattr(result, 'body') else str(result)[:500]
-        return JSONResponse({"status": "ok", "body_length": len(body)})
+        return JSONResponse({"status": "ok", "body_length": len(body), "body_preview": body[:1000]})
     except Exception as e:
         return JSONResponse({
             "status": "error",
