@@ -172,15 +172,15 @@
     </div>
     <div>
       <strong>Sistema</strong>
-      <div>{{ current_user.username }}</div>
+      <div>{{ current_user.username if current_user else '—' }}</div>
     </div>
     <div>
       <strong>Rol</strong>
-      <div>{{ current_user.role | capitalize }}</div>
+      <div>{{ (current_user.role | capitalize) if current_user else '—' }}</div>
     </div>
     <div>
       <strong>Último acceso</strong>
-      <div>{{ current_user.last_login_at or 'Nunca' }}</div>
+      <div>{{ current_user.last_login_at if current_user else 'Nunca' }}</div>
     </div>
   </div>
 </div>

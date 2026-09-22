@@ -51,8 +51,22 @@ def settings_page(
         "punto_expedicion": punto_expedicion.value if punto_expedicion else "",
         "invoice_sequence": invoice_sequence.value if invoice_sequence else "",
         "theme": theme.value if theme else "system",
-        "current_user": session.get(User, user_id),
+        "current_user": _safe_get_user(session, user_id),
     })
+
+
+def _safe_get_user(session, user_id):
+    """Look up the User by id, handling UUID strings (Supabase) gracefully.
+
+    Returns None for non-integer ids (e.g., Supabase UUID) so the template
+    doesn't crash with TypeError on attribute access.
+    """
+    if user_id is None:
+        return None
+    try:
+        return session.get(User, user_id)
+    except Exception:
+        return None
 
 
 @router.post("/business", response_class=RedirectResponse)
