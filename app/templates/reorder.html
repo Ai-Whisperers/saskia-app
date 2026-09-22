@@ -52,6 +52,7 @@ function updateBulkBtn() {
       <th class="num">Urgencia</th>
       <th class="num">Costo est.</th>
       <th>Tendencia (90d)</th>
+      <th>Días restantes</th>
       <th>Proveedor</th>
       <th>Reponer</th>
     </tr>
@@ -94,6 +95,22 @@ function updateBulkBtn() {
           <small class="text-muted" style="display:block; margin-top:.25rem;">min {{ m.gs(pstats.min) }}</small>
         {% else %}
           <span class="text-muted" title="Sin historial de precios en 90d">—</span>
+        {% endif %}
+      </td>
+      <td class="num">
+        {% set fc = forecast_map.get(item.ingredient_id) if forecast_map else None %}
+        {% if fc and fc.days_of_stock > 1_000_000 %}
+          <span class="text-muted" title="Sin consumo reciente; el stock no se está agotando">—</span>
+        {% elif fc %}
+          {% if fc.days_of_stock < 3 %}
+            <span class="badge badge-danger" title="Consumo: {{ '%.1f'|format(fc.avg_daily) }}/día; Sin stock en {{ '%.1f'|format(fc.days_of_stock) }} días">{{ '%.0f'|format(fc.days_of_stock) }}d</span>
+          {% elif fc.days_of_stock < 7 %}
+            <span class="badge badge-warn">{{ '%.0f'|format(fc.days_of_stock) }}d</span>
+          {% else %}
+            <span class="badge badge-muted">{{ '%.0f'|format(fc.days_of_stock) }}d</span>
+          {% endif %}
+        {% else %}
+          <span class="text-muted">—</span>
         {% endif %}
       </td>
       <td>
@@ -139,7 +156,7 @@ function updateBulkBtn() {
   </tbody>
   <tfoot>
     <tr>
-      <td colspan="8" class="num">Total estimado</td>
+      <td colspan="9" class="num">Total estimado</td>
       <td class="num">{{ m.gs(total_cost_gs) }}</td>
       <td></td>
       <td></td>

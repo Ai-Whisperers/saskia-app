@@ -58,6 +58,21 @@ def reorder_view(
     ingredient_ids = [i.ingredient_id for i in items]
     price_stats = batch_price_stats(session, ingredient_ids, days=90)
 
+    # Predictive forecast (BACKLOG #7): avg_daily consumption + days_of_stock.
+    # Single batched query for all items (no N+1).
+    from app.rms.forecast import batch_forecast_ingredients
+    forecast_objs = batch_forecast_ingredients(session, ingredient_ids, days_back=30)
+    forecast_map: dict[int, dict] = {
+        ing_id: {
+            "avg_daily": fc.avg_daily_consumption,
+            "days_of_stock": fc.days_of_stock,
+            "trend_pct": fc.trend_pct,
+            "projected_stockout_at": fc.projected_stockout_at,
+            "recommended_restock_qty": fc.recommended_restock_qty,
+        }
+        for ing_id, fc in forecast_objs.items()
+    }
+
     if format == "json":
         return JSONResponse({
             "items": [
@@ -87,6 +102,7 @@ def reorder_view(
         "count": len(items),
         "supplier_map": supplier_map,
         "price_stats": price_stats,
+        "forecast_map": forecast_map,
         "page_start": 1,
         "page_end": len(items),
     })

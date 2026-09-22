@@ -293,7 +293,14 @@ def qseed(session_factory):
             assert data["low_ingredient"].stock_qty < 1.0
     """
     from tests._fixtures_quick_seed import quick_seed
-    return lambda scenario: quick_seed(session_factory, scenario)
+
+    def _seed(scenario: str = "basic") -> dict:
+        return quick_seed(session_factory, scenario)
+
+    # Attach session_factory so qseed consumers can use it for additional
+    # queries after seeding.
+    _seed.session_factory = session_factory
+    return _seed
 
 
 # --- Shared Supabase fake for integration tests ---
