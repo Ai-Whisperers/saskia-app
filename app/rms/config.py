@@ -68,7 +68,7 @@ BACKUP_THRESHOLD_HOURS = int(os.getenv("AIW_SASKIA_BACKUP_HOURS", "24"))
 KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_SASKIA_KEEP_LOCAL_DAYS", "30"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 27  # 027 = production_plan_template + production_plan_override (PRO-01 weekly plan)
+CURRENT_SCHEMA_VERSION = 28  # 028 = DB-level CHECK on recipe.yield_qty and recipe_line.qty (audit #5)
 
 
 def ensure_dirs() -> None:

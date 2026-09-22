@@ -1014,6 +1014,61 @@ def _migration_027_production_plan_template(conn):
     )
 
 
+def _migration_028_recipe_yield_qty_check(conn):
+    """DB-level CHECK: recipe.yield_qty and recipe_line.qty must be > 0.
+
+    Catches bad data at INSERT/UPDATE time, not just at apply_sale() time.
+    Uses SQLite triggers (supported since 3.3.0). Postgres uses NOT NULL +
+    CHECK constraints for the same purpose.
+    """
+    try:
+        conn.execute(text("""
+            CREATE TRIGGER IF NOT EXISTS recipe_yield_qty_positive_insert
+            BEFORE INSERT ON recipe
+            FOR EACH ROW
+            WHEN NEW.yield_qty IS NULL OR NEW.yield_qty <= 0
+            BEGIN
+                SELECT RAISE(ABORT, 'recipe.yield_qty must be > 0');
+            END
+        """))
+        conn.execute(text("""
+            CREATE TRIGGER IF NOT EXISTS recipe_yield_qty_positive_update
+            BEFORE UPDATE OF yield_qty ON recipe
+            FOR EACH ROW
+            WHEN NEW.yield_qty IS NULL OR NEW.yield_qty <= 0
+            BEGIN
+                SELECT RAISE(ABORT, 'recipe.yield_qty must be > 0');
+            END
+        """))
+        conn.execute(text("""
+            CREATE TRIGGER IF NOT EXISTS recipe_line_qty_positive_insert
+            BEFORE INSERT ON recipe_line
+            FOR EACH ROW
+            WHEN NEW.qty IS NULL OR NEW.qty <= 0
+            BEGIN
+                SELECT RAISE(ABORT, 'recipe_line.qty must be > 0');
+            END
+        """))
+        conn.execute(text("""
+            CREATE TRIGGER IF NOT EXISTS recipe_line_qty_positive_update
+            BEFORE UPDATE OF qty ON recipe_line
+            FOR EACH ROW
+            WHEN NEW.qty IS NULL OR NEW.qty <= 0
+            BEGIN
+                SELECT RAISE(ABORT, 'recipe_line.qty must be > 0');
+            END
+        """))
+    except Exception:
+        # Older engine without trigger support — Python-level validation
+        # in apply_sale() / recipe CRUD continues to enforce.
+        pass
+
+    conn.execute(
+        text("UPDATE app_meta SET value = '28', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -1042,6 +1097,7 @@ MIGRATIONS = {
     25: _migration_025_ingredient_opening_stock_reorder_point,
     26: _migration_026_product_audit_columns,
     27: _migration_027_production_plan_template,
+    28: _migration_028_recipe_yield_qty_check,
 }
 
 

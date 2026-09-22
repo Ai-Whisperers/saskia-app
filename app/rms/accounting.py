@@ -37,8 +37,8 @@ from decimal import Decimal
 
 
 # Paraguay IVA: 10% on most food items.
-PARAGUAY_IVA_RATE = 0.10
-IVA_DIVISOR = 1 + PARAGUAY_IVA_RATE  # 1.10
+PARAGUAY_IVA_RATE = Decimal("0.10")
+IVA_DIVISOR = Decimal("1.10")  # gross / 1.10 = net
 
 
 @dataclass
@@ -61,17 +61,19 @@ def extract_iva(gross_gs: int, *, tax_mode: str = "included") -> IVACalc:
         iva = gross * 0.10
     """
     if tax_mode == "included":
-        base = gross_gs / IVA_DIVISOR
-        iva = gross_gs - base
+        gross = Decimal(gross_gs)
+        base = gross / IVA_DIVISOR
+        iva = gross - base
     elif tax_mode == "excluded":
-        base = float(gross_gs)
-        iva = gross_gs * PARAGUAY_IVA_RATE
+        gross = Decimal(gross_gs)
+        base = gross
+        iva = gross * PARAGUAY_IVA_RATE
     else:
         raise ValueError(f"Unknown tax_mode: {tax_mode!r}")
     return IVACalc(
-        gross_gs=int(round(gross_gs)),
-        base_gs=int(round(base)),
-        iva_gs=int(round(iva)),
+        gross_gs=int(gross),
+        base_gs=int(base),
+        iva_gs=int(iva),
     )
 
 
@@ -192,7 +194,8 @@ def libro_ventas(
 
     out: list[LibroVentasRow] = []
     for r in rows:
-        gross = int(round(r.qty * r.unit_price_gs))
+        # AGENTS.md money rule: never use float precision for money.
+        gross = to_int_gs(Decimal(str(r.qty)) * Decimal(str(r.unit_price_gs)))
         iva = extract_iva(gross, tax_mode=tax_mode)
         out.append(
             LibroVentasRow(

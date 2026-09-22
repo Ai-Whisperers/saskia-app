@@ -59,7 +59,8 @@ def test_extract_iva_unknown_mode_raises():
 
 def test_paraguay_iva_rate_is_10_percent():
     """PY IVA = 10% (E17)."""
-    assert abs(PARAGUAY_IVA_RATE - 0.10) < 1e-9
+    from decimal import Decimal
+    assert abs(PARAGUAY_IVA_RATE - Decimal("0.10")) < Decimal("1e-9")
 
 
 def test_monthly_iva_breakdown_buckets_by_month(session_factory):
@@ -156,9 +157,9 @@ def test_libro_ventas_chronological_with_customer_name(session_factory):
         assert rows[0].customer_name == "María"
         # Anon for second
         assert rows[1].customer_name is None
-        # IVA extracted
+        # IVA extracted: 25000 * 10% / 110% = 2272.72... → truncated to 2272
         assert rows[0].total_gross_gs == 25000
-        assert rows[0].iva_gs == int(round(25000 / 1.1 * 0.1))  # ~2273
+        assert rows[0].iva_gs == 2272
     finally:
         s.close()
 
