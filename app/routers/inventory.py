@@ -67,7 +67,7 @@ def inventory_export_csv(
 @router.get("", response_class=HTMLResponse)
 def inventory_list(
     request: Request,
-    sort: str | None = Query(None, description="Sort column: name, stock_qty, unit, min_stock_level, purchase_price_gs"),
+    sort: str | None = Query(None, description="Sort column: name, stock_qty, unit, min_stock_qty, purchase_price_gs"),
     dir: str = Query("asc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
     session: Session = Depends(get_session),
@@ -84,7 +84,7 @@ def inventory_list(
     page = min(page, total_pages)
 
     # Sorting
-    if sort and sort in ("name", "stock_qty", "unit", "min_stock_level", "purchase_price_gs"):
+    if sort and sort in ("name", "stock_qty", "unit", "min_stock_qty", "purchase_price_gs"):
         col = getattr(Ingredient, sort)
         stmt = stmt.order_by(col.desc() if dir == "desc" else col.asc())
     else:
