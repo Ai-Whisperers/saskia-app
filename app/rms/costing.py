@@ -25,7 +25,7 @@ Void: reverses all stock_moves for the sale, atomically.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -524,7 +524,13 @@ def void_sale(session: Session, sale_id: int) -> VoidSaleResult:
         raise ValueError(f"Sale {sale_id} ya anulada")
 
     restored: list[tuple[int, float]] = []
-    now = datetime.now()
+    # AGENTS.md hard rule: never use naive datetime.now() — always store UTC
+    # so that tz-aware consumers (audit log, /ventas, reports) can convert
+    # to Asunción local time correctly. Naive datetimes are interpreted as
+    # server-local time (UTC on Render), which is 4 hours off from the
+    # Asunción bakery's wall clock and breaks "today's sales" queries.
+    from app.rms.config import ASUNCION_TZ
+    now_utc = datetime.now(timezone.utc)
     for move in list(sale.stock_moves):  # copy to avoid mutating during iter
         # Reverse: qty_delta becomes positive (restored)
         restored_qty = abs(move.qty_delta)
@@ -541,12 +547,12 @@ def void_sale(session: Session, sale_id: int) -> VoidSaleResult:
             reason=f"Anulación venta #{sale.id}",
             reference_id=sale.id,
             reference_type="sale",
-            recorded_at=now,
+            recorded_at=now_utc,
             created_by=None,
         )
         session.add(stock_movement)
 
-    sale.voided_at = datetime.now()
+    sale.voided_at = now_utc
     session.commit()
 
     return VoidSaleResult(sale_id=sale_id, restored_moves=restored)

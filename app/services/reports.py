@@ -34,6 +34,8 @@ from sqlalchemy.orm import Session
 
 from app.rms.costing import product_unit_cost_gs
 from app.rms.models import Ingredient, Sale
+from app.rms.money import to_int_gs
+from decimal import Decimal
 
 # --- Validation helpers ---
 
@@ -176,11 +178,11 @@ def monthly_close_summary(session: Session, year: int, month: int) -> MonthlySum
     ventas_total = 0
     cogs_total = 0
     for s in sales_in_period:
-        ventas_total += int(round(s.qty * s.unit_price_gs))
+        ventas_total += to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs)))
         # Cost: product recipe cost × qty
         cost = product_unit_cost_gs(session, s.product_id)
         if cost.batch_cost_gs is not None:
-            cogs_total += int(round(s.qty * cost.batch_cost_gs))
+            cogs_total += to_int_gs(Decimal(str(s.qty)) * Decimal(str(cost.batch_cost_gs)))
 
         d = by_product.setdefault(
             s.product_id,
@@ -194,9 +196,9 @@ def monthly_close_summary(session: Session, year: int, month: int) -> MonthlySum
             },
         )
         d["qty"] += s.qty
-        d["ventas_gs"] += int(round(s.qty * s.unit_price_gs))
+        d["ventas_gs"] += to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs)))
         if cost.batch_cost_gs is not None:
-            d["cogs_gs"] += int(round(s.qty * cost.batch_cost_gs))
+            d["cogs_gs"] += to_int_gs(Decimal(str(s.qty)) * Decimal(str(cost.batch_cost_gs)))
             d["margen_gs"] = d["ventas_gs"] - d["cogs_gs"]
 
     summary.ventas_gs = ventas_total

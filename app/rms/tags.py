@@ -38,6 +38,8 @@ from app.rms.models import (
     Tag,
     TagLink,
 )
+from app.rms.money import to_int_gs
+from decimal import Decimal
 
 # --- Tag kinds ---
 
@@ -271,8 +273,8 @@ def filter_sales(session: Session, f: SalesFilter) -> list[Sale]:
         sales = [
             s
             for s in sales
-            if (f.min_amount_gs is None or int(round(s.qty * s.unit_price_gs)) >= f.min_amount_gs)
-            and (f.max_amount_gs is None or int(round(s.qty * s.unit_price_gs)) <= f.max_amount_gs)
+            if (f.min_amount_gs is None or to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) >= f.min_amount_gs)
+            and (f.max_amount_gs is None or to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) <= f.max_amount_gs)
         ]
     return sales
 

@@ -113,6 +113,7 @@
       Ver stock antes de cumplir
     </a>
     <form method="post" action="/pedidos/{{ pedido.id }}/fulfill" id="fulfill-form-{{ pedido.id }}" style="display:none; inline;">
+      <input type="hidden" name="idempotency_key" value="fulfill-{{ pedido.id }}-{{ now|string|replace(' ', 'T')|replace(':', '') }}">
       <button type="submit" class="btn btn-primary"
               onclick="SaskiaConfirmModal.show({title:'¿Cumplir pedido?',body:'Se crearán las ventas y se descontará stock.',action:'/pedidos/{{ pedido.id }}/fulfill',confirmLabel:'Sí, cumplir',danger:true})">
         <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>

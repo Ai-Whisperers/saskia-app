@@ -30,6 +30,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.rms.models import Customer, Ingredient, Product, Sale, SaleStockMove
+from app.rms.money import to_int_gs
+from decimal import Decimal
 
 # --- Tax config ---
 
@@ -122,7 +124,7 @@ def monthly_iva_breakdown(
 
     out: list[MonthlyIVA] = []
     for (year, month), month_sales in sorted(buckets.items()):
-        gross = sum(int(round(s.qty * s.unit_price_gs)) for s in month_sales)
+        gross = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in month_sales)
         iva = extract_iva(gross, tax_mode=tax_mode)
         out.append(
             MonthlyIVA(
@@ -243,7 +245,7 @@ def daily_summary(
         ).scalars()
     )
 
-    revenue_gross = sum(int(round(s.qty * s.unit_price_gs)) for s in sales)
+    revenue_gross = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales)
     iva = extract_iva(revenue_gross, tax_mode=tax_mode)
 
     # COGS via SaleStockMove (qty_delta is negative on sales).
@@ -351,7 +353,7 @@ def product_margin_summary(
         prod = prods.get(prod_id)
         if prod is None:
             continue
-        revenue = sum(int(round(s.qty * s.unit_price_gs)) for s in sales_list)
+        revenue = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales_list)
         cost = cost_by_prod.get(prod_id, 0)
         margin = revenue - cost
         margin_pct = (margin / revenue * 100) if revenue > 0 else 0.0
@@ -385,7 +387,7 @@ def cross_period_comparison(
                 Sale.voided_at.is_(None),
             )
         ).scalars())
-        revenue = sum(int(round(s.qty * s.unit_price_gs)) for s in sales)
+        revenue = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales)
         iva = extract_iva(revenue)
         cogs = session.execute(
             select(func.coalesce(func.sum(func.abs(SaleStockMove.qty_delta) * Ingredient.purchase_price_gs), 0))
@@ -443,7 +445,7 @@ def top_products_report(
     for s in sales:
         d = by_product.setdefault(s.product_id, {"product_id": s.product_id, "n_sold": 0, "revenue_gs": 0})
         d["n_sold"] += 1
-        d["revenue_gs"] += int(round(s.qty * s.unit_price_gs))
+        d["revenue_gs"] += to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs)))
 
     prod_ids = list(by_product.keys())
     prods = {p.id: p for p in session.execute(select(Product).where(Product.id.in_(prod_ids))).scalars()}
@@ -480,7 +482,7 @@ def average_order_value(
     ).scalars())
     if not sales:
         return 0.0
-    total = sum(int(round(s.qty * s.unit_price_gs)) for s in sales)
+    total = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales)
     return total / len(sales)
 
 

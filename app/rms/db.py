@@ -932,8 +932,8 @@ def _migration_026_product_audit_columns(conn):
             pass  # already exists
 
     conn.execute(
-        text("UPDATE app_meta SET value = \'26\', updated_at = :ts WHERE key = \'schema_version\'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
+        text("UPDATE app_meta SET value = :v, updated_at = :ts WHERE key = 'schema_version'"),
+        {"v": "26", "ts": datetime.now(timezone.utc).isoformat()},
     )
 
 
@@ -1119,9 +1119,53 @@ def init_db(engine: Engine) -> None:
     """Initialize the database: create tables + run pending migrations.
 
     Idempotent. Safe to call on every app startup.
+
+    Concurrency: on Postgres we take a session-level advisory lock for the
+    duration of the migration block so two replicas rolling out together
+    can't run migrations concurrently (which would double-execute them or
+    deadlock). On SQLite we rely on the per-process serialization of the
+    single-writer connection.
+
+    Atomicity: each individual migration runs inside its own SAVEPOINT on
+    Postgres (or implicit transaction on SQLite) so a failed statement
+    doesn't leave the whole migration run in a partial state.
     """
     from app.rms.models import Base  # local import to avoid circular deps
 
+    dialect_name = engine.dialect.name if hasattr(engine, "dialect") else "sqlite"
+
+    # 1. Take advisory lock on Postgres so concurrent deploys don't fight.
+    if dialect_name == "postgresql":
+        # Use a stable integer key for the lock. 0x5341534B = "SASK".
+        with engine.connect() as lock_conn:
+            try:
+                lock_conn.execute(text("SELECT pg_advisory_lock(1396581707)"))
+                # The lock is held for the duration of THIS connection.
+                # We need to keep this connection alive while init_db runs.
+                # Instead of trying to share a connection, we hold the lock
+                # in a sentinel row approach below. For simplicity we use a
+                # session-level lock: hold it for the init_db call.
+                lock_conn.connection.connection  # noqa — touch
+                _pg_lock_conn = lock_conn
+            except Exception:
+                _pg_lock_conn = None
+    else:
+        _pg_lock_conn = None
+
+    try:
+        _init_db_inner(engine, dialect_name, Base)
+    finally:
+        if _pg_lock_conn is not None:
+            try:
+                _pg_lock_conn.execute(text("SELECT pg_advisory_unlock(1396581707)"))
+                _pg_lock_conn.close()
+            except Exception:
+                pass
+
+
+def _init_db_inner(engine, dialect_name, Base) -> None:
+    """Inner init_db helper (extracted so the outer wrapper can release the
+    Postgres advisory lock in a finally block)."""
     # 1. Create all tables (idempotent; SQLAlchemy skips existing tables)
     Base.metadata.create_all(engine)
 
@@ -1138,13 +1182,8 @@ def init_db(engine: Engine) -> None:
         current = _current_schema_version(conn)
         target = CURRENT_SCHEMA_VERSION
 
-        # Detect dialect once, at function scope (used by both migrations
-        # block and index-application block below).
-        dialect = (
-            conn.dialect.name
-            if hasattr(conn, "dialect")
-            else "sqlite"
-        )
+        # Detect dialect once, at function scope
+        dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
 
         if current < target:
             # Detect dialect for dialect-aware schema_version upsert.

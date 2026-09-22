@@ -22,6 +22,8 @@ from sqlalchemy.orm import Session
 
 from app.rms.models import Ingredient, Recipe, StockMovement, WasteLog
 from app.rms.units import Unit, can_convert, convert_qty
+from app.rms.money import to_int_gs
+from decimal import Decimal
 from fastapi import HTTPException
 
 
@@ -87,7 +89,7 @@ def record_waste(
             )
         qty_in_stock_unit = float(convert_qty(qty, from_unit, to_unit))
     cost_gs = (
-        int(round(qty_in_stock_unit * ing.purchase_price_gs))
+        to_int_gs(Decimal(str(qty_in_stock_unit)) * Decimal(str(ing.purchase_price_gs)))
         if ing.purchase_price_gs is not None
         else 0
     )
@@ -283,7 +285,7 @@ def record_recipe_waste(
         if ing is None:
             continue
         cost_gs = (
-            int(round(qty * ing.purchase_price_gs))
+            to_int_gs(Decimal(str(qty)) * Decimal(str(ing.purchase_price_gs)))
             if ing.purchase_price_gs is not None
             else 0
         )

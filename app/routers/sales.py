@@ -26,6 +26,8 @@ from app.rms.schemas import (
     PAYMENT_METHOD_DEFAULT,
 )
 from app.services.template_render import render
+from app.rms.money import to_int_gs
+from decimal import Decimal
 
 router = APIRouter(prefix="/ventas", dependencies=[Depends(require_login)])
 
@@ -39,7 +41,7 @@ def _decorated(s: Sale) -> dict:
         "product_name": s.product.name if s.product else "(deleted)",
         "qty": s.qty,
         "unit_price_gs": s.unit_price_gs,
-        "total_gs": int(round(s.qty * s.unit_price_gs)),
+        "total_gs": to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))),
         "notes": s.notes,
         "voided_at": s.voided_at,
         "voided_at_str": s.voided_at.strftime("%d/%m/%Y %H:%M") if s.voided_at else None,
@@ -289,7 +291,7 @@ async def sales_export_csv(
             s.product.name if s.product else "(deleted)",
             f"{s.qty:.2f}",
             s.unit_price_gs,
-            int(round(s.qty * s.unit_price_gs)),
+            to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))),
             s.customer.phone if s.customer else "",
             s.payment_method or "",
             "sí" if s.voided_at else "no",

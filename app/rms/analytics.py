@@ -19,6 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale, SaleStockMove
+from app.rms.money import to_int_gs
 
 # --- Public dataclasses ---
 
@@ -347,7 +348,7 @@ def day_of_week_heatmap(session: Session, days: int = 90) -> list[DayOfWeekBucke
     buckets: dict[int, list[int]] = {i: [] for i in range(7)}
     for sold_at, qty, unit_price in sales:
         wd = sold_at.weekday()
-        total = int(round(qty * unit_price))
+        total = to_int_gs(Decimal(str(qty)) * Decimal(str(unit_price)))
         buckets[wd].append(total)
 
     out: list[DayOfWeekBucket] = []
@@ -390,7 +391,7 @@ def top_margin_products(
         cost_per_unit = _quick_cost_estimate(session, product)
         if cost_per_unit is None:
             cost_per_unit = int(product.sale_price_gs * Decimal("0.4"))
-        margin_gs = int(round(qty * (product.sale_price_gs - cost_per_unit)))
+        margin_gs = to_int_gs(Decimal(str(qty)) * (Decimal(str(product.sale_price_gs)) - Decimal(str(cost_per_unit))))
         margin_pct = (
             (product.sale_price_gs - cost_per_unit) / product.sale_price_gs
             if product.sale_price_gs > 0

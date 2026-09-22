@@ -19,6 +19,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.rms.models import Ingredient, Product, Sale
+from app.rms.money import to_int_gs
+from decimal import Decimal
 
 # --- EOD Checklist ---
 
@@ -134,7 +136,7 @@ def daily_summary_full(
     valid = [s for s in sales if s.voided_at is None]
     voided = [s for s in sales if s.voided_at is not None]
 
-    revenue = sum(int(round(s.qty * s.unit_price_gs)) for s in valid)
+    revenue = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in valid)
 
     # COGS
     from app.rms.models import SaleStockMove
@@ -159,7 +161,7 @@ def daily_summary_full(
     for s in valid:
         b = buckets.setdefault(s.product_id, {"qty": 0.0, "rev": 0})
         b["qty"] += s.qty
-        b["rev"] += int(round(s.qty * s.unit_price_gs))
+        b["rev"] += to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs)))
     prod_ids = list(buckets.keys())
     prods_by_id = {}
     if prod_ids:

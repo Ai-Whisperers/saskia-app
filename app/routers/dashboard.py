@@ -34,6 +34,8 @@ from app.rms.dependencies import get_session
 from app.rms.insights import build_insights
 from app.rms.models import Ingredient, Recipe, Sale
 from app.services.template_render import render
+from app.rms.money import to_int_gs
+from decimal import Decimal
 
 router = APIRouter(dependencies=[Depends(require_login)])
 
@@ -112,7 +114,7 @@ def _compute_window_totals(
         )
     ).all()
 
-    ventas_gs = sum(int(round(s.qty * s.unit_price_gs)) for s in sales)
+    ventas_gs = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales)
 
     products_in_window = sorted(
         {s.product for s in sales if s.product is not None},
@@ -130,7 +132,7 @@ def _compute_window_totals(
         if cost is None or cost.batch_cost_gs is None:
             sales_no_recipe.append(s)
             continue
-        cogs_gs += int(round(s.qty * cost.batch_cost_gs))
+        cogs_gs += to_int_gs(Decimal(str(s.qty)) * Decimal(str(cost.batch_cost_gs)))
 
     margen_gs = ventas_gs - cogs_gs
     return ventas_gs, cogs_gs, margen_gs, sales_no_recipe, sales, batch_costs
@@ -201,12 +203,12 @@ async def dashboard(
                 "qty": 0.0,
                 "margen_ratio": None,
             }
-        ranking_dict[rid]["ventas_gs"] += int(round(s.qty * s.unit_price_gs))
+        ranking_dict[rid]["ventas_gs"] += to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs)))
         ranking_dict[rid]["qty"] += s.qty
         if s.product.recipe_id is not None:
             cost, _margin = batch_costs.get(rid, (None, (None, None)))
             if cost is not None and cost.batch_cost_gs is not None:
-                line_margin = int(round(s.qty * (s.unit_price_gs - cost.batch_cost_gs)))
+                line_margin = to_int_gs(Decimal(str(s.qty)) * (Decimal(str(s.unit_price_gs)) - Decimal(str(cost.batch_cost_gs))))
                 ranking_dict[rid]["margen_gs"] += line_margin
 
     ranking = sorted(
@@ -346,7 +348,7 @@ def _build_hourly_sales_chart(sales: list[Sale], tz) -> str:
             continue
         # sold_at is naive UTC per the data layer convention
         local = s.sold_at.replace(tzinfo=timezone.utc).astimezone(tz)
-        buckets[local.hour] += int(round(s.qty * s.unit_price_gs))
+        buckets[local.hour] += to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs)))
 
     # Build bar chart
     values = [(f"{h:02d}h", float(v)) for h, v in enumerate(buckets) if v > 0]
@@ -388,7 +390,7 @@ def _build_30day_sales_chart(session: Session) -> str:
             continue
         local = s.sold_at.replace(tzinfo=timezone.utc).astimezone(ASUNCION_TZ)
         key = local.strftime("%d/%m")
-        buckets[key] = buckets.get(key, 0) + int(round(s.qty * s.unit_price_gs))
+        buckets[key] = buckets.get(key, 0) + to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs)))
 
     # Fill in missing days with 0
     values = []
@@ -414,7 +416,7 @@ def _build_payment_methods_donut(sales: list[Sale]) -> str:
     buckets: dict[str, int] = {}
     for s in sales:
         pm = s.payment_method or "Sin especificar"
-        buckets[pm] = buckets.get(pm, 0) + int(round(s.qty * s.unit_price_gs))
+        buckets[pm] = buckets.get(pm, 0) + to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs)))
 
     if not buckets:
         return '<p class="text-muted">Sin datos de pagos</p>'

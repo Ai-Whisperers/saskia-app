@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import secrets
 from collections.abc import Iterable
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Path, Query, Request
@@ -36,6 +36,8 @@ from app.rms.dependencies import get_session
 from app.rms.models import Customer, Pedido, PedidoLine, Product, Sale
 from app.rms.schemas import ALLOWED_PAYMENT_METHODS
 from app.services.template_render import render
+from app.rms.money import to_int_gs
+from decimal import Decimal
 
 router = APIRouter(prefix="/pedidos", dependencies=[Depends(require_login)])
 
@@ -96,7 +98,7 @@ def generate_public_token() -> str:
 
 def _pedido_total_gs(p: Pedido) -> int:
     """Compute the pedido's total in Gs. (qty * unit_price_gs per line)."""
-    return sum(int(round((ln.qty or 0) * (ln.unit_price_gs or 0))) for ln in p.lines)
+    return sum(to_int_gs(Decimal(str(ln.qty or 0)) * Decimal(str(ln.unit_price_gs or 0))) for ln in p.lines)
 
 
 def _pedido_qty_total(p: Pedido) -> float:
@@ -522,7 +524,7 @@ def pedidos_detail(
             "product_name": ln.product.name if ln.product else f"#{ln.product_id}",
             "qty": ln.qty,
             "unit_price_gs": ln.unit_price_gs,
-            "line_total_gs": int(round(ln.qty * ln.unit_price_gs)),
+            "line_total_gs": to_int_gs(Decimal(str(ln.qty)) * Decimal(str(ln.unit_price_gs))),
             "fulfilled_qty": ln.fulfilled_qty,
         }
         for ln in pedido.lines
@@ -602,6 +604,7 @@ async def pedidos_status(
 def pedidos_fulfill(
     pedido_id: int = Path(...),
     request: Request = ...,  # type: ignore[assignment]
+    idempotency_key: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Fulfill a pedido: create one Sale per PedidoLine + decrement stock.
@@ -611,7 +614,24 @@ def pedidos_fulfill(
     becomes a Sale row (with the line's qty + unit_price_gs snapshot).
     The first Sale is linked on pedido.fulfilled_sale_id so operators
     can navigate from the pedido back to its sale history.
+
+    Idempotency: an `idempotency_key` form field prevents double-fulfillment
+    on a double-click. Without one, a fast click could create duplicate
+    Sales + double stock decrement for the same pedido.
     """
+    # Idempotency check FIRST: if we've seen this key, redirect to the
+    # pedido detail (which now shows the fulfilled state).
+    if idempotency_key:
+        from app.rms.models import AppMeta
+        existing = session.scalar(
+            select(AppMeta).where(AppMeta.key == f"pedido_fulfill_idem:{idempotency_key}")
+        )
+        if existing:
+            return RedirectResponse(
+                url=f"/pedidos/{pedido_id}?flash=pedido_fulfill_duplicate",
+                status_code=303,
+            )
+
     pedido = session.get(
         Pedido, pedido_id, options=[selectinload(Pedido.lines)]
     )
@@ -669,6 +689,20 @@ def pedidos_fulfill(
         request=request,
     )
     session.commit()
+
+    # Store idempotency key AFTER successful commit so retries don't
+    # double-fulfill. Use pedido_id as the value so we can verify on retry.
+    if idempotency_key:
+        try:
+            from app.rms.models import AppMeta
+            session.add(AppMeta(
+                key=f"pedido_fulfill_idem:{idempotency_key}",
+                value=str(pedido_id),
+                updated_at=datetime.now(timezone.utc).isoformat(),
+            ))
+            session.commit()
+        except Exception:
+            session.rollback()  # idempotency record is best-effort
 
     # ── Notify customer via WhatsApp or SMS ──────────────────────────────────
     _send_fulfill_notification(session, pedido)
@@ -987,7 +1021,7 @@ def public_pedido(request: Request, token: str) -> HTMLResponse:
                 "product_name": ln.product.name if ln.product else f"#{ln.product_id}",
                 "qty": ln.qty,
                 "unit_price_gs": ln.unit_price_gs,
-                "line_total_gs": int(round(ln.qty * ln.unit_price_gs)),
+                "line_total_gs": to_int_gs(Decimal(str(ln.qty)) * Decimal(str(ln.unit_price_gs))),
             }
             for ln in pedido.lines
         ]
