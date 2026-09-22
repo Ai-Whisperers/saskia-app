@@ -320,6 +320,7 @@
   {% include "_components/confirm_modal.html" %}
 
   {# ── Global JS: search modal, notification center, copy-to-clipboard, Cmd+K ── #}
+  <script src="/static/shortcuts.js" defer></script>
   <script src="/static/app.js?v={{ asset_version() }}" defer></script>
   {% block page_scripts %}{% endblock %}
 </body>
