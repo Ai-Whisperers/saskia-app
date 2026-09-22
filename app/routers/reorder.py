@@ -18,7 +18,7 @@ from app.auth import require_login_or_disabled as require_login
 from app.rms.audit import record as audit_record
 from app.rms.dependencies import get_session
 from app.rms.models import Ingredient, Supplier
-from app.rms.price_history import record_price_event
+from app.rms.price_history import batch_price_stats, record_price_event
 from app.rms.rate_limit import is_write_rate_limited
 from app.rms.reorder import compute_reorder_list
 from app.services.template_render import render
@@ -53,6 +53,11 @@ def reorder_view(
             else:
                 supplier_map[item.ingredient_id] = (None, "")
 
+    # Price-history stats per ingredient (used for the sparkline on /reorder).
+    # Single SQL query covers all items; 90-day window.
+    ingredient_ids = [i.ingredient_id for i in items]
+    price_stats = batch_price_stats(session, ingredient_ids, days=90)
+
     if format == "json":
         return JSONResponse({
             "items": [
@@ -81,6 +86,7 @@ def reorder_view(
         "total_cost_gs": total_cost,
         "count": len(items),
         "supplier_map": supplier_map,
+        "price_stats": price_stats,
         "page_start": 1,
         "page_end": len(items),
     })

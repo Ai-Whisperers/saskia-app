@@ -51,6 +51,7 @@ function updateBulkBtn() {
       <th class="num">Sugerido</th>
       <th class="num">Urgencia</th>
       <th class="num">Costo est.</th>
+      <th>Tendencia (90d)</th>
       <th>Proveedor</th>
       <th>Reponer</th>
     </tr>
@@ -78,6 +79,22 @@ function updateBulkBtn() {
       </td>
       <td class="num">
         {% if item.has_price %}{{ m.gs(item.estimated_cost_gs) }}{% else %}<span class="text-muted">sin precio</span>{% endif %}
+      </td>
+      <td class="num">
+        {% set pstats = price_stats.get(item.ingredient_id) if price_stats else None %}
+        {% if pstats and pstats.count >= 2 %}
+          {% set pct = ((pstats.current - pstats.avg) / pstats.avg * 100) if pstats.avg else 0 %}
+          {% if pct > 5 %}
+            <span class="badge badge-danger" title="Subió {{ '%.1f'|format(pct) }}% sobre el promedio de 90d">↑{{ '%.0f'|format(pct) }}%</span>
+          {% elif pct < -5 %}
+            <span class="badge badge-good" title="Bajó {{ '%.1f'|format(pct|abs) }}% sobre el promedio de 90d">↓{{ '%.0f'|format(pct|abs) }}%</span>
+          {% else %}
+            <span class="badge badge-muted" title="Variación menor al 5% en 90d">≈{{ '%.0f'|format(pct) }}%</span>
+          {% endif %}
+          <small class="text-muted" style="display:block; margin-top:.25rem;">min {{ m.gs(pstats.min) }}</small>
+        {% else %}
+          <span class="text-muted" title="Sin historial de precios en 90d">—</span>
+        {% endif %}
       </td>
       <td>
         {% if supplier_info[0] %}
@@ -122,10 +139,10 @@ function updateBulkBtn() {
   </tbody>
   <tfoot>
     <tr>
-      <th colspan="7" class="num">Total estimado</th>
-      <th class="num">{{ m.gs(total_cost_gs) }}</th>
-      <th></th>
-      <th></th>
+      <td colspan="8" class="num">Total estimado</td>
+      <td class="num">{{ m.gs(total_cost_gs) }}</td>
+      <td></td>
+      <td></td>
     </tr>
   </tfoot>
 </table>
