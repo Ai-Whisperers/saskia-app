@@ -1,4 +1,5 @@
 """Health endpoints — /healthz and /healthz/db.
+from sqlalchemy.orm import selectinload
 
 Per docs/operations/2026-09-fase-1-specs.md §C.
 
@@ -278,3 +279,67 @@ def healthz_schema(request: Request) -> JSONResponse:
         return JSONResponse(status_code=500, content=body)
     body["status"] = "in_sync"
     return JSONResponse(status_code=200, content=body)
+
+
+@router.get("/healthz/debug-ventas-v2", response_model=None)
+def healthz_debug_ventas_v2(request: Request) -> JSONResponse:
+    """Run the EXACT ventas query and try to render with EXACT context.
+    Captures any TemplateRuntimeError."""
+    import traceback
+    from sqlalchemy import select, func
+    from datetime import datetime, timedelta
+    from app.rms.models import Product, Sale
+    from app.rms.config import ASUNCION_TZ
+    from app.services.template_render import render
+
+    try:
+        session = get_session(request)
+        products = session.scalars(select(Product).order_by(Product.name)).all()
+        sales = session.scalars(
+            select(Sale)
+            .options(
+                selectinload(Sale.product),
+                selectinload(Sale.customer),
+            )
+            .order_by(Sale.sold_at.desc())
+            .limit(20)
+        ).all()
+        
+        # Try to render
+        try:
+            from app.routers.sales import _decorated
+            decorated = [_decorated(s) for s in sales]
+            render(request, "ventas.html", {
+                "products": [{"id": p.id, "name": p.name, "portion_label": p.portion_label, 
+                              "sale_price_gs": p.sale_price_gs, "is_available": p.is_available, "sku": p.sku} 
+                             for p in products],
+                "sales": decorated,
+                "quick_sell": [],
+                "payment_methods": ["efectivo"],
+                "payment_method_default": "efectivo",
+                "channels": ["mostrador"],
+                "channel_default": "mostrador",
+                "now_local": datetime.now().strftime("%Y-%m-%dT%H:%M"),
+                "totals": {"count": 0, "total_gs": 0, "avg_ticket_gs": 0, "filters": "test"},
+                "has_more": False,
+                "current_offset": 0,
+                "current_page_size": 20,
+            })
+            return JSONResponse({"status": "ok", "products": len(products), "sales": len(sales)})
+        except Exception as template_exc:
+            return JSONResponse({
+                "status": "template_error",
+                "exception_type": type(template_exc).__name__,
+                "message": str(template_exc)[:500],
+                "traceback": traceback.format_exc()[:2000],
+                "products_count": len(products),
+                "sales_count": len(sales),
+                "sample_sale_keys": list(decorated[0].keys()) if decorated else None,
+            }, status_code=500)
+    except Exception as e:
+        return JSONResponse({
+            "status": "error",
+            "exception_type": type(e).__name__,
+            "message": str(e)[:500],
+            "traceback": traceback.format_exc()[:1500],
+        }, status_code=500)
