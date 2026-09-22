@@ -278,3 +278,82 @@ def healthz_schema(request: Request) -> JSONResponse:
         return JSONResponse(status_code=500, content=body)
     body["status"] = "in_sync"
     return JSONResponse(status_code=200, content=body)
+
+
+@router.get("/healthz/debug-ventas", response_model=None)
+def healthz_debug_ventas(request: Request) -> JSONResponse:
+    """Diagnose ventas TemplateRuntimeError by rendering the template
+    with the exact live query and capturing the exception."""
+    import traceback
+    from app.rms.dependencies import get_session
+    from sqlalchemy import select, func
+    from datetime import datetime, timedelta
+    from app.rms.models import Product, Sale
+    from app.rms.config import ASUNCION_TZ
+    from app.services.template_render import render
+
+    try:
+        session = get_session(request)
+        # Mimic the ventas route's quick_sell query
+        since = datetime.now(ASUNCION_TZ) - timedelta(days=14)
+        quick_rows = session.execute(
+            select(
+                Sale.product_id,
+                func.sum(Sale.qty).label("units"),
+                func.sum(Sale.qty * Sale.unit_price_gs).label("rev"),
+            )
+            .where(Sale.sold_at >= since, Sale.voided_at.is_(None))
+            .group_by(Sale.product_id)
+            .order_by(func.sum(Sale.qty * Sale.unit_price_gs).desc())
+            .limit(5)
+        ).all()
+        
+        products = session.execute(select(Product)).scalars().all()
+        quick_sell = []
+        for pid, units, rev in quick_rows:
+            p = next((x for x in products if x.id == pid), None)
+            if p is not None:
+                quick_sell.append({
+                    "product_id": pid,
+                    "name": p.name,
+                    "sale_price_gs": p.sale_price_gs,
+                    "units": float(units),
+                    "revenue_gs": int(rev or 0),
+                    "is_available": p.is_available,
+                    "stock_qty": getattr(p, "stock_qty", None),
+                })
+        
+        # Now try to render with realistic data
+        try:
+            render(request, "ventas.html", {
+                "products": [{"id": p.id, "name": p.name, "portion_label": p.portion_label, "sale_price_gs": p.sale_price_gs, "is_available": p.is_available, "sku": p.sku} for p in products],
+                "sales": [],
+                "quick_sell": quick_sell,
+                "payment_methods": ["efectivo"],
+                "payment_method_default": "efectivo",
+                "channels": ["local"],
+                "channel_default": "local",
+                "now_local": datetime.now().strftime("%Y-%m-%dT%H:%M"),
+                "totals": {"count": 0, "total_gs": 0, "avg_ticket_gs": 0, "filters": "test"},
+                "has_more": False,
+                "current_offset": 0,
+                "current_page_size": 20,
+            })
+            return JSONResponse({"status": "ok", "products": len(products), "quick_sell": len(quick_sell)})
+        except Exception as template_exc:
+            return JSONResponse({
+                "status": "template_error",
+                "exception_type": type(template_exc).__name__,
+                "message": str(template_exc)[:500],
+                "traceback": traceback.format_exc()[:1500],
+                "products": len(products),
+                "quick_sell_count": len(quick_sell),
+                "sample_quick_sell": quick_sell[0] if quick_sell else None,
+            }, status_code=500)
+    except Exception as e:
+        return JSONResponse({
+            "status": "error",
+            "exception_type": type(e).__name__,
+            "message": str(e)[:500],
+            "traceback": traceback.format_exc()[:1500],
+        }, status_code=500)
