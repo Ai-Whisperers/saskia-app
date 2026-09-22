@@ -357,3 +357,22 @@ def healthz_debug_ventas(request: Request) -> JSONResponse:
             "message": str(e)[:500],
             "traceback": traceback.format_exc()[:1500],
         }, status_code=500)
+
+
+@router.get("/healthz/debug-supabase-env", response_model=None)
+def healthz_debug_supabase_env(request: Request) -> JSONResponse:
+    """Show which Supabase env vars the live app sees (fingerprinted)."""
+    import hashlib
+    def fp(name):
+        v = os.getenv(name)
+        if not v:
+            return None
+        return f"len={len(v)} sha={hashlib.sha256(v.encode()).hexdigest()[:8]}"
+    
+    return JSONResponse({
+        "SUPABASE_URL": fp("SUPABASE_URL"),
+        "SUPABASE_ANON_KEY": fp("SUPABASE_ANON_KEY"),
+        "SUPABASE_PUBLISHABLE_KEY": fp("SUPABASE_PUBLISHABLE_KEY"),
+        "SUPABASE_SECRET_KEY": fp("SUPABASE_SECRET_KEY"),
+        "SUPABASE_SERVICE_ROLE_KEY": fp("SUPABASE_SERVICE_ROLE_KEY"),
+    })
