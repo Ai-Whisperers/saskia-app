@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -53,13 +53,26 @@ async def recipes_list(
     ingredient_id: int | None = Query(None, description="Filter by ingredient"),
     sort: str = Query("name", pattern="^(name|yield_qty|batch_cost_gs)$"),
     dir: str = Query("asc", pattern="^(asc|desc)$"),
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(50, ge=1, le=200, description="Items per page"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """List recipes with batch + unit cost, search, filter by ingredient, and column sort.
 
     Batch-loaded to avoid N+1 on Neon.
     """
-    # Base query
+    # Base query — first count for pagination
+    count_stmt = select(func.count(Recipe.id))
+    if q:
+        count_stmt = count_stmt.where(Recipe.name.ilike(f"%{q}%"))
+    if ingredient_id is not None:
+        count_stmt = count_stmt.join(RecipeLine).where(
+            RecipeLine.line_kind == "ingredient",
+            RecipeLine.line_ref_id == ingredient_id,
+        )
+    total_count = session.scalar(count_stmt.distinct()) or 0
+
+    # Building data stmt
     stmt = select(Recipe)
 
     # Search filter
@@ -84,7 +97,11 @@ async def recipes_list(
     else:
         stmt = stmt.order_by(sort_col.asc())
 
-    recipes = session.scalars(stmt.distinct()).all()
+    # Pagination
+    offset = (page - 1) * page_size
+    recipes = session.scalars(
+        stmt.distinct().offset(offset).limit(page_size)
+    ).all()
     batch_results = batch_recipes_cost(session, list(recipes))
     decorated = [
         _decorate(session, r, batch_results[r.id][0], batch_results[r.id][1], batch_results[r.id][2])
@@ -106,6 +123,14 @@ async def recipes_list(
         "dir": dir,
         "ingredients": all_ingredients,
         "total": len(decorated),
+        "pagination": {
+            "total_count": total_count,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": max(1, (total_count + page_size - 1) // page_size),
+        },
+        "page_start": offset + 1 if decorated else 0,
+        "page_end": offset + len(decorated),
     })
 
 

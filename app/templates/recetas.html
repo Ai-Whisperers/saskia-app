@@ -87,10 +87,24 @@
     {% endfor %}
   </tbody>
 </table>
-{% if total > 0 %}
+{% if pagination and pagination.total_count > 0 %}
 <div class="table-info">
-  <span>Mostrando <strong>1–{{ total }}</strong> de <strong>{{ total }}</strong> recetas</span>
+  Mostrando <strong>{{ page_start }}–{{ page_end }}</strong>
+  de <strong>{{ pagination.total_count }}</strong> recetas
+  (página {{ pagination.page }} de {{ pagination.total_pages }})
 </div>
+{% if pagination.total_pages > 1 %}
+<nav class="pagination" aria-label="Paginación de recetas">
+  {% if pagination.page > 1 %}
+  <a href="?page={{ pagination.page - 1 }}&amp;q={{ q }}&amp;sort={{ sort }}&amp;dir={{ dir }}"
+     class="btn btn-ghost">← Anterior</a>
+  {% endif %}
+  {% if pagination.page < pagination.total_pages %}
+  <a href="?page={{ pagination.page + 1 }}&amp;q={{ q }}&amp;sort={{ sort }}&amp;dir={{ dir }}"
+     class="btn btn-ghost">Siguiente →</a>
+  {% endif %}
+</nav>
+{% endif %}
 {% endif %}
 {% else %}
 <div class="empty-state">
