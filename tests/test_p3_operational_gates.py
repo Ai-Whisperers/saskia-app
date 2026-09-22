@@ -60,6 +60,23 @@ def test_healthz_ready_returns_200_when_lifespan_complete(app):
         assert r.json()["status"] == "ok"
 
 
+@pytest.fixture(autouse=True)
+def reset_schema_version(app_engine):
+    """Reset schema_version to CURRENT_SCHEMA_VERSION before each test in this module.
+
+    The other P3 test sets it to v5 to simulate drift; we must restore it so
+    downstream tests see the correct version.
+    """
+    from app.rms.db import CURRENT_SCHEMA_VERSION
+    with app_engine.connect() as conn:
+        conn.execute(
+            text("UPDATE app_meta SET value = :v WHERE key = 'schema_version'"),
+            {"v": str(CURRENT_SCHEMA_VERSION)},
+        )
+        conn.commit()
+    yield
+
+
 def test_healthz_schema_returns_500_on_drift(app_engine, app):
     """P3 #3: /healthz/schema must return 500 when DB is behind code.
 
