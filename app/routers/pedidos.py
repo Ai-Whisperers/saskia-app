@@ -66,7 +66,6 @@ _CHANNEL_NORMALIZE: dict[str, str] = {
     "wa": "WhatsApp",
     "whats": "WhatsApp",
     "wsp": "WhatsApp",
-    "whatsapp": "WhatsApp",
     "pedidosya": "PedidosYa",
     "mostrador": "Mostrador",
     "phone": "Phone",
