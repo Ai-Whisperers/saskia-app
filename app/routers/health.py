@@ -378,3 +378,38 @@ def healthz_debug_supabase_login(request: Request) -> JSONResponse:
     # Need to import the password from BWS - can't, but can try a fake one to see the flow
     debug["test_login"] = "skipped - no password in env"
     return JSONResponse(debug)
+
+
+@router.get("/healthz/debug-try-login", response_model=None)
+def healthz_debug_try_login(request: Request) -> JSONResponse:
+    """Actually attempt sign_in_with_password against the live Supabase config.
+    Returns the exact exception text so we can see why it returns None."""
+    import traceback
+    from app.auth_supabase import (
+        get_supabase_client, sign_in_with_password, 
+        is_supabase_auth_enabled, SUPABASE_URL, SUPABASE_ANON_KEY,
+        SUPABASE_SERVICE_ROLE_KEY,
+    )
+    import os
+    
+    debug = {
+        "supabase_enabled": is_supabase_auth_enabled(),
+        "SUPABASE_URL_env": os.getenv("SUPABASE_URL"),
+        "SUPABASE_URL_module": SUPABASE_URL,
+        "SUPABASE_ANON_KEY_env_set": bool(os.getenv("SUPABASE_ANON_KEY")),
+        "SUPABASE_ANON_KEY_module_set": bool(SUPABASE_ANON_KEY),
+    }
+    
+    if not debug["supabase_enabled"]:
+        return JSONResponse({"status": "supabase_disabled", **debug})
+    
+    # Try with BWS-known password (we'd need to fetch it)
+    # Use a known-wrong password to test the error path
+    try:
+        result = sign_in_with_password("saskia@paragu-ai.com", "HzvIsJkm7HDLGYRBQk30")
+        debug["sign_in_result"] = "success" if result else "None returned (creds rejected)"
+    except Exception as e:
+        debug["sign_in_exception"] = f"{type(e).__name__}: {str(e)[:500]}"
+        debug["traceback"] = traceback.format_exc()[:1000]
+    
+    return JSONResponse(debug)
