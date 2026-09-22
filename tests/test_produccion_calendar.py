@@ -165,7 +165,7 @@ def test_view_switcher_present(client, session_factory):
 def test_forecast_source_labels_in_spanish(client, session_factory):
     _seed_product_with_recipe_and_sales(session_factory)
     r = client.get("/produccion")
-    assert "Promedio 14 días" in r.text
+    assert "Sugerido por ventas" in r.text  # PRO-03: friendly label, not raw token
     assert "rolling_14d_avg" not in r.text
     assert "Cómo se calcula" in r.text
 
@@ -182,8 +182,15 @@ def test_override_re_renders_with_manual_qty(client, session_factory):
     )
     assert r.status_code == 303
     r2 = client.get(r.headers["location"])
-    assert "10.0" in r2.text or ">10<" in r2.text
-    assert "Manual" in r2.text
+    # PRO-01: override is now DB-stored, not query-param based. The plan
+    # for today's date should reflect qty=10 with source="Ajuste del día".
+    assert "Ajuste del día" in r2.text, (
+        f"Expected 'Ajuste del día' source label after override, got: {r2.text[:500]}"
+    )
+    # Quantity rendered as 10 (or 10.0 / "10 und" depending on format)
+    assert 'value="10"' in r2.text or 'value="10.0"' in r2.text or ">10<" in r2.text, (
+        "Override qty 10 not reflected in the rendered plan"
+    )
 
 
 def test_override_rejects_negative(client, session_factory):

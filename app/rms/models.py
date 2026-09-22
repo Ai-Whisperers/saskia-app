@@ -533,6 +533,65 @@ class ProductionCompletion(Base):
     product: Mapped["Product"] = relationship("Product")
 
 
+class ProductionPlanTemplate(Base):
+    """PRO-01: Repeating weekly production plan template.
+
+    One row per (weekday 0-6 = Mon-Sun, product). When the operator opens the
+    production page on a Thursday, the "Sugerido" plan is loaded from this
+    template (auto-forecast only when the template is empty for that weekday).
+    A specific date can override this — see ProductionPlanOverride.
+    """
+
+    __tablename__ = "production_plan_template"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    weekday: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    product_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("product.id"), nullable=False, index=True
+    )
+    qty: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("weekday >= 0 AND weekday <= 6", name="ck_template_weekday_range"),
+        CheckConstraint("qty >= 0", name="ck_template_qty_nonneg"),
+        UniqueConstraint("weekday", "product_id", name="uq_template_weekday_product"),
+    )
+
+    # Relationships
+    product: Mapped["Product"] = relationship("Product")
+
+
+class ProductionPlanOverride(Base):
+    """PRO-01: Per-date override of the weekly template.
+
+    Recording an override for one date does NOT change the weekly template —
+    other weeks are unaffected. Overrides are date-scoped, not weekday-scoped.
+    """
+
+    __tablename__ = "production_plan_override"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("product.id"), nullable=False, index=True
+    )
+    for_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    qty: Mapped[float] = mapped_column(Float, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("qty >= 0", name="ck_override_qty_nonneg"),
+        UniqueConstraint("product_id", "for_date", name="uq_override_product_date"),
+    )
+
+    # Relationships
+    product: Mapped["Product"] = relationship("Product")
+
+
 class Supplier(Base):
     """A supplier / proveed for ingredients (audit item 284).
 

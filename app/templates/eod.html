@@ -46,6 +46,67 @@
   </button>
 </form>
 
+{# CIE-02: Restock step — list of ingredients under minimum + link to /reorder #}
+<section class="card mt-4">
+  <div class="card-header">
+    <h2>
+      <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
+      Reposición
+    </h2>
+    <small class="text-muted">
+      {% if reorder_count %}
+        {{ reorder_count }} ingrediente{{ "s" if reorder_count != 1 else "" }} bajo mínimo
+      {% else %}
+        Todo bajo mínimo, no hace falta reponer
+      {% endif %}
+    </small>
+  </div>
+
+  {% if reorder_items %}
+  <p class="text-muted" style="margin-bottom:var(--space-3);">
+    Estos son los ingredientes que están por debajo del mínimo. La lista completa y el ingreso de compras está en
+    <a href="/reorder">Reponer</a>.
+  </p>
+  <table class="table is-striped">
+    <thead>
+      <tr>
+        <th>Ingrediente</th>
+        <th class="num">Sugerido</th>
+        <th class="num">Costo est.</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for it in reorder_items %}
+      <tr>
+        <td>{{ it.name }}</td>
+        <td class="num">{{ "%.2f"|format(it.suggested_qty) }} {{ it.unit }}</td>
+        <td class="num">
+          {% if it.has_price %}{{ m.gs(it.estimated_cost_gs) }}{% else %}<span class="text-muted">sin precio</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    {% if reorder_total_gs %}
+    <tfoot>
+      <tr>
+        <th colspan="2" class="num">Total estimado</th>
+        <th class="num">{{ m.gs(reorder_total_gs) }}</th>
+      </tr>
+    </tfoot>
+    {% endif %}
+  </table>
+  <a href="/reorder" class="btn">
+    <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
+    Abrir Reponer
+  </a>
+  <p class="text-muted" style="font-size:var(--text-xs);margin-top:var(--space-2);">
+    Cerrar el día <strong>no cambia el stock</strong>. Comprá primero en Reponer, después guardá el cierre.
+  </p>
+  {% else %}
+  <p class="empty">No hay ingredientes bajo mínimo hoy. ¡Todo en orden!</p>
+  {% endif %}
+</section>
+
 <section class="card mt-4">
   <div class="card-header">
     <h2>

@@ -124,10 +124,31 @@ def plan_production(
     rows: list[ProductionRow] = []
     product_forecasts: dict[int, float] = {}
 
+    # PRO-01: precedence is (a) explicit override for this date, (b) weekly
+    # template for this weekday, (c) auto-forecast from sales. Each step
+    # only fills in products not already covered by an earlier source.
+    overrides_for_date: dict[int, float] = {}
+    if for_date is not None:
+        overrides_for_date = get_overrides_for_date(session, for_date)
+    template_for_weekday: dict[int, float] = {}
+    if for_date is not None:
+        weekday = for_date.weekday()
+        full_template = get_weekly_template(session)
+        template_for_weekday = full_template.get(weekday, {})
+
     for prod in products:
+        # (a) per-date override (highest priority)
         if manual_forecast and prod.id in manual_forecast:
             qty = float(manual_forecast[prod.id])
             source = "manual"
+        elif prod.id in overrides_for_date:
+            qty = float(overrides_for_date[prod.id])
+            source = "override"
+        # (b) weekly template (mid priority)
+        elif prod.id in template_for_weekday:
+            qty = float(template_for_weekday[prod.id])
+            source = "template"
+        # (c) auto-forecast from sales (fallback)
         else:
             base = forecast_sales(
                 session, product_id=prod.id, days_history=days_history
@@ -135,9 +156,9 @@ def plan_production(
             qty = base * seasonal_multiplier
             source = "rolling_14d_avg"
         # PRO-02: a bakery cannot bake 0.1 of a muffin. Round the suggested
-        # forecast UP to a whole piece. Manual overrides are kept as typed
-        # (operator-entered) and only auto-suggestions are rounded.
-        if source != "manual" and qty > 0:
+        # forecast UP to a whole piece. Manual overrides and template rows are
+        # kept as-typed (operator-entered); only auto-suggestions are rounded.
+        if source not in ("manual", "override", "template") and qty > 0:
             qty = math.ceil(qty)
         if qty > 0:
             rows.append(
@@ -222,10 +243,119 @@ def plan_production(
     )
 
 
+# --- PRO-01: Weekly repeating template + per-date overrides ---
+
+from app.rms.models import ProductionPlanTemplate, ProductionPlanOverride
+
+
+def get_weekly_template(session: Session) -> dict[int, dict[int, float]]:
+    """Return {weekday: {product_id: qty}} from production_plan_template.
+
+    Used to fill the production plan when an explicit override doesn't exist
+    for that date. Empty dict if the operator hasn't set a template yet
+    (auto-forecast takes over).
+    """
+    rows = session.query(ProductionPlanTemplate).all()
+    template: dict[int, dict[int, float]] = {wd: {} for wd in range(7)}
+    for r in rows:
+        if r.weekday in template:
+            template[r.weekday][r.product_id] = r.qty
+    return template
+
+
+def get_overrides_for_date(session: Session, for_date: date) -> dict[int, float]:
+    """Return {product_id: qty} from production_plan_override for a specific date.
+
+    Overrides are date-scoped (not weekday-scoped): changing one Thursday does
+    NOT affect other Thursdays.
+    """
+    rows = session.query(ProductionPlanOverride).filter(
+        ProductionPlanOverride.for_date == for_date
+    ).all()
+    return {r.product_id: r.qty for r in rows}
+
+
+def upsert_template_row(
+    session: Session,
+    weekday: int,
+    product_id: int,
+    qty: float,
+    updated_by: str | None = None,
+    notes: str | None = None,
+) -> ProductionPlanTemplate:
+    """Insert or update the (weekday, product) row in the weekly template.
+
+    Upserts in place via the unique constraint on (weekday, product_id).
+    """
+    if not (0 <= weekday <= 6):
+        raise ValueError(f"weekday must be 0..6 (Mon..Sun); got {weekday}")
+    if qty < 0:
+        raise ValueError(f"qty must be ≥ 0; got {qty}")
+    row = session.query(ProductionPlanTemplate).filter(
+        ProductionPlanTemplate.weekday == weekday,
+        ProductionPlanTemplate.product_id == product_id,
+    ).one_or_none()
+    if row is None:
+        row = ProductionPlanTemplate(
+            weekday=weekday,
+            product_id=product_id,
+            qty=qty,
+            notes=notes,
+            updated_at=datetime.now(timezone.utc),
+            updated_by=updated_by,
+        )
+        session.add(row)
+    else:
+        row.qty = qty
+        row.notes = notes
+        row.updated_at = datetime.now(timezone.utc)
+        row.updated_by = updated_by
+    session.flush()
+    return row
+
+
+def upsert_override(
+    session: Session,
+    product_id: int,
+    for_date: date,
+    qty: float,
+    updated_by: str | None = None,
+    notes: str | None = None,
+) -> ProductionPlanOverride:
+    """Insert or update the per-date override for (product, date)."""
+    if qty < 0:
+        raise ValueError(f"qty must be ≥ 0; got {qty}")
+    row = session.query(ProductionPlanOverride).filter(
+        ProductionPlanOverride.product_id == product_id,
+        ProductionPlanOverride.for_date == for_date,
+    ).one_or_none()
+    if row is None:
+        row = ProductionPlanOverride(
+            product_id=product_id,
+            for_date=for_date,
+            qty=qty,
+            notes=notes,
+            updated_at=datetime.now(timezone.utc),
+            updated_by=updated_by,
+        )
+        session.add(row)
+    else:
+        row.qty = qty
+        row.notes = notes
+        row.updated_at = datetime.now(timezone.utc)
+        row.updated_by = updated_by
+    session.flush()
+    return row
+
+
 __all__ = [
     "ProductionRow",
     "ProductionLine",
     "ProductionPlan",
     "forecast_sales",
     "plan_production",
+    "get_weekly_template",
+    "get_overrides_for_date",
+    "upsert_template_row",
+    "upsert_override",
 ]

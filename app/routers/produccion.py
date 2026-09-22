@@ -33,14 +33,18 @@ from app.services.template_render import render
 router = APIRouter(prefix="/produccion", dependencies=[Depends(require_login)])
 
 FORECAST_SOURCE_LABELS = {
-    "rolling_14d_avg": "Promedio 14 días",
-    "seasonal_event": "Evento estacional",
+    "rolling_14d_avg": "Sugerido por ventas",
+    "seasonal_event": "Sugerido por evento",
     "manual": "Manual",
+    "template": "Plan semanal",  # PRO-01
+    "override": "Ajuste del día",  # PRO-01
 }
 FORECAST_SOURCE_HELP = {
-    "rolling_14d_avg": "Promedio de ventas de los últimos 14 días",
-    "seasonal_event": "Ajuste por evento estacional en la fecha",
+    "rolling_14d_avg": "Calculado del promedio de ventas de los últimos 14 días",
+    "seasonal_event": "Ajustado por evento estacional en la fecha",
     "manual": "Cantidad cargada a mano",
+    "template": "Viene del plan semanal (se repite cada semana)",
+    "override": "Anulado solo para esta fecha; no afecta otras semanas",
 }
 
 
@@ -254,8 +258,12 @@ def produccion_override(
     qty: float = Form(...),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
-    """Per-day manual qty override — redirects back to day view with the
-    override encoded as ov_{product_id} query param (what-if re-plan)."""
+    """Per-day manual qty override.
+
+    PRO-01: this saves a row to production_plan_override (date-scoped). The
+    weekly template is NOT affected — only this specific date. If qty is 0,
+    the override row is removed (so the weekly template takes over again).
+    """
     from app.rms.rate_limit import is_write_rate_limited
     if is_write_rate_limited(session, request, max_per_minute=10):
         raise HTTPException(
@@ -269,18 +277,96 @@ def produccion_override(
 
     from app.auth import current_user_id
     from app.rms.audit import record as audit_record
+    from app.rms.models import ProductionPlanOverride
+    from app.rms.production import upsert_override
+
+    user_id = current_user_id(request) or "operator"
+    user_id = str(user_id)
+    if qty == 0:
+        # Remove the override so the weekly template can take over
+        existing = session.query(ProductionPlanOverride).filter(
+            ProductionPlanOverride.product_id == product_id,
+            ProductionPlanOverride.for_date == for_date,
+        ).one_or_none()
+        if existing:
+            session.delete(existing)
+            session.flush()
+    else:
+        upsert_override(
+            session,
+            product_id=product_id,
+            for_date=for_date,
+            qty=qty,
+            updated_by=user_id,
+        )
+
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=user_id,
         action="write.produccion.override",
         request=request,
         detail={"product_id": product_id, "for_date": for_date.isoformat(), "qty": qty},
     )
     session.commit()
     return RedirectResponse(
-        url=f"/produccion?for_date={for_date.isoformat()}&ov_{product_id}={qty}",
+        url=f"/produccion?for_date={for_date.isoformat()}",
         status_code=303,
     )
+
+
+# --- PRO-01: weekly template ---
+
+@router.post("/template")
+def produccion_template_set(
+    request: Request,
+    weekday: int = Form(...),
+    product_id: int = Form(...),
+    qty: float = Form(...),
+    notes: str = Form(""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Set a single (weekday, product) row in the weekly template.
+
+    PRO-01: this saves a row to production_plan_template. Affects every
+    occurrence of this weekday from now on, until the row is changed.
+    """
+    from app.rms.rate_limit import is_write_rate_limited
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
+        )
+    if not (0 <= weekday <= 6):
+        raise HTTPException(status_code=400, detail="weekday debe ser 0 (Lun) a 6 (Dom)")
+    if qty < 0:
+        raise HTTPException(status_code=400, detail="La cantidad no puede ser negativa")
+    if session.get(Product, product_id) is None:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    from app.auth import current_user_id
+    from app.rms.audit import record as audit_record
+    from app.rms.production import upsert_template_row
+
+    user_id = current_user_id(request) or "operator"
+    user_id = str(user_id)
+    upsert_template_row(
+        session,
+        weekday=weekday,
+        product_id=product_id,
+        qty=qty,
+        notes=notes or None,
+        updated_by=user_id,
+    )
+
+    audit_record(
+        session,
+        user_id=user_id,
+        action="write.produccion.template",
+        request=request,
+        detail={"weekday": weekday, "product_id": product_id, "qty": qty},
+    )
+    session.commit()
+    return RedirectResponse(url="/produccion?view=week", status_code=303)
 
 
 __all__ = ["router"]

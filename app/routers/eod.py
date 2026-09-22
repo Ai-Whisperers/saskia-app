@@ -32,12 +32,26 @@ def eod_view(request: Request, session: Session = Depends(get_session)) -> HTMLR
     today = date.today()
     today_plan = plan_production(session, for_date=today)
     completions = completions_for_date(session, today)
+
+    # CIE-02: restock step — show ingredients below minimum with a link to
+    # /reorder. Checking the close step means she has looked at it.
+    from app.rms.reorder import compute_reorder_list
+    reorder_items = compute_reorder_list(session)
+    # Cap at top 5 most urgent for the dashboard
+    reorder_items_top = reorder_items[:5]
+    reorder_count = len(reorder_items)
+    reorder_total_gs = sum(i.estimated_cost_gs for i in reorder_items if i.has_price)
+
     return render(request, "eod.html", {
         "items": items,
         "progress": progress,
         "today_plan": today_plan,
         "completions": completions,
         "today_iso": today.isoformat(),
+        # CIE-02: restock context for the close
+        "reorder_items": reorder_items_top,
+        "reorder_count": reorder_count,
+        "reorder_total_gs": reorder_total_gs,
     })
 
 

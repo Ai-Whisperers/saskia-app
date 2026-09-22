@@ -938,6 +938,82 @@ def _migration_026_product_audit_columns(conn):
 
 
 
+
+
+def _migration_027_production_plan_template(conn):
+    """PRO-01: weekly repeating production plan template + per-date overrides."""
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    if dialect == "postgresql":
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS production_plan_template (
+                id SERIAL PRIMARY KEY,
+                weekday INTEGER NOT NULL,
+                product_id INTEGER NOT NULL REFERENCES "product"(id),
+                qty DOUBLE PRECISION NOT NULL DEFAULT 1.0,
+                notes TEXT,
+                updated_at TIMESTAMP NOT NULL,
+                updated_by VARCHAR(64),
+                CONSTRAINT ck_template_weekday_range CHECK (weekday >= 0 AND weekday <= 6),
+                CONSTRAINT ck_template_qty_nonneg CHECK (qty >= 0),
+                CONSTRAINT uq_template_weekday_product UNIQUE (weekday, product_id)
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_template_weekday ON production_plan_template(weekday)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_template_product_id ON production_plan_template(product_id)"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS production_plan_override (
+                id SERIAL PRIMARY KEY,
+                product_id INTEGER NOT NULL REFERENCES "product"(id),
+                for_date DATE NOT NULL,
+                qty DOUBLE PRECISION NOT NULL,
+                notes TEXT,
+                updated_at TIMESTAMP NOT NULL,
+                updated_by VARCHAR(64),
+                CONSTRAINT ck_override_qty_nonneg CHECK (qty >= 0),
+                CONSTRAINT uq_override_product_date UNIQUE (product_id, for_date)
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_override_product_id ON production_plan_override(product_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_override_for_date ON production_plan_override(for_date)"))
+    else:
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS production_plan_template (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                weekday INTEGER NOT NULL,
+                product_id INTEGER NOT NULL REFERENCES product(id),
+                qty REAL NOT NULL DEFAULT 1.0,
+                notes TEXT,
+                updated_at TEXT NOT NULL,
+                updated_by VARCHAR(64),
+                CONSTRAINT ck_template_weekday_range CHECK (weekday >= 0 AND weekday <= 6),
+                CONSTRAINT ck_template_qty_nonneg CHECK (qty >= 0),
+                CONSTRAINT uq_template_weekday_product UNIQUE (weekday, product_id)
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_template_weekday ON production_plan_template(weekday)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_template_product_id ON production_plan_template(product_id)"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS production_plan_override (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                product_id INTEGER NOT NULL REFERENCES product(id),
+                for_date DATE NOT NULL,
+                qty REAL NOT NULL,
+                notes TEXT,
+                updated_at TEXT NOT NULL,
+                updated_by VARCHAR(64),
+                CONSTRAINT ck_override_qty_nonneg CHECK (qty >= 0),
+                CONSTRAINT uq_override_product_date UNIQUE (product_id, for_date)
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_override_product_id ON production_plan_override(product_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_override_for_date ON production_plan_override(for_date)"))
+
+    conn.execute(
+        text("UPDATE app_meta SET value = '27', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -965,6 +1041,7 @@ MIGRATIONS = {
     24: _migration_024_recipe_intel_extended,
     25: _migration_025_ingredient_opening_stock_reorder_point,
     26: _migration_026_product_audit_columns,
+    27: _migration_027_production_plan_template,
 }
 
 
