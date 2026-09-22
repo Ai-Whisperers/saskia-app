@@ -33,11 +33,12 @@ def get_session(request: Request) -> Session:
     if sf is None:
         import os
         from sqlalchemy import create_engine
+        from sqlalchemy.orm import Session as SQLASession
         db_url = os.getenv("DATABASE_URL")
         if not db_url:
             raise RuntimeError("DATABASE_URL env var not set")
         engine = create_engine(db_url, pool_pre_ping=True)
-        return engine.connect()
+        return SQLASession(bind=engine)
     return sf()
 
 

@@ -230,12 +230,13 @@ def get_db_session(request: Request) -> Session:
         # Server is still starting or running old code without lifespan.
         # Create an ephemeral engine just for this request — no pooling, no persist.
         from sqlalchemy import create_engine
+        from sqlalchemy.orm import Session as SQLASession
         import os
         db_url = os.getenv("DATABASE_URL")
         if not db_url:
             raise RuntimeError("DATABASE_URL env var not set")
         engine = create_engine(db_url, pool_pre_ping=True)
-        return engine.connect()
+        return SQLASession(bind=engine)
     return sf()
 
 
