@@ -159,9 +159,8 @@ def healthz_deps(request: Request) -> JSONResponse | dict:
             pkgs[pkg] = "NOT INSTALLED"
     return {
         "SUPABASE_URL": fp("SUPABASE_URL"),
-        "SUPABASE_PUBLISHABLE_KEY": fp("SUPABASE_PUBLISHABLE_KEY") or fp("SUPABASE_ANON_KEY"),
-        "SUPABASE_SECRET_KEY": fp("SUPABASE_SECRET_KEY") or fp("SUPABASE_SERVICE_ROLE_KEY"),
-        "SUPABASE_ANON_KEY": fp("SUPABASE_ANON_KEY"),
+        "SUPABASE_PUBLISHABLE_KEY": fp("SUPABASE_PUBLISHABLE_KEY"),
+        "SUPABASE_SECRET_KEY": fp("SUPABASE_SECRET_KEY"),
         "packages": pkgs,
     }
 
@@ -279,46 +278,3 @@ def healthz_schema(request: Request) -> JSONResponse:
         return JSONResponse(status_code=500, content=body)
     body["status"] = "in_sync"
     return JSONResponse(status_code=200, content=body)
-
-
-@router.get("/healthz/debug-dashboard", response_model=None)
-def healthz_debug_dashboard(request: Request, period: str = "today") -> JSONResponse:
-    """Run dashboard queries step-by-step to find the ProgrammingError."""
-    from app.auth import current_user_id, _supabase_enabled
-    from app.rms.dependencies import get_session
-    from sqlalchemy import select, func, text
-    from app.rms.models import Product, Recipe, Sale
-    import traceback
-
-    uid = current_user_id(request)
-    supabase = _supabase_enabled()
-    results = {"user_id": str(uid) if uid else None, "supabase": supabase}
-
-    try:
-        session = get_session(request)
-        for step_name, fn in [
-            ("count_products", lambda: session.execute(select(func.count()).select_from(Product)).scalar()),
-            ("count_recipes", lambda: session.execute(select(func.count()).select_from(Recipe)).scalar()),
-            ("count_sales", lambda: session.execute(select(func.count()).select_from(Sale)).scalar()),
-        ]:
-            try:
-                results[step_name] = fn()
-            except Exception as e:
-                results[step_name] = f"ERROR {type(e).__name__}: {e}"
-        
-        # Try batch_products_cost_margin
-        try:
-            from app.rms.costing import batch_products_cost_margin
-            products = session.execute(select(Product).limit(3)).scalars().all()
-            if products:
-                cost = batch_products_cost_margin(session, list(products))
-                results["batch_cost"] = {str(k): str(v) for k, v in cost.items()}
-            else:
-                results["batch_cost"] = "no products"
-        except Exception as e:
-            results["batch_cost_error"] = f"{type(e).__name__}: {e}"
-            results["batch_cost_traceback"] = traceback.format_exc()[:800]
-        
-        return JSONResponse({"status": "ok", "results": results})
-    except Exception as e:
-        return JSONResponse({"status": "error", "results": results, "error": str(e), "traceback": traceback.format_exc()[:500]}, status_code=500)

@@ -907,6 +907,37 @@ def _migration_025_ingredient_opening_stock_reorder_point(conn):
     )
 
 
+
+def _migration_026_product_audit_columns(conn):
+    """Add product columns used by audit-implemented features but never migrated.
+
+    Originally added to Product model in commit 541e625 (Section 5/6 audit) but
+    no migration was created. Production DB at schema v25 is missing these:
+    - is_available: bool — toggle to hide from POS (audit item 158)
+    - image_url: str — product image URL (audit item 159)
+    - category: str — product category (audit item 160)
+    - tags: str — comma-separated tags (audit item 161)
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    cols = [
+        ("is_available", "BOOLEAN NOT NULL DEFAULT TRUE"),
+        ("image_url", "VARCHAR(256)"),
+        ("category", "VARCHAR(32)"),
+        ("tags", "TEXT"),
+    ]
+    for col_name, col_type in cols:
+        try:
+            conn.execute(text(f"ALTER TABLE product ADD COLUMN {col_name} {col_type}"))
+        except Exception:
+            pass  # already exists
+
+    conn.execute(
+        text("UPDATE app_meta SET value = \'26\', updated_at = :ts WHERE key = \'schema_version\'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -933,6 +964,7 @@ MIGRATIONS = {
     23: _migration_023_supplier,
     24: _migration_024_recipe_intel_extended,
     25: _migration_025_ingredient_opening_stock_reorder_point,
+    26: _migration_026_product_audit_columns,
 }
 
 
