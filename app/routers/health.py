@@ -289,6 +289,7 @@ def healthz_debug_ventas_v3(request: Request) -> JSONResponse:
     import traceback
     from sqlalchemy import select, func
     from datetime import datetime, timedelta
+    from app.rms.dependencies import get_session
     from app.rms.models import Product, Sale
     from app.rms.config import ASUNCION_TZ
     from app.services.template_render import render
