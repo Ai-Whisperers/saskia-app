@@ -278,3 +278,91 @@ def healthz_schema(request: Request) -> JSONResponse:
         return JSONResponse(status_code=500, content=body)
     body["status"] = "in_sync"
     return JSONResponse(status_code=200, content=body)
+
+
+@router.get("/healthz/debug-ventas-v3", response_model=None)
+def healthz_debug_ventas_v3(request: Request) -> JSONResponse:
+    """Render ventas.html with REAL data from the live DB to find the error."""
+    import traceback
+    from sqlalchemy import select, func
+    from datetime import datetime, timedelta
+    from app.rms.models import Product, Sale
+    from app.rms.config import ASUNCION_TZ
+    from app.services.template_render import render
+
+    try:
+        session = get_session(request)
+        # Mimic EXACT actual ventas route code
+        products = session.scalars(select(Product).order_by(Product.name)).all()
+        sales_page = session.scalars(
+            select(Sale)
+            .options(selectinload(Sale.product), selectinload(Sale.customer))
+            .order_by(Sale.sold_at.desc())
+            .limit(20)
+        ).all()
+        
+        # Mimic _decorated exactly as in app/routers/sales.py
+        from app.routers.sales import _decorated
+        decorated = [_decorated(s) for s in sales_page]
+        
+        # Mimic rest of context
+        since = datetime.now(ASUNCION_TZ) - timedelta(days=14)
+        quick_sell_q = (
+            select(Sale.product_id, func.sum(Sale.qty), func.sum(Sale.qty * Sale.unit_price_gs))
+            .where(Sale.sold_at >= since, Sale.voided_at.is_(None))
+            .group_by(Sale.product_id)
+            .order_by(func.sum(Sale.qty * Sale.unit_price_gs).desc())
+            .limit(5)
+        )
+        quick_rows = session.execute(quick_sell_q).all()
+        product_by_id = {p.id: p for p in products}
+        quick_sell = []
+        for pid, units, rev in quick_rows:
+            p = product_by_id.get(pid)
+            if p is not None:
+                quick_sell.append({
+                    "product_id": pid,
+                    "name": p.name,
+                    "sale_price_gs": p.sale_price_gs,
+                    "units": float(units),
+                    "revenue_gs": int(rev or 0),
+                    "is_available": p.is_available,
+                    "stock_qty": getattr(p, "stock_qty", None),
+                })
+        
+        # Try to render
+        try:
+            render(request, "ventas.html", {
+                "products": [{"id": p.id, "name": p.name, "portion_label": p.portion_label,
+                              "sale_price_gs": p.sale_price_gs, "is_available": p.is_available, "sku": p.sku}
+                             for p in products],
+                "sales": decorated,
+                "quick_sell": quick_sell,
+                "payment_methods": ["efectivo"],
+                "payment_method_default": "efectivo",
+                "channels": ["mostrador"],
+                "channel_default": "mostrador",
+                "now_local": datetime.now().strftime("%Y-%m-%dT%H:%M"),
+                "totals": {"count": len(sales_page), "total_gs": 0, "avg_ticket_gs": 0, "filters": "test"},
+                "has_more": False,
+                "current_offset": 0,
+                "current_page_size": 20,
+                "page_start": 1,
+                "page_end": len(sales_page),
+                "total_count": len(sales_page),
+            })
+            return JSONResponse({"status": "ok", "products": len(products), "sales": len(sales_page)})
+        except Exception as template_exc:
+            return JSONResponse({
+                "status": "template_error",
+                "exception_type": type(template_exc).__name__,
+                "message": str(template_exc)[:500],
+                "traceback": traceback.format_exc()[:2000],
+            }, status_code=500)
+    except Exception as e:
+        return JSONResponse({
+            "status": "error",
+            "exception_type": type(e).__name__,
+            "message": str(e)[:500],
+            "traceback": traceback.format_exc()[:1500],
+        }, status_code=500)
