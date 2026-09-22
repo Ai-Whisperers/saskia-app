@@ -106,24 +106,29 @@
 
   <div id="lines">
   {% for line in lines %}
-  <div class="line-row" style="display: grid; grid-template-columns: 100px 1fr 90px 60px 1fr 30px; gap: 8px; align-items: end; margin-bottom: 8px;">
-        <select name="line_kind">
+  <div class="line-row" data-line-kind="{{ line.line_kind or 'ingredient' }}"
+       style="display: grid; grid-template-columns: 100px 1fr 90px 60px 1fr 30px; gap: 8px; align-items: end; margin-bottom: 8px;">
+        <select name="line_kind" class="line-kind-select" data-default-kind="{{ line.line_kind or 'ingredient' }}">
           <option value="ingredient" {% if line.line_kind == 'ingredient' %}selected{% endif %}>Ingrediente</option>
           <option value="sub_recipe" {% if line.line_kind == 'sub_recipe' %}selected{% endif %}>Sub-receta</option>
         </select>
-        <select name="line_target_id">
-          <option value="">— Seleccionar —</option>
-          {% if line.line_kind == 'ingredient' %}
-            {% for ing in ingredients %}
-            <option value="{{ ing.id }}" {% if ing.id == line.line_ref_id %}selected{% endif %}>{{ ing.name }}</option>
-            {% endfor %}
-          {% else %}
-            {% for sub in other_recipes %}
-            <option value="{{ sub.id }}" {% if sub.id == line.line_ref_id %}selected{% endif %}>{{ sub.name }}</option>
-            {% endfor %}
-          {% endif %}
-        </select>
-        <input type="number" name="line_qty" step="0.01" min="0" required value="{{ "%.4f"|format(line.qty * scale_factor if mode == 'edit' else line.qty) }}" placeholder="Cantidad">
+        <div class="saskia-combo line-target-combo"
+             data-source="{{ ('/recetas/api/search?exclude_id=' + (recipe.id | string)) if line.line_kind == 'sub_recipe' else '/inventario/api/search' }}"
+             data-display="name"
+             data-value="id"
+             data-min-chars="1"
+             data-row-builder="{{ 'recipeRowLabel' if line.line_kind == 'sub_recipe' else 'ingredientRowLabel' }}">
+          <input type="text"
+                 class="combo-input"
+                 placeholder="{{ 'Buscar receta…' if line.line_kind == 'sub_recipe' else 'Buscar ingrediente…' }}"
+                 autocomplete="off"
+                 value="{{ (line.line_target_name if line.line_target_name else '') }}">
+          <input type="hidden" name="line_target_id" value="{{ line.line_ref_id or '' }}">
+          <div class="combo-results" role="listbox" hidden></div>
+        </div>
+        <input type="number" name="line_qty" step="0.01" min="0" required
+               value="{{ '%.4f'|format(line.qty * scale_factor if mode == 'edit' else line.qty) }}"
+               placeholder="Cantidad">
         <select name="line_unit" aria-label="Unidad de la cantidad">
           {% for u in units %}
           <option value="{{ u }}" {% if line.line_unit == u %}selected{% endif %}>{{ u }}</option>
@@ -154,15 +159,26 @@ document.getElementById('add-line').addEventListener('click', function() {
   const container = document.getElementById('lines');
   const row = document.createElement('div');
   row.className = 'line-row';
+  row.dataset.lineKind = 'ingredient';
   row.style.cssText = 'display: grid; grid-template-columns: 100px 1fr 90px 60px 1fr 30px; gap: 8px; align-items: end; margin-bottom: 8px;';
   row.innerHTML = `
-    <select name="line_kind">
-      <option value="ingredient">Ingrediente</option>
+    <select name="line_kind" class="line-kind-select" data-default-kind="ingredient">
+      <option value="ingredient" selected>Ingrediente</option>
       <option value="sub_recipe">Sub-receta</option>
     </select>
-    <select name="line_target_id">
-      <option value="">— Seleccionar —</option>
-    </select>
+    <div class="saskia-combo line-target-combo"
+         data-source="/inventario/api/search"
+         data-display="name"
+         data-value="id"
+         data-min-chars="1"
+         data-row-builder="ingredientRowLabel">
+      <input type="text"
+             class="combo-input"
+             placeholder="Buscar ingrediente…"
+             autocomplete="off">
+      <input type="hidden" name="line_target_id" value="">
+      <div class="combo-results" role="listbox" hidden></div>
+    </div>
     <input type="number" name="line_qty" step="0.01" min="0" required placeholder="Cantidad">
     <select name="line_unit" aria-label="Unidad de la cantidad">
       <option value="g">g</option>
@@ -175,7 +191,12 @@ document.getElementById('add-line').addEventListener('click', function() {
     <button type="button" class="btn btn-small" onclick="this.parentElement.remove()">×</button>
   `;
   container.appendChild(row);
+  // Auto-attach the combobox to the new row
+  if (window.RecetaCombos && typeof window.RecetaCombos.attachLineTargetCombo === 'function') {
+    window.RecetaCombos.attachLineTargetCombo(row);
+  }
 });
 </script>
+<script src="/static/receta-combos.js" defer></script>
 
 {% endblock %}

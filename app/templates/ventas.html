@@ -64,13 +64,26 @@
   </div>
 
   <div class="form-row">
-    <label for="product_id">Producto</label>
-    <select id="product_id" name="product_id" required>
-      <option value="">— Seleccionar producto —</option>
-      {% for p in products %}
-      <option value="{{ p.id }}" data-sku="{{ p.sku or '' }}" data-price="{{ p.sale_price_gs }}">{{ p.name }} ({{ m.gs(p.sale_price_gs) }})</option>
-      {% endfor %}
-    </select>
+    <label for="product_combo">Producto</label>
+    {# Combobox replaces the native <select> with 30+ products. #}
+    <div class="saskia-combo"
+         data-source="/productos/api/search"
+         data-display="name"
+         data-value="id"
+         data-min-chars="1"
+         data-row-builder="productRowLabel">
+      <input type="text"
+             id="product_combo"
+             class="combo-input"
+             placeholder="Escribí para buscar (muffin, factura, pan…)"
+             autocomplete="off"
+             value="{{ request.query_params.get('q', '') }}">
+      <input type="hidden" id="product_id" name="product_id"
+             value="{{ request.query_params.get('product_id', '') }}">
+      <div class="combo-results" role="listbox" hidden></div>
+    </div>
+    <small class="hint">Si completás SKU, el producto se autocompleta desde
+      <code>/ventas/buscar?sku=...</code>.</small>
   </div>
 
   <div class="form-row">
@@ -164,12 +177,22 @@
 <form method="get" action="/ventas" class="form form-row" aria-label="Filtrar historial de ventas">
   <label for="sales-search" class="sr-only">Buscar producto, nota o teléfono</label>
   <input type="search" id="sales-search" name="q" value="{{ request.query_params.get('q','') }}" placeholder="Buscar producto, nota o teléfono" aria-label="Buscar producto, nota o teléfono">
-  <select name="product_id">
-    <option value="">— Todos los productos —</option>
-    {% for p in products %}
-    <option value="{{ p.id }}" {% if request.query_params.get('product_id')|int == p.id %}selected{% endif %}>{{ p.name }}</option>
-    {% endfor %}
-  </select>
+  {# Combobox for the product filter — replaces 30+ option <select>. #}
+  <div class="saskia-combo"
+       data-source="/productos/api/search"
+       data-display="name"
+       data-value="id"
+       data-min-chars="1"
+       data-row-builder="productRowLabel"
+       style="flex:1;min-width:200px;">
+    <input type="text"
+           class="combo-input"
+           placeholder="Filtrar por producto…"
+           autocomplete="off">
+    <input type="hidden" name="product_id"
+           value="{{ request.query_params.get('product_id', '') }}">
+    <div class="combo-results" role="listbox" hidden></div>
+  </div>
   <select name="days">
     <option value="">— Todo el historial —</option>
     <option value="7" {% if request.query_params.get('days') == '7' %}selected{% endif %}>Últimos 7 días</option>
@@ -274,20 +297,22 @@
 
   // ── Item 3: Auto-focus on SKU/product field ──────────────────────────
   var skuInput = document.getElementById("sku");
-  var productSelect = document.getElementById("product_id");
+  var productIdHidden = document.getElementById("product_id");
+  var productCombo = document.querySelector(".saskia-combo");
+  var productComboInput = document.getElementById("product_combo");
   function doAutoFocus() {
     if (skuInput) {
       skuInput.focus();
-    } else if (productSelect) {
-      productSelect.focus();
+    } else if (productComboInput) {
+      productComboInput.focus();
     }
   }
   if (!("autofocus" in document.createElement("input")) || !skuInput || skuInput !== document.activeElement) {
     doAutoFocus();
   }
 
-  // ── SKU scan -> auto-fill product_id ──────────────────────────────────
-  if (skuInput && productSelect) {
+  // ── SKU scan -> auto-fill product_id (hidden input on combobox) ─────
+  if (skuInput && productIdHidden) {
     var debounceTimer = null;
     function lookup() {
       var sku = (skuInput.value || "").trim();
@@ -301,9 +326,15 @@
             return;
           }
           skuInput.setCustomValidity("");
-          productSelect.value = data.product_id;
+          // Set the hidden input of the combobox + the visible label
+          productIdHidden.value = data.product_id;
+          if (productComboInput) {
+            productComboInput.value = data.name || "";
+            productComboInput.classList.add("is-selected");
+            productComboInput.disabled = true;  // greyed; user can clear to repick
+          }
           skuInput.value = "";
-          productSelect.focus();
+          if (productComboInput) productComboInput.focus();
         });
     }
     skuInput.addEventListener("change", lookup);
