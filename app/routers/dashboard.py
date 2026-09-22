@@ -57,6 +57,11 @@ def _period_window(period: str) -> tuple[datetime, datetime]:
     elif period == "month":
         start = now_local.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         end = now_local + timedelta(microseconds=1)
+    elif period == "custom":
+        # Fall back to "today" window if start/end aren't parsed;
+        # the route handler is responsible for overriding these.
+        start = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=1)
     else:
         raise ValueError(f"Unknown period: {period}")
     return start, end
