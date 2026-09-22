@@ -159,8 +159,9 @@ def healthz_deps(request: Request) -> JSONResponse | dict:
             pkgs[pkg] = "NOT INSTALLED"
     return {
         "SUPABASE_URL": fp("SUPABASE_URL"),
-        "SUPABASE_PUBLISHABLE_KEY": fp("SUPABASE_PUBLISHABLE_KEY"),
-        "SUPABASE_SECRET_KEY": fp("SUPABASE_SECRET_KEY"),
+        "SUPABASE_PUBLISHABLE_KEY": fp("SUPABASE_PUBLISHABLE_KEY") or fp("SUPABASE_ANON_KEY"),
+        "SUPABASE_SECRET_KEY": fp("SUPABASE_SECRET_KEY") or fp("SUPABASE_SERVICE_ROLE_KEY"),
+        "SUPABASE_ANON_KEY": fp("SUPABASE_ANON_KEY"),
         "packages": pkgs,
     }
 
