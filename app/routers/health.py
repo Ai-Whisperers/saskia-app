@@ -363,3 +363,46 @@ def healthz_debug_products(request: Request) -> JSONResponse:
             "error_msg": str(e)[:300],
             "traceback": traceback.format_exc()[:500],
         }, status_code=500)
+
+
+@router.get("/healthz/debug-costing", response_model=None)
+def healthz_debug_costing(request: Request) -> JSONResponse:
+    """Test costing functions with current user session."""
+    from app.auth import current_user_id, _supabase_enabled
+    from app.rms.dependencies import get_session
+    from app.rms.costing import batch_products_cost_margin
+    from app.rms.models import Product
+    from sqlalchemy import select
+
+    uid = current_user_id(request)
+    supabase = _supabase_enabled()
+    
+    try:
+        session = get_session(request)
+        
+        # Get first 3 products
+        products = session.execute(select(Product).limit(3)).scalars().all()
+        
+        if not products:
+            return JSONResponse({"status": "ok", "reason": "no products", "user_id": str(uid) if uid else None})
+        
+        # Try batch cost
+        results = batch_products_cost_margin(session, list(products))
+        
+        return JSONResponse({
+            "status": "ok",
+            "user_id": str(uid) if uid else None,
+            "supabase_enabled": supabase,
+            "products_tested": len(products),
+            "results": {str(k): str(v) for k, v in results.items()},
+        })
+    except Exception as e:
+        import traceback
+        return JSONResponse({
+            "status": "error",
+            "user_id": str(uid) if uid else None,
+            "supabase_enabled": supabase,
+            "error_type": type(e).__name__,
+            "error_msg": str(e)[:300],
+            "traceback": traceback.format_exc()[:1000],
+        }, status_code=500)
