@@ -43,6 +43,8 @@
   var newCancelBtn = $('cp_new_cancel');
   var newForm = $('customer_picker_new_form');
   var newError = $('cp_new_error');
+  var badge = $('customer_badge');
+  var badgeName = $('customer_badge_name');
 
   if (!trigger || !modal || !hidden) {
     // Picker not on this page; bail silently.
@@ -110,6 +112,10 @@
     label.textContent = c.name || ('#' + c.id);
     hint.textContent = c.hint || (c.name + ' seleccionado');
     hint.hidden = false;
+    if (badge) {
+      badge.hidden = false;
+      if (badgeName) badgeName.textContent = c.name || ('#' + c.id);
+    }
     if (clearBtn) clearBtn.hidden = false;
     closeModal();
   }
@@ -120,6 +126,10 @@
     label.textContent = 'Seleccionar cliente…';
     hint.hidden = true;
     hint.textContent = '';
+    if (badge) {
+      badge.hidden = true;
+      if (badgeName) badgeName.textContent = '';
+    }
     if (clearBtn) clearBtn.hidden = true;
   }
 

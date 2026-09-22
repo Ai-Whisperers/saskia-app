@@ -22,15 +22,22 @@
 {% if quick_sell %}
 <h2>Quick-sell</h2>
 <p class="hint">Top 5 productos por ingreso (últimos 14 días). One-tap registra una venta rápida.</p>
-<div class="quick-sell-grid">
+<div class="quick-sell-search-row">
+  <input type="search" id="quick-sell-search" placeholder="Buscar producto en quick-sell…" aria-label="Buscar producto en quick-sell" autocomplete="off">
+</div>
+<div class="quick-sell-grid" id="quick-sell-grid" role="grid" aria-label="Productos para venta rápida">
   {% for q in quick_sell %}
-  <form method="post" action="/ventas/nueva" class="quick-sell-btn" aria-label="Venta rápida: {{ q.name }}"
+  <form method="post" action="/ventas/nueva" class="quick-sell-btn{% if not q.is_available %} is-out-of-stock{% endif %}" aria-label="Venta rápida: {{ q.name }}"
+        data-name="{{ q.name|lower }}" data-product-id="{{ q.product_id }}"
         onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='…';">
     <input type="hidden" name="product_id" value="{{ q.product_id }}">
     <input type="hidden" name="qty" value="1">
-    <button type="submit" class="btn btn-large" aria-label="Registrar venta de {{ q.name }} por {{ m.gs(q.sale_price_gs) }}">
+    <button type="submit" class="btn btn-large{% if not q.is_available %} is-disabled{% endif %}"{% if not q.is_available %} disabled aria-disabled="true"{% endif %} aria-label="Registrar venta de {{ q.name }} por {{ m.gs(q.sale_price_gs) }}">
       <strong>{{ q.name }}</strong><br>
       <span class="gs">{{ m.gs(q.sale_price_gs) }}</span>
+      {% if not q.is_available %}
+        <br><small class="text-danger">Sin stock</small>
+      {% endif %}
     </button>
   </form>
   {% endfor %}
@@ -135,7 +142,7 @@
   <p class="text-muted mt-2" style="font-size:var(--text-xs);">
     Filtro actual: {{ totals.filters }}
     <span class="badge badge-info" style="margin-left:var(--space-3);">
-      Mostrando últimas 50 ventas
+      Mostrando {{ sales|length }}{% if has_more %} de {{ totals.count }}{% endif %} ventas
     </span>
     {% set csv_query = dict(request.query_params.multi_items()) %}
     {% set _ = csv_query.update({'format': 'csv'}) %}
@@ -192,11 +199,20 @@
       <td class="num">{{ "%.2f"|format(s.qty) }}</td>
       <td class="num">{{ m.gs(s.unit_price_gs) }}</td>
       <td class="num">{{ m.gs(s.total_gs) }}</td>
-      <td>{% if s.customer_phone %}<small>{{ s.customer_phone }}</small>{% else %}—{% endif %}</td>
+      <td>
+        {% if s.customer_name %}
+          <strong>{{ s.customer_name }}</strong><br>
+          <small class="text-muted">{% if s.customer_phone %}{{ s.customer_phone }}{% else %}—{% endif %}</small>
+        {% elif s.customer_phone %}
+          <small class="text-muted">{{ s.customer_phone }}</small>
+        {% else %}
+          —
+        {% endif %}
+      </td>
       <td>{% if s.payment_method %}<span class="badge badge-neutral">{{ s.payment_method }}</span>{% else %}—{% endif %}</td>
       <td>
         {% if s.voided_at %}
-          <span class="badge badge-neutral">Anulada</span>
+          <span class="badge badge-danger"><svg class="icon" aria-hidden="true" style="width:1em;height:1em;vertical-align:middle"><use href="#icon-x"/></svg> Anulada</span>
         {% else %}
           <span class="badge badge-ok">Activa</span>
         {% endif %}
@@ -217,6 +233,16 @@
     {% endfor %}
   </tbody>
 </table>
+
+{% if has_more %}
+<div style="text-align:center; margin: var(--space-4) 0;">
+  <a href="?{{ (dict(request.query_params.multi_items())|merge({'offset': current_offset + current_page_size}))|urlencode }}" class="btn" id="load-more-btn">
+    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+    Cargar más ({{ totals.count - (current_offset + current_page_size) }} restantes)
+  </a>
+</div>
+{% endif %}
+
 {% else %}
 <div class="empty-state">
   <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
@@ -228,43 +254,209 @@
 
 
 <script>
-// SKU scan -> auto-fill product_id.
 (function() {
+  'use strict';
+
+  // ── Item 3: Auto-focus on SKU/product field ──────────────────────────
   var skuInput = document.getElementById("sku");
   var productSelect = document.getElementById("product_id");
-  if (!skuInput || !productSelect) return;
-
-  var debounceTimer = null;
-  function lookup() {
-    var sku = (skuInput.value || "").trim();
-    if (!sku) return;
-    fetch("/ventas/buscar?sku=" + encodeURIComponent(sku))
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (!data.found) {
-          skuInput.setCustomValidity("SKU no encontrado");
-          skuInput.reportValidity();
-          return;
-        }
-        skuInput.setCustomValidity("");
-        productSelect.value = data.product_id;
-        skuInput.value = "";
-        productSelect.focus();
-      });
+  if (skuInput) {
+    skuInput.focus();
+  } else if (productSelect) {
+    productSelect.focus();
   }
-  skuInput.addEventListener("change", lookup);
-  skuInput.addEventListener("blur", function() {
-    // Debounce: wait 150ms so rapid scans don't race
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(lookup, 150);
-  });
-  skuInput.addEventListener("keydown", function(e) {
-    // Enter key: submit the form immediately without debounce
-    if (e.key === "Enter") {
+
+  // ── SKU scan -> auto-fill product_id ──────────────────────────────────
+  if (skuInput && productSelect) {
+    var debounceTimer = null;
+    function lookup() {
+      var sku = (skuInput.value || "").trim();
+      if (!sku) return;
+      fetch("/ventas/buscar?sku=" + encodeURIComponent(sku))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (!data.found) {
+            skuInput.setCustomValidity("SKU no encontrado");
+            skuInput.reportValidity();
+            return;
+          }
+          skuInput.setCustomValidity("");
+          productSelect.value = data.product_id;
+          skuInput.value = "";
+          productSelect.focus();
+        });
+    }
+    skuInput.addEventListener("change", lookup);
+    skuInput.addEventListener("blur", function() {
       if (debounceTimer) clearTimeout(debounceTimer);
-      lookup();
+      debounceTimer = setTimeout(lookup, 150);
+    });
+    skuInput.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        lookup();
+      }
+    });
+  }
+
+  // ── Item 4: Max discount validation ───────────────────────────────────
+  var saleForm = document.getElementById("sale-form");
+  var discountInput = document.getElementById("discount_gs");
+  var productSelectEl = document.getElementById("product_id");
+  var qtyInput = document.getElementById("qty");
+
+  function validateDiscount() {
+    if (!discountInput || !productSelectEl || !qtyInput) return;
+    var selectedOption = productSelectEl.options[productSelectEl.selectedIndex];
+    if (!selectedOption || !selectedOption.value) return;
+    var unitPrice = parseFloat(selectedOption.getAttribute("data-price") || "0");
+    var qty = parseFloat(qtyInput.value || "1");
+    var maxTotal = unitPrice * qty;
+    var discount = parseFloat(discountInput.value || "0");
+    if (discount > maxTotal) {
+      discountInput.setCustomValidity("El descuento no puede superar el total de la venta (Gs. " + Math.round(maxTotal).toLocaleString() + ")");
+      discountInput.reportValidity();
+    } else {
+      discountInput.setCustomValidity("");
+    }
+  }
+
+  if (discountInput) {
+    discountInput.addEventListener("input", validateDiscount);
+    discountInput.addEventListener("blur", validateDiscount);
+  }
+  if (productSelectEl) {
+    productSelectEl.addEventListener("change", validateDiscount);
+  }
+  if (qtyInput) {
+    qtyInput.addEventListener("input", validateDiscount);
+  }
+
+  // ── Item 5: localStorage persistence ─────────────────────────────────
+  var STORAGE_KEY = "saskia_venta_form";
+  function saveForm() {
+    if (!saleForm) return;
+    var data = {
+      product_id: productSelectEl ? productSelectEl.value : "",
+      qty: qtyInput ? qtyInput.value : "1",
+      discount_gs: discountInput ? discountInput.value : "0",
+      notes: document.getElementById("notes") ? document.getElementById("notes").value : "",
+      customer_id: document.getElementById("customer_id") ? document.getElementById("customer_id").value : "",
+    };
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {}
+  }
+
+  function restoreForm() {
+    try {
+      var raw = sessionStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data.product_id && productSelectEl) productSelectEl.value = data.product_id;
+      if (data.qty && qtyInput) qtyInput.value = data.qty;
+      if (data.discount_gs && discountInput) discountInput.value = data.discount_gs;
+      if (data.notes) {
+        var notesEl = document.getElementById("notes");
+        if (notesEl) notesEl.value = data.notes;
+      }
+    } catch (e) {}
+  }
+
+  if (saleForm) {
+    restoreForm();
+    saleForm.addEventListener("input", saveForm);
+    saleForm.addEventListener("change", saveForm);
+    saleForm.addEventListener("submit", function() {
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    });
+  }
+
+  // ── Item 6: Keyboard shortcuts ────────────────────────────────────────
+  document.addEventListener("keydown", function(e) {
+    // Ignore if inside an input/select/textarea that isn't the SKU field
+    var tag = document.activeElement ? document.activeElement.tagName : "";
+    var isFormField = (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA");
+    if (e.key === "F2" && !isFormField) {
+      e.preventDefault();
+      var trigger = document.getElementById("customer_picker_trigger");
+      if (trigger) trigger.click();
+    } else if (e.key === "F3") {
+      e.preventDefault();
+      if (skuInput) skuInput.focus();
+      else if (productSelectEl) productSelectEl.focus();
+    } else if (e.key === "F4") {
+      e.preventDefault();
+      if (discountInput) discountInput.focus();
     }
   });
+
+  // ── Item 8/9/10/11: Quick-sell grid search + keyboard nav ─────────────
+  var qsGrid = document.getElementById("quick-sell-grid");
+  var qsSearch = document.getElementById("quick-sell-search");
+
+  if (qsGrid) {
+    var qsButtons = Array.prototype.slice.call(
+      qsGrid.querySelectorAll(".quick-sell-btn:not(.is-out-of-stock)")
+    );
+    var qsNavIndex = -1;
+
+    qsGrid.addEventListener("keydown", function(e) {
+      var visibleBtns = Array.prototype.slice.call(
+        qsGrid.querySelectorAll(".quick-sell-btn:not(.is-out-of-stock)"
+        + " .btn:not([disabled])")
+      );
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        qsNavIndex = Math.min(qsNavIndex + 1, visibleBtns.length - 1);
+        if (qsNavIndex >= 0 && visibleBtns[qsNavIndex]) {
+          visibleBtns[qsNavIndex].focus();
+        }
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        qsNavIndex = Math.max(qsNavIndex - 1, 0);
+        if (visibleBtns[qsNavIndex]) {
+          visibleBtns[qsNavIndex].focus();
+        }
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        // Move down a row (approximately 3 items per row)
+        qsNavIndex = Math.min(qsNavIndex + 3, visibleBtns.length - 1);
+        if (qsNavIndex >= 0 && visibleBtns[qsNavIndex]) {
+          visibleBtns[qsNavIndex].focus();
+        }
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        qsNavIndex = Math.max(qsNavIndex - 3, 0);
+        if (visibleBtns[qsNavIndex]) {
+          visibleBtns[qsNavIndex].focus();
+        }
+      } else if (e.key === "Enter" && document.activeElement === qsGrid) {
+        // If grid itself is focused and Enter pressed, activate first
+        e.preventDefault();
+        if (visibleBtns[0]) visibleBtns[0].click();
+      }
+    });
+
+    // Reset nav index when grid receives focus via tab
+    qsGrid.addEventListener("focusin", function(e) {
+      var idx = visibleBtns.indexOf(e.target);
+      if (idx >= 0) qsNavIndex = idx;
+    });
+  }
+
+  if (qsSearch) {
+    qsSearch.addEventListener("input", function() {
+      var query = (this.value || "").toLowerCase().trim();
+      Array.prototype.forEach.call(
+        document.querySelectorAll(".quick-sell-btn"),
+        function(form) {
+          var name = form.getAttribute("data-name") || "";
+          form.style.display = (query === "" || name.indexOf(query) >= 0) ? "" : "none";
+        }
+      );
+    });
+  }
 })();
 </script>
 

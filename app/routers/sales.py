@@ -43,6 +43,7 @@ def _decorated(s: Sale) -> dict:
         "notes": s.notes,
         "voided_at": s.voided_at,
         "customer_phone": s.customer.phone if s.customer else None,
+        "customer_name": s.customer.name if s.customer else None,
         "payment_method": s.payment_method,
         "discount_gs": s.discount_gs,
         "channel": s.channel or "mostrador",
@@ -55,16 +56,22 @@ async def sales_list(
     q: str | None = None,
     product_id: int | None = None,
     days: int | None = None,
+    offset: int | None = None,
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    """Sales list with optional filter (?q=substring, ?product_id=, ?days=N).
+    """Sales list with optional filter (?q=substring, ?product_id=, ?days=N, ?offset=N).
 
     Filters run on the existing sales query so `/ventas?q=cabernet`
     only returns matches. Helps operators find old sales without
     scrolling 50+ rows.
     """
+    PAGE_SIZE = 20
     products = session.scalars(select(Product).order_by(Product.name)).all()
-    sales_q = select(Sale).order_by(Sale.sold_at.desc())
+    sales_q = (
+        select(Sale)
+        .options(selectinload(Sale.product), selectinload(Sale.customer))
+        .order_by(Sale.sold_at.desc())
+    )
     if product_id is not None:
         sales_q = sales_q.where(Sale.product_id == product_id)
     if days is not None and days > 0:
@@ -85,7 +92,35 @@ async def sales_list(
                 )
             )
         )
-    sales = session.scalars(sales_q.limit(50)).all()
+
+    # Count total matching (for pagination has_more)
+    count_q = select(func.count(Sale.id))
+    if product_id is not None:
+        count_q = count_q.where(Sale.product_id == product_id)
+    if days is not None and days > 0:
+        cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
+        count_q = count_q.where(Sale.sold_at >= cutoff)
+    if q:
+        like = f"%{q.lower()}%"
+        count_q = (
+            count_q
+            .outerjoin(Product, Sale.product_id == Product.id)
+            .outerjoin(Customer, Sale.customer_id == Customer.id)
+            .where(
+                or_(
+                    func.lower(Product.name).like(like),
+                    func.lower(Sale.notes).like(like),
+                    func.lower(Customer.phone).like(like),
+                )
+            )
+        )
+    total_count = session.scalar(count_q) or 0
+
+    # Apply offset pagination (default PAGE_SIZE rows)
+    start_offset = offset or 0
+    sales = session.scalars(sales_q.offset(start_offset).limit(PAGE_SIZE + 1)).all()
+    has_more = len(sales) > PAGE_SIZE
+    sales_page = sales[:PAGE_SIZE]
 
     # Aggregate totals (excluding voided) for the filtered set — used by
     # both the HTML summary card and the CSV export. We apply the same
@@ -135,6 +170,7 @@ async def sales_list(
                 "sale_price_gs": p.sale_price_gs,
                 "units": float(units),
                 "revenue_gs": int(rev or 0),
+                "is_available": p.is_available,
             })
 
     return render(
@@ -142,7 +178,7 @@ async def sales_list(
         "ventas.html",
         {
             "products": products,
-            "sales": [_decorated(s) for s in sales],
+            "sales": [_decorated(s) for s in sales_page],
             "quick_sell": quick_sell,
             "payment_methods": list(PAYMENT_METHODS_DISPLAY),
             "payment_method_default": PAYMENT_METHOD_DEFAULT,
@@ -157,6 +193,9 @@ async def sales_list(
                     q=q, product_id=product_id, days=days, products=products
                 ),
             },
+            "has_more": has_more,
+            "current_offset": start_offset,
+            "current_page_size": PAGE_SIZE,
         },
     )
 
