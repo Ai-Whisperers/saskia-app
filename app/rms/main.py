@@ -26,6 +26,7 @@ import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles as _StaticFiles  # noqa: F401  (re-exported for tests)
 from loguru import logger
@@ -421,6 +422,47 @@ def _wants_html(request: Request) -> bool:
     # Browsers send text/html. API clients (curl, fetch from JS) send application/json
     # or */*. If html is explicitly preferred OR no JSON preference is set, return HTML.
     return "text/html" in accept and "application/json" not in accept.split(";")
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Spanish 422 errors so /ventas/nueva etc. don't show English defaults.
+
+    Translates the standard FastAPI 422 (English "Field required", "value is not a valid integer")
+    into a Spanish message that says which field is wrong and what to enter.
+    """
+    errors = exc.errors()
+    parts: list[str] = []
+    for err in errors[:3]:  # at most 3 errors per response
+        loc = [str(x) for x in err.get("loc", []) if x not in ("body", "query", "path", "form")]
+        field = loc[-1] if loc else "campo"
+        etype = err.get("type", "")
+        msg_en = err.get("msg", "")
+        # Translate the most common FastAPI validation types
+        if etype == "missing":
+            parts.append(f"{field} es obligatorio")
+        elif etype in ("greater_than", "greater_than_equal"):
+            limit = err.get("ctx", {}).get("ge") or err.get("ctx", {}).get("gt")
+            parts.append(f"{field} debe ser ≥ {limit}" if etype == "greater_than_equal" else f"{field} debe ser > {limit}")
+        elif etype in ("less_than", "less_than_equal"):
+            limit = err.get("ctx", {}).get("le") or err.get("ctx", {}).get("lt")
+            parts.append(f"{field} debe ser ≤ {limit}" if etype == "less_than_equal" else f"{field} debe ser < {limit}")
+        elif etype in ("int_parsing", "type_error.integer"):
+            parts.append(f"{field} debe ser un número entero")
+        elif etype in ("float_parsing", "type_error.float"):
+            parts.append(f"{field} debe ser un número")
+        elif etype == "value_error":
+            parts.append(f"{field}: {msg_en}")
+        else:
+            parts.append(f"{field} inválido")
+    detail = "; ".join(parts) if parts else "Datos inválidos"
+    return JSONResponse(
+        status_code=400,  # BUG-00: 400 is more accurate than 422 for client-side form errors
+        content={"detail": detail, "fields": [loc[-1] if loc else "campo" for loc in [
+            [str(x) for x in e.get("loc", []) if x not in ("body", "query", "path", "form")]
+            for e in errors
+        ]]},
+    )
 
 
 @app.exception_handler(Exception)

@@ -162,6 +162,13 @@ def inventory_create(
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Create new ingredient."""
+    # BUG-00: empty name must yield a 400 with a Spanish error, not a 500.
+    name = name.strip() if name else ""
+    if not name:
+        raise HTTPException(
+            status_code=400,
+            detail="Nombre es obligatorio",
+        )
     try:
         unit_enum = Unit.coerce(unit)
     except ValueError as e:

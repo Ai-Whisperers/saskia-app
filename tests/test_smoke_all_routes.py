@@ -111,7 +111,7 @@ def test_login_post_invalid_creds_returns_form(client):
         follow_redirects=False,
     )
     # Should redirect (303) back to /login with error, not crash
-    assert r.status_code in (200, 303, 422), (
+    assert r.status_code in (200, 303, 400, 422), (
         f"POST /login bad creds returned {r.status_code}: {r.text[:200]}"
     )
 
@@ -149,7 +149,7 @@ def test_unprimed_post_returns_403_or_422(client):
     production bug this test guards against.
     """
     r = client.post("/productos/1/editar", data={"name": "hax"}, follow_redirects=False)
-    assert r.status_code in (403, 422), (
+    assert r.status_code in (400, 403, 422), (
         f"POST without CSRF returned {r.status_code}, expected 403 (blocked) or 422 (validation). "
         f"200/303 would mean write succeeded."
     )

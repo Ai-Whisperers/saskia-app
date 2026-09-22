@@ -40,7 +40,7 @@ def test_eod_completion_creates_summary_record(auth_client, session_factory):
 
     r = auth_client.post("/eod/completar", data={"fecha": "2026-09-22"})
     # May succeed (200) or redirect (303), must not 500
-    assert r.status_code in (200, 303, 422), f"/eod/completar returned {r.status_code}"
+    assert r.status_code in (200, 303, 400, 422), f"/eod/completar returned {r.status_code}"
 
     with session_factory() as s:
         after_audits = s.execute(sa_text("SELECT COUNT(*) FROM audit_log")).scalar()

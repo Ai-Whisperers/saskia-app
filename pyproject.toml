@@ -104,4 +104,5 @@ warn_redundant_casts = true
 [dependency-groups]
 dev = [
     "playwright>=1.62.0",
+    "pytest-randomly>=5.0.0",
 ]

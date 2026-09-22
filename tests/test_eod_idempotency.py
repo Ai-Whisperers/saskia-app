@@ -15,7 +15,7 @@ def test_eod_completar_first_call_succeeds(authed_client):
     """P2 #1: POST /eod/completar for current date must return 303 or 200."""
     today = date.today().isoformat()
     r = authed_client.post(f"/eod/completar", data={"fecha": today})
-    assert r.status_code in (200, 303, 422), (
+    assert r.status_code in (200, 303, 400, 422), (
         f"EOD completar returned {r.status_code}: {r.text[:200]}"
     )
 

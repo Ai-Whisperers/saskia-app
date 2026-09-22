@@ -570,7 +570,7 @@ def test_sale_create_form_renders(client, session_factory):
             "notes": "",
         },
     )
-    assert r_post.status_code == 422  # empty product_id fails FastAPI validation
+    assert r_post.status_code == 400  # BUG-00: empty product_id fails with Spanish 400
 
 
 def test_sale_create_success(client, session_factory):
@@ -598,8 +598,8 @@ def test_sale_create_success(client, session_factory):
         assert new.product_id == product_id
 
 
-def test_sale_create_zero_qty_returns_422(client, session_factory):
-    """qty=0 → 422 (FastAPI Form validation)."""
+def test_sale_create_zero_qty_returns_400(client, session_factory):
+    """BUG-00: qty=0 → 400 with Spanish error message."""
     _, _, _, product_id, _ = _seed_min_catalog(session_factory)
     r = client.post(
         "/ventas/nueva",
@@ -610,11 +610,11 @@ def test_sale_create_zero_qty_returns_422(client, session_factory):
             "notes": "",
         },
     )
-    assert r.status_code == 422
+    assert r.status_code == 400
 
 
-def test_sale_create_negative_qty_returns_422(client, session_factory):
-    """qty=-1 → 422 (FastAPI Form validation)."""
+def test_sale_create_negative_qty_returns_400(client, session_factory):
+    """BUG-00: qty=-1 → 400 with Spanish error message."""
     _, _, _, product_id, _ = _seed_min_catalog(session_factory)
     r = client.post(
         "/ventas/nueva",
@@ -625,7 +625,7 @@ def test_sale_create_negative_qty_returns_422(client, session_factory):
             "notes": "",
         },
     )
-    assert r.status_code == 422
+    assert r.status_code == 400
 
 
 def test_sale_create_unknown_product_returns_400_or_422(client, session_factory):

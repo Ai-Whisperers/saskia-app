@@ -25,7 +25,7 @@ def test_form_rejects_unprimed_post(client, route, data):
     
     r = client.post(route, data=form_data, follow_redirects=False)
     # 403 = CSRF blocked; 422 = validation rejected
-    assert r.status_code in (403, 422, 404), (
+    assert r.status_code in (400, 403, 422, 404), (
         f"POST {route} returned {r.status_code}: {r.text[:200]}. "
         f"CSRF must reject unprimed POSTs."
     )

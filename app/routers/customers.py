@@ -258,7 +258,7 @@ async def customer_create_api(
 
     name = (str(data.get("name") or "")).strip()
     if not name:
-        raise HTTPException(status_code=422, detail="name is required")
+        raise HTTPException(status_code=422, detail="nombre es obligatorio")
 
     phone = (str(data.get("phone") or "")).strip() or None
     email = (str(data.get("email") or "")).strip() or None
