@@ -35,19 +35,21 @@ class ReorderItem:
 
 
 def compute_reorder_list(session: Session) -> list[ReorderItem]:
-    """Return all ingredients below their min_stock, sorted by urgency."""
+    """Return all ingredients below their min_stock (or reorder_point if set), sorted by urgency."""
     items: list[ReorderItem] = []
     ingredients = session.query(Ingredient).all()
     for ing in ingredients:
-        if ing.stock_qty >= ing.min_stock_qty:
+        # Use reorder_point override if set, otherwise fall back to min_stock_qty
+        effective_min = ing.reorder_point if ing.reorder_point is not None else ing.min_stock_qty
+        if ing.stock_qty >= effective_min:
             continue
-        # Fallback for max_stock_qty: 2x min, or 10 if min is 0.
-        max_q = ing.max_stock_qty or (ing.min_stock_qty * 2 if ing.min_stock_qty > 0 else 10.0)
+        # Fallback for max_stock_qty: 2x effective_min, or 10 if effective_min is 0.
+        max_q = ing.max_stock_qty or (effective_min * 2 if effective_min > 0 else 10.0)
         suggested = max(0.0, max_q - ing.stock_qty)
         cost = int(suggested * (ing.purchase_price_gs or 0))
         urgency = (
-            ing.stock_qty / max(ing.min_stock_qty, 0.001)
-            if ing.min_stock_qty > 0
+            ing.stock_qty / max(effective_min, 0.001)
+            if effective_min > 0
             else 0.0
         )
         items.append(ReorderItem(
@@ -55,7 +57,7 @@ def compute_reorder_list(session: Session) -> list[ReorderItem]:
             name=ing.name,
             unit=ing.unit or "",
             current_stock=ing.stock_qty,
-            min_stock=ing.min_stock_qty,
+            min_stock=effective_min,
             max_stock=max_q,
             suggested_qty=suggested,
             estimated_cost_gs=cost,

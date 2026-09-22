@@ -13,6 +13,18 @@
   </div>
 
   <div class="form-row">
+    <label for="sku">SKU / Código de barras</label>
+    <input type="text" id="sku" name="sku" value="{{ product.sku if product and product.sku else '' }}" placeholder="Ej: E23.S1 o código de barras">
+    <small class="muted">Opcional. Usado para ventas rápidas por SKU.</small>
+  </div>
+
+  <div class="form-row">
+    <label for="category">Categoría</label>
+    <input type="text" id="category" name="category" value="{{ product.category if product and product.category else '' }}" placeholder="Ej: Panadería, Bollería, Bebidas">
+    <small class="muted">Opcional. Para filtrar productos por categoría.</small>
+  </div>
+
+  <div class="form-row">
     <label for="portion_label">Etiqueta de porción</label>
     <input type="text" id="portion_label" name="portion_label" required value="{{ product.portion_label if product else '1 unidad' }}">
   </div>
@@ -31,6 +43,20 @@
       {% endfor %}
     </select>
     <small class="muted">Sin receta: las ventas se registran pero no bajan stock ni calculan margen.</small>
+  </div>
+
+  <div class="form-row">
+    <label for="image_url">URL de imagen del producto</label>
+    <input type="url" id="image_url" name="image_url" value="{{ product.image_url if product and product.image_url else '' }}" placeholder="https://...">
+    <small class="muted">URL pública de la foto del producto. Opcional.</small>
+  </div>
+
+  <div class="form-row form-row-toggle">
+    <label>
+      <input type="checkbox" id="is_available" name="is_available" {% if (product and product.is_available) or (not product) %}checked{% endif %}>
+      Disponible para venta
+    </label>
+    <small class="muted">Desactivá esto para ocultar el producto del POS sin eliminarlo.</small>
   </div>
 
   <div class="form-row">

@@ -6,14 +6,25 @@
 {% block content %}
 <h1>Inventario</h1>
 
-{% if request.query_params.get('flash') == 'stock_adjusted' %}
+{% set flash = request.query_params.get('flash', '') %}
+{% if flash == 'stock_adjusted' %}
 <div class="alert alert-success" role="alert">Stock ajustado correctamente.</div>
+{% elif flash.startswith('no_confirm:') %}
+<div class="alert alert-danger" role="alert" aria-live="assertive">
+  <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+  {{ flash | replace('no_confirm:', '') }}
+  <em>Hacé click en Ajustar de nuevo para confirmar.</em>
+</div>
 {% endif %}
 
 <p>
   <a href="/inventario/nuevo" class="btn btn-primary">
     <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
     Nuevo ingrediente
+  </a>
+  <a href="/inventario/export.csv" class="btn btn-ghost">
+    <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+    Exportar CSV
   </a>
 </p>
 
@@ -32,16 +43,25 @@
   </thead>
   <tbody>
     {% for i in ingredients %}
-    <tr>
-      <td><strong>{{ i.name }}</strong></td>
+    <tr class="{% if i.stock_qty < 0 %}row-negative{% endif %}">
+      <td>
+        <strong><a href="/inventario/{{ i.id }}">{{ i.name }}</a></strong>
+        {% if i.category %}<span class="badge badge-neutral">{{ i.category }}</span>{% endif %}
+      </td>
       <td>{{ i.unit }}</td>
-      <td class="num">{{ "%.2f"|format(i.stock_qty) }}</td>
+      <td class="num">
+        {% if i.stock_qty < 0 %}
+          <span class="badge badge-danger" title="¡Stock negativo!">{{ "%.2f"|format(i.stock_qty) }} {{ i.unit }}</span>
+        {% else %}
+          {{ "%.2f"|format(i.stock_qty) }} {{ i.unit }}
+        {% endif %}
+      </td>
       <td class="num">{{ "%.2f"|format(i.min_stock_qty) }}</td>
       <td class="num">{% if i.purchase_price_gs is none %}<em class="muted">sin precio</em>{% else %}{{ m.gs_full(i.purchase_price_gs) }}{% endif %}{% if price_info.get(i.id) %}<div class="price-strip">90d: min {{ m.gs(price_info[i.id].stats.min) }} · max {{ m.gs(price_info[i.id].stats.max) }}{% if price_info[i.id].sparkline_svg %} {{ price_info[i.id].sparkline_svg | safe }}{% endif %}</div>{% endif %}</td>
       <td>{{ m.stock_badge(i.stock_qty, i.min_stock_qty) }}</td>
       <td class="actions">
         <button type="button" class="btn btn-sm btn-ghost" aria-label="Ajustar stock de {{ i.name }}"
-                onclick="var m=document.getElementById('stock-adjust-modal');m.querySelector('form').action='/inventario/{{ i.id }}/ajustar';document.getElementById('adj-ing-id').value='{{ i.id }}';document.getElementById('adj-ing-name').textContent='{{ i.name }}';document.getElementById('adj-ing-current').textContent='{{ "%.2f"|format(i.stock_qty) }} {{ i.unit }}';document.getElementById('adj-amount').value='';document.getElementById('adj-reason').value='';m.showModal();">
+                onclick="openAdjustModal('{{ i.id }}', '{{ i.name }}', {{ i.stock_qty }}, '{{ i.unit }}')">
           <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
           Ajustar
         </button>
@@ -58,6 +78,33 @@
     {% endfor %}
   </tbody>
 </table>
+
+{# Pagination #}
+{% if total_pages > 1 %}
+<nav class="pagination" aria-label="Navegación de inventario">
+  <span class="pagination-info">
+    Mostrando {{ ((page - 1) * per_page) + 1 }}–{{ [page * per_page, total] | min }} de {{ total }} ingredientes
+  </span>
+  <div class="pagination-links">
+    {% if page > 1 %}
+      <a href="?page=1&sort={{ sort }}&dir={{ dir }}" class="btn btn-sm btn-ghost">«</a>
+      <a href="?page={{ page - 1 }}&sort={{ sort }}&dir={{ dir }}" class="btn btn-sm btn-ghost">‹</a>
+    {% endif %}
+    {% for p in range([1, page - 2] | max, [page + 3, total_pages + 1] | min) %}
+      {% if p == page %}
+        <span class="btn btn-sm btn-primary" aria-current="page">{{ p }}</span>
+      {% else %}
+        <a href="?page={{ p }}&sort={{ sort }}&dir={{ dir }}" class="btn btn-sm btn-ghost">{{ p }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if page < total_pages %}
+      <a href="?page={{ page + 1 }}&sort={{ sort }}&dir={{ dir }}" class="btn btn-sm btn-ghost">›</a>
+      <a href="?page={{ total_pages }}&sort={{ sort }}&dir={{ dir }}" class="btn btn-sm btn-ghost">»</a>
+    {% endif %}
+  </div>
+</nav>
+{% endif %}
+
 {% else %}
 <div class="empty-state">
   <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
@@ -97,20 +144,54 @@
           <input type="text" id="adj-reason" name="reason" maxlength="200"
                  placeholder="Ej: rotura, conteo físico, merma">
         </div>
+        <div id="negative-warning" class="alert alert-warn" role="alert" style="display:none;">
+          <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+          <span id="negative-warning-text"></span>
+        </div>
+        <input type="hidden" name="confirm_negative" id="confirm-negative" value="">
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Cancelar</button>
-        <button type="submit" class="btn btn-primary">Guardar ajuste</button>
+        <button type="submit" id="adjust-submit-btn" class="btn btn-primary">Guardar ajuste</button>
       </div>
     </form>
   </div>
 </dialog>
 
 <script>
+var _currentStock = 0;
+var _currentUnit = '';
+
+function openAdjustModal(ingId, ingName, currentStock, unit) {
+  var m = document.getElementById('stock-adjust-modal');
+  m.querySelector('form').action = '/inventario/' + ingId + '/ajustar';
+  document.getElementById('adj-ing-id').value = ingId;
+  document.getElementById('adj-ing-name').textContent = ingName;
+  document.getElementById('adj-ing-current').textContent = currentStock.toFixed(2) + ' ' + unit;
+  document.getElementById('adj-amount').value = '';
+  document.getElementById('adj-reason').value = '';
+  document.getElementById('confirm-negative').value = '';
+  document.getElementById('negative-warning').style.display = 'none';
+  document.getElementById('adjust-submit-btn').textContent = 'Guardar ajuste';
+  _currentStock = currentStock;
+  _currentUnit = unit;
+  m.showModal();
+}
+
 function validateAdjustment(form) {
   var amt = parseFloat(document.getElementById('adj-amount').value);
   if (isNaN(amt) || amt === 0) {
     alert('La cantidad debe ser distinta de cero.');
+    return false;
+  }
+  var resultingStock = _currentStock + amt;
+  if (resultingStock < 0) {
+    var warnDiv = document.getElementById('negative-warning');
+    var warnText = document.getElementById('negative-warning-text');
+    warnText.textContent = '¡Esto llevaría el stock a ' + resultingStock.toFixed(2) + ' ' + _currentUnit + '. Hacé click en "Confirmar stock negativo" para aceptar.';
+    warnDiv.style.display = 'flex';
+    document.getElementById('adjust-submit-btn').textContent = 'Confirmar stock negativo';
+    document.getElementById('confirm-negative').value = 'yes';
     return false;
   }
   var btn = form.querySelector('[type=submit]');
@@ -119,5 +200,19 @@ function validateAdjustment(form) {
   return true;
 }
 </script>
+
+<style>
+.row-negative td { background-color: rgba(220, 38, 38, 0.07); }
+.row-negative:hover td { background-color: rgba(220, 38, 38, 0.13); }
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1rem;
+  gap: 1rem;
+}
+.pagination-info { color: var(--color-text-muted); font-size: 0.875rem; }
+.pagination-links { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+</style>
 
 {% endblock %}

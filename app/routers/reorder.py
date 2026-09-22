@@ -2,18 +2,22 @@
 
 GET /reorder                — HTML view
 GET /reorder?format=json    — machine-readable for future /scripts integrations
+POST /reorder/generate-po   — bulk generate purchase order as WhatsApp text
 """
 from __future__ import annotations
 
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import current_user_id
 from app.auth import require_login_or_disabled as require_login
 from app.rms.audit import record as audit_record
 from app.rms.dependencies import get_session
-from app.rms.models import Ingredient
+from app.rms.models import Ingredient, Supplier
 from app.rms.price_history import record_price_event
 from app.rms.rate_limit import is_write_rate_limited
 from app.rms.reorder import compute_reorder_list
@@ -36,6 +40,16 @@ def reorder_view(
     items = compute_reorder_list(session)
     total_cost = sum(i.estimated_cost_gs for i in items)
 
+    # Build ingredient_id -> (supplier_name, supplier_phone) map for WhatsApp links
+    supplier_map: dict[int, tuple[str | None, str]] = {}
+    for item in items:
+        if item.ingredient_id not in supplier_map:
+            ing = session.get(Ingredient, item.ingredient_id)
+            if ing and ing.supplier:
+                supplier_map[item.ingredient_id] = (ing.supplier.name, ing.supplier.phone or "")
+            else:
+                supplier_map[item.ingredient_id] = (None, "")
+
     if format == "json":
         return JSONResponse({
             "items": [
@@ -50,6 +64,8 @@ def reorder_view(
                     "estimated_cost_gs": i.estimated_cost_gs,
                     "purchase_price_gs": i.purchase_price_gs,
                     "urgency": i.urgency,
+                    "supplier_name": supplier_map.get(i.ingredient_id, (None, ""))[0],
+                    "supplier_phone": supplier_map.get(i.ingredient_id, ("", ""))[1],
                 }
                 for i in items
             ],
@@ -61,6 +77,9 @@ def reorder_view(
         "items": items,
         "total_cost_gs": total_cost,
         "count": len(items),
+        "supplier_map": supplier_map,
+        "page_start": 1,
+        "page_end": len(items),
     })
 
 
@@ -110,6 +129,71 @@ def reorder_registrar(
     )
     session.commit()
     return RedirectResponse(url="/reorder", status_code=303)
+
+
+@router.post("/generate-po")
+def reorder_generate_po(
+    request: Request,
+    selected: str = Form("", description="Comma-separated ingredient IDs"),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Generate a WhatsApp purchase order pre-fill link for selected ingredients.
+
+    Redirects to a WhatsApp wa.me URL with the order text pre-filled.
+    """
+    if not selected:
+        return RedirectResponse(url="/reorder", status_code=303)
+
+    try:
+        ids = [int(x.strip()) for x in selected.split(",") if x.strip()]
+    except ValueError:
+        return RedirectResponse(url="/reorder", status_code=303)
+
+    items = compute_reorder_list(session)
+    selected_items = [i for i in items if i.ingredient_id in ids]
+
+    if not selected_items:
+        return RedirectResponse(url="/reorder", status_code=303)
+
+    # Group by supplier
+    by_supplier: dict[str, list] = {}
+    no_supplier: list = []
+    for item in selected_items:
+        ing = session.get(Ingredient, item.ingredient_id)
+        supplier_name = ing.supplier.name if (ing and ing.supplier) else None
+        if supplier_name:
+            by_supplier.setdefault(supplier_name, []).append(item)
+        else:
+            no_supplier.append(item)
+
+    # Build WhatsApp text
+    lines = ["*Pedido de materiales*", ""]
+    for supplier_name, sup_items in by_supplier.items():
+        lines.append(f"📦 *{supplier_name}*")
+        for item in sup_items:
+            lines.append(f"  • {item.name}: {item.suggested_qty:.2f} {item.unit}")
+        lines.append("")
+    if no_supplier:
+        lines.append("📦 *Sin proveedor asignado*")
+        for item in no_supplier:
+            lines.append(f"  • {item.name}: {item.suggested_qty:.2f} {item.unit}")
+        lines.append("")
+
+    text = "\n".join(lines).strip()
+    # Encode for WhatsApp URL
+    encoded = quote(text, safe="")
+    wa_url = f"https://wa.me/?text={encoded}"
+
+    audit_record(
+        session,
+        user_id=current_user_id(request) or "operator",
+        action="write.reorder.generate_po",
+        request=request,
+        detail={"n_items": len(selected_items), "suppliers": list(by_supplier.keys())},
+    )
+    session.commit()
+
+    return RedirectResponse(url=wa_url, status_code=303)
 
 
 __all__ = ["router"]

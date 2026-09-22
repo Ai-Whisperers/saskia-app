@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}{{ ingredient.name }}{% endblock %}
+
+{% block content %}
+<p>
+  <a href="/inventario" class="btn btn-sm btn-ghost">
+    <svg class="icon" aria-hidden="true"><use href="#icon-arrow-left"/></svg>
+    Volver al inventario
+  </a>
+</p>
+
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
+  {{ ingredient.name }}
+</h1>
+
+<div class="detail-grid">
+  <section class="detail-card">
+    <h2>Stock actual</h2>
+    <dl>
+      <dt>Stock</dt>
+      <dd>
+        {% if ingredient.stock_qty < 0 %}
+          <span class="badge badge-danger">{{ "%.2f"|format(ingredient.stock_qty) }} {{ ingredient.unit }}</span>
+        {% else %}
+          {{ "%.2f"|format(ingredient.stock_qty) }} {{ ingredient.unit }}
+        {% endif %}
+      </dd>
+
+      <dt>Stock mínimo</dt>
+      <dd>{{ "%.2f"|format(ingredient.min_stock_qty) }} {{ ingredient.unit }}</dd>
+
+      {% if ingredient.reorder_point %}
+      <dt>Punto de reorden</dt>
+      <dd>{{ "%.2f"|format(ingredient.reorder_point) }} {{ ingredient.unit }}</dd>
+      {% endif %}
+
+      <dt>Unidad</dt>
+      <dd>{{ ingredient.unit }}</dd>
+
+      {% if ingredient.category %}
+      <dt>Categoría</dt>
+      <dd><span class="badge badge-neutral">{{ ingredient.category }}</span></dd>
+      {% endif %}
+    </dl>
+  </section>
+
+  <section class="detail-card">
+    <h2>Precio</h2>
+    <dl>
+      <dt>Precio de compra</dt>
+      <dd>
+        {% if ingredient.purchase_price_gs is none %}
+          <em class="muted">sin precio</em>
+        {% else %}
+          {{ m.gs_full(ingredient.purchase_price_gs) }}
+        {% endif %}
+      </dd>
+
+      {% if ingredient.opening_stock_qty is not none %}
+      <dt>Stock de apertura</dt>
+      <dd>{{ "%.2f"|format(ingredient.opening_stock_qty) }} {{ ingredient.unit }}</dd>
+      {% endif %}
+
+      {% if ingredient.opening_stock_date %}
+      <dt>Fecha de apertura</dt>
+      <dd>{{ ingredient.opening_stock_date }}</dd>
+      {% endif %}
+    </dl>
+  </section>
+
+  {% if recipes %}
+  <section class="detail-card">
+    <h2>Usado en recetas</h2>
+    <table class="table is-striped">
+      <thead>
+        <tr>
+          <th>Receta</th>
+          <th class="num">Cantidad por batch</th>
+          <th class="actions"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in recipes %}
+        <tr>
+          <td><strong>{{ r.name }}</strong></td>
+          <td class="num">{{ "%.2f"|format(r.qty) }} {{ r.line_unit or ingredient.unit }}</td>
+          <td class="actions">
+            <a href="/recetas/{{ r.id }}/editar" class="btn btn-sm btn-ghost">Ver receta</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% else %}
+  <section class="detail-card">
+    <h2>Usado en recetas</h2>
+    <p class="muted">Este ingrediente no está usado en ninguna receta.</p>
+  </section>
+  {% endif %}
+
+  {% if ingredient.notes %}
+  <section class="detail-card">
+    <h2>Notas</h2>
+    <p>{{ ingredient.notes }}</p>
+  </section>
+  {% endif %}
+</div>
+
+<div class="form-actions" style="margin-top:1rem;">
+  <a href="/inventario/{{ ingredient.id }}/editar" class="btn btn-primary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+    Editar ingrediente
+  </a>
+  <a href="/inventario/{{ ingredient.id }}/movimientos" class="btn btn-ghost">
+    <svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg>
+    Ver movimientos de stock
+  </a>
+</div>
+
+<style>
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.detail-card {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--card-radius);
+  padding: 1rem;
+}
+.detail-card h2 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+}
+.detail-card dl { display: grid; grid-template-columns: auto 1fr; gap: 0.4rem 1rem; }
+.detail-card dt { color: var(--color-text-muted); font-size: 0.875rem; }
+.detail-card dd { font-weight: 500; }
+</style>
+
+{% endblock %}

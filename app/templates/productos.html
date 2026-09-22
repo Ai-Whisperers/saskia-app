@@ -18,6 +18,10 @@
     <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
     Nuevo producto
   </a>
+  <a href="/productos/export.csv" class="btn btn-ghost">
+    <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+    Exportar CSV
+  </a>
 </p>
 
 <form method="get" action="/productos" class="form form-row">
@@ -34,6 +38,14 @@
   <a href="/productos" class="btn btn-ghost">Limpiar</a>
 </form>
 
+<div class="table-controls">
+  <button type="button" class="btn btn-sm btn-ghost" onclick="toggleColumnVisibility()">
+    <svg class="icon" aria-hidden="true"><use href="#icon-columns"/></svg>
+    Columnas
+  </button>
+  <span id="dead-products-legend" class="badge badge-warn" style="display:none"> Producto sin ventas (muerto)</span>
+</div>
+
 <div id="bulk-actions" style="display:none;margin:.75rem 0;padding:.5rem .75rem;background:var(--color-surface-raised);border-radius:var(--card-radius);border:1px solid var(--color-border);display:flex;align-items:center;gap:.75rem;">
   <span id="bulk-count" style="font-weight:600;"></span>
   <button type="button" class="btn btn-sm btn-danger-ghost" onclick="bulkDeleteProducts()">
@@ -43,35 +55,55 @@
 </div>
 
 {% if products %}
-<table class="table is-hoverable is-striped">
+<table class="table is-hoverable is-striped" id="products-table">
   <thead>
     <tr>
-      <th><input type="checkbox" id="select-all" aria-label="Seleccionar todos"></th>
-      <th>{% set ns = namespace(cur_sort=False) %}
+      <th class="col-checkbox"><input type="checkbox" id="select-all" aria-label="Seleccionar todos"></th>
+      <th data-col="name" class="col-name">{% set ns = namespace(cur_sort=False) %}
         {% for k,v in request.query_params.multi_items() if k == 'sort' %}{% set ns.cur_sort = v %}{% endfor %}
         {% set cur_dir = request.query_params.get('dir', 'asc') %}
         <a href="{{ request.url.path }}?sort=name&dir={% if ns.cur_sort=='name' and cur_dir=='asc' %}desc{% else %}asc{% endif %}{% for k,v in request.query_params.multi_items() if k not in ('sort','dir') %}&{{ k }}={{ v }}{% endfor %}">Nombre {% if ns.cur_sort=='name' %}<small>{% if cur_dir=='asc' %}▲{% else %}▼{% endif %}</small>{% endif %}</a></th>
-      <th>Porción</th>
-      <th class="num">{% set ns2 = namespace(cur_sort=False) %}{% for k,v in request.query_params.multi_items() if k == 'sort' %}{% set ns2.cur_sort = v %}{% endfor %}{% set cur_dir = request.query_params.get('dir', 'asc') %}<a href="{{ request.url.path }}?sort=sale_price_gs&dir={% if ns2.cur_sort=='sale_price_gs' and cur_dir=='asc' %}desc{% else %}asc{% endif %}{% for k,v in request.query_params.multi_items() if k not in ('sort','dir') %}&{{ k }}={{ v }}{% endfor %}">Precio venta {% if ns2.cur_sort=='sale_price_gs' %}<small>{% if cur_dir=='asc' %}▲{% else %}▼{% endif %}</small>{% endif %}</a></th>
-      <th>Receta</th>
-      <th class="num">{% set ns3 = namespace(cur_sort=False) %}{% for k,v in request.query_params.multi_items() if k == 'sort' %}{% set ns3.cur_sort = v %}{% endfor %}{% set cur_dir = request.query_params.get('dir', 'asc') %}<a href="{{ request.url.path }}?sort=cost_gs&dir={% if ns3.cur_sort=='cost_gs' and cur_dir=='asc' %}desc{% else %}asc{% endif %}{% for k,v in request.query_params.multi_items() if k not in ('sort','dir') %}&{{ k }}={{ v }}{% endfor %}">Costo {% if ns3.cur_sort=='cost_gs' %}<small>{% if cur_dir=='asc' %}▲{% else %}▼{% endif %}</small>{% endif %}</a></th>
-      <th class="num">{% set ns4 = namespace(cur_sort=False) %}{% for k,v in request.query_params.multi_items() if k == 'sort' %}{% set ns4.cur_sort = v %}{% endfor %}{% set cur_dir = request.query_params.get('dir', 'asc') %}<a href="{{ request.url.path }}?sort=margin_gs&dir={% if ns4.cur_sort=='margin_gs' and cur_dir=='asc' %}desc{% else %}asc{% endif %}{% for k,v in request.query_params.multi_items() if k not in ('sort','dir') %}&{{ k }}={{ v }}{% endfor %}">Margen {% if ns4.cur_sort=='margin_gs' %}<small>{% if cur_dir=='asc' %}▲{% else %}▼{% endif %}</small>{% endif %}</a></th>
-      <th class="num">Margen %</th>
-      <th class="actions"></th>
+      <th data-col="sku" class="col-sku">SKU</th>
+      <th data-col="portion" class="col-portion">Porción</th>
+      <th data-col="price" class="col-price num">{% set ns2 = namespace(cur_sort=False) %}{% for k,v in request.query_params.multi_items() if k == 'sort' %}{% set ns2.cur_sort = v %}{% endfor %}{% set cur_dir = request.query_params.get('dir', 'asc') %}<a href="{{ request.url.path }}?sort=sale_price_gs&dir={% if ns2.cur_sort=='sale_price_gs' and cur_dir=='asc' %}desc{% else %}asc{% endif %}{% for k,v in request.query_params.multi_items() if k not in ('sort','dir') %}&{{ k }}={{ v }}{% endfor %}">Precio venta {% if ns2.cur_sort=='sale_price_gs' %}<small>{% if cur_dir=='asc' %}▲{% else %}▼{% endif %}</small>{% endif %}</a></th>
+      <th data-col="recipe" class="col-recipe">Receta</th>
+      <th data-col="cost" class="col-cost num">{% set ns3 = namespace(cur_sort=False) %}{% for k,v in request.query_params.multi_items() if k == 'sort' %}{% set ns3.cur_sort = v %}{% endfor %}{% set cur_dir = request.query_params.get('dir', 'asc') %}<a href="{{ request.url.path }}?sort=cost_gs&dir={% if ns3.cur_sort=='cost_gs' and cur_dir=='asc' %}desc{% else %}asc{% endif %}{% for k,v in request.query_params.multi_items() if k not in ('sort','dir') %}&{{ k }}={{ v }}{% endfor %}">Costo {% if ns3.cur_sort=='cost_gs' %}<small>{% if cur_dir=='asc' %}▲{% else %}▼{% endif %}</small>{% endif %}</a></th>
+      <th data-col="margin" class="col-margin num">{% set ns4 = namespace(cur_sort=False) %}{% for k,v in request.query_params.multi_items() if k == 'sort' %}{% set ns4.cur_sort = v %}{% endfor %}{% set cur_dir = request.query_params.get('dir', 'asc') %}<a href="{{ request.url.path }}?sort=margin_gs&dir={% if ns4.cur_sort=='margin_gs' and cur_dir=='asc' %}desc{% else %}asc{% endif %}{% for k,v in request.query_params.multi_items() if k not in ('sort','dir') %}&{{ k }}={{ v }}{% endfor %}">Margen {% if ns4.cur_sort=='margin_gs' %}<small>{% if cur_dir=='asc' %}▲{% else %}▼{% endif %}</small>{% endif %}</a></th>
+      <th data-col="marginpct" class="col-marginpct num">Margen %</th>
+      <th data-col="available" class="col-available">Disp.</th>
+      <th class="col-actions actions"></th>
     </tr>
   </thead>
   <tbody>
     {% for p in products %}
-    <tr data-id="{{ p.id }}">
-      <td><input type="checkbox" name="selected" value="{{ p.id }}" aria-label="Seleccionar {{ p.name }}"></td>
-      <td><strong>{{ p.name }}</strong></td>
-      <td>{{ p.portion_label }}</td>
-      <td class="num">{{ m.gs_full(p.sale_price_gs) }}</td>
-      <td>{% if p.recipe_name %}{{ p.recipe_name }}{% else %}<em class="muted">sin receta</em>{% endif %}</td>
-      <td class="num">{% if p.cost_gs is none %}<em class="muted">falta precio</em>{% else %}{{ m.gs(p.cost_gs) }}{% endif %}</td>
-      <td class="num">{% if p.margin_gs is none %}<em class="muted">—</em>{% else %}{{ m.gs(p.margin_gs) }}{% endif %}</td>
-      <td class="num">{% if p.margin_ratio is none %}<em class="muted">—</em>{% else %}{{ m.margin_pct(p.margin_gs, p.sale_price_gs) }}{% endif %}</td>
-      <td class="actions">
+    <tr data-id="{{ p.id }}" class="{% if p.is_dead %}row-dead{% endif %}">
+      <td class="col-checkbox"><input type="checkbox" name="selected" value="{{ p.id }}" aria-label="Seleccionar {{ p.name }}"></td>
+      <td class="col-name">
+        <strong>{{ p.name }}</strong>
+        {% if p.is_dead %}<span class="badge badge-warn" title="Este producto nunca fue vendido">🕱 muerto</span>{% endif %}
+      </td>
+      <td class="col-sku">
+        {% if p.sku %}
+          <code class="sku-field">{{ p.sku }}</code>
+          <button type="button" class="btn btn-xs btn-ghost" onclick="copyToClipboard('{{ p.sku }}')" title="Copiar SKU" aria-label="Copiar SKU">
+            <svg class="icon" aria-hidden="true" style="width:12px;height:12px"><use href="#icon-copy"/></svg>
+          </button>
+        {% else %}<em class="muted">sin SKU</em>{% endif %}
+      </td>
+      <td class="col-portion">{{ p.portion_label }}</td>
+      <td class="num col-price">{{ m.gs_full(p.sale_price_gs) }}</td>
+      <td class="col-recipe">{% if p.recipe_name %}{{ p.recipe_name }}{% else %}<em class="muted">sin receta</em>{% endif %}</td>
+      <td class="num col-cost">{% if p.cost_gs is none %}<em class="muted">falta precio</em>{% else %}{{ m.gs(p.cost_gs) }}{% endif %}</td>
+      <td class="num col-margin">{% if p.margin_gs is none %}<em class="muted">—</em>{% else %}{{ m.gs(p.margin_gs) }}{% endif %}</td>
+      <td class="num col-marginpct">{% if p.margin_ratio is none %}<em class="muted">—</em>{% else %}{{ m.margin_pct(p.margin_gs, p.sale_price_gs) }}{% endif %}</td>
+      <td class="col-available">
+        {% if p.is_available %}
+          <span class="badge badge-ok">Sí</span>
+        {% else %}
+          <span class="badge badge-muted">No</span>
+        {% endif %}
+      </td>
+      <td class="actions col-actions">
         <a href="/productos/{{ p.id }}/editar" class="btn btn-sm btn-ghost">
           <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
           Editar
@@ -81,6 +113,33 @@
     {% endfor %}
   </tbody>
 </table>
+
+{# Pagination #}
+{% if total_pages > 1 %}
+<nav class="pagination" aria-label="Navegación de productos">
+  <span class="pagination-info">
+    Mostrando {{ ((page - 1) * per_page) + 1 }}–{{ [page * per_page, total] | min }} de {{ total }} productos
+  </span>
+  <div class="pagination-links">
+    {% if page > 1 %}
+      <a href="?page=1&sort={{ sort }}&dir={{ dir }}&q={{ q }}&has_recipe={{ has_recipe }}" class="btn btn-sm btn-ghost">«</a>
+      <a href="?page={{ page - 1 }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}&has_recipe={{ has_recipe }}" class="btn btn-sm btn-ghost">‹</a>
+    {% endif %}
+    {% for p in range([1, page - 2] | max, [page + 3, total_pages + 1] | min) %}
+      {% if p == page %}
+        <span class="btn btn-sm btn-primary" aria-current="page">{{ p }}</span>
+      {% else %}
+        <a href="?page={{ p }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}&has_recipe={{ has_recipe }}" class="btn btn-sm btn-ghost">{{ p }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if page < total_pages %}
+      <a href="?page={{ page + 1 }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}&has_recipe={{ has_recipe }}" class="btn btn-sm btn-ghost">›</a>
+      <a href="?page={{ total_pages }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}&has_recipe={{ has_recipe }}" class="btn btn-sm btn-ghost">»</a>
+    {% endif %}
+  </div>
+</nav>
+{% endif %}
+
 {% else %}
 <div class="empty-state">
   <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
@@ -92,6 +151,16 @@
   </a>
 </div>
 {% endif %}
+
+{# Column visibility toggle #}
+<div id="column-visibility-panel" style="display:none;position:fixed;z-index:1000;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--card-radius);padding:1rem;box-shadow:var(--shadow-md);min-width:180px;" role="dialog" aria-label="Visibilidad de columnas">
+  <p style="font-weight:600;margin-bottom:.5rem;">Columnas visibles</p>
+  {% for col_id, col_label in [('name','Nombre'), ('sku','SKU'), ('portion','Porción'), ('price','Precio'), ('recipe','Receta'), ('cost','Costo'), ('margin','Margen'), ('marginpct','Margen %'), ('available','Disponible')] %}
+  <label style="display:flex;align-items:center;gap:.5rem;padding:.25rem 0;cursor:pointer;">
+    <input type="checkbox" class="col-toggle" data-col="{{ col_id }}" checked onchange="applyColumnVisibility()"> {{ col_label }}
+  </label>
+  {% endfor %}
+</div>
 
 <script>
 (function() {
@@ -116,6 +185,12 @@
   });
 
   checks.forEach(function(c) { c.addEventListener('change', updateBulkUI); });
+
+  // Show dead product legend if any dead products
+  var deadRows = document.querySelectorAll('.row-dead');
+  if (deadRows.length > 0) {
+    document.getElementById('dead-products-legend').style.display = 'inline-block';
+  }
 })();
 
 function bulkDeleteProducts() {
@@ -131,6 +206,88 @@ function bulkDeleteProducts() {
     extraInputs: '<input type="hidden" name="ids" value="' + ids.join(',') + '">'
   });
 }
+
+function toggleColumnVisibility() {
+  var panel = document.getElementById('column-visibility-panel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  // Position near button
+  var btn = document.querySelector('.table-controls .btn');
+  if (btn) {
+    var rect = btn.getBoundingClientRect();
+    panel.style.top = (rect.bottom + 4) + 'px';
+    panel.style.left = rect.left + 'px';
+  }
+}
+
+function applyColumnVisibility() {
+  var toggles = document.querySelectorAll('.col-toggle');
+  toggles.forEach(function(toggle) {
+    var col = toggle.dataset.col;
+    var visible = toggle.checked;
+    document.querySelectorAll('[data-col="' + col + '"]').forEach(function(el) {
+      el.style.display = visible ? '' : 'none';
+    });
+    document.querySelectorAll('.col-' + col).forEach(function(el) {
+      el.style.display = visible ? '' : 'none';
+    });
+  });
+}
+
+function copyToClipboard(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(function() {
+      // success feedback could go here
+    });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+}
+
+// Close column panel when clicking outside
+document.addEventListener('click', function(e) {
+  var panel = document.getElementById('column-visibility-panel');
+  var btn = document.querySelector('.table-controls .btn');
+  if (panel && panel.style.display !== 'none' && !panel.contains(e.target) && (!btn || !btn.contains(e.target))) {
+    panel.style.display = 'none';
+  }
+});
 </script>
+
+<style>
+.row-dead td { background-color: rgba(245, 158, 11, 0.06); }
+.row-dead:hover td { background-color: rgba(245, 158, 11, 0.12); }
+.col-checkbox { width: 40px; }
+.col-sku { width: 120px; }
+.col-portion { width: 80px; }
+.col-price { width: 100px; }
+.col-recipe { width: 120px; }
+.col-cost { width: 80px; }
+.col-margin { width: 80px; }
+.col-marginpct { width: 70px; }
+.col-available { width: 60px; }
+.col-actions { width: 80px; }
+.sku-field {
+  font-size: 0.8em;
+  background: var(--color-surface-raised);
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1rem;
+  gap: 1rem;
+}
+.pagination-info { color: var(--color-text-muted); font-size: 0.875rem; }
+.pagination-links { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+.table-controls { display: flex; align-items: center; gap: 0.75rem; margin: 0.5rem 0; }
+</style>
 
 {% endblock %}

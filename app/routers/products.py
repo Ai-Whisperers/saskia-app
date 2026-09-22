@@ -5,7 +5,11 @@ Per dev plan §9 Task 4.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+import csv
+import io
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -46,19 +50,38 @@ def products_list(
     has_recipe: str | None = None,
     sort: str | None = Query(None, description="Sort column: name, sale_price_gs, cost_gs, margin_gs"),
     dir: str = Query("asc", pattern="^(asc|desc)$"),
+    page: int = Query(1, ge=1),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """List all products with cost + margin. Batch-loads to avoid N+1.
+    Paginated at 50/page. Dead products (never sold) are flagged.
 
     Optional filter (?q=substring, ?has_recipe=yes/no).
     """
+    PER_PAGE = 50
     stmt = select(Product)
+    count_stmt = select(func.count()).select_from(Product)
+
     if q:
         stmt = stmt.where(func.lower(Product.name).like(f"%{q.lower()}%"))
+        count_stmt = count_stmt.where(func.lower(Product.name).like(f"%{q.lower()}%"))
     if has_recipe == "yes":
         stmt = stmt.where(Product.recipe_id.is_not(None))
+        count_stmt = count_stmt.where(Product.recipe_id.is_not(None))
     elif has_recipe == "no":
         stmt = stmt.where(Product.recipe_id.is_(None))
+        count_stmt = count_stmt.where(Product.recipe_id.is_(None))
+
+    # Count total
+    total = session.scalar(count_stmt) or 0
+    total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
+    page = min(page, total_pages)
+
+    # Fetch product IDs with sales (for dead product detection)
+    sold_product_ids = set(
+        session.scalars(select(Sale.product_id).distinct()).all()
+    )
+
     products = session.scalars(stmt).all()
     # One batch call replaces N+1 cost/margin queries (Neon round-trips).
     batch_results = batch_products_cost_margin(session, list(products))
@@ -75,6 +98,8 @@ def products_list(
             {
                 "id": p.id,
                 "name": p.name,
+                "sku": p.sku,
+                "is_available": p.is_available,
                 "portion_label": p.portion_label,
                 "sale_price_gs": p.sale_price_gs,
                 "recipe_id": p.recipe_id,
@@ -83,16 +108,64 @@ def products_list(
                 "margin_gs": margin[0],
                 "margin_ratio": margin[1],
                 "notes": p.notes,
+                "is_dead": p.id not in sold_product_ids,
             }
         )
+
     # Apply in-memory sort
     if sort and sort in ("name", "sale_price_gs", "cost_gs", "margin_gs"):
         reverse = dir == "desc"
         decorated.sort(key=lambda r: r.get(sort) or 0, reverse=reverse)
+
     return render(request, "productos.html", {
-        "products": decorated, "q": q or "", "has_recipe": has_recipe or "",
-        "sort": sort or "", "dir": dir,
+        "products": decorated,
+        "q": q or "",
+        "has_recipe": has_recipe or "",
+        "sort": sort or "",
+        "dir": dir,
+        "page": page,
+        "total_pages": total_pages,
+        "total": total,
+        "per_page": PER_PAGE,
+        "page_start": (page - 1) * PER_PAGE + 1,
+        "page_end": min(page * PER_PAGE, total),
     })
+
+
+@router.get("/export.csv")
+def products_export_csv(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> Response:
+    """Export all products as a CSV download."""
+    products = session.scalars(select(Product).order_by(Product.name)).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "id", "name", "sku", "is_available", "portion_label",
+        "sale_price_gs", "recipe_id", "cost_gs", "notes",
+    ])
+    for p in products:
+        cost = product_unit_cost_gs(session, p.id)
+        writer.writerow([
+            p.id,
+            p.name,
+            p.sku or "",
+            p.is_available,
+            p.portion_label,
+            p.sale_price_gs,
+            p.recipe_id or "",
+            cost.batch_cost_gs if cost else "",
+            p.notes or "",
+        ])
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=rms-products-{timestamp}.csv"},
+    )
 
 
 @router.get("/nuevo", response_class=HTMLResponse)
@@ -114,6 +187,10 @@ def product_create(
     sale_price_gs: str = Form(...),
     recipe_id: str = Form(""),
     notes: str = Form(""),
+    sku: str = Form(""),
+    is_available: str = Form("on"),
+    image_url: str = Form(""),
+    category: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Create new product."""
@@ -123,6 +200,7 @@ def product_create(
         raise HTTPException(status_code=400, detail=f"Precio inválido: {e}") from e
 
     rid = int(recipe_id) if recipe_id else None
+    available = is_available == "on"
 
     product = Product(
         name=name.strip(),
@@ -130,6 +208,10 @@ def product_create(
         sale_price_gs=price,
         recipe_id=rid,
         notes=notes.strip() or None,
+        sku=sku.strip() or None,
+        is_available=available,
+        image_url=image_url.strip() or None,
+        category=category.strip() or None,
     )
     session.add(product)
     try:
@@ -169,6 +251,10 @@ def product_update(
     sale_price_gs: str = Form(...),
     recipe_id: str = Form(""),
     notes: str = Form(""),
+    sku: str = Form(""),
+    is_available: str = Form("on"),
+    image_url: str = Form(""),
+    category: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Update existing product."""
@@ -182,11 +268,16 @@ def product_update(
         raise HTTPException(status_code=400, detail=f"Precio inválido: {e}") from e
 
     rid = int(recipe_id) if recipe_id else None
+    available = is_available == "on"
     p.name = name.strip()
     p.portion_label = portion_label.strip() or "1 unidad"
     p.sale_price_gs = price
     p.recipe_id = rid
     p.notes = notes.strip() or None
+    p.sku = sku.strip() or None
+    p.is_available = available
+    p.image_url = image_url.strip() or None
+    p.category = category.strip() or None
     try:
         session.commit()
     except IntegrityError:

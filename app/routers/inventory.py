@@ -5,16 +5,20 @@ Per dev plan §9 Task 3.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+import csv
+import io
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
 from app.rms.charts import sparkline
 from app.rms.dependencies import get_session
-from app.rms.models import Ingredient, IngredientPriceEvent, RecipeLine, StockMovement
+from app.rms.models import Ingredient, IngredientPriceEvent, RecipeLine, Recipe, StockMovement
 from app.rms.price_history import price_history, price_stats, record_price_event
 from app.rms.units import Unit
 from app.services.template_render import render
@@ -22,20 +26,73 @@ from app.services.template_render import render
 router = APIRouter(prefix="/inventario", dependencies=[Depends(require_login)])
 
 
+@router.get("/export.csv")
+def inventory_export_csv(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> Response:
+    """Export all ingredients as a CSV download."""
+    ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "id", "name", "unit", "category", "stock_qty", "min_stock_qty",
+        "purchase_price_gs", "opening_stock_qty", "opening_stock_date",
+        "reorder_point", "notes",
+    ])
+    for i in ingredients:
+        writer.writerow([
+            i.id,
+            i.name,
+            i.unit,
+            i.category or "",
+            i.stock_qty,
+            i.min_stock_qty,
+            i.purchase_price_gs or "",
+            i.opening_stock_qty or "",
+            i.opening_stock_date or "",
+            i.reorder_point or "",
+            i.notes or "",
+        ])
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=rms-inventory-{timestamp}.csv"},
+    )
+
+
 @router.get("", response_class=HTMLResponse)
 def inventory_list(
     request: Request,
     sort: str | None = Query(None, description="Sort column: name, stock_qty, unit, min_stock_level, purchase_price_gs"),
     dir: str = Query("asc", pattern="^(asc|desc)$"),
+    page: int = Query(1, ge=1),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    """List all ingredients with stock badge."""
+    """List all ingredients with stock badge. Paginated at 50/page."""
+    PER_PAGE = 50
+
     stmt = select(Ingredient)
+    count_stmt = select(func.count()).select_from(Ingredient)
+
+    # Count total
+    total = session.scalar(count_stmt) or 0
+    total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
+    page = min(page, total_pages)
+
+    # Sorting
     if sort and sort in ("name", "stock_qty", "unit", "min_stock_level", "purchase_price_gs"):
         col = getattr(Ingredient, sort)
         stmt = stmt.order_by(col.desc() if dir == "desc" else col.asc())
     else:
         stmt = stmt.order_by(Ingredient.name)
+
+    # Pagination
+    offset = (page - 1) * PER_PAGE
+    stmt = stmt.offset(offset).limit(PER_PAGE)
     ingredients = session.scalars(stmt).all()
 
     # Phase D — Q1 surface: price-history enrichment per ingredient.
@@ -64,8 +121,55 @@ def inventory_list(
     return render(
         request,
         "inventario.html",
-        {"ingredients": ingredients, "price_info": price_info,
-         "sort": sort or "", "dir": dir},
+        {
+            "ingredients": ingredients,
+            "price_info": price_info,
+            "sort": sort or "",
+            "dir": dir,
+            "page": page,
+            "total_pages": total_pages,
+            "total": total,
+            "per_page": PER_PAGE,
+            "page_start": (page - 1) * PER_PAGE + 1,
+            "page_end": min(page * PER_PAGE, total),
+        },
+    )
+
+
+@router.get("/{ing_id}", response_class=HTMLResponse)
+def inventory_detail(
+    ing_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Show ingredient detail page with 'used in recipes' list."""
+    ing = session.get(Ingredient, ing_id)
+    if ing is None:
+        raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
+
+    # Find all recipes that use this ingredient
+    recipe_lines = session.scalars(
+        select(RecipeLine).where(
+            RecipeLine.line_kind == "ingredient",
+            RecipeLine.line_ref_id == ing_id,
+        )
+    ).all()
+
+    recipes = []
+    for line in recipe_lines:
+        recipe = session.get(Recipe, line.recipe_id)
+        if recipe:
+            recipes.append({
+                "id": recipe.id,
+                "name": recipe.name,
+                "qty": line.qty,
+                "line_unit": line.line_unit,
+            })
+
+    return render(
+        request,
+        "ingrediente_detalle.html",
+        {"ingredient": ing, "recipes": recipes},
     )
 
 
@@ -88,6 +192,10 @@ def inventory_create(
     min_stock_qty: float = Form(0.0),
     purchase_price_gs: str = Form(""),
     notes: str = Form(""),
+    category: str = Form(""),
+    opening_stock_qty: str = Form(""),
+    opening_stock_date: str = Form(""),
+    reorder_point: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Create new ingredient."""
@@ -102,6 +210,10 @@ def inventory_create(
     if min_stock_qty < 0:
         raise HTTPException(status_code=400, detail="Stock mínimo no puede ser negativo")
 
+    opening_qty = float(opening_stock_qty) if opening_stock_qty.strip() else None
+    opening_date = opening_stock_date.strip() or None
+    reorder = float(reorder_point) if reorder_point.strip() else None
+
     ing = Ingredient(
         name=name.strip(),
         unit=unit_enum.value,
@@ -109,6 +221,10 @@ def inventory_create(
         min_stock_qty=min_stock_qty,
         purchase_price_gs=price,
         notes=notes.strip() or None,
+        category=category.strip() or None,
+        opening_stock_qty=opening_qty,
+        opening_stock_date=opening_date,
+        reorder_point=reorder,
     )
     session.add(ing)
     try:
@@ -118,6 +234,23 @@ def inventory_create(
         raise HTTPException(
             status_code=409, detail=f"Ya existe un ingrediente con nombre {name!r}"
         ) from None
+
+    # Record an initial stock movement if opening stock was set
+    if opening_qty is not None and opening_qty != stock_qty:
+        from app.auth import current_user_id
+        user_id = current_user_id(request) or "operator"
+        movement = StockMovement(
+            ingredient_id=ing.id,
+            movement_type="initial",
+            qty=opening_qty,
+            reason="stock inicial",
+            reference_id=None,
+            reference_type=None,
+            recorded_at=datetime.now(timezone.utc),
+            created_by=user_id,
+        )
+        session.add(movement)
+        session.commit()
 
     # Phase B — Q1 core: when an operator creates an ingredient with a price,
     # record the first price event so the history starts populated.
@@ -164,6 +297,10 @@ def inventory_update(
     min_stock_qty: float = Form(0.0),
     purchase_price_gs: str = Form(""),
     notes: str = Form(""),
+    category: str = Form(""),
+    opening_stock_qty: str = Form(""),
+    opening_stock_date: str = Form(""),
+    reorder_point: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Update an existing ingredient."""
@@ -183,6 +320,10 @@ def inventory_update(
     ing.min_stock_qty = min_stock_qty
     ing.purchase_price_gs = price
     ing.notes = notes.strip() or None
+    ing.category = category.strip() or None
+    ing.opening_stock_qty = float(opening_stock_qty) if opening_stock_qty.strip() else None
+    ing.opening_stock_date = opening_stock_date.strip() or None
+    ing.reorder_point = float(reorder_point) if reorder_point.strip() else None
 
     # Phase B — Q1 core: record a price event when the operator changes the
     # price. We always record when the new price is non-null — even if it
@@ -249,11 +390,16 @@ def inventory_adjust(
     request: Request,
     adjustment: float = Form(...),
     reason: str = Form(""),
+    confirm_negative: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Record a stock adjustment (wastage, breakage, count correction).
     Pass positive adjustment to add stock, negative to remove.
     Writes a StockMovement record for auditability.
+
+    If the adjustment would drive stock negative and confirm_negative is not
+    'yes', the request is rejected — the caller must show a confirmation
+    modal first.
     """
     ing = session.get(Ingredient, ing_id)
     if ing is None:
@@ -262,7 +408,14 @@ def inventory_adjust(
     if adjustment == 0:
         return RedirectResponse(url="/inventario", status_code=303)
 
-    from datetime import datetime, timezone
+    # Reject negative resulting stock without explicit confirmation
+    if ing.stock_qty + adjustment < 0 and confirm_negative != "yes":
+        from urllib.parse import urlencode
+        params = urlencode({
+            "flash": f"no_confirm:La operación llevaría stock de {ing.name} a {ing.stock_qty + adjustment:.2f} {ing.unit}. Confirmá haciendo click en Ajustar de nuevo.",
+            "ing_id": ing_id,
+        })
+        return RedirectResponse(url=f"/inventario?{params}", status_code=303)
 
     from app.auth import current_user_id
 

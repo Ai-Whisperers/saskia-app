@@ -12,6 +12,12 @@
   </div>
 
   <div class="form-row">
+    <label for="category">Categoría</label>
+    <input type="text" id="category" name="category" value="{{ ingredient.category if ingredient and ingredient.category else '' }}" placeholder="Ej: Harinas, Lácteos, Aceites">
+    <small class="muted">Opcional. Para agrupar ingredientes en el inventario.</small>
+  </div>
+
+  <div class="form-row">
     <label for="unit">Unidad</label>
     <select id="unit" name="unit" required>
       {% for u in units %}
@@ -27,8 +33,32 @@
   </div>
 
   <div class="form-row">
+    <label for="opening_stock_qty">Stock de apertura</label>
+    <input type="number" id="opening_stock_qty" name="opening_stock_qty" step="0.01" min="0"
+           value="{{ "%.2f"|format(ingredient.opening_stock_qty) if ingredient and ingredient.opening_stock_qty is not none else '' }}"
+           placeholder="Stock inicial cuando se empezó a usar el sistema">
+    <small>El stock inicial cuando se cargó este ingrediente por primera vez.</small>
+  </div>
+
+  <div class="form-row">
+    <label for="opening_stock_date">Fecha de apertura</label>
+    <input type="date" id="opening_stock_date" name="opening_stock_date"
+           value="{{ ingredient.opening_stock_date if ingredient and ingredient.opening_stock_date else '' }}"
+           placeholder="YYYY-MM-DD">
+    <small>Fecha en que se registró el stock de apertura.</small>
+  </div>
+
+  <div class="form-row">
     <label for="min_stock_qty">Stock mínimo (para alertas)</label>
     <input type="number" id="min_stock_qty" name="min_stock_qty" required step="0.01" min="0" value="{{ "%.2f"|format(ingredient.min_stock_qty) if ingredient else '0' }}">
+  </div>
+
+  <div class="form-row">
+    <label for="reorder_point">Punto de reorden (override)</label>
+    <input type="number" id="reorder_point" name="reorder_point" step="0.01" min="0"
+           value="{{ "%.2f"|format(ingredient.reorder_point) if ingredient and ingredient.reorder_point is not none else '' }}"
+           placeholder="Si dejás vacío, se usa el stock mínimo">
+    <small>Si lo configurás, el sistema usa este valor en lugar del stock mínimo para las sugerencias de reorden.</small>
   </div>
 
   <div class="form-row">

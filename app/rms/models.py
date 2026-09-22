@@ -82,6 +82,13 @@ class Ingredient(Base):
     allergens: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     dietary_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     lead_time_days: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
+    supplier_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("supplier.id"), nullable=True, index=True
+    )
+    # Audit items 109, 110: opening stock with date + reorder point override
+    opening_stock_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    opening_stock_date: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # ISO date string
+    reorder_point: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # overrides min_stock_qty for reorder
 
     # Relationships
     # NOTE: `recipe_lines` (the reverse of RecipeLine.ingredient) is NOT defined here
@@ -90,6 +97,7 @@ class Ingredient(Base):
     # or query RecipeLine directly: SELECT FROM recipe_line WHERE line_kind='ingredient'
     # AND line_ref_id = :id. Helper functions live in costing.py.
     stock_moves: Mapped[list["SaleStockMove"]] = relationship(back_populates="ingredient")
+    supplier: Mapped[Optional["Supplier"]] = relationship(back_populates="ingredients")
 
     __table_args__ = (
         CheckConstraint("unit IN ('g', 'kg', 'ml', 'l', 'und')", name="ck_ingredient_unit"),
@@ -113,6 +121,10 @@ class Recipe(Base):
     yield_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     yield_unit: Mapped[str] = mapped_column(String(16), nullable=False, default="und")
     prep_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    cook_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    difficulty: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # 1-5 scale
+    family: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # category
+    dietary_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # comma-separated
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships
@@ -521,6 +533,33 @@ class ProductionCompletion(Base):
     product: Mapped["Product"] = relationship("Product")
 
 
+class Supplier(Base):
+    """A supplier / proveed for ingredients (audit item 284).
+
+    Stores contact info so reorder suggestions can surface the supplier
+    and generate WhatsApp pre-fill links for placing orders.
+    """
+
+    __tablename__ = "supplier"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    contact_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+    # Relationships
+    ingredients: Mapped[list["Ingredient"]] = relationship(back_populates="supplier")
+
+    __table_args__ = (
+        Index("ix_supplier_name", "name"),
+    )
+
+
 class WasteLog(Base):
     """A waste event (E22).
 
@@ -615,6 +654,7 @@ class Pedido(Base):
     fulfilled_sale_id: Mapped[int | None] = mapped_column(
         ForeignKey("sale.id"), nullable=True, index=True
     )
+    cancel_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
     lines: Mapped[list["PedidoLine"]] = relationship(
@@ -753,4 +793,5 @@ __all__ = [
     "Pedido",
     "PedidoLine",
     "StockMovement",
+    "Supplier",
 ]

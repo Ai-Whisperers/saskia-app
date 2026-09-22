@@ -793,6 +793,120 @@ def _migration_022_user_roles(conn):
     )
 
 
+def _migration_023_supplier(conn):
+    """Create supplier table + add supplier_id to ingredient (audit items 250, 284).
+
+    Supplier: name, contact_name, phone, email, address, notes, is_active.
+    Ingredient.supplier_id: FK to supplier.id (optional, nullable).
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+
+    # Supplier table
+    if dialect == "postgresql":
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS supplier ("
+                "id SERIAL PRIMARY KEY, "
+                "name VARCHAR(120) NOT NULL, "
+                "contact_name VARCHAR(120), "
+                "phone VARCHAR(32), "
+                "email VARCHAR(120), "
+                "address TEXT, "
+                "notes TEXT, "
+                "is_active BOOLEAN NOT NULL DEFAULT TRUE, "
+                "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
+                ")"
+            )
+        )
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_supplier_name ON supplier (name)"))
+    else:
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS supplier ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "name VARCHAR(120) NOT NULL, "
+                "contact_name VARCHAR(120), "
+                "phone VARCHAR(32), "
+                "email VARCHAR(120), "
+                "address TEXT, "
+                "notes TEXT, "
+                "is_active INTEGER NOT NULL DEFAULT 1, "
+                "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
+                ")"
+            )
+        )
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_supplier_name ON supplier (name)"))
+
+    # Ingredient.supplier_id
+    try:
+        if dialect == "postgresql":
+            conn.execute(
+                text("ALTER TABLE ingredient ADD COLUMN supplier_id INTEGER REFERENCES supplier(id)")
+            )
+        else:
+            conn.execute(
+                text("ALTER TABLE ingredient ADD COLUMN supplier_id INTEGER REFERENCES supplier(id)")
+            )
+    except Exception:
+        pass  # already exists
+
+    conn.execute(
+        text("UPDATE app_meta SET value = '23', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
+def _migration_024_recipe_intel_extended(conn):
+    """Add recipe cook_minutes, difficulty, family, dietary_tags (audit items 122, 124).
+
+    prep_minutes already exists from migration 003.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    cols = [
+        ("cook_minutes", "INTEGER"),
+        ("difficulty", "INTEGER"),
+        ("family", "VARCHAR(32)"),
+        ("dietary_tags", "TEXT"),
+    ]
+    for col_name, col_type in cols:
+        try:
+            conn.execute(text(f"ALTER TABLE recipe ADD COLUMN {col_name} {col_type}"))
+        except Exception:
+            pass  # already exists
+
+    conn.execute(
+        text("UPDATE app_meta SET value = '24', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
+def _migration_025_ingredient_opening_stock_reorder_point(conn):
+    """Add opening_stock_qty, opening_stock_date, reorder_point to Ingredient.
+
+    opening_stock: the initial stock when the ingredient was first loaded.
+    reorder_point: override of min_stock_qty for more fine-grained reorder control.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    cols = [
+        ("opening_stock_qty", "FLOAT"),
+        ("opening_stock_date", "DATE"),
+        ("reorder_point", "FLOAT"),
+    ]
+    for col_name, col_type in cols:
+        try:
+            if dialect == "postgresql":
+                conn.execute(text(f"ALTER TABLE ingredient ADD COLUMN {col_name} {col_type}"))
+            else:
+                conn.execute(text(f"ALTER TABLE ingredient ADD COLUMN {col_name} {col_type}"))
+        except Exception:
+            pass  # already exists
+
+    conn.execute(
+        text("UPDATE app_meta SET value = '25', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -816,6 +930,9 @@ MIGRATIONS = {
     20: _migration_020_sale_date_voided_index,
     21: _migration_021_stock_movement,
     22: _migration_022_user_roles,
+    23: _migration_023_supplier,
+    24: _migration_024_recipe_intel_extended,
+    25: _migration_025_ingredient_opening_stock_reorder_point,
 }
 
 
