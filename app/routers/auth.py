@@ -103,7 +103,7 @@ def _login_supabase(
 
     client = get_supabase_client()
     session_data = client.auth.sign_in_with_password(
-        {"username": email, "password": password}
+        {"email": email, "password": password}
     )
     if session_data is None:
         return RedirectResponse(
