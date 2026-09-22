@@ -189,6 +189,26 @@ dialog.modal{border:none;padding:0;background:transparent;max-width:500px;width:
 .voided-banner strong {font-size:var(--text-xl);letter-spacing:0.05em;}
 .voided-banner span {font-size:var(--text-sm);font-weight:400;opacity:0.85;}
 
+/* Voided sales row: distinct style beyond opacity */
+tr.is-voided > td {
+  position: relative;
+}
+tr.is-voided > td:first-child::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  border-top: 2px solid var(--color-danger);
+  opacity: 0.6;
+}
+tr.is-voided > td {
+  opacity: 0.5;
+}
+tr.is-voided {
+  background: var(--color-danger-soft, #fef2f2);
+}
+
 /* Print receipt: hide URL and topnav */
 @media print {
   .topnav,.nav-right,.nav-toggle-label,.skip-link,.no-print {display:none !important;}

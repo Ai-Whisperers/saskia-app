@@ -42,6 +42,7 @@ def _decorated(s: Sale) -> dict:
         "total_gs": int(round(s.qty * s.unit_price_gs)),
         "notes": s.notes,
         "voided_at": s.voided_at,
+        "voided_at_str": s.voided_at.strftime("%d/%m/%Y %H:%M") if s.voided_at else None,
         "customer_phone": s.customer.phone if s.customer else None,
         "customer_name": s.customer.name if s.customer else None,
         "payment_method": s.payment_method,
@@ -196,6 +197,9 @@ async def sales_list(
             "has_more": has_more,
             "current_offset": start_offset,
             "current_page_size": PAGE_SIZE,
+            "page_start": start_offset + 1,
+            "page_end": min(start_offset + PAGE_SIZE, total_count),
+            "total_count": total_count,
         },
     )
 

@@ -193,8 +193,12 @@
   </thead>
   <tbody>
     {% for s in sales %}
-    <tr {% if s.voided_at %}style="opacity: 0.5; text-decoration: line-through;"{% endif %}>
-      <td>{{ s.sold_at_str }}</td>
+    <tr {% if s.voided_at %}class="is-voided"{% endif %}>
+      <td>
+        <a href="/ventas/{{ s.id }}/recibo" target="_blank" rel="noopener" title="Imprimir recibo" data-copy="{{ s.id }}">
+          {{ s.sold_at_str }}
+        </a>
+      </td>
       <td>{{ s.product_name }}</td>
       <td class="num">{{ "%.2f"|format(s.qty) }}</td>
       <td class="num">{{ m.gs(s.unit_price_gs) }}</td>
@@ -233,6 +237,11 @@
     {% endfor %}
   </tbody>
 </table>
+{% if total_count > 0 %}
+<div class="table-info">
+  <span>Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ total_count }}</strong> ventas</span>
+</div>
+{% endif %}
 
 {% if has_more %}
 <div style="text-align:center; margin: var(--space-4) 0;">

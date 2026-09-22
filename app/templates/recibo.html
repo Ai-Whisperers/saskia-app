@@ -14,7 +14,7 @@
   <div class="voided-banner" role="alert" aria-label="Recibo anulado">
     <svg class="icon" aria-hidden="true" style="width:2em;height:2em"><use href="#icon-x"/></svg>
     <strong>ANULADO</strong>
-    <span>Venta anulada el {{ sale.voided_at.strftime('%d/%m/%Y %H:%M') }}</span>
+    <span>Venta anulada{% if sale.voided_at_str %} el {{ sale.voided_at_str }}{% endif %}</span>
   </div>
   {% endif %}
 
