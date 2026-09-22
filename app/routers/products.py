@@ -10,8 +10,8 @@ import io
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, Response
-from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import func, select
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -23,6 +23,50 @@ from app.rms.money import parse_gs
 from app.services.template_render import render
 
 router = APIRouter(prefix="/productos", dependencies=[Depends(require_login)])
+
+
+@router.get("/api/search", response_class=JSONResponse)
+def products_api_search(
+    q: str = Query("", description="Search query"),
+    limit: int = Query(50, ge=1, le=200),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Search products by name/portion/sku for combobox pickers.
+
+    Used by /pedidos/nuevo and /merma to filter a list of 30+ products
+    quickly without scrolling a native <select>. Returns up to `limit`
+    matching products ordered by name.
+    """
+    if not q or q.strip() == "":
+        # No query: return all available (most-used come first).
+        rows = session.scalars(
+            select(Product).order_by(Product.name).limit(limit)
+        ).all()
+    else:
+        like = f"%{q.strip().lower()}%"
+        rows = session.scalars(
+            select(Product)
+            .where(
+                or_(
+                    func.lower(Product.name).like(like),
+                    func.lower(func.coalesce(Product.portion_label, "")).like(like),
+                    func.coalesce(Product.sku, "").ilike(q.strip()),
+                )
+            )
+            .order_by(Product.name)
+            .limit(limit)
+        ).all()
+    payload = [
+        {
+            "id": p.id,
+            "name": p.name,
+            "portion_label": p.portion_label or "",
+            "sale_price_gs": p.sale_price_gs,
+            "sku": p.sku or "",
+        }
+        for p in rows
+    ]
+    return JSONResponse({"results": payload, "count": len(payload)})
 
 
 def _decorate(session: Session, p: Product) -> dict:

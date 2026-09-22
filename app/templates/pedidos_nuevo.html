@@ -9,30 +9,50 @@
   Nuevo pedido
 </h1>
 
-<form method="post" action="/pedidos/nuevo" id="pedido-form">
+<form method="post" action="/pedidos/nuevo" id="pedido-form" novalidate>
+  {# ── Cliente (combobox) ─────────────────────────────────────────
+     Single field that:
+     - type-ahead filters existing customers (live API search)
+     - selecting a result sets the hidden customer_id AND autofills phone
+     - typing a free-form name creates a "new" customer at submit time
+     - works without JS (POSTs both customer_name + customer_id)
+  #}
   <div class="form-row">
-    <label for="customer_name">Cliente (nombre)</label>
-    <input type="text" id="customer_name" name="customer_name"
-           list="customer-suggestions" autocomplete="off"
-           placeholder="María González">
-    <datalist id="customer-suggestions"></datalist>
-    <small>Escribí para buscar clientes existentes. También podés asociar el ID abajo.</small>
+    <label for="customer_picker_input">Cliente</label>
+    <input type="text"
+           id="customer_picker_input"
+           name="customer_name"
+           class="customer-combobox-input"
+           placeholder="María González — escribí para buscar"
+           autocomplete="off">
+    <input type="hidden" id="customer_id" name="customer_id" value="">
+    <input type="hidden" id="customer_picker_phone_snapshot" value="">
+    <div id="customer_picker_results"
+         class="customer-combobox-results"
+         role="listbox"
+         aria-label="Coincidencias de clientes"
+         hidden></div>
+    <small class="hint">
+      Escribí 2+ letras para buscar clientes existentes. Si no aparece, simplemente seguí escribiendo — se crea al guardar.
+    </small>
   </div>
 
-  <div class="form-row">
-    <label for="customer_id">Cliente existente (opcional)</label>
-    <select id="customer_id" name="customer_id">
-      <option value="">— Cliente nuevo o desconocido —</option>
-      {% for c in customers %}
-      <option value="{{ c.id }}">{{ c.name }}{% if c.phone %} — {{ c.phone }}{% endif %}</option>
-      {% endfor %}
-    </select>
-  </div>
-
-  <div class="form-row">
-    <label for="customer_phone">Teléfono</label>
-    <input type="text" id="customer_phone" name="customer_phone"
-           placeholder="+595 9XX XXXXX" autocomplete="off">
+  <div class="grid grid-2">
+    <div class="form-row">
+      <label for="customer_phone">Teléfono (opcional)</label>
+      <input type="tel"
+             id="customer_phone"
+             name="customer_phone"
+             class="customer-combobox-phone"
+             placeholder="+595 9XX XXXXX"
+             autocomplete="off">
+    </div>
+    <div class="form-row">
+      <label for="customer_picked_hint">Cliente seleccionado</label>
+      <div id="customer_picked_hint" class="customer-picked-hint" data-empty="true">
+        <em class="muted">Ninguno — se crea al guardar</em>
+      </div>
+    </div>
   </div>
 
   <div class="grid grid-2">
@@ -90,12 +110,14 @@
     <tbody id="lines-body">
       <tr class="line-row">
         <td>
-          <select name="line_product_id" required>
-            <option value="">— Seleccionar producto —</option>
-            {% for p in products %}
-            <option value="{{ p.id }}" data-price="{{ p.sale_price_gs }}">{{ p.name }} ({{ m.gs(p.sale_price_gs) }})</option>
-            {% endfor %}
-          </select>
+          <div class="product-combobox">
+            <input type="text"
+                   class="product-combobox-input"
+                   placeholder="Escribí para buscar (muffin, factura, pan…)"
+                   autocomplete="off">
+            <input type="hidden" name="line_product_id" value="">
+            <div class="product-combobox-results" role="listbox" hidden></div>
+          </div>
         </td>
         <td class="num">
           <input type="number" name="line_qty" min="0.01" step="0.01" value="1" required>
@@ -116,7 +138,7 @@
   </button>
 
   <div class="form-actions mt-4">
-    <button type="submit" class="btn btn-primary">
+    <button type="submit" class="btn btn-primary" id="submit-btn">
       <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
       Crear pedido
     </button>
@@ -127,12 +149,14 @@
 <template id="line-row-template">
   <tr class="line-row">
     <td>
-      <select name="line_product_id" required>
-        <option value="">— Seleccionar producto —</option>
-        {% for p in products %}
-        <option value="{{ p.id }}" data-price="{{ p.sale_price_gs }}">{{ p.name }} ({{ m.gs(p.sale_price_gs) }})</option>
-        {% endfor %}
-      </select>
+      <div class="product-combobox">
+        <input type="text"
+               class="product-combobox-input"
+               placeholder="Escribí para buscar…"
+               autocomplete="off">
+        <input type="hidden" name="line_product_id" value="">
+        <div class="product-combobox-results" role="listbox" hidden></div>
+      </div>
     </td>
     <td class="num">
       <input type="number" name="line_qty" min="0.01" step="0.01" value="1" required>
@@ -146,85 +170,117 @@
   </tr>
 </template>
 
-<script>
-(function() {
-  // --- Line add / auto-price ---
-  var addBtn = document.getElementById("add-line-btn");
-  var tmpl = document.getElementById("line-row-template");
-  var body = document.getElementById("lines-body");
-  if (!addBtn || !tmpl || !body) return;
-  addBtn.addEventListener("click", function() {
-    var clone = tmpl.content.cloneNode(true);
-    body.appendChild(clone);
-  });
-  // Auto-fill price from product on change
-  body.addEventListener("change", function(e) {
-    if (e.target && e.target.tagName === "SELECT" && e.target.name === "line_product_id") {
-      var row = e.target.closest("tr");
-      if (!row) return;
-      var opt = e.target.options[e.target.selectedIndex];
-      var priceInput = row.querySelector('input[name="line_unit_price_gs"], input[name="line_unit_price_gs"]');
-      if (priceInput && opt && opt.dataset.price) {
-        priceInput.value = opt.dataset.price;
-      }
-    }
-  });
-
-  // --- Customer autocomplete ---
-  var customerInput = document.getElementById("customer_name");
-  var suggestions = document.getElementById("customer-suggestions");
-  var phoneInput = document.getElementById("customer_phone");
-  var customerSelect = document.getElementById("customer_id");
-  if (customerInput && suggestions) {
-    var lastQuery = "";
-    var debounceTimer = null;
-    customerInput.addEventListener("input", function() {
-      var q = customerInput.value.trim();
-      if (q.length < 2) { suggestions.innerHTML = ""; return; }
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(function() {
-        fetch("/customers/api/search?q=" + encodeURIComponent(q))
-          .then(function(r) { return r.json(); })
-          .then(function(data) {
-            suggestions.innerHTML = "";
-            (data.results || []).forEach(function(c) {
-              var opt = document.createElement("option");
-              opt.value = c.name;
-              opt.dataset.phone = c.phone || "";
-              opt.dataset.id = c.id || "";
-              suggestions.appendChild(opt);
-            });
-          })
-          .catch(function() {});
-      }, 300);
-    });
-    // Fill phone when a suggestion is selected
-    customerInput.addEventListener("change", function() {
-      var opts = Array.from(suggestions.options);
-      var sel = opts.find(function(o) { return o.value === customerInput.value; });
-      if (sel && phoneInput) {
-        phoneInput.value = sel.dataset.phone || "";
-      }
-      if (sel && customerSelect) {
-        customerSelect.value = sel.dataset.id || "";
-      }
-    });
+<style>
+  /* Customer combobox */
+  .customer-combobox-input { position: relative; }
+  .customer-combobox-results {
+    position: absolute;
+    z-index: 50;
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    max-height: 240px;
+    overflow-y: auto;
+    margin-top: 2px;
+    width: 100%;
+    max-width: 540px;
   }
-})();
-
-function removeLine(btn) {
-  var row = btn.closest("tr");
-  if (!row) return;
-  var body = document.getElementById("lines-body");
-  if (body && body.querySelectorAll(".line-row").length > 1) {
-    row.remove();
-  } else {
-    // Last row — clear instead of removing.
-    row.querySelector('select[name="line_product_id"]').value = "";
-    row.querySelector('input[name="line_qty"]').value = "1";
-    row.querySelector('input[name="line_unit_price_gs"]').value = "0";
+  .customer-combobox-result {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-2) var(--space-3);
+    cursor: pointer;
+    border-bottom: 1px solid var(--color-border);
   }
-}
-</script>
+  .customer-combobox-result:last-child { border-bottom: 0; }
+  .customer-combobox-result:hover,
+  .customer-combobox-result.is-active {
+    background: var(--color-accent-soft);
+  }
+  .customer-combobox-result-main {
+    font-weight: 500;
+    color: var(--color-text);
+  }
+  .customer-combobox-result-sub {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+  .customer-combobox-result-stats {
+    color: var(--color-accent);
+    font-size: var(--text-xs);
+    font-weight: 600;
+  }
+  .customer-picked-hint {
+    background: var(--color-surface-subtle);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius);
+    border-left: 3px solid var(--color-accent);
+    font-size: var(--text-sm);
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+  }
+  .customer-picked-hint[data-empty="true"] {
+    border-left-color: var(--color-text-subtle);
+  }
 
+  /* Product combobox */
+  .product-combobox { position: relative; }
+  .product-combobox-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    max-height: 280px;
+    overflow-y: auto;
+  }
+  .product-combobox-result {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    cursor: pointer;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .product-combobox-result:last-child { border-bottom: 0; }
+  .product-combobox-result:hover,
+  .product-combobox-result.is-active {
+    background: var(--color-accent-soft);
+  }
+  .product-combobox-result .pname {
+    font-weight: 500;
+    flex: 1;
+    min-width: 0;
+  }
+  .product-combobox-result .pprice {
+    color: var(--color-accent);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .product-combobox-result .portion {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+  .product-combobox-input.is-selected {
+    font-weight: 500;
+    background: var(--color-success-soft);
+    color: var(--color-success-fg);
+  }
+  .empty-search {
+    padding: var(--space-3);
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+</style>
+
+<script src="/static/pedido-combos.js" defer></script>
 {% endblock %}
