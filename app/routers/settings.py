@@ -131,23 +131,23 @@ def save_fiscal_settings(
         ("punto_expedicion", punto_expedicion),
         ("invoice_sequence", invoice_sequence),
     ]
-    
+    now_iso = datetime.now(timezone.utc).isoformat()
     for key, value in settings:
         existing = session.scalar(select(AppMeta).where(AppMeta.key == key))
         if existing:
             old_value = existing.value
             existing.value = value
-            existing.updated_at = "now"
-            
+            existing.updated_at = now_iso
+
             # Audit change
-            audit_record(session, user_id=user_id, action="settings.change", 
+            audit_record(session, user_id=user_id, action="settings.change",
                         detail={"setting": key, "old_value": old_value, "new_value": value})
         else:
-            new = AppMeta(key=key, value=value, updated_at="now")
+            new = AppMeta(key=key, value=value, updated_at=now_iso)
             session.add(new)
-            audit_record(session, user_id=user_id, action="settings.create", 
+            audit_record(session, user_id=user_id, action="settings.create",
                         detail={"setting": key, "value": value})
-    
+
     session.commit()
     return RedirectResponse(url="/settings?flash=Configuración+fiscal+guardada", status_code=303)
 
@@ -163,25 +163,26 @@ def save_theme_settings(
     from app.auth import current_user_id
 
     user_id = current_user_id(request)
-    
+
     # Validate theme
     if theme not in ["light", "dark", "system"]:
-        raise HTTPException(status_code=422, detail="Invalid theme value")
-    
+        raise HTTPException(status_code=400, detail="Tema inválido. Opciones: light, dark, system.")
+
     # Save theme preference
     existing = session.scalar(select(AppMeta).where(AppMeta.key == "theme"))
+    now_iso = datetime.now(timezone.utc).isoformat()
     if existing:
         old_value = existing.value
         existing.value = theme
-        existing.updated_at = "now"
-        audit_record(session, user_id=user_id, action="settings.change", 
+        existing.updated_at = now_iso
+        audit_record(session, user_id=user_id, action="settings.change",
                     detail={"setting": "theme", "old_value": old_value, "new_value": theme})
     else:
-        new = AppMeta(key="theme", value=theme, updated_at="now")
+        new = AppMeta(key="theme", value=theme, updated_at=now_iso)
         session.add(new)
-        audit_record(session, user_id=user_id, action="settings.create", 
+        audit_record(session, user_id=user_id, action="settings.create",
                     detail={"setting": "theme", "value": theme})
-    
+
     session.commit()
     return RedirectResponse(url=f"/settings?flash=Tema+{theme}+guardado", status_code=303)
 

@@ -8,12 +8,12 @@
 <form method="post" action="/inventario{{ '/nuevo' if mode == 'new' else '/' ~ ingredient.id ~ '/editar' }}">
   <div class="form-row">
     <label for="name">Nombre</label>
-    <input type="text" id="name" name="name" required value="{{ ingredient.name if ingredient else '' }}" placeholder="Ej: Harina de trigo">
+    <input type="text" id="name" name="name" required maxlength="120" value="{{ ingredient.name if ingredient else '' }}" placeholder="Ej: Harina de trigo">
   </div>
 
   <div class="form-row">
     <label for="category">Categoría</label>
-    <input type="text" id="category" name="category" value="{{ ingredient.category if ingredient and ingredient.category else '' }}" placeholder="Ej: Harinas, Lácteos, Aceites">
+    <input type="text" id="category" name="category" maxlength="32" value="{{ ingredient.category if ingredient and ingredient.category else '' }}" placeholder="Ej: Harinas, Lácteos, Aceites">
     <small class="muted">Opcional. Para agrupar ingredientes en el inventario.</small>
   </div>
 

@@ -59,7 +59,7 @@
 <form method="post" action="/recetas{{ '/nueva' if mode == 'new' else '/' ~ recipe.id ~ '/editar' }}">
   <div class="form-row">
     <label for="name">Nombre</label>
-    <input type="text" id="name" name="name" required value="{{ recipe.name if recipe else '' }}" placeholder="Ej: Muffin de chocolate">
+    <input type="text" id="name" name="name" required maxlength="120" value="{{ recipe.name if recipe else '' }}" placeholder="Ej: Muffin de chocolate">
   </div>
 
   <div class="grid grid-3" style="gap:var(--space-3);">
@@ -79,24 +79,24 @@
 
     <div class="form-row">
       <label for="family">Familia / Categoría</label>
-      <input type="text" id="family" name="family" value="{{ recipe.family if recipe and recipe.family else '' }}" placeholder="Ej: Panadería, Pastelería">
+      <input type="text" id="family" name="family" maxlength="60" value="{{ recipe.family if recipe and recipe.family else '' }}" placeholder="Ej: Panadería, Pastelería">
     </div>
   </div>
 
   <div class="grid grid-3" style="gap:var(--space-3);">
     <div class="form-row">
       <label for="prep_minutes">Tiempo de prep (min)</label>
-      <input type="number" id="prep_minutes" name="prep_minutes" min="0" value="{{ recipe.prep_minutes if recipe and recipe.prep_minutes is not none else '' }}" placeholder="Ej: 15">
+      <input type="number" id="prep_minutes" name="prep_minutes" min="0" max="1440" value="{{ recipe.prep_minutes if recipe and recipe.prep_minutes is not none else '' }}" placeholder="Ej: 15">
     </div>
 
     <div class="form-row">
       <label for="cook_minutes">Tiempo de cocción (min)</label>
-      <input type="number" id="cook_minutes" name="cook_minutes" min="0" value="{{ recipe.cook_minutes if recipe and recipe.cook_minutes is not none else '' }}" placeholder="Ej: 30">
+      <input type="number" id="cook_minutes" name="cook_minutes" min="0" max="1440" value="{{ recipe.cook_minutes if recipe and recipe.cook_minutes is not none else '' }}" placeholder="Ej: 30">
     </div>
 
     <div class="form-row">
       <label for="dietary_tags">Etiquetas dietarias</label>
-      <input type="text" id="dietary_tags" name="dietary_tags" value="{{ recipe.dietary_tags if recipe and recipe.dietary_tags else '' }}" placeholder="Ej: sin gluten, vegana">
+      <input type="text" id="dietary_tags" name="dietary_tags" maxlength="200" value="{{ recipe.dietary_tags if recipe and recipe.dietary_tags else '' }}" placeholder="Ej: sin gluten, vegana">
     </div>
   </div>
 

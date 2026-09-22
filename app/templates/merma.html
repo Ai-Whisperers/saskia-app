@@ -55,7 +55,7 @@
     </div>
     <div class="form-row">
       <label for="batch_qty">Cantidad de lotes perdidos</label>
-      <input type="number" id="batch_qty" name="batch_qty" required step="0.01" min="0.01" value="1">
+      <input type="number" id="batch_qty" name="batch_qty" required step="0.01" min="0.01" max="999" value="1">
       <small class="text-muted">1 = un lote entero; 0.5 = media tanda.</small>
     </div>
     <div class="form-row">
@@ -101,7 +101,7 @@
     </div>
     <div class="form-row">
       <label for="qty">Cantidad</label>
-      <input type="number" id="qty" name="qty" required step="0.01" min="0.01" value="1">
+      <input type="number" id="qty" name="qty" required step="0.01" min="0.01" max="9999" value="1">
       <select id="qty_unit" name="qty_unit" required aria-label="Unidad de la cantidad"
               data-default-for-unit='{"kg":"g","l":"ml"}'>
         {% for u in available_units %}
