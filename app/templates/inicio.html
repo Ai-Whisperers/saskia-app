@@ -185,7 +185,7 @@
 {% if insights.production_tomorrow %}
 <h3>
   <svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>
-  Producción de mañana
+  Produção de mañana
 </h3>
 <table class="table is-hoverable">
   <thead><tr><th>Producto</th><th class="num">Cantidad</th><th class="num">Batches</th><th>Motivo</th></tr></thead>
@@ -200,6 +200,223 @@
     {% endfor %}
   </tbody>
 </table>
+{% endif %}
+
+{# Top 5 products by margin (computed by dashboard.py:top_margin_products) #}
+{% if top_margin %}
+<section class="card mt-4">
+  <div class="card-header">
+    <h2>
+      <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
+      Productos más rentables (últimos 30 días)
+    </h2>
+    <small class="text-muted">Ordenados por ganancia absoluta</small>
+  </div>
+  <table class="table is-hoverable is-striped">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="num">Cantidad vendida</th>
+        <th class="num">Ventas (Gs.)</th>
+        <th class="num">Margen (Gs.)</th>
+        <th class="num">Margen %</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in top_margin %}
+      <tr>
+        <td><a href="/productos/{{ p.product_id }}/editar">{{ p.product_name }}</a></td>
+        <td class="num">{{ "%.1f"|format(p.qty) }}</td>
+        <td class="num">{{ m.gs(p.ventas_gs) }}</td>
+        <td class="num"><strong>{{ m.gs(p.margin_gs) }}</strong></td>
+        <td class="num">
+          {% set pct = p.margin_pct * 100 %}
+          <span class="badge {% if pct >= 50 %}badge-ok{% elif pct >= 25 %}badge-warn{% else %}badge-danger{% endif %}">
+            {{ "%.0f"|format(pct) }}%
+          </span>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{# Margin erosion alerts (dashboard.py:margin_erosion_alerts) #}
+{% if erosion_alerts %}
+<section class="card mt-4">
+  <div class="card-header">
+    <h2>
+      <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+      Alerta: margen cayendo
+    </h2>
+    <small class="text-muted">Productos cuyo margen cayó por suba de precio de ingredientes</small>
+  </div>
+  <table class="table is-hoverable">
+    <thead>
+      <tr><th>Producto</th><th>Ingrediente</th><th class="num">Precio viejo</th><th class="num">Precio nuevo</th><th class="num">Δ Margen</th></tr>
+    </thead>
+    <tbody>
+      {% for a in erosion_alerts %}
+      <tr>
+        <td><a href="/productos/{{ a.product_id }}/editar">{{ a.product_name }}</a></td>
+        <td>{{ a.ingredient_name }}</td>
+        <td class="num">
+          {% if a.old_price_gs %}{{ m.gs(a.old_price_gs) }}{% else %}—{% endif %}
+        </td>
+        <td class="num">
+          {% if a.new_price_gs %}{{ m.gs(a.new_price_gs) }}{% else %}—{% endif %}
+        </td>
+        <td class="num">
+          {% if a.margin_delta_pct %}
+            <span class="badge badge-danger">↓ {{ "%.0f"|format(a.margin_delta_pct) }}%</span>
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{# Ingredient concentration (dashboard.py:ingredient_concentration)
+   - "X% of your food cost goes to these ingredients" #}
+{% if concentration %}
+<section class="card mt-4">
+  <div class="card-header">
+    <h2>
+      <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
+      Costo concentrado en pocos ingredientes
+    </h2>
+    <small class="text-muted">Últimos 90 días · donde se va tu plata</small>
+  </div>
+  <div class="card-body">
+    {% set top_share = concentration[0].share_pct if concentration else 0 %}
+    <p>
+      {% if concentration %}
+        Los <strong>5 ingredientes más usados</strong> representan
+        <strong>{{ "%.0f"|format(top_share * 100) }}%</strong> del costo total
+        (90 días). Si alguno sube de precio, no tenés dónde compensar.
+      {% endif %}
+    </p>
+    <table class="table is-striped">
+      <thead><tr><th>Ingrediente</th><th class="num">Costo anualizado (Gs.)</th><th class="num">% del total</th></tr></thead>
+      <tbody>
+        {% for c in concentration %}
+        <tr>
+          <td>{{ c.ingredient_name }}</td>
+          <td class="num">{{ m.gs(c.annual_cost_gs) }}</td>
+          <td class="num">{{ "%.1f"|format(c.share_pct * 100) }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+{# Day-of-week heatmap (dashboard.py:day_of_week_heatmap)
+   - Avg sales per weekday, 90 days, helps staffing + production planning #}
+{% if dow_buckets %}
+<section class="card mt-4">
+  <div class="card-header">
+    <h2>
+      <svg class="icon" aria-hidden="true"><use href="#icon-chart"/></svg>
+      Promedio de ventas por día de la semana
+    </h2>
+    <small class="text-muted">Últimos 90 días · para planificar producción</small>
+  </div>
+  <table class="table">
+    <thead><tr><th>Día</th><th class="num">Ventas promedio (Gs.)</th><th class="num">Pedidos</th></tr></thead>
+    <tbody>
+      {% for d in dow_buckets %}
+      <tr>
+        <td>
+          {% if d.weekday == 0 %}Lunes
+          {% elif d.weekday == 1 %}Martes
+          {% elif d.weekday == 2 %}Miércoles
+          {% elif d.weekday == 3 %}Jueves
+          {% elif d.weekday == 4 %}Viernes
+          {% elif d.weekday == 5 %}Sábado
+          {% else %}Domingo
+          {% endif %}
+        </td>
+        <td class="num">{{ m.gs(d.avg_sales_gs|int) }}</td>
+        <td class="num">{{ d.sale_count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{# Stock turnover for top-8 ingredients (dashboard.py:batch_stock_turnover) #}
+{% if turnover %}
+<section class="card mt-4">
+  <div class="card-header">
+    <h2>
+      <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
+      Rotación de stock (últimos 30 días)
+    </h2>
+    <small class="text-muted">Cuántas veces se renovó el stock de los ingredientes más activos</small>
+  </div>
+  <table class="table is-striped">
+    <thead><tr><th>Ingrediente</th><th class="num">Consumido</th><th class="num">Rotación</th><th class="num">Días de stock</th></tr></thead>
+    <tbody>
+      {% for t in turnover %}
+      <tr>
+        <td>
+          {% if t.ingredient_name %}
+            <a href="/inventario/{{ t.ingredient_id }}/editar">{{ t.ingredient_name }}</a>
+          {% else %}
+            Ing #{{ t.ingredient_id }}
+          {% endif %}
+        </td>
+        <td class="num">{{ "%.1f"|format(t.consumed_qty) }} {{ t.unit }}</td>
+        <td class="num">{{ "%.1f"|format(t.turnover_ratio) }}×</td>
+        <td class="num">
+          {% if t.days_of_stock is not none %}
+            {% if t.days_of_stock <= 3 %}
+              <span class="badge badge-danger">{{ "%.0f"|format(t.days_of_stock) }} días</span>
+            {% elif t.days_of_stock <= 7 %}
+              <span class="badge badge-warn">{{ "%.0f"|format(t.days_of_stock) }} días</span>
+            {% else %}
+              {{ "%.0f"|format(t.days_of_stock) }} días
+            {% endif %}
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{# Recipe complexity (dashboard.py:recipe_complexity)
+   - Recipes ranked by line count + cost / prep_minute (for efficiency) #}
+{% if complexity %}
+<section class="card mt-4">
+  <div class="card-header">
+    <h2>
+      <svg class="icon" aria-hidden="true"><use href="#icon-recipe"/></svg>
+      Recetas más complejas
+    </h2>
+    <small class="text-muted">Más ingredientes y más tiempo de preparación</small>
+  </div>
+  <table class="table">
+    <thead><tr><th>Receta</th><th class="num">Ingredientes</th><th class="num">Costo/porción (Gs.)</th><th class="num">Prep (min)</th></tr></thead>
+    <tbody>
+      {% for r in complexity[:5] %}
+      <tr>
+        <td><a href="/recetas/{{ r.recipe_id }}/editar">{{ r.recipe_name }}</a></td>
+        <td class="num">{{ r.line_count }}</td>
+        <td class="num">{{ m.gs(r.cost_per_portion_gs) }}</td>
+        <td class="num">{{ r.prep_minutes if r.prep_minutes else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
 {% endif %}
 
 {% endblock %}
