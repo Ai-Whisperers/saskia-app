@@ -103,7 +103,7 @@
 <ul class="avisos">
   {% for s in stock_low %}
   <li class="aviso-stock">
-    Stock bajo: <strong>{{ s.name }}</strong> ({{ "%.2f"|format(s.stock_qty) }} {{ s.unit }}, mínimo {{ "%.2f"|format(s.min_stock_qty) }} {{ s.unit }})
+    <span style="white-space:nowrap">Stock bajo: <strong>{{ s.name }}</strong> ({{ "%.2f"|format(s.stock_qty) }} {{ s.unit }}, mínimo {{ "%.2f"|format(s.min_stock_qty) }} {{ s.unit }})</span>
   </li>
   {% endfor %}
   {% for r in recipes_no_cost %}

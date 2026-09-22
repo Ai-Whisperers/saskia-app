@@ -68,15 +68,17 @@ function updateBulkBtn() {
       <td class="num">{{ "%.2f"|format(item.max_stock) }} {{ item.unit }}</td>
       <td class="num"><strong>{{ "%.2f"|format(item.suggested_qty) }} {{ item.unit }}</strong></td>
       <td class="num">
-        {% if item.urgency < 0.5 %}
-          <span class="badge badge-danger">Crítico ({{ "%.0f"|format(item.urgency * 100) }}%)</span>
-        {% elif item.urgency < 1.0 %}
-          <span class="badge badge-warn">Bajo ({{ "%.0f"|format(item.urgency * 100) }}%)</span>
+        {% if item.urgency_label == 'sin stock' %}
+          <span class="badge badge-danger">Sin stock</span>
+        {% elif item.urgency_label == 'bajo mínimo' %}
+          <span class="badge badge-warn">Bajo mínimo</span>
         {% else %}
           <span class="badge badge-ok">OK</span>
         {% endif %}
       </td>
-      <td class="num">{{ m.gs(item.estimated_cost_gs) }}</td>
+      <td class="num">
+        {% if item.has_price %}{{ m.gs(item.estimated_cost_gs) }}{% else %}<span class="text-muted">sin precio</span>{% endif %}
+      </td>
       <td>
         {% if supplier_info[0] %}
           <span>{{ supplier_info[0] }}</span>

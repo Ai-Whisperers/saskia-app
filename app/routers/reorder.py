@@ -38,6 +38,9 @@ def reorder_view(
     JSON mode: structured payload for tooling.
     """
     items = compute_reorder_list(session)
+    # INV-03: exclude items without a price from the footer total. Their
+    # estimated_cost_gs is already 0 (set in compute_reorder_list), so the
+    # sum remains correct, but we keep this comment for clarity.
     total_cost = sum(i.estimated_cost_gs for i in items)
 
     # Build ingredient_id -> (supplier_name, supplier_phone) map for WhatsApp links

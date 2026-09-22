@@ -21,6 +21,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.rms.models import Ingredient, Recipe, StockMovement, WasteLog
+from app.rms.units import Unit, can_convert, convert_qty
+from fastapi import HTTPException
 
 
 class WasteReason(str, Enum):
@@ -57,23 +59,41 @@ def record_waste(
     reason: WasteReason,
     recorded_by: str | None = None,
     notes: str | None = None,
+    qty_unit: str | None = None,
 ) -> WasteLog:
     """Log a waste event. Decrements stock + records cost-at-time.
 
     Cost is denormalized at insert time so historical waste reports
     remain stable even if purchase prices change.
+
+    MER-01: qty_unit lets the operator enter 200 g of harina instead of
+    0.2 kg (or 50 ml of leche instead of 0.05 l). Cross-family conversion
+    (g→l, kg→und) is forbidden — see app.rms.units.Unit.coerce.
     """
     ing = session.get(Ingredient, ingredient_id)
     if ing is None:
         raise ValueError(f"Ingredient {ingredient_id} not found")
+    # MER-01: normalize the input unit to the ingredient's stock unit.
+    # The form's "Cantidad" + "Unidad" pair is converted to kg/l/und BEFORE
+    # stock decrement so 50 g of harina truly deducts 0.05 kg.
+    qty_in_stock_unit = qty
+    if qty_unit and ing.unit and qty_unit != ing.unit:
+        from_unit = Unit.coerce(qty_unit)
+        to_unit = Unit.coerce(ing.unit)
+        if not can_convert(from_unit, to_unit):
+            raise HTTPException(
+                status_code=400,
+                detail=f"No se puede convertir {qty_unit} a {ing.unit} (familia distinta)",
+            )
+        qty_in_stock_unit = float(convert_qty(qty, from_unit, to_unit))
     cost_gs = (
-        int(round(qty * ing.purchase_price_gs))
+        int(round(qty_in_stock_unit * ing.purchase_price_gs))
         if ing.purchase_price_gs is not None
         else 0
     )
     log = WasteLog(
         ingredient_id=ingredient_id,
-        qty=qty,
+        qty=qty_in_stock_unit,
         reason=reason.value,
         cost_gs=cost_gs,
         recorded_at=datetime.now(timezone.utc),
@@ -82,12 +102,12 @@ def record_waste(
     )
     session.add(log)
     # Decrement stock
-    ing.stock_qty = max(0.0, ing.stock_qty - qty)
+    ing.stock_qty = max(0.0, ing.stock_qty - qty_in_stock_unit)
     # StockMovement audit record (negative qty = stock out)
     movement = StockMovement(
         ingredient_id=ingredient_id,
         movement_type="merma",
-        qty=-qty,
+        qty=-qty_in_stock_unit,
         reason=f"Merma: {reason.value}",
         reference_id=log.id,
         reference_type="waste_log",

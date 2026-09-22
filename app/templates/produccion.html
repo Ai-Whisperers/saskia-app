@@ -37,7 +37,7 @@
     <tr>
       <td><strong>{{ r.product_name }}</strong></td>
       <td class="num">{{ "%.0f"|format(r.qty_to_produce) }}</td>
-      <td><span title="{{ source_help.get(r.forecast_source, '') }}">{{ source_labels.get(r.forecast_source, r.forecast_source) }}</span></td>
+      <td>{{ source_labels.get(r.forecast_source, 'Sugerido') }}</td>
       <td class="actions" style="white-space:nowrap;">
           <form method="post" action="/produccion/override" style="display:inline-flex;gap:var(--space-1);align-items:center;">
             <input type="hidden" name="for_date" value="{{ for_date }}">

@@ -121,6 +121,11 @@ def merma_list(
         "preset_url_7": preset_url(7),
         "preset_url_30": preset_url(30),
         "preset_url_90": preset_url(90),
+        # MER-01: unit selector. Per-ingredient stock unit, plus finer units
+        # from the same family (kg → allow g, l → allow ml). The default unit
+        # is the finer one because operators typically enter small quantities.
+        "available_units": ["g", "kg", "ml", "l", "und"],
+        "default_unit": "g",
         "total": len(items),
         "page_start": 1,
         "page_end": len(items),
@@ -132,11 +137,16 @@ def merma_register(
     request: Request,
     ingredient_id: int = Form(...),
     qty: float = Form(...),
+    qty_unit: str = Form(""),
     reason: str = Form(...),
     notes: str = Form(""),
     session: Session = Depends(get_session),
 ):
-    """Record a new waste event."""
+    """Record a new waste event.
+
+    MER-01: qty_unit lets the operator enter 50 g of harina instead of 0.05 kg.
+    The unit is converted to the ingredient's stock unit before stock decrement.
+    """
     # Validate reason is in the enum
     try:
         reason_enum = WasteReason(reason)
@@ -159,6 +169,7 @@ def merma_register(
         session,
         ingredient_id=ingredient_id,
         qty=qty,
+        qty_unit=qty_unit or None,
         reason=reason_enum,
         notes=notes or None,
     )

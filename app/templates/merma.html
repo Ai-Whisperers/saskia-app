@@ -102,6 +102,12 @@
     <div class="form-row">
       <label for="qty">Cantidad</label>
       <input type="number" id="qty" name="qty" required step="0.01" min="0.01" value="1">
+      <select id="qty_unit" name="qty_unit" required aria-label="Unidad de la cantidad"
+              data-default-for-unit='{"kg":"g","l":"ml"}'>
+        {% for u in available_units %}
+        <option value="{{ u }}" {% if u == default_unit %}selected{% endif %}>{{ u }}</option>
+        {% endfor %}
+      </select>
     </div>
     <div class="form-row">
       <label for="reason">Motivo</label>
