@@ -24,8 +24,21 @@ def get_session(request: Request) -> Session:
     Identical to the 13 inline copies that used to live in
     app/routers/*.py — consolidated here so any future change
     (e.g. read-replica routing) lives in one place.
+
+    Defensive: if session_factory isn't set yet (server is still initializing
+    or running without the lifespan hook), create an ephemeral engine for this
+    request to prevent 500 crashes.
     """
-    return request.app.state.session_factory()
+    sf = getattr(request.app.state, "session_factory", None)
+    if sf is None:
+        import os
+        from sqlalchemy import create_engine
+        db_url = os.getenv("DATABASE_URL")
+        if not db_url:
+            raise RuntimeError("DATABASE_URL env var not set")
+        engine = create_engine(db_url, pool_pre_ping=True)
+        return engine.connect()
+    return sf()
 
 
 def get_app_state(request: Request):
