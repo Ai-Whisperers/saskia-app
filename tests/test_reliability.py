@@ -6,6 +6,10 @@ and the exception is logged to stderr/Sentry (when configured).
 """
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.smoke
+
 
 def test_unhandled_exception_returns_json_500(client, session_factory):
     """A route that raises RuntimeError → 500 JSON, not HTML.

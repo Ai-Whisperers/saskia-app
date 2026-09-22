@@ -13,6 +13,8 @@ from __future__ import annotations
 import json
 import pytest
 
+pytestmark = pytest.mark.smoke
+
 
 # All HTML page routes from SASKIA_TEST_PLAN.md inventory
 HTML_PAGE_ROUTES = [
@@ -55,6 +57,8 @@ HTML_PAGE_ROUTES = [
 
 
 @pytest.mark.parametrize("route,label", HTML_PAGE_ROUTES)
+
+
 def test_html_page_loads(client, route, label):
     """Every HTML route must return 2xx, 3xx, or 422 (validation). NOT 5xx.
 

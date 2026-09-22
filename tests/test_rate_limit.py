@@ -17,6 +17,10 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
+pytestmark = pytest.mark.security
+
 
 def _make_request(ip="203.0.113.1"):
     """Build a fake Request with the X-Forwarded-For IP set."""

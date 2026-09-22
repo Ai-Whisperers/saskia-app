@@ -9,6 +9,10 @@ Render (HTTPS) sets it; local dev doesn't.
 """
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.security
+
 
 def test_csrf_module_reads_env_var_and_round_trips():
     """csrf helpers work end-to-end with arbitrary tokens."""

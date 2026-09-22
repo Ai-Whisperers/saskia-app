@@ -5,6 +5,8 @@ Per SASKIA_TEST_PLAN.md §5 #14 — test full CRUD lifecycle.
 from __future__ import annotations
 
 import pytest
+
+pytestmark = pytest.mark.crud
 from app.rms.models import Customer
 
 

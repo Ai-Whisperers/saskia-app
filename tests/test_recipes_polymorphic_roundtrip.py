@@ -6,6 +6,8 @@ and that batch_cost/unit_cost compute correctly.
 from __future__ import annotations
 
 import pytest
+
+pytestmark = pytest.mark.crud
 from app.rms.models import Recipe, RecipeLine, Ingredient
 
 

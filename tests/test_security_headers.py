@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import pytest
 
+pytestmark = pytest.mark.security
+
 
 def test_csp_header_present(client):
     """Content-Security-Policy header must be present on HTML responses."""

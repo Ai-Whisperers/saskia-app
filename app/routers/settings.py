@@ -187,4 +187,43 @@ def save_theme_settings(
     return RedirectResponse(url=f"/settings?flash=Tema+{theme}+guardado", status_code=303)
 
 
+@router.post("/seed-demo", response_class=RedirectResponse)
+def settings_seed_demo(
+    overwrite: str = Form("0"),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """One-click seed realistic bakery demo data.
+
+    - overwrite=0: idempotent (skips if seed already exists)
+    - overwrite=1: clears existing seed-like rows and re-seeds
+
+    The tab in settings.html documents both behaviors.
+    """
+    from app.rms.seed import seed_demo_data
+
+    try:
+        do_overwrite = overwrite == "1"
+        # Use a short, deterministic seed so the same demo data is reproduced
+        report = seed_demo_data(session, overwrite=do_overwrite, seed=20260922)
+    except Exception as exc:
+        # Roll back partial work and surface the error
+        session.rollback()
+        return RedirectResponse(
+            url=f"/settings?flash=Error+al+cargar+ejemplo:+{type(exc).__name__}",
+            status_code=303,
+        )
+
+    inserted = report.as_dict() if hasattr(report, "as_dict") else {}
+    msg = (f"Datos de ejemplo cargados: "
+           f"{inserted.get('ingredients', '?')} ingredientes, "
+           f"{inserted.get('recipes', '?')} recetas, "
+           f"{inserted.get('products', '?')} productos")
+    # URL-encode the plus signs manually so they don't get treated as spaces
+    msg_url = msg.replace(" ", "+")
+    return RedirectResponse(
+        url=f"/settings?flash={msg_url}",
+        status_code=303,
+    )
+
+
 __all__ = ["router"]

@@ -21,6 +21,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+pytestmark = pytest.mark.crud
+
 from app.rms.customers import (
     LoyaltyTier,
     award_points,

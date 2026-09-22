@@ -15,6 +15,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+pytestmark = pytest.mark.auth
+
 
 def _FakeSupabaseForIntegration():
     """Factory — instantiated once per fixture for test isolation."""

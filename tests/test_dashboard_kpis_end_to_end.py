@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import pytest
+
+pytestmark = pytest.mark.smoke
 from datetime import datetime, timezone, timedelta
 from app.rms.models import Product, Sale
 

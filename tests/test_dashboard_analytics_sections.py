@@ -8,6 +8,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone, timedelta
 
+import pytest
+
+pytestmark = pytest.mark.analytics
+
 
 def _seed_min_sales(session_factory, days_back: int = 14):
     """Seed enough sales + waste to make analytics fire.

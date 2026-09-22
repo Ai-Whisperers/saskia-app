@@ -15,6 +15,10 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
+import pytest
+
+pytestmark = pytest.mark.analytics
+
 
 def _seed_basic(session_factory):
     """3 ingredients + 1 recipe (Muffin, 12 und) with known prices."""

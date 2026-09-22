@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import pytest
 
+pytestmark = pytest.mark.smoke
+
 
 # PDF endpoints from SASKIA_TEST_PLAN.md §1.3
 PDF_ROUTES = [
@@ -15,6 +17,8 @@ PDF_ROUTES = [
     "/reportes/iva/pdf",
     "/reportes/libro-ventas/set-pdf",
 ]
+
+
 
 
 @pytest.mark.parametrize("route", PDF_ROUTES)

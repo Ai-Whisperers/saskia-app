@@ -1,6 +1,10 @@
 """tests/test_clientes_filter.py — /clientes filter by q + tier."""
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.crud
+
 
 def test_clientes_filter_search_exists(client):
     """/clientes shows search input + tier filter."""

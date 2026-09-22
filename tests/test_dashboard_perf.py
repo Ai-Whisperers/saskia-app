@@ -6,6 +6,10 @@ from __future__ import annotations
 
 from sqlalchemy import event
 
+import pytest
+
+pytestmark = pytest.mark.perf
+
 
 def test_dashboard_renders_under_60_queries(client, session_factory):
     """A single GET / should not issue hundreds of queries.

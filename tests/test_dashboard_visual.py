@@ -13,6 +13,10 @@ from __future__ import annotations
 
 import re
 
+import pytest
+
+pytestmark = pytest.mark.smoke
+
 # ---- Chart helper tests ----------------------------------------------------
 
 

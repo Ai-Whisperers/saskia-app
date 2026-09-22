@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import pytest
+
+pytestmark = pytest.mark.crud
 from sqlalchemy import text
 
 

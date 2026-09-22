@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import pytest
 
+pytestmark = pytest.mark.smoke
+
 
 REPORTES_PAGES = [
     "/reportes",
@@ -20,6 +22,8 @@ REPORTES_PAGES = [
 
 
 @pytest.mark.parametrize("route", REPORTES_PAGES)
+
+
 def test_reportes_page_loads(authed_client, route):
     """Every reportes page must return non-5xx."""
     r = authed_client.get(route)

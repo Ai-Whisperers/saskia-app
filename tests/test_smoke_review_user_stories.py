@@ -8,6 +8,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone, timedelta
 
+import pytest
+
+pytestmark = pytest.mark.smoke
+
 
 def _seed_min_catalog(session_factory):
     """Seed: 1 product (with recipe), 1 ingredient, 1 client."""

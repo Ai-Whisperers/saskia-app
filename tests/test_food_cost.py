@@ -6,6 +6,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+pytestmark = pytest.mark.analytics
+
 from app.rms.food_cost import (
     FoodCostReport,
     actual_ingredient_consumption,

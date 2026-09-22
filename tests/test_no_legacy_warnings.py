@@ -8,6 +8,10 @@ This test asserts that a clean run reports zero warnings.
 """
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.manual
+
 
 def test_clean_run_reports_zero_warnings():
     """Running a few representative tests should emit zero warnings."""

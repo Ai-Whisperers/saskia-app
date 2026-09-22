@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import pytest
+
+pytestmark = pytest.mark.manual
 from app.rms.models import Product
 
 

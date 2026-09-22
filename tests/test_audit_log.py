@@ -15,6 +15,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+import pytest
+
+pytestmark = pytest.mark.security
+
 
 def test_record_writes_row_with_all_fields(session_factory):
     """record() populates every column from the kwargs."""

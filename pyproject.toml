@@ -66,6 +66,14 @@ addopts = "-v --tb=short"
 pythonpath = ["."]
 markers = [
     "pg: real Postgres tests (testcontainers); skipped locally without Docker, run in CI",
+    "smoke: end-to-end smoke tests (run on every commit)",
+    "crud: CRUD roundtrip tests (run on every commit)",
+    "analytics: analytics correctness (run before deploy)",
+    "perf: performance budget tests (run nightly)",
+    "security: security tests (run on every commit)",
+    "auth: auth tests (run on every commit)",
+    "manual: tests requiring human verification or long setup; skipped in default CI",
+    "slow: tests that take >1s; useful for `--ignore-glob`",
 ]
 filterwarnings = [
     # starlette.testclient's BlockingPortal alias is deprecated upstream.

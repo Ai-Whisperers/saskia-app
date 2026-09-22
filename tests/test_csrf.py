@@ -1,6 +1,10 @@
 """tests/test_csrf.py — CSRF middleware tests."""
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.security
+
 
 def _clean_client(client):
     """Helper: make a fresh TestClient without the conftest's primed cookie."""

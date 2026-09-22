@@ -280,6 +280,22 @@ def authed_client(client):
     return client
 
 
+@pytest.fixture
+def qseed(session_factory):
+    """Quick-seed helper for fast targeted test setup.
+
+    Use instead of full seed_demo_data() when the test only needs
+    a small known dataset. Saves ~2s per test compared to seed_demo_data.
+
+    Usage:
+        def test_x(qseed):
+            data = qseed("with_low_stock")
+            assert data["low_ingredient"].stock_qty < 1.0
+    """
+    from tests._fixtures_quick_seed import quick_seed
+    return lambda scenario: quick_seed(session_factory, scenario)
+
+
 # --- Shared Supabase fake for integration tests ---
 
 def _FakeSupabaseForIntegration():

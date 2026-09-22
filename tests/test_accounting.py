@@ -13,6 +13,10 @@ Covers:
 """
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.analytics
+
 from datetime import datetime, timedelta, timezone
 
 from app.rms.accounting import (
@@ -49,7 +53,6 @@ def test_extract_iva_excluded_mode():
 
 
 def test_extract_iva_unknown_mode_raises():
-    import pytest
     with pytest.raises(ValueError, match="Unknown tax_mode"):
         extract_iva(1000, tax_mode="bogus")
 

@@ -8,6 +8,8 @@ Per SASKIA_TEST_PLAN.md §5 #8 — every CSV export must:
 from __future__ import annotations
 
 import pytest
+
+pytestmark = pytest.mark.smoke
 from datetime import datetime, timezone, timedelta
 from app.rms.models import Product, Sale
 
@@ -22,6 +24,8 @@ CSV_ROUTES = [
 
 
 @pytest.mark.parametrize("route", CSV_ROUTES)
+
+
 def test_csv_endpoint_returns_csv_content_type(client, route):
     """Every CSV endpoint must return text/csv content-type."""
     r = client.get(route)

@@ -20,6 +20,7 @@
   <button type="button" class="tab-btn active" data-tab="business">Información de negocio</button>
   <button type="button" class="tab-btn" data-tab="fiscal">Configuración fiscal</button>
   <button type="button" class="tab-btn" data-tab="theme">Tema y apariencia</button>
+  <button type="button" class="tab-btn" data-tab="demo">Datos de ejemplo</button>
 </div>
 
 <!-- Business Info Tab -->
@@ -183,6 +184,58 @@
       <div>{{ current_user.last_login_at if current_user else 'Nunca' }}</div>
     </div>
   </div>
+</div>
+
+{# Demo data tab — one-click seed realistic bakery data #}
+<div id="demo-tab" class="tab-content" style="display: none;">
+  <h2>Datos de ejemplo</h2>
+  <p class="text-muted">
+    Cargá datos realistas de una panadería típica para ver cómo funciona el sistema.
+    Útil para probar, demos a terceros, o para entender los reportes con datos reales.
+  </p>
+
+  <div class="info-grid" style="margin-bottom: 1.5rem;">
+    <div>
+      <strong>Qué incluye</strong>
+      <div class="text-muted" style="font-size: var(--text-sm);">
+        29 ingredientes paraguayos · 12 recetas · 12 productos · 6 clientes ·
+        90 días de ventas (con sesgo lunes/fin de semana) · merma típica ·
+        movimientos de stock · pedidos pendientes
+      </div>
+    </div>
+    <div>
+      <strong>Modo</strong>
+      <div class="text-muted" style="font-size: var(--text-sm);">
+        <strong>Adicionar</strong>: agrega datos sin tocar lo existente (idempotente).
+        <br>
+        <strong>Resetear y recargar</strong>: borra primero los datos cargados y vuelve a sembrar.
+        Si ya tenés ventas reales, exportalas antes (Excel) y luego hacé reset.
+      </div>
+    </div>
+  </div>
+
+  <form method="post" action="/settings/seed-demo" style="display: inline-block; margin-right: 0.5rem;">
+    <input type="hidden" name="overwrite" value="0">
+    <button type="submit" class="btn btn-primary"
+            onclick="return confirm('¿Cargar datos de ejemplo? Esto agregará 29 ingredientes, 12 recetas, 12 productos y 90 días de ventas. No sobrescribirá lo que ya tenés.')">
+      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+      Adicionar datos de ejemplo
+    </button>
+  </form>
+
+  <form method="post" action="/settings/seed-demo" style="display: inline-block;">
+    <input type="hidden" name="overwrite" value="1">
+    <button type="submit" class="btn btn-ghost"
+            onclick="return confirm('⚠️ ATENCIÓN: esto BORRARÁ todas las ventas, productos, ingredientes, recetas y pedidos existentes, y volverá a sembrar. Si tenés datos reales, exportalos a Excel primero. ¿Continuar?')">
+      <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
+      Resetear y recargar
+    </button>
+  </form>
+
+  <p class="text-muted" style="font-size: var(--text-xs); margin-top: 1rem;">
+    Tip: para ver el sistema con datos pero sin afectar lo tuyo, cargá y luego exportá a Excel.
+    Así tenés una "vista previa" sin compromiso.
+  </p>
 </div>
 
 <script>

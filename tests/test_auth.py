@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.auth
+
 
 def test_hash_and_verify_password_roundtrip():
     """hash → verify returns True for correct password."""

@@ -16,6 +16,10 @@ Covers:
 """
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.analytics
+
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select

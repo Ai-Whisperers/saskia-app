@@ -18,6 +18,8 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+pytestmark = pytest.mark.smoke
+
 from app.routers.dashboard import (
     _compute_window_totals,
     _delta_pct,

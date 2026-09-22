@@ -19,6 +19,10 @@ from datetime import date, datetime, timedelta, timezone
 from sqlalchemy import select
 
 
+import pytest
+
+pytestmark = pytest.mark.crud
+
 # --- helpers ----------------------------------------------------------------
 
 

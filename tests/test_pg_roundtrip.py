@@ -27,7 +27,6 @@ import pytest
 # is the documented pytest way to expose fixtures from a non-conftest module.
 pytest_plugins = ["tests.conftest_pg"]
 
-pytestmark = pytest.mark.pg  # all tests in this module require real PG
 
 
 def test_init_db_applies_all_migrations(pg_engine):

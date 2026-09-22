@@ -120,6 +120,8 @@ class FakeAuth:
 
 import pytest
 
+pytestmark = pytest.mark.auth
+
 
 @pytest.fixture
 def fake_supabase(monkeypatch):

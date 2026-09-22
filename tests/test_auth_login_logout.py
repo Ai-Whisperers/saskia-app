@@ -11,6 +11,8 @@ Per SASKIA_TEST_PLAN.md §5 #10:
 from __future__ import annotations
 
 import pytest
+
+pytestmark = pytest.mark.auth
 from unittest.mock import patch
 
 
