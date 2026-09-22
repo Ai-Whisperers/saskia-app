@@ -20,7 +20,7 @@ from enum import Enum
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.rms.models import Ingredient, Recipe, WasteLog
+from app.rms.models import Ingredient, Recipe, StockMovement, WasteLog
 
 
 class WasteReason(str, Enum):
@@ -83,6 +83,18 @@ def record_waste(
     session.add(log)
     # Decrement stock
     ing.stock_qty = max(0.0, ing.stock_qty - qty)
+    # StockMovement audit record (negative qty = stock out)
+    movement = StockMovement(
+        ingredient_id=ingredient_id,
+        movement_type="merma",
+        qty=-qty,
+        reason=f"Merma: {reason.value}",
+        reference_id=log.id,
+        reference_type="waste_log",
+        recorded_at=datetime.now(timezone.utc),
+        created_by=recorded_by,
+    )
+    session.add(movement)
     session.flush()
     return log
 
@@ -268,6 +280,18 @@ def record_recipe_waste(
         ing.stock_qty = max(0.0, (ing.stock_qty or 0) - qty)
         logs.append(log)
         total_cost += cost_gs
+        # StockMovement audit record (negative qty = stock out)
+        movement = StockMovement(
+            ingredient_id=ingredient_id,
+            movement_type="merma",
+            qty=-qty,
+            reason=f"Merma receta '{recipe.name}': {reason.value}",
+            reference_id=log.id,
+            reference_type="waste_log",
+            recorded_at=now,
+            created_by=recorded_by,
+        )
+        session.add(movement)
 
     session.flush()
     return RecipeWasteResult(

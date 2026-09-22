@@ -14,6 +14,7 @@ from app.auth import require_login_or_disabled as require_login
 from app.rms.audit import record as audit_record
 from app.rms.dependencies import get_session
 from app.rms.settings import (
+    get_setting_cached,
     list_settings,
     reset_setting_to_default,
     set_setting,
@@ -28,6 +29,7 @@ router = APIRouter(prefix="/settings", dependencies=[Depends(require_login)])
 def settings_index(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     """Render settings grouped by category."""
     grouped = settings_by_group(session)
+    theme_setting = get_setting_cached(session, "ui.theme") or "system"
     # Convert to a structure templates can iterate easily.
     groups = []
     for group_name, rows in grouped.items():
@@ -35,6 +37,7 @@ def settings_index(request: Request, session: Session = Depends(get_session)) ->
     return render(request, "settings.html", {
         "groups": groups,
         "total": len(list_settings(session)),
+        "theme_setting": theme_setting,
     })
 
 

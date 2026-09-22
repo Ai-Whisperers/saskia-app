@@ -18,7 +18,7 @@
 {% if view == 'week' %}
 {{ cal.week_grid(weekdays, days, prev_week_iso, next_week_iso) }}
 {% elif view == 'month' %}
-{{ cal.month_grid(year, month, days, prev_month_iso, next_month_iso) }}
+{{ cal.month_grid(year, month, days, first_day_pad, prev_month_iso, next_month_iso) }}
 {% endif %}
 
 {% endblock %}

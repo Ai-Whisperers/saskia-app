@@ -91,29 +91,36 @@ def produccion_worksheet(
     if view == "week":
         week_start = _week_monday(week or today)
         days = [week_start + timedelta(days=i) for i in range(7)]
-        counts = _day_counts(session, days)
-        day_dicts = [
-            {
-                "date_iso": d.isoformat(),
-                "label": str(d.day),
-                "item_count": counts.get(d.isoformat(), 0),
-                "is_today": d == today,
-                "is_selected": False,
-            }
-            for d in days
+        # Build week plan: aggregate plan_production() across all 7 days
+        product_rows: dict[int, dict] = {}
+        for d in days:
+            plan = plan_production(session, for_date=d)
+            for r in plan.rows:
+                if r.qty_to_produce <= 0:
+                    continue
+                if r.product_id not in product_rows:
+                    product_rows[r.product_id] = {
+                        "product_name": r.product_name,
+                        "recipe_id": r.recipe_id,
+                        "daily_qtys": [0.0] * 7,
+                    }
+                day_idx = (d - week_start).days
+                product_rows[r.product_id]["daily_qtys"][day_idx] = r.qty_to_produce
+        week_plan_rows = [
+            {"product_name": v["product_name"], "product_id": pid,
+             "recipe_id": v["recipe_id"], "daily_qtys": v["daily_qtys"]}
+            for pid, v in sorted(product_rows.items(), key=lambda x: x[1]["product_name"])
         ]
-        return render(
-            request,
-            "produccion_calendario.html",
-            {
-                "view": "week",
-                "weekdays": ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
-                "days": day_dicts,
-                "prev_week_iso": (week_start - timedelta(days=7)).isoformat(),
-                "next_week_iso": (week_start + timedelta(days=7)).isoformat(),
-                "today_iso": today.isoformat(),
-            },
-        )
+        prev_week = (week_start - timedelta(days=7)).isoformat()
+        next_week = (week_start + timedelta(days=7)).isoformat()
+        return render(request, "produccion.html", {
+            "view": "week",
+            "week_start": week_start.strftime("%d %b %Y"),
+            "weekdays": ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
+            "week_plan": type("obj", (object,), {"rows": week_plan_rows})(),
+            "prev_week_iso": prev_week,
+            "next_week_iso": next_week,
+        })
 
     if view == "month":
         if month:
@@ -122,32 +129,39 @@ def produccion_worksheet(
             year, mon = today.year, today.month
         ndays = _calendar.monthrange(year, mon)[1]
         days = [date(year, mon, d) for d in range(1, ndays + 1)]
-        counts = _day_counts(session, days)
-        day_dicts = [
-            {
-                "date_iso": d.isoformat(),
-                "label": str(d.day),
-                "item_count": counts.get(d.isoformat(), 0),
-                "is_today": d == today,
-                "is_selected": d == for_date,
-            }
-            for d in days
+        # Build month plan: aggregate plan_production() across all days
+        product_rows: dict[int, dict] = {}
+        for d in days:
+            plan = plan_production(session, for_date=d)
+            for r in plan.rows:
+                if r.qty_to_produce <= 0:
+                    continue
+                if r.product_id not in product_rows:
+                    product_rows[r.product_id] = {
+                        "product_name": r.product_name,
+                        "recipe_id": r.recipe_id,
+                        "daily_qtys": [0.0] * ndays,
+                    }
+                product_rows[r.product_id]["daily_qtys"][d.day - 1] = r.qty_to_produce
+        month_plan_rows = [
+            {"product_name": v["product_name"], "product_id": pid,
+             "recipe_id": v["recipe_id"], "daily_qtys": v["daily_qtys"]}
+            for pid, v in sorted(product_rows.items(), key=lambda x: x[1]["product_name"])
         ]
+        month_names = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                       "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
         prev_month = date(year, mon, 1) - timedelta(days=1)
         next_month = date(year, mon, ndays) + timedelta(days=1)
-        return render(
-            request,
-            "produccion_calendario.html",
-            {
-                "view": "month",
-                "year": year,
-                "month": mon,
-                "days": day_dicts,
-                "prev_month_iso": prev_month.strftime("%Y-%m"),
-                "next_month_iso": next_month.strftime("%Y-%m"),
-                "today_iso": today.isoformat(),
-            },
-        )
+        return render(request, "produccion.html", {
+            "view": "month",
+            "year": year,
+            "month": mon,
+            "month_name": month_names[mon],
+            "month_days": list(range(1, ndays + 1)),
+            "month_plan": type("obj", (object,), {"rows": month_plan_rows})(),
+            "prev_month_iso": prev_month.strftime("%Y-%m"),
+            "next_month_iso": next_month.strftime("%Y-%m"),
+        })
 
     # day view (default)
     plan = plan_production(session, for_date=for_date, manual_forecast=overrides or None)

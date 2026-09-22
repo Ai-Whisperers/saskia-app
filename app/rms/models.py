@@ -675,6 +675,57 @@ class Tenant(Base):
     currency: Mapped[str] = mapped_column(String(8), nullable=False, default="Gs.")
     created_at: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
 
+class StockMovement(Base):
+    """Append-only stock movement ledger for auditability.
+
+    Every stock change (sale, adjustment, merma, reorder, initial stock)
+    gets a row here so operators can trace exactly why an ingredient's
+    stock changed over time.
+
+    Fields:
+      id             — PK
+      ingredient_id  — FK to ingredient.id
+      movement_type  — sale | adjustment | merma | reorder | initial
+      qty            — signed: positive=in, negative=out
+      reason         — free-text label (e.g. "rotura de envase", "recount")
+      reference_id   — FK to the triggering row (sale.id, WasteLog.id, etc.);
+                       NULL for initial-stock records
+      reference_type — 'sale' | 'waste_log' | 'adjustment' | 'reorder' | None
+      recorded_at    — UTC datetime; default now()
+      created_by     — operator username or 'operator'; NULL for system records
+    """
+
+    __tablename__ = "stock_movement"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ingredient_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("ingredient.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    movement_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    qty: Mapped[float] = mapped_column(Float, nullable=False)
+    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    reference_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    reference_type: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, index=True
+    )
+    created_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "movement_type IN ('sale','adjustment','merma','reorder','initial')",
+            name="ck_stock_movement_type",
+        ),
+        Index("ix_stock_movement_ingredient_recorded", "ingredient_id", "recorded_at"),
+    )
+
+    # Relationships
+    ingredient: Mapped["Ingredient"] = relationship("Ingredient")
+
+
 __all__ = [
     "Base",
     "AppMeta",
@@ -695,4 +746,5 @@ __all__ = [
     "WasteLog",
     "Pedido",
     "PedidoLine",
+    "StockMovement",
 ]

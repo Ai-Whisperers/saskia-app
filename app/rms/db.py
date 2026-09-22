@@ -713,6 +713,68 @@ def _migration_020_sale_date_voided_index(conn):
     )
 
 
+def _migration_021_stock_movement(conn):
+    """Create stock_movement table (stock movement ledger).
+
+    Append-only audit log of every stock change: sale, adjustment, merma,
+    reorder, and initial stock. Powers the /inventario/{id}/movimientos
+    movement-history page.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+
+    if dialect == "postgresql":
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS stock_movement ("
+                "id SERIAL PRIMARY KEY, "
+                "ingredient_id INTEGER NOT NULL REFERENCES ingredient(id) "
+                "ON DELETE CASCADE, "
+                "movement_type VARCHAR(16) NOT NULL, "
+                "qty FLOAT NOT NULL, "
+                "reason TEXT, "
+                "reference_id INTEGER, "
+                "reference_type VARCHAR(16), "
+                "recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+                "created_by VARCHAR(64)"
+                ")"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_stock_movement_ingredient_recorded "
+                "ON stock_movement (ingredient_id, recorded_at)"
+            )
+        )
+    else:
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS stock_movement ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "ingredient_id INTEGER NOT NULL REFERENCES ingredient(id) "
+                "ON DELETE CASCADE, "
+                "movement_type VARCHAR(16) NOT NULL, "
+                "qty FLOAT NOT NULL, "
+                "reason TEXT, "
+                "reference_id INTEGER, "
+                "reference_type VARCHAR(16), "
+                "recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+                "created_by VARCHAR(64)"
+                ")"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_stock_movement_ingredient_recorded "
+                "ON stock_movement (ingredient_id, recorded_at)"
+            )
+        )
+
+    conn.execute(
+        text("UPDATE app_meta SET value = '21', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -734,6 +796,7 @@ MIGRATIONS = {
     18: _migration_018_price_event,
     19: _migration_019_production_completion,
     20: _migration_020_sale_date_voided_index,
+    21: _migration_021_stock_movement,
 }
 
 

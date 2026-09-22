@@ -252,7 +252,7 @@
           return r.json();
         })
         .then(function (data) {
-          pickCustomer(data.customer || { id: data.id, name: payload.name });
+          pickCustomer({ id: data.id, name: payload.name, _isNew: true });
         })
         .catch(function (err) {
           if (newError) {

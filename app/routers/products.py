@@ -5,7 +5,7 @@ Per dev plan §9 Task 4.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -44,13 +44,15 @@ def products_list(
     request: Request,
     q: str | None = None,
     has_recipe: str | None = None,
+    sort: str | None = Query(None, description="Sort column: name, sale_price_gs, cost_gs, margin_gs"),
+    dir: str = Query("asc", pattern="^(asc|desc)$"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """List all products with cost + margin. Batch-loads to avoid N+1.
 
     Optional filter (?q=substring, ?has_recipe=yes/no).
     """
-    stmt = select(Product).order_by(Product.name)
+    stmt = select(Product)
     if q:
         stmt = stmt.where(func.lower(Product.name).like(f"%{q.lower()}%"))
     if has_recipe == "yes":
@@ -83,7 +85,14 @@ def products_list(
                 "notes": p.notes,
             }
         )
-    return render(request, "productos.html", {"products": decorated, "q": q or "", "has_recipe": has_recipe or ""})
+    # Apply in-memory sort
+    if sort and sort in ("name", "sale_price_gs", "cost_gs", "margin_gs"):
+        reverse = dir == "desc"
+        decorated.sort(key=lambda r: r.get(sort) or 0, reverse=reverse)
+    return render(request, "productos.html", {
+        "products": decorated, "q": q or "", "has_recipe": has_recipe or "",
+        "sort": sort or "", "dir": dir,
+    })
 
 
 @router.get("/nuevo", response_class=HTMLResponse)

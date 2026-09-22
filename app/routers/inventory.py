@@ -5,7 +5,7 @@ Per dev plan §9 Task 3.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_login_or_disabled as require_login
 from app.rms.charts import sparkline
 from app.rms.dependencies import get_session
-from app.rms.models import Ingredient, IngredientPriceEvent, RecipeLine
+from app.rms.models import Ingredient, IngredientPriceEvent, RecipeLine, StockMovement
 from app.rms.price_history import price_history, price_stats, record_price_event
 from app.rms.units import Unit
 from app.services.template_render import render
@@ -23,9 +23,20 @@ router = APIRouter(prefix="/inventario", dependencies=[Depends(require_login)])
 
 
 @router.get("", response_class=HTMLResponse)
-def inventory_list(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
+def inventory_list(
+    request: Request,
+    sort: str | None = Query(None, description="Sort column: name, stock_qty, unit, min_stock_level, purchase_price_gs"),
+    dir: str = Query("asc", pattern="^(asc|desc)$"),
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
     """List all ingredients with stock badge."""
-    ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
+    stmt = select(Ingredient)
+    if sort and sort in ("name", "stock_qty", "unit", "min_stock_level", "purchase_price_gs"):
+        col = getattr(Ingredient, sort)
+        stmt = stmt.order_by(col.desc() if dir == "desc" else col.asc())
+    else:
+        stmt = stmt.order_by(Ingredient.name)
+    ingredients = session.scalars(stmt).all()
 
     # Phase D — Q1 surface: price-history enrichment per ingredient.
     # Ingredients with >=2 events in the last 90d get a muted min/max line
@@ -53,7 +64,8 @@ def inventory_list(request: Request, session: Session = Depends(get_session)) ->
     return render(
         request,
         "inventario.html",
-        {"ingredients": ingredients, "price_info": price_info},
+        {"ingredients": ingredients, "price_info": price_info,
+         "sort": sort or "", "dir": dir},
     )
 
 
@@ -241,6 +253,7 @@ def inventory_adjust(
 ) -> RedirectResponse:
     """Record a stock adjustment (wastage, breakage, count correction).
     Pass positive adjustment to add stock, negative to remove.
+    Writes a StockMovement record for auditability.
     """
     ing = session.get(Ingredient, ing_id)
     if ing is None:
@@ -249,9 +262,79 @@ def inventory_adjust(
     if adjustment == 0:
         return RedirectResponse(url="/inventario", status_code=303)
 
+    from datetime import datetime, timezone
+
+    from app.auth import current_user_id
+
+    user_id = current_user_id(request) or "operator"
+
+    # StockMovement: positive qty = stock in, negative = stock out
+    movement = StockMovement(
+        ingredient_id=ing_id,
+        movement_type="adjustment",
+        qty=adjustment,
+        reason=reason.strip() or None,
+        reference_id=None,
+        reference_type=None,
+        recorded_at=datetime.now(timezone.utc),
+        created_by=user_id,
+    )
+    session.add(movement)
+
     ing.stock_qty = max(0.0, ing.stock_qty + adjustment)
     session.commit()
     return RedirectResponse(url="/inventario", status_code=303)
+
+
+@router.get("/{ing_id}/movimientos", response_class=HTMLResponse)
+def inventory_movements(
+    ing_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Show the movement history for one ingredient."""
+    ing = session.get(Ingredient, ing_id)
+    if ing is None:
+        raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
+
+    movements = session.scalars(
+        select(StockMovement)
+        .where(StockMovement.ingredient_id == ing_id)
+        .order_by(StockMovement.recorded_at.desc())
+        .limit(200)
+    ).all()
+
+    # Current stock for display
+    current_stock = ing.stock_qty
+
+    # Running balance: start from current stock and walk backwards
+    balance = current_stock
+    enriched = []
+    for m in reversed(movements):
+        prev_balance = balance
+        balance = balance - m.qty  # reverse the movement to get prior state
+        enriched.append({
+            "id": m.id,
+            "movement_type": m.movement_type,
+            "qty": m.qty,
+            "reason": m.reason,
+            "reference_id": m.reference_id,
+            "reference_type": m.reference_type,
+            "recorded_at": m.recorded_at,
+            "created_by": m.created_by,
+            "balance_before": balance,
+            "balance_after": prev_balance,
+        })
+
+    return render(
+        request,
+        "inventario_movimientos.html",
+        {
+            "ingredient": ing,
+            "movements": enriched,
+            "current_stock": current_stock,
+        },
+    )
 
 
 def _parse_price(raw: str) -> int | None:

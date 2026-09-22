@@ -4,7 +4,7 @@
 
 {% include "_components/icons.svg" %}
 
-<html lang="es">
+<html lang="es" data-saskia-theme="{{ theme_setting | default('system') }}">
 
 <head>
 
@@ -25,14 +25,20 @@
   <script>
 
     // Theme persistence — read before paint to avoid flash.
+    // Reads ui.theme from the data-saskia-theme attribute on <html> set by the
+    // server, then falls back to the CSS prefers-color-scheme media query.
 
     (function() {
 
       try {
 
-        var t = localStorage.getItem('saskia-theme');
+        var stored = localStorage.getItem('saskia-theme');
 
-        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+        var attr  = document.documentElement.getAttribute('data-saskia-theme') || 'system';
+
+        var dark  = attr === 'dark' || (attr === 'system' && stored === 'dark');
+
+        if (dark) document.documentElement.setAttribute('data-theme', 'dark');
 
       } catch (e) {}
 
@@ -196,6 +202,8 @@
   <script>
 
     // Dark mode toggle (per stack audit 2026-09-02).
+    // Cycles light → dark → system. Persists the last manual choice to
+    // localStorage so the system choice can still respect a prior dark pick.
 
     (function() {
 
@@ -203,43 +211,66 @@
 
       if (!btn) return;
 
-      function paint() {
-
-        var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      function paint(isDark, isSystem) {
 
         var useEl = btn.querySelector('use');
 
         if (useEl) {
 
-          useEl.setAttribute('href', dark ? '#icon-sun' : '#icon-moon');
+          // Show moon in light mode, sun in dark/system mode.
+          var icon = isDark ? '#icon-sun' : '#icon-moon';
+          useEl.setAttribute('href', icon);
 
         }
 
-        btn.setAttribute('aria-pressed', String(dark));
+        btn.setAttribute('aria-pressed', String(isDark));
 
       }
 
-      paint();
+      function resolve() {
+        var attr   = document.documentElement.getAttribute('data-saskia-theme') || 'system';
+        var stored = null;
+        try { stored = localStorage.getItem('saskia-theme'); } catch (e) {}
+
+        if (attr === 'dark')    return { isDark: true,  isSystem: false };
+        if (attr === 'light')   return { isDark: false, isSystem: false };
+        // attr === 'system'
+        return { isDark: stored === 'dark', isSystem: true };
+      }
+
+      var state = resolve();
+      paint(state.isDark, state.isSystem);
 
       btn.addEventListener('click', function() {
 
-        var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        var attr   = document.documentElement.getAttribute('data-saskia-theme') || 'system';
+        var stored = null;
+        try { stored = localStorage.getItem('saskia-theme'); } catch (e) {}
 
-        if (dark) {
+        if (attr === 'light') {
+
+          document.documentElement.setAttribute('data-theme', 'dark');
+          document.documentElement.setAttribute('data-saskia-theme', 'dark');
+          try { localStorage.setItem('saskia-theme', 'dark'); } catch (e) {}
+          paint(true, false);
+
+        } else if (attr === 'dark') {
 
           document.documentElement.removeAttribute('data-theme');
-
-          try { localStorage.setItem('saskia-theme', 'light'); } catch (e) {}
+          document.documentElement.setAttribute('data-saskia-theme', 'system');
+          // Remember last manual pick so the system mode can honour it
+          try { localStorage.setItem('saskia-theme', stored || 'dark'); } catch (e) {}
+          paint(stored === 'dark', true);
 
         } else {
 
-          document.documentElement.setAttribute('data-theme', 'dark');
-
-          try { localStorage.setItem('saskia-theme', 'dark'); } catch (e) {}
+          // system — drop to light
+          document.documentElement.removeAttribute('data-theme');
+          document.documentElement.setAttribute('data-saskia-theme', 'light');
+          try { localStorage.setItem('saskia-theme', 'light'); } catch (e) {}
+          paint(false, false);
 
         }
-
-        paint();
 
       });
 

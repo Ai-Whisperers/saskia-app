@@ -4,11 +4,13 @@
 <h1>Plan de producción</h1>
 
 <nav class="status-filter" aria-label="Vista del calendario" style="display:inline-flex;gap:var(--space-1);margin-bottom:var(--space-4);padding:2px;background:var(--color-surface-subtle);border-radius:var(--radius);">
-  <a href="/produccion?view=day" class="btn btn-sm btn-primary" aria-current="page">Día</a>
-  <a href="/produccion?view=week" class="btn btn-sm btn-ghost">Semana</a>
-  <a href="/produccion?view=month" class="btn btn-sm btn-ghost">Mes</a>
+  <a href="/produccion?view=day" class="btn btn-sm {% if view != 'week' and view != 'month' %}btn-primary{% else %}btn-ghost{% endif %}" {% if view != 'week' and view != 'month' %}aria-current="page"{% endif %}>Día</a>
+  <a href="/produccion?view=week{% if view == 'week' and prev_week_iso %}&week={{ prev_week_iso }}{% endif %}" class="btn btn-sm {% if view == 'week' %}btn-primary{% else %}btn-ghost{% endif %}" {% if view == 'week' %}aria-current="page"{% endif %}>Semana</a>
+  <a href="/produccion?view=month{% if view == 'month' and prev_month_iso %}&month={{ prev_month_iso }}{% endif %}" class="btn btn-sm {% if view == 'month' %}btn-primary{% else %}btn-ghost{% endif %}" {% if view == 'month' %}aria-current="page"{% endif %}>Mes</a>
 </nav>
 
+{# ====== DAY VIEW ====== #}
+{% if view != 'week' and view != 'month' %}
 {% if plan.notes %}
 <div class="alerts-info">
   {% for n in plan.notes %}
@@ -76,6 +78,71 @@
     {% endfor %}
   </tbody>
 </table>
+{% endif %}
+{% endif %}
+
+{# ====== WEEK VIEW ====== #}
+{% if view == 'week' %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4);">
+  <a href="/produccion?view=week&week={{ prev_week_iso }}" class="btn btn-sm">&larr; Semana anterior</a>
+  <strong>Semana del {{ week_start }}</strong>
+  <a href="/produccion?view=week&week={{ next_week_iso }}" class="btn btn-sm">Semana siguiente &rarr;</a>
+</div>
+
+{% if week_plan and week_plan.rows %}
+<table class="table is-hoverable is-striped">
+  <thead>
+    <tr>
+      <th>Producto</th>
+      {% for d in weekdays %}<th class="num">{{ d }}</th>{% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in week_plan.rows %}
+    <tr>
+      <td><strong>{{ r.product_name }}</strong></td>
+      {% for day_qty in r.daily_qtys %}
+      <td class="num">{{ "%.1f"|format(day_qty) if day_qty else '—' }}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No hay producción planificada para esta semana.</p>
+{% endif %}
+{% endif %}
+
+{# ====== MONTH VIEW ====== #}
+{% if view == 'month' %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4);">
+  <a href="/produccion?view=month&month={{ prev_month_iso }}" class="btn btn-sm">&larr; Mes anterior</a>
+  <strong>{{ month_name }} {{ year }}</strong>
+  <a href="/produccion?view=month&month={{ next_month_iso }}" class="btn btn-sm">Mes siguiente &rarr;</a>
+</div>
+
+{% if month_plan and month_plan.rows %}
+<table class="table is-hoverable is-striped">
+  <thead>
+    <tr>
+      <th>Producto</th>
+      {% for d in month_days %}<th class="num">{{ d }}</th>{% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in month_plan.rows %}
+    <tr>
+      <td><strong>{{ r.product_name }}</strong></td>
+      {% for day_qty in r.daily_qtys %}
+      <td class="num">{{ "%.1f"|format(day_qty) if day_qty else '—' }}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No hay producción planificada para este mes.</p>
+{% endif %}
 {% endif %}
 
 {% endblock %}

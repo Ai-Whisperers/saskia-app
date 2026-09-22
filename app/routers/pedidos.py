@@ -624,3 +624,63 @@ def public_pedido(request: Request, token: str) -> HTMLResponse:
 
 
 __all__ = ["router", "public_router"]
+
+
+@router.post("/bulk-fulfill")
+def pedidos_bulk_fulfill(
+    request: Request,
+    ids: str = Form(""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Mark multiple pending pedidos as fulfilled in one click."""
+    from app.rms.models import Pedido
+    from sqlalchemy import update
+
+    fulfilled = 0
+    for pid in ids.split(","):
+        pid = pid.strip()
+        if not pid:
+            continue
+        try:
+            pedido = session.get(Pedido, int(pid))
+        except ValueError:
+            continue
+        if pedido is None or pedido.status != "pending":
+            continue
+        pedido.status = "fulfilled"
+        session.execute(
+            update(PedidoLine.__table__)
+            .where(PedidoLine.pedido_id == pedido.id)
+            .values(fulfilled_qty=PedidoLine.qty)
+        )
+        fulfilled += 1
+    session.commit()
+    flash = f"{fulfilled} pedido(s) marcado(s) como completado(s)"
+    return RedirectResponse(url=f"/pedidos?flash={flash}", status_code=303)
+
+
+@router.post("/bulk-cancel")
+def pedidos_bulk_cancel(
+    request: Request,
+    ids: str = Form(""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Cancel multiple pending pedidos in one click."""
+    from app.rms.models import Pedido
+
+    cancelled = 0
+    for pid in ids.split(","):
+        pid = pid.strip()
+        if not pid:
+            continue
+        try:
+            pedido = session.get(Pedido, int(pid))
+        except ValueError:
+            continue
+        if pedido is None or pedido.status != "pending":
+            continue
+        pedido.status = "cancelled"
+        cancelled += 1
+    session.commit()
+    flash = f"{cancelled} pedido(s) cancelado(s)"
+    return RedirectResponse(url=f"/pedidos?flash={flash}", status_code=303)

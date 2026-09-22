@@ -52,10 +52,32 @@
     </span>
   </h2>
 
+  {% if request.query_params.get('flash') %}
+  <div class="alert alert-success" role="alert">{{ request.query_params.get('flash') }}</div>
+  {% endif %}
+
   {% if groups[key] %}
+  {% set has_pending = groups[key] | selectattr('status', 'equalto', 'pending') | list %}
+  {% if has_pending %}
+  <div id="bulk-pedidos-actions-{{ key }}" style="display:none;margin-bottom:.5rem;padding:.5rem .75rem;background:var(--color-surface-raised);border-radius:var(--card-radius);border:1px solid var(--color-border);display:flex;gap:var(--space-3);align-items:center;flex-wrap:wrap;">
+    <span style="font-size:var(--text-sm);"><span id="selected-count-{{ key }}">0</span> seleccionado(s)</span>
+    <form method="post" action="/pedidos/bulk-fulfill" style="display:inline;">
+      <input type="hidden" name="ids" id="bulk-ids-{{ key }}">
+      <button type="submit" class="btn btn-sm btn-primary">✓ Marcar completado(s)</button>
+    </form>
+    <form method="post" action="/pedidos/bulk-cancel" style="display:inline;">
+      <input type="hidden" name="ids" id="bulk-cancel-ids-{{ key }}">
+      <button type="submit" class="btn btn-sm btn-ghost">✕ Cancelar</button>
+    </form>
+  </div>
+  {% endif %}
+
   <table class="table is-hoverable is-striped">
     <thead>
       <tr>
+        {% if has_pending %}
+        <th style="width:2rem;"><input type="checkbox" id="select-all-{{ key }}" aria-label="Seleccionar todos"></th>
+        {% endif %}
         <th>Cliente</th>
         <th>Fecha / hora</th>
         <th>Canales</th>
@@ -69,10 +91,12 @@
     <tbody>
       {% for p in groups[key] %}
       <tr>
+        {% if p.status == 'pending' %}
+        <td style="width:2rem;"><input type="checkbox" name="pedido_ids" value="{{ p.id }}" data-group="{{ key }}" class="pedido-check"></td>
+        {% endif %}
         <td>
           <strong>{{ p.customer_name }}</strong>
           {% if p.customer_phone %}<br><small class="text-muted">{{ p.customer_phone }}</small>{% endif %}
-          {% if p.spend_30d_gs and p.spend_30d_gs > 0 %}
           <br><small class="text-muted" title="Compras últimos 30 días">últ. 30d: {{ m.gs(p.spend_30d_gs) }}</small>
           {% endif %}
         </td>
@@ -131,5 +155,38 @@
   {% endif %}
 </section>
 {% endfor %}
+
+<script>
+(function () {
+  document.querySelectorAll('.pedido-check').forEach(function (check) {
+    check.addEventListener('change', updateBulk);
+  });
+  document.querySelectorAll('[id^="select-all-"]').forEach(function (selAll) {
+    selAll.addEventListener('change', function () {
+      var key = this.id.replace('select-all-', '');
+      var checks = document.querySelectorAll('input.pedido-check[data-group="' + key + '"]');
+      checks.forEach(function (c) { c.checked = selAll.checked; });
+      updateBulk();
+    });
+  });
+  function updateBulk() {
+    document.querySelectorAll('[id^="bulk-pedidos-actions-"]').forEach(function (div) {
+      var key = div.id.replace('bulk-pedidos-actions-', '');
+      var checks = document.querySelectorAll('input.pedido-check[data-group="' + key + '"]:checked');
+      var count = checks ? checks.length : 0;
+      div.style.display = count > 0 ? 'flex' : 'none';
+      var countEl = document.getElementById('selected-count-' + key);
+      if (countEl) countEl.textContent = count;
+      var ids = [];
+      checks.forEach(function (c) { ids.push(c.value); });
+      var idsInput = document.getElementById('bulk-ids-' + key);
+      if (idsInput) idsInput.value = ids.join(',');
+      var cancelIdsInput = document.getElementById('bulk-cancel-ids-' + key);
+      if (cancelIdsInput) cancelIdsInput.value = ids.join(',');
+    });
+  }
+  updateBulk();
+})();
+</script>
 
 {% endblock %}

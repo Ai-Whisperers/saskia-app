@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Movimientos — {{ ingredient.name }}{% endblock %}
+
+{% block content %}
+<p>
+  <a href="/inventario" class="btn btn-sm btn-ghost">
+    <svg class="icon" aria-hidden="true"><use href="#icon-arrow-left"/></svg>
+    Volver al inventario
+  </a>
+</p>
+
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
+  Movimientos de stock
+</h1>
+
+<p>
+  <strong>{{ ingredient.name }}</strong> —
+  Stock actual: <span class="badge badge-ok">{{ "%.2f"|format(current_stock) }} {{ ingredient.unit }}</span>
+</p>
+
+{% if movements %}
+<table class="table is-striped">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Tipo</th>
+      <th class="num">Cantidad</th>
+      <th class="num">Balance antes</th>
+      <th class="num">Balance después</th>
+      <th>Motivo</th>
+      <th>Referencia</th>
+      <th>Operador</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in movements %}
+    <tr>
+      <td><small>{{ m.recorded_at.strftime("%d/%m/%Y %H:%M") if m.recorded_at else "—" }}</small></td>
+      <td>
+        {% if m.movement_type == 'sale' %}
+          <span class="badge badge-neutral">venta</span>
+        {% elif m.movement_type == 'adjustment' %}
+          <span class="badge badge-warn">ajuste</span>
+        {% elif m.movement_type == 'merma' %}
+          <span class="badge badge-danger">merma</span>
+        {% elif m.movement_type == 'reorder' %}
+          <span class="badge badge-ok">reorden</span>
+        {% elif m.movement_type == 'initial' %}
+          <span class="badge badge-neutral">stock inicial</span>
+        {% else %}
+          <span class="badge badge-neutral">{{ m.movement_type }}</span>
+        {% endif %}
+      </td>
+      <td class="num {{ 'text-danger' if m.qty < 0 else 'text-success' }}">
+        {{ "%+.2f"|format(m.qty) }}
+      </td>
+      <td class="num">{{ "%.2f"|format(m.balance_before) }}</td>
+      <td class="num">{{ "%.2f"|format(m.balance_after) }}</td>
+      <td><small>{{ m.reason or "—" }}</small></td>
+      <td>
+        {% if m.reference_type == 'sale' and m.reference_id %}
+          <a href="/ventas/{{ m.reference_id }}/recibo"><small>Venta #{{ m.reference_id }}</small></a>
+        {% elif m.reference_type == 'waste_log' and m.reference_id %}
+          <small>Merma #{{ m.reference_id }}</small>
+        {% else %}
+          <small>—</small>
+        {% endif %}
+      </td>
+      <td><small>{{ m.created_by or "sistema" }}</small></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
+  <h3>Sin movimientos registrados</h3>
+  <p>Este ingrediente aún no tiene movimientos de stock.</p>
+</div>
+{% endif %}
+
+{% endblock %}

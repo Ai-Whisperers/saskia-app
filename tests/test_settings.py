@@ -3,7 +3,7 @@
 Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E10.
 
 Covers:
-- 30 settings registered across 7 groups
+- 31 settings registered across 7 groups
 - get_setting_value returns default when not stored
 - set_setting persists + validates (rejects bad values)
 - set_setting round-trips through validator (str, int, float, bool, json)
@@ -32,8 +32,8 @@ from app.rms.settings import (
 
 
 def test_settings_count():
-    """30 settings registered across 7 groups."""
-    assert len(SETTINGS) == 30
+    """31 settings registered across 7 groups."""
+    assert len(SETTINGS) == 31
     groups = {s.group for s in SETTINGS}
     assert groups == {
         SettingGroup.GENERAL,
@@ -51,7 +51,7 @@ def test_settings_per_group_counts():
     by_group: dict[SettingGroup, int] = {}
     for s in SETTINGS:
         by_group[s.group] = by_group.get(s.group, 0) + 1
-    assert by_group[SettingGroup.GENERAL] == 6
+    assert by_group[SettingGroup.GENERAL] == 7
     assert by_group[SettingGroup.INVENTORY] == 6
     assert by_group[SettingGroup.SALES] == 5
     assert by_group[SettingGroup.DASHBOARD] == 5
@@ -170,12 +170,12 @@ def test_set_setting_overwrites_existing(session_factory):
         s.close()
 
 
-def test_list_settings_returns_30(session_factory):
+def test_list_settings_returns_31(session_factory):
     """list_settings returns 30 entries with value/default/group/etc."""
     s = session_factory()
     try:
         all_settings = list_settings(s)
-        assert len(all_settings) == 30
+        assert len(all_settings) == 31
         entry = all_settings[0]
         for k in ("key", "value", "default", "description", "group", "choices"):
             assert k in entry
@@ -197,7 +197,7 @@ def test_settings_by_group_groups_correctly(session_factory):
             "session",
             "demo",
         }
-        assert len(grouped["general"]) == 6
+        assert len(grouped["general"]) == 7
         assert len(grouped["inventory"]) == 6
         assert len(grouped["sales"]) == 5
     finally:

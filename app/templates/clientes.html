@@ -14,7 +14,20 @@
 </div>
 {% endif %}
 
-<p class="text-muted">Programa de puntos: 1 punto por cada 1.000 Gs. gastados. 1 punto = 1.000 Gs. de descuento.</p>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
+  <p class="text-muted" style="margin:0;">Programa de puntos: 1 punto por cada 1.000 Gs. gastados. 1 punto = 1.000 Gs. de descuento.</p>
+  <div style="display:flex;gap:var(--space-2);align-items:center;">
+    {% set csv_q = dict(request.query_params.multi_items()) %}{% set _ = csv_q.update({'format': 'csv'}) %}
+    <a href="{{ request.url.path }}?{{ csv_q|urlencode }}" class="btn btn-sm btn-ghost" download="clientes.csv">
+      <svg class="icon" aria-hidden="true"><use href="#icon-excel"/></svg>
+      Exportar CSV
+    </a>
+    <button type="button" id="nuevo-cliente-btn" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+      Nuevo cliente
+    </button>
+  </div>
+</div>
 
 <form method="get" action="/clientes" class="form form-row">
   <input type="search" name="q" value="{{ q }}" placeholder="Buscar nombre o teléfono…">
@@ -92,24 +105,53 @@
 </div>
 {% endif %}
 
+{# Hidden include — loads the modal markup + customer-picker.js without showing anything #}
+<div hidden>{% include '_components/_customer_picker.html' %}</div>
+
 <script>
-(function() {
+(function () {
+  var nuevoBtn = document.getElementById('nuevo-cliente-btn');
+
+  // Wire up the standalone "Nuevo cliente" button to open the picker modal.
+  if (nuevoBtn && window.SaskiaCustomerPicker) {
+    nuevoBtn.addEventListener('click', function () {
+      window.SaskiaCustomerPicker.open();
+    });
+  }
+
+  // Override pickCustomer: redirect to /clientes with a flash message after
+  // a new customer is created via the picker.
+  if (window.SaskiaCustomerPicker) {
+    var _origPick = window.SaskiaCustomerPicker.pick;
+    window.SaskiaCustomerPicker.pick = function (c) {
+      if (c && c._isNew) {
+        // User just created a new customer — redirect to clientes list with flash.
+        window.location.href = '/clientes?flash=Cliente+creado';
+        return;
+      }
+      // All other picks (search select): keep the original behaviour.
+      _origPick.call(window.SaskiaCustomerPicker, c);
+    };
+  }
+
+  // Restore table checkbox / bulk-delete behaviour.
   var selAll = document.getElementById('select-all-clients');
   var checks = document.querySelectorAll('input[name=selected_clients]');
   var bulkDiv = document.getElementById('bulk-actions-clients');
   var countSpan = document.getElementById('bulk-count-clients');
   function update() {
     var checked = document.querySelectorAll('input[name=selected_clients]:checked');
-    bulkDiv.style.display = checked.length ? 'flex' : 'none';
-    countSpan.textContent = checked.length + ' seleccionado(s)';
+    if (bulkDiv) bulkDiv.style.display = checked.length ? 'flex' : 'none';
+    if (countSpan) countSpan.textContent = checked.length + ' seleccionado(s)';
   }
-  if (selAll) selAll.addEventListener('change', function() { checks.forEach(function(c){c.checked=selAll.checked;}); update(); });
-  checks.forEach(function(c){ c.addEventListener('change', update); });
+  if (selAll) selAll.addEventListener('change', function () { checks.forEach(function (c) { c.checked = selAll.checked; }); update(); });
+  checks.forEach(function (c) { c.addEventListener('change', update); });
 })();
+
 function bulkDeleteClients() {
   var checked = Array.from(document.querySelectorAll('input[name=selected_clients]:checked'));
   if (!checked.length) return;
-  var ids = checked.map(function(c){ return c.value; });
+  var ids = checked.map(function (c) { return c.value; });
   SaskiaConfirmModal.show({
     title: '¿Eliminar ' + ids.length + ' cliente(s)?',
     body: 'Se eliminarán los clientes que no tengan ventas registradas.',

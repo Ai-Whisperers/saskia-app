@@ -119,6 +119,14 @@ SETTINGS: list[Setting] = [
         SettingGroup.GENERAL,
         choices=["America/Asuncion", "UTC"],
     ),
+    Setting(
+        "ui.theme",
+        "system",
+        "str",
+        "Tema de color (claro, oscuro o sistema)",
+        SettingGroup.GENERAL,
+        choices=["system", "light", "dark"],
+    ),
     # INVENTORY (6)
     Setting(
         "inventory.default_min_stock",

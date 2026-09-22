@@ -40,19 +40,14 @@ def clientes_list(
 ) -> HTMLResponse:
     """Customer directory with loyalty tiers + points + filters."""
     from app.rms.models import Customer
+    from starlette.responses import StreamingResponse
+    import csv
+    import io
 
-    stmt = select(Customer)
-    if q:
-        like = f"%{q.lower()}%"
-        stmt = stmt.where(
-            or_(
-                func.lower(Customer.name).like(like),
-                func.lower(Customer.phone).like(like),
-            )
-        )
+    like = f"%{q.lower()}%"
+
     if tier:
-        # Filter by tier requires computing stats per customer; for
-        # simplicity we filter post-hoc in Python (limit is small).
+        # Tier filter requires post-hoc filtering (stats needed per customer).
         customers = list_customers(session)
         if q:
             ql = q.lower()
@@ -78,7 +73,7 @@ def clientes_list(
                     "points": c.loyalty_points,
                 })
     else:
-        # No tier filter — but q filter was applied via stmt.
+        # No tier filter — search only.
         if q:
             ql = q.lower()
             customers = [
@@ -115,6 +110,26 @@ def clientes_list(
     col = col_map.get(sort_col, "name")
     if rows and col in rows[0]:
         rows.sort(key=lambda r: (r.get(col) or "" if isinstance(r.get(col), str) else r.get(col) or 0), reverse=reverse)
+
+    # --- CSV export ---
+    if request.query_params.get("format") == "csv":
+        export_rows = []
+        for r in rows:
+            export_rows.append({
+                "id": r["id"], "name": r["name"], "phone": r["phone"] or "",
+                "n_sales": r["n_sales"], "lifetime_spend_gs": r["lifetime_spend_gs"],
+                "tier": r["tier"], "points": r["points"],
+                "last_sale_at": r["last_sale_at"].iso if r["last_sale_at"] else "",
+            })
+        buf = io.StringIO()
+        w = csv.DictWriter(buf, fieldnames=["id","name","phone","n_sales","lifetime_spend_gs","tier","points","last_sale_at"])
+        w.writeheader()
+        w.writerows(export_rows)
+        return StreamingResponse(
+            iter([buf.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=clientes.csv"},
+        )
 
     return render(request, "clientes.html", {
         "customers": rows,

@@ -38,6 +38,7 @@ from app.rms.models import (
     RecipeLine,
     Sale,
     SaleStockMove,
+    StockMovement,
 )
 from app.rms.money import to_int_gs
 from app.rms.units import normalize_recipe_line_qty
@@ -426,6 +427,18 @@ def apply_sale(
                     if ingredient is not None:
                         ingredient.stock_qty = (ingredient.stock_qty or 0) - abs(qty_delta)
                     stock_moves.append((ingredient_id, -abs(qty_delta)))
+                    # Write StockMovement audit record (negative qty = stock out)
+                    stock_movement = StockMovement(
+                        ingredient_id=ingredient_id,
+                        movement_type="sale",
+                        qty=-abs(qty_delta),
+                        reason=f"Venta #{sale.id}",
+                        reference_id=sale.id,
+                        reference_type="sale",
+                        recorded_at=sold_at,
+                        created_by=None,
+                    )
+                    session.add(stock_movement)
             except CycleInRecipeTree:
                 cycle_warning = True
                 # Sale is still saved; stock moves are not applied.
@@ -511,6 +524,7 @@ def void_sale(session: Session, sale_id: int) -> VoidSaleResult:
         raise ValueError(f"Sale {sale_id} ya anulada")
 
     restored: list[tuple[int, float]] = []
+    now = datetime.now()
     for move in list(sale.stock_moves):  # copy to avoid mutating during iter
         # Reverse: qty_delta becomes positive (restored)
         restored_qty = abs(move.qty_delta)
@@ -519,6 +533,18 @@ def void_sale(session: Session, sale_id: int) -> VoidSaleResult:
         if ingredient is not None:
             ingredient.stock_qty = (ingredient.stock_qty or 0) + restored_qty
         restored.append((move.ingredient_id, restored_qty))
+        # StockMovement: positive = stock in (restored)
+        stock_movement = StockMovement(
+            ingredient_id=move.ingredient_id,
+            movement_type="sale",
+            qty=restored_qty,
+            reason=f"Anulación venta #{sale.id}",
+            reference_id=sale.id,
+            reference_type="sale",
+            recorded_at=now,
+            created_by=None,
+        )
+        session.add(stock_movement)
 
     sale.voided_at = datetime.now()
     session.commit()
