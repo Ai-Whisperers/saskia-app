@@ -26,7 +26,7 @@
   <tbody>
     {% for s in suppliers %}
     <tr>
-      <td><strong>{{ s.name }}</strong></td>
+      <td><strong data-copy="{{ s.id }}">{{ s.name }}</strong></td>
       <td>{{ s.contact_name or "—" }}</td>
       <td>{{ s.phone or "—" }}</td>
       <td>{{ s.email or "—" }}</td>
@@ -55,6 +55,11 @@
     {% endfor %}
   </tbody>
 </table>
+{% if suppliers %}
+<div class="table-info">
+  <span>Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ total }}</strong> proveedores</span>
+</div>
+{% endif %}
 {% else %}
 <div class="empty-state">
   <svg class="icon" aria-hidden="true"><use href="#icon-supplier"/></svg>

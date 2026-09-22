@@ -18,7 +18,12 @@ router = APIRouter(prefix="/suppliers", dependencies=[Depends(require_login)])
 def suppliers_list(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     """List all suppliers."""
     suppliers = session.scalars(select(Supplier).order_by(Supplier.name)).all()
-    return render(request, "suppliers.html", {"suppliers": list(suppliers)})
+    return render(request, "suppliers.html", {
+        "suppliers": list(suppliers),
+        "total": len(suppliers),
+        "page_start": 1,
+        "page_end": len(suppliers),
+    })
 
 
 @router.get("/nuevo", response_class=HTMLResponse)

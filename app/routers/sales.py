@@ -172,6 +172,7 @@ async def sales_list(
                 "units": float(units),
                 "revenue_gs": int(rev or 0),
                 "is_available": p.is_available,
+                "stock_qty": getattr(p, "stock_qty", None),
             })
 
     return render(

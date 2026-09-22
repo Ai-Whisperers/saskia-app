@@ -45,7 +45,7 @@
     {% for i in ingredients %}
     <tr class="{% if i.stock_qty < 0 %}row-negative{% endif %}">
       <td>
-        <strong><a href="/inventario/{{ i.id }}">{{ i.name }}</a></strong>
+        <strong data-copy="{{ i.id }}"><a href="/inventario/{{ i.id }}">{{ i.name }}</a></strong>
         {% if i.category %}<span class="badge badge-neutral">{{ i.category }}</span>{% endif %}
       </td>
       <td>{{ i.unit }}</td>
@@ -82,8 +82,8 @@
 {# Pagination #}
 {% if total_pages > 1 %}
 <nav class="pagination" aria-label="Navegación de inventario">
-  <span class="pagination-info">
-    Mostrando {{ ((page - 1) * per_page) + 1 }}–{{ [page * per_page, total] | min }} de {{ total }} ingredientes
+  <span class="pagination-info table-info">
+    Mostrando <strong>{{ ((page - 1) * per_page) + 1 }}–{{ [page * per_page, total] | min }}</strong> de <strong>{{ total }}</strong> ingredientes
   </span>
   <div class="pagination-links">
     {% if page > 1 %}

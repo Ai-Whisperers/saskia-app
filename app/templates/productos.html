@@ -117,8 +117,8 @@
 {# Pagination #}
 {% if total_pages > 1 %}
 <nav class="pagination" aria-label="Navegación de productos">
-  <span class="pagination-info">
-    Mostrando {{ ((page - 1) * per_page) + 1 }}–{{ [page * per_page, total] | min }} de {{ total }} productos
+  <span class="pagination-info table-info">
+    Mostrando <strong>{{ ((page - 1) * per_page) + 1 }}–{{ [page * per_page, total] | min }}</strong> de <strong>{{ total }}</strong> productos
   </span>
   <div class="pagination-links">
     {% if page > 1 %}

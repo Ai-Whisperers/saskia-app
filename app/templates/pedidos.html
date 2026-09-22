@@ -114,7 +114,7 @@
         {% if p.status == 'pending' %}
         <td style="width:2rem;"><input type="checkbox" name="pedido_ids" value="{{ p.id }}" data-group="{{ key }}" class="pedido-check"></td>
         {% endif %}
-        <td>
+        <td data-copy="{{ p.id }}">
           <strong>{{ p.customer_name }}</strong>
           {% if p.customer_phone %}<br><small class="text-muted">{{ p.customer_phone }}</small>{% endif %}
           {% if p.spend_30d_gs and p.spend_30d_gs > 0 %}
@@ -161,7 +161,12 @@
       {% endfor %}
     </tbody>
   </table>
-  {% else %}
+  {% if pagination.total_count > 0 %}
+  <div class="table-info">
+    <span>Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ pagination.total_count }}</strong> pedidos</span>
+  </div>
+  {% endif %}
+{% else %}
   <div class="empty-state">
     <p class="text-muted">
       {% if key == "hoy_manana" %}

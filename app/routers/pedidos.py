@@ -643,7 +643,62 @@ def pedidos_fulfill(
     )
     session.commit()
 
+    # ── Notify customer via WhatsApp or SMS ──────────────────────────────────
+    _send_fulfill_notification(session, pedido)
+
     return RedirectResponse(url=f"/pedidos/{pedido.id}", status_code=303)
+
+
+def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
+    """Send a WhatsApp/SMS notification to the customer when their order is fulfilled.
+
+    WhatsApp is attempted first via Twilio; if credentials are absent it falls back
+    to SMS.  When neither is configured, a console/structlog info line is produced.
+    """
+    if not pedido.customer_phone:
+        return
+
+    phone = pedido.customer_phone.strip()
+    msg = (
+        f"¡Tu pedido #{pedido.id} esta listo para retirar! Te esperamos 😊"
+        if pedido.channel == "WhatsApp"
+        else f"Tu pedido #{pedido.id} esta listo para retirar. Gracias!"
+    )
+
+    import logging, os
+    twilio_sid     = os.getenv("TWILIO_ACCOUNT_SID",     "").strip()
+    twilio_token   = os.getenv("TWILIO_AUTH_TOKEN",       "").strip()
+    twilio_from_wa = os.getenv("TWILIO_WHATSAPP_FROM",   "").strip()
+    twilio_from_ph = os.getenv("TWILIO_PHONE_FROM",       "").strip()
+
+    log = logging.getLogger("rms.pedidos")
+
+    def _post_twilio(from_num: str, to_num: str) -> bool:
+        try:
+            import httpx
+            r = httpx.post(
+                f"https://api.twilio.com/2010-04-01/Accounts/{twilio_sid}/Messages.json",
+                auth=(twilio_sid, twilio_token),
+                data={"From": from_num, "To": to_num, "Body": msg},
+                timeout=15.0,
+            )
+            ok = r.status_code in (200, 201)
+            if not ok:
+                log.warning("Twilio error for pedido %s: %s %s", pedido.id, r.status_code, r.text)
+            return ok
+        except Exception as exc:
+            log.error("Twilio exception for pedido %s: %s", pedido.id, exc)
+            return False
+
+    if twilio_sid and twilio_token:
+        if twilio_from_wa:
+            if _post_twilio(f"whatsapp:{twilio_from_wa}", f"whatsapp:{phone}"):
+                return
+        if twilio_from_ph:
+            _post_twilio(twilio_from_ph, phone)
+            return
+    # No Twilio configured
+    log.info("[notify] Pedido #%s fulfilled — would send to %s: %s", pedido.id, phone, msg)
 
 
 # --- Stock preview (pre-fulfill) ---------------------------------------------

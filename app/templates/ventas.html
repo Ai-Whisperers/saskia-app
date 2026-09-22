@@ -25,7 +25,7 @@
 <div class="quick-sell-search-row">
   <input type="search" id="quick-sell-search" placeholder="Buscar producto en quick-sell…" aria-label="Buscar producto en quick-sell" autocomplete="off">
 </div>
-<div class="quick-sell-grid" id="quick-sell-grid" role="grid" aria-label="Productos para venta rápida">
+<div class="quick-sell-grid" id="quick-sell-grid" role="grid" aria-label="Productos para venta rápida" tabindex="0">
   {% for q in quick_sell %}
   <form method="post" action="/ventas/nueva" class="quick-sell-btn{% if not q.is_available %} is-out-of-stock{% endif %}" aria-label="Venta rápida: {{ q.name }}"
         data-name="{{ q.name|lower }}" data-product-id="{{ q.product_id }}"
@@ -37,6 +37,8 @@
       <span class="gs">{{ m.gs(q.sale_price_gs) }}</span>
       {% if not q.is_available %}
         <br><small class="text-danger">Sin stock</small>
+      {% elif q.stock_qty is not none %}
+        <br><small class="text-muted">Stock: {{ "%.0f"|format(q.stock_qty) }}</small>
       {% endif %}
     </button>
   </form>
@@ -45,7 +47,7 @@
 {% endif %}
 
 <h2>Nueva venta</h2>
-<form method="post" action="/ventas/nueva" id="sale-form">
+<form method="post" action="/ventas/nueva" id="sale-form" onsubmit="var btn=document.getElementById('sale-submit-btn');if(btn){btn.disabled=true;btn.innerHTML='<svg class=\'icon\' aria-hidden=\'true\'><use href=\'#icon-check\'/></svg> Registrando…';}">
   <div class="form-row">
     <label for="sku">Escanear SKU (opcional)</label>
     <input type="text" id="sku" name="sku" autocomplete="off" autofocus
@@ -113,8 +115,7 @@
   </div>
 
   <div class="form-actions">
-    <button type="submit" class="btn btn-primary" id="sale-submit-btn"
-            onclick="this.disabled=true;this.innerHTML='<svg class=\'icon\' aria-hidden=\'true\'><use href=\'#icon-check\'/></svg> Registrando…';">
+    <button type="submit" class="btn btn-primary" id="sale-submit-btn">
       <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
       Registrá venta
     </button>
@@ -142,7 +143,7 @@
   <p class="text-muted mt-2" style="font-size:var(--text-xs);">
     Filtro actual: {{ totals.filters }}
     <span class="badge badge-info" style="margin-left:var(--space-3);">
-      Mostrando {{ sales|length }}{% if has_more %} de {{ totals.count }}{% endif %} ventas
+      Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ total_count }}</strong> ventas
     </span>
     {% set csv_query = dict(request.query_params.multi_items()) %}
     {% set _ = csv_query.update({'format': 'csv'}) %}
@@ -205,7 +206,7 @@
       <td class="num">{{ m.gs(s.total_gs) }}</td>
       <td>
         {% if s.customer_name %}
-          <strong>{{ s.customer_name }}</strong><br>
+          <strong data-copy="{{ s.customer_id if s.customer_id else '' }}">{{ s.customer_name }}</strong><br>
           <small class="text-muted">{% if s.customer_phone %}{{ s.customer_phone }}{% else %}—{% endif %}</small>
         {% elif s.customer_phone %}
           <small class="text-muted">{{ s.customer_phone }}</small>
@@ -401,8 +402,15 @@
     }
     saleForm.addEventListener("input", saveForm);
     saleForm.addEventListener("change", saveForm);
-    saleForm.addEventListener("submit", function() {
-      try { sessionStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    // Run validation on submit — blocks if discount exceeds line total
+    saleForm.addEventListener("submit", function(e) {
+      validateDiscount();
+      if (!saleForm.checkValidity()) {
+        e.preventDefault();
+        saleForm.reportValidity();
+        return;
+      }
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch (err) {}
     });
   }
 
@@ -422,6 +430,13 @@
     } else if (e.key === "F4") {
       e.preventDefault();
       if (discountInput) discountInput.focus();
+    } else if (e.key === "Escape" && !isFormField) {
+      // Clear the in-progress sale form
+      if (saleForm) {
+        saleForm.reset();
+        try { sessionStorage.removeItem(STORAGE_KEY); } catch (err) {}
+        if (skuInput) skuInput.focus();
+      }
     }
   });
 
@@ -429,17 +444,17 @@
   var qsGrid = document.getElementById("quick-sell-grid");
   var qsSearch = document.getElementById("quick-sell-search");
 
-  if (qsGrid) {
-    var qsButtons = Array.prototype.slice.call(
-      qsGrid.querySelectorAll(".quick-sell-btn:not(.is-out-of-stock)")
+  function getVisibleBtns() {
+    return Array.prototype.slice.call(
+      qsGrid.querySelectorAll(".quick-sell-btn:not(.is-out-of-stock) .btn:not([disabled])")
     );
-    var qsNavIndex = -1;
+  }
 
+  var qsNavIndex = -1;
+
+  if (qsGrid) {
     qsGrid.addEventListener("keydown", function(e) {
-      var visibleBtns = Array.prototype.slice.call(
-        qsGrid.querySelectorAll(".quick-sell-btn:not(.is-out-of-stock)"
-        + " .btn:not([disabled])")
-      );
+      var visibleBtns = getVisibleBtns();
       if (e.key === "ArrowRight") {
         e.preventDefault();
         qsNavIndex = Math.min(qsNavIndex + 1, visibleBtns.length - 1);
@@ -454,7 +469,6 @@
         }
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
-        // Move down a row (approximately 3 items per row)
         qsNavIndex = Math.min(qsNavIndex + 3, visibleBtns.length - 1);
         if (qsNavIndex >= 0 && visibleBtns[qsNavIndex]) {
           visibleBtns[qsNavIndex].focus();
@@ -466,14 +480,13 @@
           visibleBtns[qsNavIndex].focus();
         }
       } else if (e.key === "Enter" && document.activeElement === qsGrid) {
-        // If grid itself is focused and Enter pressed, activate first
         e.preventDefault();
         if (visibleBtns[0]) visibleBtns[0].click();
       }
     });
 
-    // Reset nav index when grid receives focus via tab
     qsGrid.addEventListener("focusin", function(e) {
+      var visibleBtns = getVisibleBtns();
       var idx = visibleBtns.indexOf(e.target);
       if (idx >= 0) qsNavIndex = idx;
     });
@@ -489,6 +502,7 @@
           form.style.display = (query === "" || name.indexOf(query) >= 0) ? "" : "none";
         }
       );
+      qsNavIndex = -1; // Reset nav when filter changes
     });
   }
 })();
