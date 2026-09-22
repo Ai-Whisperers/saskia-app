@@ -347,7 +347,7 @@ def pedidos_new_form(
             "products": products,
             "customers": customers,
             "channels": CHANNELS,
-            "payment_methods": list(ALLOWED_PAYMENT_METHODS) + ["efectivo", "transferencia", "qr", "tarjeta", "otro"],
+            "payment_methods": sorted(set(ALLOWED_PAYMENT_METHODS)),
             "today_iso": date.today().isoformat(),
             "default_promised_date": tomorrow.isoformat(),
         },

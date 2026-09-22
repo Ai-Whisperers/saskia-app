@@ -10,8 +10,8 @@ import io
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, Response
-from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import func, select
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -24,6 +24,44 @@ from app.rms.units import Unit
 from app.services.template_render import render
 
 router = APIRouter(prefix="/inventario", dependencies=[Depends(require_login)])
+
+
+@router.get("/api/search", response_class=JSONResponse)
+def ingredients_api_search(
+    q: str = Query("", description="Search query"),
+    limit: int = Query(50, ge=1, le=200),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Search ingredients by name for combobox pickers.
+
+    Used by /merma and /pedidos/nuevo. Returns matching ingredients
+    ordered by name, with up to `limit` rows. Empty query returns
+    all ingredients up to limit (alphabetical).
+    """
+    if not q or q.strip() == "":
+        rows = session.scalars(
+            select(Ingredient).order_by(Ingredient.name).limit(limit)
+        ).all()
+    else:
+        like = f"%{q.strip().lower()}%"
+        rows = session.scalars(
+            select(Ingredient)
+            .where(func.lower(Ingredient.name).like(like))
+            .order_by(Ingredient.name)
+            .limit(limit)
+        ).all()
+    payload = [
+        {
+            "id": ing.id,
+            "name": ing.name,
+            "unit": ing.unit,
+            "stock_qty": ing.stock_qty or 0.0,
+            "min_stock_qty": ing.min_stock_qty or 0.0,
+            "purchase_price_gs": ing.purchase_price_gs or 0,
+        }
+        for ing in rows
+    ]
+    return JSONResponse({"results": payload, "count": len(payload)})
 
 
 @router.get("/export.csv")

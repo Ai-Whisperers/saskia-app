@@ -91,13 +91,28 @@
   </div>
   <form method="post" action="/merma/registrar" class="form">
     <div class="form-row">
-      <label for="ingredient_id">Ingrediente</label>
-      <select id="ingredient_id" name="ingredient_id" required>
-        <option value="">— Seleccionar —</option>
-        {% for ing in ingredients %}
-        <option value="{{ ing.id }}">{{ ing.name }}</option>
-        {% endfor %}
-      </select>
+      <label for="ingredient_combo">Ingrediente</label>
+      {# Combobox replaces the 30+-item native <select>. Picks set
+         the hidden ingredient_id; typing without picking is rejected
+         (operator must select — we don't auto-create ingredients). #}
+      <div class="saskia-combo"
+           data-source="/inventario/api/search"
+           data-display="name"
+           data-value="id"
+           data-min-chars="1"
+           data-row-builder="ingredientRowLabel">
+        <input type="text"
+               id="ingredient_combo"
+               class="combo-input"
+               placeholder="Escribí el ingrediente (harina, aceite…)"
+               autocomplete="off">
+        <input type="hidden" name="ingredient_id" value="">
+        <div class="combo-results combo-results-below" role="listbox" hidden></div>
+      </div>
+      <small class="hint">
+        Si no encontrás el ingrediente, creá uno primero en
+        <a href="/inventario/nuevo">Inventario</a>.
+      </small>
     </div>
     <div class="form-row">
       <label for="qty">Cantidad</label>

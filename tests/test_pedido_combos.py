@@ -67,16 +67,20 @@ def test_product_api_search_does_not_match_qs(qseed, authed_client):
 
 
 def test_pedido_nuevo_renders_combobox_not_select(qseed, authed_client):
-    """The new pedido form uses inputs with combobox classes, not <select>."""
+    """The new pedido form uses combobox elements, not native <select>."""
     qseed("basic")
     r = authed_client.get("/pedidos/nuevo")
     assert r.status_code == 200
     body = r.text
-    # Combobox markers
-    assert "customer-combobox-input" in body
-    assert "product-combobox-input" in body
-    # JS helper
-    assert "pedido-combos" in body
+    # Generic combo markers (reusable component)
+    assert "saskia-combo" in body
+    assert "combo-input" in body
+    # Customer + product combobox instances
+    assert "saskia-customer-combo" in body
+    assert "saskia-product-combo" in body
+    # Data attributes wire up to the right APIs
+    assert 'data-source="/customers/api/search"' in body
+    assert 'data-source="/productos/api/search"' in body
     # Old redundant inputs gone
     assert '<select id="customer_id"' not in body, (
         "Customer ID should now be a hidden input, not a select"
@@ -104,8 +108,12 @@ def test_pedido_nuevo_includes_pedido_combos_js(qseed, authed_client):
     # Also fetch the JS itself
     r2 = authed_client.get("/static/pedido-combos.js")
     assert r2.status_code == 200
-    assert "customer-combobox" in r2.text or "customer_picker_input" in r2.text
-    assert "product-combobox" in r2.text or "product-combobox-input" in r2.text
+    # Check for one of the class names the pedido-specific bindings use
+    assert (
+        "saskia-combo" in r2.text
+        or "SaskiaCombo" in r2.text
+        or "setupCustomerCombo" in r2.text
+    )
 
 
 def test_pedido_create_with_combobox_customer(qseed, authed_client):
