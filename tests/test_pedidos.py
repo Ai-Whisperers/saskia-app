@@ -297,9 +297,10 @@ def test_fulfill_creates_sales_and_decrements_stock(client, session_factory):
         assert p.status == "fulfilled"
         assert p.fulfilled_at is not None
         assert p.fulfilled_sale_id is not None
-        # 1 Sale row created
-        sales = s.execute(select(Sale).where(Sale.customer_id.is_(None)).where(Sale.product_id == product_id)).scalars().all()
-        # The pedido had no customer_id; the Sale also has no customer_id
+        # 1 Sale row created — fulfills into a Sale. With auto-create-customer,
+        # the Pedido now has customer_id pointing to the auto-created Customer
+        # "Cumpleañera", so the Sale also has customer_id set.
+        sales = s.execute(select(Sale).where(Sale.product_id == product_id)).scalars().all()
         sale = next(x for x in sales if x.id == p.fulfilled_sale_id)
         assert sale.qty == 2
         assert sale.unit_price_gs == 8000

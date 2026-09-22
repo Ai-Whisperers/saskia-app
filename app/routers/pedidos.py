@@ -357,7 +357,9 @@ def pedidos_new_form(
 @router.post("/nuevo")
 async def pedidos_create(
     request: Request,
-    customer_id: int | None = Form(None),
+    # customer_id comes in as "" when the combobox has no selection (yet
+    # the user may have entered a free-form name). Treat empty string as None.
+    customer_id: str = Form(""),
     customer_name: str = Form(""),
     customer_phone: str = Form(""),
     promised_date: str = Form(...),
@@ -376,6 +378,16 @@ async def pedidos_create(
     lines without exploding the function signature.
     """
     form = await request.form()
+    cust_id_str = str(customer_id or "").strip()
+    cust_id_int: int | None = None
+    if cust_id_str:
+        try:
+            cust_id_int = int(cust_id_str)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"customer_id inválido: {cust_id_str!r}",
+            )
     # Build list of lines from the form
     product_ids = form.getlist("line_product_id")
     qtys = form.getlist("line_qty")
@@ -446,11 +458,30 @@ async def pedidos_create(
     cust_name = (customer_name or "").strip()
     cust_phone = (customer_phone or "").strip() or None
     cust_obj: Customer | None = None
-    if customer_id:
-        cust_obj = session.get(Customer, int(customer_id))
+    if cust_id_int:
+        cust_obj = session.get(Customer, cust_id_int)
         if cust_obj is None:
             raise HTTPException(status_code=400, detail="cliente no encontrado")
         cust_name = cust_name or cust_obj.name
+
+    # If user typed a name but didn't pick an existing customer, auto-create.
+    if cust_obj is None and cust_name:
+        existing = session.scalar(
+            select(Customer).where(
+                func.lower(Customer.name) == cust_name.lower()
+            )
+        )
+        if existing is not None:
+            cust_obj = existing
+            if cust_phone and not (existing.phone or ""):
+                existing.phone = cust_phone
+        else:
+            cust_obj = Customer(
+                name=cust_name,
+                phone=cust_phone,
+            )
+            session.add(cust_obj)
+            session.flush()  # assigns cust_obj.id
 
     # Normalize channel to canonical display name
     channel_normalized = normalize_channel(channel)
