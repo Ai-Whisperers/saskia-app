@@ -122,6 +122,49 @@ def delete_item(
     return RedirectResponse(url="/shopping-list", status_code=303)
 
 
+@router.post("/sync-low-stock")
+def sync_low_stock(
+    session: Session = Depends(get_session),
+):
+    """Bulk-add all ingredients where stock < min to the shopping list.
+
+    Idempotent: skips ingredients already in an open shopping list item.
+    """
+    from app.rms.models import Ingredient
+    low_stock = session.execute(
+        select(Ingredient).where(
+            Ingredient.min_stock_qty > 0,
+            Ingredient.stock_qty < Ingredient.min_stock_qty,
+        )
+    ).scalars().all()
+
+    existing = session.execute(
+        select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False))
+    ).scalars().all()
+    existing_ing_ids = {i.ingredient_id for i in existing}
+
+    added = 0
+    for ing in low_stock:
+        if ing.id in existing_ing_ids:
+            continue
+        needed = (ing.min_stock_qty - ing.stock_qty) * 2
+        if needed <= 0:
+            continue
+        item = ShoppingListItem(
+            ingredient_id=ing.id,
+            qty_to_buy=needed,
+            unit=ing.unit,
+            purpose_text=f"Auto: stock {ing.stock_qty} < mín {ing.min_stock_qty}",
+        )
+        session.add(item)
+        added += 1
+    session.commit()
+    return RedirectResponse(
+        url=f"/shopping-list?from_sync={added}",
+        status_code=303,
+    )
+
+
 @router.post("/add")
 def add_item(
     request: Request,

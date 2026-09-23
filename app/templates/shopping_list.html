@@ -20,6 +20,12 @@
     como equipment.
   </div>
 </div>
+{% elif request.query_params.get('from_sync') %}
+<div class="card mb-3" style="background: #d1fae5; border-color: #10b981;">
+  <div class="card-body">
+    🔄 <strong>Sync low stock</strong> ejecutado: {{ request.query_params.get('from_sync', 0) }} items añadidos.
+  </div>
+</div>
 {% endif %}
 
 <div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
@@ -37,6 +43,11 @@
     Todos (incl. comprados)
   </a>
   <a href="/produccion-planner" class="btn">📐 Crear plan</a>
+  <form method="post" action="/shopping-list/sync-low-stock" style="display:inline;">
+    <button type="submit" class="btn btn-warning" title="Importar todos los ingredientes con stock &lt; mínimo">
+      🔄 Sync low stock
+    </button>
+  </form>
 </div>
 
 {% if items %}
