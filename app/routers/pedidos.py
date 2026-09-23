@@ -340,6 +340,15 @@ def pedidos_new_form(
         select(Customer).order_by(Customer.created_at.desc()).limit(50)
     ).all()
     tomorrow = date.today() + timedelta(days=1)
+
+    # Load active delivery zones for the picker
+    from app.rms.models import DeliveryZone
+    delivery_zones = session.scalars(
+        select(DeliveryZone)
+        .where(DeliveryZone.is_active.is_(True))
+        .order_by(DeliveryZone.position)
+    ).all()
+
     return render(
         request,
         "pedidos_nuevo.html",
@@ -348,6 +357,7 @@ def pedidos_new_form(
             "customers": customers,
             "channels": CHANNELS,
             "payment_methods": sorted(set(ALLOWED_PAYMENT_METHODS)),
+            "delivery_zones": delivery_zones,
             "today_iso": date.today().isoformat(),
             "default_promised_date": tomorrow.isoformat(),
         },
@@ -367,6 +377,7 @@ async def pedidos_create(
     channel: str = Form("whatsapp"),
     payment_intent: str = Form("efectivo"),
     notes: str = Form(""),
+    delivery_zone_id: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Create a new pedido with one or more lines.
@@ -486,6 +497,29 @@ async def pedidos_create(
     # Normalize channel to canonical display name
     channel_normalized = normalize_channel(channel)
 
+    # Auto-fill delivery zone from form + validate min order
+    zone_int: int | None = None
+    if delivery_zone_id:
+        try:
+            zone_int = int(delivery_zone_id)
+        except ValueError:
+            zone_int = None
+    if zone_int:
+        # Load zone to validate min order
+        from app.rms.models import DeliveryZone
+        zone = session.get(DeliveryZone, zone_int)
+        if zone and zone.min_order_gs > 0:
+            # Compute pedido total
+            pedido_total_gs = sum(
+                int(round((ln["qty"] or 0) * (ln["price"] or 0)))
+                for ln in lines
+            )
+            if pedido_total_gs < zone.min_order_gs:
+                notes = (
+                    (notes or "").strip()
+                    + f" [WARN: pedido ₲{pedido_total_gs:,} < mínimo zona ₲{zone.min_order_gs:,}]"
+                ).strip()
+
     pedido = Pedido(
         customer_id=cust_obj.id if cust_obj else None,
         customer_name=cust_name,
@@ -495,6 +529,7 @@ async def pedidos_create(
         channel=channel_normalized,
         status="pending",
         payment_intent=(payment_intent or "efectivo").strip().lower(),
+        delivery_zone_id=zone_int,
         notes=(notes or "").strip() or None,
         public_token=generate_public_token(),
     )

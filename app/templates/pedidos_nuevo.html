@@ -109,6 +109,30 @@
     </div>
   </div>
 
+  {% if delivery_zones %}
+  <div class="form-row mt-2">
+    <label for="delivery_zone_combo">Zona de delivery</label>
+    <div class="saskia-combo"
+         data-source="/delivery-zones/api"
+         data-display="display"
+         data-value="id"
+         data-min-chars="0"
+         data-row-builder="genericRowLabel">
+      <input type="text"
+             id="delivery_zone_combo"
+             class="combo-input"
+             name="delivery_zone_name_display"
+             placeholder="Pickup (gratis) — seleccioná zona…">
+      <input type="hidden" id="delivery_zone_id" name="delivery_zone_id" value="">
+      <div class="combo-results" role="listbox" aria-label="Zonas" hidden></div>
+    </div>
+    <small class="muted">
+      Cada zona tiene un costo de delivery y un pedido mínimo. Si
+      elegís zona, el sistema valida automáticamente.
+    </small>
+  </div>
+  {% endif %}
+
   <div class="form-row">
     <label for="notes">Notas</label>
     <textarea id="notes" name="notes" rows="2"

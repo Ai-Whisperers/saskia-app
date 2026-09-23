@@ -696,6 +696,34 @@ def delivery_zones_list(request: Request, session: Session = Depends(get_session
     )
 
 
+@delivery_router.get("/api", response_class=JSONResponse)
+def delivery_zones_api(
+    q: str = Query("", description="Search"),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Search delivery zones for the pedidos form picker."""
+    stmt = select(DeliveryZone).where(DeliveryZone.is_active.is_(True))
+    if q:
+        like = f"%{q.strip()}%"
+        stmt = stmt.where(
+            DeliveryZone.coverage_text.ilike(like) | DeliveryZone.name.ilike(like)
+        )
+    zones = session.execute(stmt.order_by(DeliveryZone.position)).scalars().all()
+    payload = []
+    for z in zones:
+        payload.append({
+            "id": z.id,
+            "name": z.name,
+            "code": z.code,
+            "coverage_text": z.coverage_text or "",
+            "delivery_cost_gs": z.delivery_cost_gs,
+            "min_order_gs": z.min_order_gs,
+            "delivery_minutes": z.delivery_minutes,
+            "display": f"{z.name} — ₲{z.delivery_cost_gs:,} + mín ₲{z.min_order_gs:,}",
+        })
+    return JSONResponse({"results": payload, "count": len(payload)})
+
+
 __all__ = [
     "wishlist_router",
     "risks_router",

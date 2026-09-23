@@ -20,9 +20,9 @@
     {% for b in benchmarks %}
     <tr>
       <td><strong>{{ b.product_label }}</strong></td>
-      <td class="num">{{ "₲{:,.0f}".format(b.our_wholesale_gs) if b.our_wholesale_gs else '—' }}</td>
-      <td class="num">{{ "₲{:,.0f}".format(b.our_retail_gs) if b.our_retail_gs else '—' }}</td>
-      <td class="num">{{ "₲{:,.0f}".format(b.market_avg_gs) if b.market_avg_gs else '—' }}</td>
+      <td class="num">{{ m.gs(b.our_wholesale_gs) if b.our_wholesale_gs else '—' }}</td>
+      <td class="num">{{ m.gs(b.our_retail_gs) if b.our_retail_gs else '—' }}</td>
+      <td class="num">{{ m.gs(b.market_avg_gs) if b.market_avg_gs else '—' }}</td>
       <td class="num">
         {% if b.position_label == '—' %}<span class="muted">—</span>
         {% elif b.pct > 0 %}
