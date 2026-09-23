@@ -1113,6 +1113,71 @@ def _migration_029_herebus_integration(conn) -> None:
     )
 
 
+def _migration_030_recipe_image_url(conn) -> None:
+    """Add Recipe.image_url (HEREBUS cookbook photos).
+
+    Optional VARCHAR(255) for storing /static/recipes/<file>.jpg
+    paths. Allows the recetas list to show thumbnail previews from
+    hand-photographed cookbook pages.
+    """
+    try:
+        conn.execute(text(
+            "ALTER TABLE recipe ADD COLUMN image_url VARCHAR(255)"
+        ))
+    except Exception:
+        pass
+
+    conn.execute(
+        text("UPDATE app_meta SET value = '30', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
+def _migration_031_risk_status_activo(conn) -> None:
+    """Re-create ck_risk_status to accept both 'active' and 'activo'.
+
+    Original constraint used ('active', 'mitigated', 'closed') but the
+    spreadsheet uses 'activo'. This widens the constraint to allow both.
+    """
+    # Save current contents
+    rows = conn.execute(text("SELECT * FROM risk_item")).fetchall()
+    cols = [c for c in conn.execute(text("PRAGMA table_info(risk_item)")).fetchall()]
+
+    # Drop and recreate with new constraint
+    conn.execute(text("ALTER TABLE risk_item RENAME TO _risk_item_bk"))
+    conn.execute(text("""
+        CREATE TABLE risk_item (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code VARCHAR(16),
+            description VARCHAR(255) NOT NULL,
+            category VARCHAR(32),
+            probability INTEGER NOT NULL DEFAULT 2,
+            impact_gs INTEGER NOT NULL DEFAULT 0,
+            mitigation TEXT,
+            status VARCHAR(16) NOT NULL DEFAULT 'active',
+            owner VARCHAR(64),
+            notes TEXT,
+            created_at DATETIME NOT NULL,
+            CHECK (probability BETWEEN 1 AND 5),
+            CHECK (impact_gs >= 0),
+            CHECK (status IN ('active', 'activo', 'mitigated', 'closed'))
+        )
+    """))
+    if rows:
+        placeholders = ','.join(['?'] * len(cols))
+        col_names = ','.join(c[1] for c in cols)
+        conn.execute(
+            text(f"INSERT INTO risk_item ({col_names}) VALUES ({placeholders})"),
+            [tuple(r) for r in rows]
+        )
+    conn.execute(text("DROP TABLE _risk_item_bk"))
+
+    conn.execute(
+        text("UPDATE app_meta SET value = '31', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -1143,6 +1208,8 @@ MIGRATIONS = {
     27: _migration_027_production_plan_template,
     28: _migration_028_recipe_yield_qty_check,
     29: _migration_029_herebus_integration,
+    30: _migration_030_recipe_image_url,
+    31: _migration_031_risk_status_activo,
 }
 
 

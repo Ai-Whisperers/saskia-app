@@ -126,6 +126,8 @@ class Recipe(Base):
     family: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # category
     dietary_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # comma-separated
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # HEREBUS integration: image_url (book page or process photo)
+    image_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # Relationships
     lines: Mapped[list["RecipeLine"]] = relationship(

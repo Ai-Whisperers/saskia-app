@@ -48,6 +48,7 @@
 <table class="table is-hoverable is-striped">
   <thead>
     <tr>
+      <th style="width:70px;">Foto</th>
       <th>
         Nombre
         <a href="?sort=name&dir={% if sort == 'name' and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}{% if ingredient_id %}&ingredient_id={{ ingredient_id }}{% endif %}" aria-label="Ordenar por nombre">
@@ -74,6 +75,14 @@
   <tbody>
     {% for r in recipes %}
     <tr>
+      <td>
+        {% if r.image_url %}
+          <img src="{{ r.image_url }}" alt="{{ r.name }}" loading="lazy"
+               style="width:60px;height:60px;object-fit:cover;border-radius:6px;">
+        {% else %}
+          <span class="muted" style="display:inline-block;width:60px;height:60px;text-align:center;">—</span>
+        {% endif %}
+      </td>
       <td><strong data-copy="{{ r.id }}"><a href="/recetas/{{ r.id }}">{{ r.name }}</a></strong>
         {% if r.family %}<span class="badge badge-neutral">{{ r.family }}</span>{% endif %}
       </td>

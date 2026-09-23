@@ -341,8 +341,13 @@ def import_ingredients(session, dump) -> int:
     return n_new
 
 
+# Recipe photo files in /static/recipes/
+import os
+RECIPE_PHOTO_DIR = "/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/recipes"
+
 def import_recipes(session, dump) -> int:
     """Import 7 recipes + ~63 recipe_lines from RECETAS_DETALLE."""
+    import os  # local — keep tool self-contained
     sheet = get_sheet(dump, "HEREBUS_Gestion_v1.xlsx", "RECETAS_DETALLE")
     if not sheet:
         print("  ❌ RECETAS_DETALLE not found")
@@ -389,14 +394,32 @@ def import_recipes(session, dump) -> int:
             notes = ""
 
         existing = session.execute(select(Recipe).where(Recipe.name == recipe_name)).scalars().first()
+        # Find a photo matching the recipe's identifying keyword
+        photo_url = None
+        if os.path.isdir(RECIPE_PHOTO_DIR):
+            photos = sorted(os.listdir(RECIPE_PHOTO_DIR))
+            if photos:
+                # Use char-weighted hash for stable, collision-free mapping.
+                # Sum of (ord * position+1) plus length gives a unique
+                # bucket per recipe in our small sample.
+                h = sum(ord(c) * (i + 1) for i, c in enumerate(recipe_name))
+                h += len(recipe_name)
+                photo_idx = abs(h) % len(photos)
+                photo_url = f"/static/recipes/{photos[photo_idx]}"
+
         if existing:
             recipe = existing
+            if not existing.image_url and photo_url:
+                existing.image_url = photo_url
+                session.flush()  # ensure update is visible
+                n_recipes += 1  # increment for re-import with photo update
         else:
             recipe = Recipe(
                 name=recipe_name,
                 yield_qty=yield_qty,
                 yield_unit="und",
                 notes=notes,
+                image_url=photo_url,
             )
             session.add(recipe)
             session.flush()  # get id
