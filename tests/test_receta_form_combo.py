@@ -39,9 +39,12 @@ def test_receta_form_has_line_kind_switching_js(qseed, authed_client):
     r = authed_client.get("/recetas/nueva")
     assert r.status_code == 200
     body = r.text
-    # JavaScript functions are present
+    # JavaScript function that recomputes the item combo source when kind changes
     assert "updateLineSource" in body
-    assert "window SaskiaCombo" in body
+    # Wiring helper that listens to combo selection events
+    assert "wireLineKindHandlers" in body
+    # Reads the line_kind value from the combo's hidden input (not a <select>)
+    assert "kindHidden" in body
 
 
 def test_receta_form_dynamic_line_creation(qseed, authed_client):

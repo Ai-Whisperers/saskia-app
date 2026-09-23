@@ -26,11 +26,26 @@
 
 <form method="get" action="/productos" class="form form-row">
   <input type="search" name="q" value="{{ q }}" placeholder="Buscar producto…">
-  <select name="has_recipe">
-    <option value="">— Todos —</option>
-    <option value="yes" {% if has_recipe == 'yes' %}selected{% endif %}>Con receta</option>
-    <option value="no" {% if has_recipe == 'no' %}selected{% endif %}>Sin receta</option>
-  </select>
+  <div class="saskia-combo"
+       data-source="static"
+       data-display="name"
+       data-value="value"
+       data-min-chars="0"
+       data-row-builder="genericRowLabel">
+    <input type="text"
+           id="has_recipe_combo"
+           class="combo-input"
+           name="has_recipe_display"
+           maxlength="20"
+           value=""
+           placeholder="— Todos —">
+    <input type="hidden" name="has_recipe" value="{{ has_recipe or '' }}">
+    <div class="combo-results" role="listbox" hidden>
+      <div class="combo-static-option" data-value="" data-display="— Todos —"></div>
+      <div class="combo-static-option" data-value="yes" data-display="Con receta"></div>
+      <div class="combo-static-option" data-value="no" data-display="Sin receta"></div>
+    </div>
+  </div>
   <button type="submit" class="btn">
     <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
     Filtrar

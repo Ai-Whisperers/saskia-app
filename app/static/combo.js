@@ -112,6 +112,39 @@
       this.debounceTimer = null;
       this.lastFetchToken = 0;
       this._wire();
+      this._applyInitialValue();
+    }
+
+    /**
+     * On construction, if the hidden input already carries a value (e.g.
+     * server-set filter state), reflect it in the visible input by looking
+     * up the matching item so the user sees the friendly label, not an ID.
+     */
+    _applyInitialValue() {
+      var self = this;
+      if (!this.hidden || !this.hidden.value) return;
+      var initialVal = this.hidden.value;
+      var lookup = function (items) {
+        for (var i = 0; i < items.length; i++) {
+          var item = items[i];
+          var v = typeof item === "object" ? item[self.opts.valueField] : item;
+          if (String(v) === String(initialVal)) {
+            var label = typeof item === "object"
+              ? (item[self.opts.displayField] || JSON.stringify(item))
+              : item;
+            self.input.value = label;
+            self.input.classList.add("is-selected");
+            return true;
+          }
+        }
+        return false;
+      };
+      // Static options live in the DOM — read them synchronously
+      if (this.opts.source === "" || this.opts.source === "static") {
+        lookup(this._readStaticOptions());
+      }
+      // URL-sourced combos wait for the first fetch to populate
+      // (initialVal will be visible as soon as the first result arrives).
     }
 
     _wire() {
@@ -208,6 +241,25 @@
         return;
       }
       var self = this;
+
+      // If the hidden input already carries an initial value (server-set
+      // filter state), find the matching row and refresh the visible
+      // input with its display label. Avoids the user seeing a stale ID
+      // sitting in a text input.
+      if (this.hidden && this.hidden.value && !this.input.classList.contains("is-selected")) {
+        var initialVal = String(this.hidden.value);
+        for (var k = 0; k < this.matches.length; k++) {
+          var it = this.matches[k];
+          var vv = typeof it === "object" ? it[this.opts.valueField] : it;
+          if (String(vv) === initialVal) {
+            this.input.value = typeof it === "object"
+              ? (it[this.opts.displayField] || JSON.stringify(it))
+              : it;
+            this.input.classList.add("is-selected");
+            break;
+          }
+        }
+      }
 
       // Build all rows in a DocumentFragment so the browser only reflows
       // once per render instead of once per row. Cuts visible jank on
@@ -314,9 +366,19 @@
 
       if (typeof this.opts.source === "function") {
         promise = Promise.resolve().then(function () { return self.opts.source(q); });
-      } else {
+      } else if (typeof this.opts.source === "string" && this.opts.source.indexOf("/") === 0) {
+        // URL source — hit the network
         var url = this.opts.source + (this.opts.source.indexOf("?") >= 0 ? "&" : "?") + "q=" + encodeURIComponent(q);
         promise = fetch(url).then(function (r) { return r.json(); });
+      } else if (this.opts.source === "" || this.opts.source === "static") {
+        // Static inline source — items live on the .combo-results div as
+        // <div class="combo-row" data-value="..." data-display="..."> children.
+        // We render them with no network call at all. Used for short,
+        // never-changing lists (product categories, recipe multipliers, etc).
+        promise = Promise.resolve({ results: this._readStaticOptions() });
+      } else {
+        // Unknown source — render empty
+        promise = Promise.resolve({ results: [] });
       }
       promise.then(function (data) {
         if (token !== self.lastFetchToken) return;
@@ -339,6 +401,25 @@
 
         self._render(items);
       }).catch(function () { self._hide(); });
+    }
+
+    /**
+     * Read pre-defined option rows from a child <div class="combo-results">
+     * container whose children carry `data-value` and `data-display` attrs.
+     * Used for combos with a tiny static set of options (filters, multipliers).
+     */
+    _readStaticOptions() {
+      var rows = this.results.querySelectorAll(":scope > .combo-static-option");
+      var items = [];
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        items.push({
+          value: r.getAttribute("data-value") || "",
+          name: r.getAttribute("data-display") || r.textContent,
+          _isStatic: true,
+        });
+      }
+      return items;
     }
 
     setValue(item) {

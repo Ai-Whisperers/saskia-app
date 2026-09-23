@@ -93,3 +93,87 @@ def test_users_api_roles_response_shape():
     assert "results" in users_router
     assert "count" in users_router
     assert "JSONResponse" in users_router
+
+
+def test_combo_supports_static_source():
+    """combo.js should accept data-source="static" for inline options."""
+    js = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/combo.js").read_text()
+    # Static source branch should exist
+    assert 'this.opts.source === "static"' in js
+    assert "_readStaticOptions" in js
+    # The reader looks for combo-static-option rows
+    assert "combo-static-option" in js
+
+
+def test_productos_uses_static_combo():
+    """productos.html has_recipe filter uses a static combo."""
+    p = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/productos.html").read_text()
+    # Old native select should be gone
+    assert '<select name="has_recipe">' not in p
+    # New combo with static source + 3 inline options
+    assert 'data-source="static"' in p
+    assert "has_recipe_combo" in p
+    # Three options: Todos, Con receta, Sin receta
+    assert p.count("combo-static-option") == 3
+
+
+def test_receta_form_scale_uses_static_combo():
+    """receta_form.html scale selector uses a static combo."""
+    r = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/receta_form.html").read_text()
+    # Old native scale select with onchange should be gone
+    assert '<select id="scale"' not in r
+    # Should have the scale_combo + 8 multiplier options
+    assert "scale_combo" in r
+    # Should auto-submit the form on pick (matching the old onchange)
+    assert "combo.closest(\"form\").submit()" in r
+
+
+def test_receta_form_yield_unit_uses_combo():
+    """receta_form.html yield_unit uses the units API combo."""
+    r = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/receta_form.html").read_text()
+    # yield_unit select gone
+    assert '<select id="yield_unit"' not in r
+    # New combo present
+    assert 'name="yield_unit"' in r
+    assert 'data-source="/recetas/api/units"' in r
+
+
+def test_receta_form_lines_use_combos():
+    """receta_form.html line_kind + line_unit combos present for both rendered and JS-template rows."""
+    r = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/receta_form.html").read_text()
+    # No <select name="line_kind"> and no <select name="line_unit">
+    assert '<select name="line_kind">' not in r
+    assert '<select name="line_unit"' not in r
+    # Two kinds of combos: existing (server-rendered) and template (JS-built)
+    # 2 hidden line_kind combos (existing + template) and 2 line_unit combos
+    assert r.count('name="line_kind"') >= 2
+    assert r.count('name="line_unit"') >= 2
+    # updateLineSource updated to read the hidden input of the line_kind combo
+    assert "kindHidden" in r
+    assert "wireLineKindHandlers" in r
+
+
+def test_reorder_qty_unit_uses_static_combo():
+    """reorder.html qty_unit uses a static combo (preserves conditional logic)."""
+    f = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/reorder.html").read_text()
+    # Old native select gone
+    assert '<select name="qty_unit"' not in f
+    # New combo present, conditional logic preserved
+    assert 'data-source="static"' in f
+    # Per-item jinja conditionals still present
+    assert "{% if item.unit in ('g', 'kg') %}" in f
+
+
+def test_zero_native_selects_remain():
+    """Across the entire templates/ folder, no native <select> survives conversion."""
+    templates_dir = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates")
+    pattern = re.compile(r"<select[^>]*>.*?</select>", re.DOTALL)
+    leftovers = []
+    for html_file in templates_dir.glob("*.html"):
+        content = html_file.read_text()
+        for m in pattern.finditer(content):
+            sel = m.group(0)
+            if "data-saskia-combo" in sel:
+                continue  # combo markup — fine
+            leftovers.append((html_file.name, sel[:80]))
+    assert leftovers == [], f"Native selects still present: {leftovers}"
