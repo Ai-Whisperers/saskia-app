@@ -121,23 +121,33 @@ def to_date(s, fmt="%d/%m/%Y"):
     return None
 
 
-def header_row(rows):
-    """Find the actual header row: a non-empty row that has the field name marker.
+def header_row(rows, candidate_names=None):
+    """Find the actual header row.
 
     Many HEREBUS sheets have a TITLE row first ("WISHLIST — equipment...")
     followed by explanatory paragraphs, then the real column headers.
-    The real header is the first row containing 'ID' or another
-    column-name-shorthand marker.
+    The real header is detected by looking for known column-name markers.
+
+    candidate_names: optional list of marker strings to search for. Default
+    is a comprehensive set that covers all HEREBUS sheet headers.
     """
+    markers = candidate_names or (
+        "ID", "Receta ID", "Receta", "Ingredient ID", "Producto",
+        "Supplier ID", "Código", "Code", "Receta", "N°", "Mes",
+        "Fecha", "Driver", "Helper", "Test"
+    )
     for r in rows:
         if not r:
             continue
-        # Real header indicators: contains "ID" column, or starts with known col names
-        non_empty = [str(c).strip() for c in r if c]
-        if "ID" in non_empty or "Receta ID" in non_empty or "Ingredient ID" in non_empty:
-            return r
-        if non_empty and non_empty[0] in ("ID", "Supplier", "Receta", "Ingredient"):
-            return r
+        for c in r:
+            if not c:
+                continue
+            cell = str(c).strip()
+            if cell in markers:
+                return r
+            # Some sheets use "ID something" (eg "ID Item"); match first cell
+            if cell.startswith("ID ") and len(cell) < 30:
+                return r
     # Fallback: first non-empty row
     for r in rows:
         if any(c for c in r):
@@ -860,16 +870,35 @@ def import_benchmarks(session, dump) -> int:
     sheet = get_sheet(dump, "HEREBUS_Analisis.xlsx", "Benchmarks_Market")
     if not sheet:
         return 0
-    hdr = header_row(sheet)
+
+    # Find the real header (it contains "Producto" column)
+    hdr_idx = 0
+    for i, row in enumerate(sheet):
+        if not row:
+            continue
+        # Real header indicators: contains 'Producto' as a column name (not
+        # in a long description sentence)
+        for c in row:
+            if c and str(c).strip() in ("Producto", "ID", "Supplier"):
+                hdr_idx = i
+                break
+        if hdr_idx:
+            break
+    hdr = sheet[hdr_idx]
     idx = {h: i for i, h in enumerate(hdr)}
 
     recipe_map = {r.name: r.id for r in session.execute(select(Recipe)).scalars().all()}
 
     n = 0
-    for row in sheet[1:]:
-        if not row or not row[idx.get("Producto", 0)]:
+    n_header_len = len(hdr)
+    for row in sheet[hdr_idx + 1:]:
+        if not row or len(row) < n_header_len:
+            continue
+        if not row[idx.get("Producto", 0)]:
             continue
         label = row[idx["Producto"]]
+        if not label or "TOTAL" in str(label):
+            continue
         our_w = to_decimal(row[idx.get("Nuestro wholesale ₲", 0)])
         our_r = to_decimal(row[idx.get("Nuestro retail ₲", 0)])
         comp_min = to_decimal(row[idx.get("Competidor A (mín) ₲", 0)])
@@ -877,10 +906,22 @@ def import_benchmarks(session, dump) -> int:
         market_avg = to_decimal(row[idx.get("Mercado promedio ₲", 0)])
         notes = row[idx.get("Notas / Fuente", 0)] or ""
 
-        # Look up recipe by name
+        # Look up recipe by name (fuzzy match by first word)
         recipe_id = None
+        # Try a few matching strategies
+        label_low = (label or "").lower()
         for recipe_name, rid in recipe_map.items():
-            if label and recipe_name.startswith(label.split(" ")[0]):
+            rn_low = recipe_name.lower()
+            # Match if first word matches (handles 'Muffin de chocolate'
+            # matching 'muffin_chocolate')
+            first_word = label_low.split()[0] if label_low else ""
+            if first_word and rn_low.startswith(first_word):
+                recipe_id = rid
+                break
+            # Also check if HEREBUS ES label is substring of recipe name
+            if label_low and (
+                label_low in rn_low or rn_low.replace("_", " ") in label_low
+            ):
                 recipe_id = rid
                 break
 

@@ -65,6 +65,7 @@ from app.routers import (
     sales,
     search,
     settings,
+    shopping,
     suppliers,
     users,
 )
@@ -397,6 +398,7 @@ app.include_router(herebus.benchmarks_router)
 app.include_router(herebus.dashboard_router)
 app.include_router(herebus.planner_router)
 app.include_router(herebus.delivery_router)
+app.include_router(shopping.router)
 # NAV-02: Auditoría and Ops are internal-only. The product surface does
 # not include them (Saskia does not run audits). In production they
 # 404; in tests / dev they are still mounted so the test suite can

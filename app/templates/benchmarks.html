@@ -33,6 +33,9 @@
           <span>{{ b.position_label }}</span>
         {% endif %}
       </td>
+      <td>
+        <a href="/benchmarks/{{ b.id }}/edit" class="btn btn-sm btn-ghost">✏️ Editar</a>
+      </td>
     </tr>
     {% endfor %}
   </tbody>

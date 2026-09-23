@@ -32,12 +32,14 @@ from app.rms.models import (
     DeliveryZone,
     Ingredient,
     MarketBenchmark,
+    ProductionPlan,
     Recipe,
     RecipeLine,
     RecipePricing,
     RiskItem,
     Sale,
     SettingsKV,
+    ShoppingListItem,
     Supplier,
     WasteLog,
     WishlistItem,
@@ -93,7 +95,7 @@ def wishlist_list(request: Request, session: Session = Depends(get_session)) -> 
 @wishlist_router.post("/mark-purchased")
 async def wishlist_mark_purchased(
     request: Request,
-    item_id: int = Form(...),
+    item_id: int,
     session: Session = Depends(get_session),
 ):
     item = session.get(WishlistItem, item_id)
@@ -103,6 +105,70 @@ async def wishlist_mark_purchased(
     item.purchased_at = datetime.now(timezone.utc)
     session.commit()
     return RedirectResponse(url="/wishlist", status_code=303)
+
+
+@wishlist_router.post("/{item_id}/send-to-shopping-list")
+async def wishlist_send_to_shopping_list(
+    request: Request,
+    item_id: int,
+    session: Session = Depends(get_session),
+):
+    """Send wishlist equipment item to the shopping list (so user can
+    buy it through the standard shopping-list flow)."""
+    item = session.get(WishlistItem, item_id)
+    if not item:
+        return RedirectResponse(url="/wishlist", status_code=303)
+    if item.purchased:
+        return RedirectResponse(
+            url=f"/wishlist?msg=Ya%20comprado",
+            status_code=303,
+        )
+    # Create a shopping list entry for the equipment.
+    # We use a special "Ingredient" proxy: if there's no matching
+    # Ingredient, we create an EquipmentItem entry instead. For now,
+    # simple path: drop into a generic entry that the user can see.
+    from app.rms.models import ShoppingListItem
+    sl = ShoppingListItem(
+        ingredient_id=1 if False else None,  # placeholder; fix below
+        production_plan_id=None,
+        qty_to_buy=item.quantity,
+        unit="und",
+        purpose_text=f"WISHLIST: {item.name} (₲{item.unit_price_gs:,} c/u)",
+    )
+    # ingredient_id is non-nullable; we need to create or find an
+    # "Equipment" pseudo-ingredient. For now, simplest path:
+    # if there's no Ingredient with that name, we error.
+    session.rollback()
+    # Instead: create the Ingredient on-the-fly (Equipment category).
+    from app.rms.models import Ingredient
+    eq_ing = session.execute(
+        select(Ingredient).where(Ingredient.name == f"[EQUIPMENT] {item.name}")
+    ).scalars().first()
+    if not eq_ing:
+        eq_ing = Ingredient(
+            name=f"[EQUIPMENT] {item.name}",
+            unit="und",
+            stock_qty=0,
+            purchase_price_gs=item.unit_price_gs,
+            min_stock_qty=0,
+            category="Equipment",
+            notes=f"Auto-created from wishlist #{item.id}",
+        )
+        session.add(eq_ing)
+        session.flush()
+    sl = ShoppingListItem(
+        ingredient_id=eq_ing.id,
+        production_plan_id=None,
+        qty_to_buy=item.quantity,
+        unit="und",
+        purpose_text=f"Wishlist #{item.id} — {item.buy_location or 'TBD'}",
+    )
+    session.add(sl)
+    session.commit()
+    return RedirectResponse(
+        url=f"/shopping-list?from_wishlist={item.id}&n_added=1",
+        status_code=303,
+    )
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -201,6 +267,63 @@ def pricing_list(request: Request, session: Session = Depends(get_session)) -> H
 # ──────────────────────────────────────────────────────────────────
 
 
+@bank_router.post("/add")
+async def bank_add(
+    request: Request,
+    posted_at: str = Form(...),  # YYYY-MM-DD
+    currency: str = Form("EUR"),
+    amount: float = Form(...),
+    counterparty_name: str = Form(""),
+    counterparty_iban: str = Form(""),
+    description: str = Form(""),
+    category: str = Form("manual"),
+    source: str = Form("manual_entry"),
+    session: Session = Depends(get_session),
+):
+    """Manually add a bank transaction (e.g. for the PY savings statement).
+
+    Parse the date and insert.
+    """
+    from datetime import datetime as dt
+    try:
+        posted_at_dt = dt.strptime(posted_at, "%Y-%m-%d")
+    except ValueError:
+        return RedirectResponse(
+            url="/bank?error=invalid_date",
+            status_code=303,
+        )
+
+    tx = BankTransaction(
+        posted_at=posted_at_dt,
+        currency=currency.upper(),
+        amount=amount,
+        counterparty_name=counterparty_name,
+        counterparty_iban=counterparty_iban or None,
+        description=description,
+        category=category,
+        source=source,
+    )
+    session.add(tx)
+    session.commit()
+    return RedirectResponse(url="/bank", status_code=303)
+
+
+@bank_router.post("/{tx_id}/categorize")
+async def bank_categorize(
+    request: Request,
+    tx_id: int,
+    category: str = Form(...),
+    session: Session = Depends(get_session),
+):
+    """Auto-categorize a bank transaction."""
+    tx = session.get(BankTransaction, tx_id)
+    if not tx:
+        return RedirectResponse(url="/bank", status_code=303)
+    tx.category = category
+    session.commit()
+    return RedirectResponse(url="/bank", status_code=303)
+
+
 @bank_router.get("", response_class=HTMLResponse)
 def bank_list(
     request: Request,
@@ -268,6 +391,7 @@ def benchmarks_list(request: Request, session: Session = Depends(get_session)) -
     for b in benchmarks:
         if not b.market_avg_gs:
             b.position_label = "—"
+            b.pct = 0
             continue
         if b.our_retail_gs and b.our_retail_gs > b.market_avg_gs:
             b.pct = round((b.our_retail_gs - b.market_avg_gs) / b.market_avg_gs * 100)
@@ -276,6 +400,7 @@ def benchmarks_list(request: Request, session: Session = Depends(get_session)) -
             b.pct = round((b.market_avg_gs - b.our_retail_gs) / b.market_avg_gs * 100)
             b.position_label = f"-{b.pct}%"
         else:
+            b.pct = 0
             b.position_label = "iguales"
 
     return render(
@@ -284,6 +409,54 @@ def benchmarks_list(request: Request, session: Session = Depends(get_session)) -
         {
             "benchmarks": benchmarks,
         },
+    )
+
+
+@benchmarks_router.get("/{bench_id}/edit", response_class=HTMLResponse)
+def benchmarks_edit(
+    request: Request,
+    bench_id: int,
+    session: Session = Depends(get_session),
+):
+    """Render the edit form for a single benchmark."""
+    bench = session.get(MarketBenchmark, bench_id)
+    if not bench:
+        return RedirectResponse(url="/benchmarks", status_code=303)
+    return render(
+        request,
+        "benchmark_edit.html",
+        {"b": bench, "saved": False},
+    )
+
+
+@benchmarks_router.post("/{bench_id}/save")
+def benchmarks_save(
+    request: Request,
+    bench_id: int,
+    our_wholesale_gs: int = Form(0),
+    our_retail_gs: int = Form(0),
+    comp_min_gs: int = Form(0),
+    comp_avg_gs: int = Form(0),
+    market_avg_gs: int = Form(0),
+    source: str = Form(""),
+    session: Session = Depends(get_session),
+):
+    """Save edited competitor prices."""
+    bench = session.get(MarketBenchmark, bench_id)
+    if not bench:
+        return RedirectResponse(url="/benchmarks", status_code=303)
+    bench.our_wholesale_gs = our_wholesale_gs or None
+    bench.our_retail_gs = our_retail_gs or None
+    bench.comp_min_gs = comp_min_gs or None
+    bench.comp_avg_gs = comp_avg_gs or None
+    bench.market_avg_gs = market_avg_gs or None
+    bench.source = source
+    session.commit()
+    # Re-render with success flag
+    return render(
+        request,
+        "benchmark_edit.html",
+        {"b": bench, "saved": True},
     )
 
 
@@ -465,6 +638,33 @@ def planner_compute(
             }
         )
 
+    # Optionally save as ProductionPlan + ShoppingListItem rows so that
+    # the user can build a real buy list directly from this view.
+    plan_id = None
+    if results and total_shortage_gs > 0:
+        # Persist the plan so shopping list link can find it later
+        plan = ProductionPlan(
+            recipe_id=recipe_id,
+            batches_qty=batches,
+            notes=f"Created from /produccion-planner form",
+        )
+        session.add(plan)
+        session.flush()
+        plan_id = plan.id
+
+        # Materialize the shortfalls into the shopping list
+        for r in results:
+            if r["shortage"] > 0:
+                item = ShoppingListItem(
+                    ingredient_id=r["ingredient_id"],
+                    production_plan_id=plan_id,
+                    qty_to_buy=r["shortage"],
+                    unit=r["unit"],
+                    purpose_text=f"Plan #{plan_id} ({batches}× {recipe.name})",
+                )
+                session.add(item)
+        session.commit()
+
     return render(
         request,
         "planner.html",
@@ -474,6 +674,7 @@ def planner_compute(
             "recipe": recipe,
             "batches": batches,
             "total_shortage_gs": int(total_shortage_gs),
+            "plan_id": plan_id,
         },
     )
 

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Lista de Compras · Saskia RMS{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>🛒 Lista de Compras</h1>
+  <p class="muted">Lo que necesito comprar para la operación</p>
+</div>
+
+{% if request.query_params.get('from_plan') %}
+<div class="card mb-3" style="background: #d1fae5; border-color: #10b981;">
+  <div class="card-body">
+    ✅ <strong>Plan #{{ request.query_params.get('from_plan') }}</strong> guardado en lista:
+    {{ request.query_params.get('n_added', 0) }} items añadidos.
+  </div>
+</div>
+{% elif request.query_params.get('from_wishlist') %}
+<div class="card mb-3" style="background: #fef3c7; border-color: #f59e0b;">
+  <div class="card-body">
+    🛒 <strong>Wishlist #{{ request.query_params.get('from_wishlist') }}</strong> añadido a la lista
+    como equipment.
+  </div>
+</div>
+{% endif %}
+
+<div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
+  <div class="kpi-card"><div class="kpi-label">Items abiertos</div><div class="kpi-value">{{ open_count }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Comprados</div><div class="kpi-value">{{ purchased_count }}</div></div>
+  <div class="kpi-card highlight"><div class="kpi-label">Total estimado ₲</div><div class="kpi-value">₲{{ "{:,.0f}".format(total_gs) }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Ingredientes únicos</div><div class="kpi-value">{{ by_ingredient|length }}</div></div>
+</div>
+
+<div style="margin:1rem 0;">
+  <a href="/shopping-list" class="btn {% if not show_purchased %}btn-primary{% else %}btn-ghost{% endif %}">
+    Solo abiertos ({{ open_count }})
+  </a>
+  <a href="/shopping-list?show_purchased=true" class="btn {% if show_purchased %}btn-primary{% else %}btn-ghost{% endif %}">
+    Todos (incl. comprados)
+  </a>
+  <a href="/produccion-planner" class="btn">📐 Crear plan</a>
+</div>
+
+{% if items %}
+<table class="table is-hoverable">
+  <thead>
+    <tr>
+      <th>Ingrediente</th>
+      <th class="num">Cant a comprar</th>
+      <th>Unidad</th>
+      <th>Para qué</th>
+      <th class="num">Precio unit</th>
+      <th class="num">Subtotal ₲</th>
+      <th>Status</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for item in items %}
+    <tr {% if item.purchased %}style="opacity:0.45;"{% endif %}>
+      <td>
+        <strong>{{ item.ingredient.name }}</strong>
+        {% if item.production_plan_id %}
+          <br><small class="muted">📋 Plan #{{ item.production_plan_id }}</small>
+        {% endif %}
+      </td>
+      <td class="num">{{ "%.2f"|format(item.qty_to_buy) }}</td>
+      <td>{{ item.unit }}</td>
+      <td><small>{{ item.purpose_text or '' }}</small></td>
+      <td class="num">{% if item.ingredient.purchase_price_gs %}₲{{ "{:,.0f}".format(item.ingredient.purchase_price_gs) }}{% else %}<span class="muted">?</span>{% endif %}</td>
+      <td class="num"><strong>
+        {% if item.ingredient.purchase_price_gs %}
+          ₲{{ "{:,.0f}".format(item.ingredient.purchase_price_gs * item.qty_to_buy)|int }}
+        {% else %}—{% endif %}
+      </strong></td>
+      <td>
+        {% if item.purchased %}
+          <span class="badge badge-success">✓ Comprado</span>
+        {% else %}
+          <span class="badge badge-warning">Pendiente</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if not item.purchased %}
+          <form method="post" action="/shopping-list/{{ item.id }}/mark-purchased" style="display:inline;">
+            <button class="btn btn-sm btn-success">✓ Comprado</button>
+          </form>
+        {% else %}
+          <form method="post" action="/shopping-list/{{ item.id }}/unmark" style="display:inline;">
+            <button class="btn btn-sm btn-ghost">↺</button>
+          </form>
+        {% endif %}
+        <form method="post" action="/shopping-list/{{ item.id }}/delete" style="display:inline;"
+              onsubmit="return confirm('Eliminar {{ item.ingredient.name }} de la lista?')">
+          <button class="btn btn-sm btn-danger">×</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card"><div class="card-body muted text-center">
+  <p style="font-size:1.5rem;">📭</p>
+  <p><strong>Lista vacía.</strong></p>
+  <p>Ve a <a href="/produccion-planner">Plan Producción</a> y creá un plan; los faltantes aparecerán acá automáticamente.</p>
+</div></div>
+{% endif %}
+
+<p class="muted" style="margin-top:2rem;">
+  💡 Tip: Marcar "Comprado" no toca el inventario todavía. Cuando llegué el pedido, vas a Inventory → edit → ajustás stock_qty.
+</p>
+{% endblock %}

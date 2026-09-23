@@ -42,7 +42,8 @@
 
 {% if results is not none and recipe %}
 <div class="card">
-  <div class="card-header"><h2>{{ batches }}× {{ recipe.name }}</h2>
+  <div class="card-header">
+    <h2>{{ batches }}× {{ recipe.name }}</h2>
     {% if total_shortage_gs > 0 %}
       <span class="badge badge-error">Falta ₲{{ "{:,.0f}".format(total_shortage_gs) }} de ingredientes</span>
     {% else %}
@@ -88,12 +89,23 @@
     </tbody>
   </table>
 
-  {% if total_shortage_gs > 0 %}
+  {% if plan_id %}
+  <div class="card-footer" style="padding:1rem;background:#ecfdf5;">
+    <strong>✓ Plan #{{ plan_id }} guardado</strong> — los ingredientes faltantes están en la
+    <a href="/shopping-list" class="btn btn-primary">Lista de Compras</a>
+    {% set open_count = 0 %}
+    {% for r in results %}
+      {% if r.sufficient == false %}{% set open_count = open_count + 1 %}{% endif %}
+    {% endfor %}
+    ({{ results|length }} líneas · {{ total_shortage_gs|format_gs }} ₲ total).
+    <a href="/produccion-planner" class="btn btn-ghost">Otro plan</a>
+  </div>
+  {% elif total_shortage_gs > 0 %}
   <div class="card-footer" style="padding:1rem;">
-    <form method="post" action="/reponer" style="display:inline;">
-      <button type="submit" class="btn btn-warning">
-        🛒 Generar shopping list con faltantes (₲{{ "{:,.0f}".format(total_shortage_gs) }})
-      </button>
+    <form method="post" action="/produccion-planner/compute" style="display:inline;">
+      <input type="hidden" name="recipe_id" value="{{ recipe.id }}">
+      <input type="hidden" name="batches" value="{{ batches }}">
+      <button type="submit" class="btn btn-warning">🛒 Generar shopping list con faltantes</button>
     </form>
   </div>
   {% endif %}
