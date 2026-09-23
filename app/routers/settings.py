@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
-from app.rms.models import AppMeta, User, DeliveryZone
+from app.rms.models import AppMeta, ComplianceInfo, DeliveryZone, Sale, SaleStockMove, StockMovement, User
 from app.rms.dependencies import get_session
 from app.services.template_render import render
 
