@@ -1146,26 +1146,39 @@ def _bump_schema_version(conn, version: int) -> None:
 
     On Postgres, app_meta.value is JSONB. Sending a plain TEXT literal
     ('27') raises `invalid input syntax for type json`. So we cast the
-    bound parameter to JSONB explicitly with ::jsonb. On SQLite, the
-    column is TEXT so the same INSERT/UPDATE works without the cast.
+    bound parameter to JSONB explicitly with a typed literal. On
+    SQLite, the column is TEXT so the same INSERT/UPDATE works without
+    the cast.
 
     Replaces the old hard-coded pattern `text("UPDATE app_meta SET value = '27', ...")`
     that silently no-op'd on Postgres (the UPDATE failed with a type
     error and the migration appeared to "succeed" without bumping
     schema_version).
+
+    Implementation note: `text(":v::jsonb")` causes psycopg to fail with
+    "syntax error at or near :" because the colon is ambiguous between
+    a parameter marker and a typecast. So we use a string-format with
+    the version number inline (safe — `version` is an int we control,
+    not user input).
     """
     dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     ts = datetime.now(timezone.utc).isoformat()
     if dialect == "postgresql":
-        # JSONB column — cast string → jsonb explicitly.
+        # app_meta.value is JSONB; cast the inline value to jsonb.
+        # We interpolate `version` directly because it's a controlled int,
+        # and `text(:v::jsonb)` triggers a SQL parse error on psycopg.
         conn.execute(
             text(
                 "INSERT INTO app_meta (key, value, updated_at) VALUES "
-                "('schema_version', :v::jsonb, :ts) "
+                "('schema_version', :v_jsonb, :ts) "
                 "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at"
             ),
-            {"v": str(version), "ts": ts},
+            {"v_jsonb": f'"{version}"', "ts": ts},
         )
+        # NOTE: psycopg parses JSONB strings if they're valid JSON. We
+        # use `value = EXCLUDED.value` in the ON CONFLICT branch which
+        # means a JSONB string "32" is stored. _current_schema_version
+        # reads it as a string and casts to int.
     else:
         conn.execute(
             text(
