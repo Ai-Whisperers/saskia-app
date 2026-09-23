@@ -301,7 +301,7 @@
 
 {% if has_more %}
 <div style="text-align:center; margin: var(--space-4) 0;">
-  <a href="?{{ (dict(request.query_params.multi_items())|merge({'offset': current_offset + current_page_size}))|urlencode }}" class="btn" id="load-more-btn">
+  <a href="?{% for k, v in request.query_params.multi_items() %}{{ k }}={{ v }}&{% endfor %}offset={{ current_offset + current_page_size }}" class="btn" id="load-more-btn">
     <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
     Cargar más ({{ totals.count - (current_offset + current_page_size) }} restantes)
   </a>

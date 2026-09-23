@@ -1178,6 +1178,22 @@ def _migration_031_risk_status_activo(conn) -> None:
     )
 
 
+def _migration_032_pedido_cancel_reason(conn) -> None:
+    """Add pedido.cancel_reason (was in model but missing migration).
+
+    The Pedido model declares `cancel_reason: Mapped[str | None]` (a Text
+    column for free-text cancellation reasons), but the original
+    pedidos migration didn't include it. Queries like
+    `SELECT pedido.cancel_reason` raised ProgrammingError.
+
+    This migration adds the column idempotently. SQLite doesn't support
+    IF NOT EXISTS on ADD COLUMN, so we check the schema first.
+    """
+    cols = [c[1] for c in conn.execute(text("PRAGMA table_info(pedido)")).fetchall()]
+    if "cancel_reason" not in cols:
+        conn.execute(text("ALTER TABLE pedido ADD COLUMN cancel_reason TEXT"))
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -1210,6 +1226,7 @@ MIGRATIONS = {
     29: _migration_029_herebus_integration,
     30: _migration_030_recipe_image_url,
     31: _migration_031_risk_status_activo,
+    32: _migration_032_pedido_cancel_reason,
 }
 
 

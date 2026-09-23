@@ -68,7 +68,7 @@ BACKUP_THRESHOLD_HOURS = int(os.getenv("AIW_SASKIA_BACKUP_HOURS", "24"))
 KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_SASKIA_KEEP_LOCAL_DAYS", "30"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 31  # 031 = HEREBUS Drive integration (29+30+31) — Recipe.image_url + extended ck_risk_status('activo')
+CURRENT_SCHEMA_VERSION = 32  # 032 = pedido.cancel_reason (was in model, missing migration)
 
 
 def ensure_dirs() -> None:

@@ -741,6 +741,7 @@ def planner_compute(
         plan = ProductionPlan(
             recipe_id=recipe_id,
             batches_qty=batches,
+            planned_at=datetime.now(timezone.utc),
             notes=f"Created from /produccion-planner form",
         )
         session.add(plan)

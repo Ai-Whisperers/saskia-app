@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_components/macros.html" as m %}
 {% block title %}Production Planner · Saskia RMS{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -97,7 +98,7 @@
     {% for r in results %}
       {% if r.sufficient == false %}{% set open_count = open_count + 1 %}{% endif %}
     {% endfor %}
-    ({{ results|length }} líneas · {{ total_shortage_gs|format_gs }} ₲ total).
+    ({{ results|length }} líneas · {{ m.gs(total_shortage_gs) }} ₲ total).
     <a href="/produccion-planner" class="btn btn-ghost">Otro plan</a>
   </div>
   {% elif total_shortage_gs > 0 %}

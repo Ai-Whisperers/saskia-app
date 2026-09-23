@@ -513,7 +513,6 @@ def recipe_search_api(
         payload.append({
             "id": r.id,
             "name": r.name,
-            "description": r.description or "",
             "yield_qty": r.yield_qty,
             "yield_unit": r.yield_unit,
         })
