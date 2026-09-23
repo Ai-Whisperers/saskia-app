@@ -192,19 +192,24 @@
       </div>
     </div>
         <div class="saskia-combo"
-         data-source="dynamic"
+         {% if line.line_kind == 'sub_recipe' %}
+         data-source="/recetas/api/search"
+         {% else %}
+         data-source="/inventario/api/search"
+         {% endif %}
          data-display="name"
          data-value="id"
          data-min-chars="0"
          data-row-builder="genericRowLabel"
          data-line-target="line_target_id"
-         data-current-kind="{{ line.line_kind }}">
+         data-current-kind="{{ line.line_kind }}"
+         {% if line.line_kind != 'sub_recipe' %}data-allow-create="true"{% endif %}>
       <input type="text"
              class="combo-input line-target-input"
              name="line_target_display"
              maxlength="60"
              value="{{ line.target_name or '' }}"
-             placeholder="Buscar ingrediente…">
+             placeholder="{% if line.line_kind == 'sub_recipe' %}Buscar sub-receta…{% else %}Buscar ingrediente…{% endif %}">
       <input type="hidden" name="line_target_id" value="{{ line.line_ref_id or '' }}">
       <div class="combo-results" role="listbox" hidden></div>
     </div>
@@ -290,7 +295,7 @@ document.getElementById('add-line').addEventListener('click', function() {
         <div class="combo-static-option" data-value="sub_recipe" data-display="Sub-receta"></div>
       </div>
     </div>
-    <div class="saskia-combo" data-source="dynamic" data-display="name" data-value="id" data-min-chars="0" data-row-builder="genericRowLabel" data-line-target="line_target_id" data-current-kind="ingredient">
+    <div class="saskia-combo" data-source="/inventario/api/search" data-display="name" data-value="id" data-min-chars="0" data-row-builder="genericRowLabel" data-line-target="line_target_id" data-current-kind="ingredient" data-allow-create="true">
       <input type="text" class="combo-input line-target-input" name="line_target_display" maxlength="60" value="" placeholder="Buscar ingrediente…">
       <input type="hidden" name="line_target_id" value="">
       <div class="combo-results" role="listbox" hidden></div>
@@ -308,6 +313,7 @@ document.getElementById('add-line').addEventListener('click', function() {
   `;
   container.appendChild(row);
   wireLineKindHandlers(row);
+  wireLineTargetOnCreate(row);
   wireLineRemove(row);
 });
 
@@ -397,6 +403,57 @@ function wireLineKindHandlers(row) {
   }
 }
 
+// Helper: wire onCreate to POST new ingredient or sub-recipe to its endpoint.
+// Used by line-target combos so typing a name not in the list can CREATE it.
+function wireLineTargetOnCreate(row) {
+  var combo = row.querySelector('.saskia-combo[data-line-target]');
+  if (!combo || !combo._saskiaCombo) return;
+  combo._saskiaCombo.opts.onCreate = function (newName) {
+    var kind = row.querySelector('input[name="line_kind"]').value;
+    var url, body, redirectTo;
+    if (kind === 'sub_recipe') {
+      // Sub-recipes are created when you save the parent recipe; not via combo onCreate.
+      // Show a hint and let the user fill in name first, then create later.
+      alert('Para sub-recetas: guardá esta receta primero con el nombre, después agregala como sub-receta desde otra receta.');
+      return;
+    }
+    url = '/inventario/nuevo';
+    body = new URLSearchParams();
+    body.set('name', newName);
+    body.set('unit', 'g');  // default unit, user can edit later
+    body.set('min_stock_qty', '0');
+    body.set('purchase_price_gs', '0');
+    body.set('is_available', 'on');
+    body.set('notes', 'Creado desde receta');
+
+    fetch(url, { method: 'POST', body: body, credentials: 'same-origin' })
+      .then(function (r) {
+        if (r.redirected) {
+          // Created — fetch the new ingredient ID by searching the API
+          return fetch('/inventario/api/search?q=' + encodeURIComponent(newName))
+            .then(function (rr) { return rr.json(); });
+        }
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json().then(function (j) { throw new Error(j.detail || 'Failed'); });
+      })
+      .then(function (j) {
+        var ing = j.results && j.results.find(function (x) { return x.name === newName; });
+        if (ing) {
+          var hidden = combo.querySelector('input[type="hidden"]');
+          var input = combo.querySelector('.combo-input');
+          if (hidden) hidden.value = ing.id;
+          if (input) {
+            input.value = ing.name;
+            input.classList.add('is-selected');
+          }
+        }
+      })
+      .catch(function (err) {
+        alert('Error creando ingrediente: ' + err.message);
+      });
+  };
+}
+
 // Initialize existing combos on page load
 document.addEventListener('DOMContentLoaded', function() {
   if (!window.SaskiaCombo) return;
@@ -406,16 +463,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // Skip static-source combos whose inline options are already in the DOM
     var inlineOpts = c.querySelectorAll('.combo-static-option');
     if (c.dataset.source === 'static' && inlineOpts.length > 0) return;
+    var source = c.dataset.source;
+    // 'dynamic' isn't a real source — fall back to ingredient API for new rows
+    if (source === 'dynamic') source = '/inventario/api/search';
     c._saskiaCombo = new SaskiaCombo(c, {
-      source: c.dataset.source,
+      source: source,
       displayField: c.dataset.display || 'name',
       valueField: c.dataset.value || 'id',
       minChars: Number(c.dataset.minChars || 0),
+      allowCreate: c.dataset.allowCreate === 'true' || c.dataset.allowCreate === '1',
       buildRow: c.dataset.rowBuilder ? window[c.dataset.rowBuilder] : null,
     });
   });
-  // Wire line-kind change handlers for existing rows
-  document.querySelectorAll('.line-row').forEach(wireLineKindHandlers);
+  // Wire line-kind change handlers + onCreate for existing rows
+  document.querySelectorAll('.line-row').forEach(function (row) {
+    wireLineKindHandlers(row);
+    wireLineTargetOnCreate(row);
+  });
 });
 </script>
 
