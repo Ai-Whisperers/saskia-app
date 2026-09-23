@@ -19,8 +19,9 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, Response
+from loguru import logger
 from sqlalchemy import text
 
 router = APIRouter()
@@ -278,3 +279,66 @@ def healthz_schema(request: Request) -> JSONResponse:
         return JSONResponse(status_code=500, content=body)
     body["status"] = "in_sync"
     return JSONResponse(status_code=200, content=body)
+
+
+@router.post("/admin/migrate")
+def admin_migrate(request: Request):
+    """Operator escape hatch: trigger init_db() to apply pending migrations.
+
+    Required when Render is slow to redeploy OR when the lifespan
+    auto-init failed silently on Postgres (JSONB bug pre-a6843b9).
+
+    Idempotent — re-running is safe. Always runs all pending migrations
+    up to CURRENT_SCHEMA_VERSION.
+
+    Auth: requires an authenticated admin session (CSRF + login).
+    Public health checks (GET) are intentionally unauthenticated so
+    UptimeRobot / monitoring can detect drift; mutating endpoints
+    like this one require admin login.
+
+    Returns:
+      - 200: migrations applied successfully
+      - 401: not logged in
+      - 500: a migration failed (the error message includes which step)
+    """
+    from app.auth import current_user_id
+    from app.rms.db import CURRENT_SCHEMA_VERSION, init_db
+
+    user_id = current_user_id(request)
+    if user_id is None:
+        return JSONResponse(
+            status_code=401,
+            content={"error": "authentication_required", "hint": "Login first."},
+        )
+
+    # Find the engine — same one the lifespan used.
+    engine = getattr(request.app.state, "engine", None)
+    if engine is None:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "server_not_ready", "hint": "Lifespan hasn't initialized yet."},
+        )
+
+    try:
+        init_db(engine)
+    except Exception as exc:
+        logger.exception("admin_migrate failed")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "migration_failed", "detail": str(exc)[:500]},
+        )
+
+    # Read back the new version
+    from app.rms.db import schema_version
+    with engine.connect() as conn:
+        new_version = schema_version(conn)
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "migrated",
+            "schema_version": new_version,
+            "code_schema_version": CURRENT_SCHEMA_VERSION,
+            "in_sync": new_version == CURRENT_SCHEMA_VERSION,
+        },
+    )
