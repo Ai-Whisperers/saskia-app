@@ -66,6 +66,15 @@ def _generate_idem_key() -> str:
     return uuid.uuid4().hex[:12]
 
 
+
+
+def _get_tax_regime(session) -> str:
+    """Return the configured tax_regime from ComplianceInfo. Defaults to 'resimple'."""
+    from app.rms.models import ComplianceInfo
+    ci = session.get(ComplianceInfo, 1)
+    return ci.tax_regime if ci else "resimple"
+
+
 @router.get("", response_class=HTMLResponse)
 async def sales_list(
     request: Request,
@@ -203,6 +212,8 @@ async def sales_list(
             "channel_default": CHANNEL_DEFAULT,
             "now_local": datetime.now(ASUNCION_TZ).strftime("%Y-%m-%dT%H:%M"),
             "idem_key": _generate_idem_key(),
+            # Phase 1.B — pass tax regime so the form defaults the invoice type
+            "tax_regime": _get_tax_regime(session),
             "totals": {
                 "count": total_count,
                 "total_gs": total_gs,

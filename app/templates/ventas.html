@@ -137,6 +137,56 @@
     <small>Si pagaron por transferencia/QR, pegá el alias o ID de transacción en notas.</small>
   </div>
 
+  {# Phase 1.B — Fiscal invoice type. Determines whether to emit a
+     Boleta Resimple, Factura, or no comprobante. Default = boleta_resimple
+     per ComplianceInfo.tax_regime. #}
+  <fieldset class="form-row" style="border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-3); margin-top: var(--space-4);">
+    <legend style="font-weight: 600; padding: 0 var(--space-2);">Comprobante fiscal</legend>
+
+    <div class="form-row" style="margin-bottom: var(--space-2);">
+      <label for="invoice_type">Tipo</label>
+      <select id="invoice_type" name="invoice_type">
+        <option value="boleta_resimple" {% if tax_regime == 'resimple' %}selected{% endif %}>Boleta Resimple (IRE RESIMPLE)</option>
+        <option value="factura" {% if tax_regime == 'general' %}selected{% endif %}>Factura (IVA General)</option>
+        <option value="none">Sin comprobante (interno)</option>
+      </select>
+      <small>Cambiá solo si esta venta difiere de tu régimen habitual.</small>
+    </div>
+
+    <div id="invoice-customer-fields" style="display: none;">
+      <div class="form-row" style="margin-bottom: var(--space-2);">
+        <label for="invoice_customer_ruc">RUC del cliente</label>
+        <input type="text" id="invoice_customer_ruc" name="invoice_customer_ruc"
+               placeholder="80012345-6 o CI del cliente"
+               pattern="[0-9-]+">
+      </div>
+      <div class="form-row" style="margin-bottom: 0;">
+        <label for="invoice_customer_name">Razón social / Nombre</label>
+        <input type="text" id="invoice_customer_name" name="invoice_customer_name"
+               placeholder="Cliente S.A.">
+      </div>
+    </div>
+  </fieldset>
+
+  <script>
+    // Show/hide RUC fields based on invoice_type
+    (function() {
+      var sel = document.getElementById('invoice_type');
+      var fields = document.getElementById('invoice-customer-fields');
+      function toggle() {
+        if (sel.value === 'factura') {
+          fields.style.display = 'block';
+        } else {
+          fields.style.display = 'none';
+        }
+      }
+      if (sel) {
+        sel.addEventListener('change', toggle);
+        toggle();
+      }
+    })();
+  </script>
+
   <div class="form-row">
     <label for="discount_gs">Descuento (Gs.)</label>
     <input type="number" id="discount_gs" name="discount_gs" min="0" max="1000000" value="0" step="100">

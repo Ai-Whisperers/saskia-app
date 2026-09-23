@@ -55,6 +55,9 @@
       <th class="num">Gravado (Gs.)</th>
       <th class="num">IVA (Gs.)</th>
       <th class="num">Total (Gs.)</th>
+      {# Phase 1.B — fiscal invoice metadata #}
+      <th>Comprobante</th>
+      <th>RUC</th>
     </tr>
   </thead>
   <tbody>
@@ -67,6 +70,15 @@
       <td class="num">{{ m.gs(r.base_gs) }}</td>
       <td class="num">{{ m.gs(r.iva_gs) }}</td>
       <td class="num"><strong>{{ m.gs(r.total_gross_gs) }}</strong></td>
+      <td>
+        {% if r.invoice_number %}
+          <span class="badge badge-info">{{ r.invoice_type }}</span>
+          <small>#{{ r.invoice_number }}</small>
+        {% else %}
+          <span class="badge badge-neutral">sin comprobante</span>
+        {% endif %}
+      </td>
+      <td><small>{{ r.invoice_customer_ruc or "—" }}</small></td>
     </tr>
     {% endfor %}
   </tbody>

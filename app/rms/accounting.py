@@ -143,7 +143,8 @@ def monthly_iva_breakdown(
 
 @dataclass
 class LibroVentasRow:
-    """One row of the Libro de Ventas (chronological)."""
+    """One row of the Libro de Ventas (chronological). Phase 1.B adds
+    the fiscal invoice fields required for the SET/DNIT Form 211."""
 
     sale_id: int
     sold_at: datetime
@@ -154,6 +155,11 @@ class LibroVentasRow:
     total_gross_gs: int
     base_gs: int
     iva_gs: int
+    # Phase 1.B — fiscal invoice metadata (Phase 1.B)
+    invoice_type: str = ""
+    invoice_number: int | None = None
+    invoice_customer_ruc: str | None = None
+    invoice_customer_name: str | None = None
 
 
 def libro_ventas(
@@ -197,6 +203,17 @@ def libro_ventas(
         # AGENTS.md money rule: never use float precision for money.
         gross = to_int_gs(Decimal(str(r.qty)) * Decimal(str(r.unit_price_gs)))
         iva = extract_iva(gross, tax_mode=tax_mode)
+        # Phase 1.B — prefer the snapshotted IVA fields when present (Factura)
+        # over the computed-from-gross extraction (Boleta Resimple path).
+        snap_base = getattr(r, "iva_base_gs", None) or 0
+        snap_iva = getattr(r, "iva_amount_gs", None) or 0
+        if snap_base > 0 or snap_iva > 0:
+            base_out = snap_base
+            iva_out = snap_iva
+        else:
+            base_out = iva.base_gs
+            iva_out = iva.iva_gs
+
         out.append(
             LibroVentasRow(
                 sale_id=r.id,
@@ -206,8 +223,12 @@ def libro_ventas(
                 qty=r.qty,
                 unit_price_gs=r.unit_price_gs,
                 total_gross_gs=iva.gross_gs,
-                base_gs=iva.base_gs,
-                iva_gs=iva.iva_gs,
+                base_gs=base_out,
+                iva_gs=iva_out,
+                invoice_type=getattr(r, "invoice_type", "") or "",
+                invoice_number=getattr(r, "invoice_number", None),
+                invoice_customer_ruc=getattr(r, "invoice_customer_ruc", None),
+                invoice_customer_name=getattr(r, "invoice_customer_name", None),
             )
         )
     return out
