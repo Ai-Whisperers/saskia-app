@@ -439,6 +439,8 @@ class Customer(Base):
     cedula: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     loyalty_points: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # HEREBUS integration: free-text zone label (no FK — early stage)
+    zone: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -648,6 +650,317 @@ class WasteLog(Base):
     ingredient: Mapped["Ingredient"] = relationship("Ingredient")
 
 
+# ──────────────────────────────────────────────────────────────────
+# HEREBUS Drive integration — new modules (migration 029)
+# ──────────────────────────────────────────────────────────────────
+
+
+class DeliveryZone(Base):
+    """A delivery zone (HEREBUS ZONAS_DELIVERY sheet).
+
+    Each pedido can reference one zone. The zone drives delivery cost
+    calculation and minimum-order validation at creation time.
+    """
+
+    __tablename__ = "delivery_zone"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+    coverage_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    radius_km: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    delivery_cost_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    min_order_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    delivery_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    pedidos: Mapped[list["Pedido"]] = relationship(back_populates="delivery_zone")
+
+    __table_args__ = (
+        Index("ix_delivery_zone_active", "is_active", "position"),
+    )
+
+
+# NOTE: `delivery_zone_id` is added to Pedido class below (forward ref).
+# Customer.zone is also added inline (existing model has been extended).
+
+
+class WishlistItem(Base):
+    """Kitchen equipment wishlist (HEREBUS Wishlist sheet).
+
+    Track what equipment HEREBUS needs to buy, with priority and ₲ costs.
+    """
+
+    __tablename__ = "wishlist_item"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    priority: Mapped[str] = mapped_column(String(16), nullable=False, default="must_have")
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    unit_price_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    category: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    buy_location: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    purchased: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    purchased_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "priority IN ('must_have', 'nice_to_have', 'optional')",
+            name="ck_wishlist_priority",
+        ),
+        CheckConstraint("quantity > 0", name="ck_wishlist_qty_positive"),
+        CheckConstraint("unit_price_gs >= 0", name="ck_wishlist_price_nonneg"),
+    )
+
+
+class RiskItem(Base):
+    """An operational risk on the registry (HEREBUS Risk_Register sheet)."""
+
+    __tablename__ = "risk_item"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    description: Mapped[str] = mapped_column(String(255), nullable=False)
+    category: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    probability: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
+    impact_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    mitigation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    owner: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "probability BETWEEN 1 AND 5", name="ck_risk_prob_range"
+        ),
+        CheckConstraint("impact_gs >= 0", name="ck_risk_impact_nonneg"),
+        CheckConstraint(
+            "status IN ('active', 'activo', 'mitigated', 'closed')",
+            name="ck_risk_status",
+        ),
+    )
+
+
+class RecipePricing(Base):
+    """Per-channel pricing for a recipe (HEREBUS COSTOS + Pricing_Por_Producto).
+
+    Channel margins (from MAESTRA):
+      - wholesale: +40%
+      - private_label: +25%
+      - distributor: +22%
+      - retail: +50%
+      - broker_commission: +5%
+    """
+
+    __tablename__ = "recipe_pricing"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    recipe_id: Mapped[int] = mapped_column(
+        ForeignKey("recipe.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    cost_total_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    labor_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    packaging_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    cost_per_unit_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    wholesale_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    private_label_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    distributor_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    retail_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    broker_commission_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    recipe: Mapped["Recipe"] = relationship("Recipe")
+
+    __table_args__ = (
+        CheckConstraint("cost_per_unit_gs >= 0", name="ck_pricing_per_unit_nonneg"),
+        CheckConstraint("retail_gs >= 0", name="ck_pricing_retail_nonneg"),
+    )
+
+
+class PriceHistory(Base):
+    """One row per actual ingredient purchase (HEREBUS Price_History sheet).
+
+    Auto-created when a PurchaseOrder is recorded. The avg is computed
+    on read (or in a periodic job) — we keep this table append-only.
+    """
+
+    __tablename__ = "price_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    supplier_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("supplier.id"), nullable=True, index=True
+    )
+    ingredient_id: Mapped[int] = mapped_column(
+        ForeignKey("ingredient.id"), nullable=False, index=True
+    )
+    qty_purchased: Mapped[float] = mapped_column(Float, nullable=False)
+    unit: Mapped[str] = mapped_column(String(16), nullable=False)
+    total_gs: Mapped[int] = mapped_column(Integer, nullable=False)
+    unit_price_gs: Mapped[int] = mapped_column(Integer, nullable=False)
+    purchase_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+    ingredient: Mapped["Ingredient"] = relationship("Ingredient")
+    supplier: Mapped[Optional["Supplier"]] = relationship("Supplier")
+
+    __table_args__ = (
+        CheckConstraint("qty_purchased > 0", name="ck_pricehistory_qty_positive"),
+        CheckConstraint("total_gs >= 0", name="ck_pricehistory_total_nonneg"),
+        CheckConstraint("unit_price_gs >= 0", name="ck_pricehistory_up_nonneg"),
+        Index("ix_pricehistory_ing_date", "ingredient_id", "purchase_date"),
+    )
+
+
+class ProductionPlan(Base):
+    """A planned batch — output of the Production Planner.
+
+    User picks recipe + batches-qty. System computes ingredient needs,
+    joins with current stock, and surfaces shortages. Auto-generates
+    ShoppingListItem rows for the shortage (when "Send to shop" pressed).
+    """
+
+    __tablename__ = "production_plan"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    recipe_id: Mapped[int] = mapped_column(
+        ForeignKey("recipe.id"), nullable=False, index=True
+    )
+    batches_qty: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    planned_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="planned")
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+    recipe: Mapped["Recipe"] = relationship("Recipe")
+    shopping_items: Mapped[list["ShoppingListItem"]] = relationship(
+        back_populates="production_plan", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        CheckConstraint("batches_qty > 0", name="ck_plan_batches_positive"),
+        CheckConstraint(
+            "status IN ('planned', 'cooked', 'cancelled')",
+            name="ck_plan_status",
+        ),
+    )
+
+
+class ShoppingListItem(Base):
+    """Items to buy, linked optionally to a ProductionPlan or generic."""
+
+    __tablename__ = "shopping_list_item"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ingredient_id: Mapped[int] = mapped_column(
+        ForeignKey("ingredient.id"), nullable=False, index=True
+    )
+    production_plan_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("production_plan.id", ondelete="SET NULL"), nullable=True
+    )
+    qty_to_buy: Mapped[float] = mapped_column(Float, nullable=False)
+    unit: Mapped[str] = mapped_column(String(16), nullable=False)
+    purpose_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    purchased: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    purchased_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    ingredient: Mapped["Ingredient"] = relationship("Ingredient")
+    production_plan: Mapped[Optional["ProductionPlan"]] = relationship(
+        back_populates="shopping_items"
+    )
+
+    __table_args__ = (
+        CheckConstraint("qty_to_buy > 0", name="ck_shopping_qty_positive"),
+        Index("ix_shopping_open", "purchased", "created_at"),
+    )
+
+
+class MarketBenchmark(Base):
+    """Per-product pricing-vs-market row (HEREBUS Benchmarks_Market).
+
+    Allows Saskia to position each recipe relative to local competitors.
+    """
+
+    __tablename__ = "market_benchmark"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    recipe_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("recipe.id"), nullable=True, index=True
+    )
+    product_label: Mapped[str] = mapped_column(String(120), nullable=False)
+    our_wholesale_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    our_retail_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    comp_min_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    comp_avg_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    market_avg_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    position: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    source: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+
+class BankTransaction(Base):
+    """A bank transaction (Dutch TAB file or PY savings image import).
+
+    Two currencies supported: PY Guaraní (₲) and EUR.
+    The TAB bank is held in EUR by JGHM VAN DER POL (the Dutch owner).
+    """
+
+    __tablename__ = "bank_transaction"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    posted_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    balance_after: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    counterparty_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    counterparty_iban: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    reference: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    category: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="tab")
+    account_holder: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("currency IN ('EUR', 'PYG', 'USD')", name="ck_bank_currency"),
+        Index("ix_bank_date_account", "posted_at", "account_holder"),
+        Index("ix_bank_category", "category", "posted_at"),
+    )
+
+
+class SettingsKV(Base):
+    """Single-row-per-key config (hours, pickup address, etc).
+
+    Stored as JSON value for flexibility — keeps Django-style "constance"
+    without a 30+ single-purpose tables.
+    """
+
+    __tablename__ = "settings_kv"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value_json: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+
 
 class Pedido(Base):
     """A pre-order (pedido) — Phase 3 (2026-09-17 prelaunch roadmap).
@@ -697,6 +1010,10 @@ class Pedido(Base):
         String(32), nullable=False, default="efectivo"
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # HEREBUS integration: link to delivery zone (drives cost + min order)
+    delivery_zone_id: Mapped[int | None] = mapped_column(
+        ForeignKey("delivery_zone.id"), nullable=True, index=True
+    )
     public_token: Mapped[str] = mapped_column(
         String(40), nullable=False, unique=True, index=True, default=""
     )
@@ -720,6 +1037,7 @@ class Pedido(Base):
         back_populates="pedido", cascade="all, delete-orphan"
     )
     customer: Mapped["Customer | None"] = relationship()
+    delivery_zone: Mapped["DeliveryZone | None"] = relationship(back_populates="pedidos")
 
     __table_args__ = (
         CheckConstraint(
@@ -853,4 +1171,18 @@ __all__ = [
     "PedidoLine",
     "StockMovement",
     "Supplier",
+    "ProductionCompletion",
+    "ProductionPlanTemplate",
+    "ProductionPlanOverride",
+    # HEREBUS Drive integration — migration 029
+    "DeliveryZone",
+    "WishlistItem",
+    "RiskItem",
+    "RecipePricing",
+    "PriceHistory",
+    "ProductionPlan",
+    "ShoppingListItem",
+    "MarketBenchmark",
+    "BankTransaction",
+    "SettingsKV",
 ]

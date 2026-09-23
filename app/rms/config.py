@@ -68,7 +68,7 @@ BACKUP_THRESHOLD_HOURS = int(os.getenv("AIW_SASKIA_BACKUP_HOURS", "24"))
 KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_SASKIA_KEEP_LOCAL_DAYS", "30"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 28  # 028 = DB-level CHECK on recipe.yield_qty and recipe_line.qty (audit #5)
+CURRENT_SCHEMA_VERSION = 29  # 029 = HEREBUS Drive integration: 10 new tables (delivery_zone, wishlist_item, risk_item, recipe_pricing, price_history, production_plan, shopping_list_item, market_benchmark, bank_transaction, settings_kv) + customer.zone + pedido.delivery_zone_id
 
 
 def ensure_dirs() -> None:

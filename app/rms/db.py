@@ -1054,6 +1054,65 @@ def _migration_028_recipe_yield_qty_check(conn):
     )
 
 
+def _migration_029_herebus_integration(conn) -> None:
+    """HEREBUS Drive integration — 10 new tables + customer.zone + pedido.delivery_zone_id.
+
+    Source-of-truth: the 33-file Google Drive dump of HEREBUS's bakery operations
+    spreadsheet (Maestra, INGREDIENTES, RECETAS, COSTOS, MERMAS, DASHBOARD, VENTAS,
+    RECETAS_MAESTRO, RECETAS_DETALLE, ZONAS_DELIVERY, Wishlist, Risk_Register,
+    Benchmarks_Market, KPI_Dashboard, Pricing_Por_Producto, Suppliers, Price_History,
+    Shopping_List, Price_Analysis, Production_Planner, Waste_Tracker, Recipe_Template,
+    Dashboard_PL, RECETARIO_EN_BLANCO).
+
+    Schema additions:
+      - delivery_zone         — 5+ delivery zones (pickup, local, central, etc.)
+      - wishlist_item         — kitchen equipment wishlist (₲61M total)
+      - risk_item             — operational risk register (12 risks)
+      - recipe_pricing        — per-channel pricing (wholesale/retail/etc.)
+      - price_history         — supplier purchase history (append-only)
+      - production_plan       — batch plan created by Production Planner UI
+      - shopping_list_item    — derived list of ingredients to buy
+      - market_benchmark      — vs competitor pricing
+      - bank_transaction      — EUR (NL) + PYG (PY) transactions
+      - settings_kv           — JSON-keyed config (hours, pickup address, etc.)
+      - ALTER customer ADD zone TEXT
+      - ALTER pedido ADD delivery_zone_id INTEGER FK delivery_zone
+
+    All new tables are created by SQLAlchemy create_all() in init_db() before
+    this migration runs. This migration just adds the inline ALTERs for the
+    two existing tables (customer, pedido) and bumps schema_version.
+    """
+    # Customer.zone — free-text label
+    try:
+        conn.execute(text("ALTER TABLE customer ADD COLUMN zone VARCHAR(64)"))
+    except Exception:
+        # Column may already exist on a partially-migrated DB
+        pass
+
+    # Pedido.delivery_zone_id — FK to new delivery_zone
+    try:
+        conn.execute(text(
+            "ALTER TABLE pedido ADD COLUMN delivery_zone_id INTEGER "
+            "REFERENCES delivery_zone(id)"
+        ))
+    except Exception:
+        pass
+
+    # Index for delivery_zone lookups
+    try:
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_pedido_delivery_zone_id "
+            "ON pedido(delivery_zone_id)"
+        ))
+    except Exception:
+        pass
+
+    conn.execute(
+        text("UPDATE app_meta SET value = '29', updated_at = :ts WHERE key = 'schema_version'"),
+        {"ts": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -1083,6 +1142,7 @@ MIGRATIONS = {
     26: _migration_026_product_audit_columns,
     27: _migration_027_production_plan_template,
     28: _migration_028_recipe_yield_qty_check,
+    29: _migration_029_herebus_integration,
 }
 
 
