@@ -74,6 +74,9 @@ class Ingredient(Base):
     # if not set (computed in app/rms/reorder.py).
     max_stock_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     shelf_life_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Wave 2 — HACCP storage zone. Inferred from ingredient name on POST
+    # /inventario/nuevo; operator can override. ∈ {ambient, refrigerated, frozen, dry}.
+    storage: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # E26 ingredient intelligence
     category: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
@@ -1188,3 +1191,41 @@ __all__ = [
     "BankTransaction",
     "SettingsKV",
 ]
+
+
+class MarketPriceReference(Base):
+    """Wave 4 — Market reference price per ingredient (Paraguay, Gs/kg or Gs/l or Gs/und).
+
+    Operator-curated baseline that the system uses to surface "your price is
+    X% above/below market" alerts on /inventario. Updated manually (no external
+    API configured in BWS) or via CSV import. Each row snapshots the price
+    as-of a specific date so we can track drift over time.
+
+    Schema:
+        ingredient_id: FK to Ingredient (one current row per ingredient)
+        unit: 'kg' | 'l' | 'und' (must match the ingredient's unit family)
+        price_gs: median market price in Guaraníes
+        source: 'manual' | 'supermarket' | 'mayorista' | 'csv-import'
+        notes: free text (e.g., "Stock Sep 2026", "Supersei Mcal Lopez")
+        as_of: when the price was last verified
+        created_at / updated_at: audit timestamps
+    """
+    __tablename__ = "market_price_reference"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ingredient_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("ingredient.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    unit: Mapped[str] = mapped_column(String(16), nullable=False)
+    price_gs: Mapped[float] = mapped_column(Float, nullable=False)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="manual")
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    as_of: Mapped["Date"] = mapped_column(Date, nullable=False, default=date.today)
+    created_at: Mapped["DateTime"] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False,
+    )
+    updated_at: Mapped["DateTime"] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False,
+    )
+
+    ingredient: Mapped["Ingredient"] = relationship("Ingredient")

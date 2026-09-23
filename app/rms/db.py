@@ -1119,6 +1119,71 @@ def _migration_032_pedido_cancel_reason(conn) -> None:
     _bump_schema_version(conn, 32)
 
 
+
+def _migration_033_ingredient_storage(conn):
+    """Add storage column to ingredient table (Wave 2 / HACCP).
+
+    storage ∈ {ambient, refrigerated, frozen, dry}.
+    Inferred on POST /inventario/nuevo from ingredient name (see
+    app.rms.ingredient_intel.infer_storage). Operator can override.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    col_type = "VARCHAR(16)"
+    try:
+        conn.execute(text(f"ALTER TABLE ingredient ADD COLUMN storage {col_type}"))
+    except Exception:
+        # Column already exists — idempotent.
+        pass
+    _bump_schema_version(conn, 33)
+
+
+
+
+def _migration_034_market_price_reference(conn):
+    """Wave 4 — Add market_price_reference table for ingredient market prices.
+
+    Operator-curated baseline. One row per ingredient (no historical
+    retention in v1 — the historical data lives in PriceHistory for actual
+    purchases). Future: partition by as_of date for time-series.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    int_type = "INTEGER"
+    float_type = "FLOAT"
+    str16 = "VARCHAR(16)"
+    str32 = "VARCHAR(32)"
+    text = "TEXT"
+    date = "DATE"
+    dt = "TIMESTAMP" if dialect == "sqlite" else "TIMESTAMP"
+    fk_ref = (
+        "INTEGER REFERENCES ingredient(id) ON DELETE CASCADE"
+        if dialect == "sqlite"
+        else "INTEGER REFERENCES ingredient(id) ON DELETE CASCADE"
+    )
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS market_price_reference (
+            id {pk_type},
+            ingredient_id {fk_ref} NOT NULL,
+            unit {str16} NOT NULL,
+            price_gs {float_type} NOT NULL,
+            source {str32} NOT NULL DEFAULT 'manual',
+            notes {text},
+            as_of {date} NOT NULL,
+            created_at {dt} NOT NULL,
+            updated_at {dt} NOT NULL
+        )
+        """
+    ))
+    conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_market_price_reference_ingredient_id "
+        "ON market_price_reference(ingredient_id)"
+    ))
+    _bump_schema_version(conn, 34)
+
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -1152,6 +1217,8 @@ MIGRATIONS = {
     30: _migration_030_recipe_image_url,
     31: _migration_031_risk_status_activo,
     32: _migration_032_pedido_cancel_reason,
+    33: _migration_033_ingredient_storage,
+    34: _migration_034_market_price_reference,
 }
 
 

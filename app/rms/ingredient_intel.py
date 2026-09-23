@@ -24,36 +24,65 @@ from typing import Final
 # Categories — first match wins. Order matters: more specific before general.
 # Keys ordered so decoration keywords come BEFORE fruit keywords.
 _CATEGORY_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
+    "grasas": (
+        # Specific first so "manteca vegetal" beats generic "manteca"
+        "aceite de oliva", "aceite de coco", "manteca vegetal",
+        "manteca de cerdo", "manteca clarificada", "aceite",
+        "margarina", "grasa",
+    ),
     "lácteos": (
         "leche", "crema", "manteca", "mantequilla", "yogur", "queso",
-        "queso crema", "ricota", "dulce de leche", "crema de leche",
-        "leche condensada", "leche en polvo",
+        "queso crema", "ricota", "requesón", "dulce de leche",
+        "leche condensada", "leche en polvo", "crema agria",
     ),
     "harinas": (
-        "harina", "maicena", "fécula", "almidón", "almidón", "polenta",
+        "harina", "maicena", "fécula", "almidón", "polenta",
+        "mandioca",  # chipa, empanadas
     ),
     "endulzantes": (
         "azúcar impalpable", "azúcar glass", "azúcar mascabo", "azúcar",
         "miel", "stevia", "dextrosa", "glucosa", "jarabe",
+        "melaza", "panela", "rapadura", "eritritol",
     ),
-    "grasas": (
-        "aceite", "margarina", "grasa", "manteca de cerdo", "manteca vegetal",
-    ),
+    
     "leudantes": (
-        "levadura", "polvo de hornear", "bicarbonato", " royal",
+        "levadura", "polvo de hornear", "bicarbonato", "royal",
+        "polvo para hornear", "cremor tártaro",
+    ),
+    "huevos": (
+        "huevo", "huevos", "clara", "yema",
+    ),
+    "carnes": (
+        "carne", "pollo", "cerdo", "res", "pavo",
+        "pescado", "atún", "marisco", "pechuga", "panceta",
+        "chorizo", "jamón",
+    ),
+    "decoración": (
+        "esencia", "ralladura", "colorante", "glaseado", "chocolate cobertura",
+        "fondant", "sprinkles", "cacao", "perla", "confite",
+    ),
+    "especias": (
+        "canela", "pimienta", "comino", "orégano", "pimentón",
+        "nuez moscada", "clavo", "anís", "anís estrella",
+        "vainilla", "vainilla en vaina", "extracto de vainilla",
+        "jengibre", "curry", "azafrán",
     ),
     "frutos-secos": (
         "almendra", "nuez", "nueces", "avellana", "pistacho", "maní",
         "castaña", "coco",
     ),
-    "decoración": (
-        "esencia", "ralladura", "colorante", "glaseado", "chocolate cobertura",
-        "fondant", "sprinkles", "cacao", "vainilla",
-    ),
+    
     "frutas": (
         "fruta", "limón", "naranja", "manzana", "banana", "frutilla",
         "arándano", "ciruela", "pera", "uva",
     ),
+    "líquidos": (
+        "agua", "jugo", "caldo",
+    ),
+    "semillas": (
+        "semilla de chía", "semilla de lino", "semilla de girasol",
+    ),
+    "otros": (),  # sentinel — anything not matched
 }
 
 # Subcategory — finer split within a category. Order: MOST SPECIFIC FIRST
@@ -90,25 +119,30 @@ _SUBCATEGORY_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
 
 # Role classification — what does this ingredient DO in a recipe?
 _ROLE_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
-    "leavening": ("levadura", "polvo de hornear", "bicarbonato"),
-    "sweetener": ("azúcar", "miel", "stevia", "dextrosa", "glucosa", "jarabe"),
-    "fat": ("manteca", "mantequilla", "aceite", "margarina", "grasa"),
+    "leavening": ("levadura", "polvo de hornear", "bicarbonato", "cremor tártaro"),
+    "sweetener": ("azúcar", "miel", "stevia", "dextrosa", "glucosa", "jarabe", "melaza", "eritritol"),
+    "fat": ("aceite", "manteca", "mantequilla", "margarina", "grasa"),
     "structure": ("harina", "maicena", "fécula", "almidón"),
     "dairy": ("leche", "crema", "yogur", "queso", "ricota"),
-    "flavor": ("esencia", "vainilla", "ralladura", "canela", "cocoa", "cacao"),
+    "flavor": ("esencia", "vainilla", "ralladura", "canela", "cacao", "especias"),
     "decoration": ("glaseado", "fondant", "sprinkles", "colorante", "cobertura"),
+    "protein": ("huevo", "huevos", "leche en polvo"),
+    "fruit": ("frutilla", "arándano", "manzana", "naranja", "pasas"),
+    "binder": ("gelatina", "chía", "lino"),
 }
 
 # Allergens — present in this ingredient.
+# Aligned with INAN Resolución S.G. N° 402/2018 + 614/2023 allergen list.
 _ALLERGEN_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
-    "gluten": ("harina", "trigo", "avena", "cebada", "centeno", "malta"),
+    "gluten": ("harina", "trigo", "avena", "cebada", "centeno", "malta", "espelta"),
     "dairy": ("leche", "crema", "manteca", "mantequilla", "yogur",
-              "queso", "queso crema", "ricota", "dulce de leche"),
-    "eggs": ("huevo", "huevos"),
+              "queso", "queso crema", "ricota", "requesón", "dulce de leche"),
+    "eggs": ("huevo", "huevos", "clara", "yema", "ovoalbúmina"),
     "nuts": ("almendra", "nuez", "nueces", "avellana", "pistacho", "maní",
-             "castaña"),
-    "soy": ("soja", "lec[hi]tina de soja"),
+             "castaña", "pecán", "macadamia"),
+    "soy": ("soja", "lec[hi]tina de soja", "tofu"),
     "sesame": ("sésamo", "ajonjolí"),
+    "sulfites": ("sulfito", "metabisulfito"),
 }
 
 # Default shelf-life (days) per category.
@@ -118,17 +152,23 @@ CATEGORY_SHELF_LIFE: Final[dict[str, int]] = {
     "endulzantes": 730,
     "grasas": 120,
     "leudantes": 180,
-    "frutas": 5,
+    "huevos": 21,
+    "carnes": 5,
+    "especias": 730,
     "frutos-secos": 90,
     "decoración": 180,
+    "frutas": 5,
+    "líquidos": 5,
+    "semillas": 365,
     "otros": 90,
 }
 
-# Storage — where to keep it.
+# Storage — where to keep it. Aligned with HACCP storage rules.
 _STORAGE_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
     "refrigerated": (
         "leche", "crema", "manteca", "mantequilla", "yogur", "queso",
-        "huevo", "ricota", "dulce de leche",
+        "huevo", "huevos", "ricota", "requesón", "dulce de leche",
+        "crema agria", "queso crema",
     ),
     "frozen": ("congelad",),
     "ambient": (),  # default — anything not perishable
@@ -194,44 +234,56 @@ def infer_dietary_tags(name: str) -> list[str]:
     """Dietary tags this ingredient fits.
 
     Rules:
-    - dairy + eggs present → not vegan (vegetarian OK)
-    - nuts or seeds OK for vegan
+    - meat/fish/poultry present → not vegan, not vegetarian
+    - any other animal product (dairy/eggs/honey) → not vegan, vegetarian OK
     - no animal product + no honey → vegan
-    - sweetener+carb-heavy ingredients → keto_friendly only if sweetener
-      is non-sugar (stevia). Default: not keto.
     - contains wheat/barley/etc → not gluten_free
+    - sugar/flour/syrup → not keto (stevia/erythritol are OK)
     """
     norm = _normalize(name)
     allergens = set(infer_allergens(name))
 
     tags: list[str] = []
 
-    # Animal-product keywords → not vegan (but possibly vegetarian).
-    animal_products = ("leche", "crema", "manteca", "mantequilla", "yogur",
-                       "queso", "huevo", "carne", "pollo", "pescado",
-                       "dulce de leche")
-    has_animal = any(kw in norm for kw in animal_products)
+    # Animal-product keywords.
+    # Dairy/eggs/honey → not vegan, but vegetarian OK.
+    # Meat/fish/poultry → not vegan, not vegetarian.
+    dairy_egg_honey = (
+        "leche", "crema", "manteca", "mantequilla", "yogur",
+        "queso", "queso crema", "ricota", "requesón",
+        "huevo", "huevos", "clara", "yema",
+        "dulce de leche", "miel", "gelatina",
+    )
+    meat_fish = (
+        "carne", "pollo", "cerdo", "res", "pavo",
+        "pescado", "atún", "marisco", "pechuga", "panceta",
+        "chorizo", "jamón",
+    )
+    has_dairy_egg_honey = any(kw in norm for kw in dairy_egg_honey)
+    has_meat_fish = any(kw in norm for kw in meat_fish)
 
-    if not has_animal:
-        tags.append("vegan")
-    else:
-        # Vegetarian: dairy + eggs OK, but no meat/fish. Our keyword list
-        # only includes dairy/eggs animal products here, so always veg.
+    if has_meat_fish:
+        pass  # neither vegan nor vegetarian
+    elif has_dairy_egg_honey:
         tags.append("vegetarian")
+    else:
+        tags.append("vegan")
 
     # Gluten check
-    has_gluten = "gluten" in allergens
-    if not has_gluten:
+    if "gluten" not in allergens:
         tags.append("gluten_free")
 
     # Keto: zero/low carb. Sugar + flour disqualify.
     sugar_or_flour = any(
         kw in norm
-        for kw in ("azúcar", "harina", "maicena", "miel", "glucosa",
-                   "dextrosa", "fécula")
+        for kw in (
+            "azúcar", "harina", "maicena", "miel", "glucosa",
+            "dextrosa", "fécula", "jarabe", "melaza",
+            "panela", "rapadura", "almidón", "mandioca",
+        )
     )
-    is_stevia = "stevia" in norm
-    if not sugar_or_flour or is_stevia:
+    is_keto_sweetener = any(kw in norm for kw in ("stevia", "eritritol"))
+    if not sugar_or_flour or is_keto_sweetener:
         tags.append("keto_friendly")
 
     return sorted(tags)

@@ -63,12 +63,39 @@ _MAX_RECIPE_DEPTH = 10
 # Family + difficulty + cook-time
 # ---------------------------------------------------------------------------
 
+def infer_recipe_family_from_name(name: str) -> str:
+    """Classify recipe by name string (no Recipe object needed).
+
+    Used by recipe_create() to auto-fill the family before the recipe
+    is saved. See infer_recipe_family() for the Recipe-object variant.
+    """
+    name = (name or "").lower()
+    ordered_keywords = [
+        ("frituras", ("oliebollen", "donut", "buñuelo")),
+        ("salados", ("empanada", "quiche", "sandwich", "tostado",
+                    "chipá", "scon")),
+        ("panadería", ("pan ", "pan de", "pan_", "medialuna", "croissant",
+                       "baguette", "brioche", "hojaldre", "factura",
+                       "rosca", "alfajor")),
+        ("fríos", ("cheesecake", "tiramisu", "mousse", "pavlova")),
+        ("dulces regionales", ("rosca", "alfajor")),
+        ("pastelería", ("torta", "muffin", "cupcake", "brownie", "galleta",
+                        "cookie", "macaron", "tart", "pie", "roll",
+                        "rolls", "budín", "budin", "cake")),
+    ]
+    for family, keywords in ordered_keywords:
+        for kw in keywords:
+            if kw in name:
+                return family
+    return "otros"
+
+
 def infer_recipe_family(recipe: Recipe) -> str:
     """Classify recipe into a family by name keyword match.
 
     More specific keywords come first within their families.
     """
-    name = (recipe.name or "").lower()
+    return infer_recipe_family_from_name(recipe.name)
     # Family keyword order matters: specific words before generic ones
     # to avoid "empanada" matching "pan" in panadería.
     ordered_keywords = [

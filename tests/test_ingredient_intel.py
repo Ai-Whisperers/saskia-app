@@ -332,3 +332,126 @@ def test_find_substitutes_finds_pair(session_factory):
         assert ing_b.id in subs
         # C only appears in 0 recipes with A → not a substitute.
         assert ing_c.id not in subs
+
+
+class TestWave1InferenceFixes:
+    """Wave 1 — Bug fixes + new categories from INGREDIENT-DEEP-RESEARCH.md."""
+
+    def test_pechuga_no_vegetarian_bug(self):
+        tags = infer_dietary_tags("Pechuga de pollo")
+        assert "vegetarian" not in tags
+        assert "vegan" not in tags
+
+    def test_carne_molida_no_vegetarian(self):
+        tags = infer_dietary_tags("Carne molida")
+        assert "vegetarian" not in tags
+
+    def test_ricota_is_not_vegan_bug(self):
+        tags = infer_dietary_tags("Ricota")
+        assert "vegan" not in tags
+        assert "vegetarian" in tags
+        assert "dairy" in infer_allergens("Ricota")
+
+    def test_huevos_category(self):
+        assert infer_category("Huevos") == "huevos"
+        assert infer_category("huevo") == "huevos"
+        assert infer_category("Clara de huevo") == "huevos"
+        assert infer_category("Yema") == "huevos"
+
+    def test_carnes_category(self):
+        assert infer_category("Pollo") == "carnes"
+        assert infer_category("Carne molida") == "carnes"
+        assert infer_category("Panceta") == "carnes"
+        assert infer_category("Pechuga de pollo") == "carnes"
+        assert infer_category("Pescado") == "carnes"
+        assert infer_category("Jamón") == "carnes"
+
+    def test_manteca_vegetal_is_grasas_bug(self):
+        assert infer_category("Manteca vegetal") == "grasas"
+
+    def test_keto_check_includes_jarabe_melaza(self):
+        for name in ("Jarabe de maíz", "Melaza", "Panela", "Rapadura"):
+            tags = infer_dietary_tags(name)
+            assert "keto_friendly" not in tags, f"{name} should not be keto"
+
+    def test_stevia_erythritol_are_keto(self):
+        tags_s = infer_dietary_tags("Stevia")
+        tags_e = infer_dietary_tags("Eritritol")
+        assert "keto_friendly" in tags_s
+        assert "keto_friendly" in tags_e
+
+    def test_mandioca_is_harinas(self):
+        assert infer_category("Mandioca") == "harinas"
+
+    def test_especias_category(self):
+        for name in ("Canela molida", "Vainilla en vaina", "Anís estrellado",
+                     "Pimienta negra", "Extracto de vainilla", "Nuez moscada"):
+            assert infer_category(name) == "especias", f"{name} should be especias"
+
+    def test_semillas_category(self):
+        assert infer_category("Semilla de chía") == "semillas"
+        assert infer_category("Semilla de lino") == "semillas"
+        assert infer_category("Semilla de girasol") == "semillas"
+
+    def test_agua_is_liquidos(self):
+        assert infer_category("Agua") == "líquidos"
+
+    def test_jugo_de_naranja_is_frutas(self):
+        """Jugo de naranja contains 'naranja' keyword → frutas wins over líquidos."""
+        assert infer_category("Jugo de naranja") == "frutas"
+
+    def test_carnes_dietary(self):
+        """Pechuga de pollo has no vegan/vegetarian tag (it's meat)."""
+        tags = infer_dietary_tags("Pechuga de pollo")
+        assert "vegan" not in tags
+        assert "vegetarian" not in tags
+
+    def test_carne_molida_no_dietary(self):
+        tags = infer_dietary_tags("Carne molida")
+        assert "vegan" not in tags
+        assert "vegetarian" not in tags
+
+    def test_panceta_no_dietary(self):
+        tags = infer_dietary_tags("Panceta")
+        assert "vegan" not in tags
+        assert "vegetarian" not in tags
+
+    def test_esencia_de_vainilla_is_decoracion(self):
+        assert infer_category("Esencia de vainilla") == "decoración"
+
+    def test_new_shelf_life_keys(self):
+        assert CATEGORY_SHELF_LIFE["huevos"] == 21
+        assert CATEGORY_SHELF_LIFE["carnes"] == 5
+        assert CATEGORY_SHELF_LIFE["especias"] == 730
+        assert CATEGORY_SHELF_LIFE["semillas"] == 365
+        assert CATEGORY_SHELF_LIFE["líquidos"] == 5
+
+    def test_inan_allergen_categories_present(self):
+        """INAN Res. 614/2023 allergen keywords cover required categories."""
+        # Each allergen type should fire on at least one ingredient
+        assert "dairy" in infer_allergens("Leche")
+        assert "eggs" in infer_allergens("Huevos")
+        assert "nuts" in infer_allergens("Almendra")
+        assert "soy" in infer_allergens("Tofu")
+        assert "sesame" in infer_allergens("Sésamo")
+        assert "sulfites" in infer_allergens("Sulfito de sodio")
+        # Pecán is in the nuts list
+        assert "nuts" in infer_allergens("Pecán")
+
+    def test_dairy_egg_honey_not_vegan_vegetarian_ok(self):
+        for name in ("Manteca", "Huevo", "Miel", "Leche entera"):
+            tags = infer_dietary_tags(name)
+            assert "vegan" not in tags, f"{name} should not be vegan"
+            assert "vegetarian" in tags, f"{name} should be vegetarian"
+
+    def test_meat_not_vegetarian(self):
+        for name in ("Pechuga de pollo", "Carne molida", "Pescado", "Pollo entero"):
+            tags = infer_dietary_tags(name)
+            assert "vegan" not in tags
+            assert "vegetarian" not in tags
+
+    def test_gelatina_dairy(self):
+        """Gelatina is animal-derived (typically bovine)."""
+        tags = infer_dietary_tags("Gelatina sin sabor")
+        assert "vegan" not in tags
+        assert "vegetarian" in tags
