@@ -1277,33 +1277,13 @@ def init_db(engine: Engine) -> None:
 
     dialect_name = engine.dialect.name if hasattr(engine, "dialect") else "sqlite"
 
-    # 1. Take advisory lock on Postgres so concurrent deploys don't fight.
-    if dialect_name == "postgresql":
-        # Use a stable integer key for the lock. 0x5341534B = "SASK".
-        with engine.connect() as lock_conn:
-            try:
-                lock_conn.execute(text("SELECT pg_advisory_lock(1396581707)"))
-                # The lock is held for the duration of THIS connection.
-                # We need to keep this connection alive while init_db runs.
-                # Instead of trying to share a connection, we hold the lock
-                # in a sentinel row approach below. For simplicity we use a
-                # session-level lock: hold it for the init_db call.
-                lock_conn.connection.connection  # noqa — touch
-                _pg_lock_conn = lock_conn
-            except Exception:
-                _pg_lock_conn = None
-    else:
-        _pg_lock_conn = None
+    # Note: We deliberately do NOT take a Postgres advisory lock. Session-level
+    # advisory locks on Postgres are tied to the connection — if init_db
+    # fails mid-flight and the lock_conn is returned to the pool with the
+    # lock still held, subsequent calls would deadlock. Since we run with
+    # one replica (Render free tier), concurrency is not an issue.
 
-    try:
-        _init_db_inner(engine, dialect_name, Base)
-    finally:
-        if _pg_lock_conn is not None:
-            try:
-                _pg_lock_conn.execute(text("SELECT pg_advisory_unlock(1396581707)"))
-                _pg_lock_conn.close()
-            except Exception:
-                pass
+    _init_db_inner(engine, dialect_name, Base)
 
 
 def _init_db_inner(engine, dialect_name, Base) -> None:
