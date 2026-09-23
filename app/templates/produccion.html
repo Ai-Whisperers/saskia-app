@@ -2,6 +2,62 @@
 {% block title %}Producción{% endblock %}
 {% block content %}
 <h1>Plan de producción</h1>
+{% if view == 'day' %}
+<div class="card mb-4" style="background:var(--color-surface-subtle);border:1px dashed var(--color-border);">
+  <details>
+    <summary style="cursor:pointer;font-weight:500;padding:var(--space-3);user-select:none;">
+      🧁 Plan manual (elegí receta + batches)
+    </summary>
+    <div class="card-body">
+      <p class="text-muted" style="margin-bottom:var(--space-3);font-size:var(--text-sm);">
+        ¿Necesitás calcular producción para una receta específica (ej. catering, pedido grande)?
+        Usá este formulario en lugar del plan diario automático.
+      </p>
+      <form method="post" action="/produccion-planner/compute" style="display:flex;gap:var(--space-3);align-items:end;flex-wrap:wrap;">
+        <div class="form-group" style="flex:1;min-width:240px;">
+          <label for="produccion-plan-recipe">Receta</label>
+          <input type="text" id="produccion-plan-recipe" name="recipe_name_display"
+                 class="form-control" placeholder="Escribí o elegí una receta…"
+                 list="produccion-recipes" autocomplete="off">
+          <input type="hidden" name="recipe_id" id="produccion-plan-recipe-id" value="">
+          <datalist id="produccion-recipes">
+            {% for r in (recipes or []) %}
+            <option value="{{ r.name }}" data-id="{{ r.id }}"></option>
+            {% endfor %}
+          </datalist>
+        </div>
+        <div class="form-group" style="width:120px;">
+          <label for="produccion-plan-batches">Batches</label>
+          <input type="number" name="batches" id="produccion-plan-batches" min="1" value="1" required
+                 class="form-control">
+        </div>
+        <div>
+          <button type="submit" class="btn btn-primary">Calcular necesidad</button>
+        </div>
+      </form>
+      <p class="text-muted" style="margin-top:var(--space-2);font-size:var(--text-xs);">
+        ¿La receta no aparece? Creala primero en
+        <a href="/recetas/nueva">Recetas → Nueva</a>.
+      </p>
+    </div>
+  </details>
+</div>
+<script>
+  // Sync the datalist selection to the hidden recipe_id field
+  (function() {
+    var name = document.getElementById('produccion-plan-recipe');
+    var id   = document.getElementById('produccion-plan-recipe-id');
+    if (!name || !id) return;
+    function sync() {
+      var opt = document.querySelector('#produccion-recipes option[value="' + name.value.replace(/"/g, '\\"') + '"]');
+      id.value = opt ? opt.dataset.id : '';
+    }
+    name.addEventListener('input', sync);
+    name.addEventListener('change', sync);
+  })();
+</script>
+{% endif %}
+
 
 <nav class="status-filter" aria-label="Vista del calendario" style="display:inline-flex;gap:var(--space-1);margin-bottom:var(--space-4);padding:2px;background:var(--color-surface-subtle);border-radius:var(--radius);">
   <a href="/produccion?view=day" class="btn btn-sm {% if view != 'week' and view != 'month' %}btn-primary{% else %}btn-ghost{% endif %}" {% if view != 'week' and view != 'month' %}aria-current="page"{% endif %}>Día</a>

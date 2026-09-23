@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
-from app.rms.models import Product, Sale
+from app.rms.models import Product, Recipe, Sale
 from app.rms.production import plan_production
 from app.services.template_render import render
 
@@ -247,6 +247,9 @@ def produccion_worksheet(
         "source_labels": FORECAST_SOURCE_LABELS,
         "source_help": FORECAST_SOURCE_HELP,
         "overrides": overrides,
+        "recipes": session.execute(
+            select(Recipe).order_by(Recipe.name)
+        ).scalars().all(),
     })
 
 

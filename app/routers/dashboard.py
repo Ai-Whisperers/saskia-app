@@ -32,7 +32,7 @@ from app.rms.config import ASUNCION_TZ
 from app.rms.costing import batch_products_cost_margin, batch_recipes_cost
 from app.rms.dependencies import get_session
 from app.rms.insights import build_insights
-from app.rms.models import Ingredient, Recipe, Sale
+from app.rms.models import Ingredient, Recipe, RiskItem, Sale, ShoppingListItem, WishlistItem
 from app.services.template_render import render
 from app.rms.money import to_int_gs
 from decimal import Decimal
@@ -322,6 +322,34 @@ async def dashboard(
                 }
                 for i in stock_low[:5]
             ],
+            # HEREBUS-folded KPIs (Wave 3): shopping list, wishlist, risk
+            "sl_open_count": session.execute(
+                select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False))
+            ).scalars().all().__len__(),
+            "sl_total_gs": sum(
+                (i.qty_to_buy or 0) * (i.ingredient.purchase_price_gs or 0)
+                for i in session.execute(
+                    select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False))
+                ).scalars().all()
+            ),
+            "wishlist_count": session.execute(
+                select(WishlistItem).where(WishlistItem.purchased.is_(False))
+            ).scalars().all().__len__(),
+            "wishlist_total_gs": sum(
+                (i.unit_price_gs or 0) * (i.quantity or 0)
+                for i in session.execute(
+                    select(WishlistItem).where(WishlistItem.purchased.is_(False))
+                ).scalars().all()
+            ),
+            "risk_count": session.execute(
+                select(RiskItem).where(RiskItem.status == "activo")
+            ).scalars().all().__len__(),
+            "risk_severity_gs": sum(
+                (r.probability or 0) * (r.impact_gs or 0)
+                for r in session.execute(
+                    select(RiskItem).where(RiskItem.status == "activo")
+                ).scalars().all()
+            ),
             "data_freshness": datetime.now(ASUNCION_TZ).strftime("%H:%M:%S"),
         },
     )

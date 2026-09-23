@@ -1,7 +1,47 @@
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
 
-{% block title %}Inicio{% endblock %}
+{% block title %}Inicio
+{# Wave 3: HEREBUS-folded KPIs — shopping list / wishlist / risk — at-a-glance on home #}
+<section class="card mt-4">
+  <div class="card-header">
+    <h2>
+      <svg class="icon" aria-hidden="true"><use href="#icon-ops"/></svg>
+      Operación (cola de tareas)
+    </h2>
+    <small class="text-muted">Lo que necesita tu atención hoy</small>
+  </div>
+  <div class="card-body">
+    <div class="grid grid-3 mb-4">
+      <div class="metric-card">
+        <div class="metric-label">🛒 Lista de compras abierta</div>
+        <div class="metric-value">{{ sl_open_count or 0 }} ítems</div>
+        <small class="text-muted">
+          {% if (sl_total_gs or 0) > 0 %}{{ m.gs(sl_total_gs) }} estimado{% else %}—{% endif %}
+          · <a href="/shopping-list">Ver lista</a>
+        </small>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">🏪 Equipamiento pendiente</div>
+        <div class="metric-value">{{ wishlist_count or 0 }} ítems</div>
+        <small class="text-muted">
+          {% if (wishlist_total_gs or 0) > 0 %}{{ m.gs(wishlist_total_gs) }} estimado{% else %}—{% endif %}
+          · <a href="/wishlist">Ver wishlist</a>
+        </small>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">⚠️ Riesgos activos</div>
+        <div class="metric-value">{{ risk_count or 0 }} ítems</div>
+        <small class="text-muted">
+          {% if (risk_severity_gs or 0) > 0 %}{{ m.gs(risk_severity_gs) }} severidad{% else %}—{% endif %}
+          · <a href="/riesgos">Ver riesgos</a>
+        </small>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
 
 {% block alerts %}
 {% if alerts %}

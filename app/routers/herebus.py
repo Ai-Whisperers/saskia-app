@@ -780,16 +780,15 @@ def planner_compute(
 # ──────────────────────────────────────────────────────────────────
 
 
-@delivery_router.get("", response_class=HTMLResponse)
-def delivery_zones_list(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
-    zones = session.execute(
-        select(DeliveryZone).order_by(DeliveryZone.position)
-    ).scalars().all()
-    return render(
-        request,
-        "delivery_zones.html",
-        {"zones": zones},
-    )
+@delivery_router.get("", response_class=RedirectResponse)
+def delivery_zones_list() -> RedirectResponse:
+    """Wave 4: redirect /delivery-zones to /settings#zonas-delivery.
+
+    The zones config moved to Settings → "Zonas de delivery" so all
+    config lives in one place. This redirect keeps backward-compat for
+    bookmarks and the nav link.
+    """
+    return RedirectResponse(url="/settings#zonas-delivery", status_code=303)
 
 
 @delivery_router.get("/api", response_class=JSONResponse)

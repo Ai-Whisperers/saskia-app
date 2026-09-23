@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
-from app.rms.models import AppMeta, User
+from app.rms.models import AppMeta, User, DeliveryZone
 from app.rms.dependencies import get_session
 from app.services.template_render import render
 
@@ -53,6 +53,9 @@ def settings_page(
         "invoice_sequence": invoice_sequence.value if invoice_sequence else "",
         "theme": theme.value if theme else "system",
         "current_user": _safe_get_user(session, user_id),
+        "delivery_zones": session.execute(
+            select(DeliveryZone).order_by(DeliveryZone.position)
+        ).scalars().all(),
     })
 
 

@@ -238,6 +238,59 @@
   </p>
 </div>
 
+{# Wave 4: Zonas de Delivery — moved here from /delivery-zones #}
+<section class="card mt-4" id="zonas-delivery">
+  <div class="card-header">
+    <h2>
+      <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
+      Zonas de Delivery
+    </h2>
+    <small class="text-muted">Cobertura y costos de envío para pedidos</small>
+  </div>
+  <div class="card-body">
+    {% if delivery_zones %}
+    <table class="table is-striped is-hoverable">
+      <thead>
+        <tr>
+          <th>Orden</th>
+          <th>Código</th>
+          <th>Nombre</th>
+          <th>Cobertura</th>
+          <th class="num">Costo envío</th>
+          <th class="num">Pedido mínimo</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for z in delivery_zones %}
+        <tr>
+          <td>{{ z.position }}</td>
+          <td>{{ z.code or '—' }}</td>
+          <td><strong>{{ z.name }}</strong></td>
+          <td>{{ z.coverage_text or '—' }}</td>
+          <td class="num">{% if z.delivery_cost_gs %}{{ m.gs(z.delivery_cost_gs) }}{% else %}—{% endif %}</td>
+          <td class="num">{% if z.min_order_gs %}{{ m.gs(z.min_order_gs) }}{% else %}—{% endif %}</td>
+          <td>
+            {% if z.is_active %}
+            <span class="badge badge-ok">Activa</span>
+            {% else %}
+            <span class="badge badge-warn">Inactiva</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="text-muted" style="margin-top:var(--space-3);font-size:var(--text-xs);">
+      Para crear, editar o eliminar zonas, editá la base de datos directamente
+      (<code>delivery_zone</code> table). UI CRUD está pendiente.
+    </p>
+    {% else %}
+    <p class="text-muted">No hay zonas de delivery configuradas todavía.</p>
+    {% endif %}
+  </div>
+</section>
+
 <script>
 // Tab switching
 document.querySelectorAll('.tab-btn').forEach(btn => {

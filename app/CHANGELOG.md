@@ -873,7 +873,39 @@ direction (regression for the 404), and all 7 nav targets returning 200.
 - **CF tunnel rotation runbook (E1.S3)**:
   `docs/operations/cf-tunnel-rotation.md`. 7-step procedure with
   90-day cadence (next: 2026-12-04) and rollback. Operator-only;
-  assistant cannot perform the rotation itself (CF dashboard access).
+  assistant cannot perform the rotation itself (CF dashboard access).### Changed (HEREBUS integration — Waves 1-4, 2026-09-23)
+
+**Wave 1 — Nav menu reorg** (1 file edit):
+- Eliminated the "Operación HEREBUS" label from the side menu.
+- Reorganized into 6 buckets: Día a día, Compras & Stock, Cocina, Finanzas, Análisis & Control, Sistema.
+- Relabeled: `/wishlist` → "Equipamiento" (it's kitchen gear, not consumables); `/pricing` → "Precios por canal"; `/vs-mercado` → "Precios vs mercado"; `/dashboard` (HEREBUS) → "KPIs" (to disambiguate from `/`); `/shopping-list` → moved from HEREBUS bucket to core "Compras & Stock".
+
+**Wave 2 — Planner merged into Producción** (2 files):
+- Embedded the `/produccion-planner` form as a collapsible "Plan manual" section in `produccion.html` (day view only).
+- Added `recipes` to `/produccion` render context (from `Recipe` table).
+- Added a back-link "← Volver a Producción" in `planner.html`.
+- `/produccion-planner` and `/produccion-planner/compute` routes still work for backward compat.
+
+**Wave 3 — HEREBUS KPIs folded into home** (2 files):
+- Added to `dashboard.py` context: `sl_open_count`, `sl_total_gs`, `wishlist_count`, `wishlist_total_gs`, `risk_count`, `risk_severity_gs`.
+- Added new imports: `WishlistItem`, `ShoppingListItem`, `RiskItem`.
+- Added "Operación (cola de tareas)" card to `inicio.html` showing all 6 KPIs at a glance with links to the detail pages.
+
+**Wave 4 — Delivery zones folded into Settings** (3 files):
+- `/delivery-zones` GET now redirects (303) to `/settings#zonas-delivery`.
+- Added `delivery_zones` to `/settings` render context.
+- Added new "Zonas de Delivery" section to `settings.html` showing zone table (order, code, name, coverage, cost, min order, status).
+- Nav link `/delivery-zones` updated to `/settings#zonas-delivery`.
+
+### Added
+- `tests/test_herbus_integration.py` — 16 tests covering all 4 waves (nav labels, router context, template integration, redirects).
+
+### Migration notes
+- Bookmarks to `/delivery-zones` will redirect automatically.
+- `/produccion-planner` still works standalone (back-link added).
+- Nav structure changed but no routes renamed — existing links in operator training materials keep working.
+
+
 ## [Unreleased]
 
 ### Fixed (UI audit patch set, 2026-09-23)

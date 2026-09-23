@@ -70,39 +70,42 @@
         <span>Menú</span>
         <svg class="icon chev" aria-hidden="true"><use href="#icon-chevron-down"/></svg>
       </button>
-      <div class="menu-panel" id="nav-menu-panel" role="menu" aria-label="Secciones">
+                  <div class="menu-panel" id="nav-menu-panel" role="menu" aria-label="Secciones">
         <div class="menu-section">Día a día</div>
         {{ m.nav_link("/", "Inicio", icon="icon-home", exact=True, current_path=request.url.path) }}
-        {{ m.nav_link("/productos", "Productos", icon="icon-box", current_path=request.url.path) }}
-        {{ m.nav_link("/recetas", "Recetas", icon="icon-recipe", current_path=request.url.path) }}
-        {{ m.nav_link("/inventario", "Inventario", icon="icon-inventory", current_path=request.url.path) }}
         {{ m.nav_link("/ventas", "Ventas", icon="icon-sale", current_path=request.url.path) }}
+        {{ m.nav_link("/pedidos", "Pedidos", icon="icon-box", current_path=request.url.path) }}
         {{ m.nav_link("/produccion", "Producción", icon="icon-production", current_path=request.url.path) }}
         {{ m.nav_link("/eod", "Cierre del día", icon="icon-close", current_path=request.url.path) }}
-        <div class="menu-section">Más</div>
-        {{ m.nav_link("/pedidos", "Pedidos", icon="icon-box", current_path=request.url.path) }}
-        {{ m.nav_link("/clientes", "Clientes", icon="icon-customer", current_path=request.url.path) }}
-        {{ m.nav_link("/reorder", "Reponer", icon="icon-reorder", current_path=request.url.path) }}
+
+        <div class="menu-section">Compras &amp; Stock</div>
+        {{ m.nav_link("/inventario", "Inventario", icon="icon-inventory", current_path=request.url.path) }}
+        {{ m.nav_link("/reorder", "Reponer stock", icon="icon-reorder", current_path=request.url.path) }}
+        {{ m.nav_link("/shopping-list", "Lista de compras", icon="icon-reorder", current_path=request.url.path) }}
         {{ m.nav_link("/suppliers", "Proveedores", icon="icon-supplier", current_path=request.url.path) }}
-        {{ m.nav_link("/reportes", "Reportes", icon="icon-report", current_path=request.url.path) }}
+        {{ m.nav_link("/wishlist", "Equipamiento", icon="icon-tag", current_path=request.url.path) }}
+
+        <div class="menu-section">Cocina</div>
+        {{ m.nav_link("/productos", "Productos", icon="icon-box", current_path=request.url.path) }}
+        {{ m.nav_link("/recetas", "Recetas", icon="icon-recipe", current_path=request.url.path) }}
         {{ m.nav_link("/merma", "Merma", icon="icon-waste", current_path=request.url.path) }}
-        <div class="menu-section">Operación HEREBUS</div>
-        {{ m.nav_link("/dashboard", "Dashboard", icon="icon-report", current_path=request.url.path) }}
-        {{ m.nav_link("/produccion-planner", "Plan Producción", icon="icon-production", current_path=request.url.path) }}
-        {{ m.nav_link("/shopping-list", "Lista de Compras", icon="icon-reorder", current_path=request.url.path) }}
-        {{ m.nav_link("/pricing", "Pricing", icon="icon-tag", current_path=request.url.path) }}
-        {{ m.nav_link("/wishlist", "Wishlist", icon="icon-tag", current_path=request.url.path) }}
-        {{ m.nav_link("/riesgos", "Riesgos", icon="icon-warn", current_path=request.url.path) }}
-        {{ m.nav_link("/vs-mercado", "vs Mercado", icon="icon-report", current_path=request.url.path) }}
+
+        <div class="menu-section">Finanzas</div>
+        {{ m.nav_link("/reportes", "Reportes", icon="icon-report", current_path=request.url.path) }}
+        {{ m.nav_link("/pricing", "Precios por canal", icon="icon-tag", current_path=request.url.path) }}
+        {{ m.nav_link("/vs-mercado", "Precios vs mercado", icon="icon-report", current_path=request.url.path) }}
         {{ m.nav_link("/bank", "Bancos", icon="icon-config", current_path=request.url.path) }}
-        {{ m.nav_link("/delivery-zones", "Zonas Delivery", icon="icon-inventory", current_path=request.url.path) }}
+        {{ m.nav_link("/clientes", "Clientes", icon="icon-customer", current_path=request.url.path) }}
+
+        <div class="menu-section">Análisis &amp; Control</div>
+        {{ m.nav_link("/dashboard", "KPIs", icon="icon-report", current_path=request.url.path) }}
+        {{ m.nav_link("/riesgos", "Riesgos", icon="icon-warn", current_path=request.url.path) }}
+        {{ m.nav_link("/settings#zonas-delivery", "Zonas delivery", icon="icon-inventory", current_path=request.url.path) }}
+
         <div class="menu-section">Sistema</div>
         {{ m.nav_link("/excel", "Excel", icon="icon-excel", current_path=request.url.path) }}
         {{ m.nav_link("/settings", "Configuración", icon="icon-config", current_path=request.url.path) }}
-      </div>
-    
-
-    <div class="nav-right">
+      </div><div class="nav-right">
 
       <button type="button" class="search-btn btn-ghost btn-icon" id="global-search-btn"
               aria-label="Buscar (Cmd+K)" title="Buscar (⌘K)">
