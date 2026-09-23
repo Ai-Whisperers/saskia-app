@@ -171,10 +171,7 @@ def _migration_002_audit_log(conn: Any) -> None:
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_log_occurred_at ON audit_log (occurred_at)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_log_user_id ON audit_log (user_id)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_log_action ON audit_log (action)"))
-    conn.execute(
-        text("UPDATE app_meta SET value = '2', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 2)
 
 
 def _migration_007_product_sku(conn: Any) -> None:
@@ -185,10 +182,7 @@ def _migration_007_product_sku(conn: Any) -> None:
     """
     _add_column_if_missing(conn, "product", "sku",
                            "VARCHAR(32)", "TEXT")
-    conn.execute(
-        text("UPDATE app_meta SET value = '7', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 7)
 
 
 def _add_column_if_missing(conn: Any, table: str, column: str,
@@ -222,10 +216,7 @@ def _add_column_if_missing(conn: Any, table: str, column: str,
 
 def _migration_006_waste_log(conn: Any) -> None:
     """Add waste_log table (E22)."""
-    conn.execute(
-        text("UPDATE app_meta SET value = '6', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 6)
 
 
 def _migration_005_customer(conn: Any) -> None:
@@ -235,10 +226,7 @@ def _migration_005_customer(conn: Any) -> None:
     FK column is added in case create_all didn't (e.g. on an existing
     DB that pre-dates the customer table).
     """
-    conn.execute(
-        text("UPDATE app_meta SET value = '5', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 5)
 
 
 def _migration_004_tags(conn: Any) -> None:
@@ -253,10 +241,7 @@ def _migration_004_tags(conn: Any) -> None:
     """
     # create_all is called by init_db BEFORE this migration runs.
     # Nothing else to do — the new tables already exist.
-    conn.execute(
-        text("UPDATE app_meta SET value = '4', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 4)
 
 
 def _migration_003_analytics_columns(conn: Any) -> None:
@@ -316,19 +301,13 @@ def _migration_003_analytics_columns(conn: Any) -> None:
             )
         )
 
-    conn.execute(
-        text("UPDATE app_meta SET value = '3', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 3)
 
 
 
 def _migration_008_tenant(conn):
     """Add tenant table (E15)."""
-    conn.execute(
-        text("UPDATE app_meta SET value = '8', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 8)
 
 
 def _migration_009_ingredient_intel(conn):
@@ -351,10 +330,7 @@ def _migration_009_ingredient_intel(conn):
         except Exception:
             # Column already exists — idempotent.
             pass
-    conn.execute(
-        text("UPDATE app_meta SET value = '9', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 9)
 
 
 def _migration_010_recipe_intel(conn):
@@ -374,10 +350,7 @@ def _migration_010_recipe_intel(conn):
         except Exception:
             # Column already exists — idempotent.
             pass
-    conn.execute(
-        text("UPDATE app_meta SET value = '10', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 10)
 
 
 def _migration_011_sale_payment_discount(conn):
@@ -398,10 +371,7 @@ def _migration_011_sale_payment_discount(conn):
         except Exception:
             # Column already exists — idempotent.
             pass
-    conn.execute(
-        text("UPDATE app_meta SET value = '11', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 11)
 
 
 def _migration_012_sale_tz(conn):
@@ -423,10 +393,7 @@ def _migration_012_sale_tz(conn):
             conn.execute(text("UPDATE sale SET tz = 'America/Asuncion' WHERE tz IS NULL OR tz = ''"))
         except Exception:
             pass
-    conn.execute(
-        text("UPDATE app_meta SET value = '12', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 12)
 
 
 def _migration_013_ingredient_max_stock(conn):
@@ -439,10 +406,7 @@ def _migration_013_ingredient_max_stock(conn):
         conn.execute(text("ALTER TABLE ingredient ADD COLUMN max_stock_qty FLOAT"))
     except Exception:
         pass  # already exists
-    conn.execute(
-        text("UPDATE app_meta SET value = '13', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 13)
 
 
 def _migration_014_customer_cedula(conn):
@@ -464,10 +428,7 @@ def _migration_014_customer_cedula(conn):
             conn.execute(text("CREATE INDEX ix_customer_cedula ON customer (cedula)"))
     else:
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_customer_cedula ON customer (cedula)"))
-    conn.execute(
-        text("UPDATE app_meta SET value = '14', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 14)
 
 
 def _migration_015_sale_channel(conn):
@@ -501,10 +462,7 @@ def _migration_015_sale_channel(conn):
         except Exception:
             pass
 
-    conn.execute(
-        text("UPDATE app_meta SET value = '15', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 15)
 
 
 def _migration_016_pedidos(conn):
@@ -521,10 +479,7 @@ def _migration_016_pedidos(conn):
     """
     # create_all() in init_db() creates these tables before this migration
     # runs. Nothing else to do here besides bumping the version row.
-    conn.execute(
-        text("UPDATE app_meta SET value = '16', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 16)
 
 
 def _migration_017_recipe_line_unit(conn):
@@ -580,10 +535,7 @@ def _migration_017_recipe_line_unit(conn):
             )
         )
 
-    conn.execute(
-        text("UPDATE app_meta SET value = '17', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 17)
 
 
 def _migration_018_price_event(conn):
@@ -655,10 +607,7 @@ def _migration_018_price_event(conn):
             )
         )
 
-    conn.execute(
-        text("UPDATE app_meta SET value = '18', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 18)
 
 
 def _migration_019_production_completion(conn):
@@ -669,10 +618,7 @@ def _migration_019_production_completion(conn):
     schema_version row. One row per (product_id, for_date) — upserted
     by app/rms/eod_completions.upsert_completion().
     """
-    conn.execute(
-        text("UPDATE app_meta SET value = '19', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 19)
 
 
 def _migration_020_sale_date_voided_index(conn):
@@ -707,10 +653,7 @@ def _migration_020_sale_date_voided_index(conn):
             )
         )
 
-    conn.execute(
-        text("UPDATE app_meta SET value = '20', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 20)
 
 
 def _migration_021_stock_movement(conn):
@@ -769,10 +712,7 @@ def _migration_021_stock_movement(conn):
             )
         )
 
-    conn.execute(
-        text("UPDATE app_meta SET value = '21', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 21)
 
 
 def _migration_022_user_roles(conn):
@@ -787,10 +727,7 @@ def _migration_022_user_roles(conn):
     except Exception:
         pass  # already exists
 
-    conn.execute(
-        text("UPDATE app_meta SET value = '22', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 22)
 
 
 def _migration_023_supplier(conn):
@@ -850,10 +787,7 @@ def _migration_023_supplier(conn):
     except Exception:
         pass  # already exists
 
-    conn.execute(
-        text("UPDATE app_meta SET value = '23', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 23)
 
 
 def _migration_024_recipe_intel_extended(conn):
@@ -874,10 +808,7 @@ def _migration_024_recipe_intel_extended(conn):
         except Exception:
             pass  # already exists
 
-    conn.execute(
-        text("UPDATE app_meta SET value = '24', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 24)
 
 
 def _migration_025_ingredient_opening_stock_reorder_point(conn):
@@ -901,10 +832,7 @@ def _migration_025_ingredient_opening_stock_reorder_point(conn):
         except Exception:
             pass  # already exists
 
-    conn.execute(
-        text("UPDATE app_meta SET value = '25', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 25)
 
 
 
@@ -931,10 +859,7 @@ def _migration_026_product_audit_columns(conn):
         except Exception:
             pass  # already exists
 
-    conn.execute(
-        text("UPDATE app_meta SET value = :v, updated_at = :ts WHERE key = 'schema_version'"),
-        {"v": "26", "ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 26)
 
 
 
@@ -1008,10 +933,7 @@ def _migration_027_production_plan_template(conn):
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_override_product_id ON production_plan_override(product_id)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_override_for_date ON production_plan_override(for_date)"))
 
-    conn.execute(
-        text("UPDATE app_meta SET value = '27', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 27)
 
 
 def _migration_028_recipe_yield_qty_check(conn):
@@ -1048,10 +970,7 @@ def _migration_028_recipe_yield_qty_check(conn):
         # in apply_sale() / recipe CRUD continues to enforce.
         pass
 
-    conn.execute(
-        text("UPDATE app_meta SET value = '28', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 28)
 
 
 def _migration_029_herebus_integration(conn) -> None:
@@ -1107,10 +1026,7 @@ def _migration_029_herebus_integration(conn) -> None:
     except Exception:
         pass
 
-    conn.execute(
-        text("UPDATE app_meta SET value = '29', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 29)
 
 
 def _migration_030_recipe_image_url(conn) -> None:
@@ -1127,10 +1043,7 @@ def _migration_030_recipe_image_url(conn) -> None:
     except Exception:
         pass
 
-    conn.execute(
-        text("UPDATE app_meta SET value = '30', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 30)
 
 
 def _migration_031_risk_status_activo(conn) -> None:
@@ -1172,10 +1085,7 @@ def _migration_031_risk_status_activo(conn) -> None:
         )
     conn.execute(text("DROP TABLE _risk_item_bk"))
 
-    conn.execute(
-        text("UPDATE app_meta SET value = '31', updated_at = :ts WHERE key = 'schema_version'"),
-        {"ts": datetime.now(timezone.utc).isoformat()},
-    )
+    _bump_schema_version(conn, 31)
 
 
 def _migration_032_pedido_cancel_reason(conn) -> None:
@@ -1192,6 +1102,7 @@ def _migration_032_pedido_cancel_reason(conn) -> None:
     cols = [c[1] for c in conn.execute(text("PRAGMA table_info(pedido)")).fetchall()]
     if "cancel_reason" not in cols:
         conn.execute(text("ALTER TABLE pedido ADD COLUMN cancel_reason TEXT"))
+    _bump_schema_version(conn, 32)
 
 
 MIGRATIONS = {
@@ -1228,6 +1139,41 @@ MIGRATIONS = {
     31: _migration_031_risk_status_activo,
     32: _migration_032_pedido_cancel_reason,
 }
+
+
+def _bump_schema_version(conn, version: int) -> None:
+    """Set schema_version to `version`, working on both SQLite and Postgres.
+
+    On Postgres, app_meta.value is JSONB. Sending a plain TEXT literal
+    ('27') raises `invalid input syntax for type json`. So we cast the
+    bound parameter to JSONB explicitly with ::jsonb. On SQLite, the
+    column is TEXT so the same INSERT/UPDATE works without the cast.
+
+    Replaces the old hard-coded pattern `text("UPDATE app_meta SET value = '27', ...")`
+    that silently no-op'd on Postgres (the UPDATE failed with a type
+    error and the migration appeared to "succeed" without bumping
+    schema_version).
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    ts = datetime.now(timezone.utc).isoformat()
+    if dialect == "postgresql":
+        # JSONB column — cast string → jsonb explicitly.
+        conn.execute(
+            text(
+                "INSERT INTO app_meta (key, value, updated_at) VALUES "
+                "('schema_version', :v::jsonb, :ts) "
+                "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at"
+            ),
+            {"v": str(version), "ts": ts},
+        )
+    else:
+        conn.execute(
+            text(
+                "INSERT OR REPLACE INTO app_meta (key, value, updated_at) "
+                "VALUES ('schema_version', :v, :ts)"
+            ),
+            {"v": str(version), "ts": ts},
+        )
 
 
 def _current_schema_version(conn: Any) -> int:
