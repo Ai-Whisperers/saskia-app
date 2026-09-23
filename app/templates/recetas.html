@@ -20,13 +20,23 @@
     <input type="text" id="q" name="q" value="{{ q }}" placeholder="Nombre de receta…">
   </div>
   <div class="form-row" style="margin-bottom:0;">
-    <label for="ingredient_id">Ingrediente</label>
-    <select id="ingredient_id" name="ingredient_id">
-      <option value="">Todos los ingredientes</option>
-      {% for ing in ingredients %}
-      <option value="{{ ing.id }}" {% if ingredient_id == ing.id %}selected{% endif %}>{{ ing.name }}</option>
-      {% endfor %}
-    </select>
+    <label for="ingredient_id_combo">Ingrediente</label>
+    <div class="saskia-combo"
+         data-source="/inventario/api/search"
+         data-display="name"
+         data-value="id"
+         data-min-chars="0"
+         data-row-builder="genericRowLabel">
+      <input type="text"
+             id="ingredient_id_combo"
+             class="combo-input"
+             name="ingredient_name_display"
+             maxlength="60"
+             value=""
+             placeholder="Todos los ingredientes">
+      <input type="hidden" name="ingredient_id" value="">
+      <div class="combo-results" role="listbox" hidden></div>
+    </div>
   </div>
   <button type="submit" class="btn btn-primary">Filtrar</button>
   {% if q or ingredient_id %}

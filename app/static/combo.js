@@ -208,6 +208,11 @@
         return;
       }
       var self = this;
+
+      // Build all rows in a DocumentFragment so the browser only reflows
+      // once per render instead of once per row. Cuts visible jank on
+      // large result sets (50+ items).
+      var frag = document.createDocumentFragment();
       this.matches.forEach(function (item, idx) {
         var row = document.createElement("div");
         row.className = "combo-row";
@@ -230,8 +235,10 @@
             self._pick(item);
           }
         });
-        self.results.appendChild(row);
+        frag.appendChild(row);
       });
+      this.results.appendChild(frag);
+
       this.activeIndex = 0;
       this.results.hidden = false;
     }
@@ -285,6 +292,26 @@
       var self = this;
       var token = ++this.lastFetchToken;
       var promise;
+
+      // Caching layer — avoid redundant network calls for repeated queries
+      // (e.g. opening the same combo twice, or re-typing the same search).
+      // The cache is shared across ALL combo instances on the page so a
+      // second combo pointing at the same endpoint never re-fetches the
+      // same query. TTL is short (30s) so data stays reasonably fresh.
+      var cacheKey = (typeof this.opts.source === "function") ? null
+                     : this.opts.source + "::" + q;
+      var sharedCache = SaskiaCombo._sharedCache;
+      if (cacheKey && sharedCache && sharedCache.has(cacheKey)) {
+        var entry = sharedCache.get(cacheKey);
+        if (Date.now() - entry.ts < 30000) {
+          if (token !== self.lastFetchToken) return;
+          self._render(entry.data);
+          return;
+        } else {
+          sharedCache.delete(cacheKey);
+        }
+      }
+
       if (typeof this.opts.source === "function") {
         promise = Promise.resolve().then(function () { return self.opts.source(q); });
       } else {
@@ -294,7 +321,13 @@
       promise.then(function (data) {
         if (token !== self.lastFetchToken) return;
         var items = (data && data.results) ? data.results : [];
-        
+
+        // Cache successful results for repeat queries across all combo instances
+        if (cacheKey) {
+          if (!SaskiaCombo._sharedCache) SaskiaCombo._sharedCache = new Map();
+          SaskiaCombo._sharedCache.set(cacheKey, { ts: Date.now(), data: items });
+        }
+
         // If allowCreate is enabled and input has value not in results, add create option
         if (self.opts.allowCreate && q && !items.some(item => item.name === q)) {
           items.push({
@@ -303,7 +336,7 @@
             _isCreate: true
           });
         }
-        
+
         self._render(items);
       }).catch(function () { self._hide(); });
     }
@@ -320,13 +353,26 @@
     }
     
     destroy() {
-      // Clean up event listeners and references
+      // Clean up event listeners and references. The shared combo cache
+      // (`SaskiaCombo._sharedCache`) is intentionally NOT cleared here —
+      // it persists for the lifetime of the page so later combos can hit it.
+      // Use `SaskiaCombo.clearCache()` to flush manually if needed.
       this.input.removeEventListener("input", this._inputHandler);
       this.input.removeEventListener("keydown", this._keyHandler);
       this.input.removeEventListener("focus", this._focusHandler);
       this.input.removeEventListener("blur", this._blurHandler);
       if (this.root._saskiaCombo === this) {
         delete this.root._saskiaCombo;
+      }
+    }
+
+    /**
+     * Flush the app-wide combo result cache. Call after mutations that
+     * invalidate a long-lived cache (e.g. after creating a new customer).
+     */
+    static clearCache() {
+      if (SaskiaCombo._sharedCache) {
+        SaskiaCombo._sharedCache.clear();
       }
     }
   }

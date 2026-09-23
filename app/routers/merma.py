@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -247,6 +247,27 @@ def merma_register_recipe(
     )
     session.commit()
     return RedirectResponse(url="/merma", status_code=303)
+
+
+@router.get("/api/reasons", response_class=JSONResponse)
+def waste_reasons_api() -> JSONResponse:
+    """List all waste reasons.
+    
+    Used by the combo system on /merma forms for reason selection.
+    """
+    from app.rms.waste import WasteReason
+    
+    payload = []
+    for reason in WasteReason:
+        payload.append({
+            "value": reason.value,
+            "display": reason.value,
+        })
+    
+    return JSONResponse({
+        "results": payload,
+        "count": len(payload)
+    })
 
 
 __all__ = ["router"]

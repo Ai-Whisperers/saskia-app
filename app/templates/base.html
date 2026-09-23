@@ -319,10 +319,12 @@
   {% include "_components/confirm_modal.html" %}
 
   {# ── Global JS: search modal, notification center, copy-to-clipboard, Cmd+K ── #}
+  <link rel="preload" href="/static/combo.js" as="script" crossorigin="anonymous">
+  <link rel="preload" href="/static/combo-rows.js" as="script" crossorigin="anonymous">
   <link rel="stylesheet" href="/static/combobox.css">
   <script src="/static/shortcuts.js" defer></script>
-  <script src="/static/combo.js" defer></script>
-  <script src="/static/combo-rows.js" defer></script>
+  <script src="/static/combo.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/combo-rows.js?v={{ asset_version() }}" defer></script>
   <script src="/static/app.js?v={{ asset_version() }}" defer></script>
   {% block page_scripts %}{% endblock %}
 </body>

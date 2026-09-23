@@ -6,8 +6,8 @@ CRUD for local-bcrypt users. Supabase-auth deployments use the Supabase dashboar
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.auth import (
@@ -217,6 +217,29 @@ def users_delete(
     session.commit()
     
     return RedirectResponse(url="/users?flash=Usuario+eliminado", status_code=303)
+
+
+@router.get("/api/roles", response_class=JSONResponse)
+def user_roles_api() -> JSONResponse:
+    """List all available user roles.
+    
+    Used by the combo system on /users form for role selection.
+    """
+    payload = []
+    for value, display in [
+        ("cashier", "Cajero"),
+        ("manager", "Gerente"),
+        ("admin", "Administrador"),
+    ]:
+        payload.append({
+            "value": value,
+            "display": display,
+        })
+    
+    return JSONResponse({
+        "results": payload,
+        "count": len(payload)
+    })
 
 
 __all__ = ["router"]

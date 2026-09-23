@@ -113,12 +113,23 @@
     </div>
     
     <div class="form-group">
-      <label for="role">Rol</label>
-      <select id="role" name="role" required>
-        <option value="cashier">Cajero</option>
-        <option value="manager">Gerente</option>
-        <option value="admin">Administrador</option>
-      </select>
+      <label for="role_combo">Rol</label>
+      <div class="saskia-combo"
+           data-source="/users/api/roles"
+           data-display="display"
+           data-value="value"
+           data-min-chars="0"
+           data-row-builder="genericRowLabel">
+        <input type="text"
+               id="role_combo"
+               class="combo-input"
+               name="role_display"
+               maxlength="20"
+               value=""
+               placeholder="Seleccionar rol">
+        <input type="hidden" name="role" value="">
+        <div class="combo-results" role="listbox" hidden></div>
+      </div>
       <small>Los administradores tienen acceso completo. Los cajeros solo pueden operar ventas.</small>
     </div>
     
@@ -155,12 +166,23 @@
     </div>
     
     <div class="form-group">
-      <label for="edit-role">Rol</label>
-      <select id="edit-role" name="role" required>
-        <option value="cashier">Cajero</option>
-        <option value="manager">Gerente</option>
-        <option value="admin">Administrador</option>
-      </select>
+      <label for="edit-role_combo">Rol</label>
+      <div class="saskia-combo"
+           data-source="/users/api/roles"
+           data-display="display"
+           data-value="value"
+           data-min-chars="0"
+           data-row-builder="genericRowLabel">
+        <input type="text"
+               id="edit-role_combo"
+               class="combo-input"
+               name="role_display"
+               maxlength="20"
+               value=""
+               placeholder="Seleccionar rol">
+        <input type="hidden" name="role" value="">
+        <div class="combo-results" role="listbox" hidden></div>
+      </div>
     </div>
     
     <div class="form-group">

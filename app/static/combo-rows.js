@@ -121,4 +121,21 @@
   window.genericRowLabel = function (item) {
     return '<span class="combo-row-main">' + escapeHtml(JSON.stringify(item)) + "</span>";
   };
+
+  /**
+   * Recipe search row: name + yield description
+   * Used in merma form for recipe selection with combo
+   */
+  window.recipeSearchRowLabel = function (item) {
+    if (!item) return '';
+    
+    var yieldText = item.yield_qty && item.yield_unit 
+      ? " rinde " + escapeHtml(String(item.yield_qty)) + " " + escapeHtml(item.yield_unit)
+      : "";
+    
+    return (
+      '<span class="combo-row-main">' + escapeHtml(item.name) + "</span>" +
+      '<span class="combo-row-sub">' + yieldText + "</span>"
+    );
+  };
 })();

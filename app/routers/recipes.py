@@ -10,7 +10,7 @@ only handles single values.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -446,6 +446,67 @@ def _apply_lines_from_form(session: Session, recipe_id: int, form) -> list[str]:
         )
 
     return skipped
+
+
+@router.get("/api/search", response_class=JSONResponse)
+def recipe_search_api(
+    q: str = Query("", description="Search query"),
+    limit: int = Query(10, ge=1, le=50),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Search recipes by name/description (case-insensitive).
+    
+    Used by the combo system on /merma form for recipe selection.
+    """
+    # Basic search by name
+    query = (
+        select(Recipe)
+        .where(Recipe.name.ilike(f"%{q}%"))
+        .order_by(Recipe.name)
+        .limit(limit)
+    )
+    
+    recipes = session.scalars(query).all()
+    
+    if not recipes:
+        return JSONResponse({"results": [], "count": 0})
+    
+    # Format results for combo
+    payload = []
+    for r in recipes:
+        payload.append({
+            "id": r.id,
+            "name": r.name,
+            "description": r.description or "",
+            "yield_qty": r.yield_qty,
+            "yield_unit": r.yield_unit,
+        })
+    
+    return JSONResponse({
+        "results": payload,
+        "count": len(payload)
+    })
+
+
+@router.get("/api/units", response_class=JSONResponse)
+def units_api() -> JSONResponse:
+    """List all available units.
+    
+    Used by the combo system on /merma form for unit selection.
+    """
+    from app.rms.units import Unit
+    
+    payload = []
+    for unit in Unit:
+        payload.append({
+            "value": unit.value,
+            "display": unit.display,
+        })
+    
+    return JSONResponse({
+        "results": payload,
+        "count": len(payload)
+    })
 
 
 __all__ = ["router"]

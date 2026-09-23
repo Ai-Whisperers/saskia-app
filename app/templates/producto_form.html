@@ -45,13 +45,23 @@
   </div>
 
   <div class="form-row">
-    <label for="recipe_id">Receta</label>
-    <select id="recipe_id" name="recipe_id">
-      <option value="">— Sin receta —</option>
-      {% for r in recipes %}
-      <option value="{{ r.id }}" {% if product and product.recipe_id == r.id %}selected{% endif %}>{{ r.name }}</option>
-      {% endfor %}
-    </select>
+    <label for="recipe_id_combo">Receta</label>
+    <div class="saskia-combo"
+         data-source="/recetas/api/search"
+         data-display="name"
+         data-value="id"
+         data-min-chars="0"
+         data-row-builder="genericRowLabel">
+      <input type="text"
+             id="recipe_id_combo"
+             class="combo-input"
+             name="recipe_name_display"
+             maxlength="60"
+             value=""
+             placeholder="— Sin receta —">
+      <input type="hidden" name="recipe_id" value="">
+      <div class="combo-results" role="listbox" hidden></div>
+    </div>
     <small class="muted">Sin receta: las ventas se registran pero no bajan stock ni calculan margen.</small>
   </div>
 
