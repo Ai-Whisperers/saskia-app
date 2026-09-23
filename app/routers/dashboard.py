@@ -157,6 +157,105 @@ def _delta_pct(current: int, prior: int) -> dict[str, float | str | None]:
 
 
 @router.get("/", response_class=HTMLResponse)
+
+
+def _compliance_alerts(session) -> list[dict]:
+    """Phase 1.A — Return list of expiring / missing regulatory IDs.
+
+    Returns a list of dicts with 'severity', 'icon', 'message', 'days_remaining'.
+    Empty list means everything is in order.
+    """
+    from datetime import date, datetime
+    from app.rms.models import ComplianceInfo
+
+    today = date.today()
+    alerts: list[dict] = []
+
+    ci = session.get(ComplianceInfo, 1)
+    if ci is None:
+        return alerts
+
+    def _parse_iso(s: str | None):
+        if not s:
+            return None
+        try:
+            return datetime.strptime(s, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            return None
+
+    checks = [
+        ("inan_re_expiry", "INAN R.E. (Registro de Establecimiento)"),
+        ("municipal_habilitacion_expiry", "Habilitación Municipal"),
+        ("timbrado_expiry", "Timbrado (RESIMPLE)"),
+    ]
+    for field, label in checks:
+        expiry = _parse_iso(getattr(ci, field))
+        if expiry is None:
+            continue
+        days_left = (expiry - today).days
+        if days_left < 0:
+            alerts.append({
+                "severity": "danger",
+                "icon": "⚠",
+                "message": f"{label} VENCIDO hace {abs(days_left)} días ({expiry.isoformat()}). Renová ya.",
+                "days_remaining": days_left,
+            })
+        elif days_left <= 30:
+            alerts.append({
+                "severity": "warn",
+                "icon": "⏰",
+                "message": f"{label} vence en {days_left} días ({expiry.isoformat()}). Programá renovación.",
+                "days_remaining": days_left,
+            })
+
+    # R.S.P.A. expiry check on products (only when requires_rspa=True)
+    from app.rms.models import Product
+    for p in session.execute(
+        select(Product).where(
+            Product.requires_rspa.is_(True),
+            Product.rspa_expiry.is_not(None),
+        )
+    ).scalars().all():
+        expiry = _parse_iso(p.rspa_expiry)
+        if expiry is None:
+            continue
+        days_left = (expiry - today).days
+        if days_left < 0:
+            alerts.append({
+                "severity": "danger",
+                "icon": "⚠",
+                "message": f"R.S.P.A. de '{p.name}' VENCIDA hace {abs(days_left)} días ({expiry.isoformat()}).",
+                "days_remaining": days_left,
+            })
+        elif days_left <= 30:
+            alerts.append({
+                "severity": "warn",
+                "icon": "⏰",
+                "message": f"R.S.P.A. de '{p.name}' vence en {days_left} días.",
+                "days_remaining": days_left,
+            })
+
+    # Missing critical IDs (info-level)
+    missing = []
+    if not ci.ruc:
+        missing.append("RUC")
+    if not ci.inan_re_number:
+        missing.append("INAN R.E. N°")
+    if not ci.director_tecnico:
+        missing.append("Director Técnico")
+    if ci.tax_regime == "resimple" and not ci.timbrado_number:
+        missing.append("Timbrado (RESIMPLE)")
+    if missing and not alerts:
+        alerts.append({
+            "severity": "info",
+            "icon": "ℹ",
+            "message": f"Configurá: {', '.join(missing)} en Configuración → Información de Negocio.",
+            "days_remaining": None,
+        })
+
+    return alerts
+
+
 async def dashboard(
     request: Request,
     period: str = Query("today", pattern="^(today|week|month|custom)$"),
@@ -298,6 +397,8 @@ async def dashboard(
             "concentration": ingredient_concentration(session, days=90)[:5],
             "erosion_alerts": margin_erosion_alerts(session, threshold_pct=5.0),
             "complexity": recipe_complexity(session),
+            # Phase 1.A — compliance alert widget (INAN R.E., Habilitación, Timbrado)
+            "compliance_alerts": _compliance_alerts(session),
             # E34: consolidated insights panel
             "insights": build_insights(session),
             # Phase 3 visual dashboard — charts + freshness
