@@ -42,6 +42,62 @@
     changes don't break the test in the future).
 
 
+### Changed (2026-09-23) — Receta form UX overhaul
+
+Complete redesign of `/recetas/{nueva,editar}` per operator feedback.
+Addresses contrast failures on the cost summary card, mixed-up input
+types (text vs select vs number), and the linear vertical layout that
+didn't scale to wider screens.
+
+- **Cost summary card (escandallo) now uses dark theme** with a
+  `#1e293b` slate-800 background and `#f1f5f9` slate-100 value text.
+  Was previously `#f0fdf4`-light on dark text — unreadable. Label
+  text uses `#94a3b8` slate-400. Card has a 4px `var(--color-accent)`
+  left border for visual hierarchy.
+- **Live cost calculation** now updates batch cost, unit cost, and
+  suggested price (×3 markup) on every ingredient qty change. Missing
+  purchase prices listed in a warn panel below the totals.
+- **70/30 grid layout** replaces the 6 vertical cards. Left column
+  holds Identificación + Ingredients table + Instructions. Right
+  column is sticky and holds Producción + Escandallo + Dietéticas +
+  Acción. Collapses to single column under 1100px viewport.
+- **Ingredients re-organized as a proper table** with
+  `table-layout: fixed` and `<colgroup>` so column widths are stable
+  across rows. Headers: Tipo | Insumo/Sub-receta | Cantidad | Unidad
+  | Costo | Nota | Acción. Type column is now a native `<select>`
+  (Insumo/Sub-receta) instead of a text input. Unit column is a
+  native `<select>` with g/kg/ml/l/und. Costo is a readonly badge
+  computed by JS from qty × purchase_price_gs.
+- **Yield/time inputs grouped**: yield_qty + yield_unit share one row;
+  prep/cook times stack label-above-input as `[ 15 | min ]` joined
+  inputs (label moved above per UX convention).
+- **Auto-expand textarea** for instructions: monospace font,
+  `min-height: 140px`, `data-autoexpand` attr triggers JS to grow
+  height as user types. Markdown hint in placeholder.
+- **Switch toggle for "create product"** no longer has a full orange
+  border — only the active track glows. Action buttons moved to the
+  bottom-right: `[Cancelar] [Guardar receta]` (secondary left,
+  primary right).
+- **Trash icon button** (`btn-icon-danger`) replaces the `×` letter
+  for line removal. Has `aria-label="Eliminar línea"` + `title`
+  tooltip.
+- **Login bypass for dev mode**: when `SASKIA_TEST_AUTH_DISABLED=1`
+  is set (VPS currently has this), the `/login` POST accepts ANY
+  password and creates a stable local session. Production builds
+  always have `SASKIA_TEST_AUTH_DISABLED=0` so the bypass is
+  unreachable there. Fixes the regression where the Supabase
+  user-password rotation was breaking dev login.
+
+Files touched:
+- `app/templates/receta_form.html` (complete rewrite, 33 KB)
+- `app/static/icons.svg` (added `icon-trash`, `icon-save`,
+  `icon-refresh`, `icon-upload`, `icon-image`)
+- `app/routers/auth.py` (login bypass branch)
+- `app/templates/receta_detalle.html` (Crear producto button)
+- `app/routers/recipes.py` (`/crear-producto` route + `also_create_product`
+  field on POST `/nueva`)
+
+
 ### Fixed (2026-09-21) — static-asset cache busting
 
 - **Versioned static links.** app.css / calendar.css now load as

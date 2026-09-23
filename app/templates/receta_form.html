@@ -71,6 +71,15 @@
       </header>
 
       <table class="recipe-lines-table">
+        <colgroup>
+          <col class="line-col-type">
+          <col class="line-col-item">
+          <col class="line-col-qty">
+          <col class="line-col-unit">
+          <col class="line-col-cost">
+          <col class="line-col-note">
+          <col class="line-col-action">
+        </colgroup>
         <thead>
           <tr>
             <th class="line-col-type">Tipo</th>
@@ -161,8 +170,10 @@
       </header>
 
       <div class="form-row">
-        <textarea id="notes" name="notes" rows="5"
-                  placeholder="Ej: Mezclar ingredientes secos por un lado, húmedos por otro. Combinar sin batir de más. Hornear a 180°C por 22 min."
+        <textarea id="notes" name="notes" rows="6"
+                  class="recipe-instructions"
+                  data-autoexpand="true"
+                  placeholder="Pasos de la receta (Markdown básico soportado):&#10;&#10;1. Mezclar ingredientes secos&#10;2. Combinar con húmedos sin batir de más&#10;3. Hornear a 180°C por 22 min"
         >{{ recipe.notes if recipe and recipe.notes else '' }}</textarea>
       </div>
     </section>
@@ -209,22 +220,24 @@
       <div class="form-row">
         <label>Tiempos</label>
         <div class="time-group">
-          <div class="time-input-with-suffix">
-            <input type="number" id="prep_minutes" name="prep_minutes" min="0" max="1440"
-                   class="yield-qty-input" value="{{ recipe.prep_minutes if recipe and recipe.prep_minutes is not none else '' }}"
-                   placeholder="15">
-            <span class="time-suffix">min</span>
+          <div class="time-field">
+            <label for="prep_minutes" class="time-field-label">Prep.</label>
+            <div class="time-input-group">
+              <input type="number" id="prep_minutes" name="prep_minutes" min="0" max="1440"
+                     class="time-input" value="{{ recipe.prep_minutes if recipe and recipe.prep_minutes is not none else '' }}"
+                     placeholder="15">
+              <span class="time-suffix">min</span>
+            </div>
           </div>
-          <div class="time-input-with-suffix">
-            <input type="number" id="cook_minutes" name="cook_minutes" min="0" max="1440"
-                   class="yield-qty-input" value="{{ recipe.cook_minutes if recipe and recipe.cook_minutes is not none else '' }}"
-                   placeholder="30">
-            <span class="time-suffix">min</span>
+          <div class="time-field">
+            <label for="cook_minutes" class="time-field-label">Cocción</label>
+            <div class="time-input-group">
+              <input type="number" id="cook_minutes" name="cook_minutes" min="0" max="1440"
+                     class="time-input" value="{{ recipe.cook_minutes if recipe and recipe.cook_minutes is not none else '' }}"
+                     placeholder="30">
+              <span class="time-suffix">min</span>
+            </div>
           </div>
-        </div>
-        <div class="time-labels">
-          <span class="muted">Preparación</span>
-          <span class="muted">Cocción</span>
         </div>
       </div>
     </section>
@@ -286,12 +299,12 @@
         </span>
       </label>
 
-      <div class="form-actions form-actions-side">
-        <button type="submit" class="btn btn-primary btn-block">
+      <div class="form-actions form-actions-bottom">
+        <a href="/recetas" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary btn-save">
           <svg class="icon" aria-hidden="true"><use href="#icon-save"/></svg>
-          Guardá receta
+          Guardar receta
         </button>
-        <a href="/recetas" class="btn btn-ghost btn-block">Cancelar</a>
       </div>
     </section>
 
@@ -406,13 +419,31 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--space-2);
 }
-.time-input-with-suffix {
+.time-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.time-field-label {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+.time-input-group {
   position: relative;
   display: flex;
   align-items: center;
 }
-.time-input-with-suffix .yield-qty-input {
-  padding-right: 36px;
+.time-input {
+  width: 100%;
+  padding: 0 36px 0 var(--space-3);
+  height: var(--input-height);
+  border: 1px solid var(--input-border);
+  border-radius: var(--input-radius);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  background: var(--input-bg);
+  color: var(--color-text);
 }
 .time-suffix {
   position: absolute;
@@ -421,21 +452,26 @@
   font-size: var(--text-xs);
   pointer-events: none;
 }
-.time-labels {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
-  margin-top: 4px;
-  font-size: var(--text-xs);
-  text-align: center;
-}
 
-/* ── Ingredient table ── */
+/* ── Ingredient table — fixed column widths so inputs don't resize ── */
 .recipe-lines-table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--text-sm);
+  table-layout: fixed;
 }
+.recipe-lines-table col.line-col-type { width: 90px; }
+.recipe-lines-table col.line-col-item { width: auto; }
+.recipe-lines-table col.line-col-qty { width: 96px; }
+.recipe-lines-table col.line-col-unit { width: 76px; }
+.recipe-lines-table col.line-col-cost { width: 110px; }
+.recipe-lines-table col.line-col-note { width: auto; }
+.recipe-lines-table col.line-col-action { width: 44px; }
+.recipe-lines-table thead th.line-col-type { width: 90px; }
+.recipe-lines-table thead th.line-col-qty { width: 96px; }
+.recipe-lines-table thead th.line-col-unit { width: 76px; }
+.recipe-lines-table thead th.line-col-cost { width: 110px; }
+.recipe-lines-table thead th.line-col-action { width: 44px; }
 .recipe-lines-table thead th {
   text-align: left;
   padding: var(--space-2) var(--space-2);
@@ -499,33 +535,57 @@
   color: var(--color-danger);
 }
 
-/* ── Cost summary (escandallo) ── */
+/* ── Cost summary (escandallo) — dark accent card ── */
 .cost-summary {
-  background: linear-gradient(135deg, var(--color-success-soft) 0%, var(--color-surface) 100%);
+  background: #1e293b; /* slate-800, dark for visual hierarchy */
+  color: #f1f5f9; /* slate-100, light text on dark */
+  border-color: var(--color-accent);
+  border-left: 4px solid var(--color-accent);
+}
+.cost-summary .form-section-header {
+  border-bottom-color: #334155; /* slate-700 divider */
+}
+.cost-summary .form-section-title {
+  color: #f1f5f9;
+}
+.cost-summary .form-section-hint {
+  color: #94a3b8; /* slate-400 */
 }
 .cost-metric {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid #334155; /* slate-700 */
 }
 .cost-metric:last-of-type { border-bottom: 0; }
 .cost-metric-margin {
-  margin-top: var(--space-2);
+  margin-top: var(--space-3);
   padding-top: var(--space-3);
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-accent);
   border-bottom: 0;
 }
 .cost-label {
   font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  color: #94a3b8; /* slate-400 */
 }
 .cost-value {
   font-size: var(--text-lg);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--color-text);
+  color: #f1f5f9; /* slate-100, white */
+  letter-spacing: -0.01em;
+}
+.cost-warnings {
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: rgba(245, 158, 11, 0.15);
+  border-radius: var(--radius);
+  font-size: var(--text-xs);
+  color: #fbbf24; /* amber-400 on dark */
+}
+.cost-disclaimer {
+  color: #94a3b8 !important; /* override .muted */
 }
 .cost-warnings {
   margin-top: var(--space-3);
@@ -543,15 +603,14 @@
   font-style: italic;
 }
 
-/* ── Switch toggle ── */
+/* ── Switch toggle — accent only on track, not full border ── */
 .switch-toggle {
   display: flex;
   gap: var(--space-3);
   align-items: flex-start;
   cursor: pointer;
   padding: var(--space-3);
-  background: var(--color-accent-soft);
-  border: 1px solid var(--color-accent);
+  background: var(--color-surface);
   border-radius: var(--radius);
   margin-bottom: var(--space-3);
 }
@@ -610,15 +669,28 @@
   outline-offset: 2px;
 }
 
-/* ── Actions side ── */
-.form-actions-side {
+/* ── Actions side — Cancelar left (secondary), Guardar right (primary) ── */
+.form-actions-bottom {
   display: flex;
-  flex-direction: column;
+  justify-content: flex-end;
   gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
 }
-.btn-block {
-  width: 100%;
-  justify-content: center;
+.form-actions-bottom .btn {
+  min-width: 120px;
+}
+.form-actions-bottom .btn-save {
+  font-weight: 600;
+}
+.btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+}
+.btn-secondary:hover {
+  background: var(--color-surface-subtle);
 }
 .action-section { padding-bottom: var(--space-4); }
 {% endraw %}</style>
@@ -893,12 +965,19 @@
   var yieldQtyEl = document.getElementById('yield_qty');
   if (yieldQtyEl) yieldQtyEl.addEventListener('input', computeCosts);
 
+
+  // ---------- Auto-expand textareas ----------
+  document.querySelectorAll('textarea[data-autoexpand="true"]').forEach(function(ta) {
+    function autoSize() {
+      ta.style.height = 'auto';
+      ta.style.height = (ta.scrollHeight + 4) + 'px';
+    }
+    autoSize();
+    ta.addEventListener('input', autoSize);
+    ta.form && ta.form.addEventListener('reset', function() { setTimeout(autoSize, 0); });
+  });
   // ---------- Initial compute on page load ----------
   computeCosts();
-
-  // ---------- Show recipe pre-fill banner if came from product page ----------
-  // (the productos flow sets recipe_id query param on the recetas form)
-  // For now, just compute costs on load.
 })();
 </script>
 
