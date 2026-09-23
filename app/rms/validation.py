@@ -65,6 +65,24 @@ def optional_text(value: str | None, *, max_len: int) -> str | None:
     return cleaned
 
 
+def optional_int(value: str | int | None, *, default: int | None = None) -> int | None:
+    """Parse as an int. Accepts str (form input), int (already parsed), or None.
+
+    Empty / invalid → default (None or caller value).
+    """
+    if value is None:
+        return default
+    if isinstance(value, int):
+        return value
+    s = str(value).strip()
+    if not s:
+        return default
+    try:
+        return int(s)
+    except (ValueError, TypeError):
+        return default
+
+
 def parse_money_gs(value: str | int | float | None, *, allow_zero: bool = True) -> int:
     """Parse a money string into integer Gs.
 

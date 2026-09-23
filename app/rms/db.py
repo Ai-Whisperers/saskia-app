@@ -1152,7 +1152,7 @@ def _migration_034_market_price_reference(conn):
     float_type = "FLOAT"
     str16 = "VARCHAR(16)"
     str32 = "VARCHAR(32)"
-    text = "TEXT"
+    text_type = "TEXT"
     date = "DATE"
     dt = "TIMESTAMP" if dialect == "sqlite" else "TIMESTAMP"
     fk_ref = (
@@ -1181,6 +1181,95 @@ def _migration_034_market_price_reference(conn):
         "ON market_price_reference(ingredient_id)"
     ))
     _bump_schema_version(conn, 34)
+
+
+
+
+def _migration_035_compliance_info(conn):
+    """Phase 1.A — Add compliance_info table for tax / regulatory IDs.
+
+    Single-row table; PK is always 1. Stores RUC, INAN R.E., timbrado,
+    municipal habilitación, etc. See app.rms.models.ComplianceInfo for
+    field documentation.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    int_type = "INTEGER"
+    str8 = "VARCHAR(8)"
+    str10 = "VARCHAR(10)"
+    str16 = "VARCHAR(16)"
+    str20 = "VARCHAR(20)"
+    str30 = "VARCHAR(30)"
+    str60 = "VARCHAR(60)"
+    str120 = "VARCHAR(120)"
+    str255 = "VARCHAR(255)"
+    text_type = "TEXT"
+    bool_t = "BOOLEAN" if dialect != "sqlite" else "INTEGER"
+    dt = "TIMESTAMP" if dialect == "sqlite" else "TIMESTAMP"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS compliance_info (
+            id {pk_type},
+            ruc {str20},
+            razon_social {str120},
+            nombre_fantasia {str120},
+            tax_regime {str16} NOT NULL DEFAULT 'resimple',
+            iva_default_rate {str8} NOT NULL DEFAULT '10',
+            timbrado_number {str20},
+            timbrado_expiry {str10},
+            next_boleta_resimple_number {int_type} NOT NULL DEFAULT 1,
+            next_factura_number {int_type} NOT NULL DEFAULT 1,
+            inan_re_number {str30},
+            inan_re_expiry {str10},
+            director_tecnico {str120},
+            director_tecnico_registro {str30},
+            municipal_habilitacion {str30},
+            municipal_habilitacion_expiry {str10},
+            establecimiento_address {str255},
+            establecimiento_phone {str30},
+            establecimiento_email {str120},
+            logo_path {str255},
+            labor_cost_per_hour_gs {int_type} NOT NULL DEFAULT 25000,
+            overhead_multiplier_pct {int_type} NOT NULL DEFAULT 15,
+            sifen_certificate_id {str60},
+            sifen_csc_code {str60},
+            sifen_test_mode {bool_t} NOT NULL DEFAULT 1,
+            updated_at {dt} NOT NULL
+        )
+        """
+    ))
+    # Idempotent: seed the single row if missing.
+    has_row = conn.execute(text("SELECT COUNT(*) FROM compliance_info WHERE id = 1")).scalar()
+    if not has_row:
+        conn.execute(text(
+            "INSERT INTO compliance_info (id, tax_regime, iva_default_rate, "
+            "next_boleta_resimple_number, next_factura_number, "
+            "labor_cost_per_hour_gs, overhead_multiplier_pct, sifen_test_mode, updated_at) "
+            "VALUES (1, 'resimple', '10', 1, 1, 25000, 15, 1, CURRENT_TIMESTAMP)"
+        ))
+    _bump_schema_version(conn, 35)
+
+
+
+
+def _migration_036_product_tax_haccp(conn):
+    """Phase 1.A/C — Add product tax + HACCP columns.
+
+    - iva_rate (default '10' = general rate per Art. 91 inc. e Ley 125/91)
+    - requires_rspa (default False; only true when product is packaged + labeled)
+    - rspa_number / rspa_expiry (NULL until operator registers the R.S.P.A.)
+    - yield_percentage (NULL = no moisture loss correction; default 0.85 applied at
+      costing-time when NULL per docs/plans/2026-09-22-ingredient-domain.md)
+
+    Idempotent: each column uses _add_column_if_missing so re-runs are no-ops.
+    """
+    _add_column_if_missing(conn, "product", "iva_rate", "VARCHAR(8)", "VARCHAR(8) NOT NULL DEFAULT '10'")
+    _add_column_if_missing(conn, "product", "requires_rspa", "BOOLEAN", "BOOLEAN NOT NULL DEFAULT 0")
+    _add_column_if_missing(conn, "product", "rspa_number", "VARCHAR(30)", "VARCHAR(30)")
+    _add_column_if_missing(conn, "product", "rspa_expiry", "VARCHAR(10)", "VARCHAR(10)")
+    _add_column_if_missing(conn, "product", "yield_percentage", "FLOAT", "FLOAT")
+    _bump_schema_version(conn, 36)
 
 
 
@@ -1219,6 +1308,8 @@ MIGRATIONS = {
     32: _migration_032_pedido_cancel_reason,
     33: _migration_033_ingredient_storage,
     34: _migration_034_market_price_reference,
+    35: _migration_035_compliance_info,
+    36: _migration_036_product_tax_haccp,
 }
 
 

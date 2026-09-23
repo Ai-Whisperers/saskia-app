@@ -201,6 +201,18 @@ async def lifespan(app: FastAPI):
             app.state.migration_error = repr(exc)
             app.state.migration_schema_version = pre
 
+    # Phase 1.A — Idempotent password sync from env vars (SASKIA_ADMIN_PASSWORD,
+    # SASKIA_USER_PASSWORD, SASKIA_IVAN_TEST_PASSWORD). When the deployment injects
+    # a fresh password via docker-compose / Render env, this aligns the bcrypt
+    # hash on boot. No-op when env vars are unset (local dev).
+    try:
+        from app.rms.bootstrap import run_password_sync
+        from app.rms.db import make_session_factory as _make_session
+        with _make_session(engine)() as _bs:
+            run_password_sync(_bs)
+    except Exception:
+        logger.exception("password bootstrap failed (non-fatal)")
+
     app.state.engine = engine
     app.state.session_factory = make_session_factory(engine)
     app.state.is_postgres = _is_postgres(url)

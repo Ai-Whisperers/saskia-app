@@ -205,6 +205,22 @@ class Product(Base):
     category: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # Product category
     tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Comma-separated tags
 
+    # Phase 1.A — IVA rate ∈ {5, 10, 'exento'}. Defaults from ComplianceInfo.iva_default_rate.
+    # Stored as string so 'exento' is a valid value alongside 5/10.
+    iva_rate: Mapped[str] = mapped_column(String(8), nullable=False, default="10", server_default="10")
+
+    # Phase 1.A — INAN R.S.P.A. (Registro Sanitario de Producto Alimenticio). Required when
+    # product is packaged + labeled for retail sale. NULL = no R.S.P.A. (e.g. mostrador
+    # or encargo sales where R.S.P.A. is not required).
+    requires_rspa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    rspa_number: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    rspa_expiry: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # ISO
+
+    # Phase 1.C — HACCP + costing (lazy fields; detailed cost fields added in Phase 1.D)
+    yield_percentage: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    # 0.85 default = 15% moisture loss for breads (matches industry standard).
+    # Operators can override per recipe.
+
     # Relationships
     recipe: Mapped[Optional["Recipe"]] = relationship(back_populates="products")
     sales: Mapped[list["Sale"]] = relationship(back_populates="product")
@@ -1154,6 +1170,78 @@ class StockMovement(Base):
     ingredient: Mapped["Ingredient"] = relationship("Ingredient")
 
 
+
+class ComplianceInfo(Base):
+    """Phase 1.A — Single-row table for Paraguayan tax / regulatory IDs.
+
+    Required by DNIT (IVA, IRE/RESIMPLE, SIFEN), INAN (R.E., Director Técnico),
+    and municipal (habilitación comercial). One row only; updated via
+    /configuracion.
+
+    The model intentionally stores the IDs as nullable strings (not enums) so
+    the operator can paste them verbatim from RUC cards / habilitación papers
+    without us validating format. Validation lives in the form layer.
+
+    date fields are ISO strings (not Date columns) so an operator can paste
+    "31/12/2027" or "2027-12-31" — we parse on save and reformat on display.
+    """
+    __tablename__ = "compliance_info"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+
+    # DNIT / SET identification
+    ruc: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    razon_social: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    nombre_fantasia: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+
+    # Tax regime: 'general' (IVA General + IRE General) or 'resimple' (IRE RESIMPLE
+    # only, with Boleta Resimple) or 'no_libreta' (informal, no DNIT obligations).
+    tax_regime: Mapped[str] = mapped_column(String(16), nullable=False, default="resimple")
+
+    # Default IVA rate applied when creating new products.
+    # ∈ {5, 10, 'exento'}. Override per product via Product.iva_rate.
+    iva_default_rate: Mapped[str] = mapped_column(String(8), nullable=False, default="10")
+
+    # RESIMPLE-specific: timbrado number for Boleta Resimple (mandatory)
+    timbrado_number: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    timbrado_expiry: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # ISO
+
+    # Next sequential invoice number per type. Updated atomically on each sale.
+    next_boleta_resimple_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    next_factura_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+    # INAN — Registro de Establecimiento
+    inan_re_number: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    inan_re_expiry: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # ISO
+    director_tecnico: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    director_tecnico_registro: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+
+    # Municipal habilitación comercial
+    municipal_habilitacion: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    municipal_habilitacion_expiry: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+
+    # Establecimiento físico (used on invoice header)
+    establecimiento_address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    establecimiento_phone: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    establecimiento_email: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+
+    # Logo path (relative to /static/) — surfaced on invoice print + dashboard
+    logo_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    # Phase 1.D — Costing config
+    labor_cost_per_hour_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=25000)
+    overhead_multiplier_pct: Mapped[int] = mapped_column(Integer, nullable=False, default=15)
+
+    # SIFEN prep (Phase 1.F)
+    sifen_certificate_id: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
+    sifen_csc_code: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
+    sifen_test_mode: Mapped[bool] = mapped_column(default=True, nullable=False)
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow,
+    )
+
+
 __all__ = [
     "Base",
     "AppMeta",
@@ -1190,6 +1278,7 @@ __all__ = [
     "MarketBenchmark",
     "BankTransaction",
     "SettingsKV",
+    "ComplianceInfo",
 ]
 
 

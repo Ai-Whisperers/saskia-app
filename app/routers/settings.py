@@ -42,7 +42,10 @@ def settings_page(
     
     # Get theme setting
     theme = session.scalar(select(AppMeta).where(AppMeta.key == "theme"))
-    
+
+    # Phase 1.A — ComplianceInfo row (id=1) for tax / regulatory IDs
+    compliance = session.get(ComplianceInfo, 1) or ComplianceInfo(id=1)
+
     return render(request, "settings.html", {
         "business_name": business_name.value if business_name else "",
         "business_ruc": business_ruc.value if business_ruc else "",
@@ -56,6 +59,8 @@ def settings_page(
         "delivery_zones": session.execute(
             select(DeliveryZone).order_by(DeliveryZone.position)
         ).scalars().all(),
+        # Phase 1.A — pass compliance fields to the template
+        "compliance": compliance,
     })
 
 
@@ -80,26 +85,61 @@ def save_business_settings(
     business_ruc: str = Form(""),
     business_address: str = Form(""),
     business_phone: str = Form(""),
+    business_email: str = Form(""),
+    nombre_fantasia: str = Form(""),
+    razon_social: str = Form(""),
+    tax_regime: str = Form("resimple"),
+    iva_default_rate: str = Form("10"),
+    timbrado_number: str = Form(""),
+    timbrado_expiry: str = Form(""),
+    inan_re_number: str = Form(""),
+    inan_re_expiry: str = Form(""),
+    director_tecnico: str = Form(""),
+    director_tecnico_registro: str = Form(""),
+    municipal_habilitacion: str = Form(""),
+    municipal_habilitacion_expiry: str = Form(""),
+    labor_cost_per_hour_gs: str = Form("25000"),
+    overhead_multiplier_pct: str = Form("15"),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
-    """Save business information settings.
+    """Save business + Phase 1.A compliance info.
 
-    Validates business_ruc (Paraguay format) and business_phone (digits).
+    Phase 1.A added INAN R.E., Director Técnico, municipal habilitación,
+    timbrado, tax_regime, and IVA defaults. All persisted to the single
+    ComplianceInfo row (id=1). Phase 1.D also captures costing config
+    (labor_cost_per_hour_gs + overhead_multiplier_pct).
     """
     from app.rms.validation import (
-        optional_text, validate_ruc, validate_phone,
+        optional_text, validate_ruc, validate_phone, optional_int,
     )
 
     name = optional_text(business_name, max_len=200)
     ruc = validate_ruc(business_ruc)
     address = optional_text(business_address, max_len=300)
     phone = validate_phone(business_phone)
+    email = optional_text(business_email, max_len=120)
+    fantasia = optional_text(nombre_fantasia, max_len=120)
+    rz = optional_text(razon_social, max_len=120)
+    regime = optional_text(tax_regime, max_len=16) or "resimple"
+    iva_def = optional_text(iva_default_rate, max_len=8) or "10"
+    timbrado = optional_text(timbrado_number, max_len=20)
+    timbrado_exp = optional_text(timbrado_expiry, max_len=10)
+    re_number = optional_text(inan_re_number, max_len=30)
+    re_expiry = optional_text(inan_re_expiry, max_len=10)
+    dt = optional_text(director_tecnico, max_len=120)
+    dt_reg = optional_text(director_tecnico_registro, max_len=30)
+    hab = optional_text(municipal_habilitacion, max_len=30)
+    hab_exp = optional_text(municipal_habilitacion_expiry, max_len=10)
+    labor = optional_int(labor_cost_per_hour_gs) or 25000
+    overhead = optional_int(overhead_multiplier_pct) or 15
 
+    # Persist the legacy AppMeta keys (still used by old templates)
     settings = [
         ("business_name", name or ""),
         ("business_ruc", ruc or ""),
         ("business_address", address or ""),
         ("business_phone", phone or ""),
+        ("business_email", email or ""),
     ]
     now_iso = datetime.now(timezone.utc).isoformat()
     for key, value in settings:
@@ -109,6 +149,30 @@ def save_business_settings(
             existing.updated_at = now_iso
         else:
             session.add(AppMeta(key=key, value=value, updated_at=now_iso))
+
+    # Persist ComplianceInfo (single row, id=1)
+    ci = session.get(ComplianceInfo, 1)
+    if ci is None:
+        ci = ComplianceInfo(id=1)
+        session.add(ci)
+    ci.ruc = ruc or None
+    ci.razon_social = rz
+    ci.nombre_fantasia = fantasia or name
+    ci.tax_regime = regime
+    ci.iva_default_rate = iva_def
+    ci.timbrado_number = timbrado
+    ci.timbrado_expiry = timbrado_exp
+    ci.inan_re_number = re_number
+    ci.inan_re_expiry = re_expiry
+    ci.director_tecnico = dt
+    ci.director_tecnico_registro = dt_reg
+    ci.municipal_habilitacion = hab
+    ci.municipal_habilitacion_expiry = hab_exp
+    ci.establecimiento_address = address
+    ci.establecimiento_phone = phone
+    ci.establecimiento_email = email
+    ci.labor_cost_per_hour_gs = labor
+    ci.overhead_multiplier_pct = overhead
 
     session.commit()
     return RedirectResponse(url="/settings?flash=Información+guardada", status_code=303)

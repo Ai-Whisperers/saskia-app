@@ -49,10 +49,124 @@
     
     <div class="form-group">
       <label for="business_phone">Teléfono</label>
-      <input type="tel" id="business_phone" name="business_phone" 
+      <input type="tel" id="business_phone" name="business_phone"
              value="{{ business_phone }}" placeholder="Ejemplo: +595 981 234 567">
     </div>
-    
+
+    <div class="form-group">
+      <label for="business_email">Email</label>
+      <input type="email" id="business_email" name="business_email"
+             value="{{ compliance.establecimiento_email or '' }}" placeholder="facturacion@panaderia.com.py">
+    </div>
+
+    <div class="form-group">
+      <label for="razon_social">Razón social</label>
+      <input type="text" id="razon_social" name="razon_social"
+             value="{{ compliance.razon_social or business_name }}" placeholder="Ej: Panadería Saskia S.A.">
+    </div>
+
+    <div class="form-group">
+      <label for="nombre_fantasia">Nombre de fantasía</label>
+      <input type="text" id="nombre_fantasia" name="nombre_fantasia"
+             value="{{ compliance.nombre_fantasia or business_name }}" placeholder="Ej: Saskia Panadería">
+    </div>
+
+    <h3 style="margin-top: var(--space-5); border-top: 1px solid var(--border); padding-top: var(--space-4);">Régimen tributario (DNIT / SET)</h3>
+    <p class="text-muted">Determina qué tipo de comprobantes podés emitir y cómo se liquida el IVA.</p>
+
+    <div class="form-group">
+      <label for="tax_regime">Régimen</label>
+      <select id="tax_regime" name="tax_regime">
+        <option value="resimple" {% if compliance.tax_regime == 'resimple' %}selected{% endif %}>IRE RESIMPLE — Empresa unipersonal, ingresos ≤ G. 80M/año. Boleta Resimple. Cuotas trimestrales fijas (G. 60k–240k).</option>
+        <option value="general" {% if compliance.tax_regime == 'general' %}selected{% endif %}>IVA General + IRE General — Persona jurídica o ingresos > G. 80M/año. Factura + Libro IVA.</option>
+        <option value="no_libreta" {% if compliance.tax_regime == 'no_libreta' %}selected{% endif %}>Sin libreta — Informal. No emitir comprobantes (no recomendado; multa Ley 7165).</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="iva_default_rate">IVA por defecto para productos nuevos</label>
+      <select id="iva_default_rate" name="iva_default_rate">
+        <option value="10" {% if compliance.iva_default_rate == '10' %}selected{% endif %}>10% (general — panadería procesada, pastelería)</option>
+        <option value="5" {% if compliance.iva_default_rate == '5' %}selected{% endif %}>5% (productos agrícolas en estado natural — frutas, miel cruda)</option>
+        <option value="exento" {% if compliance.iva_default_rate == 'exento' %}selected{% endif %}>Exento (institucional / docencia / exportación)</option>
+      </select>
+    </div>
+
+    <h3 style="margin-top: var(--space-5); border-top: 1px solid var(--border); padding-top: var(--space-4);">Timbrado (RESIMPLE)</h3>
+
+    <div class="form-group">
+      <label for="timbrado_number">Número de timbrado</label>
+      <input type="text" id="timbrado_number" name="timbrado_number"
+             value="{{ compliance.timbrado_number or timbrado or '' }}" placeholder="Ej: 12345678">
+      <small>Otorgado por SET/DNIT. Aparece en cada Boleta Resimple.</small>
+    </div>
+
+    <div class="form-group">
+      <label for="timbrado_expiry">Vencimiento del timbrado</label>
+      <input type="date" id="timbrado_expiry" name="timbrado_expiry"
+             value="{{ compliance.timbrado_expiry or '' }}">
+    </div>
+
+    <h3 style="margin-top: var(--space-5); border-top: 1px solid var(--border); padding-top: var(--space-4);">INAN — Registro de Establecimiento (R.E.)</h3>
+    <p class="text-muted">Resolución S.G. N° 213/2019 — obligatorio para todo establecimiento elaborador de alimentos.</p>
+
+    <div class="form-group">
+      <label for="inan_re_number">R.E. N°</label>
+      <input type="text" id="inan_re_number" name="inan_re_number"
+             value="{{ compliance.inan_re_number or '' }}" placeholder="Ej: 8000/2024">
+    </div>
+
+    <div class="form-group">
+      <label for="inan_re_expiry">Vencimiento R.E.</label>
+      <input type="date" id="inan_re_expiry" name="inan_re_expiry"
+             value="{{ compliance.inan_re_expiry or '' }}">
+      <small>Vigencia 5 años. Te avisamos 30 días antes.</small>
+    </div>
+
+    <div class="form-group">
+      <label for="director_tecnico">Director Técnico (Regente)</label>
+      <input type="text" id="director_tecnico" name="director_tecnico"
+             value="{{ compliance.director_tecnico or '' }}" placeholder="Nombre completo">
+      <small>Profesional responsable (Decreto 7634/2017). Obligatorio para obtener R.E.</small>
+    </div>
+
+    <div class="form-group">
+      <label for="director_tecnico_registro">Registro del Director Técnico</label>
+      <input type="text" id="director_tecnico_registro" name="director_tecnico_registro"
+             value="{{ compliance.director_tecnico_registro or '' }}" placeholder="N° de registro profesional">
+    </div>
+
+    <h3 style="margin-top: var(--space-5); border-top: 1px solid var(--border); padding-top: var(--space-4);">Habilitación Municipal</h3>
+
+    <div class="form-group">
+      <label for="municipal_habilitacion">N° habilitación comercial</label>
+      <input type="text" id="municipal_habilitacion" name="municipal_habilitacion"
+             value="{{ compliance.municipal_habilitacion or '' }}" placeholder="Ej: HAB-2024-001234">
+    </div>
+
+    <div class="form-group">
+      <label for="municipal_habilitacion_expiry">Vencimiento habilitación</label>
+      <input type="date" id="municipal_habilitacion_expiry" name="municipal_habilitacion_expiry"
+             value="{{ compliance.municipal_habilitacion_expiry or '' }}">
+    </div>
+
+    <h3 style="margin-top: var(--space-5); border-top: 1px solid var(--border); padding-top: var(--space-4);">Costeo (Fase 1.D)</h3>
+    <p class="text-muted">Para calcular el Prime Cost: costo materiales + mano de obra + overhead.</p>
+
+    <div class="form-group">
+      <label for="labor_cost_per_hour_gs">Costo mano de obra (Gs./hora)</label>
+      <input type="number" id="labor_cost_per_hour_gs" name="labor_cost_per_hour_gs" step="1000" min="0"
+             value="{{ compliance.labor_cost_per_hour_gs }}">
+      <small>Salario mensual / 30 / 8. Default G. 25.000/h.</small>
+    </div>
+
+    <div class="form-group">
+      <label for="overhead_multiplier_pct">Overhead (% sobre materiales)</label>
+      <input type="number" id="overhead_multiplier_pct" name="overhead_multiplier_pct" step="1" min="0" max="100"
+             value="{{ compliance.overhead_multiplier_pct }}">
+      <small>Luz, gas, alquiler, mantenimiento. Default 15%.</small>
+    </div>
+
     <button type="submit" class="btn btn-primary">
       <svg class="icon" aria-hidden="true"><use href="#icon-save"/></svg>
       Guardar información de negocio
