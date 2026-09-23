@@ -58,6 +58,74 @@ MARKET_REFERENCE_SEED = [
 ]
 
 
+
+
+
+def refresh_market_prices_from_csv(session, csv_path: str, replace: bool = True) -> dict:
+    """Phase 1.E — Refresh MarketPriceReference from a CSV file.
+
+    Expected CSV format (header row required):
+      name,unit,price_gs,source,notes
+
+    Behavior:
+      - First row is the header
+      - Match ingredient by lower(name) — same convention as MARKET_REFERENCE_SEED
+      - replace=True (default): delete existing MarketPriceReference for matched
+        ingredients before insert (keeps history clean)
+      - Returns {"matched": int, "skipped": int, "missing_ingredients": [...]}
+    """
+    import csv
+    from datetime import date
+    from app.rms.models import Ingredient, MarketPriceReference
+
+    if not os.path.exists(csv_path):
+        raise FileNotFoundError(f"CSV not found: {csv_path}")
+
+    matched = 0
+    skipped = 0
+    missing_ingredients: list[str] = []
+    today = date.today()
+
+    existing = {row.name.lower(): row for row in session.query(Ingredient).all()}
+
+    with open(csv_path, newline='', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            name = (row.get("name") or "").strip()
+            if not name:
+                continue
+            ing = existing.get(name.lower())
+            if not ing:
+                missing_ingredients.append(name)
+                continue
+            try:
+                price = int(row.get("price_gs") or 0)
+                unit = (row.get("unit") or "").strip() or ing.unit
+                source = (row.get("source") or "csv-import").strip()
+                notes = (row.get("notes") or "").strip() or None
+            except (ValueError, KeyError):
+                skipped += 1
+                continue
+            if replace:
+                session.query(MarketPriceReference).filter(
+                    MarketPriceReference.ingredient_id == ing.id
+                ).delete()
+            session.add(MarketPriceReference(
+                ingredient_id=ing.id,
+                unit=unit,
+                price_gs=price,
+                source=source,
+                notes=notes,
+                as_of=today,
+            ))
+            matched += 1
+    session.commit()
+    return {
+        "matched": matched,
+        "skipped": skipped,
+        "missing_ingredients": missing_ingredients,
+    }
+
 if __name__ == "__main__":
     """Run as a one-off seed script via the test harness or a one-off test.
 

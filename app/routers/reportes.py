@@ -432,6 +432,41 @@ def reportes_retencion(
 # ─── Valor promedio ────────────────────────────────────────────────────────
 
 
+
+
+@router.get("/cierre-mensual", response_class=HTMLResponse)
+def reportes_cierre_mensual(
+    request: Request,
+    year: int | None = Query(None),
+    month: int | None = Query(None),
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Phase 1.E — Monthly P&L close.
+
+    Defaults to the most recent month that has sales. Year + month query params
+    override the default.
+    """
+    from app.rms.cierre import compute_monthly_close
+    from datetime import date
+
+    # Default to current month if no params
+    today = date.today()
+    year = year or today.year
+    month = month or today.month
+    if month < 1 or month > 12 or year < 2020 or year > 2099:
+        raise HTTPException(status_code=400, detail="Mes/año inválido")
+
+    close = compute_monthly_close(session, year, month)
+    return render(request, "reportes_cierre_mensual.html", {
+        "close": close,
+        "year": year,
+        "month": month,
+        "prev_year": year if month > 1 else year - 1,
+        "prev_month": month - 1 if month > 1 else 12,
+        "next_year": year if month < 12 else year + 1,
+        "next_month": month + 1 if month < 12 else 1,
+    })
+
 @router.get("/valor-pedido", response_class=HTMLResponse)
 def reportes_valor_pedido(
     request: Request,
