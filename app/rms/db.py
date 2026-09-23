@@ -1160,29 +1160,22 @@ def _bump_schema_version(conn, version: int) -> None:
     a parameter marker and a typecast. So we use a string-format with
     the version number inline (safe — `version` is an int we control,
     not user input).
+
+    Note: on Postgres, this may fail with InFailedSqlTransaction if the
+    caller's transaction is already aborted. The migration loop's
+    SAVEPOINT wrapper handles cleanup.
     """
     dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     ts = datetime.now(timezone.utc).isoformat()
-    # We deliberately DON'T wrap in SAVEPOINT here — the caller (the
-    # migration loop) already has one. Adding a nested SAVEPOINT would
-    # just add complexity.
     if dialect == "postgresql":
-        # The connection might be in an aborted state if a previous
-        # statement in this transaction failed (e.g. CREATE TRIGGER
-        # with SQLite-only syntax). If so, just return — the caller will
-        # rollback the SAVEPOINT anyway and we can retry next boot.
-        try:
-            conn.execute(
-                text(
-                    "INSERT INTO app_meta (key, value, updated_at) VALUES "
-                    "('schema_version', :v_jsonb, :ts) "
-                    "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at"
-                ),
-                {"v_jsonb": f'"{version}"', "ts": ts},
-            )
-        except Exception as exc:
-            # Transaction is poisoned — caller will rollback the SAVEPOINT.
-            raise
+        conn.execute(
+            text(
+                "INSERT INTO app_meta (key, value, updated_at) VALUES "
+                "('schema_version', :v_jsonb, :ts) "
+                "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at"
+            ),
+            {"v_jsonb": f'"{version}"', "ts": ts},
+        )
     else:
         conn.execute(
             text(
@@ -1315,9 +1308,15 @@ def _init_db_inner(engine, dialect_name, Base) -> None:
     """Inner init_db helper (extracted so the outer wrapper can release the
     Postgres advisory lock in a finally block)."""
     # 1. Create all tables (idempotent; SQLAlchemy skips existing tables)
+    # Use a fresh connection so the implicit transaction from create_all
+    # is committed BEFORE we start the migration loop. Otherwise, the
+    # subsequent SAVEPOINTs would roll back the schema_version row from
+    # a previous failed migration.
+    with engine.connect() as create_conn:
+        create_conn.commit()
     Base.metadata.create_all(engine)
 
-    # 2. Run migrations
+    # 2. Run migrations on a FRESH connection (not the one used by create_all).
     with engine.connect() as conn:
         # Ensure app_meta exists (create_all should have made it, but defensive)
         conn.execute(
@@ -1326,6 +1325,7 @@ def _init_db_inner(engine, dialect_name, Base) -> None:
                 "key TEXT PRIMARY KEY, value TEXT, updated_at TEXT)"
             )
         )
+        conn.commit()  # Commit so the next migration loop starts clean
 
         current = _current_schema_version(conn)
         target = CURRENT_SCHEMA_VERSION
