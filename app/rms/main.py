@@ -213,6 +213,18 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("password bootstrap failed (non-fatal)")
 
+    # Phase 1.C — Apply HACCP defaults to ingredients that have a known
+    # category but no temperature/humidity/water-activity values yet.
+    # Idempotent: skips rows that are already populated.
+    try:
+        from app.rms.haccp_seed import apply_haccp_defaults
+        with _make_session(engine)() as _bs:
+            n = apply_haccp_defaults(_bs)
+            if n:
+                logger.info("haccp: applied defaults to %d ingredients", n)
+    except Exception:
+        logger.exception("haccp seed failed (non-fatal)")
+
     app.state.engine = engine
     app.state.session_factory = make_session_factory(engine)
     app.state.is_postgres = _is_postgres(url)

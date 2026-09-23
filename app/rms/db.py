@@ -1291,6 +1291,26 @@ def _migration_037_sale_fiscal_invoice(conn):
 
 
 
+
+def _migration_038_ingredient_haccp(conn):
+    """Phase 1.C — HACCP storage columns on ingredient table.
+
+    Per Res S.G. N° 213/2019, every bakery ingredient must have
+    temperature/humidity/water-activity targets recorded. These columns
+    are nullable for backwards compatibility — operators fill them in
+    over time via the inventario edit form.
+    """
+    _add_column_if_missing(conn, "ingredient", "temp_min_c", "FLOAT", "FLOAT")
+    _add_column_if_missing(conn, "ingredient", "temp_max_c", "FLOAT", "FLOAT")
+    _add_column_if_missing(conn, "ingredient", "humidity_max_pct", "FLOAT", "FLOAT")
+    _add_column_if_missing(conn, "ingredient", "water_activity_aw", "FLOAT", "FLOAT")
+    _add_column_if_missing(conn, "ingredient", "lot_required", "BOOLEAN", "BOOLEAN NOT NULL DEFAULT 0")
+    _add_column_if_missing(conn, "recipe", "yield_percentage", "FLOAT", "FLOAT")
+    _add_column_if_missing(conn, "recipe", "direct_labor_minutes", "INTEGER", "INTEGER")
+    _bump_schema_version(conn, 38)
+
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -1329,6 +1349,7 @@ MIGRATIONS = {
     35: _migration_035_compliance_info,
     36: _migration_036_product_tax_haccp,
     37: _migration_037_sale_fiscal_invoice,
+    38: _migration_038_ingredient_haccp,
 }
 
 

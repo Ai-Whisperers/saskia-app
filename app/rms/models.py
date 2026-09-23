@@ -88,6 +88,16 @@ class Ingredient(Base):
     supplier_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("supplier.id"), nullable=True, index=True
     )
+    # Phase 1.C — HACCP cold-chain + dry-storage fields (Res S.G. N° 213/2019).
+    # NULL means "unknown / not set"; operator fills via /inventario/{id}/editar.
+    temp_min_c: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    temp_max_c: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    humidity_max_pct: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    # Water activity (a_w). < 0.85 = shelf-stable; > 0.95 = perishable.
+    water_activity_aw: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    # Whether this ingredient requires lot tracking (FIFO per batch).
+    # True for dairy, eggs, meat, seafood, fresh produce. False for dry/sugar/salt.
+    lot_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     # Audit items 109, 110: opening stock with date + reorder point override
     opening_stock_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     opening_stock_date: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # ISO date string
@@ -129,6 +139,10 @@ class Recipe(Base):
     family: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # category
     dietary_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # comma-separated
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Phase 1.D — moisture loss / yield correction. 1.0 = no loss; 0.85 = 15% loss.
+    yield_percentage: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    # Phase 1.D — informal labor time tracking per batch (in minutes).
+    direct_labor_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     # HEREBUS integration: image_url (book page or process photo)
     image_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
