@@ -273,6 +273,17 @@ def product_create(
     category_clean = optional_text(category, max_len=32)
     tags_clean = optional_text(tags, max_len=500)
 
+    # Wave 2 — auto-fill category + tags from the linked recipe if operator
+    # left either blank. Recipe's family → category, dietary_tags → tags.
+    if rid and (not category_clean or not tags_clean):
+        from app.rms.models import Recipe
+        linked_recipe = session.get(Recipe, rid)
+        if linked_recipe:
+            if not category_clean and linked_recipe.family:
+                category_clean = linked_recipe.family
+            if not tags_clean and linked_recipe.dietary_tags:
+                tags_clean = linked_recipe.dietary_tags
+
     product = Product(
         name=clean_name,
         portion_label=portion_label_clean,

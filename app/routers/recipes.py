@@ -23,6 +23,14 @@ from app.rms.costing import (
 from app.rms.dependencies import get_session
 from app.rms.models import Ingredient, Product, Recipe, RecipeLine
 from app.rms.units import Unit
+from app.rms.recipe_intel import (
+    infer_recipe_dietary,
+    infer_recipe_family_from_name,
+    infer_difficulty,
+    estimate_prep_minutes,
+    estimate_cook_minutes,
+    recipe_ingredient_count,
+)
 from app.services.template_render import render
 
 router = APIRouter(prefix="/recetas", dependencies=[Depends(require_login)])
@@ -191,6 +199,11 @@ async def recipe_create(
     prep_min = int(prep_minutes_raw) if prep_minutes_raw else None
     cook_min = int(cook_minutes_raw) if cook_minutes_raw else None
 
+    # Wave 2 — auto-fill inference on recipe create.
+    # Auto-fill family if operator left it blank.
+    if not family:
+        family = infer_recipe_family_from_name(name)
+
     recipe = Recipe(
         name=name,
         yield_qty=y_qty,
@@ -224,6 +237,26 @@ async def recipe_create(
     # If the user checked "create product from this recipe", redirect
     # to the crear-producto helper instead of /recetas.
     also_create = str(form.get("also_create_product", "")).strip() == "1"
+
+    # Wave 2 — auto-fill dietary_tags from ingredient set + difficulty from
+    # line count / sub_recipe depth. Operator can override on subsequent edits.
+    try:
+        session.refresh(recipe)
+        inferred_tags = sorted(infer_recipe_dietary(session, recipe))
+        if not dietary_tags:
+            recipe.dietary_tags = ",".join(inferred_tags) if inferred_tags else None
+        n_ing = recipe_ingredient_count(recipe)
+        # Sub-recipe depth requires recursive walk; skip if deep.
+        recipe.difficulty = infer_difficulty(recipe, n_ing, sub_recipe_depth=0)
+        if not prep_min:
+            recipe.prep_minutes = estimate_prep_minutes(recipe, n_ing)
+        if not cook_min:
+            recipe.cook_minutes = estimate_cook_minutes(recipe)
+        session.commit()
+    except Exception as exc:
+        logger.warning("auto-fill inference failed for recipe %s: %s", recipe.id, exc)
+        session.rollback()
+
     if also_create:
         return RedirectResponse(url=f"/recetas/{recipe.id}/crear-producto", status_code=303)
     return RedirectResponse(url="/recetas", status_code=303)
@@ -315,6 +348,36 @@ async def recipe_detail(
         from app.rms.models import Tag
         tags = list(session.scalars(select(Tag).where(Tag.id.in_(tag_ids))))
 
+    # Wave 3 — aggregate allergens from all ingredient lines so the recipe
+    # detail page can show a "CONTIENE: gluten, dairy, eggs" summary required
+    # by INAN Resolución S.G. N° 614/2023 for any retail food product.
+    from app.rms.models import Ingredient as _Ingredient
+    ingredient_refs = {
+        ing.id: ing
+        for ing in session.scalars(
+            select(_Ingredient).where(
+                _Ingredient.id.in_([
+                    l.line_ref_id for l in r.lines if l.line_kind == "ingredient"
+                ])
+            )
+        ).all()
+    } if r.lines else {}
+    aggregated_allergens: list[str] = []
+    seen: set[str] = set()
+    for line in r.lines:
+        # Skip sub-recipe lines (need recursion) for v1 — fall back to direct
+        # ingredient allergens. Future: walk RecipeLine.line_kind == "recipe".
+        if line.line_kind != "ingredient":
+            continue
+        ing = ingredient_refs.get(line.line_ref_id)
+        if not ing or not ing.allergens:
+            continue
+        for a in ing.allergens.split(","):
+            a_clean = a.strip()
+            if a_clean and a_clean not in seen:
+                seen.add(a_clean)
+                aggregated_allergens.append(a_clean)
+
     return render(request, "receta_detalle.html", {
         "recipe": r,
         "resolved_lines": resolved_lines,
@@ -322,6 +385,7 @@ async def recipe_detail(
         "unit_cost": unit_cost,
         "products_using": [{"id": p.id, "name": p.name} for p in products_using],
         "tags": [{"id": t.id, "name": t.name, "color": t.color} for t in tags],
+        "aggregated_allergens": aggregated_allergens,
     })
 
 

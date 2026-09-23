@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
+{% import "_components/ingredient_tags.html" as t %}
 
 {% block title %}Productos y precios{% endblock %}
 
@@ -96,6 +97,12 @@
       <td class="col-name">
         <strong>{{ p.name }}</strong>
         {% if p.is_dead %}<span class="badge badge-warn" title="Este producto nunca fue vendido">🕱 muerto</span>{% endif %}
+        {% if p.category %}{{ t.category_pill(p.category) }}{% endif %}
+        {% if p.tags %}
+          <div class="tag-pill-row">
+            {{ t.tag_pills(p.tags) }}
+          </div>
+        {% endif %}
       </td>
       <td class="col-sku">
         {% if p.sku %}

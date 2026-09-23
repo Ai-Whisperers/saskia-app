@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
+{% import "_components/ingredient_tags.html" as t %}
 
 {% block title %}Inventario{% endblock %}
 
@@ -46,7 +47,21 @@
     <tr class="{% if i.stock_qty < 0 %}row-negative{% endif %}">
       <td>
         <strong data-copy="{{ i.id }}"><a href="/inventario/{{ i.id }}">{{ i.name }}</a></strong>
-        {% if i.category %}<span class="badge badge-neutral">{{ i.category }}</span>{% endif %}
+        {% if i.category %}{{ t.category_pill(i.category) }}{% endif %}
+        {% if i.subcategory %}<span class="tag-pill tag-pill--muted">{{ i.subcategory }}</span>{% endif %}
+        {% if i.role %}{{ t.role_pill(i.role) }}{% endif %}
+        {% if i.allergens %}
+          <div class="tag-pill-row" aria-label="Alérgenos (INAN)">
+            <span class="tag-pill-row__label">Contiene:</span>
+            {{ t.tag_pills(i.allergens, variant="allergen") }}
+          </div>
+        {% endif %}
+        {% if i.dietary_tags %}
+          <div class="tag-pill-row" aria-label="Etiquetas dietéticas">
+            {{ t.tag_pills(i.dietary_tags) }}
+          </div>
+        {% endif %}
+        {% if i.storage %}{{ t.storage_pill(i.storage) }}{% endif %}
       </td>
       <td>{{ i.unit }}</td>
       <td class="num">
@@ -57,7 +72,7 @@
         {% endif %}
       </td>
       <td class="num">{{ i.min_stock_qty|round(2) }}</td>
-      <td class="num">{% if i.purchase_price_gs is none %}<em class="muted">sin precio</em>{% else %}{{ m.gs_full(i.purchase_price_gs) }}{% endif %}{% if price_info.get(i.id) %}<div class="price-strip">90d: min {{ m.gs(price_info[i.id].stats.min) }} · max {{ m.gs(price_info[i.id].stats.max) }}{% if price_info[i.id].sparkline_svg %} {{ price_info[i.id].sparkline_svg | safe }}{% endif %}</div>{% endif %}</td>
+      <td class="num">{% if i.purchase_price_gs is none %}<em class="muted">sin precio</em>{% else %}{{ m.gs_full(i.purchase_price_gs) }}{% endif %}{% if price_info.get(i.id) %}<div class="price-strip">90d: min {{ m.gs(price_info[i.id].stats.min) }} · max {{ m.gs(price_info[i.id].stats.max) }}{% if price_info[i.id].sparkline_svg %} {{ price_info[i.id].sparkline_svg | safe }}{% endif %}</div>{% endif %}{% if market_refs.get(i.id) %}<div class="price-strip" title="vs. mercado: {{ m.gs_full(market_refs[i.id].market_price_gs) }} Gs/{{ market_refs[i.id].market_unit }} — {{ market_refs[i.id].market_notes }}">{% set delta = market_refs[i.id].delta_pct %}<span class="badge {% if delta > 10 %}badge-danger{% elif delta < -10 %}badge-good{% else %}badge-neutral{% endif %}" style="margin-left:4px">vs mercado {% if delta >= 0 %}+{% endif %}{{ "%.0f"|format(delta) }}%</span></div>{% endif %}</td>
       <td>{{ m.stock_badge(i.stock_qty, i.min_stock_qty) }}</td>
       <td class="actions">
         <button type="button" class="btn btn-sm btn-ghost" aria-label="Ajustar stock de {{ i.name }}"

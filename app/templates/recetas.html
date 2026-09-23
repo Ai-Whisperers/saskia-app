@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
+{% import "_components/ingredient_tags.html" as t %}
 
 {% block title %}Recetas{% endblock %}
 
@@ -85,6 +86,11 @@
       </td>
       <td><strong data-copy="{{ r.id }}"><a href="/recetas/{{ r.id }}">{{ r.name }}</a></strong>
         {% if r.family %}<span class="badge badge-neutral">{{ r.family }}</span>{% endif %}
+        {% if r.dietary_tags %}
+          <div class="tag-pill-row">
+            {{ t.tag_pills(r.dietary_tags) }}
+          </div>
+        {% endif %}
       </td>
       <td class="num">
         {% if r.yield_qty is none %}

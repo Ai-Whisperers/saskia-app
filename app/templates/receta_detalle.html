@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
+{% import "_components/ingredient_tags.html" as t %}
 
 {% block title %}{{ recipe.name }} — Receta{% endblock %}
 
@@ -26,13 +27,27 @@
 </div>
 {% endif %}
 
-{# Tags #}
+{# Tags — operator-applied custom tags (colored badges) #}
 {% if tags %}
 <p>
   {% for t in tags %}
   <span class="badge" style="background-color:{{ t.color }};color:#fff;">{{ t.name }}</span>
   {% endfor %}
 </p>
+{% endif %}
+
+{# Wave 3 — auto-inferred dietary tags & allergen preview (INAN-aligned). #}
+{% if recipe.dietary_tags %}
+<div class="tag-pill-row" aria-label="Etiquetas dietéticas (auto)">
+  <span class="tag-pill-row__label">Dietéticas:</span>
+  {{ t.tag_pills(recipe.dietary_tags) }}
+</div>
+{% endif %}
+{% if aggregated_allergens %}
+<div class="tag-pill-row" aria-label="Alérgenos presentes en la receta">
+  <span class="tag-pill-row__label">Contiene:</span>
+  {% for a in aggregated_allergens %}{{ t.tag_pills(a, variant="allergen") }}{% endfor %}
+</div>
 {% endif %}
 
 {# Meta #}

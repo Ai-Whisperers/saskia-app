@@ -29,6 +29,7 @@ from app.rms.dependencies import get_session
 from app.rms.models import Ingredient, IngredientPriceEvent, RecipeLine, Recipe, StockMovement
 from app.rms.price_history import price_history, price_stats, record_price_event
 from app.rms.units import Unit
+from app.rms.ingredient_intel import classify_ingredient
 from app.services.template_render import render
 
 router = APIRouter(prefix="/inventario", dependencies=[Depends(require_login)])
@@ -164,12 +165,40 @@ def inventory_list(
                 )
             price_info[ing.id] = info
 
+    # Wave 4 — Market reference price (Paraguay baseline). One row per
+    # ingredient. Compute delta_pct = (our_price - market_price) / market * 100.
+    from app.rms.models import MarketPriceReference
+    market_refs: dict[int, dict] = {}
+    ing_ids = [ing.id for ing in ingredients]
+    if ing_ids:
+        refs = session.scalars(
+            select(MarketPriceReference).where(
+                MarketPriceReference.ingredient_id.in_(ing_ids)
+            )
+        ).all()
+        for r in refs:
+            ing = next((i for i in ingredients if i.id == r.ingredient_id), None)
+            if not ing or ing.purchase_price_gs is None:
+                continue
+            delta_pct = (
+                (ing.purchase_price_gs - r.price_gs) / r.price_gs * 100
+                if r.price_gs > 0 else 0
+            )
+            market_refs[ing.id] = {
+                "market_price_gs": r.price_gs,
+                "market_unit": r.unit,
+                "market_source": r.source,
+                "market_notes": r.notes,
+                "delta_pct": delta_pct,
+            }
+
     return render(
         request,
         "inventario.html",
         {
             "ingredients": ingredients,
             "price_info": price_info,
+            "market_refs": market_refs,
             "sort": sort or "",
             "dir": dir,
             "page": page,
@@ -230,6 +259,19 @@ def inventory_create(
     opening_date = opening_stock_date.strip() or None
     reorder = float(reorder_point) if reorder_point.strip() else None
 
+    # Wave 2 — auto-fill inference on create.
+    # If operator left the classification fields empty, fill from `name` keyword match.
+    # Operator can always override any field after creation via /editar.
+    name_for_inference = name.strip()
+    classification = classify_ingredient(name_for_inference)
+    inferred_category = classification["category"]
+    inferred_subcategory = classification["subcategory"]
+    inferred_role = classification["role"]
+    inferred_allergens = ",".join(classification["allergens"])
+    inferred_dietary_tags = ",".join(classification["dietary_tags"])
+    inferred_shelf_life = classification["shelf_life_days"]
+    inferred_storage = classification["storage"]
+
     ing = Ingredient(
         name=name.strip(),
         unit=unit_enum.value,
@@ -237,7 +279,13 @@ def inventory_create(
         min_stock_qty=min_stock_qty,
         purchase_price_gs=price,
         notes=notes.strip() or None,
-        category=category.strip() or None,
+        category=(category.strip() or inferred_category) or None,
+        subcategory=inferred_subcategory,
+        role=inferred_role,
+        allergens=inferred_allergens or None,
+        dietary_tags=inferred_dietary_tags or None,
+        shelf_life_days=inferred_shelf_life,
+        storage=inferred_storage,
         opening_stock_qty=opening_qty,
         opening_stock_date=opening_date,
         reorder_point=reorder,
@@ -392,7 +440,32 @@ def inventory_update(
     ing.min_stock_qty = min_stock
     ing.purchase_price_gs = price
     ing.notes = optional_text(notes, max_len=2000)
-    ing.category = optional_text(category, max_len=32)
+
+    # Wave 2 — auto-fill inference on update too.
+    # Operator can override category via the form; if they leave it blank,
+    # re-run inference against the (possibly new) name.
+    explicit_category = optional_text(category, max_len=32)
+    if explicit_category:
+        ing.category = explicit_category
+        # Re-infer the rest of the classification against the new name so
+        # the ingredient's metadata stays coherent after a rename.
+        cls = classify_ingredient(name_clean)
+        ing.subcategory = cls["subcategory"]
+        ing.role = cls["role"]
+        ing.allergens = ",".join(cls["allergens"]) or None
+        ing.dietary_tags = ",".join(cls["dietary_tags"]) or None
+        ing.shelf_life_days = cls["shelf_life_days"]
+        ing.storage = cls["storage"]
+    else:
+        ing.category = None
+        cls = classify_ingredient(name_clean)
+        ing.category = cls["category"]
+        ing.subcategory = cls["subcategory"]
+        ing.role = cls["role"]
+        ing.allergens = ",".join(cls["allergens"]) or None
+        ing.dietary_tags = ",".join(cls["dietary_tags"]) or None
+        ing.shelf_life_days = cls["shelf_life_days"]
+        ing.storage = cls["storage"]
 
     # Opening stock — only update if both qty and date are provided
     op_qty_raw = (opening_stock_qty or "").strip()

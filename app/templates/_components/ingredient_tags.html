@@ -1,0 +1,83 @@
+{# Wave 3 — Ingredient & product tag pills (auto-classification surfaced in UI). #}
+
+{# Build a small, color-coded badge from a comma-separated string of tags.
+   Usage:
+     {{ t.tag_pills(ingredient.dietary_tags) }}
+     {{ t.tag_pills(ingredient.allergens, variant="allergen") }}
+     {{ t.tag_pills(product.tags) }} #}
+
+{% macro tag_pills(tags, variant="dietary") -%}
+  {%- if tags -%}
+    {%- for raw in tags.split(",") -%}
+      {%- set tag = raw.strip() -%}
+      {%- if tag -%}
+        {%- set lower = tag.lower() -%}
+        {%- if variant == "allergen" -%}
+          <span class="tag-pill tag-pill--allergen" title="Alérgeno obligatorio (INAN)">{{ tag }}</span>
+        {%- elif lower in ["vegan", "vegano"] -%}
+          <span class="tag-pill tag-pill--green">{{ tag }}</span>
+        {%- elif lower in ["vegetarian", "vegetariano"] -%}
+          <span class="tag-pill tag-pill--green-soft">{{ tag }}</span>
+        {%- elif lower in ["gluten_free", "sin gluten", "sin-gluten", "sin tacc", "sin-tacc"] -%}
+          <span class="tag-pill tag-pill--amber">{{ tag }}</span>
+        {%- elif lower in ["sugar_free", "sin azúcar", "sin-azucar"] -%}
+          <span class="tag-pill tag-pill--amber-soft">{{ tag }}</span>
+        {%- elif lower in ["keto_friendly", "keto"] -%}
+          <span class="tag-pill tag-pill--purple">{{ tag }}</span>
+        {%- elif lower in ["high_protein"] -%}
+          <span class="tag-pill tag-pill--blue">{{ tag }}</span>
+        {%- else -%}
+          <span class="tag-pill tag-pill--muted">{{ tag }}</span>
+        {%- endif -%}
+      {%- endif -%}
+    {%- endfor -%}
+  {%- endif -%}
+{%- endmacro %}
+
+{# Single storage zone pill — HACCP classifier. #}
+{% macro storage_pill(zone) -%}
+  {%- if zone == "refrigerated" -%}
+    <span class="tag-pill tag-pill--blue" title="Conservar entre 0°C y 5°C">❄ Refrigerar</span>
+  {%- elif zone == "frozen" -%}
+    <span class="tag-pill tag-pill--purple" title="Conservar a -18°C o menos">❄❄ Congelar</span>
+  {%- elif zone == "ambient" -%}
+    <span class="tag-pill tag-pill--muted" title="Conservar a temperatura ambiente (15-25°C)">🌡 Ambiente</span>
+  {%- elif zone == "dry" -%}
+    <span class="tag-pill tag-pill--amber-soft" title="Conservar en lugar seco (humedad <70%)">☂ Seco</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{# Category pill with INAN-aligned color coding. #}
+{% macro category_pill(category) -%}
+  {%- if category -%}
+    {%- set lower = category.lower() -%}
+    {%- if lower in ["lácteos", "lacteos"] -%}
+      <span class="tag-pill tag-pill--blue">{{ category }}</span>
+    {%- elif lower in ["carnes"] -%}
+      <span class="tag-pill tag-pill--red">{{ category }}</span>
+    {%- elif lower in ["huevos"] -%}
+      <span class="tag-pill tag-pill--amber">{{ category }}</span>
+    {%- elif lower in ["harinas"] -%}
+      <span class="tag-pill tag-pill--amber-soft">{{ category }}</span>
+    {%- elif lower in ["endulzantes"] -%}
+      <span class="tag-pill tag-pill--purple">{{ category }}</span>
+    {%- elif lower in ["grasas"] -%}
+      <span class="tag-pill tag-pill--amber">{{ category }}</span>
+    {%- elif lower in ["leudantes"] -%}
+      <span class="tag-pill tag-pill--green">{{ category }}</span>
+    {%- elif lower in ["frutas", "verduras"] -%}
+      <span class="tag-pill tag-pill--green">{{ category }}</span>
+    {%- elif lower in ["especias"] -%}
+      <span class="tag-pill tag-pill--red-soft">{{ category }}</span>
+    {%- else -%}
+      <span class="tag-pill tag-pill--muted">{{ category }}</span>
+    {%- endif -%}
+  {%- endif -%}
+{%- endmacro %}
+
+{# Role pill — what the ingredient DOES in a recipe. #}
+{% macro role_pill(role) -%}
+  {%- if role -%}
+    <span class="tag-pill tag-pill--muted" title="Rol en la receta">{{ role }}</span>
+  {%- endif -%}
+{%- endmacro %}
