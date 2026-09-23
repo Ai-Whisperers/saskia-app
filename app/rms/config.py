@@ -68,7 +68,7 @@ BACKUP_THRESHOLD_HOURS = int(os.getenv("AIW_SASKIA_BACKUP_HOURS", "24"))
 KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_SASKIA_KEEP_LOCAL_DAYS", "30"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 36  # 036 = product.iva_rate + requires_rspa + yield_percentage
+CURRENT_SCHEMA_VERSION = 37  # 037 = sale.invoice_type + invoice_number + iva breakdown
 
 
 def ensure_dirs() -> None:

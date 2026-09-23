@@ -385,6 +385,10 @@ async def sale_create(
     sold_at: str = Form(""),
     channel: str = Form(""),
     idempotency_key: str = Form(""),
+    # Phase 1.B — fiscal invoice fields
+    invoice_type: str = Form("boleta_resimple"),
+    invoice_customer_ruc: str = Form(""),
+    invoice_customer_name: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Create a sale with stock drop.
@@ -472,8 +476,42 @@ async def sale_create(
                 status_code=400, detail=f"cliente {customer_id} no existe"
             )
 
+    # Phase 1.B — Compute fiscal invoice fields BEFORE apply_sale so we can
+    # pass them as part of the Sale row creation.
+    from app.rms.models import ComplianceInfo, Product as _Product
+    from app.rms.invoicing import compute_invoice_snapshot
+
+    invoice_type_clean = (invoice_type or "boleta_resimple").strip()
+    if invoice_type_clean not in {"boleta_resimple", "factura", "none"}:
+        invoice_type_clean = "boleta_resimple"
+    invoice_customer_ruc_clean = (invoice_customer_ruc or "").strip() or None
+    invoice_customer_name_clean = (invoice_customer_name or "").strip() or None
+
+    # When invoice_type='factura' and customer_ruc not provided, take from
+    # the selected customer (if any).
+    if invoice_type_clean == "factura" and not invoice_customer_ruc_clean and customer_id:
+        from app.rms.customers import get_customer as _gc
+        cust = _gc(session, customer_id)
+        if cust:
+            invoice_customer_ruc_clean = cust.cedula_ruc or None
+            invoice_customer_name_clean = cust.name or None
+
+    # Fetch product to get the real unit price (re-fetched by apply_sale too,
+    # but we need it here for the IVA snapshot).
+    product = session.get(_Product, product_id)
+    unit_price_gs = product.sale_price_gs if product else 0
+
+    snapshot = compute_invoice_snapshot(
+        session,
+        product_id=product_id,
+        qty=qty,
+        unit_price_gs=unit_price_gs,
+        discount_gs=discount_gs,
+        invoice_type=invoice_type_clean,
+    )
+
     try:
-        apply_sale(
+        sale = apply_sale(
             session,
             product_id,
             qty,
@@ -488,6 +526,20 @@ async def sale_create(
         raise HTTPException(status_code=409, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+    # Apply Phase 1.B invoice fields to the just-created Sale
+    from app.rms.invoicing import allocate_invoice_number
+    invoice_number = None
+    if invoice_type_clean != "none":
+        invoice_number = allocate_invoice_number(session, invoice_type_clean)
+    sale.invoice_type = invoice_type_clean
+    sale.invoice_number = invoice_number
+    sale.invoice_customer_ruc = invoice_customer_ruc_clean
+    sale.invoice_customer_name = invoice_customer_name_clean
+    sale.iva_rate = snapshot["iva_rate"]
+    sale.iva_base_gs = snapshot["iva_base_gs"]
+    sale.iva_amount_gs = snapshot["iva_amount_gs"]
+    session.commit()
 
     # Audit + rate-limit (writes only — read paths not counted).
     from app.auth import current_user_id

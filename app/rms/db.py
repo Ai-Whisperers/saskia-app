@@ -1169,7 +1169,7 @@ def _migration_034_market_price_reference(conn):
             unit {str16} NOT NULL,
             price_gs {float_type} NOT NULL,
             source {str32} NOT NULL DEFAULT 'manual',
-            notes {text},
+            notes {text_type},
             as_of {date} NOT NULL,
             created_at {dt} NOT NULL,
             updated_at {dt} NOT NULL
@@ -1273,6 +1273,24 @@ def _migration_036_product_tax_haccp(conn):
 
 
 
+
+def _migration_037_sale_fiscal_invoice(conn):
+    """Phase 1.B — Add fiscal invoice fields to sale table.
+
+    Required for Paraguayan DNIT/SET bookkeeping (Ley 7165 — every sale
+    needs a comprobante; Res 1421/05 — Libro IVA Ventas monthly).
+    """
+    _add_column_if_missing(conn, "sale", "invoice_type", "VARCHAR(20)", "VARCHAR(20) NOT NULL DEFAULT 'boleta_resimple'")
+    _add_column_if_missing(conn, "sale", "invoice_number", "INTEGER", "INTEGER")
+    _add_column_if_missing(conn, "sale", "invoice_customer_ruc", "VARCHAR(20)", "VARCHAR(20)")
+    _add_column_if_missing(conn, "sale", "invoice_customer_name", "VARCHAR(120)", "VARCHAR(120)")
+    _add_column_if_missing(conn, "sale", "iva_rate", "VARCHAR(8)", "VARCHAR(8) NOT NULL DEFAULT '10'")
+    _add_column_if_missing(conn, "sale", "iva_base_gs", "INTEGER", "INTEGER NOT NULL DEFAULT 0")
+    _add_column_if_missing(conn, "sale", "iva_amount_gs", "INTEGER", "INTEGER NOT NULL DEFAULT 0")
+    _bump_schema_version(conn, 37)
+
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -1310,6 +1328,7 @@ MIGRATIONS = {
     34: _migration_034_market_price_reference,
     35: _migration_035_compliance_info,
     36: _migration_036_product_tax_haccp,
+    37: _migration_037_sale_fiscal_invoice,
 }
 
 

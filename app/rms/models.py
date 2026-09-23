@@ -260,6 +260,22 @@ class Sale(Base):
         String(32), nullable=False, default="mostrador", server_default="mostrador"
     )
 
+    # Phase 1.B — Fiscal invoice fields (Paraguay DNIT compliance).
+    # invoice_type ∈ {'boleta_resimple', 'factura', 'none'}.
+    # 'none' = no fiscal document emitted (e.g. internal sample, regalo).
+    invoice_type: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="boleta_resimple", server_default="boleta_resimple"
+    )
+    # Sequential invoice number (per type). NULL when invoice_type='none'.
+    invoice_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Customer RUC for Factura (required when invoice_type='factura').
+    invoice_customer_ruc: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    invoice_customer_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    # IVA breakdown at sale time (snapshot — does not change if Product.iva_rate changes).
+    iva_rate: Mapped[str] = mapped_column(String(8), nullable=False, default="10", server_default="10")
+    iva_base_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    iva_amount_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+
     # Relationships
     product: Mapped["Product"] = relationship(back_populates="sales")
     customer: Mapped[Optional["Customer"]] = relationship(back_populates="sales")
