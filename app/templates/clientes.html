@@ -54,7 +54,7 @@
 </form>
 
 {% if customers %}
-<div id="bulk-actions-clients" style="display:none;margin:.5rem 0;padding:.5rem .75rem;background:var(--color-surface-raised);border-radius:var(--card-radius);border:1px solid var(--color-border);display:flex;align-items:center;gap:.75rem;">
+<div id="bulk-actions-clients" class="bulk-actions">
   <span id="bulk-count-clients" style="font-weight:600;"></span>
   <button type="button" class="btn btn-sm btn-danger-ghost" onclick="bulkDeleteClients()">
     <svg class="icon" aria-hidden="true"><use href="#icon-delete"/></svg>

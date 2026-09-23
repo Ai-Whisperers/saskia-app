@@ -1,0 +1,233 @@
+/* Saskia CSS — additions for Phase 1-4 of the audit (2026-09-23).
+   This file is concatenated after app.css by the template loader. */
+
+/* ─── Stacking context variables (centralized z-index) ─────────────────── */
+:root {
+  --z-base: 0;
+  --z-raised: 1;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+  --z-tooltip: 600;
+}
+
+/* ─── Auto dark mode: respect OS preference when no explicit theme set ─ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: var(--gray-900);
+    --color-surface: var(--gray-800);
+    --color-surface-raised: var(--gray-700);
+    --color-surface-subtle: var(--gray-800);
+    --color-text: var(--gray-100);
+    --color-text-muted: var(--gray-400);
+    --color-text-subtle: var(--gray-500);
+    --color-border: var(--gray-700);
+    --color-border-strong: var(--gray-600);
+    --color-accent: var(--orange-400);
+    --color-accent-hover: var(--orange-300);
+    --color-accent-soft: rgba(249, 115, 22, 0.12);
+  }
+}
+
+/* ─── Focus-visible ring (keyboard navigation accessibility) ───────────── */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--color-accent-soft);
+}
+
+/* ─── Touch targets: 44px minimum on touch devices ────────────────────── */
+@media (hover: none) {
+  .btn,
+  .btn-sm,
+  .btn-icon,
+  button:not(.tag-pill):not(.combo-option):not(.icon-btn) {
+    min-height: 44px;
+  }
+  .btn-sm {
+    min-height: 36px;  /* slightly smaller OK for secondary actions */
+  }
+}
+
+/* ─── Utility classes (extract from inline styles) ────────────────────── */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+.flex-wrap {
+  flex-wrap: wrap;
+}
+.gap-1 { gap: var(--space-1); }
+.gap-2 { gap: var(--space-2); }
+.gap-3 { gap: var(--space-3); }
+.gap-4 { gap: var(--space-4); }
+
+/* Visually hidden but accessible to screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ─── Bulk actions bar (used in productos.html, recetas.html, etc.) ───── */
+.bulk-actions {
+  display: none;
+  margin: 0.75rem 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-surface-raised);
+  border-radius: var(--card-radius);
+  border: 1px solid var(--color-border);
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.bulk-actions.is-visible {
+  display: flex;
+}
+
+/* ─── Table info bar (counts, "X items" labels) ───────────────────────── */
+.table-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.table-info strong { color: var(--color-text); }
+
+/* ─── Pagination controls ─────────────────────────────────────────────── */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1rem;
+  gap: 1rem;
+}
+.pagination-info {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+.pagination-links {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+/* ─── Table controls (search + filters) ───────────────────────────────── */
+.table-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.5rem 0;
+  flex-wrap: wrap;
+}
+
+/* ─── Column width utilities for tables ───────────────────────────────── */
+.col-checkbox { width: 40px; }
+.col-sku { width: 120px; }
+.col-portion { width: 80px; }
+.col-price { width: 100px; }
+.col-recipe { width: 120px; }
+.col-cost { width: 80px; }
+.col-margin { width: 80px; }
+.col-marginpct { width: 70px; }
+.col-available { width: 60px; }
+.col-actions { width: 80px; }
+
+/* ─── Modern feature detection fallback ──────────────────────────────── */
+@supports (backdrop-filter: blur(10px)) {
+  .search-backdrop {
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+}
+
+/* ─── Print stylesheet optimizations ──────────────────────────────────── */
+@media print {
+  .topnav,
+  .nav-right,
+  .nav-toggle-label,
+  .skip-link,
+  .no-print,
+  .bulk-actions,
+  .table-controls,
+  .pagination,
+  .btn,
+  .modal-backdrop,
+  .notif-dropdown,
+  .search-modal,
+  .menu-panel,
+  dialog.modal,
+  .flash {
+    display: none !important;
+  }
+  body {
+    background: white;
+    color: black;
+    font-size: 11pt;
+  }
+  .card {
+    border: 1px solid #999;
+    box-shadow: none;
+    page-break-inside: avoid;
+  }
+  a {
+    color: black;
+    text-decoration: underline;
+  }
+  .table thead th {
+    position: static;
+    background: white;
+    color: black;
+  }
+  .table tbody tr {
+    page-break-inside: avoid;
+  }
+  h1 { font-size: 18pt; }
+  h2 { font-size: 14pt; }
+  .container, .container-wide {
+    max-width: 100%;
+    margin: 0;
+    padding: 0.5cm;
+  }
+  @page {
+    margin: 1.5cm 1cm;
+  }
+}
+
+/* ─── Reduced motion (more aggressive than what existed) ──────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

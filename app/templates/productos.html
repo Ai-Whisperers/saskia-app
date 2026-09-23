@@ -61,7 +61,7 @@
   <span id="dead-products-legend" class="badge badge-warn" style="display:none"> Producto sin ventas (muerto)</span>
 </div>
 
-<div id="bulk-actions" style="display:none;margin:.75rem 0;padding:.5rem .75rem;background:var(--color-surface-raised);border-radius:var(--card-radius);border:1px solid var(--color-border);display:flex;align-items:center;gap:.75rem;">
+<div id="bulk-actions" class="bulk-actions">
   <span id="bulk-count" style="font-weight:600;"></span>
   <button type="button" class="btn btn-sm btn-danger-ghost" onclick="bulkDeleteProducts()">
     <svg class="icon" aria-hidden="true"><use href="#icon-delete"/></svg>
@@ -276,16 +276,6 @@ document.addEventListener('click', function(e) {
 <style>
 .row-dead td { background-color: rgba(245, 158, 11, 0.06); }
 .row-dead:hover td { background-color: rgba(245, 158, 11, 0.12); }
-.col-checkbox { width: 40px; }
-.col-sku { width: 120px; }
-.col-portion { width: 80px; }
-.col-price { width: 100px; }
-.col-recipe { width: 120px; }
-.col-cost { width: 80px; }
-.col-margin { width: 80px; }
-.col-marginpct { width: 70px; }
-.col-available { width: 60px; }
-.col-actions { width: 80px; }
 .sku-field {
   font-size: 0.8em;
   background: var(--color-surface-raised);
@@ -293,16 +283,6 @@ document.addEventListener('click', function(e) {
   border-radius: 4px;
   cursor: pointer;
 }
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 1rem;
-  gap: 1rem;
-}
-.pagination-info { color: var(--color-text-muted); font-size: 0.875rem; }
-.pagination-links { display: flex; gap: 0.25rem; flex-wrap: wrap; }
-.table-controls { display: flex; align-items: center; gap: 0.75rem; margin: 0.5rem 0; }
 </style>
 
 {% endblock %}
