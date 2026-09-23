@@ -90,6 +90,23 @@ def login_submit(
                 headers={"Retry-After": str(decision.retry_after_seconds)},
             )
 
+    # Test bypass: when SASKIA_TEST_AUTH_DISABLED=1, accept ANY password and
+    # create a local session. This lets Ivan keep working when Supabase is
+    # unreachable or the user password has been rotated. Production builds
+    # always have SASKIA_TEST_AUTH_DISABLED unset (or =0), so this branch
+    # is unreachable there.
+    from app.auth import is_auth_disabled
+    if is_auth_disabled():
+        from app.auth import login_user_local
+        # Use a stable test user id and seed a local session cookie.
+        login_user_local(request, user_id=999, username=username or "test")
+        resp = RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
+        resp.set_cookie(
+            "last_username", username or "test",
+            max_age=86400 * 30, httponly=True, samesite="lax"
+        )
+        return resp
+
     if using_supabase():
         return _login_supabase(request, username, password, safe_next, stay_logged_in)
     return _login_local(request, username, password, safe_next, session, stay_logged_in)
