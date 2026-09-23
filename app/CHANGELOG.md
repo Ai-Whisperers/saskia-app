@@ -5,6 +5,21 @@
 
 ## [Unreleased]
 
+### Changed (2026-09-23) — second review: recipe photos behind modal (US 1.1)
+
+- **`/recetas` list no longer shows inline 60×60 thumbnails.** The recipe
+  list table now hides each row's photo behind a small icon button. Click
+  it to open a native `<dialog>` modal that shows the full photo with
+  the recipe name as the modal title. Reuses existing `.btn`, `.btn-icon`,
+  `.btn-ghost` classes and the existing `dialog.modal` stylesheet — no
+  new CSS, no new dependencies. Closes the second-review "image overload"
+  complaint from the 2026-09-23 review transcript.
+
+- **Modal closes on X-button click, backdrop click, and `img.src` reset
+  on close** (memory hygiene). The photo `<img>` inside the modal starts
+  with `src=""` and is only set when the user opens a photo — preventing
+  the modal from briefly showing a stale image when reopened.
+
 ### Fixed (2026-09-21) — public pickup page + 5-test CI green
 
 - **`/p/{token}` now resolves the pedido correctly.** The

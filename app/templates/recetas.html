@@ -78,10 +78,13 @@
     <tr>
       <td>
         {% if r.image_url %}
-          <img src="{{ r.image_url }}" alt="{{ r.name }}" loading="lazy"
-               style="width:60px;height:60px;object-fit:cover;border-radius:6px;">
+          <button type="button" class="btn btn-ghost btn-icon" data-recipe-photo
+                  data-src="{{ r.image_url }}" data-name="{{ r.name }}"
+                  aria-label="Ver foto de {{ r.name }}">
+            <svg class="icon" aria-hidden="true"><use href="#icon-image"/></svg>
+          </button>
         {% else %}
-          <span class="muted" style="display:inline-block;width:60px;height:60px;text-align:center;">—</span>
+          <span class="muted" aria-label="Sin foto">—</span>
         {% endif %}
       </td>
       <td><strong data-copy="{{ r.id }}"><a href="/recetas/{{ r.id }}">{{ r.name }}</a></strong>
@@ -142,5 +145,52 @@
   </a>
 </div>
 {% endif %}
+
+{# --- Recipe photo modal (US 1.1: image behind button → modal) --- #}
+<dialog id="recipe-photo-modal" class="modal" aria-labelledby="recipe-photo-title" aria-modal="true">
+  <div class="modal-dialog" role="document" style="max-width:min(90vw, 720px);">
+    <div class="modal-header">
+      <h2 id="recipe-photo-title" class="modal-title">Foto</h2>
+      <button type="button" class="btn-ghost btn-icon" id="recipe-photo-close" aria-label="Cerrar">
+        <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="text-align:center;">
+      <img id="recipe-photo-img" src="" alt="" style="max-width:100%;height:auto;border-radius:var(--radius);">
+    </div>
+  </div>
+</dialog>
+
+<script>
+(function() {
+  var modal = document.getElementById('recipe-photo-modal');
+  if (!modal) return;
+  var img = document.getElementById('recipe-photo-img');
+  var title = document.getElementById('recipe-photo-title');
+  var closeBtn = document.getElementById('recipe-photo-close');
+
+  document.querySelectorAll('[data-recipe-photo]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var src = btn.getAttribute('data-src');
+      var name = btn.getAttribute('data-name') || '';
+      if (!src) return;
+      img.src = src;
+      img.alt = name;
+      title.textContent = name;
+      modal.showModal();
+    });
+  });
+
+  closeBtn.addEventListener('click', function() { modal.close(); });
+  modal.addEventListener('click', function(e) {
+    // Click outside the dialog content closes it (native <dialog> backdrop)
+    if (e.target === modal) modal.close();
+  });
+  modal.addEventListener('close', function() {
+    // Free memory + reset src so we don't briefly show stale image next open
+    img.src = '';
+  });
+})();
+</script>
 
 {% endblock %}
