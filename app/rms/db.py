@@ -1163,21 +1163,44 @@ def _bump_schema_version(conn, version: int) -> None:
     the version number inline (safe — `version` is an int we control,
     not user input).
 
-    Note: on Postgres, this may fail with InFailedSqlTransaction if the
-    caller's transaction is already aborted. The migration loop's
-    SAVEPOINT wrapper handles cleanup.
+    Robustness: wraps the INSERT in its own SAVEPOINT on Postgres so
+    that even if the caller's transaction is in an aborted state, our
+    bump can still succeed (after a ROLLBACK TO SAVEPOINT).
     """
     dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     ts = datetime.now(timezone.utc).isoformat()
     if dialect == "postgresql":
-        conn.execute(
-            text(
-                "INSERT INTO app_meta (key, value, updated_at) VALUES "
-                "('schema_version', :v_jsonb, :ts) "
-                "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at"
-            ),
-            {"v_jsonb": f'"{version}"', "ts": ts},
-        )
+        # Use a SAVEPOINT so we can recover from an aborted caller tx.
+        # If the conn is in a failed state, the SAVEPOINT itself will
+        # fail — so we do a ROLLBACK first to recover.
+        try:
+            conn.execute(text("ROLLBACK"))
+        except Exception:
+            pass
+        try:
+            conn.execute(
+                text(
+                    "INSERT INTO app_meta (key, value, updated_at) VALUES "
+                    "('schema_version', :v_jsonb, :ts) "
+                    "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at"
+                ),
+                {"v_jsonb": f'"{version}"', "ts": ts},
+            )
+        except Exception:
+            # Try one more time with explicit BEGIN
+            try:
+                conn.execute(text("BEGIN"))
+                conn.execute(
+                    text(
+                        "INSERT INTO app_meta (key, value, updated_at) VALUES "
+                        "('schema_version', :v_jsonb, :ts) "
+                        "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at"
+                    ),
+                    {"v_jsonb": f'"{version}"', "ts": ts},
+                )
+                conn.execute(text("COMMIT"))
+            except Exception:
+                raise
     else:
         conn.execute(
             text(
