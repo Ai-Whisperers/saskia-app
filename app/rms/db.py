@@ -943,34 +943,46 @@ def _migration_028_recipe_yield_qty_check(conn):
     when populated (NULL is allowed for draft state).
 
     Catches bad data at UPDATE time when value is provided.
-    Uses SQLite triggers (supported since 3.3.0).
+
+    IMPORTANT: The trigger syntax below is SQLite-specific (`RAISE(ABORT, ...)`).
+    On Postgres we use a CHECK constraint at the table level instead, but
+    the constraint is added in `Base.metadata.create_all` via the model's
+    CheckConstraint. So on Postgres this migration is a no-op — we just
+    bump the schema version.
 
     Note: model fields are nullable so draft / partial recipes can have
     NULL yields. The CHECK fires only when setting to a non-null value.
     """
+    # Detect dialect from the connection
     try:
-        conn.execute(text("""
-            CREATE TRIGGER IF NOT EXISTS recipe_yield_qty_positive_update
-            BEFORE UPDATE OF yield_qty ON recipe
-            FOR EACH ROW
-            WHEN NEW.yield_qty IS NOT NULL AND NEW.yield_qty <= 0
-            BEGIN
-                SELECT RAISE(ABORT, 'recipe.yield_qty must be > 0 (or NULL for drafts)');
-            END
-        """))
-        conn.execute(text("""
-            CREATE TRIGGER IF NOT EXISTS recipe_line_qty_positive_update
-            BEFORE UPDATE OF qty ON recipe_line
-            FOR EACH ROW
-            WHEN NEW.qty IS NOT NULL AND NEW.qty <= 0
-            BEGIN
-                SELECT RAISE(ABORT, 'recipe_line.qty must be > 0 (or NULL)');
-            END
-        """))
+        dialect_name = conn.dialect.name
     except Exception:
-        # Older engine without trigger support — Python-level validation
-        # in apply_sale() / recipe CRUD continues to enforce.
-        pass
+        dialect_name = "sqlite"
+
+    if dialect_name == "sqlite":
+        try:
+            conn.execute(text("""
+                CREATE TRIGGER IF NOT EXISTS recipe_yield_qty_positive_update
+                BEFORE UPDATE OF yield_qty ON recipe
+                FOR EACH ROW
+                WHEN NEW.yield_qty IS NOT NULL AND NEW.yield_qty <= 0
+                BEGIN
+                    SELECT RAISE(ABORT, 'recipe.yield_qty must be > 0 (or NULL for drafts)');
+                END
+            """))
+            conn.execute(text("""
+                CREATE TRIGGER IF NOT EXISTS recipe_line_qty_positive_update
+                BEFORE UPDATE OF qty ON recipe_line
+                FOR EACH ROW
+                WHEN NEW.qty IS NOT NULL AND NEW.qty <= 0
+                BEGIN
+                    SELECT RAISE(ABORT, 'recipe_line.qty must be > 0 (or NULL)');
+                END
+            """))
+        except Exception:
+            # Older engine without trigger support — Python-level validation
+            # in apply_sale() / recipe CRUD continues to enforce.
+            pass
 
     _bump_schema_version(conn, 28)
 
