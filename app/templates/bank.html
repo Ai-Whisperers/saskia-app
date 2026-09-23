@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Bank · Saskia RMS{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>🏦 Bank Transactions</h1>
+  <p class="muted">Dutch EUR (JGHM VAN DER POL) + PY Guaraní (SASKIA WEISS VANDER)</p>
+</div>
+
+<div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
+  <div class="kpi-card"><div class="kpi-label">EUR income</div><div class="kpi-value">€{{ "{:,.2f}".format(eur_income) }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">EUR spent</div><div class="kpi-value">€{{ "{:,.2f}".format(eur_spent) }}</div></div>
+  <div class="kpi-card highlight"><div class="kpi-label">EUR net</div><div class="kpi-value">€{{ "{:,.2f}".format(eur_net) }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">PYG balance</div><div class="kpi-value">₲{{ "{:,.0f}".format(pyg_balance_gs) }}</div></div>
+</div>
+
+{% if active_category %}
+  <p class="muted">Filter: <code>{{ active_category }}</code> · <a href="/bank">clear</a></p>
+{% endif %}
+
+<table class="table is-hoverable is-striped">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Cuenta</th>
+      <th class="num">Importe</th>
+      <th>Categoría</th>
+      <th>Counterparty</th>
+      <th>Descripción</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for tx in transactions %}
+    <tr>
+      <td>{{ tx.posted_at.strftime('%Y-%m-%d') }}</td>
+      <td><strong>{{ tx.currency }}</strong></td>
+      <td class="num" style="color: {{ 'green' if tx.amount > 0 else 'red' }};">
+        {{ '+' if tx.amount > 0 else '' }}{{ "%.2f"|format(tx.amount) }}
+      </td>
+      <td><small class="muted">{{ tx.category or '—' }}</small></td>
+      <td>{{ tx.counterparty_name or '—' }}</td>
+      <td><small>{{ (tx.description or '')[:80] }}{% if (tx.description or '')|length > 80 %}…{% endif %}</small></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p class="muted">
+  💡 Source: TXT260711013722.TAB (Dutch EUR bank, Sep'25→Jun'26, 307 txns).
+  Manual categorization — set via /bank/{id}/categorize endpoint.
+</p>
+{% endblock %}

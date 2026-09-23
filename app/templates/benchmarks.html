@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Benchmarks · Saskia RMS{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>📊 Market Benchmarks — HEREBUS</h1>
+  <p class="muted">Posicionamiento vs competencia (Asunción/San Lorenzo)</p>
+</div>
+
+<table class="table is-hoverable">
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th class="num">Nuestro wholesale ₲</th>
+      <th class="num">Nuestro retail ₲</th>
+      <th class="num">Mercado avg ₲</th>
+      <th class="num">Posición</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for b in benchmarks %}
+    <tr>
+      <td><strong>{{ b.product_label }}</strong></td>
+      <td class="num">{{ "₲{:,.0f}".format(b.our_wholesale_gs) if b.our_wholesale_gs else '—' }}</td>
+      <td class="num">{{ "₲{:,.0f}".format(b.our_retail_gs) if b.our_retail_gs else '—' }}</td>
+      <td class="num">{{ "₲{:,.0f}".format(b.market_avg_gs) if b.market_avg_gs else '—' }}</td>
+      <td class="num">
+        {% if b.position_label == '—' %}<span class="muted">—</span>
+        {% elif b.pct > 0 %}
+          <span style="color:red;">{{ b.position_label }}</span>
+        {% elif b.pct < 0 %}
+          <span style="color:green;">{{ b.position_label }}</span>
+        {% else %}
+          <span>{{ b.position_label }}</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p class="muted">
+  💡 Source: HEREBUS_Benchmarks_Market (17 productos a comparar vs Competidor A/B/Avg).
+  Editable en /benchmarks/{id}/edit.
+</p>
+{% endblock %}

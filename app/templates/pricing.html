@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Pricing · Saskia RMS{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>💰 Pricing por Receta — HEREBUS</h1>
+  <p class="muted">Costos y precios por canal (wholesale, retail, distributor, etc.)</p>
+</div>
+
+<div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
+  <div class="kpi-card"><div class="kpi-label">Recetas con pricing</div><div class="kpi-value">{{ rows|length }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Costo total (batch)</div><div class="kpi-value">₲{{ "{:,.0f}".format(total_cost_gs) }}</div></div>
+  <div class="kpi-card highlight"><div class="kpi-label">Valor retail</div><div class="kpi-value">₲{{ "{:,.0f}".format(total_retail_gs) }}</div></div>
+</div>
+
+<div class="muted" style="margin:1rem 0;">
+  Channels & márgenes (MAESTRA):
+  {% for ch, m in channels_margins.items() %}
+    <span class="badge">{{ ch }} {{ "{:+.0%}".format(m) }}</span>
+  {% endfor %}
+</div>
+
+<table class="table is-striped">
+  <thead>
+    <tr>
+      <th>Receta</th>
+      <th class="num">Cost total ₲</th>
+      <th class="num">Cost/unit ₲</th>
+      <th class="num">Wholesale ₲<br><small>+{{ "{:.0%}".format(channels_margins.get('wholesale', 0.4)) }}</small></th>
+      <th class="num">Private Label ₲<br><small>+{{ "{:.0%}".format(channels_margins.get('private_label', 0.25)) }}</small></th>
+      <th class="num">Distribuidor ₲<br><small>+{{ "{:.0%}".format(channels_margins.get('distributor', 0.22)) }}</small></th>
+      <th class="num">Retail ₲<br><small>+{{ "{:.0%}".format(channels_margins.get('retail', 0.5)) }}</small></th>
+      <th class="num">Comisión ₲<br><small>+{{ "{:.0%}".format(channels_margins.get('broker_commission', 0.05)) }}</small></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td><strong>{{ r.recipe.name }}</strong></td>
+      <td class="num">₲{{ "{:,.0f}".format(r.cost_total_gs) }}</td>
+      <td class="num">₲{{ "{:,.0f}".format(r.cost_per_unit_gs) }}</td>
+      <td class="num">₲{{ "{:,.0f}".format(r.wholesale_gs) }}</td>
+      <td class="num">₲{{ "{:,.0f}".format(r.private_label_gs) }}</td>
+      <td class="num">₲{{ "{:,.0f}".format(r.distributor_gs) }}</td>
+      <td class="num"><strong>₲{{ "{:,.0f}".format(r.retail_gs) }}</strong></td>
+      <td class="num">₲{{ "{:,.0f}".format(r.broker_commission_gs) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p class="muted">
+  💡 Fuente: HEREBUS COSTOS sheet (7 recetas × 5 canales = 35 precios).
+  Labor: ₲25,000/h, Packaging: ₲1,500/unit (configurable).
+</p>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Production Planner · Saskia RMS{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>🧁 Production Planner</h1>
+  <p class="muted">Calculá cuánto necesitás cocinar — y qué ingredientes faltan</p>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="post" action="/produccion-planner/compute">
+      <div style="display:flex;gap:1rem;align-items:end;">
+        <div class="form-group" style="flex:1;">
+          <label for="recipe_id_combo">Receta</label>
+          <div class="saskia-combo"
+               data-source="/recetas/api/search"
+               data-display="name"
+               data-value="id"
+               data-min-chars="0"
+               data-row-builder="genericRowLabel">
+            <input type="text"
+                   id="recipe_id_combo"
+                   class="combo-input"
+                   name="recipe_name_display"
+                   placeholder="Buscar receta…">
+            <input type="hidden"
+                   id="recipe_id"
+                   name="recipe_id"
+                   value="{{ recipe.id if recipe else '' }}">
+            <div class="combo-results" role="listbox" hidden></div>
+          </div>
+        </div>
+        <div class="form-group" style="width:120px;">
+          <label for="batches">Batches</label>
+          <input type="number" name="batches" id="batches" min="1" value="{{ batches if batches else 1 }}" required class="form-control" style="width:100%;padding:0.5rem;">
+        </div>
+        <button type="submit" class="btn btn-primary" style="padding:0.75rem 1.5rem;">Calcular necesidad</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if results is not none and recipe %}
+<div class="card">
+  <div class="card-header"><h2>{{ batches }}× {{ recipe.name }}</h2>
+    {% if total_shortage_gs > 0 %}
+      <span class="badge badge-error">Falta ₲{{ "{:,.0f}".format(total_shortage_gs) }} de ingredientes</span>
+    {% else %}
+      <span class="badge badge-success">✓ Stock suficiente</span>
+    {% endif %}
+  </div>
+  <table class="table is-hoverable">
+    <thead>
+      <tr>
+        <th>Ingrediente</th>
+        <th class="num">Necesario</th>
+        <th class="num">En stock</th>
+        <th class="num">Faltante</th>
+        <th class="num">Unit ₲</th>
+        <th class="num">Costo faltante</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in results %}
+      <tr {% if not r.sufficient %}style="background:#fef2f2;"{% endif %}>
+        <td>{{ r.ingredient_name }}</td>
+        <td class="num">{{ "%.1f"|format(r.qty_needed) }} {{ r.unit }}</td>
+        <td class="num">{{ "%.1f"|format(r.qty_available) }} {{ r.unit }}</td>
+        <td class="num">
+          {% if r.shortage > 0 %}
+            <strong style="color:red;">{{ "%.1f"|format(r.shortage) }} {{ r.unit }}</strong>
+          {% else %}
+            — ✓
+          {% endif %}
+        </td>
+        <td class="num">₲{{ "{:,.0f}".format(r.unit_price_gs) }}</td>
+        <td class="num">{% if r.line_shortage_gs > 0 %}₲{{ "{:,.0f}".format(r.line_shortage_gs) }}{% else %}—{% endif %}</td>
+        <td>
+          {% if r.sufficient %}
+            <span class="badge badge-success">OK</span>
+          {% else %}
+            <span class="badge badge-error">Falta</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  {% if total_shortage_gs > 0 %}
+  <div class="card-footer" style="padding:1rem;">
+    <form method="post" action="/reponer" style="display:inline;">
+      <button type="submit" class="btn btn-warning">
+        🛒 Generar shopping list con faltantes (₲{{ "{:,.0f}".format(total_shortage_gs) }})
+      </button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% else %}
+<div class="card"><div class="card-body muted">
+  <strong>Pick a recipe + batch count</strong> to see what ingredients you'll need
+  and where stock falls short. Try "Chocolate Muffin (20x20 cm)" with 10 batches.
+</div></div>
+{% endif %}
+{% endblock %}

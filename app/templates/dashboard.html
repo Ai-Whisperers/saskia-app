@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Saskia RMS{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>📈 Dashboard — {{ month_label }}</h1>
+  <p class="muted">KPIs en vivo desde HEREBUS_FoodBiz + ANALISIS sheets</p>
+</div>
+
+<div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
+  <div class="kpi-card"><div class="kpi-label">Revenue ₲</div><div class="kpi-value">₲{{ "{:,.0f}".format(revenue_gs) }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Portions vendidas</div><div class="kpi-value">{{ portions }}</div></div>
+  <div class="kpi-card {% if food_cost_pct < 35 %}good{% else %}warn{% endif %}">
+    <div class="kpi-label">Food cost %</div><div class="kpi-value">{{ "%.1f"|format(food_cost_pct) }}%</div>
+    <div class="kpi-target">target: 35%</div>
+  </div>
+  <div class="kpi-card {% if gross_margin_pct > 60 %}good{% else %}warn{% endif %}">
+    <div class="kpi-label">Gross margin %</div><div class="kpi-value">{{ "%.1f"|format(gross_margin_pct) }}%</div>
+    <div class="kpi-target">target: 60%</div>
+  </div>
+  <div class="kpi-card"><div class="kpi-label">Clientes únicos</div><div class="kpi-value">{{ unique_customers }}</div></div>
+  <div class="kpi-card {% if repeat_pct > 30 %}good{% else %}warn{% endif %}">
+    <div class="kpi-label">Repeat %</div><div class="kpi-value">{{ repeat_pct }}%</div>
+    <div class="kpi-target">target: 30%</div>
+  </div>
+  <div class="kpi-card"><div class="kpi-label">Avg order ₲</div><div class="kpi-value">₲{{ "{:,.0f}".format(avg_order_gs) }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Waste ₲</div><div class="kpi-value">₲{{ "{:,.0f}".format(waste_gs) }}</div></div>
+  <div class="kpi-card {% if waste_pct < 5 %}good{% else %}warn{% endif %}">
+    <div class="kpi-label">Waste %</div><div class="kpi-value">{{ "%.1f"|format(waste_pct) }}%</div>
+    <div class="kpi-target">target: 5%</div>
+  </div>
+</div>
+
+<h2>📦 Recipes</h2>
+<div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
+  <div class="kpi-card"><div class="kpi-label">Recetas en el sistema</div><div class="kpi-value">{{ recipe_count }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Recetas cocinadas este mes</div><div class="kpi-value">{{ recipes_cooked }}</div></div>
+</div>
+
+<h2>🏆 Top recipe</h2>
+{% if top_recipe_name != '—' %}
+<div class="kpi-card" style="display:inline-block; padding:1rem; min-width:300px;">
+  <div class="kpi-label">Receta más vendida</div>
+  <div class="kpi-value" style="font-size:1.5rem;">{{ top_recipe_name }}</div>
+  <div class="muted">Revenue: ₲{{ "{:,.0f}".format(top_recipe_revenue_gs) }}</div>
+</div>
+{% endif %}
+
+<h2>💼 Por canal de venta</h2>
+{% if by_channel %}
+<table class="table is-striped">
+  <thead><tr><th>Canal</th><th class="num">Revenue ₲</th></tr></thead>
+  <tbody>
+    {% for ch, rev in by_channel.items() %}
+    <tr>
+      <td><strong>{{ ch }}</strong></td>
+      <td class="num">₲{{ "{:,.0f}".format(rev) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">Sin ventas este mes aún.</p>
+{% endif %}
+
+<p class="muted" style="margin-top:2rem;">
+  💡 Source: Computed live from Sale table. Targets from HEREBUS_Analisis KPI_Dashboard sheet.
+  {{ tx_count_this_month }} transacciones este mes.
+</p>
+{% endblock %}

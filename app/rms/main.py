@@ -52,6 +52,7 @@ from app.routers import (
     excel_io,
     health,
     help,
+    herebus,
     inventory,
     merma,
     ops,
@@ -386,6 +387,16 @@ app.include_router(produccion.router)
 app.include_router(eod.router)
 app.include_router(merma.router)
 app.include_router(reportes.router)
+
+# HEREBUS Drive integration modules
+app.include_router(herebus.wishlist_router)
+app.include_router(herebus.risks_router)
+app.include_router(herebus.pricing_router)
+app.include_router(herebus.bank_router)
+app.include_router(herebus.benchmarks_router)
+app.include_router(herebus.dashboard_router)
+app.include_router(herebus.planner_router)
+app.include_router(herebus.delivery_router)
 # NAV-02: Auditoría and Ops are internal-only. The product surface does
 # not include them (Saskia does not run audits). In production they
 # 404; in tests / dev they are still mounted so the test suite can

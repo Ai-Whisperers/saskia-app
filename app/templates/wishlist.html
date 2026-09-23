@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Wishlist · Saskia RMS{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>🏪 Wishlist — equipment HEREBUS</h1>
+  <p class="muted">Lista priorizada para arrancar y escalar la panadería</p>
+</div>
+
+<div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
+  <div class="kpi-card"><div class="kpi-label">Items totales</div><div class="kpi-value">{{ pending_count + purchased_count }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Pendientes</div><div class="kpi-value">{{ pending_count }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Comprados</div><div class="kpi-value">{{ purchased_count }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Inversión total</div><div class="kpi-value">₲{{ "{:,.0f}".format(total_all_gs) }}</div></div>
+  <div class="kpi-card highlight"><div class="kpi-label">Pendiente ₲</div><div class="kpi-value">₲{{ "{:,.0f}".format(total_pending_gs) }}</div></div>
+</div>
+
+{% for prio in ['must_have', 'nice_to_have', 'optional'] %}
+  {% if by_priority.get(prio) %}
+    <h2 style="margin-top:1.5rem;">
+      {% if prio == 'must_have' %}🟢 Must-have
+      {% elif prio == 'nice_to_have' %}🟡 Nice-to-have
+      {% else %}⚪ Opcional{% endif %}
+      <small class="muted">({{ by_priority[prio]|length }})</small>
+    </h2>
+    <table class="table is-hoverable">
+      <thead>
+        <tr>
+          <th>ID</th><th>Item</th><th>Qty</th><th class="num">Unit ₲</th><th class="num">Total ₲</th>
+          <th>Categoría</th><th>Dónde comprar</th><th>Status</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in by_priority[prio] %}
+        <tr {% if item.purchased %}style="opacity:0.5;"{% endif %}>
+          <td><code>{{ item.code or '' }}</code></td>
+          <td><strong>{{ item.name }}</strong><br><small class="muted">{{ item.notes or '' }}</small></td>
+          <td>{{ item.quantity }}</td>
+          <td class="num">₲{{ "{:,.0f}".format(item.unit_price_gs) }}</td>
+          <td class="num"><strong>₲{{ "{:,.0f}".format(item.unit_price_gs * item.quantity) }}</strong></td>
+          <td>{{ item.category or '' }}</td>
+          <td><small>{{ item.buy_location or '' }}</small></td>
+          <td>
+            {% if item.purchased %}
+              <span class="badge badge-success">✓ Comprado</span>
+            {% else %}
+              <span class="badge badge-warning">Pendiente</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if not item.purchased %}
+              <form method="post" action="/wishlist/mark-purchased" style="display:inline;">
+                <input type="hidden" name="item_id" value="{{ item.id }}">
+                <button type="submit" class="btn btn-sm btn-primary">Marcar comprado</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+{% endfor %}
+
+<p class="muted" style="margin-top:2rem;">
+  💡 Fuente: HEREBUS_Wishlist sheet (28 items). Total ₲ 61M de inversión planificada.
+</p>
+{% endblock %}
