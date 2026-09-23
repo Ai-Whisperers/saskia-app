@@ -246,6 +246,10 @@
 </section>
 
 <div class="form-actions">
+  <label style="display:flex;align-items:center;gap:var(--space-2);margin-right:auto;">
+    <input type="checkbox" id="also_create_product" name="also_create_product" value="1" {% if mode == 'new' %}checked{% endif %}>
+    <span>Después de guardar, crear producto desde esta receta</span>
+  </label>
   <button type="submit" class="btn btn-primary">Guardá</button>
   <a href="/recetas" class="btn">Cancelar</a>
 </div>

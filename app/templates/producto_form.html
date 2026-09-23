@@ -7,21 +7,34 @@
 {% block content %}
 <h1>{{ action }} producto</h1>
 
+{% if request.query_params.get('recipe_id') %}
+  <div class="alert alert-info" id="prefill-banner" style="margin-bottom: var(--space-4);">
+    <svg class="icon" aria-hidden="true"><use href="#icon-info"/></svg>
+    <span>Pre-llenado desde la receta. Ajustá los valores según necesites.</span>
+  </div>
+{% endif %}
+
 <form method="post" action="/productos{{ '/nuevo' if mode == 'new' else '/' ~ product.id ~ '/editar' }}"
       enctype="multipart/form-data" id="product-form">
   <div class="form-row">
     <label for="name">Nombre</label>
     <input type="text" id="name" name="name" required maxlength="120"
-           value="{{ product.name if product else '' }}"
+           value="{{ request.query_params.get('name', product.name if product else '') }}"
            placeholder="Ej: Muffin de chocolate">
   </div>
 
   <div class="form-row">
     <label for="sku">SKU / Código de barras</label>
-    <input type="text" id="sku" name="sku" maxlength="32"
-           value="{{ product.sku if product and product.sku else '' }}"
-           placeholder="Ej: E23.S1 o código de barras">
-    <small class="muted">Opcional. Usado para ventas rápidas por SKU.</small>
+    <div style="display:flex;gap:var(--space-2);align-items:center;">
+      <input type="text" id="sku" name="sku" maxlength="32"
+             value="{{ product.sku if product and product.sku else '' }}"
+             placeholder="Se genera automáticamente al escribir el nombre"
+             style="flex:1;">
+      <button type="button" class="btn btn-sm btn-ghost" id="sku-regen" title="Regenerar SKU">
+        <svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>
+      </button>
+    </div>
+    <small class="muted">Formato: <code>PREFIX-NNN</code> basado en el nombre. Editable.</small>
   </div>
 
   {% set product_cats = t.product_category_options() %}
@@ -29,7 +42,7 @@
 
   {{ t.category_picker(
        name='category',
-       current_value=product.category if product else '',
+       current_value=request.query_params.get('category', product.category if product else ''),
        options_markup=t.product_category_options(),
        allow_custom=True,
        label='Categoría',
@@ -38,7 +51,7 @@
 
   {{ t.tag_picker(
        name='tags',
-       current_value=product.tags if product else '',
+       current_value=request.query_params.get('tags', product.tags if product else ''),
        options_markup=t.product_tag_options(),
        allow_custom=True,
        label='Etiquetas',
@@ -48,13 +61,16 @@
   <div class="form-row">
     <label for="portion_label">Etiqueta de porción</label>
     <input type="text" id="portion_label" name="portion_label" maxlength="60" required
-           value="{{ product.portion_label if product else '1 unidad' }}">
+           value="{{ request.query_params.get('portion_label', product.portion_label if product else '1 unidad') }}">
+    <small class="muted">Se rellena automáticamente si elegís una receta.</small>
   </div>
 
   <div class="form-row">
     <label for="sale_price_gs">Precio de venta (Gs.)</label>
     <input type="number" id="sale_price_gs" name="sale_price_gs" required step="1" min="0"
-           value="{{ product.sale_price_gs if product else '0' }}" placeholder="8000">
+           value="{{ request.query_params.get('sale_price_gs', product.sale_price_gs if product else '0') }}"
+           placeholder="8000">
+    <small class="muted" id="price-suggestion"></small>
   </div>
 
   <div class="form-row">
@@ -72,10 +88,10 @@
              maxlength="60"
              value=""
              placeholder="— Sin receta —">
-      <input type="hidden" name="recipe_id" value="">
+      <input type="hidden" name="recipe_id" id="recipe_id" value="{{ request.query_params.get('recipe_id', '') }}">
       <div class="combo-results" role="listbox" hidden></div>
     </div>
-    <small class="muted">Sin receta: las ventas se registran pero no bajan stock ni calculan margen.</small>
+    <small class="muted">Sin receta: las ventas se registran pero no bajan stock ni calculan margen. Al elegir una receta, se sugieren precio/porción/tags.</small>
   </div>
 
   {# --- Image upload + URL --- #}
@@ -183,19 +199,153 @@
 {% endraw %}</style>
 
 <script>
-// Product image upload + preview
+// =====================================================================
+// SMART FORM LOGIC: SKU auto-gen, recipe → product pre-fill, image upload
+// =====================================================================
 (function() {
+  'use strict';
+
+  // ---------- SKU auto-generation ----------
+  // Format: PREFIX-NNN where PREFIX is first 3 chars of name slug,
+  // NNN is a sequential number per prefix.
+  // For now we use a hash-derived 3-digit suffix so re-generating is
+  // stable for the same name (won't change on every keystroke).
+  var skuCounter = {}; // prefix -> highest used number
+  var skuManuallyEdited = false;
+  var nameEl = document.getElementById('name');
+  var skuEl = document.getElementById('sku');
+  var skuRegenEl = document.getElementById('sku-regen');
+
+  function slugify(s) {
+    return (s || '').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
+      .replace(/[^a-z0-9]+/g, '')
+      .slice(0, 3) || 'PRD';
+  }
+  function hashCode(s) {
+    var h = 0;
+    for (var i = 0; i < s.length; i++) {
+      h = ((h << 5) - h) + s.charCodeAt(i);
+      h |= 0;
+    }
+    return Math.abs(h);
+  }
+  function generateSku(name) {
+    var prefix = slugify(name);
+    var num = ((hashCode(name || prefix) % 900) + 100); // 100..999
+    // Avoid collisions: if we've seen this prefix before, increment
+    if (skuCounter[prefix] !== undefined) {
+      skuCounter[prefix] = (skuCounter[prefix] + 1) % 900 + 100;
+      num = skuCounter[prefix];
+    } else {
+      skuCounter[prefix] = num;
+    }
+    return prefix + '-' + num;
+  }
+
+  if (nameEl && skuEl) {
+    // Track if user has manually edited SKU
+    skuEl.addEventListener('input', function() {
+      skuManuallyEdited = skuEl.value !== '';
+    });
+    // Auto-generate SKU on name change (only if not manually edited)
+    nameEl.addEventListener('input', function() {
+      if (!skuManuallyEdited || !skuEl.value) {
+        skuEl.value = generateSku(nameEl.value);
+        skuEl.placeholder = 'Auto-generado';
+      }
+    });
+    // Trigger initial generation if name has a value (e.g. pre-filled from recipe)
+    if (nameEl.value && !skuEl.value) {
+      skuEl.value = generateSku(nameEl.value);
+    }
+    // Manual regen button
+    if (skuRegenEl) {
+      skuRegenEl.addEventListener('click', function() {
+        skuManuallyEdited = false;
+        skuEl.value = generateSku(nameEl.value);
+      });
+    }
+  }
+
+  // ---------- Recipe → product pre-fill ----------
+  // When user picks a recipe, fetch its full data and pre-fill:
+  //   - category (from recipe.family)
+  //   - tags (from recipe.dietary_tags)
+  //   - portion_label (1 yield_unit)
+  //   - sale_price_gs (estimated cost × 3, rounded)
+  var recipeCombo = document.querySelector('.saskia-combo[data-source="/recetas/api/search"]');
+  var recipeIdEl = document.getElementById('recipe_id');
+  if (recipeCombo && recipeIdEl) {
+    // The combo's hidden input is our recipe_id_el
+    recipeIdEl.addEventListener('change', function() {
+      onRecipeChange(recipeIdEl.value);
+    });
+  }
+
+  function onRecipeChange(recipeId) {
+    if (!recipeId) {
+      var banner = document.getElementById('prefill-banner');
+      if (banner) banner.style.display = 'none';
+      return;
+    }
+    // Fetch recipe full details to compute suggested price
+    fetch('/recetas/api/search?q=')  // get all
+      .then(function(r) { return r.json(); })
+      .then(function(j) {
+        var recipe = j.results.find(function(x) { return x.id === parseInt(recipeId, 10); });
+        if (!recipe) return;
+        // Auto-fill category from recipe.family (best-effort match)
+        if (recipe.family && !document.querySelector('input[name="category"]').value) {
+          document.querySelector('input[name="category_display"]').value = recipe.family;
+          document.querySelector('input[name="category"]').value = recipe.family;
+        }
+        // Auto-fill portion_label
+        if (recipe.yield_qty && recipe.yield_unit) {
+          document.getElementById('portion_label').value =
+            '1 ' + recipe.yield_unit;
+        }
+        // Fetch full recipe to get unit cost
+        return fetch('/recetas/' + recipeId);
+      })
+      .then(function(r) { return r && r.text ? r.text : ''; })
+      .then(function(html) {
+        // Extract unit cost from the recipe detail page
+        if (!html) return;
+        var m = html.match(/Costo \/ porción[\s\S]{0,200}?>([\d.,]+)/);
+        if (m) {
+          var cost = parseInt(m[1].replace(/\./g, '').replace(',', ''), 10);
+          if (cost > 0) {
+            // 3x markup, rounded up to nearest 1000
+            var suggested = Math.ceil(cost * 3 / 1000) * 1000;
+            var priceEl = document.getElementById('sale_price_gs');
+            if (!priceEl.value || parseInt(priceEl.value, 10) === 0) {
+              priceEl.value = suggested;
+            }
+            var ps = document.getElementById('price-suggestion');
+            if (ps) {
+              ps.textContent = 'Sugerido: ' + suggested.toLocaleString() + ' Gs. (costo ' +
+                cost.toLocaleString() + ' × 3). Editable.';
+            }
+          }
+        }
+      })
+      .catch(function() { /* silent */ });
+  }
+
+  // If recipe_id was pre-filled in URL, run the auto-fill on page load
+  if (recipeIdEl && recipeIdEl.value) {
+    // Defer to let combo initialize first
+    setTimeout(function() { onRecipeChange(recipeIdEl.value); }, 200);
+  }
+
+  // ---------- Image upload + preview ----------
   var fileInput = document.getElementById('image-file');
   var urlInput = document.getElementById('image_url');
   var preview = document.getElementById('image-preview');
-  var empty = document.getElementById('image-empty');
-  var removeBtn = document.getElementById('image-remove');
-
-  if (!fileInput || !preview) return;
 
   function renderImage(url) {
     if (!url) {
-      // Empty state
       preview.innerHTML =
         '<div class="image-empty" id="image-empty">' +
         '<svg class="icon icon-lg" aria-hidden="true"><use href="#icon-image"/></svg>' +
@@ -207,7 +357,6 @@
       '<button type="button" class="btn btn-sm btn-danger-ghost" id="image-remove">Quitar imagen</button>';
     wireRemove();
   }
-
   function wireRemove() {
     var btn = document.getElementById('image-remove');
     if (btn) btn.addEventListener('click', function() {
@@ -217,50 +366,47 @@
   }
   wireRemove();
 
-  // File → upload → preview
-  fileInput.addEventListener('change', function() {
-    var file = fileInput.files && fileInput.files[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Imagen muy grande. Máximo 5 MB.');
-      fileInput.value = '';
-      return;
-    }
-    var data = new FormData();
-    data.append('file', file);
-    // Show optimistic preview while uploading
-    var reader = new FileReader();
-    reader.onload = function(e) { renderImage(e.target.result); };
-    reader.readAsDataURL(file);
-
-    fetch('/productos/upload-image', {
-      method: 'POST',
-      body: data,
-      credentials: 'same-origin'
-    })
-    .then(function(r) {
-      if (!r.ok) {
-        return r.json().then(function(j) {
-          throw new Error(j.detail || 'Upload failed');
-        });
+  if (fileInput && preview) {
+    fileInput.addEventListener('change', function() {
+      var file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Imagen muy grande. Máximo 5 MB.');
+        fileInput.value = '';
+        return;
       }
-      return r.json();
-    })
-    .then(function(j) {
-      urlInput.value = j.url;
-      renderImage(j.url);
-    })
-    .catch(function(err) {
-      alert('Error subiendo imagen: ' + err.message);
-      renderImage(urlInput.value);  // restore
-    });
-  });
+      var data = new FormData();
+      data.append('file', file);
+      var reader = new FileReader();
+      reader.onload = function(e) { renderImage(e.target.result); };
+      reader.readAsDataURL(file);
 
-  // URL → live preview
-  urlInput.addEventListener('input', function() {
-    var url = urlInput.value.trim();
-    if (url) renderImage(url);
-  });
+      fetch('/productos/upload-image', {
+        method: 'POST',
+        body: data,
+        credentials: 'same-origin'
+      })
+      .then(function(r) {
+        if (!r.ok) {
+          return r.json().then(function(j) { throw new Error(j.detail || 'Upload failed'); });
+        }
+        return r.json();
+      })
+      .then(function(j) {
+        urlInput.value = j.url;
+        renderImage(j.url);
+      })
+      .catch(function(err) {
+        alert('Error subiendo imagen: ' + err.message);
+        renderImage(urlInput.value);
+      });
+    });
+
+    urlInput.addEventListener('input', function() {
+      var url = urlInput.value.trim();
+      if (url) renderImage(url);
+    });
+  }
 })();
 </script>
 

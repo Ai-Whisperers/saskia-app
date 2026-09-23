@@ -220,6 +220,12 @@ async def recipe_create(
         if len(skipped) > 5:
             detail += f" (y {len(skipped) - 5} más)"
         raise _HTTPExc(status_code=400, detail=detail)
+
+    # If the user checked "create product from this recipe", redirect
+    # to the crear-producto helper instead of /recetas.
+    also_create = str(form.get("also_create_product", "")).strip() == "1"
+    if also_create:
+        return RedirectResponse(url=f"/recetas/{recipe.id}/crear-producto", status_code=303)
     return RedirectResponse(url="/recetas", status_code=303)
 
 
@@ -422,6 +428,49 @@ async def recipe_update(
         raise _HTTPExc(status_code=400, detail=detail)
     session.commit()
     return RedirectResponse(url="/recetas", status_code=303)
+
+
+@router.get("/{r_id}/crear-producto")
+async def recipe_create_product_redirect(
+    r_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Redirect to /productos/nuevo with query params pre-filled from this recipe.
+
+    The product form reads these params on load and auto-fills:
+      - name, recipe_id, category (from recipe.family), tags (from dietary_tags)
+      - portion_label (from recipe yield_qty + yield_unit)
+      - sale_price_gs (estimated from unit cost * 3 markup)
+    """
+    r = session.get(Recipe, r_id)
+    if r is None:
+        raise HTTPException(status_code=404, detail="Receta no encontrada")
+
+    # Compute suggested price: cost * 3 markup
+    from app.rms.costing import recipe_unit_cost_gs
+    unit = recipe_unit_cost_gs(session, r_id)
+    suggested_price = ""
+    if unit.batch_cost_gs:
+        # 3x markup rounded to nearest 1000 guaraníes
+        suggested_price = str(int(round(unit.batch_cost_gs * 3 / 1000) * 1000))
+
+    # Suggested portion label
+    portion_label = "1 unidad"
+    if r.yield_qty:
+        portion_label = f"1 {r.yield_unit or 'und'}"
+
+    # Build query params (only include non-empty)
+    params = {
+        "recipe_id": str(r.id),
+        "name": r.name,
+        "category": r.family or "",
+        "tags": r.dietary_tags or "",
+        "portion_label": portion_label,
+        "sale_price_gs": suggested_price,
+    }
+    qs = "&".join(f"{k}={v}" for k, v in params.items() if v)
+    return RedirectResponse(url=f"/productos/nuevo?{qs}", status_code=303)
 
 
 def _apply_lines_from_form(session: Session, recipe_id: int, form) -> list[str]:
