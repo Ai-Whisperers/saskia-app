@@ -5,6 +5,80 @@
 
 ## [Unreleased]
 
+### Added (2026-09-23) — Phase 1: Paraguayan tax + HACCP + costing compliance
+
+**Phase 1.A — Tax compliance foundation**
+- **Idempotent password sync from env vars** (SASKIA_ADMIN_PASSWORD,
+  SASKIA_USER_PASSWORD). Closes the login bug where the demo hash didn't
+  match the BWS-stored password. Runs on every boot via
+  app/rms/bootstrap.py.
+- **ComplianceInfo table** (single row, id=1) — stores RUC, Razón social,
+  tax_regime (RESIMPLE/general/no_libreta), IVA default rate, timbrado,
+  INAN R.E. + Director Técnico, municipal habilitación, costing config
+  (labor + overhead). Plus SIFEN prep fields.
+- **Product.iva_rate** + **requires_rspa** + **rspa_number/expiry** columns
+  with operator-editable form fields.
+- **/configuracion extended** with all Phase 1.A fields + helper sections.
+- **Dashboard compliance alerts widget** — surfaces INAN R.E. / Habilitación /
+  Timbrado / R.S.P.A. expiries (T-30 day warn, past = danger).
+- **Schema v34 → v36** (migrations 035 compliance_info + 036 product tax).
+
+**Phase 1.B — Sales fiscal invoice**
+- **Sale.invoice_type** ∈ {boleta_resimple, factura, none} + invoice_number
+  (atomic sequential allocation per type) + invoice_customer_ruc + iva
+  base/amount snapshot fields.
+- **app/rms/invoicing.py** — `compute_invoice_snapshot()` (pure IVA math with
+  round-half-up per AGENTS.md rule #3) and `allocate_invoice_number()`
+  (atomic counter increment on ComplianceInfo).
+- **/ventas form** — new Comprobante fiscal fieldset with conditional RUC +
+  razón social fields. Defaults from ComplianceInfo.tax_regime.
+- **/reportes/libro-ventas** — extended with Comprobante (#/type) + RUC
+  columns. LibroVentasRow + libro_ventas() prefer snapshotted IVA fields.
+- **Schema v36 → v37** (migration 037 sale fiscal invoice).
+
+**Phase 1.C — INAN HACCP**
+- **Ingredient.temp_min_c / temp_max_c / humidity_max_pct /
+  water_activity_aw / lot_required** columns (Res S.G. N° 213/2019).
+- **Recipe.yield_percentage + direct_labor_minutes** columns (Phase 1.D prep).
+- **app/rms/haccp_seed.py** — per-category defaults (refrigerated
+  0-8°C, ambient dry 15-25°C, perishable a_w ≥ 0.95). `apply_haccp_defaults()`
+  runs on every boot, idempotent.
+- **Schema v37 → v38** (migration 038 ingredient HACCP + recipe yield).
+
+**Phase 1.D — Prime Cost**
+- **app/rms/prime_cost.py** — `compute_prime_cost(product_id)` returns
+  materials + yield_corrected + labor + overhead + gross_margin_pct.
+  Decimal arithmetic throughout, round half-up at persistence sites.
+- **/productos** — Prime Cost (Gs.) + % Costo (color-coded: <50% ok,
+  50-70% warn, >70% danger) columns added per row.
+- **Settings** → labor_cost_per_hour_gs + overhead_multiplier_pct controls.
+
+**Phase 1.E — Pricing insights & procurement**
+- **app/rms/seed_market_prices.py** — `refresh_market_prices_from_csv()`
+  Phase 1.E weekly cron. Operator drops /data/market_prices.csv (name,
+  unit, price_gs, source, notes) every Sunday; replaces existing
+  MarketPriceReference rows for matched ingredients.
+- **app/rms/cierre.py + /reportes/cierre-mensual** — full monthly P&L
+  close. Family-aggregated + per-product breakdown. Excludes voided
+  sales. Color-coded margin badges (>30% healthy, >15% warn,
+  <15% danger). Month navigation (?year=&month=). Top-product banner.
+
+**Tests: 86 new** across:
+- test_bootstrap_password_sync.py (6)
+- test_compliance_info.py (16)
+- test_dashboard_compliance.py (12)
+- test_invoicing.py (16)
+- test_haccp_seed.py (10)
+- test_prime_cost.py (13)
+- test_cierre.py (15)
+
+Schema: v32 → v38. Migration 034 (market prices), 035 (compliance_info),
+036 (product tax), 037 (sale fiscal invoice), 038 (HACCP).
+
+**1885 tests passing.** 88 pre-existing failures remain (test infrastructure
++ flaky UI snapshot tests) — all unrelated to Phase 1.
+
+
 ### Fixed (2026-09-21) — public pickup page + 5-test CI green
 
 - **`/p/{token}` now resolves the pedido correctly.** The
