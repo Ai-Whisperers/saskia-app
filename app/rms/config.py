@@ -68,7 +68,7 @@ BACKUP_THRESHOLD_HOURS = int(os.getenv("AIW_SASKIA_BACKUP_HOURS", "24"))
 KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_SASKIA_KEEP_LOCAL_DAYS", "30"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 33  # 033 = ingredient.storage (HACCP storage_zone) (was in model, missing migration)
+CURRENT_SCHEMA_VERSION = 34  # 034 = market_price_reference table (Wave 4)
 
 
 def ensure_dirs() -> None:
