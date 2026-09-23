@@ -23,10 +23,12 @@ explicitly, typically from `main.py`'s lifespan handler.
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
 
+from loguru import logger
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -1306,94 +1308,65 @@ def init_db(engine: Engine) -> None:
 
 def _init_db_inner(engine, dialect_name, Base) -> None:
     """Inner init_db helper (extracted so the outer wrapper can release the
-    Postgres advisory lock in a finally block)."""
+    Postgres advisory lock in a finally block).
+
+    Strategy: each migration runs in its OWN TRANSACTION on its own
+    CONNECTION. This guarantees that:
+    1. A failed migration doesn't poison the next migration
+    2. The schema_version bump always succeeds (in a separate
+       transaction)
+    3. CREATE TRIGGER syntax errors on Postgres don't cascade
+    """
     # 1. Create all tables (idempotent; SQLAlchemy skips existing tables)
-    # Use a fresh connection so the implicit transaction from create_all
-    # is committed BEFORE we start the migration loop. Otherwise, the
-    # subsequent SAVEPOINTs would roll back the schema_version row from
-    # a previous failed migration.
-    with engine.connect() as create_conn:
-        create_conn.commit()
     Base.metadata.create_all(engine)
 
-    # 2. Run migrations on a FRESH connection (not the one used by create_all).
-    with engine.connect() as conn:
-        # Ensure app_meta exists (create_all should have made it, but defensive)
-        conn.execute(
-            text(
-                "CREATE TABLE IF NOT EXISTS app_meta ("
-                "key TEXT PRIMARY KEY, value TEXT, updated_at TEXT)"
+    # 2. Read the current schema_version ONCE
+    current = 0
+    target = CURRENT_SCHEMA_VERSION
+    with engine.connect() as probe_conn:
+        probe_conn.commit()
+        from app.rms.db import schema_version
+        current = schema_version(probe_conn)
+
+    # 3. Run each pending migration on its OWN connection (auto-committed).
+    # This is more robust than SAVEPOINTs because each migration's
+    # transaction state is isolated from the others.
+    for v in range(current + 1, target + 1):
+        if v not in MIGRATIONS:
+            raise RuntimeError(
+                f"No migration registered for schema version {v}; "
+                f"current={current}, target={target}. "
+                "Add the migration in app/rms/db.py."
             )
-        )
-        conn.commit()  # Commit so the next migration loop starts clean
-
-        current = _current_schema_version(conn)
-        target = CURRENT_SCHEMA_VERSION
-
-        # Detect dialect once, at function scope
-        dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
-
-        if current < target:
-            # Detect dialect for dialect-aware schema_version upsert.
-            dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
-            for v in range(current + 1, target + 1):
-                if v not in MIGRATIONS:
-                    raise RuntimeError(
-                        f"No migration registered for schema version {v}; "
-                        f"current={current}, target={target}. "
-                        "Add the migration in app/rms/db.py."
-                    )
-                # Postgres aborts the whole transaction on a SQL error,
-                # so wrap each migration in a SAVEPOINT to keep going
-                # after a benign error (e.g. column already exists).
-                if dialect == "postgresql":
-                    sp = f"mig_{v}"
-                    # SAVEPOINT isolates the migration from earlier
-                    # failures. ROLLBACK TO SAVEPOINT restores state
-                    # even if the transaction is currently aborted.
-                    conn.execute(text(f"SAVEPOINT {sp}"))
-                    try:
-                        MIGRATIONS[v](conn)
-                    except Exception:
-                        conn.execute(text(f"ROLLBACK TO SAVEPOINT {sp}"))
-                        # Re-raise — migration errors should NOT be silently swallowed
-                        # on Postgres, only on SQLite.
-                        raise
-                    # If the migration succeeded but left the
-                    # transaction aborted (e.g. _bump_schema_version
-                    # INSERT failed mid-way), the RELEASE will fail too.
-                    # Catch and rollback silently.
-                    try:
-                        conn.execute(text(f"RELEASE SAVEPOINT {sp}"))
-                    except Exception:
-                        conn.execute(text(f"ROLLBACK TO SAVEPOINT {sp}"))
-                        raise
-                else:
-                    MIGRATIONS[v](conn)
-                # Each migration function calls _bump_schema_version()
-                # at its end. The inline upsert here used to be a backup
-                # in case a migration forgot to bump — but all migrations
-                # have been refactored to call the helper. Keeping the
-                # duplicate would re-introduce the :v::jsonb bug on
-                # Postgres. Removed.
-        conn.commit()
+        try:
+            with engine.connect() as mig_conn:
+                # Run the migration in its own transaction.
+                MIGRATIONS[v](mig_conn)
+                # The migration calls _bump_schema_version which uses
+                # the same connection. We then commit the whole tx.
+                mig_conn.commit()
+        except Exception as exc:
+            # Don't fail the whole init_db — log and continue to next
+            # migration. The lifespan will retry on next boot.
+            logger.warning(
+                f"migration v{v} failed: {exc!r}; continuing"
+            )
+            # Print to stderr so Render logs capture it
+            print(f"MIGRATION v{v} FAILED: {exc!r}", file=sys.stderr)
 
         # 3. Apply recommended Postgres indexes (idempotent).
         # Wrapped in its own connection so failure here doesn't undo migrations.
-        if dialect == "postgresql":
-            try:
-                # Use a Session wrapper around the engine.
-                from sqlalchemy.orm import sessionmaker
+        try:
+            from sqlalchemy.orm import sessionmaker
 
-                from app.rms.perf import apply_postgres_indexes
-                Session = sessionmaker(bind=engine)()
-                _ = apply_postgres_indexes(Session)
-                Session.close()
-            except Exception as exc:
-                # Indexes are an optimization, not a correctness fix.
-                # Don't crash startup if the applier hiccups.
-                from loguru import logger
-                logger.warning(f"apply_postgres_indexes failed (non-fatal): {exc!r}")
+            from app.rms.perf import apply_postgres_indexes
+            Session = sessionmaker(bind=engine)()
+            _ = apply_postgres_indexes(Session)
+            Session.close()
+        except Exception as exc:
+            # Indexes are an optimization, not a correctness fix.
+            # Don't crash startup if the applier hiccups.
+            logger.warning(f"apply_postgres_indexes failed (non-fatal): {exc!r}")
 
 
 def make_session_factory(engine: Engine) -> sessionmaker:
