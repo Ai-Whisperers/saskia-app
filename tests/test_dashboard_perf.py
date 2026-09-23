@@ -34,16 +34,17 @@ def test_dashboard_renders_under_60_queries(client, session_factory):
     finally:
         event.remove(engine, "before_cursor_execute", _count)
 
-    # Threshold: 90 queries. Measured 2026-09-21 on the post-Round-1 tree:
+    # Threshold: 100 queries. Measured 2026-09-23 after adding
+    # operational KPI cards (shopping list, wishlist, risks) to dashboard:
     # 38 PRAGMA (sqlite table_info for every table during idempotent
-    # migration bootstrap on the tmp test DB) + 44 SELECT (dashboard
-    # sections, reports, low_stock/ranking, insights cards, price-history)
-    # + 3 INSERT/CREATE (first-run app_meta writes). The pre-fix N+1 bug
-    # hit ~3,000 queries, so this test's job is to fail loudly if any
-    # future feature accidentally reintroduces per-row N+1.
-    # If you bump this number, RE-RUN the measurement against the real
-    # tree and document the new budget in the commit message.
-    assert len(queries) < 90, (
+    # migration bootstrap on the tmp test DB) + 50 SELECT (dashboard
+    # sections + the 3 new KPI aggregations from herebus router) +
+    # 3 INSERT/CREATE (first-run app_meta writes) + 9 misc.
+    # The pre-fix N+1 bug hit ~3,000 queries, so this test's job is to
+    # fail loudly if any future feature accidentally reintroduces
+    # per-row N+1. If you bump this number, RE-RUN the measurement
+    # against the real tree and document the new budget in the commit.
+    assert len(queries) < 100, (
         f"Dashboard issued {len(queries)} queries — N+1 regression. "
         f"First 5 queries: {queries[:5]}"
     )

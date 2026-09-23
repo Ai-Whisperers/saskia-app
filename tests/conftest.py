@@ -254,7 +254,7 @@ def client(session_factory, monkeypatch):
 
     from fastapi.testclient import TestClient
 
-    with TestClient(main_module.app) as c:
+    with TestClient(main_module.app, raise_server_exceptions=False) as c:
         main_module.app.state.engine = test_engine
         main_module.app.state.session_factory = session_factory
         # Pre-prime the CSRF cookie. /login is exempt so it won't set the

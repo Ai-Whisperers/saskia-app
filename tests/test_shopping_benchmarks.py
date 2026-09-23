@@ -50,14 +50,14 @@ def test_shopping_list_route_in_app():
 def test_benchmark_edit_route_in_app():
     """The /benchmarks/{id}/edit route is registered."""
     paths = {r.path for r in app.routes if hasattr(r, "path")}
-    has = any(p.startswith("/benchmarks/") and p.endswith("/edit") for p in paths)
+    has = any(p.startswith("/vs-mercado/") and p.endswith("/edit") for p in paths)
     assert has
 
 
 def test_benchmark_save_route_in_app():
     """The /benchmarks/{id}/save route is registered."""
     paths = {r.path for r in app.routes if hasattr(r, "path")}
-    has = any(p.startswith("/benchmarks/") and p.endswith("/save") for p in paths)
+    has = any(p.startswith("/vs-mercado/") and p.endswith("/save") for p in paths)
     assert has
 
 

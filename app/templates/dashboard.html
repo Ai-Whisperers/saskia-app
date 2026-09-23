@@ -7,7 +7,7 @@
 </div>
 
 <div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
-  <div class="kpi-card"><div class="kpi-label">Revenue ₲</div><div class="kpi-value">₲{{ "{:,.0f}".format(revenue_gs) }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Revenue ₲</div><div class="kpi-value">{{ m.gs(revenue_gs) }}</div></div>
   <div class="kpi-card"><div class="kpi-label">Portions vendidas</div><div class="kpi-value">{{ portions }}</div></div>
   <div class="kpi-card {% if food_cost_pct < 35 %}good{% else %}warn{% endif %}">
     <div class="kpi-label">Food cost %</div><div class="kpi-value">{{ "%.1f"|format(food_cost_pct) }}%</div>
@@ -22,8 +22,8 @@
     <div class="kpi-label">Repeat %</div><div class="kpi-value">{{ repeat_pct }}%</div>
     <div class="kpi-target">target: 30%</div>
   </div>
-  <div class="kpi-card"><div class="kpi-label">Avg order ₲</div><div class="kpi-value">₲{{ "{:,.0f}".format(avg_order_gs) }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Waste ₲</div><div class="kpi-value">₲{{ "{:,.0f}".format(waste_gs) }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Avg order ₲</div><div class="kpi-value">{{ m.gs(avg_order_gs) }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Waste ₲</div><div class="kpi-value">{{ m.gs(waste_gs) }}</div></div>
   <div class="kpi-card {% if waste_pct < 5 %}good{% else %}warn{% endif %}">
     <div class="kpi-label">Waste %</div><div class="kpi-value">{{ "%.1f"|format(waste_pct) }}%</div>
     <div class="kpi-target">target: 5%</div>
@@ -41,7 +41,7 @@
 <div class="kpi-card" style="display:inline-block; padding:1rem; min-width:300px;">
   <div class="kpi-label">Receta más vendida</div>
   <div class="kpi-value" style="font-size:1.5rem;">{{ top_recipe_name }}</div>
-  <div class="muted">Revenue: ₲{{ "{:,.0f}".format(top_recipe_revenue_gs) }}</div>
+  <div class="muted">Revenue: {{ m.gs(top_recipe_revenue_gs) }}</div>
 </div>
 {% endif %}
 
@@ -53,7 +53,7 @@
     {% for ch, rev in by_channel.items() %}
     <tr>
       <td><strong>{{ ch }}</strong></td>
-      <td class="num">₲{{ "{:,.0f}".format(rev) }}</td>
+      <td class="num">{{ m.gs(rev) }}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -67,17 +67,17 @@
   <a href="/shopping-list" class="kpi-card" style="text-decoration:none;color:inherit;">
     <div class="kpi-label">Lista de Compras abiertas</div>
     <div class="kpi-value">{{ sl_open_count }}</div>
-    <div class="kpi-target" style="color:#dc2626;">₲{{ "{:,.0f}".format(sl_total_gs) }} estimados</div>
+    <div class="kpi-target" style="color:#dc2626;">{{ m.gs(sl_total_gs) }} estimados</div>
   </a>
   <a href="/wishlist" class="kpi-card" style="text-decoration:none;color:inherit;">
     <div class="kpi-label">Wishlist pendiente</div>
     <div class="kpi-value">{{ wishlist_count }}</div>
-    <div class="kpi-target" style="color:#b45309;">₲{{ "{:,.0f}".format(wishlist_total_gs) }} equipo</div>
+    <div class="kpi-target" style="color:#b45309;">{{ m.gs(wishlist_total_gs) }} equipo</div>
   </a>
   <a href="/riesgos" class="kpi-card" style="text-decoration:none;color:inherit;">
     <div class="kpi-label">Riesgos activos</div>
     <div class="kpi-value">{{ risk_count }}</div>
-    <div class="kpi-target" style="color:#dc2626;">₲{{ "{:,.0f}".format(risk_severity_gs) }} severidad</div>
+    <div class="kpi-target" style="color:#dc2626;">{{ m.gs(risk_severity_gs) }} severidad</div>
   </a>
   <a href="/benchmarks" class="kpi-card" style="text-decoration:none;color:inherit;">
     <div class="kpi-label">Benchmarks</div>

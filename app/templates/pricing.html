@@ -8,8 +8,8 @@
 
 <div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
   <div class="kpi-card"><div class="kpi-label">Recetas con pricing</div><div class="kpi-value">{{ rows|length }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Costo total (batch)</div><div class="kpi-value">₲{{ "{:,.0f}".format(total_cost_gs) }}</div></div>
-  <div class="kpi-card highlight"><div class="kpi-label">Valor retail</div><div class="kpi-value">₲{{ "{:,.0f}".format(total_retail_gs) }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Costo total (batch)</div><div class="kpi-value">{{ m.gs(total_cost_gs) }}</div></div>
+  <div class="kpi-card highlight"><div class="kpi-label">Valor retail</div><div class="kpi-value">{{ m.gs(total_retail_gs) }}</div></div>
 </div>
 
 <div class="muted" style="margin:1rem 0;">
@@ -36,13 +36,13 @@
     {% for r in rows %}
     <tr>
       <td><strong>{{ r.recipe.name }}</strong></td>
-      <td class="num">₲{{ "{:,.0f}".format(r.cost_total_gs) }}</td>
-      <td class="num">₲{{ "{:,.0f}".format(r.cost_per_unit_gs) }}</td>
-      <td class="num">₲{{ "{:,.0f}".format(r.wholesale_gs) }}</td>
-      <td class="num">₲{{ "{:,.0f}".format(r.private_label_gs) }}</td>
-      <td class="num">₲{{ "{:,.0f}".format(r.distributor_gs) }}</td>
-      <td class="num"><strong>₲{{ "{:,.0f}".format(r.retail_gs) }}</strong></td>
-      <td class="num">₲{{ "{:,.0f}".format(r.broker_commission_gs) }}</td>
+      <td class="num">{{ m.gs(r.cost_total_gs) }}</td>
+      <td class="num">{{ m.gs(r.cost_per_unit_gs) }}</td>
+      <td class="num">{{ m.gs(r.wholesale_gs) }}</td>
+      <td class="num">{{ m.gs(r.private_label_gs) }}</td>
+      <td class="num">{{ m.gs(r.distributor_gs) }}</td>
+      <td class="num"><strong>{{ m.gs(r.retail_gs) }}</strong></td>
+      <td class="num">{{ m.gs(r.broker_commission_gs) }}</td>
     </tr>
     {% endfor %}
   </tbody>

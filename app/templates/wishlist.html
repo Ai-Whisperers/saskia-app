@@ -10,8 +10,8 @@
   <div class="kpi-card"><div class="kpi-label">Items totales</div><div class="kpi-value">{{ pending_count + purchased_count }}</div></div>
   <div class="kpi-card"><div class="kpi-label">Pendientes</div><div class="kpi-value">{{ pending_count }}</div></div>
   <div class="kpi-card"><div class="kpi-label">Comprados</div><div class="kpi-value">{{ purchased_count }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Inversión total</div><div class="kpi-value">₲{{ "{:,.0f}".format(total_all_gs) }}</div></div>
-  <div class="kpi-card highlight"><div class="kpi-label">Pendiente ₲</div><div class="kpi-value">₲{{ "{:,.0f}".format(total_pending_gs) }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Inversión total</div><div class="kpi-value">{{ m.gs(total_all_gs) }}</div></div>
+  <div class="kpi-card highlight"><div class="kpi-label">Pendiente ₲</div><div class="kpi-value">{{ m.gs(total_pending_gs) }}</div></div>
 </div>
 
 {% for prio in ['must_have', 'nice_to_have', 'optional'] %}
@@ -35,8 +35,8 @@
           <td><code>{{ item.code or '' }}</code></td>
           <td><strong>{{ item.name }}</strong><br><small class="muted">{{ item.notes or '' }}</small></td>
           <td>{{ item.quantity }}</td>
-          <td class="num">₲{{ "{:,.0f}".format(item.unit_price_gs) }}</td>
-          <td class="num"><strong>₲{{ "{:,.0f}".format(item.unit_price_gs * item.quantity) }}</strong></td>
+          <td class="num">{{ m.gs(item.unit_price_gs) }}</td>
+          <td class="num"><strong>{{ m.gs(item.unit_price_gs * item.quantity) }}</strong></td>
           <td>{{ item.category or '' }}</td>
           <td><small>{{ item.buy_location or '' }}</small></td>
           <td>

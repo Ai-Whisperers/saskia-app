@@ -45,7 +45,7 @@
   <div class="card-header">
     <h2>{{ batches }}× {{ recipe.name }}</h2>
     {% if total_shortage_gs > 0 %}
-      <span class="badge badge-error">Falta ₲{{ "{:,.0f}".format(total_shortage_gs) }} de ingredientes</span>
+      <span class="badge badge-error">Falta {{ m.gs(total_shortage_gs) }} de ingredientes</span>
     {% else %}
       <span class="badge badge-success">✓ Stock suficiente</span>
     {% endif %}
@@ -75,8 +75,8 @@
             — ✓
           {% endif %}
         </td>
-        <td class="num">₲{{ "{:,.0f}".format(r.unit_price_gs) }}</td>
-        <td class="num">{% if r.line_shortage_gs > 0 %}₲{{ "{:,.0f}".format(r.line_shortage_gs) }}{% else %}—{% endif %}</td>
+        <td class="num">{{ m.gs(r.unit_price_gs) }}</td>
+        <td class="num">{% if r.line_shortage_gs > 0 %}{{ m.gs(r.line_shortage_gs) }}{% else %}—{% endif %}</td>
         <td>
           {% if r.sufficient %}
             <span class="badge badge-success">OK</span>

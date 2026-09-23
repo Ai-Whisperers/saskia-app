@@ -39,6 +39,7 @@ from functools import lru_cache
 from typing import Optional
 
 from fastapi import Depends, HTTPException, Request, status
+from loguru import logger
 from sqlalchemy.orm import Session
 
 # Re-export the session secret config (used by SessionMiddleware in main.py)
@@ -178,6 +179,14 @@ def require_login(request: Request):
     """
     user_id = current_user_id(request)
     if user_id is None:
+        ip = request.client.host if request.client else "?"
+        logger.warning(
+            "auth_required_denied path={} method={} ip={}",
+            request.url.path, request.method, ip,
+        )
+        # HTML clients get a 303 redirect to /login (preserves the
+        # "user navigated and got bounced" UX). API clients get a
+        # structured 401 JSON payload with reason_code header.
         accept = request.headers.get("accept", "")
         if "text/html" in accept:
             raise HTTPException(
@@ -186,7 +195,13 @@ def require_login(request: Request):
             )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
+            detail={
+                "error": "Necesitás iniciar sesión para acceder.",
+                "reason": "unauthenticated",
+                "path": request.url.path,
+                "ip": ip,
+            },
+            headers={"X-Reason-Code": "unauthenticated"},
         )
     return user_id
 

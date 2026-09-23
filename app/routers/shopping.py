@@ -18,11 +18,14 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
+from app.rms.errors import NotFound
+from app.rms.observability import record_audit
 from app.rms.models import (
     Ingredient,
     ProductionPlan,
@@ -82,43 +85,67 @@ def shopping_list_index(
 
 @router.post("/{item_id}/mark-purchased")
 def mark_purchased(
+    request: Request,
     item_id: int,
     session: Session = Depends(get_session),
 ):
     item = session.get(ShoppingListItem, item_id)
     if not item:
-        return RedirectResponse(url="/shopping-list", status_code=303)
+        raise NotFound("ShoppingListItem", id=item_id)
     item.purchased = True
     item.purchased_at = datetime.now(timezone.utc)
     session.commit()
+    logger.info(
+        "shopping_item_purchased id={} ingredient_id={} qty={} {}",
+        item.id, item.ingredient_id, item.qty_to_buy, item.unit,
+    )
+    record_audit(
+        request, session=session,
+        action="shopping.mark_purchased", target_type="ShoppingListItem",
+        target_id=item.id, detail={"ingredient_id": item.ingredient_id},
+    )
     return RedirectResponse(url="/shopping-list", status_code=303)
 
 
 @router.post("/{item_id}/unmark")
 def unmark_purchased(
+    request: Request,
     item_id: int,
     session: Session = Depends(get_session),
 ):
     """Allow marking unpurchased (undo)."""
     item = session.get(ShoppingListItem, item_id)
     if not item:
-        return RedirectResponse(url="/shopping-list", status_code=303)
+        raise NotFound("ShoppingListItem", id=item_id)
     item.purchased = False
     item.purchased_at = None
     session.commit()
+    logger.info("shopping_item_unmarked id={}", item.id)
+    record_audit(
+        request, session=session,
+        action="shopping.unmark", target_type="ShoppingListItem",
+        target_id=item.id,
+    )
     return RedirectResponse(url="/shopping-list", status_code=303)
 
 
 @router.post("/{item_id}/delete")
 def delete_item(
+    request: Request,
     item_id: int,
     session: Session = Depends(get_session),
 ):
     item = session.get(ShoppingListItem, item_id)
     if not item:
-        return RedirectResponse(url="/shopping-list", status_code=303)
+        raise NotFound("ShoppingListItem", id=item_id)
     session.delete(item)
     session.commit()
+    logger.info("shopping_item_deleted id={}", item_id)
+    record_audit(
+        request, session=session,
+        action="shopping.delete", target_type="ShoppingListItem",
+        target_id=item_id,
+    )
     return RedirectResponse(url="/shopping-list", status_code=303)
 
 

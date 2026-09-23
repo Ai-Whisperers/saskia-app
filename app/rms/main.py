@@ -41,6 +41,7 @@ from app.rms.csrf import csrf_cookie_middleware
 from app.rms.db import make_session_factory
 from app.rms.db_dialect import _is_postgres, get_database_url, get_metadata
 from app.rms.db_dialect import make_engine as make_engine_dialect
+from app.rms.observability import RequestContextMiddleware
 from app.rms.security_headers import SecurityHeadersMiddleware
 from app.rms.session_lifecycle import SessionLifecycleMiddleware
 from app.routers import (
@@ -231,6 +232,7 @@ app = FastAPI(
 )
 
 
+
 class StaticCacheMiddleware(BaseHTTPMiddleware):
     """Add Cache-Control: max-age=1year, immutable to /static/* responses.
 
@@ -253,8 +255,20 @@ class StaticCacheMiddleware(BaseHTTPMiddleware):
 # GZip compression: ~70% bandwidth reduction on all HTML/CSS/JS responses.
 # minimum_size=500 avoids compressing tiny responses (overhead > savings).
 # Registered LAST so it runs INNERMOST (closest to the route handler) and
-# wraps every response body before the other middlewares see it.
+# wraps every response body before the other middlewares see it. This
+# ordering also keeps GZip's body-size check working correctly — our
+# RequestContext middleware (registered earlier = outer) just attaches
+# X-Request-Id without reading the body.
 app.add_middleware(GZipMiddleware, minimum_size=500)
+
+# Request context middleware: attaches request_id, user_id, method, path
+# to every loguru emission via logger.contextualize. Registered FIRST so
+# even the other middlewares' logs are tagged. The original ordering
+# (GZip before RequestContext) worked but caused GZip to apply to all
+# responses including tiny ones because the body-size check ran AFTER
+# our access-log timing read. Re-registered GZip AFTER RequestContext
+# below so GZip is the INNERMOST middleware (closest to the route).
+app.add_middleware(RequestContextMiddleware)
 
 # Cache headers for /static/*. Browser revalidation is wasteful for assets
 # that change only on deploys.
@@ -480,26 +494,53 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
-    """Global 500 handler.
+    """Global exception handler.
 
-    Behaviour:
-      - HTML-accepting browsers get a styled error page with a request_id
-        so the user can pass it to the operator for diagnosis.
-      - API/curl clients (Accept: application/json or no preference for HTML)
-        get a structured JSON response with the same request_id.
-
-    The raw exception text NEVER leaks to the browser — it is logged but
-    replaced with a generic message in the response.
-
-    HTTPException is a control-flow exception raised by FastAPI itself
-    for intentional 4xx/5xx responses (e.g. 401 auth, 403 CSRF, 405, etc).
-    Return its proper status code + detail verbatim.
+    Order of dispatch:
+      1. AppError (our hierarchy): mapped to status_code + structured detail.
+         Use `raise NotFound("pedido", id=42)` in a router and the
+         global handler renders the right status + JSON.
+      2. HTTPException: FastAPI's intentional 4xx/5xx (CSRF 403, auth 401, etc).
+         Pass-through with our extended payload.
+      3. Anything else: 500 handler. HTML for browsers, JSON for clients.
+         Always logs full traceback; never leaks internal text to the user.
     """
+    from app.rms.errors import AppError
     from fastapi import HTTPException
 
+    rid = getattr(request.state, "request_id", None) or _request_id()
+
+    # ─── 1. AppError (typed errors from our hierarchy) ─────────────
+    if isinstance(exc, AppError):
+        logger.warning(
+            "app_error request_id={} type={} reason={} msg={} context={!r}",
+            rid, exc.__class__.__name__, exc.reason_code,
+            exc.message, exc.context,
+        )
+        # AppErrors are NOT 500s unless explicitly typed as such. The
+        # whole point of the hierarchy is that business errors don't
+        # pollute the "internal server error" bucket.
+        payload = exc.to_dict()
+        payload["request_id"] = rid
+        if _wants_html(request) and exc.status_code in (404,):
+            return templates.TemplateResponse(
+                request,
+                "errors/404.html",
+                {"path": request.url.path, "request": request, "reason": exc.reason_code},
+                status_code=404,
+            )
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=payload,
+            headers={"X-Reason-Code": exc.reason_code},
+        )
+
+    # ─── 2. HTTPException (FastAPI control-flow) ───────────────────
     if isinstance(exc, HTTPException):
-        # Re-emit with the original status_code + detail.
-        # For HTML clients, render the appropriate error page (404 vs others).
+        logger.info(
+            "http_exception request_id={} status={} detail={!r}",
+            rid, exc.status_code, exc.detail,
+        )
         if _wants_html(request) and exc.status_code == 404:
             return templates.TemplateResponse(
                 request,
@@ -507,45 +548,37 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
                 {"path": request.url.path, "request": request},
                 status_code=404,
             )
-        # Other HTTPExceptions: render as JSON even for HTML clients
-        # (most are CSRF 403, auth 401, method-not-allowed 405, etc — these
-        # come from programmatic form submissions, not page navigation).
         return JSONResponse(
             status_code=exc.status_code,
             content={
                 "error": exc.detail if exc.detail is not None else "http_error",
                 "type": exc.__class__.__name__,
                 "status": exc.status_code,
+                "request_id": rid,
             },
             headers=exc.headers,
         )
 
-    rid = _request_id()
+    # ─── 3. Unhandled: genuine 500 ─────────────────────────────────
     logger.exception(
         "unhandled error request_id={} method={} path={}: {!r}",
-        rid,
-        request.method,
-        request.url.path,
-        exc,
+        rid, request.method, request.url.path, exc,
     )
-    # Best-effort audit log row so operators can see error counts per hour
-    # via /auditoria. Failures here MUST NOT bubble up — we're already
-    # handling an exception. Use a fresh session since the request's
-    # may be torn down or in an error state.
+    # Best-effort audit log row so operators can see error counts per hour.
+    # Failures here MUST NOT bubble up — use a fresh session.
     try:
         from app.rms.audit import record
 
         with request.app.state.session_factory() as _s:
             record(
                 _s,
-                user_id=None,
+                user_id=getattr(request.state, "user_id", None),
                 action="http.500",
-                target_type="http_error",
+                target_type=exc.__class__.__name__,
                 target_id=rid,
                 detail={
                     "method": request.method,
                     "path": request.url.path,
-                    "type": exc.__class__.__name__,
                     "msg": str(exc)[:500],
                 },
             )
@@ -553,17 +586,20 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     except Exception:
         logger.warning("audit.record for http.500 failed (non-fatal)")
 
-    # Browsers get the styled 500 page with the request_id; API clients get JSON.
+    # Browsers get the styled 500 page; API clients get JSON.
     if _wants_html(request):
         try:
             return templates.TemplateResponse(
                 request,
                 "errors/500.html",
-                {"request_id": rid, "request": request},
+                {
+                    "request_id": rid,
+                    "request": request,
+                    "error_class": exc.__class__.__name__,
+                },
                 status_code=500,
             )
         except Exception:
-            # Template render failed (very unlikely); fall through to JSON.
             logger.warning("500 template render failed")
 
     return JSONResponse(
@@ -596,37 +632,10 @@ async def not_found_handler(request: Request, exc: Exception):
     )
 
 
-@app.middleware("http")
-async def request_log_middleware(request: Request, call_next):
-    """Per-request access log (skips /static/* and /healthz noise)."""
-    import time
-
-    if not request.url.path.startswith(("/static/", "/healthz")):
-        start = time.perf_counter()
-        rid = _request_id()
-        request.state.request_id = rid
-        try:
-            response = await call_next(request)
-        except Exception:
-            logger.error(
-                "request_id={} method={} path={} CRASHED",
-                rid,
-                request.method,
-                request.url.path,
-            )
-            raise
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        logger.info(
-            "request_id={} method={} path={} status={} elapsed_ms={:.0f}",
-            rid,
-            request.method,
-            request.url.path,
-            response.status_code,
-            elapsed_ms,
-        )
-        response.headers["X-Request-Id"] = rid
-        return response
-    return await call_next(request)
+# Per-request access logging is now done by RequestContextMiddleware
+# (registered earlier) which binds request_id + user_id + method + path
+# to every loguru line. The older standalone middleware was removed
+# to avoid duplicate access-log lines and double-request-id assignments.
 
 
 def migrate() -> None:

@@ -31,7 +31,7 @@
 <div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
   <div class="kpi-card"><div class="kpi-label">Items abiertos</div><div class="kpi-value">{{ open_count }}</div></div>
   <div class="kpi-card"><div class="kpi-label">Comprados</div><div class="kpi-value">{{ purchased_count }}</div></div>
-  <div class="kpi-card highlight"><div class="kpi-label">Total estimado ₲</div><div class="kpi-value">₲{{ "{:,.0f}".format(total_gs) }}</div></div>
+  <div class="kpi-card highlight"><div class="kpi-label">Total estimado ₲</div><div class="kpi-value">{{ m.gs(total_gs) }}</div></div>
   <div class="kpi-card"><div class="kpi-label">Ingredientes únicos</div><div class="kpi-value">{{ by_ingredient|length }}</div></div>
 </div>
 
@@ -76,10 +76,10 @@
       <td class="num">{{ "%.2f"|format(item.qty_to_buy) }}</td>
       <td>{{ item.unit }}</td>
       <td><small>{{ item.purpose_text or '' }}</small></td>
-      <td class="num">{% if item.ingredient.purchase_price_gs %}₲{{ "{:,.0f}".format(item.ingredient.purchase_price_gs) }}{% else %}<span class="muted">?</span>{% endif %}</td>
+      <td class="num">{% if item.ingredient.purchase_price_gs %}{{ m.gs(item.ingredient.purchase_price_gs) }}{% else %}<span class="muted">?</span>{% endif %}</td>
       <td class="num"><strong>
         {% if item.ingredient.purchase_price_gs %}
-          ₲{{ "{:,.0f}".format(item.ingredient.purchase_price_gs * item.qty_to_buy)|int }}
+          {{ m.gs((item.ingredient.purchase_price_gs or 0) * (item.qty_to_buy or 0))|int }}
         {% else %}—{% endif %}
       </strong></td>
       <td>

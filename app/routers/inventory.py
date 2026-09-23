@@ -11,11 +11,19 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from loguru import logger
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
+from app.rms.errors import (
+    AlreadyExists,
+    BadRequest,
+    Conflict,
+    NotFound,
+)
+from app.rms.observability import record_audit
 from app.rms.charts import sparkline
 from app.rms.dependencies import get_session
 from app.rms.models import Ingredient, IngredientPriceEvent, RecipeLine, Recipe, StockMovement
@@ -210,13 +218,13 @@ def inventory_create(
     try:
         unit_enum = Unit.coerce(unit)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Unidad inválida: {e}") from e
+        raise BadRequest(f"Unidad inválida: {e}", context={"unit": str(unit)}, cause=e)
 
     price = _parse_price(purchase_price_gs)
     if stock_qty < 0:
-        raise HTTPException(status_code=400, detail="Stock no puede ser negativo")
+        raise BadRequest("El stock no puede ser negativo.", context={"stock_qty": stock_qty})
     if min_stock_qty < 0:
-        raise HTTPException(status_code=400, detail="Stock mínimo no puede ser negativo")
+        raise BadRequest("El stock mínimo no puede ser negativo.", context={"min_stock_qty": min_stock_qty})
 
     opening_qty = float(opening_stock_qty) if opening_stock_qty.strip() else None
     opening_date = opening_stock_date.strip() or None
@@ -237,11 +245,24 @@ def inventory_create(
     session.add(ing)
     try:
         session.commit()
-    except IntegrityError:
+    except IntegrityError as e:
         session.rollback()
-        raise HTTPException(
-            status_code=409, detail=f"Ya existe un ingrediente con nombre {name!r}"
-        ) from None
+        raise AlreadyExists(
+            f"Ya existe un ingrediente con nombre {name!r}",
+            context={"name": name},
+            cause=e,
+        )
+
+    # Audit + info log
+    logger.info(
+        "ingredient_created id={} name={!r} unit={} stock={}",
+        ing.id, ing.name, ing.unit, ing.stock_qty,
+    )
+    record_audit(
+        request, session=session,
+        action="ingredient.create", target_type="Ingredient",
+        target_id=ing.id, detail={"name": ing.name, "unit": ing.unit},
+    )
 
     # Record an initial stock movement if opening stock was set
     if opening_qty is not None and opening_qty != stock_qty:
@@ -268,11 +289,9 @@ def inventory_create(
             session.commit()
         except Exception:
             # Don't fail the whole request on a price-history write error.
-            from loguru import logger
-
             logger.warning(
-                f"record_price_event failed for new ingredient {ing.id}",
-                exc_info=True,
+                "record_price_event failed for new ingredient ing_id={}",
+                ing.id, exc_info=True,
             )
 
     return RedirectResponse(url="/inventario", status_code=303)
@@ -287,7 +306,7 @@ def inventory_detail(
     """Show ingredient detail page with 'used in recipes' list."""
     ing = session.get(Ingredient, ing_id)
     if ing is None:
-        raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
+        raise NotFound("Ingredient", id=ing_id)
 
     # Find all recipes that use this ingredient
     recipe_lines = session.scalars(
@@ -324,7 +343,7 @@ def inventory_edit(
     """Show the edit form for an ingredient."""
     ing = session.get(Ingredient, ing_id)
     if ing is None:
-        raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
+        raise NotFound("Ingredient", id=ing_id)
     return render(
         request,
         "inventario_form.html",
@@ -359,7 +378,7 @@ def inventory_update(
 
     ing = session.get(Ingredient, ing_id)
     if ing is None:
-        raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
+        raise NotFound("Ingredient", id=ing_id)
 
     name_clean = require_text(name, field="nombre", max_len=120)
     unit_enum = parse_unit(unit)
@@ -406,11 +425,9 @@ def inventory_update(
             record_price_event(session, ing.id, price, source="manual")
             session.commit()
         except Exception:
-            from loguru import logger
-
             logger.warning(
-                f"record_price_event failed for ingredient {ing.id} update",
-                exc_info=True,
+                "record_price_event failed for ingredient ing_id={} update",
+                ing.id, exc_info=True,
             )
 
     return RedirectResponse(url="/inventario", status_code=303)
@@ -425,7 +442,7 @@ def inventory_delete(
     """Delete an ingredient. Blocked if it's used in a recipe."""
     ing = session.get(Ingredient, ing_id)
     if ing is None:
-        raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
+        raise NotFound("Ingredient", id=ing_id)
 
     # Check if ingredient is on any recipe
     usage = session.scalar(
@@ -437,9 +454,9 @@ def inventory_delete(
         .limit(1)
     )
     if usage is not None:
-        raise HTTPException(
-            status_code=409,
-            detail="No se puede eliminar: el ingrediente está en una receta. Quitá la línea primero.",
+        raise Conflict(
+            "No se puede eliminar: el ingrediente está en una receta. Quitá la línea primero.",
+            context={"ingredient_id": ing_id, "name": ing.name, "recipe_line_id": usage.id},
         )
 
     session.delete(ing)
@@ -466,7 +483,7 @@ def inventory_adjust(
     """
     ing = session.get(Ingredient, ing_id)
     if ing is None:
-        raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
+        raise NotFound("Ingredient", id=ing_id)
 
     if adjustment == 0:
         # Don't silently accept a no-op. Tell the operator what happened.
@@ -517,7 +534,7 @@ def inventory_movements(
     """Show the movement history for one ingredient."""
     ing = session.get(Ingredient, ing_id)
     if ing is None:
-        raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
+        raise NotFound("Ingredient", id=ing_id)
 
     movements = session.scalars(
         select(StockMovement)
@@ -569,7 +586,7 @@ def _parse_price(raw: str) -> int | None:
 
         return parse_gs(raw)
     except (ValueError, TypeError) as e:
-        raise HTTPException(status_code=400, detail=f"Precio inválido: {raw!r}") from e
+        raise BadRequest(f"Precio inválido: {raw!r}", context={"raw": raw}, cause=e)
 
 
 __all__ = ["router"]

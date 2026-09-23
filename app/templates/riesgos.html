@@ -10,7 +10,7 @@
   <div class="kpi-card"><div class="kpi-label">Activos</div><div class="kpi-value">{{ active_count }}</div></div>
   <div class="kpi-card"><div class="kpi-label">Mitigados</div><div class="kpi-value">{{ mitigated_count }}</div></div>
   <div class="kpi-card"><div class="kpi-label">Cerrados</div><div class="kpi-value">{{ closed_count }}</div></div>
-  <div class="kpi-card highlight"><div class="kpi-label">Severidad total ₲</div><div class="kpi-value">₲{{ "{:,.0f}".format(severity_total_gs) }}</div></div>
+  <div class="kpi-card highlight"><div class="kpi-label">Severidad total ₲</div><div class="kpi-value">{{ m.gs(severity_total_gs) }}</div></div>
 </div>
 
 {% for cat, items in by_category.items() %}
@@ -28,8 +28,8 @@
       <td><code>{{ r.code }}</code></td>
       <td>{{ r.description }}</td>
       <td class="num">{{ r.probability }}/5</td>
-      <td class="num">₲{{ "{:,.0f}".format(r.impact_gs) }}</td>
-      <td class="num"><strong>₲{{ "{:,.0f}".format(r.severity) }}</strong></td>
+      <td class="num">{{ m.gs(r.impact_gs) }}</td>
+      <td class="num"><strong>{{ m.gs(r.severity) }}</strong></td>
       <td><small>{{ r.mitigation or '' }}</small></td>
       <td>
         {% if r.status == 'activo' %}<span class="badge badge-error">🔴 Activo</span>

@@ -10,7 +10,7 @@
   <div class="kpi-card"><div class="kpi-label">EUR income</div><div class="kpi-value">€{{ "{:,.2f}".format(eur_income) }}</div></div>
   <div class="kpi-card"><div class="kpi-label">EUR spent</div><div class="kpi-value">€{{ "{:,.2f}".format(eur_spent) }}</div></div>
   <div class="kpi-card highlight"><div class="kpi-label">EUR net</div><div class="kpi-value">€{{ "{:,.2f}".format(eur_net) }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">PYG balance</div><div class="kpi-value">₲{{ "{:,.0f}".format(pyg_balance_gs) }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">PYG balance</div><div class="kpi-value">{{ m.gs(pyg_balance_gs) }}</div></div>
 </div>
 
 {% if active_category %}

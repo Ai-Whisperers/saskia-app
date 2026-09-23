@@ -21,11 +21,30 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
+from app.rms.errors import (
+    BadRequest,
+    NotFound,
+)
+from app.rms.messages import (
+    BANK_ADDED,
+    BANK_CATEGORY_UPDATED,
+    BANK_TX_NOT_FOUND,
+    BENCHMARK_NOT_FOUND,
+    BENCHMARK_UPDATED,
+    SHOPPING_LIST_DELETED,
+    SHOPPING_LIST_ITEM_NOT_FOUND,
+    SHOPPING_LIST_PURCHASED,
+    SHOPPING_LIST_UNMARKED,
+    WISHLIST_ITEM_NOT_FOUND,
+    WISHLIST_ITEM_PURCHASED,
+)
+from app.rms.observability import record_audit
 from app.rms.models import (
     BankTransaction,
     Customer,
@@ -51,7 +70,7 @@ wishlist_router = APIRouter(prefix="/wishlist", dependencies=[Depends(require_lo
 risks_router = APIRouter(prefix="/riesgos", dependencies=[Depends(require_login)])
 pricing_router = APIRouter(prefix="/pricing", dependencies=[Depends(require_login)])
 bank_router = APIRouter(prefix="/bank", dependencies=[Depends(require_login)])
-benchmarks_router = APIRouter(prefix="/benchmarks", dependencies=[Depends(require_login)])
+benchmarks_router = APIRouter(prefix="/vs-mercado", dependencies=[Depends(require_login)])
 dashboard_router = APIRouter(prefix="/dashboard", dependencies=[Depends(require_login)])
 planner_router = APIRouter(prefix="/produccion-planner", dependencies=[Depends(require_login)])
 delivery_router = APIRouter(prefix="/delivery-zones", dependencies=[Depends(require_login)])
@@ -92,7 +111,7 @@ def wishlist_list(request: Request, session: Session = Depends(get_session)) -> 
     )
 
 
-@wishlist_router.post("/mark-purchased")
+@wishlist_router.post("/{item_id}/mark-purchased")
 async def wishlist_mark_purchased(
     request: Request,
     item_id: int,
@@ -100,10 +119,19 @@ async def wishlist_mark_purchased(
 ):
     item = session.get(WishlistItem, item_id)
     if not item:
-        return RedirectResponse(url="/wishlist", status_code=303)
+        raise NotFound("WishlistItem", id=item_id)
     item.purchased = True
     item.purchased_at = datetime.now(timezone.utc)
     session.commit()
+    logger.info(
+        "wishlist_marked_purchased item_id={} name={!r} price_gs={}",
+        item.id, item.name, item.unit_price_gs,
+    )
+    record_audit(
+        request, session=session,
+        action="wishlist.mark_purchased", target_type="WishlistItem",
+        target_id=item.id, detail={"name": item.name},
+    )
     return RedirectResponse(url="/wishlist", status_code=303)
 
 
@@ -124,23 +152,9 @@ async def wishlist_send_to_shopping_list(
             status_code=303,
         )
     # Create a shopping list entry for the equipment.
-    # We use a special "Ingredient" proxy: if there's no matching
-    # Ingredient, we create an EquipmentItem entry instead. For now,
-    # simple path: drop into a generic entry that the user can see.
-    from app.rms.models import ShoppingListItem
-    sl = ShoppingListItem(
-        ingredient_id=1 if False else None,  # placeholder; fix below
-        production_plan_id=None,
-        qty_to_buy=item.quantity,
-        unit="und",
-        purpose_text=f"WISHLIST: {item.name} (₲{item.unit_price_gs:,} c/u)",
-    )
-    # ingredient_id is non-nullable; we need to create or find an
-    # "Equipment" pseudo-ingredient. For now, simplest path:
-    # if there's no Ingredient with that name, we error.
-    session.rollback()
-    # Instead: create the Ingredient on-the-fly (Equipment category).
-    from app.rms.models import Ingredient
+    # Equipment items don't have an Ingredient row, so we create an
+    # "[EQUIPMENT] {name}" pseudo-ingredient on the fly.
+    from app.rms.models import ShoppingListItem, Ingredient
     eq_ing = session.execute(
         select(Ingredient).where(Ingredient.name == f"[EQUIPMENT] {item.name}")
     ).scalars().first()
@@ -288,9 +302,9 @@ async def bank_add(
     try:
         posted_at_dt = dt.strptime(posted_at, "%Y-%m-%d")
     except ValueError:
-        return RedirectResponse(
-            url="/bank?error=invalid_date",
-            status_code=303,
+        raise BadRequest(
+            "Fecha inválida.",
+            context={"posted_at": posted_at, "expected_format": "YYYY-MM-DD"},
         )
 
     tx = BankTransaction(
@@ -305,6 +319,18 @@ async def bank_add(
     )
     session.add(tx)
     session.commit()
+    logger.info(
+        "bank_tx_added id={} amount={} {} category={} description={!r}",
+        tx.id, amount, currency.upper(), category, description[:60] if description else "",
+    )
+    record_audit(
+        request, session=session,
+        action="bank.add", target_type="BankTransaction",
+        target_id=tx.id, detail={
+            "amount": amount, "currency": currency.upper(),
+            "category": category, "counterparty": counterparty_name,
+        },
+    )
     return RedirectResponse(url="/bank", status_code=303)
 
 
@@ -318,9 +344,21 @@ async def bank_categorize(
     """Auto-categorize a bank transaction."""
     tx = session.get(BankTransaction, tx_id)
     if not tx:
-        return RedirectResponse(url="/bank", status_code=303)
+        raise NotFound("BankTransaction", id=tx_id)
+    old_category = tx.category
     tx.category = category
     session.commit()
+    logger.info(
+        "bank_tx_recategorized id={} {} → {} amount={} {}",
+        tx.id, old_category, category, tx.amount, tx.currency,
+    )
+    record_audit(
+        request, session=session,
+        action="bank.recategorize", target_type="BankTransaction",
+        target_id=tx.id, detail={
+            "from": old_category, "to": category, "amount": tx.amount,
+        },
+    )
     return RedirectResponse(url="/bank", status_code=303)
 
 
@@ -421,7 +459,7 @@ def benchmarks_edit(
     """Render the edit form for a single benchmark."""
     bench = session.get(MarketBenchmark, bench_id)
     if not bench:
-        return RedirectResponse(url="/benchmarks", status_code=303)
+        return RedirectResponse(url="/vs-mercado", status_code=303)
     return render(
         request,
         "benchmark_edit.html",
@@ -444,7 +482,7 @@ def benchmarks_save(
     """Save edited competitor prices."""
     bench = session.get(MarketBenchmark, bench_id)
     if not bench:
-        return RedirectResponse(url="/benchmarks", status_code=303)
+        return RedirectResponse(url="/vs-mercado", status_code=303)
     bench.our_wholesale_gs = our_wholesale_gs or None
     bench.our_retail_gs = our_retail_gs or None
     bench.comp_min_gs = comp_min_gs or None
@@ -530,34 +568,56 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
             by_recipe[s.product.name] += int(s.qty * s.unit_price_gs)
     top_recipe = max(by_recipe.items(), key=lambda kv: kv[1], default=("—", 0))
 
-    # Shopping list KPIs
-    from app.rms.models import ShoppingListItem, ProductionPlan
-    sl_open = session.execute(
-        select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False))
-    ).scalars().all()
-    sl_open_count = len(sl_open)
-    sl_total_gs = sum(
-        int((item.qty_to_buy or 0) * (item.ingredient.purchase_price_gs or 0))
-        for item in sl_open
+    # Shopping list + wishlist + risks KPIs (batched: one query per entity).
+    # Total ~6 queries — see test_dashboard_perf.py budget.
+    from app.rms.models import (
+        ProductionPlan,
+        RiskItem,
+        ShoppingListItem,
+        WishlistItem,
     )
 
-    # Equipment wishlist pending
-    from app.rms.models import WishlistItem
-    wishlist_pending = session.execute(
-        select(WishlistItem).where(WishlistItem.purchased.is_(False))
-    ).scalars().all()
-    wishlist_count = len(wishlist_pending)
-    wishlist_total_gs = sum(
-        (w.unit_price_gs or 0) * w.quantity for w in wishlist_pending
-    )
+    # Shopping list: count + total estimated ₲ in one query
+    from sqlalchemy import func as sa_func
+    from app.rms.models import Ingredient
+    sl_agg = session.execute(
+        select(
+            sa_func.count(ShoppingListItem.id),
+            sa_func.coalesce(
+                sa_func.sum(
+                    ShoppingListItem.qty_to_buy * Ingredient.purchase_price_gs
+                ),
+                0,
+            ),
+        )
+        .join(Ingredient, ShoppingListItem.ingredient_id == Ingredient.id)
+        .where(ShoppingListItem.purchased.is_(False))
+    ).one()
+    sl_open_count, sl_total_gs = int(sl_agg[0] or 0), int(sl_agg[1] or 0)
 
-    # Active risks
-    from app.rms.models import RiskItem
-    active_risks = session.execute(
-        select(RiskItem).where(RiskItem.status == "activo")
-    ).scalars().all()
-    risk_count = len(active_risks)
-    risk_severity_gs = sum(r.probability * r.impact_gs for r in active_risks)
+    # Wishlist: count + total
+    wishlist_agg = session.execute(
+        select(
+            sa_func.count(WishlistItem.id),
+            sa_func.coalesce(
+                sa_func.sum(WishlistItem.unit_price_gs * WishlistItem.quantity),
+                0,
+            ),
+        ).where(WishlistItem.purchased.is_(False))
+    ).one()
+    wishlist_count, wishlist_total_gs = int(wishlist_agg[0] or 0), int(wishlist_agg[1] or 0)
+
+    # Risks: count + total severity (probability × impact)
+    risk_agg = session.execute(
+        select(
+            sa_func.count(RiskItem.id),
+            sa_func.coalesce(
+                sa_func.sum(RiskItem.probability * RiskItem.impact_gs),
+                0,
+            ),
+        ).where(RiskItem.status == "activo")
+    ).one()
+    risk_count, risk_severity_gs = int(risk_agg[0] or 0), int(risk_agg[1] or 0)
 
     return render(
         request,
