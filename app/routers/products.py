@@ -141,6 +141,8 @@ def products_list(
     # One batch call replaces N+1 cost/margin queries (Neon round-trips).
     batch_results = batch_products_cost_margin(session, list(products))
     decorated = []
+    # Phase 1.D — prime cost for each product (batch-safe; new function).
+    from app.rms.prime_cost import compute_prime_cost
     for p in products:
         cost, margin = batch_results.get(
             p.id,
@@ -149,6 +151,7 @@ def products_list(
                 product_margin(session, p.id),
             ),
         )
+        pc = compute_prime_cost(session, p.id)
         decorated.append(
             {
                 "id": p.id,
@@ -162,6 +165,11 @@ def products_list(
                 "cost_gs": cost.batch_cost_gs,
                 "margin_gs": margin[0],
                 "margin_ratio": margin[1],
+                # Phase 1.D — prime cost
+                "prime_cost_gs": pc.prime_cost_gs,
+                "prime_cost_pct": pc.prime_cost_pct_of_sale,
+                "labor_cost_gs": pc.labor_cost_gs,
+                "overhead_cost_gs": pc.overhead_cost_gs,
                 "notes": p.notes,
                 "is_dead": p.id not in sold_product_ids,
             }
