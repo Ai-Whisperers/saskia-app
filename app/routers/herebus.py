@@ -530,6 +530,35 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
             by_recipe[s.product.name] += int(s.qty * s.unit_price_gs)
     top_recipe = max(by_recipe.items(), key=lambda kv: kv[1], default=("—", 0))
 
+    # Shopping list KPIs
+    from app.rms.models import ShoppingListItem, ProductionPlan
+    sl_open = session.execute(
+        select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False))
+    ).scalars().all()
+    sl_open_count = len(sl_open)
+    sl_total_gs = sum(
+        int((item.qty_to_buy or 0) * (item.ingredient.purchase_price_gs or 0))
+        for item in sl_open
+    )
+
+    # Equipment wishlist pending
+    from app.rms.models import WishlistItem
+    wishlist_pending = session.execute(
+        select(WishlistItem).where(WishlistItem.purchased.is_(False))
+    ).scalars().all()
+    wishlist_count = len(wishlist_pending)
+    wishlist_total_gs = sum(
+        (w.unit_price_gs or 0) * w.quantity for w in wishlist_pending
+    )
+
+    # Active risks
+    from app.rms.models import RiskItem
+    active_risks = session.execute(
+        select(RiskItem).where(RiskItem.status == "activo")
+    ).scalars().all()
+    risk_count = len(active_risks)
+    risk_severity_gs = sum(r.probability * r.impact_gs for r in active_risks)
+
     return render(
         request,
         "dashboard.html",
@@ -555,6 +584,12 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
             "top_recipe_revenue_gs": top_recipe[1],
             "month_label": month_start.strftime("%B %Y"),
             "tx_count_this_month": len(sales_this_month),
+            "sl_open_count": sl_open_count,
+            "sl_total_gs": sl_total_gs,
+            "wishlist_count": wishlist_count,
+            "wishlist_total_gs": wishlist_total_gs,
+            "risk_count": risk_count,
+            "risk_severity_gs": risk_severity_gs,
         },
     )
 

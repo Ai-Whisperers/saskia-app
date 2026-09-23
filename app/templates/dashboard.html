@@ -62,6 +62,30 @@
 <p class="muted">Sin ventas este mes aún.</p>
 {% endif %}
 
+<h2 style="margin-top:2rem;">🛒 Operación</h2>
+<div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
+  <a href="/shopping-list" class="kpi-card" style="text-decoration:none;color:inherit;">
+    <div class="kpi-label">Lista de Compras abiertas</div>
+    <div class="kpi-value">{{ sl_open_count }}</div>
+    <div class="kpi-target" style="color:#dc2626;">₲{{ "{:,.0f}".format(sl_total_gs) }} estimados</div>
+  </a>
+  <a href="/wishlist" class="kpi-card" style="text-decoration:none;color:inherit;">
+    <div class="kpi-label">Wishlist pendiente</div>
+    <div class="kpi-value">{{ wishlist_count }}</div>
+    <div class="kpi-target" style="color:#b45309;">₲{{ "{:,.0f}".format(wishlist_total_gs) }} equipo</div>
+  </a>
+  <a href="/riesgos" class="kpi-card" style="text-decoration:none;color:inherit;">
+    <div class="kpi-label">Riesgos activos</div>
+    <div class="kpi-value">{{ risk_count }}</div>
+    <div class="kpi-target" style="color:#dc2626;">₲{{ "{:,.0f}".format(risk_severity_gs) }} severidad</div>
+  </a>
+  <a href="/benchmarks" class="kpi-card" style="text-decoration:none;color:inherit;">
+    <div class="kpi-label">Benchmarks</div>
+    <div class="kpi-value">17</div>
+    <div class="kpi-target">vs competencia</div>
+  </a>
+</div>
+
 <p class="muted" style="margin-top:2rem;">
   💡 Source: Computed live from Sale table. Targets from HEREBUS_Analisis KPI_Dashboard sheet.
   {{ tx_count_this_month }} transacciones este mes.

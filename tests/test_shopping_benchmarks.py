@@ -124,3 +124,36 @@ def test_shopping_list_save_plan_route():
     paths = {r.path for r in app.routes if hasattr(r, "path")}
     has = any(p == "/shopping-list/save-plan/{plan_id}" for p in paths)
     assert has
+
+
+def test_sync_low_stock_route_in_app():
+    """The /shopping-list/sync-low-stock route exists."""
+    paths = {r.path for r in app.routes if hasattr(r, "path")}
+    assert "/shopping-list/sync-low-stock" in paths
+
+
+def test_bank_add_route_in_app():
+    """The /bank/add route exists."""
+    paths = {r.path for r in app.routes if hasattr(r, "path")}
+    assert "/bank/add" in paths
+
+
+def test_bank_categorize_route_in_app():
+    """The /bank/{id}/categorize route exists."""
+    paths = {r.path for r in app.routes if hasattr(r, "path")}
+    has = any(p.startswith("/bank/") and p.endswith("/categorize") for p in paths)
+    assert has
+
+
+def test_dashboard_kpis_present():
+    """The dashboard route loads without error and has operational KPIs."""
+    paths = {r.path for r in app.routes if hasattr(r, "path")}
+    assert "/dashboard" in paths
+    # The new operational KPIs are present in dashboard.html
+    from pathlib import Path
+    p = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/dashboard.html")
+    content = p.read_text()
+    assert "sl_open_count" in content
+    assert "wishlist_count" in content
+    assert "risk_count" in content
+    assert "Benchmarks" in content  # the 4th KPI card
