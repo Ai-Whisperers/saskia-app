@@ -36,7 +36,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import Response
 
 from app.auth import SESSION_SECRET
-from app.rms.config import BIND_HOST, ensure_dirs
+from app.rms.config import BIND_HOST, CURRENT_SCHEMA_VERSION, ensure_dirs
 from app.rms.csrf import csrf_cookie_middleware
 from app.rms.db import make_session_factory
 from app.rms.db_dialect import _is_postgres, get_database_url, get_metadata
@@ -174,14 +174,32 @@ async def lifespan(app: FastAPI):
     # safer than opt-in.
     if os.getenv("AIW_SASKIA_RUN_MIGRATIONS", "1") != "0":
         try:
-            from app.rms.db import init_db
+            from app.rms.db import init_db, schema_version
 
             init_db(engine)
-            print("MIGRATIONS: applied (idempotent, no-op if already current)", file=sys.stderr)
+            with engine.connect() as conn:
+                post = schema_version(conn)
+            print(
+                f"MIGRATIONS: applied (schema_version={post}, code={CURRENT_SCHEMA_VERSION})",
+                file=sys.stderr,
+            )
+            app.state.migration_status = "ok"
+            app.state.migration_error = None
+            app.state.migration_schema_version = post
         except Exception as exc:
             # Migrations must never crash the app. Log and continue.
             print(f"MIGRATIONS: failed to apply: {exc!r}", file=sys.stderr)
             logger.exception("migration apply failed on startup")
+            # Store error state so /healthz/migrate can surface it.
+            try:
+                from app.rms.db import schema_version as _sv
+                with engine.connect() as conn:
+                    pre = _sv(conn)
+            except Exception:
+                pre = None
+            app.state.migration_status = "failed"
+            app.state.migration_error = repr(exc)
+            app.state.migration_schema_version = pre
 
     app.state.engine = engine
     app.state.session_factory = make_session_factory(engine)

@@ -38,6 +38,7 @@ _EXEMPT_PATHS = frozenset({
     "/healthz",
     "/healthz/db",
     "/healthz/deps",
+    "/healthz/migrate",        # emergency migration trigger (Render slow-to-deploy fallback)
 })
 
 _serializer = URLSafeSerializer(SESSION_SECRET, salt="csrf-v1")

@@ -281,10 +281,57 @@ def healthz_schema(request: Request) -> JSONResponse:
     return JSONResponse(status_code=200, content=body)
 
 
+@router.post("/healthz/migrate")
+def healthz_migrate(request: Request):
+    """Unauthenticated migration trigger (operator escape hatch).
+
+    Same effect as /admin/migrate but without auth — intended for
+    Render deploy hooks or emergency hotfixes where the operator
+    can't log in.
+
+    Idempotent (calls init_db() which no-ops if at target version).
+    Public: anyone can hit this, but the operation is harmless
+    (only adds missing columns/tables).
+
+    Returns:
+      200: {status: migrated, schema_version: N, code_schema_version: 32}
+      500: {error: migration_failed, detail: ...}
+    """
+    from app.rms.db import CURRENT_SCHEMA_VERSION, init_db
+
+    engine = getattr(request.app.state, "engine", None)
+    if engine is None:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "server_not_ready"},
+        )
+
+    try:
+        init_db(engine)
+    except Exception as exc:
+        return JSONResponse(
+            status_code=500,
+            content={"error": "migration_failed", "detail": str(exc)[:500]},
+        )
+
+    from app.rms.db import schema_version
+    with engine.connect() as conn:
+        new_version = schema_version(conn)
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "migrated",
+            "schema_version": new_version,
+            "code_schema_version": CURRENT_SCHEMA_VERSION,
+            "in_sync": new_version == CURRENT_SCHEMA_VERSION,
+        },
+    )
+
+
 @router.post("/admin/migrate")
 def admin_migrate(request: Request):
     """Operator escape hatch: trigger init_db() to apply pending migrations.
-
     Required when Render is slow to redeploy OR when the lifespan
     auto-init failed silently on Postgres (JSONB bug pre-a6843b9).
 
