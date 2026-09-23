@@ -5,6 +5,7 @@ Per dev plan §9 Task 5.
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -52,6 +53,17 @@ def _decorated(s: Sale) -> dict:
         "discount_gs": s.discount_gs,
         "channel": s.channel or "mostrador",
     }
+
+
+def _generate_idem_key() -> str:
+    """Generate a per-render idempotency key for the sale form.
+
+    Server-side UUID so the template doesn't have to call Jinja2's
+    `|random` filter (which doesn't exist in stock Jinja2 — only with
+    the django-jinja extra). UUIDs are 12 hex chars, same shape the
+    template was building with `range(1000000)|random|string`.
+    """
+    return uuid.uuid4().hex[:12]
 
 
 @router.get("", response_class=HTMLResponse)
@@ -190,6 +202,7 @@ async def sales_list(
             "channels": list(CHANNELS_DISPLAY),
             "channel_default": CHANNEL_DEFAULT,
             "now_local": datetime.now(ASUNCION_TZ).strftime("%Y-%m-%dT%H:%M"),
+            "idem_key": _generate_idem_key(),
             "totals": {
                 "count": total_count,
                 "total_gs": total_gs,
