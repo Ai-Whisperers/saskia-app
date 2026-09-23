@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
+{% import "_components/tags.html" as t %}
 
 {% block title %}Productos — {{ action }}{% endblock %}
 
@@ -18,21 +19,23 @@
     <small class="muted">Opcional. Usado para ventas rápidas por SKU.</small>
   </div>
 
-  <div class="form-row">
-    <label for="category">Categoría</label>
-    <input type="text" id="category" name="category" maxlength="32"
-           value="{{ product.category if product and product.category else '' }}"
-           placeholder="Ej: Panadería, Bollería, Bebidas">
-    <small class="muted">Opcional. Para filtrar productos por categoría.</small>
-  </div>
+  {{ t.category_picker(
+       name='category',
+       current_value=product.category if product else '',
+       options_markup=t.product_category_options(),
+       allow_custom=True,
+       label='Categoría',
+       help='Elegí una de las categorías predefinidas o escribí una nueva.'
+     ) }}
 
-  <div class="form-row">
-    <label for="tags">Etiquetas</label>
-    <input type="text" id="tags" name="tags" maxlength="500"
-           value="{{ product.tags if product and product.tags else '' }}"
-           placeholder="Ej: sin gluten, vegano, sin azúcar">
-    <small class="muted">Opcional. Separá con comas. Útil para búsquedas y filtros rápidos.</small>
-  </div>
+  {{ t.tag_picker(
+       name='tags',
+       current_value=product.tags if product else '',
+       options_markup=t.product_tag_options(),
+       allow_custom=True,
+       label='Etiquetas',
+       help='Tocá una etiqueta para activarla. Útil para búsquedas y filtros rápidos.'
+     ) }}
 
   <div class="form-row">
     <label for="portion_label">Etiqueta de porción</label>

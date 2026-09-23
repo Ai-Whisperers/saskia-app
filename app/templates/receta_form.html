@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
+{% import "_components/tags.html" as t %}
 
 {% block title %}Receta — {{ action }}{% endblock %}
 
@@ -124,23 +125,31 @@
 
     <div class="form-row">
       <label for="family_combo">Familia / Categoría</label>
-    {# Combo supports creating new categories. No API — just creates on submit. #}
+    {# Combo supports creating new categories. Pre-populated with common recipe families. #}
+    {% set family_options = [
+      "Panadería", "Pastelería", "Bollería", "Dulces", "Galletería", "Tortas",
+      "Masas", "Rellenos", "Coberturas", "Salsas", "Bases", "Temporada", "Especiales",
+    ] %}
     <div class="saskia-combo"
-         data-source=""
+         data-source="static"
          data-display="name"
          data-value="value"
-         data-min-chars="1"
+         data-min-chars="0"
          data-row-builder="categoryRowLabel"
          data-allow-create="true">
       <input type="text"
              id="family_combo"
              class="combo-input"
-             name="family"
+             name="family_display"
              maxlength="60"
              value="{{ recipe.family if recipe and recipe.family else '' }}"
-             placeholder="Ej: Panadería, Pastelería, Dulces">
+             placeholder="Elegí o escribí una familia…">
       <input type="hidden" name="family" value="{{ recipe.family if recipe and recipe.family else '' }}">
-      <div class="combo-results" role="listbox" hidden></div>
+      <div class="combo-results" role="listbox" hidden>
+        {% for fam in family_options %}
+          <div class="combo-static-option" data-value="{{ fam }}" data-display="{{ fam }}"></div>
+        {% endfor %}
+      </div>
     </div>
   </div>
 
@@ -155,10 +164,14 @@
       <input type="number" id="cook_minutes" name="cook_minutes" min="0" max="1440" value="{{ recipe.cook_minutes if recipe and recipe.cook_minutes is not none else '' }}" placeholder="Ej: 30">
     </div>
 
-    <div class="form-row">
-      <label for="dietary_tags">Etiquetas dietarias</label>
-      <input type="text" id="dietary_tags" name="dietary_tags" maxlength="200" value="{{ recipe.dietary_tags if recipe and recipe.dietary_tags else '' }}" placeholder="Ej: sin gluten, vegana">
-    </div>
+    {{ t.tag_picker(
+         name='dietary_tags',
+         current_value=recipe.dietary_tags if recipe else '',
+         options_markup=t.dietary_tag_options(),
+         allow_custom=True,
+         label='Etiquetas dietarias',
+         help='Tocá una etiqueta para marcarla como incluida.'
+       ) }}
   </div>
 
   <h2>Líneas{% if mode == 'edit' and recipe and scale_factor != 1 %} <small>(×{{ scale_factor }})</small>{% endif %}</h2>

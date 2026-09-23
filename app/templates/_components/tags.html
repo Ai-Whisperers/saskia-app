@@ -1,0 +1,213 @@
+{# Reusable form controls for Saskia.
+   Includes pre-built option catalogs tailored for a Paraguayan
+   panadería / pastelería (Panadería, Pastelería, Dulces, etc.). #}
+
+
+{# ─── Pre-built catalogs (just data lists) ──────────────────────────────── #}
+
+{% macro product_category_options() %}
+  {% set result = [
+    "Panadería",
+    "Pastelería",
+    "Dulces",
+    "Bollería",
+    "Bebidas",
+    "Lácteos",
+    "Salados",
+    "Congelados",
+    "Especiales",
+    "Temporada",
+    "Sin TACC",
+    "Vegano",
+    "Light",
+  ] %}
+  {% for opt in result %}<div class="combo-static-option" data-value="{{ opt }}" data-display="{{ opt }}"></div>{% endfor %}
+{% endmacro %}
+
+{% macro recipe_family_options() %}
+  {% set result = [
+    "Panadería",
+    "Pastelería",
+    "Bollería",
+    "Dulces",
+    "Galletería",
+    "Tortas",
+    "Masas",
+    "Rellenos",
+    "Coberturas",
+    "Salsas",
+    "Bases",
+    "Temporada",
+    "Especiales",
+  ] %}
+  {% for opt in result %}<div class="combo-static-option" data-value="{{ opt }}" data-display="{{ opt }}"></div>{% endfor %}
+{% endmacro %}
+
+{% macro product_tag_options() %}
+  {% set result = [
+    {"value": "nuevo",          "label": "Nuevo"},
+    {"value": "popular",        "label": "Popular"},
+    {"value": "oferta",         "label": "Oferta"},
+    {"value": "temporada",      "label": "Temporada"},
+    {"value": "vegano",         "label": "Vegano"},
+    {"value": "sin-gluten",     "label": "Sin gluten"},
+    {"value": "sin-azucar",     "label": "Sin azúcar"},
+    {"value": "integral",       "label": "Integral"},
+    {"value": "casero",         "label": "Casero"},
+    {"value": "premium",        "label": "Premium"},
+    {"value": "recomendado",    "label": "Recomendado"},
+    {"value": "delivery-only",  "label": "Solo delivery"},
+  ] %}
+  {% for opt in result %}
+    <button type="button"
+            class="tag-pill"
+            data-value="{{ opt.value }}"
+            aria-pressed="false">{{ opt.label }}</button>
+  {% endfor %}
+{% endmacro %}
+
+{% macro dietary_tag_options() %}
+  {% set result = [
+    {"value": "sin-gluten",      "label": "Sin gluten"},
+    {"value": "sin-lactosa",     "label": "Sin lactosa"},
+    {"value": "vegano",          "label": "Vegano"},
+    {"value": "vegetariano",     "label": "Vegetariano"},
+    {"value": "sin-azucar",      "label": "Sin azúcar"},
+    {"value": "integral",        "label": "Integral"},
+    {"value": "organico",        "label": "Orgánico"},
+    {"value": "sin-tacc",        "label": "Sin TACC"},
+    {"value": "bajo-en-sodio",   "label": "Bajo en sodio"},
+    {"value": "bajo-en-grasa",   "label": "Bajo en grasa"},
+    {"value": "kosher",          "label": "Kosher"},
+    {"value": "sin-frutos-secos","label": "Sin frutos secos"},
+    {"value": "sin-huevo",       "label": "Sin huevo"},
+  ] %}
+  {% for opt in result %}
+    <button type="button"
+            class="tag-pill"
+            data-value="{{ opt.value }}"
+            aria-pressed="false">{{ opt.label }}</button>
+  {% endfor %}
+{% endmacro %}
+
+
+{# ─── Single-select category picker (uses saskia-combo) ────────────────── #}
+
+{% macro category_picker(name, current_value, options_markup, allow_custom=True, label='', help='') %}
+  <div class="form-row">
+    {% if label %}<label for="{{ name }}_combo">{{ label }}</label>{% endif %}
+    <div class="saskia-combo"
+         data-source="static"
+         data-display="name"
+         data-value="value"
+         data-min-chars="0"
+         data-row-builder="categoryRowLabel"
+         {% if allow_custom %}data-allow-create="true"{% endif %}>
+      <input type="text"
+             id="{{ name }}_combo"
+             class="combo-input"
+             name="{{ name }}_display"
+             maxlength="60"
+             value="{{ current_value or '' }}"
+             placeholder="Elegí o escribí una categoría…"
+             autocomplete="off">
+      <input type="hidden" name="{{ name }}" value="{{ current_value or '' }}">
+      <div class="combo-results" role="listbox" hidden>
+        {% if not current_value %}
+          <div class="combo-static-option" data-value="" data-display="— Sin categoría —"></div>
+        {% endif %}
+        {{ options_markup }}
+      </div>
+    </div>
+    {% if help %}<small class="muted">{{ help }}</small>{% endif %}
+  </div>
+{% endmacro %}
+
+
+{# ─── Tag picker (pill toggles + custom add) ──────────────────────────── #}
+
+{% macro tag_picker(name, current_value, options_markup, allow_custom=True, label='', help='') %}
+  {% set current_list = (current_value or '').split(',') | map('trim') | reject('equalto', '') | list %}
+  <div class="form-row tag-picker"
+       data-name="{{ name }}"
+       data-current='{{ current_list | tojson }}'>
+    {% if label %}<label>{{ label }}</label>{% endif %}
+
+    <div class="tag-pills" role="group" aria-label="{{ label or name }}">
+      {{ options_markup }}
+    </div>
+
+    {% if allow_custom %}
+      <div class="tag-custom-row">
+        <input type="text"
+               class="tag-custom-input"
+               placeholder="Agregar etiqueta personalizada…"
+               maxlength="40">
+        <button type="button" class="btn btn-sm tag-custom-add">+ Agregar</button>
+      </div>
+    {% endif %}
+
+    <input type="hidden" name="{{ name }}" value="{{ current_value or '' }}">
+
+    {% if help %}<small class="muted">{{ help }}</small>{% endif %}
+  </div>
+{% endmacro %}
+
+
+{# ─── Inline styles for tag pills ──────────────────────────────────────── #}
+
+{% macro tag_picker_styles() %}
+<style>{% raw %}
+.tag-picker .tag-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out);
+  font-family: inherit;
+}
+.tag-pill:hover {
+  background: var(--color-surface-subtle);
+  border-color: var(--color-border-strong);
+}
+.tag-pill.is-active {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.tag-pill.is-custom {
+  background: var(--color-warn-soft);
+  border-color: var(--color-warn);
+  color: var(--color-warn-fg);
+}
+.tag-pill.is-custom.is-active {
+  background: var(--color-warn);
+  color: var(--color-warn-fg);
+  border-color: var(--color-warn);
+}
+.tag-custom-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-1);
+}
+.tag-custom-row .tag-custom-input {
+  flex: 1;
+}
+{% endraw %}</style>
+{% endmacro %}

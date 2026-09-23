@@ -307,16 +307,97 @@
     if (el) el.innerHTML = html;
   };
 
+  /* ─── Tag picker (pill toggles + custom add) ───────────────────────────── */
+
+  // Look for any element matching the pattern: a .tag-pills div with sibling
+  // .tag-custom-row + hidden input[name]. Used by producto_form, receta_form,
+  // and anywhere the {% from _components/tags.html import tag_picker %} macro
+  // is dropped in.
+  function initTagPickers() {
+    document.querySelectorAll('.tag-picker').forEach(function (picker) {
+      var hidden = picker.querySelector('input[type="hidden"]');
+      if (!hidden) return;
+      var pills = picker.querySelectorAll('.tag-pill');
+      var customInput = picker.querySelector('.tag-custom-input');
+      var customAdd = picker.querySelector('.tag-custom-add');
+
+      function currentTags() {
+        return (hidden.value || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+      }
+      function setTags(arr) {
+        var unique = [];
+        arr.forEach(function (t) {
+          var k = (t || '').trim();
+          if (k && unique.indexOf(k) === -1) unique.push(k);
+        });
+        hidden.value = unique.join(', ');
+        pills.forEach(function (p) {
+          var v = p.getAttribute('data-value');
+          var active = unique.indexOf(v) !== -1;
+          p.classList.toggle('is-active', active);
+          p.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+        renderCustomTags(unique);
+      }
+      function renderCustomTags(unique) {
+        picker.querySelectorAll('.tag-pill.is-custom').forEach(function (n) { n.remove(); });
+        var staticValues = Array.from(picker.querySelectorAll('.tag-pill:not(.is-custom)'))
+          .map(function (p) { return p.getAttribute('data-value'); });
+        var customTags = unique.filter(function (t) { return staticValues.indexOf(t) === -1; });
+        var pillsContainer = picker.querySelector('.tag-pills');
+        customTags.forEach(function (t) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'tag-pill is-active is-custom';
+          btn.setAttribute('data-value', t);
+          btn.setAttribute('aria-pressed', 'true');
+          btn.textContent = t + ' ×';
+          pillsContainer.appendChild(btn);
+          btn.addEventListener('click', function () {
+            var tags = currentTags().filter(function (x) { return x !== t; });
+            setTags(tags);
+          });
+        });
+      }
+
+      pills.forEach(function (pill) {
+        pill.addEventListener('click', function () {
+          var v = pill.getAttribute('data-value');
+          var tags = currentTags();
+          var i = tags.indexOf(v);
+          if (i === -1) tags.push(v); else tags.splice(i, 1);
+          setTags(tags);
+        });
+      });
+
+      if (customAdd && customInput) {
+        customAdd.addEventListener('click', function () {
+          var v = customInput.value.trim();
+          if (!v) return;
+          var tags = currentTags();
+          if (tags.indexOf(v) === -1) tags.push(v);
+          setTags(tags);
+          customInput.value = '';
+        });
+        customInput.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); customAdd.click(); }
+        });
+      }
+    });
+  }
+
   /* ─── Init ──────────────────────────────────────────────────────────────── */
 
   document.addEventListener('DOMContentLoaded', function () {
     loadNotifications();
     initCopyToClipboard();
+    initTagPickers();
   });
 
   // Re-init after dynamic content (e.g. from HTMX or fetch)
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
     setTimeout(initCopyToClipboard, 100);
+    setTimeout(initTagPickers, 100);
   }
 
 })();
