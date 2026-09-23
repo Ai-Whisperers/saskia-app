@@ -243,7 +243,7 @@ def save_plan_as_shopping_list(
         if not ing:
             continue
         qty_needed = (line.qty or 0) * plan.batches_qty
-        shortage = max(0, qty_needed - ing.stock_qty)
+        shortage = round(max(0, qty_needed - ing.stock_qty), 4)
         if shortage <= 0:
             continue
         item = ShoppingListItem(

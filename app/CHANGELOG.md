@@ -874,6 +874,23 @@ direction (regression for the 404), and all 7 nav targets returning 200.
   `docs/operations/cf-tunnel-rotation.md`. 7-step procedure with
   90-day cadence (next: 2026-12-04) and rollback. Operator-only;
   assistant cannot perform the rotation itself (CF dashboard access).
+## [Unreleased]
+
+### Fixed (UI audit patch set, 2026-09-23)
+- **`m.gs()` / `m.gs_full()` / `m.stock_badge()` / `m.top_list_card()` registered as Jinja globals** — these were referenced in 30+ templates but never defined; all money displays and stock badges were silently empty. Now defined in `app/services/template_render.py` with `gs` (returns `Gs. 8.696.000`), `gs_full` (alias), `gs_plain` (no prefix), `stock_badge` (3-tier: Agotado/Bajo/OK + Negativo), `margin_pct`, `top_list_card`. Backed by `tests/test_template_render_m.py`.
+- **Russian text fragments removed** from `/reportes` "retención" card description (`reportes.py:118`) and the `reportes_retencion.html` empty state — `впервые appeared` → "compraron por primera vez".
+- **Dev hints stripped from production UI** — `dashboard.html` footer "Source: Computed live from Sale table. Targets from HEREBUS_Analisis KPI_Dashboard sheet" → "Datos locales". Subtitle "KPIs en vivo desde HEREBUS_FoodBiz + ANALISIS sheets" → "KPIs en vivo · datos del local".
+- **Float precision noise in `/shopping-list` and `/reorder`** — `qty_to_buy` rounded to 4 decimal places at calc site (`shopping.py:246`) and `{{ "%.2f"|format(...) }}` replaced with `{{ ... |round(2) }}` in shopping_list.html, reorder.html, recetas.html, inventario.html (9 replacements).
+- **Modal backdrop clipping** — `dialog{position:relative; z-index:1}` rule was overriding `dialog.modal{position:fixed; inset:0; z-index:var(--z-modal)}`. Added specific override for `dialog.modal`.
+
+### Changed
+- **Stock badge tiers (W2.1)** — `m.stock_badge(stock, min)` returns 4 levels: Negativo (red) for stock<0, Agotado (red) for stock==0, Bajo (amber outline) for 0<stock<min, OK (muted gray) for stock>=min. CSS in `app/static/app.css`: `.badge--stock-out`, `.badge--stock-low`, `.badge--stock-ok`.
+- **Numeric/currency right-align (W2.5)** — added `table.data td.num, table.data td.currency{text-align:right;font-variant-numeric:tabular-nums}` rule. Existing `table .num` and `td.num` classes already honor this in app.css.
+- **`Dockerfile` copies `docs/` into the container** — root cause of `/guia` 404 was that the user-guide markdown lived at `docs/user-guide/*.md` on the host but was never bundled into the Docker image. Now both builder and runtime stages copy the directory.
+
+### Added
+- `tests/test_template_render_m.py` — 17 tests covering `m.gs`, `m.gs_plain`, `m.stock_badge`, `m.margin_pct`, `m.top_list_card` (all green).
+
 
 ## [Unreleased-pre-templates] — pre-signoff skeleton
 

@@ -1,58 +1,64 @@
-FROM python:3.13-slim AS base
+# Dockerfile — Saskia RMS (FastAPI + uv)
+# Built for the ServaRica VPS Docker Swarm deployment (parallel run alongside Render).
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+# ── Stage 1: Build with uv ──
+FROM python:3.13-slim AS builder
+WORKDIR /build
 
+# Install uv (10-100x faster than pip)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy dependency manifests and source for layer caching
+COPY pyproject.toml uv.lock* ./
+COPY app/ ./app/
+COPY docs/ ./docs/
+COPY scripts/ ./scripts/
+COPY README.md ./
+
+# Use uv sync which understands the project layout (hatchling backend).
+# We disable editable installs so the .pth files don't reference /build
+# (we copy the venv to /opt/venv at runtime).
+# The .venv lives at /build/.venv; we'll move it to /opt/venv at runtime
+# so the shebangs all match the runtime path.
+RUN uv sync --no-dev --no-install-project && \
+    uv pip install --python /build/.venv/bin/python --no-editable --no-cache .
+
+# ── Stage 2: Runtime ──
+FROM python:3.13-slim AS runtime
 WORKDIR /app
 
-# System deps for openpyxl + psycopg (Postgres driver)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+# Copy the installed venv (always at /opt/venv at runtime)
+COPY --from=builder /build/.venv /opt/venv
 
-# Install Python deps first (cached layer)
-COPY pyproject.toml ./
-RUN pip install --upgrade pip && \
-    pip install \
-    "fastapi>=0.115,<0.116" \
-    "uvicorn[standard]>=0.32,<0.33" \
-    "sqlalchemy>=2.0,<2.1" \
-    "psycopg[binary]>=3.1,<4" \
-    "openpyxl>=3.1,<4" \
-    "jinja2>=3.1,<4" \
-    "python-multipart>=0.0.20" \
-    "pydantic>=2.9,<3" \
-    "loguru>=0.7,<0.8" \
-    "cryptography>=42,<50" \
-    "boto3>=1.34,<2" \
-    "bcrypt>=4.1,<5" \
-    "itsdangerous>=2.2,<3" \
-    "apscheduler>=3.10,<4" \
-    "supabase>=2.31.0"
+# Fix entry-point shebangs: uv sync set them to /build/.venv/bin/python
+# but the venv is now at /opt/venv at runtime. Patch all scripts.
+RUN find /opt/venv/bin -type f -executable | xargs sed -i 's|#!/build/.venv/bin/python|#!/opt/venv/bin/python|g'
 
-# App code
-COPY app ./app
-COPY installer ./installer
+# Copy source (smaller — no .venv, no .git)
+COPY --from=builder /build/app /app/app
+COPY --from=builder /build/docs /app/docs
+COPY --from=builder /build/scripts /app/scripts
+COPY --from=builder /build/README.md /app/README.md
 
-# User guide (read at runtime by /guia route). Without this copy, the
-# /guia route always 404s on Render because app/routers/help.py looks
-# up files at /app/docs/user-guide/*.md relative to the WORKDIR.
-COPY docs ./docs
+# Make venv the default python path
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    AIW_SASKIA_DB_PATH=/data/rms.sqlite \
+    PORT=8000 \
+    BIND_HOST=0.0.0.0 \
+    AIW_SASKIA_LOG_DIR=/var/log/saskia
 
-# Non-root user
-RUN useradd --create-home --shell /bin/bash appuser && \
-    chown -R appuser:appuser /app
-USER appuser
+# Create data + log dirs
+RUN mkdir -p /data /var/log/saskia
 
 EXPOSE 8000
 
-# Health check for Render
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz').read()" \
-    || exit 1
+# Health check via the unauthenticated /healthz endpoint
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).read()" || exit 1
 
-# Render / Fly.io entry point
-CMD ["uvicorn", "app.rms.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
+# Run migrations on every boot (idempotent — uses schema_version), then start uvicorn.
+# `--reload` is OFF in prod. The lifespan in app/rms/main.py also calls init_db() so this
+# is a belt-and-suspenders to make sure migrations apply even if the lifespan fails.
+CMD ["sh", "-c", "aiw-saskia migrate && exec uvicorn app.rms.main:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips='*'"]

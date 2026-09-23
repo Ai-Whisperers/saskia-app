@@ -73,7 +73,7 @@
           <br><small class="muted">📋 Plan #{{ item.production_plan_id }}</small>
         {% endif %}
       </td>
-      <td class="num">{{ "%.2f"|format(item.qty_to_buy) }}</td>
+      <td class="num">{{ item.qty_to_buy|round(2) }}</td>
       <td>{{ item.unit }}</td>
       <td><small>{{ item.purpose_text or '' }}</small></td>
       <td class="num">{% if item.ingredient.purchase_price_gs %}{{ m.gs(item.ingredient.purchase_price_gs) }}{% else %}<span class="muted">?</span>{% endif %}</td>

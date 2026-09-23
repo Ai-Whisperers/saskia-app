@@ -115,8 +115,9 @@ def reportes_index(request: Request) -> HTMLResponse:
             "id": "retencion",
             "name": "Retención de clientes",
             "desc": "Clientes nuevos vs recurrentes.",
-            "help": "Muestra cuántos clientes впервые appeared en el período (nuevos) "
-                     "y cuántos ya habían comprado antes (recurrentes).",
+            "help": "Muestra cuántos clientes compraron por primera vez en el "
+                     "período (nuevos) y cuántos ya habían comprado antes "
+                     "(recurrentes).",
             "icon": "#icon-report",
             "url": "/reportes/retencion",
         },

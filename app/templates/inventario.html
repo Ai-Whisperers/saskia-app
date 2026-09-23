@@ -51,12 +51,12 @@
       <td>{{ i.unit }}</td>
       <td class="num">
         {% if i.stock_qty < 0 %}
-          <span class="badge badge-danger" title="¡Stock negativo!">{{ "%.2f"|format(i.stock_qty) }} {{ i.unit }}</span>
+          <span class="badge badge-danger" title="¡Stock negativo!">{{ i.stock_qty|round(2) }} {{ i.unit }}</span>
         {% else %}
-          {{ "%.2f"|format(i.stock_qty) }} {{ i.unit }}
+          {{ i.stock_qty|round(2) }} {{ i.unit }}
         {% endif %}
       </td>
-      <td class="num">{{ "%.2f"|format(i.min_stock_qty) }}</td>
+      <td class="num">{{ i.min_stock_qty|round(2) }}</td>
       <td class="num">{% if i.purchase_price_gs is none %}<em class="muted">sin precio</em>{% else %}{{ m.gs_full(i.purchase_price_gs) }}{% endif %}{% if price_info.get(i.id) %}<div class="price-strip">90d: min {{ m.gs(price_info[i.id].stats.min) }} · max {{ m.gs(price_info[i.id].stats.max) }}{% if price_info[i.id].sparkline_svg %} {{ price_info[i.id].sparkline_svg | safe }}{% endif %}</div>{% endif %}</td>
       <td>{{ m.stock_badge(i.stock_qty, i.min_stock_qty) }}</td>
       <td class="actions">

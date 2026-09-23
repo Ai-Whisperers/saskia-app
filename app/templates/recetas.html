@@ -90,7 +90,7 @@
         {% if r.yield_qty is none %}
           <em class="muted">sin rinde</em>
         {% else %}
-          {{ "%.2f"|format(r.yield_qty) }} {{ r.yield_unit }}
+          {{ r.yield_qty|round(2) }} {{ r.yield_unit }}
         {% endif %}
       </td>
       <td>{{ r.line_count }}</td>
