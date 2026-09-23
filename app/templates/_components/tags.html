@@ -45,18 +45,19 @@
 
 {% macro product_tag_options() %}
   {% set result = [
-    {"value": "nuevo",          "label": "Nuevo"},
-    {"value": "popular",        "label": "Popular"},
-    {"value": "oferta",         "label": "Oferta"},
-    {"value": "temporada",      "label": "Temporada"},
-    {"value": "vegano",         "label": "Vegano"},
-    {"value": "sin-gluten",     "label": "Sin gluten"},
-    {"value": "sin-azucar",     "label": "Sin azúcar"},
-    {"value": "integral",       "label": "Integral"},
-    {"value": "casero",         "label": "Casero"},
-    {"value": "premium",        "label": "Premium"},
-    {"value": "recomendado",    "label": "Recomendado"},
-    {"value": "delivery-only",  "label": "Solo delivery"},
+    {"value": "sin-gluten",      "label": "Sin gluten"},
+    {"value": "sin-lactosa",     "label": "Sin lactosa"},
+    {"value": "vegano",          "label": "Vegano"},
+    {"value": "vegetariano",     "label": "Vegetariano"},
+    {"value": "sin-azucar",      "label": "Sin azúcar"},
+    {"value": "integral",        "label": "Integral"},
+    {"value": "organico",        "label": "Orgánico"},
+    {"value": "sin-tacc",        "label": "Sin TACC"},
+    {"value": "bajo-en-sodio",   "label": "Bajo en sodio"},
+    {"value": "bajo-en-grasa",   "label": "Bajo en grasa"},
+    {"value": "kosher",          "label": "Kosher"},
+    {"value": "sin-frutos-secos","label": "Sin frutos secos"},
+    {"value": "sin-huevo",       "label": "Sin huevo"},
   ] %}
   {% for opt in result %}
     <button type="button"

@@ -7,9 +7,16 @@ from __future__ import annotations
 
 import csv
 import io
+import secrets as pysecrets
+import shutil
 from datetime import datetime, timezone
+from pathlib import Path as FPath
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
@@ -423,3 +430,56 @@ def product_bulk_delete(
 
 
 __all__ = ["router"]
+
+@router.post("/upload-image")
+async def product_upload_image(
+    request: Request,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Upload a product image. Stores in app/static/uploads/ and returns the URL.
+
+    Accepts: png, jpg, jpeg, webp, gif. Max 5 MB.
+    Returns: {"url": "/static/uploads/", "filename": "..."}
+    """
+    from app.auth import using_supabase, _supabase_enabled
+
+    # Re-use the same auth as the rest of the products router
+    _ = session  # keep signature; auth is enforced by router-level dependency
+
+    # Validate content type
+    allowed_types = {"image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"}
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Tipo de archivo no permitido: {file.content_type}. Usa PNG, JPG, WebP o GIF.",
+        )
+
+    # Read content (max 5 MB)
+    content_bytes = await file.read()
+    max_size = 5 * 1024 * 1024
+    if len(content_bytes) > max_size:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Imagen muy grande ({len(content_bytes) // 1024} KB). Máximo 5 MB.",
+        )
+
+    # Generate a unique filename: <random>.<ext>
+    ext_map = {
+        "image/png": ".png",
+        "image/jpeg": ".jpg",
+        "image/jpg": ".jpg",
+        "image/webp": ".webp",
+        "image/gif": ".gif",
+    }
+    ext = ext_map[file.content_type]
+    name = f"{datetime.now(timezone.utc).strftime('%Y%m%d')}-{pysecrets.token_hex(8)}{ext}"
+
+    # Save to app/static/uploads/
+    uploads_dir = FPath("/opt/hermes/static/uploads")
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    target = uploads_dir / name
+    target.write_bytes(content_bytes)
+
+    url = f"/static/uploads/{name}"
+    return JSONResponse({"url": url, "filename": name, "size": len(content_bytes)})

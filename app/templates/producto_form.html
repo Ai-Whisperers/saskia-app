@@ -7,17 +7,25 @@
 {% block content %}
 <h1>{{ action }} producto</h1>
 
-<form method="post" action="/productos{{ '/nuevo' if mode == 'new' else '/' ~ product.id ~ '/editar' }}">
+<form method="post" action="/productos{{ '/nuevo' if mode == 'new' else '/' ~ product.id ~ '/editar' }}"
+      enctype="multipart/form-data" id="product-form">
   <div class="form-row">
     <label for="name">Nombre</label>
-    <input type="text" id="name" name="name" required maxlength="120" value="{{ product.name if product else '' }}" placeholder="Ej: Muffin de chocolate">
+    <input type="text" id="name" name="name" required maxlength="120"
+           value="{{ product.name if product else '' }}"
+           placeholder="Ej: Muffin de chocolate">
   </div>
 
   <div class="form-row">
     <label for="sku">SKU / Código de barras</label>
-    <input type="text" id="sku" name="sku" maxlength="32" value="{{ product.sku if product and product.sku else '' }}" placeholder="Ej: E23.S1 o código de barras">
+    <input type="text" id="sku" name="sku" maxlength="32"
+           value="{{ product.sku if product and product.sku else '' }}"
+           placeholder="Ej: E23.S1 o código de barras">
     <small class="muted">Opcional. Usado para ventas rápidas por SKU.</small>
   </div>
+
+  {% set product_cats = t.product_category_options() %}
+  {% set product_tags = t.product_tag_options() %}
 
   {{ t.category_picker(
        name='category',
@@ -39,12 +47,14 @@
 
   <div class="form-row">
     <label for="portion_label">Etiqueta de porción</label>
-    <input type="text" id="portion_label" name="portion_label" maxlength="60" required value="{{ product.portion_label if product else '1 unidad' }}">
+    <input type="text" id="portion_label" name="portion_label" maxlength="60" required
+           value="{{ product.portion_label if product else '1 unidad' }}">
   </div>
 
   <div class="form-row">
     <label for="sale_price_gs">Precio de venta (Gs.)</label>
-    <input type="number" id="sale_price_gs" name="sale_price_gs" required step="1" min="0" value="{{ product.sale_price_gs if product else '0' }}" placeholder="8000">
+    <input type="number" id="sale_price_gs" name="sale_price_gs" required step="1" min="0"
+           value="{{ product.sale_price_gs if product else '0' }}" placeholder="8000">
   </div>
 
   <div class="form-row">
@@ -68,15 +78,43 @@
     <small class="muted">Sin receta: las ventas se registran pero no bajan stock ni calculan margen.</small>
   </div>
 
+  {# --- Image upload + URL --- #}
   <div class="form-row">
-    <label for="image_url">URL de imagen del producto</label>
-    <input type="url" id="image_url" name="image_url" value="{{ product.image_url if product and product.image_url else '' }}" placeholder="https://...">
-    <small class="muted">URL pública de la foto del producto. Opcional.</small>
+    <label>Imagen del producto</label>
+
+    <div class="image-upload-area" id="image-upload-area">
+      <div class="image-preview" id="image-preview">
+        {% if product and product.image_url %}
+          <img src="{{ product.image_url }}" alt="Imagen del producto" id="image-preview-img">
+          <button type="button" class="btn btn-sm btn-danger-ghost" id="image-remove">Quitar imagen</button>
+        {% else %}
+          <div class="image-empty" id="image-empty">
+            <svg class="icon icon-lg" aria-hidden="true"><use href="#icon-image"/></svg>
+            <span>Sin imagen</span>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="image-controls">
+        <label class="btn btn-secondary image-upload-btn">
+          <svg class="icon" aria-hidden="true"><use href="#icon-upload"/></svg>
+          Subir imagen
+          <input type="file" id="image-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+        </label>
+        <span class="muted">o pegá una URL:</span>
+        <input type="url" id="image_url" name="image_url"
+               value="{{ product.image_url if product and product.image_url else '' }}"
+               placeholder="https://..."
+               class="image-url-input">
+      </div>
+      <small class="muted">PNG, JPG, WebP o GIF. Máximo 5 MB.</small>
+    </div>
   </div>
 
   <div class="form-row form-row-toggle">
     <label>
-      <input type="checkbox" id="is_available" name="is_available" {% if (product and product.is_available) or (not product) %}checked{% endif %}>
+      <input type="checkbox" id="is_available" name="is_available"
+             {% if (product and product.is_available) or (not product) %}checked{% endif %}>
       Disponible para venta
     </label>
     <small class="muted">Desactivá esto para ocultar el producto del POS sin eliminarlo.</small>
@@ -92,5 +130,138 @@
     <a href="/productos" class="btn">Cancelar</a>
   </div>
 </form>
+
+<style>{% raw %}
+.image-upload-area {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.image-preview {
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 4 / 3;
+  background: var(--color-surface-subtle);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+.image-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.image-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-subtle);
+}
+.image-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.image-url-input {
+  flex: 1;
+  min-width: 200px;
+}
+.image-upload-btn {
+  cursor: pointer;
+}
+.image-preview button {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+}
+{% endraw %}</style>
+
+<script>
+// Product image upload + preview
+(function() {
+  var fileInput = document.getElementById('image-file');
+  var urlInput = document.getElementById('image_url');
+  var preview = document.getElementById('image-preview');
+  var empty = document.getElementById('image-empty');
+  var removeBtn = document.getElementById('image-remove');
+
+  if (!fileInput || !preview) return;
+
+  function renderImage(url) {
+    if (!url) {
+      // Empty state
+      preview.innerHTML =
+        '<div class="image-empty" id="image-empty">' +
+        '<svg class="icon icon-lg" aria-hidden="true"><use href="#icon-image"/></svg>' +
+        '<span>Sin imagen</span></div>';
+      return;
+    }
+    preview.innerHTML =
+      '<img src="' + url + '" alt="Imagen del producto" id="image-preview-img">' +
+      '<button type="button" class="btn btn-sm btn-danger-ghost" id="image-remove">Quitar imagen</button>';
+    wireRemove();
+  }
+
+  function wireRemove() {
+    var btn = document.getElementById('image-remove');
+    if (btn) btn.addEventListener('click', function() {
+      urlInput.value = '';
+      renderImage('');
+    });
+  }
+  wireRemove();
+
+  // File → upload → preview
+  fileInput.addEventListener('change', function() {
+    var file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Imagen muy grande. Máximo 5 MB.');
+      fileInput.value = '';
+      return;
+    }
+    var data = new FormData();
+    data.append('file', file);
+    // Show optimistic preview while uploading
+    var reader = new FileReader();
+    reader.onload = function(e) { renderImage(e.target.result); };
+    reader.readAsDataURL(file);
+
+    fetch('/productos/upload-image', {
+      method: 'POST',
+      body: data,
+      credentials: 'same-origin'
+    })
+    .then(function(r) {
+      if (!r.ok) {
+        return r.json().then(function(j) {
+          throw new Error(j.detail || 'Upload failed');
+        });
+      }
+      return r.json();
+    })
+    .then(function(j) {
+      urlInput.value = j.url;
+      renderImage(j.url);
+    })
+    .catch(function(err) {
+      alert('Error subiendo imagen: ' + err.message);
+      renderImage(urlInput.value);  // restore
+    });
+  });
+
+  // URL → live preview
+  urlInput.addEventListener('input', function() {
+    var url = urlInput.value.trim();
+    if (url) renderImage(url);
+  });
+})();
+</script>
 
 {% endblock %}

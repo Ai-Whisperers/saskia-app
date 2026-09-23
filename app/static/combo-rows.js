@@ -116,10 +116,16 @@
   };
 
   /**
-   * Generic fallback (used when no row builder specified)
+   * Generic fallback (used when no row builder specified).
+   * Shows the `name` field of the item if present, otherwise falls back
+   * to JSON.stringify so the row is never blank. The previous default of
+   * always JSON.stringify was unusable (showed raw dicts in the dropdown).
    */
   window.genericRowLabel = function (item) {
-    return '<span class="combo-row-main">' + escapeHtml(JSON.stringify(item)) + "</span>";
+    var label = (item && typeof item === "object" && "name" in item)
+      ? item.name
+      : (typeof item === "string" ? item : JSON.stringify(item));
+    return '<span class="combo-row-main">' + escapeHtml(label) + "</span>";
   };
 
   /**

@@ -50,7 +50,7 @@ def _decorate(session: Session, r: Recipe, batch: CostResult, unit: CostResult |
 async def recipes_list(
     request: Request,
     q: str = Query("", description="Search by recipe name"),
-    ingredient_id: int | None = Query(None, description="Filter by ingredient"),
+    ingredient_id: str = Query("", description="Filter by ingredient ID (empty = all)"),
     sort: str = Query("name", pattern="^(name|yield_qty|batch_cost_gs)$"),
     dir: str = Query("asc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
@@ -59,16 +59,27 @@ async def recipes_list(
 ) -> HTMLResponse:
     """List recipes with batch + unit cost, search, filter by ingredient, and column sort.
 
+    ingredient_id comes from a form hidden field that may be empty (when the user
+    hasn't picked an ingredient from the combo). Empty string → no filter.
+
     Batch-loaded to avoid N+1 on Neon.
     """
+    # Coerce empty / non-int to None so the user gets no filter rather than a 422
+    ing_id_int: int | None = None
+    if ingredient_id and ingredient_id.strip():
+        try:
+            ing_id_int = int(ingredient_id)
+        except (TypeError, ValueError):
+            ing_id_int = None
+
     # Base query — first count for pagination
     count_stmt = select(func.count(Recipe.id))
     if q:
         count_stmt = count_stmt.where(Recipe.name.ilike(f"%{q}%"))
-    if ingredient_id is not None:
+    if ing_id_int is not None:
         count_stmt = count_stmt.join(RecipeLine).where(
             RecipeLine.line_kind == "ingredient",
-            RecipeLine.line_ref_id == ingredient_id,
+            RecipeLine.line_ref_id == ing_id_int,
         )
     total_count = session.scalar(count_stmt.distinct()) or 0
 
@@ -80,10 +91,10 @@ async def recipes_list(
         stmt = stmt.where(Recipe.name.ilike(f"%{q}%"))
 
     # Ingredient filter: find recipes that use this ingredient
-    if ingredient_id is not None:
+    if ing_id_int is not None:
         stmt = stmt.join(RecipeLine).where(
             RecipeLine.line_kind == "ingredient",
-            RecipeLine.line_ref_id == ingredient_id,
+            RecipeLine.line_ref_id == ing_id_int,
         )
 
     # Sorting
@@ -118,7 +129,7 @@ async def recipes_list(
     return render(request, "recetas.html", {
         "recipes": decorated,
         "q": q,
-        "ingredient_id": ingredient_id,
+        "ingredient_id": ing_id_int if ing_id_int is not None else "",
         "sort": sort,
         "dir": dir,
         "ingredients": all_ingredients,

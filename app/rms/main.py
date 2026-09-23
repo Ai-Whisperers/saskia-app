@@ -351,6 +351,12 @@ if os.path.isdir(_static_dir):
     from app.rms.ready_static import ReadyStaticFiles
 
     app.mount("/static", ReadyStaticFiles(directory=_static_dir), name="static")
+    # Mount uploaded product images at /static/uploads/ — written by
+    # /productos/upload-image (see routers/products.py). The directory is
+    # created on demand inside the upload route, so no need to mkdir here.
+    uploads_dir = os.path.join(_static_dir, "uploads")
+    os.makedirs(uploads_dir, exist_ok=True)
+    app.mount("/static/uploads", ReadyStaticFiles(directory=uploads_dir), name="uploads")
 
     # Browsers auto-request /favicon.ico and /favicon.svg at the root (not
     # under /static/). Without these, the browser logs a 404 and falls back

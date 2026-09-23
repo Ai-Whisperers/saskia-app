@@ -7,15 +7,87 @@
 {% block content %}
 <h1>{{ action }} receta</h1>
 
-{# Yield scaling control (only in edit mode) #}
-{% if mode == 'edit' and recipe and recipe.yield_qty %}
-<div class="card mb-4">
-  <div class="card-header">
-    <h2>Escalar rendimiento</h2>
+{# ── Section 1: Identification ──────────────────────────────────────── #}
+<section class="form-section">
+  <header class="form-section-header">
+    <h2 class="form-section-title">Identificación</h2>
+    <p class="form-section-hint">Nombre y categoría de la receta</p>
+  </header>
+
+  <div class="form-row">
+    <label for="name">Nombre <span class="required-mark">*</span></label>
+    <input type="text" id="name" name="name" required maxlength="120"
+           value="{{ recipe.name if recipe else '' }}"
+           placeholder="Ej: Muffin de chocolate">
   </div>
-  <p class="text-muted">Vizualizá la receta con cantidades multiplicadas. No cambia la receta original.</p>
-  <form method="get" action="/recetas/{{ recipe.id }}/editar" style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
-    <label for="scale_combo">Multiplicador:</label>
+
+  <div class="form-row">
+    <label for="family_combo">Familia / Categoría</label>
+    <div class="saskia-combo"
+         data-source="static"
+         data-display="name"
+         data-value="value"
+         data-min-chars="0"
+         data-row-builder="categoryRowLabel"
+         data-allow-create="true">
+      <input type="text"
+             id="family_combo"
+             class="combo-input"
+             name="family_display"
+             maxlength="60"
+             value="{{ recipe.family if recipe and recipe.family else '' }}"
+             placeholder="Elegí o escribí una familia…">
+      <input type="hidden" name="family" value="{{ recipe.family if recipe and recipe.family else '' }}">
+      <div class="combo-results" role="listbox" hidden>
+        {% for fam in ['Panadería', 'Pastelería', 'Bollería', 'Dulces', 'Galletería',
+                       'Tortas', 'Masas', 'Rellenos', 'Coberturas', 'Salsas',
+                       'Bases', 'Temporada', 'Especiales'] %}
+          <div class="combo-static-option" data-value="{{ fam }}" data-display="{{ fam }}"></div>
+        {% endfor %}
+      </div>
+    </div>
+    <small class="muted">Panadería, Pastelería, Tortas, etc. También podés escribir una nueva.</small>
+  </div>
+</section>
+
+{# ── Section 2: Yield (rinde) ─────────────────────────────────────────── #}
+<section class="form-section">
+  <header class="form-section-header">
+    <h2 class="form-section-title">Rinde</h2>
+    <p class="form-section-hint">Cuánto produce esta receta y en qué unidades</p>
+  </header>
+
+  <div class="grid grid-3">
+    <div class="form-row">
+      <label for="yield_qty">Cantidad</label>
+      <input type="number" id="yield_qty" name="yield_qty" step="0.01" min="0"
+             value="{{ "%.2f"|format(recipe.yield_qty) if recipe and recipe.yield_qty is not none else '12' }}">
+    </div>
+
+    <div class="form-row">
+      <label for="yield_unit_combo">Unidad</label>
+      <div class="saskia-combo"
+           data-source="/recetas/api/units"
+           data-display="display"
+           data-value="value"
+           data-min-chars="0"
+           data-row-builder="genericRowLabel">
+        <input type="text"
+               id="yield_unit_combo"
+               class="combo-input"
+               name="yield_unit_display"
+               maxlength="10"
+               value="{{ recipe.yield_unit if recipe else '' }}"
+               placeholder="und">
+        <input type="hidden" name="yield_unit" value="{{ recipe.yield_unit if recipe else '' }}">
+        <div class="combo-results" role="listbox" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  {% if mode == 'edit' and recipe and recipe.yield_qty %}
+  <div class="form-row">
+    <label for="scale_combo">Escalar rendimiento</label>
     <div class="saskia-combo"
          data-source="static"
          data-display="name"
@@ -41,153 +113,72 @@
         <div class="combo-static-option" data-value="5" data-display="5x"></div>
       </div>
     </div>
-    <script>
-      // Auto-submit the parent form when the multiplier picks a new value,
-      // matching the onchange="this.form.submit()" behavior of the old native select.
-      (function() {
-        var input = document.getElementById("scale_combo");
-        if (!input) return;
-        var combo = input.closest(".saskia-combo");
-        if (!combo || !combo._saskiaCombo) return;
-        combo._saskiaCombo.opts.onSelect = function () {
-          // Defer one tick so the hidden input is updated first
-          setTimeout(function () { combo.closest("form").submit(); }, 0);
-        };
-      })();
-    </script>
-    <span class="text-muted">Rinde: {{ "%.2f"|format(recipe.yield_qty * scale_factor) }} {{ recipe.yield_unit }}</span>
-  </form>
-</div>
-{% endif %}
+    <small class="muted">Rinde escalado: {{ "%.2f"|format(recipe.yield_qty * scale_factor) }} {{ recipe.yield_unit }}</small>
+  </div>
+  {% endif %}
+</section>
 
-{# Cost breakdown (edit mode) #}
-{% if mode == 'edit' and batch_cost_gs is not none %}
-<div class="card mb-4">
-  <div class="card-header"><h2>Desglose de costo</h2></div>
+{# ── Section 3: Timing ────────────────────────────────────────────────── #}
+<section class="form-section">
+  <header class="form-section-header">
+    <h2 class="form-section-title">Tiempo</h2>
+    <p class="form-section-hint">Cuánto tarda en prepararse y cocinarse</p>
+  </header>
+
   <div class="grid grid-2">
-    <div class="metric-card">
-      <div class="metric-label">Costo del lote</div>
-      <div class="metric-value">{{ m.gs_full(batch_cost_gs) }}</div>
-    </div>
-    {% if unit_cost_gs is not none %}
-    <div class="metric-card">
-      <div class="metric-label">Costo por porción</div>
-      <div class="metric-value">{{ m.gs_full(unit_cost_gs) }}</div>
-    </div>
-    {% endif %}
-  </div>
-</div>
-{% endif %}
-
-{# Used by products (edit mode) #}
-{% if mode == 'edit' and products_using %}
-<div class="card mb-4">
-  <div class="card-header"><h2>Usada por productos</h2></div>
-  <ul>
-    {% for p in products_using %}
-    <li><a href="/productos/{{ p.id }}/editar">{{ p.name }}</a></li>
-    {% endfor %}
-  </ul>
-</div>
-{% endif %}
-
-<form method="post" action="/recetas{{ '/nueva' if mode == 'new' else '/' ~ recipe.id ~ '/editar' }}">
-  <div class="form-row">
-    <label for="name">Nombre</label>
-    <input type="text" id="name" name="name" required maxlength="120" value="{{ recipe.name if recipe else '' }}" placeholder="Ej: Muffin de chocolate">
-  </div>
-
-  <div class="grid grid-3" style="gap:var(--space-3);">
     <div class="form-row">
-      <label for="yield_qty">Rinde (cantidad)</label>
-      <input type="number" id="yield_qty" name="yield_qty" step="0.01" min="0" value="{{ "%.2f"|format(recipe.yield_qty) if recipe and recipe.yield_qty is not none else '12' }}">
+      <label for="prep_minutes">Preparación (min)</label>
+      <input type="number" id="prep_minutes" name="prep_minutes" min="0" max="1440"
+             value="{{ recipe.prep_minutes if recipe and recipe.prep_minutes is not none else '' }}"
+             placeholder="Ej: 15">
     </div>
 
     <div class="form-row">
-      <label for="yield_unit_combo">Unidad del rinde</label>
-      <div class="saskia-combo"
-           data-source="/recetas/api/units"
-           data-display="display"
-           data-value="value"
-           data-min-chars="0"
-           data-row-builder="genericRowLabel">
-        <input type="text"
-               id="yield_unit_combo"
-               class="combo-input"
-               name="yield_unit_display"
-               maxlength="10"
-               value="{{ recipe.yield_unit if recipe else '' }}"
-               placeholder="und">
-        <input type="hidden" name="yield_unit" value="{{ recipe.yield_unit if recipe else '' }}">
-        <div class="combo-results" role="listbox" hidden></div>
-      </div>
-    </div>
-
-    <div class="form-row">
-      <label for="family_combo">Familia / Categoría</label>
-    {# Combo supports creating new categories. Pre-populated with common recipe families. #}
-    {% set family_options = [
-      "Panadería", "Pastelería", "Bollería", "Dulces", "Galletería", "Tortas",
-      "Masas", "Rellenos", "Coberturas", "Salsas", "Bases", "Temporada", "Especiales",
-    ] %}
-    <div class="saskia-combo"
-         data-source="static"
-         data-display="name"
-         data-value="value"
-         data-min-chars="0"
-         data-row-builder="categoryRowLabel"
-         data-allow-create="true">
-      <input type="text"
-             id="family_combo"
-             class="combo-input"
-             name="family_display"
-             maxlength="60"
-             value="{{ recipe.family if recipe and recipe.family else '' }}"
-             placeholder="Elegí o escribí una familia…">
-      <input type="hidden" name="family" value="{{ recipe.family if recipe and recipe.family else '' }}">
-      <div class="combo-results" role="listbox" hidden>
-        {% for fam in family_options %}
-          <div class="combo-static-option" data-value="{{ fam }}" data-display="{{ fam }}"></div>
-        {% endfor %}
-      </div>
+      <label for="cook_minutes">Cocción (min)</label>
+      <input type="number" id="cook_minutes" name="cook_minutes" min="0" max="1440"
+             value="{{ recipe.cook_minutes if recipe and recipe.cook_minutes is not none else '' }}"
+             placeholder="Ej: 30">
     </div>
   </div>
+</section>
 
-  <div class="grid grid-3" style="gap:var(--space-3);">
-    <div class="form-row">
-      <label for="prep_minutes">Tiempo de prep (min)</label>
-      <input type="number" id="prep_minutes" name="prep_minutes" min="0" max="1440" value="{{ recipe.prep_minutes if recipe and recipe.prep_minutes is not none else '' }}" placeholder="Ej: 15">
-    </div>
+{# ── Section 4: Dietary tags ────────────────────────────────────────────── #}
+<section class="form-section">
+  <header class="form-section-header">
+    <h2 class="form-section-title">Etiquetas dietarias</h2>
+    <p class="form-section-hint">Restricciones alimentarias que aplican a esta receta</p>
+  </header>
 
-    <div class="form-row">
-      <label for="cook_minutes">Tiempo de cocción (min)</label>
-      <input type="number" id="cook_minutes" name="cook_minutes" min="0" max="1440" value="{{ recipe.cook_minutes if recipe and recipe.cook_minutes is not none else '' }}" placeholder="Ej: 30">
-    </div>
+  {{ t.tag_picker(
+       name='dietary_tags',
+       current_value=recipe.dietary_tags if recipe else '',
+       options_markup=t.dietary_tag_options(),
+       allow_custom=True,
+       label='',
+       help='Tocá una etiqueta para marcarla como incluida.'
+     ) }}
+</section>
 
-    {{ t.tag_picker(
-         name='dietary_tags',
-         current_value=recipe.dietary_tags if recipe else '',
-         options_markup=t.dietary_tag_options(),
-         allow_custom=True,
-         label='Etiquetas dietarias',
-         help='Tocá una etiqueta para marcarla como incluida.'
-       ) }}
-  </div>
+{# ── Section 5: Ingredients (líneas) ─────────────────────────────────── #}
+<section class="form-section">
+  <header class="form-section-header">
+    <h2 class="form-section-title">Ingredientes</h2>
+    <p class="form-section-hint">Cada línea es un ingrediente o sub-receta. Para sub-recetas (masa choux usada en pastel), usá el tipo "Sub-receta".</p>
+  </header>
 
-  <h2>Líneas{% if mode == 'edit' and recipe and scale_factor != 1 %} <small>(×{{ scale_factor }})</small>{% endif %}</h2>
-
-  <p class="muted">Las líneas son los ingredientes que entran en la receta. Para sub-recetas (masa choux usada en pastel), agregá la sub-receta como línea con tipo "sub-receta".</p>
+  {% if mode == 'edit' and recipe and scale_factor != 1 %}
+    <p class="muted">Las cantidades se muestran multiplicadas por <strong>×{{ scale_factor }}</strong>.</p>
+  {% endif %}
 
   <div id="lines">
   {% for line in lines %}
-  <div class="line-row" style="display: grid; grid-template-columns: 100px 1fr 90px 60px 1fr 30px; gap: 8px; align-items: end; margin-bottom: 8px;">
+  <div class="line-row" style="display: grid; grid-template-columns: 110px 1fr 90px 70px 1fr 36px; gap: 8px; align-items: end; margin-bottom: 8px;">
         <div class="saskia-combo"
          data-source="static"
          data-display="name"
          data-value="value"
          data-min-chars="0"
-         data-row-builder="genericRowLabel"
-         style="grid-column: 1;">
+         data-row-builder="genericRowLabel">
       <input type="text"
              class="combo-input"
              name="line_kind_display"
@@ -200,60 +191,88 @@
         <div class="combo-static-option" data-value="sub_recipe" data-display="Sub-receta"></div>
       </div>
     </div>
-        <div class="form-row">
-            <label>Item</label>
-            <div class="saskia-combo"
-                 data-source="/inventario/api/search"
-                 data-display="name"
-                 data-value="id"
-                 data-min-chars="1"
-                 data-row-builder="ingredientRowLabel"
-                 data-line-kind="ingredient">
-                <input type="text"
-                       class="combo-input"
-                       name="line_target_id"
-                       placeholder="Buscar ingrediente…"
-                       autocomplete="off"
-                       value="">
-                <input type="hidden" name="line_target_id" value="{{ line.line_ref_id if line.line_ref_id else '' }}">
-                <div class="combo-results" role="listbox" hidden></div>
-            </div>
-        </div>
-        <input type="number" name="line_qty" step="0.01" min="0" required value="{{ "%.4f"|format(line.qty * scale_factor if mode == 'edit' else line.qty) }}" placeholder="Cantidad">
         <div class="saskia-combo"
-         data-source="/recetas/api/units"
-         data-display="display"
-         data-value="value"
+         data-source="dynamic"
+         data-display="name"
+         data-value="id"
          data-min-chars="0"
-         data-row-builder="genericRowLabel">
-        <input type="text"
-               class="combo-input"
-               name="line_unit_display"
-               maxlength="10"
-               value="{{ line.line_unit or '' }}"
-               placeholder="und"
-               aria-label="Unidad de la cantidad">
-        <input type="hidden" name="line_unit" value="{{ line.line_unit or '' }}">
-        <div class="combo-results" role="listbox" hidden></div>
-      </div>
-        <input type="text" name="line_notes" value="{{ line.notes or '' }}" placeholder="Notas (opcional)">
-        <button type="button" class="btn btn-small" onclick="this.parentElement.remove()">×</button>
-          </div>
+         data-row-builder="genericRowLabel"
+         data-line-target="line_target_id"
+         data-current-kind="{{ line.line_kind }}">
+      <input type="text"
+             class="combo-input line-target-input"
+             name="line_target_display"
+             maxlength="60"
+             value="{{ line.target_name or '' }}"
+             placeholder="Buscar ingrediente…">
+      <input type="hidden" name="line_target_id" value="{{ line.line_ref_id or '' }}">
+      <div class="combo-results" role="listbox" hidden></div>
+    </div>
+        <div class="form-row" style="margin-bottom:0;">
+          <input type="number" step="0.001" min="0" name="qty" value="{{ "%.3f"|format(line.qty or 0) }}" placeholder="0.000" style="width:100%">
+        </div>
+        <div class="form-row" style="margin-bottom:0;">
+          <input type="text" name="unit" maxlength="10" value="{{ line.unit or '' }}" placeholder="g" style="width:100%">
+        </div>
+        <div class="form-row" style="margin-bottom:0;">
+          <input type="text" name="note" maxlength="200" value="{{ line.note or '' }}" placeholder="opcional">
+        </div>
+        <button type="button" class="btn btn-sm btn-danger-ghost line-remove" aria-label="Eliminar línea">×</button>
+  </div>
   {% endfor %}
   </div>
 
-  <p><button type="button" class="btn btn-small" id="add-line">+ Agregar línea</button></p>
+  <button type="button" class="btn btn-secondary mt-4" id="add-line">
+    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+    Agregar línea
+  </button>
+</section>
+
+{# ── Section 6: Notes ───────────────────────────────────────────────────── #}
+<section class="form-section">
+  <header class="form-section-header">
+    <h2 class="form-section-title">Notas</h2>
+    <p class="form-section-hint">Comentarios internos sobre la receta</p>
+  </header>
 
   <div class="form-row">
-    <label for="notes">Notas</label>
-    <textarea id="notes" name="notes" rows="2">{{ recipe.notes if recipe and recipe.notes else '' }}</textarea>
+    <textarea id="notes" name="notes" rows="3">{{ recipe.notes if recipe and recipe.notes else '' }}</textarea>
   </div>
+</section>
 
-  <div class="form-actions">
-    <button type="submit" class="btn btn-primary">Guardá</button>
-    <a href="/recetas" class="btn">Cancelar</a>
-  </div>
-</form>
+<div class="form-actions">
+  <button type="submit" class="btn btn-primary">Guardá</button>
+  <a href="/recetas" class="btn">Cancelar</a>
+</div>
+
+<style>{% raw %}
+.form-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  margin-bottom: var(--space-5);
+}
+.form-section-header {
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+.form-section-title {
+  margin: 0 0 var(--space-1) 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.form-section-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.required-mark {
+  color: var(--color-danger);
+  margin-left: 2px;
+}
+{% endraw %}</style>
 
 <script>
 // Tiny inline script to add lines (no JS framework)
@@ -261,112 +280,67 @@ document.getElementById('add-line').addEventListener('click', function() {
   const container = document.getElementById('lines');
   const row = document.createElement('div');
   row.className = 'line-row';
-  row.style.cssText = 'display: grid; grid-template-columns: 100px 1fr 90px 60px 1fr 30px; gap: 8px; align-items: end; margin-bottom: 8px;';
+  row.style.cssText = 'display: grid; grid-template-columns: 110px 1fr 90px 70px 1fr 36px; gap: 8px; align-items: end; margin-bottom: 8px;';
   row.innerHTML = `
-    <div class="saskia-combo"
-         data-source="static"
-         data-display="name"
-         data-value="value"
-         data-min-chars="0"
-         data-row-builder="genericRowLabel"
-         style="grid-column: 1;">
-      <input type="text"
-             class="combo-input"
-             name="line_kind_display"
-             maxlength="15"
-             value=""
-             placeholder="Tipo">
-      <input type="hidden" name="line_kind" value="">
+    <div class="saskia-combo" data-source="static" data-display="name" data-value="value" data-min-chars="0" data-row-builder="genericRowLabel">
+      <input type="text" class="combo-input" name="line_kind_display" maxlength="15" value="Ingrediente" placeholder="Tipo">
+      <input type="hidden" name="line_kind" value="ingredient">
       <div class="combo-results" role="listbox" hidden>
         <div class="combo-static-option" data-value="ingredient" data-display="Ingrediente"></div>
         <div class="combo-static-option" data-value="sub_recipe" data-display="Sub-receta"></div>
       </div>
     </div>
-    <div class="form-row">
-      <label>Item</label>
-      <div class="saskia-combo"
-           data-source="/inventario/api/search"
-           data-display="name"
-           data-value="id"
-           data-min-chars="1"
-           data-row-builder="ingredientRowLabel">
-        <input type="text"
-               class="combo-input"
-               name="line_target_id"
-               placeholder="Buscar ingrediente…"
-               autocomplete="off">
-        <input type="hidden" name="line_target_id">
-        <div class="combo-results" role="listbox" hidden></div>
-      </div>
-    </div>
-    <input type="number" name="line_qty" step="0.01" min="0" required placeholder="Cantidad">
-    <div class="saskia-combo"
-         data-source="/recetas/api/units"
-         data-display="display"
-         data-value="value"
-         data-min-chars="0"
-         data-row-builder="genericRowLabel">
-      <input type="text"
-             class="combo-input"
-             name="line_unit_display"
-             maxlength="10"
-             value=""
-             placeholder="und">
-      <input type="hidden" name="line_unit" value="">
+    <div class="saskia-combo" data-source="dynamic" data-display="name" data-value="id" data-min-chars="0" data-row-builder="genericRowLabel" data-line-target="line_target_id" data-current-kind="ingredient">
+      <input type="text" class="combo-input line-target-input" name="line_target_display" maxlength="60" value="" placeholder="Buscar ingrediente…">
+      <input type="hidden" name="line_target_id" value="">
       <div class="combo-results" role="listbox" hidden></div>
     </div>
-    <input type="text" name="line_notes" placeholder="Notas (opcional)">
-    <button type="button" class="btn btn-small" onclick="this.parentElement.remove()">×</button>
+    <div class="form-row" style="margin-bottom:0;">
+      <input type="number" step="0.001" min="0" name="qty" value="" placeholder="0.000" style="width:100%">
+    </div>
+    <div class="form-row" style="margin-bottom:0;">
+      <input type="text" name="unit" maxlength="10" value="" placeholder="g" style="width:100%">
+    </div>
+    <div class="form-row" style="margin-bottom:0;">
+      <input type="text" name="note" maxlength="200" value="" placeholder="opcional">
+    </div>
+    <button type="button" class="btn btn-sm btn-danger-ghost line-remove" aria-label="Eliminar línea">×</button>
   `;
   container.appendChild(row);
-  
-  // Init every .saskia-combo in the new row (kind, item, unit)
-  if (window.SaskiaCombo) {
-    row.querySelectorAll('.saskia-combo').forEach(function (c) {
-      if (c._saskiaCombo) return;
-      c._saskiaCombo = new SaskiaCombo(c, {
-        source: c.dataset.source,
-        displayField: c.dataset.display || 'name',
-        valueField: c.dataset.value || 'id',
-        minChars: Number(c.dataset.minChars || 0),
-        buildRow: c.dataset.rowBuilder ? window[c.dataset.rowBuilder] : null,
-        allowCreate: c.dataset.allowCreate === 'true',
-      });
-    });
-  }
-  // Wire the line_kind combo so picking toggles the item-source
   wireLineKindHandlers(row);
+  wireLineRemove(row);
 });
 
-// Function to update combo source when line kind changes
-function updateLineSource(lineRow) {
-  // Look up the line_kind combo's hidden input — it carries the picked value.
-  // Falls back to a select[name="line_kind"] for any older rows still in the DOM.
-  var kindHidden = lineRow.querySelector('input[name="line_kind"][type="hidden"]');
-  var kindSelect = lineRow.querySelector('select[name="line_kind"]');
-  var kind = kindHidden
-    ? kindHidden.value
-    : (kindSelect ? kindSelect.value : '');
-  // Find the ITEM combo (not the line_kind combo). We identify it by being
-  // the .saskia-combo inside the form-row labelled "Item".
-  var combos = lineRow.querySelectorAll('.saskia-combo');
-  var itemCombo = null;
+function wireLineRemove(row) {
+  var btn = row.querySelector('.line-remove');
+  if (btn) btn.addEventListener('click', function() { row.remove(); });
+}
+
+// Wire up remove buttons on existing rows
+document.querySelectorAll('.line-row').forEach(wireLineRemove);
+
+// After the line kind combo picks a new value, swap the item combo source
+// (ingredient vs sub-recipe) so the right API is queried.
+function updateLineSource(row) {
+  var kindCombo = null;
+  var kindSelect = row.querySelector('select[name="line_kind"]');
+  var combos = row.querySelectorAll('.saskia-combo');
   for (var i = 0; i < combos.length; i++) {
-    var c = combos[i];
-    if (c.querySelector('input[name="line_target_id"]')) {
-      itemCombo = c;
+    if (combos[i].querySelector('input[name="line_target_id"]')) {
+      kindCombo = combos[i];
       break;
     }
   }
-  if (!itemCombo) return;
-  var input = itemCombo.querySelector('.combo-input');
-  var hiddenInput = itemCombo.querySelector('input[type="hidden"]');
-  var results = itemCombo.querySelector('.combo-results');
+  if (!kindCombo) return;
+  var input = kindCombo.querySelector('.combo-input');
+  var hiddenInput = kindCombo.querySelector('input[type="hidden"]');
+  var results = kindCombo.querySelector('.combo-results');
 
   let sourceUrl = '';
   let placeholder = '';
   let allowCreate = false;
 
+  const kind = row.querySelector('input[name="line_kind"]').value;
   if (kind === 'ingredient') {
     sourceUrl = '/inventario/api/search';
     placeholder = 'Buscar ingrediente…';
@@ -377,26 +351,20 @@ function updateLineSource(lineRow) {
     allowCreate = false;
   }
 
-  // Update combo attributes
-  itemCombo.dataset.source = sourceUrl;
+  kindCombo.dataset.source = sourceUrl;
   input.placeholder = placeholder;
 
-  // Clear current values
   input.value = '';
   if (hiddenInput) hiddenInput.value = '';
   results.innerHTML = '';
   results.hidden = true;
 
-  // Reinitialize combo with new options
   if (window.SaskiaCombo) {
-    // Destroy existing instance first
-    var existingInstance = itemCombo._saskiaCombo;
+    var existingInstance = kindCombo._saskiaCombo;
     if (existingInstance) {
       existingInstance.destroy();
     }
-
-    // Create new instance with updated options
-    itemCombo._saskiaCombo = new SaskiaCombo(itemCombo, {
+    kindCombo._saskiaCombo = new SaskiaCombo(kindCombo, {
       allowCreate: allowCreate,
       onCreate: function (newName) {
         console.log('Creating new item:', newName);
@@ -435,6 +403,9 @@ document.addEventListener('DOMContentLoaded', function() {
   var combos = document.querySelectorAll('.saskia-combo[data-source]');
   combos.forEach(function (c) {
     if (c._saskiaCombo) return;
+    // Skip static-source combos whose inline options are already in the DOM
+    var inlineOpts = c.querySelectorAll('.combo-static-option');
+    if (c.dataset.source === 'static' && inlineOpts.length > 0) return;
     c._saskiaCombo = new SaskiaCombo(c, {
       source: c.dataset.source,
       displayField: c.dataset.display || 'name',
