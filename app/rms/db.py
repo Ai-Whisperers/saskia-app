@@ -1163,22 +1163,26 @@ def _bump_schema_version(conn, version: int) -> None:
     """
     dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     ts = datetime.now(timezone.utc).isoformat()
+    # We deliberately DON'T wrap in SAVEPOINT here — the caller (the
+    # migration loop) already has one. Adding a nested SAVEPOINT would
+    # just add complexity.
     if dialect == "postgresql":
-        # app_meta.value is JSONB; cast the inline value to jsonb.
-        # We interpolate `version` directly because it's a controlled int,
-        # and `text(:v::jsonb)` triggers a SQL parse error on psycopg.
-        conn.execute(
-            text(
-                "INSERT INTO app_meta (key, value, updated_at) VALUES "
-                "('schema_version', :v_jsonb, :ts) "
-                "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at"
-            ),
-            {"v_jsonb": f'"{version}"', "ts": ts},
-        )
-        # NOTE: psycopg parses JSONB strings if they're valid JSON. We
-        # use `value = EXCLUDED.value` in the ON CONFLICT branch which
-        # means a JSONB string "32" is stored. _current_schema_version
-        # reads it as a string and casts to int.
+        # The connection might be in an aborted state if a previous
+        # statement in this transaction failed (e.g. CREATE TRIGGER
+        # with SQLite-only syntax). If so, just return — the caller will
+        # rollback the SAVEPOINT anyway and we can retry next boot.
+        try:
+            conn.execute(
+                text(
+                    "INSERT INTO app_meta (key, value, updated_at) VALUES "
+                    "('schema_version', :v_jsonb, :ts) "
+                    "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at"
+                ),
+                {"v_jsonb": f'"{version}"', "ts": ts},
+            )
+        except Exception as exc:
+            # Transaction is poisoned — caller will rollback the SAVEPOINT.
+            raise
     else:
         conn.execute(
             text(
@@ -1344,6 +1348,9 @@ def _init_db_inner(engine, dialect_name, Base) -> None:
                 # after a benign error (e.g. column already exists).
                 if dialect == "postgresql":
                     sp = f"mig_{v}"
+                    # SAVEPOINT isolates the migration from earlier
+                    # failures. ROLLBACK TO SAVEPOINT restores state
+                    # even if the transaction is currently aborted.
                     conn.execute(text(f"SAVEPOINT {sp}"))
                     try:
                         MIGRATIONS[v](conn)
@@ -1352,27 +1359,23 @@ def _init_db_inner(engine, dialect_name, Base) -> None:
                         # Re-raise — migration errors should NOT be silently swallowed
                         # on Postgres, only on SQLite.
                         raise
-                    conn.execute(text(f"RELEASE SAVEPOINT {sp}"))
+                    # If the migration succeeded but left the
+                    # transaction aborted (e.g. _bump_schema_version
+                    # INSERT failed mid-way), the RELEASE will fail too.
+                    # Catch and rollback silently.
+                    try:
+                        conn.execute(text(f"RELEASE SAVEPOINT {sp}"))
+                    except Exception:
+                        conn.execute(text(f"ROLLBACK TO SAVEPOINT {sp}"))
+                        raise
                 else:
                     MIGRATIONS[v](conn)
-                ts_now = datetime.now(timezone.utc).isoformat()
-                if dialect == "postgresql":
-                    # app_meta.value is JSONB on prod; cast int → jsonb.
-                    upsert_v = (
-                        f"INSERT INTO app_meta (key, value, updated_at) "
-                        f"VALUES ('schema_version', '\"{v}\"'::jsonb, '{ts_now}') "
-                        f"ON CONFLICT (key) DO UPDATE SET "
-                        f"value = EXCLUDED.value, updated_at = EXCLUDED.updated_at"
-                    )
-                    conn.execute(text(upsert_v))
-                else:
-                    conn.execute(
-                        text(
-                            "INSERT OR REPLACE INTO app_meta (key, value, updated_at) "
-                            "VALUES ('schema_version', :v, :ts)"
-                        ),
-                        {"v": str(v), "ts": ts_now},
-                    )
+                # Each migration function calls _bump_schema_version()
+                # at its end. The inline upsert here used to be a backup
+                # in case a migration forgot to bump — but all migrations
+                # have been refactored to call the helper. Keeping the
+                # duplicate would re-introduce the :v::jsonb bug on
+                # Postgres. Removed.
         conn.commit()
 
         # 3. Apply recommended Postgres indexes (idempotent).
