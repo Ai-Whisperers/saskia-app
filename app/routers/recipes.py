@@ -9,7 +9,7 @@ only handles single values.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -210,6 +210,42 @@ async def recipe_create(
             detail += f" (y {len(skipped) - 5} más)"
         raise _HTTPExc(status_code=400, detail=detail)
     return RedirectResponse(url="/recetas", status_code=303)
+
+
+@router.get("/{r_id}/set-photo", response_class=HTMLResponse)
+async def recipe_set_photo(
+    request: Request,
+    r_id: int,
+    session: Session = Depends(get_session),
+):
+    """Show a picker of all photos in /static/recipes/."""
+    from pathlib import Path
+    photo_dir = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/recipes")
+    photos = sorted([p.name for p in photo_dir.glob("*.jpg")]) if photo_dir.is_dir() else []
+    recipe = session.get(Recipe, r_id)
+    return render(
+        request,
+        "recipe_photos.html",
+        {"recipe": recipe, "photos": photos, "saved": False},
+    )
+
+
+@router.post("/{r_id}/set-photo")
+async def recipe_save_photo(
+    request: Request,
+    r_id: int,
+    photo: str = Form(...),
+    session: Session = Depends(get_session),
+):
+    """Persist the recipe's image_url."""
+    recipe = session.get(Recipe, r_id)
+    if recipe:
+        recipe.image_url = f"/static/recipes/{photo}"
+        session.commit()
+    return RedirectResponse(
+        url=f"/recetas/{r_id}/set-photo?saved=1",
+        status_code=303,
+    )
 
 
 @router.get("/{r_id}", response_class=HTMLResponse)

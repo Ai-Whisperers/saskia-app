@@ -93,3 +93,34 @@ def test_benchmarks_import_count(dump):
     ]
     # Expect at least 17 entries
     assert len(bench_rows) >= 15
+
+
+def test_recipe_photo_picker_route_in_app():
+    """The /recetas/{id}/set-photo route is registered."""
+    paths = {r.path for r in app.routes if hasattr(r, "path")}
+    has = any(p.startswith("/recetas/") and p.endswith("/set-photo") for p in paths)
+    assert has
+
+
+def test_recipe_photos_template_exists():
+    """The recipe_photos.html template is rendered."""
+    from pathlib import Path
+    p = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/recipe_photos.html")
+    assert p.exists()
+    content = p.read_text()
+    assert "{% for p in photos %}" in content
+    # Should not contain any native <select> for photo picker
+    assert '<select' not in content
+
+
+def test_delivery_zones_api_route_in_app():
+    """The /delivery-zones/api route is registered."""
+    paths = {r.path for r in app.routes if hasattr(r, "path")}
+    assert "/delivery-zones/api" in paths
+
+
+def test_shopping_list_save_plan_route():
+    """Plan-to-shopping-list conversion route exists."""
+    paths = {r.path for r in app.routes if hasattr(r, "path")}
+    has = any(p == "/shopping-list/save-plan/{plan_id}" for p in paths)
+    assert has

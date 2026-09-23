@@ -10,7 +10,17 @@
     <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
     Editar
   </a>
+  <a href="/recetas/{{ recipe.id }}/set-photo" class="btn btn-sm btn-ghost">
+    📷 Foto
+  </a>
 </div>
+
+{% if recipe.image_url %}
+<div class="mb-3">
+  <img src="{{ recipe.image_url }}" alt="{{ recipe.name }}" loading="lazy"
+       style="max-width:300px;max-height:240px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;">
+</div>
+{% endif %}
 
 {# Tags #}
 {% if tags %}
