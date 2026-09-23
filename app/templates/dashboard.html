@@ -7,15 +7,15 @@
 </div>
 
 <div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
-  <div class="kpi-card"><div class="kpi-label">Revenue ₲</div><div class="kpi-value">{{ m.gs(revenue_gs) }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Ingresos ₲</div><div class="kpi-value">{{ m.gs(revenue_gs) }}</div></div>
   <div class="kpi-card"><div class="kpi-label">Portions vendidas</div><div class="kpi-value">{{ portions }}</div></div>
   <div class="kpi-card {% if food_cost_pct < 35 %}good{% else %}warn{% endif %}">
-    <div class="kpi-label">Food cost %</div><div class="kpi-value">{{ "%.1f"|format(food_cost_pct) }}%</div>
-    <div class="kpi-target">target: 35%</div>
+    <div class="kpi-label">Costo de materia prima %</div><div class="kpi-value">{{ "%.1f"|format(food_cost_pct) }}%</div>
+    <div class="kpi-target">objetivo: 35%</div>
   </div>
   <div class="kpi-card {% if gross_margin_pct > 60 %}good{% else %}warn{% endif %}">
-    <div class="kpi-label">Gross margin %</div><div class="kpi-value">{{ "%.1f"|format(gross_margin_pct) }}%</div>
-    <div class="kpi-target">target: 60%</div>
+    <div class="kpi-label">Margen bruto %</div><div class="kpi-value">{{ "%.1f"|format(gross_margin_pct) }}%</div>
+    <div class="kpi-target">objetivo: 60%</div>
   </div>
   <div class="kpi-card"><div class="kpi-label">Clientes únicos</div><div class="kpi-value">{{ unique_customers }}</div></div>
   <div class="kpi-card {% if repeat_pct > 30 %}good{% else %}warn{% endif %}">

@@ -5,6 +5,15 @@
 
 ## [Unreleased]
 
+### Changed (2026-09-23) — second review: i18n copy on dashboard/inicio (carryover from MER-03 + DATA-01)
+
+- **`/dashboard` and `/inicio` now show Spanish KPI labels.** Renamed
+  `Food cost %` → `Costo de materia prima %`, `Gross margin %` →
+  `Margen bruto %`, `Revenue ₲` → `Ingresos ₲`. Replaced English
+  `target:` with Spanish `objetivo:` on KPI target lines. Closes
+  the "English copy on Merma/Inicio" complaints from the 2026-09-22
+  first-review analysis (carried into the second review).
+
 ### Changed (2026-09-23) — second review: recipe photos behind modal (US 1.1)
 
 - **`/recetas` list no longer shows inline 60×60 thumbnails.** The recipe
