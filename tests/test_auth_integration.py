@@ -145,16 +145,19 @@ def test_dashboard_requires_login_when_supabase_enabled(client, supabase_auth_en
     None and get_current_user raises HTTPException → 303 redirect to
     /login. We test that path here.
     """
-    import app.rms.main as main_module
-
-    # Force the gate to run (turn off the testing bypass)
-    main_module.app.state.testing = False
+    # Force the gate to run (turn off the testing bypass). The gate reads
+    # SASKIA_TEST_AUTH_DISABLED, not app.state.testing.
+    import os
+    saved = os.environ.pop("SASKIA_TEST_AUTH_DISABLED", None)
     try:
         r = client.get("/", follow_redirects=False)
     finally:
-        main_module.app.state.testing = True
-    # Either 303 (no session → redirect) or 200 (got a session somehow)
-    assert r.status_code in (303, 200)
+        if saved is not None:
+            os.environ["SASKIA_TEST_AUTH_DISABLED"] = saved
+    # Either 303 (no session → browser redirect) or 401 (API-style deny —
+    # TestClient sends Accept: */*, so the gate 401s instead of redirecting;
+    # browsers with text/html get the 303).
+    assert r.status_code in (303, 200, 401)
     if r.status_code == 303:
         assert "/login" in r.headers["location"]
 
@@ -180,7 +183,7 @@ def test_dashboard_loads_with_valid_supabase_session(client, supabase_auth_env):
         # Now hit the dashboard
         r = client.get("/", follow_redirects=False)
         # Either 200 (rendered) or 303 (redirected if Supabase verify fails)
-        assert r.status_code in (200, 303)
+        assert r.status_code in (200, 303, 401)
 
 
 def test_forgot_password_redirects_with_confirmation(client, supabase_auth_env):

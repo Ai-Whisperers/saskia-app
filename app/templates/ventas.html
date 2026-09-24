@@ -145,11 +145,17 @@
 
     <div class="form-row" style="margin-bottom: var(--space-2);">
       <label for="invoice_type">Tipo</label>
-      <select id="invoice_type" name="invoice_type">
-        <option value="boleta_resimple" {% if tax_regime == 'resimple' %}selected{% endif %}>Boleta Resimple (IRE RESIMPLE)</option>
-        <option value="factura" {% if tax_regime == 'general' %}selected{% endif %}>Factura (IVA General)</option>
-        <option value="none">Sin comprobante (interno)</option>
-      </select>
+      <div class="saskia-combo" data-source="static" data-display="name" data-value="value"
+             data-min-chars="0" data-row-builder="genericRowLabel">
+          <input type="text" id="invoice_type" class="combo-input" name="invoice_type_display" maxlength="40"
+                 value="{% if tax_regime == 'general' %}Factura (IVA General){% elif tax_regime == 'resimple' %}Boleta Resimple (IRE RESIMPLE){% else %}Boleta Resimple (IRE RESIMPLE){% endif %}" placeholder="Tipo">
+          <input type="hidden" name="invoice_type" value="{% if tax_regime == 'general' %}factura{% else %}boleta_resimple{% endif %}">
+          <div class="combo-results" role="listbox" hidden>
+            <div class="combo-static-option" data-value="boleta_resimple" data-display="Boleta Resimple (IRE RESIMPLE)"></div>
+            <div class="combo-static-option" data-value="factura" data-display="Factura (IVA General)"></div>
+            <div class="combo-static-option" data-value="none" data-display="Sin comprobante (interno)"></div>
+          </div>
+        </div>
       <small>Cambiá solo si esta venta difiere de tu régimen habitual.</small>
     </div>
 

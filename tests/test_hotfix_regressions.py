@@ -147,11 +147,18 @@ def test_dockerfile_includes_supabase():
     ]
     assert pip_lines, "Dockerfile has no pip install lines at all"
 
+    # Dockerfile installs via `uv sync` + `uv pip install .` from
+    # pyproject.toml (uv migration). The dependency list lives in
+    # pyproject.toml [project] dependencies — check it there.
     supabase_present = any(re.search(r"\bsupabase\b", line) for line in pip_lines)
+    if not supabase_present:
+        pyproject = dockerfile.parent / "pyproject.toml"
+        deps_text = pyproject.read_text() if pyproject.exists() else ""
+        supabase_present = re.search(r"['\"]supabase[><=~]", deps_text) is not None
     assert supabase_present, (
-        "Dockerfile pip install is missing the `supabase` package. "
-        "Reverting 99b37c6 (e.g. by re-syncing from a stale pip list) would "
-        "cause ModuleNotFoundError on Render at first login. See commit 99b37c6."
+        "`supabase` package missing from both Dockerfile pip lines and "
+        "pyproject.toml dependencies. Reverting 99b37c6 would cause "
+        "ModuleNotFoundError on first login. See commit 99b37c6."
     )
 
 

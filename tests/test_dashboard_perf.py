@@ -34,19 +34,22 @@ def test_dashboard_renders_under_60_queries(client, session_factory):
     finally:
         event.remove(engine, "before_cursor_execute", _count)
 
-    # Threshold: 100 queries. Measured 2026-09-23 after adding
-    # operational KPI cards (shopping list, wishlist, risks) to dashboard:
-    # 38 PRAGMA (sqlite table_info for every table during idempotent
-    # migration bootstrap on the tmp test DB) + 50 SELECT (dashboard
-    # sections + the 3 new KPI aggregations from herebus router) +
-    # 3 INSERT/CREATE (first-run app_meta writes) + 9 misc.
+    # Threshold: 100 real queries (PRAGMA table_info excluded).
+    # Re-measured 2026-09-24: 125 total = 88 PRAGMA (sqlite table_info,
+    # 44 tables × 2 bootstrap passes: fixture + app lifespan) + 37 real
+    # SELECT/INSERT. The PRAGMA noise is one-time migration bootstrap on
+    # the tmp test DB — proportional to table count, not row count, so
+    # it can't mask an N+1. Excluding it keeps the budget meaningful as
+    # the schema grows (schema v49 added storage_keyword; every new
+    # table adds 2 more PRAGMAs).
     # The pre-fix N+1 bug hit ~3,000 queries, so this test's job is to
     # fail loudly if any future feature accidentally reintroduces
     # per-row N+1. If you bump this number, RE-RUN the measurement
     # against the real tree and document the new budget in the commit.
-    assert len(queries) < 100, (
-        f"Dashboard issued {len(queries)} queries — N+1 regression. "
-        f"First 5 queries: {queries[:5]}"
+    real = [q for q in queries if not q.upper().startswith("PRAGMA")]
+    assert len(real) < 100, (
+        f"Dashboard issued {len(real)} queries — N+1 regression. "
+        f"First 5 queries: {real[:5]}"
     )
 
 

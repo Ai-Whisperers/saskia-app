@@ -65,4 +65,4 @@ def test_inventory_form_structure(client: TestClient):
     
     # Check for combo system integration
     assert "/static/combo.js" in response.text
-    assert "/static/combo.css" in response.text
+    assert "/static/combobox.css" in response.text

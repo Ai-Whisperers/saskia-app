@@ -169,7 +169,15 @@
       <div><label>Código</label><input type="text" id="add-channel-code" maxlength="32" placeholder="Ej: instagram_dm"></div>
       <div><label>Etiqueta</label><input type="text" id="add-channel-label" maxlength="64" placeholder="Ej: Instagram DM"></div>
       <div><label>Orden</label><input type="number" id="add-channel-sort" min="0" value="1000"></div>
-      <div><label>Predeterminado</label><select id="add-channel-default"><option value="0">No</option><option value="1">Sí</option></select></div>
+      <div><label>Predeterminado</label><div class="saskia-combo yesno-combo" data-source="static" data-display="name" data-value="value"
+               data-min-chars="0" data-row-builder="genericRowLabel" data-default="0">
+          <input type="text" id="add-channel-default" class="combo-input" name="add-channel-default_display" maxlength="3" value="No" placeholder="No">
+          <input type="hidden" name="add-channel-default" value="0" id="add-channel-default-value">
+          <div class="combo-results" role="listbox" hidden>
+            <div class="combo-static-option" data-value="0" data-display="No"></div>
+            <div class="combo-static-option" data-value="1" data-display="Sí"></div>
+          </div>
+        </div></div>
     </div>
     <div class="add-form-actions">
       <button class="btn btn-primary" id="save-channel">Guardar</button>
@@ -191,9 +199,25 @@
       <div><label>Código</label><input type="text" id="add-payment-code" maxlength="32" placeholder="Ej: billeteras"></div>
       <div><label>Etiqueta</label><input type="text" id="add-payment-label" maxlength="64" placeholder="Ej: Billeteras móviles"></div>
       <div><label>% Comisión</label><input type="number" id="add-payment-fee" min="0" max="100" step="0.01" value="0"></div>
-      <div><label>Requiere referencia</label><select id="add-payment-ref"><option value="0">No</option><option value="1">Sí</option></select></div>
+      <div><label>Requiere referencia</label><div class="saskia-combo yesno-combo" data-source="static" data-display="name" data-value="value"
+               data-min-chars="0" data-row-builder="genericRowLabel" data-default="0">
+          <input type="text" id="add-payment-ref" class="combo-input" name="add-payment-ref_display" maxlength="3" value="No" placeholder="No">
+          <input type="hidden" name="add-payment-ref" value="0" id="add-payment-ref-value">
+          <div class="combo-results" role="listbox" hidden>
+            <div class="combo-static-option" data-value="0" data-display="No"></div>
+            <div class="combo-static-option" data-value="1" data-display="Sí"></div>
+          </div>
+        </div></div>
       <div><label>Orden</label><input type="number" id="add-payment-sort" min="0" value="1000"></div>
-      <div><label>Predeterminado</label><select id="add-payment-default"><option value="0">No</option><option value="1">Sí</option></select></div>
+      <div><label>Predeterminado</label><div class="saskia-combo yesno-combo" data-source="static" data-display="name" data-value="value"
+               data-min-chars="0" data-row-builder="genericRowLabel" data-default="0">
+          <input type="text" id="add-payment-default" class="combo-input" name="add-payment-default_display" maxlength="3" value="No" placeholder="No">
+          <input type="hidden" name="add-payment-default" value="0" id="add-payment-default-value">
+          <div class="combo-results" role="listbox" hidden>
+            <div class="combo-static-option" data-value="0" data-display="No"></div>
+            <div class="combo-static-option" data-value="1" data-display="Sí"></div>
+          </div>
+        </div></div>
     </div>
     <div class="add-form-actions">
       <button class="btn btn-primary" id="save-payment">Guardar</button>
@@ -245,9 +269,33 @@
       <div><label>Código</label><input type="text" id="add-storage-code" maxlength="32" placeholder="Ej: vacuum_sealed"></div>
       <div><label>Etiqueta</label><input type="text" id="add-storage-label" maxlength="64" placeholder="Ej: Envasado al vacío"></div>
       <div><label>Orden</label><input type="number" id="add-storage-sort" min="0" value="1000"></div>
-      <div><label>Temp mín requerida</label><select id="add-storage-tmin"><option value="0">No</option><option value="1">Sí</option></select></div>
-      <div><label>Temp máx requerida</label><select id="add-storage-tmax"><option value="0">No</option><option value="1">Sí</option></select></div>
-      <div><label>Humedad máx requerida</label><select id="add-storage-hum"><option value="0">No</option><option value="1">Sí</option></select></div>
+      <div><label>Temp mín requerida</label><div class="saskia-combo yesno-combo" data-source="static" data-display="name" data-value="value"
+               data-min-chars="0" data-row-builder="genericRowLabel" data-default="0">
+          <input type="text" id="add-storage-tmin" class="combo-input" name="add-storage-tmin_display" maxlength="3" value="No" placeholder="No">
+          <input type="hidden" name="add-storage-tmin" value="0" id="add-storage-tmin-value">
+          <div class="combo-results" role="listbox" hidden>
+            <div class="combo-static-option" data-value="0" data-display="No"></div>
+            <div class="combo-static-option" data-value="1" data-display="Sí"></div>
+          </div>
+        </div></div>
+      <div><label>Temp máx requerida</label><div class="saskia-combo yesno-combo" data-source="static" data-display="name" data-value="value"
+               data-min-chars="0" data-row-builder="genericRowLabel" data-default="0">
+          <input type="text" id="add-storage-tmax" class="combo-input" name="add-storage-tmax_display" maxlength="3" value="No" placeholder="No">
+          <input type="hidden" name="add-storage-tmax" value="0" id="add-storage-tmax-value">
+          <div class="combo-results" role="listbox" hidden>
+            <div class="combo-static-option" data-value="0" data-display="No"></div>
+            <div class="combo-static-option" data-value="1" data-display="Sí"></div>
+          </div>
+        </div></div>
+      <div><label>Humedad máx requerida</label><div class="saskia-combo yesno-combo" data-source="static" data-display="name" data-value="value"
+               data-min-chars="0" data-row-builder="genericRowLabel" data-default="0">
+          <input type="text" id="add-storage-hum" class="combo-input" name="add-storage-hum_display" maxlength="3" value="No" placeholder="No">
+          <input type="hidden" name="add-storage-hum" value="0" id="add-storage-hum-value">
+          <div class="combo-results" role="listbox" hidden>
+            <div class="combo-static-option" data-value="0" data-display="No"></div>
+            <div class="combo-static-option" data-value="1" data-display="Sí"></div>
+          </div>
+        </div></div>
     </div>
     <div class="add-form-actions">
       <button class="btn btn-primary" id="save-storage">Guardar</button>
@@ -275,7 +323,15 @@
       <div><label>Etiqueta</label><input type="text" id="add-preset-label" maxlength="64" placeholder="Ej: Quincena"></div>
       <div><label>Días</label><input type="number" id="add-preset-days" min="1" max="3650" value="14"></div>
       <div><label>Orden</label><input type="number" id="add-preset-sort" min="0" value="1000"></div>
-      <div><label>Predeterminado</label><select id="add-preset-default"><option value="0">No</option><option value="1">Sí</option></select></div>
+      <div><label>Predeterminado</label><div class="saskia-combo yesno-combo" data-source="static" data-display="name" data-value="value"
+               data-min-chars="0" data-row-builder="genericRowLabel" data-default="0">
+          <input type="text" id="add-preset-default" class="combo-input" name="add-preset-default_display" maxlength="3" value="No" placeholder="No">
+          <input type="hidden" name="add-preset-default" value="0" id="add-preset-default-value">
+          <div class="combo-results" role="listbox" hidden>
+            <div class="combo-static-option" data-value="0" data-display="No"></div>
+            <div class="combo-static-option" data-value="1" data-display="Sí"></div>
+          </div>
+        </div></div>
     </div>
     <div class="add-form-actions">
       <button class="btn btn-primary" id="save-preset">Guardar</button>
