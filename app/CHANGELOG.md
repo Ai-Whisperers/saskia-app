@@ -5,6 +5,27 @@
 
 ## [Unreleased]
 
+### Fixed (2026-09-24) — Phase 1A atomicity: invoice counter row-level lock
+
+**Bug:** `app/rms/invoicing.py:allocate_invoice_number` (F10 in
+`docs/operations/SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md`).
+The function read `ComplianceInfo` without `with_for_update`, so on
+Postgres two concurrent sales could read the same counter value and
+emit duplicate fiscal invoice numbers — rejected by the tax
+authority (SET).
+
+**Fix:** Use `session.get(ComplianceInfo, 1, with_for_update=True)`
+when the dialect is Postgres. SQLite is single-writer so the lock
+is a no-op there; the function dialect-checks via
+`session.bind.dialect.name`.
+
+**Tests:**
+- `tests/test_invoice_number_atomicity.py` — 5 tests covering
+  sequential allocation, separate counters per invoice type, error
+  on unknown type, and introspection (mock Postgres session, assert
+  `with_for_update=True` is passed).
+- All sale / pedido / invoice tests pass; no regressions.
+
 ### Fixed (2026-09-24) — Phase 1A atomicity: pedido fulfill idempotency race
 
 **Bug:** `app/routers/pedidos.py:pedidos_fulfill` (F3 in
