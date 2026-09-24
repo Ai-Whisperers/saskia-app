@@ -501,7 +501,7 @@ class TestMigrations:
             row = s.scalar(
                 select(AppMeta.value).where(AppMeta.key == "schema_version")
             )
-        assert int(row) == 52
+        assert int(row) == CURRENT_SCHEMA_VERSION
         assert int(row) == CURRENT_SCHEMA_VERSION
 
     def test_forecast_horizon_column_exists(self, session_factory):
