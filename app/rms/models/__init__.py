@@ -118,6 +118,7 @@ from app.rms.models.sales import (
     Tag,
     TagLink,
 )
+from app.rms.models.channels import Channel
 
 
 __all__ = [
@@ -160,6 +161,7 @@ __all__ = [
     "ProductionPlanOverride",
     "ProductionPlanTemplate",
     # sales
+    "Channel",
     "Customer",
     "RecipePricing",
     "Sale",

@@ -4,9 +4,10 @@ from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy import (
-    Boolean, CheckConstraint, Date, DateTime, Float, JSON,
+    Boolean, CheckConstraint, Date, DateTime, Enum, Float, JSON,
     ForeignKey, Index, Integer, String, Text, UniqueConstraint,
 )
+from .channels import Channel
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.rms.models.core import Base
@@ -45,9 +46,10 @@ class Sale(Base):
     # Allowed values: mostrador, whatsapp, pedidosya, monchis, mostrador-encargo.
     # Defaults to 'mostrador' so existing rows have a sensible value
     # and a brand-new sale (form default) lands on mostrador too.
-    channel: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="mostrador", server_default="mostrador"
+    channel: Mapped[Channel] = mapped_column(
+        Enum(Channel), nullable=False, default=Channel.default(), server_default=Channel.default()
     )
+
 
     # Phase 1.B — Fiscal invoice fields (Paraguay DNIT compliance).
     # invoice_type ∈ {'boleta_resimple', 'factura', 'none'}.

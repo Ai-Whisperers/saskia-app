@@ -4,9 +4,10 @@ from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy import (
-    Boolean, CheckConstraint, Date, DateTime, Float, JSON,
+    Boolean, CheckConstraint, Date, DateTime, Enum, Float, JSON,
     ForeignKey, Index, Integer, String, Text, UniqueConstraint,
 )
+from .channels import Channel
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.rms.models.core import Base
@@ -60,7 +61,10 @@ class Pedido(Base):
     )
     promised_date: Mapped[datetime] = mapped_column(Date, nullable=False, index=True)
     promised_time: Mapped[str | None] = mapped_column(String(8), nullable=True)
-    channel: Mapped[str] = mapped_column(String(32), nullable=False, default="whatsapp")
+    channel: Mapped[Channel] = mapped_column(
+        Enum(Channel), nullable=False, default=Channel.default()
+    )
+
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="pending", index=True
     )
