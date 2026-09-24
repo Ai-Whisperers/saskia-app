@@ -14,7 +14,7 @@ from app.rms.models.core import Base
 class Tag(Base):
     """Tag entity for sales categorization."""
     
-    __tablename__ = "Tag"
+    __tablename__ = "tag"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
@@ -30,11 +30,11 @@ class Tag(Base):
 class TagLink(Base):
     """Many-to-many relationship between tags and sales."""
     
-    __tablename__ = "TagLink"
+    __tablename__ = "tag_link"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    tag_id: Mapped[int] = mapped_column(Integer, ForeignKey("Tag.id"), nullable=False)
-    sale_id: Mapped[str] = mapped_column(String(32), ForeignKey("Sale.sale_id"), nullable=False)
+    tag_id: Mapped[int] = mapped_column(Integer, ForeignKey("tag.id"), nullable=False)
+    sale_id: Mapped[str] = mapped_column(String(32), ForeignKey("sale.sale_id"), nullable=False)
     
     # Relationships
     tag: Mapped["Tag"] = relationship("Tag", back_populates="links")

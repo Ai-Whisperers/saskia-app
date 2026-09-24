@@ -14,9 +14,11 @@ def test_migrations_dict_exists_and_has_at_least_44_entries():
     After refactor: should have exactly 44 entries (since we moved one out).
     """
     assert isinstance(MIGRATIONS, dict)
-    assert len(MIGRATIONS) >= 1  # at least migration 44
+    assert len(MIGRATIONS) >= 44
     assert 44 in MIGRATIONS
-    assert 45 not in MIGRATIONS
+    # Contiguous through CURRENT_SCHEMA_VERSION (54 as of tag-algebra).
+    from app.rms.config import CURRENT_SCHEMA_VERSION
+    assert set(range(1, CURRENT_SCHEMA_VERSION + 1)) <= set(MIGRATIONS)
 
 
 def test_migration_44_is_callable():

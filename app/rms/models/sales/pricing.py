@@ -14,10 +14,10 @@ from app.rms.models.core import Base
 class RecipePricing(Base):
     """Pricing information for recipes/products."""
     
-    __tablename__ = "RecipePricing"
+    __tablename__ = "recipe_pricing"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    recipe_id: Mapped[int] = mapped_column(Integer, ForeignKey("Recipe.id"), nullable=False)
+    recipe_id: Mapped[int] = mapped_column(Integer, ForeignKey("recipe.id"), nullable=False)
     price_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     cost_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     margin_percent: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

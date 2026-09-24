@@ -67,6 +67,9 @@ class Ingredient(Base):
     # Whether this ingredient requires lot tracking (FIFO per batch).
     # True for dairy, eggs, meat, seafood, fresh produce. False for dry/sugar/salt.
     lot_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    # SINACLA cross-contamination flag: produced in facility with wheat.
+    # Blocks "sin tacc" derivation even when tagged sin_gluten (migration 054).
+    may_contain_gluten: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     # Audit items 109, 110: opening stock with date + reorder point override
     opening_stock_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     opening_stock_date: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # ISO date string
@@ -113,6 +116,9 @@ class Recipe(Base):
     direct_labor_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     # HEREBUS integration: image_url (book page or process photo)
     image_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # Tag algebra (migration 054): cached union allergens + intersection tags.
+    allergens: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    derived_dietary_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships
     lines: Mapped[list["RecipeLine"]] = relationship(
@@ -198,6 +204,8 @@ class Product(Base):
 
     # Phase 1.C — HACCP + costing (lazy fields; detailed cost fields added in Phase 1.D)
     yield_percentage: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    # Tag algebra: cached inherited tags from linked recipe (migration 054).
+    inherited_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # 0.85 default = 15% moisture loss for breads (matches industry standard).
     # Operators can override per recipe.
 
@@ -209,6 +217,80 @@ class Product(Base):
         CheckConstraint("sale_price_gs >= 0", name="ck_product_price_nonneg"),
         Index("ix_product_name", "name", unique=True),
     )
+
+class IngredientVariant(Base):
+    """A specific package of an Ingredient (Sprint 7 — Decision A1).
+
+    E.g. for Ingredient "harina", variants are "harina 1kg @ Proveedor A",
+    "harina 250g @ Proveedor B", "harina 5kg @ Proveedor C". Each variant
+    has its own purchase price + supplier, and price history can be
+    tracked per variant (future: IngredientPriceEvent will get a
+    variant_id column).
+
+    Rollups: "how much harina total?" = sum over variants of
+    (variant.stock_qty * package_size, converted to the Ingredient's base
+    unit). Helper in app/rms/inventory.py: rollup_ingredient_stock().
+
+    Preferred: exactly one variant per ingredient should be marked
+    preferred — that variant is the "current price" the dashboard reads
+    when reporting current purchase_price_gs. Enforced by a partial unique
+    index in Postgres / a trigger in SQLite (see migration 040).
+    """
+
+    __tablename__ = "ingredient_variant"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ingredient_id: Mapped[int] = mapped_column(
+        ForeignKey("ingredient.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # Human-readable label of the package (e.g. "Bolsa 1kg", "Saco 25kg").
+    # Optional — operators can leave it empty if the size + unit is clear.
+    package_size: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    package_unit: Mapped[str] = mapped_column(
+        String(8), nullable=False, default="und"
+    )
+    purchase_price_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Stock for THIS variant only (e.g. 3 bags of 1kg harina). The
+    # ingredient.stock_qty column on the parent is kept for backwards
+    # compatibility but new code should read variant-level stock.
+    stock_qty: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.0, server_default="0"
+    )
+    supplier_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("supplier.id"), nullable=True, index=True
+    )
+    preferred: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    # Relationships
+    ingredient: Mapped["Ingredient"] = relationship(back_populates="variants")
+    supplier: Mapped[Optional["Supplier"]] = relationship()
+
+    __table_args__ = (
+        CheckConstraint("package_size > 0", name="ck_variant_size_positive"),
+        CheckConstraint(
+            "package_unit IN ('g', 'kg', 'ml', 'l', 'und')",
+            name="ck_variant_unit_allowed",
+        ),
+        CheckConstraint(
+            "purchase_price_gs IS NULL OR purchase_price_gs >= 0",
+            name="ck_variant_price_nonneg",
+        ),
+    )
+
 
 class IngredientPriceEvent(Base):
     """A purchase-price update for an ingredient (Phase B — Q1 core).

@@ -14,7 +14,7 @@ from app.rms.models.core import Base
 class Customer(Base):
     """Customer entity for sales tracking."""
     
-    __tablename__ = "Customer"
+    __tablename__ = "customer"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)

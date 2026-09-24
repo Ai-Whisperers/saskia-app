@@ -14,11 +14,11 @@ from app.rms.models.core import Base
 class SaleStockMove(Base):
     """Tracks stock movement for sales transactions."""
     
-    __tablename__ = "SaleStockMove"
+    __tablename__ = "sale_stock_move"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    sale_id: Mapped[str] = mapped_column(String(32), ForeignKey("Sale.sale_id"), nullable=False)
-    product_id: Mapped[int] = mapped_column(Integer, ForeignKey("Product.id"), nullable=False)
+    sale_id: Mapped[str] = mapped_column(String(32), ForeignKey("sale.sale_id"), nullable=False)
+    product_id: Mapped[int] = mapped_column(Integer, ForeignKey("product.id"), nullable=False)
     quantity: Mapped[float] = mapped_column(Integer, nullable=False)
     
     # Relationships

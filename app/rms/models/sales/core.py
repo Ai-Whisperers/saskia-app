@@ -16,11 +16,11 @@ from app.rms.models.channels import Channel
 class Sale(Base):
     """Main sales transaction entity."""
     
-    __tablename__ = "Sale"
+    __tablename__ = "sale"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     sale_id: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
-    customer_id: Mapped[int] = mapped_column(Integer, ForeignKey("Customer.id"), nullable=True)
+    customer_id: Mapped[int] = mapped_column(Integer, ForeignKey("customer.id"), nullable=True)
     
     # Sales details
     channel: Mapped[Channel] = mapped_column(

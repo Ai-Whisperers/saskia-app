@@ -1760,6 +1760,52 @@ def _migration_042_payment_method_catalog(conn):
 
 
 
+def _migration_043_branding_setting(conn):
+    """Phase 5 — Branding settings.
+
+    Seeds SettingsKV["branding"] with defaults that match the previous
+    hardcoded copy in templates/login.html and templates/base.html:
+      - business_name: "Saskia RMS"
+      - tagline: "Panadería / Bakery — Sistema de gestión"
+      - footer: "Sistema local · 2026"
+      - accent_color: "#f97316" (CSS --color-accent)
+      - logo_path: "" (no logo by default)
+
+    Operators can change any field from /settings/branding without code
+    deploy (Phase 5 follow-up UI page).
+    """
+    import json as _json
+    branding = {
+        "business_name": "Saskia RMS",
+        "tagline": "Panadería / Bakery — Sistema de gestión",
+        "footer": "Sistema local · 2026",
+        "accent_color": "#f97316",
+        "logo_path": "",
+    }
+    from app.rms.db import app_meta_write
+    app_meta_write(conn, "branding", _json.dumps(branding))
+    _bump_schema_version(conn, 43)
+
+
+
+
+
+def _migration_044_message_templates(conn):
+    """Phase 6 — MessageTemplate table + seed common templates.
+
+    Replaces hardcoded copy in pedidos.py, email notifications, etc.
+    Operators can edit from /settings/templates without code deploy.
+
+    Seed data matches the prior hardcoded copy in app/routers/pedidos.py
+    and similar files. Body uses {placeholder} format() syntax — substitute
+    at send time.
+
+    Idempotent: INSERT OR IGNORE on (channel, key, locale) unique.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    text_type = "TEXT"
+
+
 def _migration_044_message_templates(conn):
     """Phase 6 — MessageTemplate table + seed common templates.
 
@@ -2264,20 +2310,23 @@ def _migration_054_tag_algebra(conn: Any) -> None:
     _bump_schema_version(conn, 54)
 
 
+def _migration_005_customer(conn: Any) -> None:
+    """Add Customer table + Sale.customer_id FK (E13).
+
+    Tables are created via create_all() in init_db(). The Sale
+    FK column is added in case create_all didn't (e.g. on an existing
+    DB that pre-dates the customer table).
+    """
+    _bump_schema_version(conn, 5)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
     3: _migration_003_analytics_columns,
     4: _migration_004_tags,
     5: _migration_005_customer,
-
     6: _migration_006_waste_log,
-
-
-def _migration_005_customer(conn: Any) -> None:
-    """Add Customer table + Sale.customer_id FK (E13).
-
-
     7: _migration_007_product_sku,
     8: _migration_008_tenant,
     9: _migration_009_ingredient_intel,
@@ -2314,14 +2363,13 @@ def _migration_005_customer(conn: Any) -> None:
     40: _migration_040_pricing_setting,
     41: _migration_041_channel_catalog,
     42: _migration_042_payment_method_catalog,
-
+    43: _migration_043_branding_setting,
     44: _migration_044_message_templates,
     45: _migration_045_margin_tiers,
     46: _migration_046_stock_status_config,
     47: _migration_047_storage_types,
     48: _migration_048_date_range_presets,
     49: _migration_049_storage_keywords,
-    # R2 stack (renumbered 2026-09-24: collided with 039-041 on main)
     50: _migration_050_sale_void_reason,
     51: _migration_051_ingredient_variant,
     52: _migration_052_ingredient_forecast_horizon,
@@ -2331,28 +2379,12 @@ def _migration_005_customer(conn: Any) -> None:
 
 
 def _bump_schema_version(conn, version: int) -> None:
-    """Set schema_version to `version`, working on both SQLite and Postgres.
+    """Set schema_version to `version` on both SQLite and Postgres.
 
-    On Postgres, app_meta.value is JSONB. Sending a plain TEXT literal
-    ('27') raises `invalid input syntax for type json`. So we cast the
-    bound parameter to JSONB explicitly with a typed literal. On
-    SQLite, the column is TEXT so the same INSERT/UPDATE works without
-    the cast.
-
-    Replaces the old hard-coded pattern `text("UPDATE app_meta SET value = '27', ...")`
-    that silently no-op'd on Postgres (the UPDATE failed with a type"
-    error and the migration appeared to "succeed" without bumping"
-    schema_version).
-
-    Implementation note: `text(":v::jsonb")` causes psycopg to fail with
-    "syntax error at or near :" because the colon is ambiguous between
-    a parameter marker and a typecast. So we use a string-format with
-    the version number inline (safe — `version` is an int we control,
-    not user input).
-
-    Robustness: wraps the INSERT in its own SAVEPOINT on Postgres so
-    that even if the caller's transaction is in an aborted state, our
-    bump can still succeed (after a ROLLBACK TO SAVEPOINT).
+    On Postgres, app_meta.value is JSONB; a plain TEXT literal fails
+    (invalid input syntax for type json), so the version is inlined as
+    a typed literal. The bump runs inside its own SAVEPOINT so an
+    aborted caller transaction cannot block it.
     """
     dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     ts = datetime.now(timezone.utc).isoformat()
