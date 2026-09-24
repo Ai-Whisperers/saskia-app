@@ -5,6 +5,33 @@
 
 ## [Unreleased]
 
+### Fixed (2026-09-24) — Phase 1A atomicity: sale idempotency race
+
+**Bug:** `app/routers/sales.py:sale_create` (F2 in
+`docs/operations/SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md`).
+The sale row was created and committed BEFORE the idempotency check,
+so a duplicate POST (browser double-click, network retry) created two
+Sale rows, allocated two invoice numbers, and decremented stock twice.
+
+**Fix:** Reserve the `AppMeta(key=sale_idem:<key>)` row BEFORE
+`apply_sale()` runs. Because `AppMeta.key` is the primary key, a
+duplicate INSERT raises `IntegrityError`, which we catch and redirect
+to the original sale. The AppMeta row is committed in the same
+transaction as the Sale (via `apply_sale`'s internal commit), so a
+retry immediately sees the row and aborts. A second UPDATE fixes the
+value to the actual `sale_id`.
+
+**Race window:** Before fix: between line 556 (sale commit) and
+line 602 (idem commit) — three commits with the idempotency record
+in a separate transaction. After fix: zero — the idem row is
+reserved in the same transaction as the sale creation.
+
+**Tests:**
+- `tests/test_sale_idempotency.py` — 5 tests covering same-key retry,
+  different-key, empty-key, stock-deduction double-count, and redirect
+  target.
+- All other sale tests pass; no regressions vs `main`.
+
 ### Added (2026-09-23) — Phase 1: Paraguayan tax + HACCP + costing compliance
 
 **Phase 1.A — Tax compliance foundation**
