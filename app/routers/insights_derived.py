@@ -12,7 +12,7 @@ All read-only; no new writes beyond what engines already do.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
@@ -37,7 +37,7 @@ router = APIRouter(prefix="/reportes", dependencies=[Depends(require_login)])
 
 @router.get("/food-cost-variance", response_class=HTMLResponse)
 def food_cost_variance(
-    request,
+    request: Request,
     days: int = Query(30, ge=1, le=365),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
@@ -49,7 +49,7 @@ def food_cost_variance(
 
 @router.get("/demand", response_class=HTMLResponse)
 def demand_view(
-    request,
+    request: Request,
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     forecasts = forecast_demand(session)
@@ -62,7 +62,7 @@ def demand_view(
 
 @router.get("/freshness", response_class=HTMLResponse)
 def freshness_view(
-    request,
+    request: Request,
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     flags = freshness_flags(session)
@@ -74,7 +74,7 @@ def freshness_view(
 
 @router.get("/price-impact/{ingredient_id}", response_class=HTMLResponse)
 def price_impact_view(
-    request,
+    request: Request,
     ingredient_id: int,
     new_price: int = Query(..., ge=0),
     session: Session = Depends(get_session),
