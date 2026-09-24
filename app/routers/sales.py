@@ -204,43 +204,39 @@ def _build_sales_context(
                 "stock_qty": getattr(p, "stock_qty", None),
             })
 
-    return render(
-        request,
-        "ventas.html",
-        {
-            "products": products,
-            "sales": [_decorated(s) for s in sales_page],
-            "quick_sell": quick_sell,
-            "q": q or "",
-            "product_id": product_id or "",
-            "days": days,
-            "products_filtered": products,  # alias used by historial.html
-            # DB-driven catalogs (Phase 4 of static-content audit). Falls back
-            # to schema constants if the DB tables haven't been seeded yet.
-            "channels": [c.code for c in list_channels(session)] or list(CHANNELS_DISPLAY),
-            "channel_default": default_channel_code(session) or CHANNEL_DEFAULT,
-            "payment_methods": [pm.code for pm in list_payment_methods(session)] or list(PAYMENT_METHODS_DISPLAY),
-            "payment_method_default": default_payment_method_code(session) or PAYMENT_METHOD_DEFAULT,
-            "now_local": datetime.now(ASUNCION_TZ).strftime("%Y-%m-%dT%H:%M"),
-            "idem_key": _generate_idem_key(),
-            # Phase 1.B — pass tax regime so the form defaults the invoice type
-            "tax_regime": _get_tax_regime(session),
-            "totals": {
-                "count": total_count,
-                "total_gs": total_gs,
-                "avg_ticket_gs": int(total_gs / total_count) if total_count else 0,
-                "filters": _filter_summary(
-                    q=q, product_id=product_id, days=days, products=products
-                ),
-            },
-            "has_more": has_more,
-            "current_offset": start_offset,
-            "current_page_size": PAGE_SIZE,
-            "page_start": start_offset + 1,
-            "page_end": min(start_offset + PAGE_SIZE, total_count),
-            "total_count": total_count,
+    return {
+        "products": products,
+        "sales": [_decorated(s) for s in sales_page],
+        "quick_sell": quick_sell,
+        "q": q or "",
+        "product_id": product_id or "",
+        "days": days,
+        "products_filtered": products,  # alias used by historial.html
+        # DB-driven catalogs (Phase 4 of static-content audit). Falls back
+        # to schema constants if the DB tables haven't been seeded yet.
+        "channels": [c.code for c in list_channels(session)] or list(CHANNELS_DISPLAY),
+        "channel_default": default_channel_code(session) or CHANNEL_DEFAULT,
+        "payment_methods": [pm.code for pm in list_payment_methods(session)] or list(PAYMENT_METHODS_DISPLAY),
+        "payment_method_default": default_payment_method_code(session) or PAYMENT_METHOD_DEFAULT,
+        "now_local": datetime.now(ASUNCION_TZ).strftime("%Y-%m-%dT%H:%M"),
+        "idem_key": _generate_idem_key(),
+        # Phase 1.B — pass tax regime so the form defaults the invoice type
+        "tax_regime": _get_tax_regime(session),
+        "totals": {
+            "count": total_count,
+            "total_gs": total_gs,
+            "avg_ticket_gs": int(total_gs / total_count) if total_count else 0,
+            "filters": _filter_summary(
+                q=q, product_id=product_id, days=days, products=products
+            ),
         },
-    )
+        "has_more": has_more,
+        "current_offset": start_offset,
+        "current_page_size": PAGE_SIZE,
+        "page_start": start_offset + 1,
+        "page_end": min(start_offset + PAGE_SIZE, total_count),
+        "total_count": total_count,
+    }
 
 
 @router.get("", response_class=HTMLResponse)
