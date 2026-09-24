@@ -5,6 +5,11 @@
 
 ## [Unreleased]
 
+### Changed (2026-09-23) — second review: sub-recipe UI + multi-ingredient filter (US 3.1, US 3.2)
+
+- **`/recetas` (recipe list) now supports multi-ingredient reverse search (US 3.2).** Pass `?ingredient_ids=1,3` to get recipes that use BOTH ingredients (AND semantics). The legacy single-id `?ingredient_id=N` still works. Invalid IDs (non-int, empty) in the comma-separated list are silently dropped. Hidden `ingredient_ids` form field and sort-header URLs preserve the multi-filter across pagination and column sort.
+- **Sub-recipe lines are now visually distinct (US 3.1 AC #3).** `.line-row[data-kind="sub_recipe"]` gets a soft accent-soft background, the kind `<select>` gets an accent border, and the target input gets a `↳` marker. Recipe form template had `data-kind="..."` on every row but no CSS rule consumed it — now it does. Inline `<style>` block in `receta_form.html` so no app.css edit needed.
+
 ### Changed (2026-09-23) — second review: inventory form combos (US 2.1, carryover)
 
 - **`/inventario/nuevo` and `/inventario/{id}/editar` no longer submit duplicate form fields.** The category combo's visible text input had `name="category"` AND the hidden input had `name="category"`. Same bug on the unit combo. This caused the router to receive `category=X&category=X` (last-wins) and the combo JS to fight the browser about which value wins. Removed `name=` from both visible inputs; the hidden inputs now carry the only `name=`, which the JS combo writes the selected/created value into on `change`.
