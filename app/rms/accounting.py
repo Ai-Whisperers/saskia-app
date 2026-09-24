@@ -245,7 +245,10 @@ class DailySummary:
     iva_gs: int
     cogs_gs: int  # Cost of goods sold (recipe cost x qty)
     margin_gs: int
-    expenses_gs: int = 0  # Operational expenses for the day
+    # Renamed from `expenses_gs` to make the placeholder explicit.
+    # Until the Expense model ships, this is always 0 and operators
+    # reading the dashboard should not mistake it for a real number.
+    expenses_placeholder_gs: int = 0  # TODO(phase-3c): wire Expense model
 
 
 def daily_summary(
@@ -296,7 +299,7 @@ def daily_summary(
         iva_gs=iva.iva_gs,
         cogs_gs=int(cogs),
         margin_gs=iva.gross_gs - int(cogs),
-        expenses_gs=0,  # TODO: wire Expense model when added
+        expenses_placeholder_gs=0,  # TODO: wire Expense model when added
     )
 
 

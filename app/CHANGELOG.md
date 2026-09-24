@@ -5,6 +5,28 @@
 
 ## [Unreleased]
 
+### Refactored (2026-09-24) — Phase 3C: rename expenses placeholder
+
+Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md ticket #66:
+`accounting.py:daily_summary` returned `expenses_gs=0` with a TODO
+comment because the Expense model doesn't exist yet. Operators
+reading the dashboard saw zero and trusted it — but it was a
+placeholder, not a real number.
+
+**Rename:** `DailySummary.expenses_gs` → `expenses_placeholder_gs`.
+The new name makes the placeholder nature explicit so callers and
+templates can show "(gastos no trackeados)" instead of `Gs. 0`.
+
+**Call sites migrated:**
+- `app/routers/reportes.py:702` (PDF export table)
+- `app/templates/reportes_diario.html:25` (web dashboard)
+
+**Tests:**
+- `tests/test_daily_summary_expenses.py` — 2 tests covering the
+  renamed field and the daily_summary return value.
+- 64 reportes/accounting/daily tests pass; 4 pre-existing PDF
+  failures unrelated to this work.
+
 ### Refactored (2026-09-24) — Phase 2A: PedidoStatus enum + state machine
 
 Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md OC-2, the pedido
