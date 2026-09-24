@@ -221,15 +221,6 @@ def _migration_006_waste_log(conn: Any) -> None:
     _bump_schema_version(conn, 6)
 
 
-def _migration_005_customer(conn: Any) -> None:
-    """Add Customer table + Sale.customer_id FK (E13).
-
-    Tables are created via create_all() in init_db(). The Sale
-    FK column is added in case create_all didn't (e.g. on an existing
-    DB that pre-dates the customer table).
-    """
-    _bump_schema_version(conn, 5)
-
 
 def _migration_004_tags(conn: Any) -> None:
     """Add Tag + TagLink tables (E9.S1).
@@ -1612,31 +1603,6 @@ def _migration_042_payment_method_catalog(conn):
 
 
 
-def _migration_043_branding_setting(conn):
-    """Phase 5 — Branding settings.
-
-    Seeds SettingsKV["branding"] with defaults that match the previous
-    hardcoded copy in templates/login.html and templates/base.html:
-      - business_name: "Saskia RMS"
-      - tagline: "Panadería / Bakery — Sistema de gestión"
-      - footer: "Sistema local · 2026"
-      - accent_color: "#f97316" (CSS --color-accent)
-      - logo_path: "" (no logo by default)
-
-    Operators can change any field from /settings/branding without code
-    deploy (Phase 5 follow-up UI page).
-    """
-    import json as _json
-    branding = {
-        "business_name": "Saskia RMS",
-        "tagline": "Panadería / Bakery — Sistema de gestión",
-        "footer": "Sistema local · 2026",
-        "accent_color": "#f97316",
-        "logo_path": "",
-    }
-    from app.rms.db import app_meta_write
-    app_meta_write(conn, "branding", _json.dumps(branding))
-    _bump_schema_version(conn, 43)
 
 
 
@@ -1753,7 +1719,14 @@ MIGRATIONS = {
     3: _migration_003_analytics_columns,
     4: _migration_004_tags,
     5: _migration_005_customer,
+
     6: _migration_006_waste_log,
+
+
+def _migration_005_customer(conn: Any) -> None:
+    """Add Customer table + Sale.customer_id FK (E13).
+
+
     7: _migration_007_product_sku,
     8: _migration_008_tenant,
     9: _migration_009_ingredient_intel,
@@ -1790,7 +1763,7 @@ MIGRATIONS = {
     40: _migration_040_pricing_setting,
     41: _migration_041_channel_catalog,
     42: _migration_042_payment_method_catalog,
-    43: _migration_043_branding_setting,
+
     44: _migration_044_message_templates,
 }
 
@@ -1805,8 +1778,8 @@ def _bump_schema_version(conn, version: int) -> None:
     the cast.
 
     Replaces the old hard-coded pattern `text("UPDATE app_meta SET value = '27', ...")`
-    that silently no-op'd on Postgres (the UPDATE failed with a type
-    error and the migration appeared to "succeed" without bumping
+    that silently no-op'd on Postgres (the UPDATE failed with a type"
+    error and the migration appeared to "succeed" without bumping"
     schema_version).
 
     Implementation note: `text(":v::jsonb")` causes psycopg to fail with
@@ -2040,11 +2013,59 @@ def get_db_session(session_factory: sessionmaker) -> Session:
     return session_factory()
 
 
+def safe_commit(session: Session) -> bool:
+    """Commit the current transaction, rolling back on any error.
+
+    Returns True on success, False on failure. NEVER raises — the
+    caller can choose how to react (raise HTTPException, log + skip, etc.)
+
+    Why this exists (per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md F18):
+    Bare `session.commit()` in a request handler raises an unhandled
+    exception on IntegrityError or any DB error mid-handler. That leaves
+    the session in an inconsistent state for the next pooled connection
+    checkout, causing the next request to receive a SQLAlchemy error
+    from a half-completed prior transaction.
+
+    Wrapping commit() in try/except/rollback keeps the connection pool
+    clean. The function logs the rollback so ops can see it without
+    needing to instrument every call site.
+
+    Scope: this is the canonical commit helper for handlers in
+    app/routers/sales.py and app/routers/pedidos.py (the money paths).
+    Bare commits elsewhere should also migrate to safe_commit, but that
+    is a follow-up rollout.
+    """
+    try:
+        session.commit()
+        return True
+    except Exception as exc:  # noqa: BLE001 — see docstring
+        try:
+            session.rollback()
+        except Exception:
+            # If rollback itself fails, the connection pool will recycle
+            # it on close. Log and continue.
+            pass
+        # Use the project's logger if available, else print to stderr.
+        try:
+            from loguru import logger as _log
+
+            _log.warning(
+                "safe_commit: rollback after error: {err!r}",
+                err=exc,
+            )
+        except ImportError:
+            import sys
+
+            print(f"WARNING: safe_commit rollback: {exc!r}", file=sys.stderr)
+        return False
+
+
 __all__ = [
     "make_engine",
     "init_db",
     "make_session_factory",
     "get_db_session",
+    "safe_commit",
     "MIGRATIONS",
     "MigrationFn",
 ]

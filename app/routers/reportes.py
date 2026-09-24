@@ -699,7 +699,7 @@ def reportes_diario_pdf(
         ["Ingresos (Gs.)", f"{summary.revenue_gross_gs:,}"],
         ["IVA 10% (Gs.)", f"{summary.iva_gs:,}"],
         ["COGS (Gs.)", f"{summary.cogs_gs:,}"],
-        ["Gastos (Gs.)", f"{summary.expenses_gs:,}"],
+        ["Gastos (Gs.)", f"{summary.expenses_placeholder_gs:,}"],
         ["Margen bruto (Gs.)", f"{summary.margin_gs:,}"],
         ["Nº ventas", str(summary.n_sales)],
     ]

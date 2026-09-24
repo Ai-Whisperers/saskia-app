@@ -309,6 +309,7 @@ def healthz_migrate(request: Request):
     try:
         init_db(engine)
     except Exception as exc:
+        logger.exception("admin_migrate failed")
         return JSONResponse(
             status_code=500,
             content={"error": "migration_failed", "detail": str(exc)[:500]},

@@ -5,6 +5,326 @@
 
 ## [Unreleased]
 
+### Verified (2026-09-24) — Phase 1B: rate_limit `now` kwarg already supported
+
+Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md ticket D-1:
+"`datetime.now()` in business logic" — flagged as missing clock
+injection. Audit also noted "rate_limit accepts now kwarg (good) but
+no caller passes it."
+
+**Status:** The `now` parameter is already implemented on both
+`is_rate_limited` and `is_write_rate_limited` in `app/rms/rate_limit.py`
+(lines 76, 161). Tests pass `now=` explicitly. Production callers
+don't pass it because `datetime.now(timezone.utc)` is the correct
+default for production. No code change needed.
+
+This was already part of the original implementation — flagged for
+verification, not for implementation.
+
+### Added (2026-09-24) — Phase 1B: idempotency records carry request_id
+
+Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md ticket #10:
+duplicate-POST forensics need to correlate the two requests. The
+idempotency records (AppMeta rows) previously stored only the
+sale_id/pedido_id as a plain string. We now store JSON
+`{"sale_id": "1", "request_id": "abc123..."}` so operators can grep
+the access log for `request_id=abc123` and see both POSTs side by side.
+
+**Implementation:**
+- `app/routers/sales.py:sale_create` — value column now JSON-encoded
+  with `{sale_id, request_id}`. request_id pulled from
+  `request.state.request_id` (set by RequestContextMiddleware).
+- `app/routers/pedidos.py:pedidos_fulfill` — same JSON shape with
+  `{pedido_id, sale_id, request_id}`. The post-fulfill UPDATE now
+  re-reads the existing value (preserving request_id + pedido_id)
+  and merges in the real sale_id.
+- Backwards-compat: legacy plain-string values still parse (the
+  UPDATE path catches `json.JSONDecodeError` and starts with `{}`).
+
+**Tests:**
+- `tests/test_idempotency_request_id.py` — 3 tests covering:
+  - request_id stored when header provided
+  - request_id auto-generated when header absent
+  - existing sale_id still extractable from JSON payload
+- `tests/test_pedido_idempotency_request_id.py` — 2 tests:
+  - pedido fulfill idem record has pedido_id + sale_id + request_id
+  - generated request_id when header absent
+- `tests/test_pedido_fulfill_idempotency.py` — existing
+  `test_appmeta_record_exists_after_successful_fulfill` updated to
+  parse the new JSON shape.
+- 31 idempotency + safe_commit tests pass; 285 sale/pedido/ventas/invoice
+  tests pass; 6 pre-existing failures unrelated.
+
+### Refactored (2026-09-24) — Phase 2A: sales_in_window helper + migrate 7 call sites
+
+Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md ticket #26 (C-1):
+the same `select(Sale).where(Sale.sold_at >= start, Sale.sold_at <= end,
+Sale.voided_at.is_(None))` query was duplicated in 7 report functions.
+If we ever need to honor tz or change void semantics, we'd edit 7 places.
+
+**Refactor:**
+- New `app/rms/accounting.py:sales_in_window(session, start, end, *,
+  include_voided=False, end_inclusive=True)` — single source of truth
+  for the "non-voided sales in window" query. Returns `list[Sale]`
+  ordered by sold_at ascending.
+- `end_inclusive=True` (default) → `sold_at <= end`. Set to False for
+  half-open windows (daily_summary uses midnight-to-midnight-excluding).
+
+**Call sites migrated:**
+1. `monthly_iva_breakdown` (line ~143) — inclusive window.
+2. `libro_ventas` (line ~202) — inclusive window + `[:limit]` post-slice.
+3. `daily_summary` (line ~280) — half-open window (`end_inclusive=False`).
+4. `product_margin_summary` (line ~337) — inclusive window.
+5. `cross_period_comparison._period_summary` (line ~408) — half-open.
+6. `top_products_report` (line ~457) — inclusive window.
+7. `average_order_value` (line ~491) — inclusive window.
+
+**Not migrated (different patterns, helper doesn't apply):**
+- `sales_by_payment_method` uses `func.count()` / `func.sum()`
+  GROUP BY aggregation, not a row-list.
+- COGS sub-queries use `SaleStockMove` JOINs — different SQL shape.
+
+**Tests:**
+- `tests/test_sales_in_window_helper.py` (new, 5 tests):
+  - Returns matching sales; excludes voided; excludes out-of-window;
+    ordered ascending; `end_inclusive=False` excludes boundary.
+- 30 accounting/reportes tests pass; 6 pre-existing failures unrelated.
+
+### Refactored (2026-09-24) — Phase 3C: rename expenses placeholder
+
+Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md ticket #66:
+`accounting.py:daily_summary` returned `expenses_gs=0` with a TODO
+comment because the Expense model doesn't exist yet. Operators
+reading the dashboard saw zero and trusted it — but it was a
+placeholder, not a real number.
+
+**Rename:** `DailySummary.expenses_gs` → `expenses_placeholder_gs`.
+The new name makes the placeholder nature explicit so callers and
+templates can show "(gastos no trackeados)" instead of `Gs. 0`.
+
+**Call sites migrated:**
+- `app/routers/reportes.py:702` (PDF export table)
+- `app/templates/reportes_diario.html:25` (web dashboard)
+
+**Tests:**
+- `tests/test_daily_summary_expenses.py` — 2 tests covering the
+  renamed field and the daily_summary return value.
+- 64 reportes/accounting/daily tests pass; 4 pre-existing PDF
+  failures unrelated to this work.
+
+### Refactored (2026-09-24) — Phase 2A: PedidoStatus enum + state machine
+
+Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md OC-2, the pedido
+status state machine was a plain dict (`PEDIDO_TRANSITIONS`) plus
+scattered `if status in ("pending", "confirmed", "ready"):` checks
+across 3 places. Adding a new status required editing all of them.
+
+**Refactor:**
+- New `PedidoStatus(str, Enum)` with 5 members.
+- New `PedidoStateMachine` class with methods:
+  - `can_transition(from, to)` — query if a transition is valid.
+  - `allowed_next(from)` — sorted list of reachable statuses.
+  - `is_known(status)` / `is_terminal(status)` / `is_fulfillable(status)`.
+- Backwards-compat shim: `PEDIDO_STATUSES` tuple and `PEDIDO_TRANSITIONS`
+  dict are still exported (built from the enum) so callers that
+  import them continue to work.
+
+**Call sites migrated:**
+- `pedidos_status` (line ~702): status validation uses `is_known` +
+  `allowed_next`.
+- `pedidos_fulfill` (line ~785): fulfillability check uses `is_fulfillable`.
+- Detail template context (line ~673): `transitions` and `can_fulfill`
+  use the new methods.
+
+**Tests:**
+- `tests/test_pedido_status_enum.py` (new, 20 tests):
+  - 16 parametrized (from, to) transition-allowed cases
+  - All-statuses-have-entry, terminal-statuses-empty,
+    unknown-status-raises
+- All 75 pedido tests pass; no regressions.
+
+### Fixed (2026-09-24) — Phase 1B: log silent exception swallowing
+
+Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md F12 (silent except:pass),
+8 high-impact sites now log via loguru instead of swallowing errors:
+
+**`app/routers/search.py`** — 4 query blocks (customers, products,
+pedidos, recipes) now log `logger.warning` instead of bare `pass`.
+Previously a DB error in any of these returned partial results to the
+Cmd+K modal with zero indication in the logs.
+
+**`app/routers/excel_io.py:250`** — Excel import audit log failure
+now logged. Previously the import succeeded but audit log silently
+dropped, leaving no traceability for spreadsheet imports.
+
+**`app/routers/pedidos.py:820`** — `_send_fulfill_notification`
+template-render failure now logged. The fallback to legacy hardcoded
+message still works, but ops can now see when templates misbehave.
+
+**`app/routers/pedidos.py:908`** — Stock-preview calculation error
+per-line now logged with product id. The preview degrades to showing
+no info for that line; before, the error was invisible.
+
+Each `except` block now captures `exc` and emits a warning with
+context. The exceptions still do not bubble (best-effort behavior
+preserved) — operators now have signal instead of silence.
+
+No regressions: 126 search/excel_io/pedido/excel tests pass.
+
+### Added (2026-09-24) — Phase 1B: distinguish corruption from bad password
+
+**New helper:** `app/auth.py:verify_password_or_raise(plain, hashed)` —
+propagates ValueError/TypeError so callers can distinguish:
+  - False return → wrong password (user error, normal flow)
+  - ValueError  → malformed hash (DB corruption, schema drift)
+  - TypeError   → wrong argument types (caller bug)
+
+**Refactor:** `verify_password` is unchanged in contract (still returns
+False on any error) but now delegates to a private `_verify_password_unsafe`
+that raises. This preserves the existing 3 tests while enabling
+diagnostics in admin / login forensics paths.
+
+**Tests:**
+- `tests/test_verify_password_distinguish.py` — 7 tests covering
+  backwards-compat (3) and new contract (4).
+- All existing `test_auth.py` tests pass; no regressions.
+
+### Added (2026-09-24) — Phase 1A atomicity: safe_commit helper
+
+**New helper:** `app/rms/db.py:safe_commit(session)` — wraps
+`session.commit()` in try/except/rollback, returns True on success
+and False on failure (never raises). Use this instead of bare
+`session.commit()` in money-path handlers to keep the connection
+pool clean when an IntegrityError or DB error fires mid-handler.
+
+Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md F18 (50+ bare
+commits), bare commits leave the session in an inconsistent state
+for the next pooled connection checkout.
+
+**Scope applied:**
+- `app/routers/sales.py` — 2 bare commits replaced
+- `app/routers/pedidos.py` — 6 bare commits replaced
+- (Other 50+ sites elsewhere: deferred to a follow-up rollout)
+
+**Tests:**
+- `tests/test_safe_commit.py` — 5 tests covering success path,
+  IntegrityError rollback, session reuse after rollback, log emission,
+  and mock-based rollback verification.
+- All sale / pedido / ventas / invoice tests pass; no regressions.
+
+### Deferred (2026-09-24) — Phase 1A atomicity: F9 rate-limit race
+
+**Status:** Deferred to a follow-up PR. The F9 race exists (count-then-act
+on AuditLog count), but a proper fix requires either:
+
+  (a) A new `rate_limit` table with atomic counter
+      (`INSERT ... ON CONFLICT DO UPDATE`), or
+  (b) Postgres advisory locks (won't work on SQLite tests), or
+  (c) AppMeta-based atomic counter (small schema concept but new key prefix).
+
+The audit row counter pattern is in use across 6 routers (sales, eod,
+reorder, merma, produccion) so the migration is not trivial.
+
+**Tests added:** `tests/test_rate_limit_atomicity.py` documents the
+current behavior and the race, locking in expectations for the
+follow-up fix.
+
+**Risk:** Low. The race allows a few extra writes beyond the limit
+under concurrent load — not a security boundary, more of a soft
+throttle. Login rate limit has the same race but is similarly soft.
+
+### Fixed (2026-09-24) — Phase 1A atomicity: F16 function-attribute shared state
+
+**Bug:** `app/routers/sales.py:_fire_printer_for_sale._last_sale_id`
+(F16 in SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md). The
+function used `getattr(_fire_printer_for_sale, "_last_sale_id", "")`
+to retrieve its own function-attribute as shared mutable state. Two
+concurrent sale POSTs would interleave writes to that attribute,
+so the idempotency record would capture the WRONG sale ID.
+
+**Status:** Already resolved as a side effect of ticket #1 (F2 sale
+idempotency fix). The new implementation does not use function
+attributes — the idempotency record's value comes from the actual
+`sale.sale_id` returned by `apply_sale()` and is committed in the
+same transaction.
+
+Verified: `grep -rn "getattr(.*_," app/routers/ app/rms/` returns
+zero matches for function-attribute shared state.
+
+### Fixed (2026-09-24) — Phase 1A atomicity: invoice counter row-level lock
+
+**Bug:** `app/rms/invoicing.py:allocate_invoice_number` (F10 in
+`docs/operations/SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md`).
+The function read `ComplianceInfo` without `with_for_update`, so on
+Postgres two concurrent sales could read the same counter value and
+emit duplicate fiscal invoice numbers — rejected by the tax
+authority (SET).
+
+**Fix:** Use `session.get(ComplianceInfo, 1, with_for_update=True)`
+when the dialect is Postgres. SQLite is single-writer so the lock
+is a no-op there; the function dialect-checks via
+`session.bind.dialect.name`.
+
+**Tests:**
+- `tests/test_invoice_number_atomicity.py` — 5 tests covering
+  sequential allocation, separate counters per invoice type, error
+  on unknown type, and introspection (mock Postgres session, assert
+  `with_for_update=True` is passed).
+- All sale / pedido / invoice tests pass; no regressions.
+
+### Fixed (2026-09-24) — Phase 1A atomicity: pedido fulfill idempotency race
+
+**Bug:** `app/routers/pedidos.py:pedidos_fulfill` (F3 in
+`docs/operations/SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md`).
+The pedido_fulfill_idem AppMeta row was written in a separate
+try/commit AFTER the fulfill work committed. A concurrent retry
+between commits could observe no idem record and proceed to create
+a second set of Sales, double-deduct stock, and emit a second
+WhatsApp notification.
+
+**Fix:** Reserve the AppMeta row BEFORE applying Sales for each line.
+Duplicate INSERT raises IntegrityError (AppMeta.key is the primary
+key), which we catch and redirect to the original fulfill. A
+second UPDATE fixes the value to the actual `first_sale_id` after
+the fulfill completes.
+
+**Race window:** Before fix: between line 757 (fulfill commit) and
+line 769 (idem commit) in separate transactions. After fix: zero —
+the idem row is reserved in the same transaction as the fulfill work.
+
+**Tests:**
+- `tests/test_pedido_fulfill_idempotency.py` — 6 tests covering
+  same-key retry, stock-deduction double-count, status check, empty
+  key, AppMeta record existence, and concurrent-fulfill post-condition.
+- All 55 pedido tests pass; no regressions.
+
+### Fixed (2026-09-24) — Phase 1A atomicity: sale idempotency race
+
+**Bug:** `app/routers/sales.py:sale_create` (F2 in
+`docs/operations/SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md`).
+The sale row was created and committed BEFORE the idempotency check,
+so a duplicate POST (browser double-click, network retry) created two
+Sale rows, allocated two invoice numbers, and decremented stock twice.
+
+**Fix:** Reserve the `AppMeta(key=sale_idem:<key>)` row BEFORE
+`apply_sale()` runs. Because `AppMeta.key` is the primary key, a
+duplicate INSERT raises `IntegrityError`, which we catch and redirect
+to the original sale. The AppMeta row is committed in the same
+transaction as the Sale (via `apply_sale`'s internal commit), so a
+retry immediately sees the row and aborts. A second UPDATE fixes the
+value to the actual `sale_id`.
+
+**Race window:** Before fix: between line 556 (sale commit) and
+line 602 (idem commit) — three commits with the idempotency record
+in a separate transaction. After fix: zero — the idem row is
+reserved in the same transaction as the sale creation.
+
+**Tests:**
+- `tests/test_sale_idempotency.py` — 5 tests covering same-key retry,
+  different-key, empty-key, stock-deduction double-count, and redirect
+  target.
+- All other sale tests pass; no regressions vs `main`.
+
 ### Added (2026-09-23) — Phase 1: Paraguayan tax + HACCP + costing compliance
 
 **Phase 1.A — Tax compliance foundation**

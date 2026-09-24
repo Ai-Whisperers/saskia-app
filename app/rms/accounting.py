@@ -41,6 +41,41 @@ PARAGUAY_IVA_RATE = Decimal("0.10")
 IVA_DIVISOR = Decimal("1.10")  # gross / 1.10 = net
 
 
+def sales_in_window(
+    session: Session,
+    start: datetime,
+    end: datetime,
+    *,
+    include_voided: bool = False,
+    end_inclusive: bool = True,
+) -> list[Sale]:
+    """Return non-voided sales with sold_at in [start, end] (inclusive by default).
+
+    Centralized helper for the 9 copies of this query in the report
+    functions below. If we ever need to honor tz or change the void
+    semantics, this is the only place to edit.
+
+    Args:
+        session: SQLAlchemy session.
+        start: Window start (always inclusive).
+        end: Window end (inclusive or exclusive per `end_inclusive`).
+        include_voided: If False (default), voided sales are excluded.
+        end_inclusive: True (default) → sold_at <= end. False → sold_at < end.
+
+    Returns:
+        list[Sale] ordered by sold_at ascending.
+    """
+    stmt = select(Sale).where(Sale.sold_at >= start)
+    if end_inclusive:
+        stmt = stmt.where(Sale.sold_at <= end)
+    else:
+        stmt = stmt.where(Sale.sold_at < end)
+    if not include_voided:
+        stmt = stmt.where(Sale.voided_at.is_(None))
+    stmt = stmt.order_by(Sale.sold_at)
+    return list(session.execute(stmt).scalars())
+
+
 @dataclass
 class IVACalc:
     """Result of IVA extraction from a gross amount."""
@@ -105,17 +140,7 @@ def monthly_iva_breakdown(
     if start_date is None:
         start_date = end_date - timedelta(days=365)
 
-    sales = list(
-        session.execute(
-            select(Sale)
-            .where(
-                Sale.sold_at >= start_date,
-                Sale.sold_at <= end_date,
-                Sale.voided_at.is_(None),
-            )
-            .order_by(Sale.sold_at)
-        ).scalars()
-    )
+    sales = sales_in_window(session, start=start_date, end=end_date)
 
     # Aggregate per (year, month)
     buckets: dict[tuple[int, int], list[Sale]] = {}
@@ -174,16 +199,7 @@ def libro_ventas(
 
     Each row has gross + base + IVA extracted per sale.
     """
-    rows = session.execute(
-        select(Sale)
-        .where(
-            Sale.sold_at >= start_date,
-            Sale.sold_at <= end_date,
-            Sale.voided_at.is_(None),
-        )
-        .order_by(Sale.sold_at)
-        .limit(limit)
-    ).scalars().all()
+    rows = sales_in_window(session, start=start_date, end=end_date)[:limit]
 
     # Resolve customer + product names (one query each)
     cust_ids = {r.customer_id for r in rows if r.customer_id}
@@ -245,7 +261,10 @@ class DailySummary:
     iva_gs: int
     cogs_gs: int  # Cost of goods sold (recipe cost x qty)
     margin_gs: int
-    expenses_gs: int = 0  # Operational expenses for the day
+    # Renamed from `expenses_gs` to make the placeholder explicit.
+    # Until the Expense model ships, this is always 0 and operators
+    # reading the dashboard should not mistake it for a real number.
+    expenses_placeholder_gs: int = 0  # TODO(phase-3c): wire Expense model
 
 
 def daily_summary(
@@ -258,16 +277,7 @@ def daily_summary(
     start = datetime(day.year, day.month, day.day, tzinfo=timezone.utc)
     end = start + timedelta(days=1)
 
-    sales = list(
-        session.execute(
-            select(Sale)
-            .where(
-                Sale.sold_at >= start,
-                Sale.sold_at < end,
-                Sale.voided_at.is_(None),
-            )
-        ).scalars()
-    )
+    sales = sales_in_window(session, start=start, end=end, end_inclusive=False)
 
     revenue_gross = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales)
     iva = extract_iva(revenue_gross, tax_mode=tax_mode)
@@ -296,7 +306,7 @@ def daily_summary(
         iva_gs=iva.iva_gs,
         cogs_gs=int(cogs),
         margin_gs=iva.gross_gs - int(cogs),
-        expenses_gs=0,  # TODO: wire Expense model when added
+        expenses_placeholder_gs=0,  # TODO: wire Expense model when added
     )
 
 
@@ -324,16 +334,7 @@ def product_margin_summary(
     Cost is approximated via SaleStockMove (which records per-sale
     cost at the time). For products with no stock moves, cost=0.
     """
-    sales = list(
-        session.execute(
-            select(Sale)
-            .where(
-                Sale.sold_at >= start_date,
-                Sale.sold_at <= end_date,
-                Sale.voided_at.is_(None),
-            )
-        ).scalars()
-    )
+    sales = sales_in_window(session, start=start_date, end=end_date)
 
     # Aggregate per product
     buckets: dict[int, list[Sale]] = {}
@@ -404,13 +405,9 @@ def cross_period_comparison(
 ) -> dict:
     """Compare sales between two periods (this month vs last month)."""
     def _period_summary(s_start, s_end):
-        sales = list(session.execute(
-            select(Sale).where(
-                Sale.sold_at >= s_start,
-                Sale.sold_at < s_end,
-                Sale.voided_at.is_(None),
-            )
-        ).scalars())
+        sales = sales_in_window(
+            session, start=s_start, end=s_end, end_inclusive=False
+        )
         revenue = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales)
         iva = extract_iva(revenue)
         cogs = session.execute(
@@ -457,13 +454,7 @@ def top_products_report(
     if start_date is None:
         start_date = end_date - timedelta(days=30)
 
-    sales = list(session.execute(
-        select(Sale).where(
-            Sale.sold_at >= start_date,
-            Sale.sold_at <= end_date,
-            Sale.voided_at.is_(None),
-        )
-    ).scalars())
+    sales = sales_in_window(session, start=start_date, end=end_date)
 
     by_product: dict[int, dict] = {}
     for s in sales:
@@ -497,13 +488,7 @@ def average_order_value(
     if start_date is None:
         start_date = end_date - timedelta(days=30)
 
-    sales = list(session.execute(
-        select(Sale).where(
-            Sale.sold_at >= start_date,
-            Sale.sold_at <= end_date,
-            Sale.voided_at.is_(None),
-        )
-    ).scalars())
+    sales = sales_in_window(session, start=start_date, end=end_date)
     if not sales:
         return 0.0
     total = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales)

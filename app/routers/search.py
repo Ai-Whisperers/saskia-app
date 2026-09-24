@@ -1,9 +1,14 @@
 """Global search API — /api/search
 Searches across customers, products, orders (pedidos), and recipes.
 Used by the Cmd+K global search modal in base.html.
+
+Phase 1B ticket #8: previously each query block silently `pass`ed on
+exception. Now they log a warning so a partial-results UI is visible
+to ops in the logs (silent partial results were a debugging nightmare).
 """
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
+from loguru import logger
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 
@@ -60,8 +65,8 @@ def global_search(
                 "badge_class": f"tier-{tier_label.lower()}",
                 "url": f"/clientes/{c.id}",
             })
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning(f"global_search: customers query failed: {exc!r}")
 
     # ── Products ─────────────────────────────────────────────────────────────
     try:
@@ -81,8 +86,8 @@ def global_search(
                 "badge_class": "info" if p.recipe_name else "neutral",
                 "url": f"/productos/{p.id}/editar",
             })
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning(f"global_search: products query failed: {exc!r}")
 
     # ── Pedidos ─────────────────────────────────────────────────────────────
     try:
@@ -115,8 +120,8 @@ def global_search(
                 "badge_class": cls,
                 "url": f"/pedidos/{ped.id}",
             })
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning(f"global_search: pedidos query failed: {exc!r}")
 
     # ── Recipes ─────────────────────────────────────────────────────────────
     try:
@@ -136,7 +141,7 @@ def global_search(
                 "badge_class": "info",
                 "url": f"/recetas/{r.id}/editar",
             })
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning(f"global_search: recipes query failed: {exc!r}")
 
     return JSONResponse(results)

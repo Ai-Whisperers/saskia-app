@@ -256,9 +256,10 @@ async def lifespan(app: FastAPI):
 
         with app.state.session_factory() as _s:
             run_backup(_s, DB_PATH)
-    except Exception:
+    except Exception as exc:
         # Don't crash the app on backup failures; the request handlers
         # are independent of this. (Errors are recorded in app_meta.)
+        logger.warning(f"backup scheduler failed: {exc!r}")
         pass
     yield
 

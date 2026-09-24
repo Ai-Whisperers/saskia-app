@@ -25,13 +25,15 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Path, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
-from sqlalchemy import func, select
+from loguru import logger
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import current_user_id, require_login_or_disabled as require_login
 from app.rms.audit import record as audit_record
 from app.rms.config import ASUNCION_TZ
 from app.rms.costing import apply_sale
+from app.rms.db import safe_commit
 from app.rms.dependencies import get_session
 from app.rms.models import Customer, Pedido, PedidoLine, Product, Sale
 from app.rms.schemas import ALLOWED_PAYMENT_METHODS
@@ -48,16 +50,102 @@ public_router = APIRouter()
 
 # --- Status state machine ----------------------------------------------------
 
-PEDIDO_STATUSES = ("pending", "confirmed", "ready", "fulfilled", "cancelled")
+from enum import Enum
 
-# Status transition rules. Key is the current status; value is the set of
-# statuses it can transition to. fulfilled and cancelled are terminal.
+
+class PedidoStatus(str, Enum):
+    """Pedido lifecycle states.
+
+    String enum so existing str comparisons in templates, queries,
+    and form parsing keep working. The state machine (PedidoStateMachine)
+    owns the transition rules.
+    """
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    READY = "ready"
+    FULFILLED = "fulfilled"
+    CANCELLED = "cancelled"
+
+
+class PedidoStateMachine:
+    """Encapsulates pedido transition rules.
+
+    Replaces the scattered `if status in PEDIDO_TRANSITIONS[status]:`
+    pattern with a single source of truth. Adding a new status now
+    requires editing only this class.
+    """
+
+    # Source of truth for valid transitions.
+    _TRANSITIONS: dict[PedidoStatus, frozenset[PedidoStatus]] = {
+        PedidoStatus.PENDING: frozenset({PedidoStatus.CONFIRMED, PedidoStatus.CANCELLED}),
+        PedidoStatus.CONFIRMED: frozenset({PedidoStatus.READY, PedidoStatus.CANCELLED}),
+        PedidoStatus.READY: frozenset({PedidoStatus.FULFILLED, PedidoStatus.CANCELLED}),
+        PedidoStatus.FULFILLED: frozenset(),  # terminal
+        PedidoStatus.CANCELLED: frozenset(),  # terminal
+    }
+
+    @classmethod
+    def can_transition(cls, from_status: str, to_status: str) -> bool:
+        """True iff `from_status` may transition to `to_status`."""
+        try:
+            from_enum = PedidoStatus(from_status)
+            to_enum = PedidoStatus(to_status)
+        except ValueError:
+            return False
+        return to_enum in cls._TRANSITIONS[from_enum]
+
+    @classmethod
+    def allowed_next(cls, from_status: str) -> list[str]:
+        """Sorted list of statuses reachable from `from_status`."""
+        try:
+            from_enum = PedidoStatus(from_status)
+        except ValueError:
+            return []
+        return sorted(s.value for s in cls._TRANSITIONS[from_enum])
+
+    @classmethod
+    def is_known(cls, status: str) -> bool:
+        """True iff `status` is a known PedidoStatus value."""
+        try:
+            PedidoStatus(status)
+            return True
+        except ValueError:
+            return False
+
+    @classmethod
+    def is_terminal(cls, status: str) -> bool:
+        """True iff `status` has no outgoing transitions."""
+        try:
+            from_enum = PedidoStatus(status)
+        except ValueError:
+            return False
+        return len(cls._TRANSITIONS[from_enum]) == 0
+
+    @classmethod
+    def is_fulfillable(cls, status: str) -> bool:
+        """True iff a pedido in this status can be fulfilled.
+
+        Equivalent to: status in {pending, confirmed, ready} (the
+        non-terminal pre-fulfill states). Centralized here so adding
+        a new pre-fulfill state is a one-line change.
+        """
+        try:
+            from_enum = PedidoStatus(status)
+        except ValueError:
+            return False
+        return from_enum in (
+            PedidoStatus.PENDING,
+            PedidoStatus.CONFIRMED,
+            PedidoStatus.READY,
+        )
+
+
+# Backwards-compat shim for existing callers that imported the dict
+# and tuple. Tests in tests/test_pedido_status_enum.py pin this shape.
+PEDIDO_STATUSES = tuple(s.value for s in PedidoStatus)
 PEDIDO_TRANSITIONS: dict[str, frozenset[str]] = {
-    "pending": frozenset({"confirmed", "cancelled"}),
-    "confirmed": frozenset({"ready", "cancelled"}),
-    "ready": frozenset({"fulfilled", "cancelled"}),
-    "fulfilled": frozenset(),  # terminal
-    "cancelled": frozenset(),  # terminal
+    s.value: frozenset(t.value for t in targets)
+    for s, targets in PedidoStateMachine._TRANSITIONS.items()
 }
 
 CHANNELS = ("whatsapp", "pedidosya", "mostrador", "phone", "other")
@@ -561,7 +649,7 @@ async def pedidos_create(
         },
         request=request,
     )
-    session.commit()
+    safe_commit(session)
 
     return RedirectResponse(url=f"/pedidos/{pedido.id}", status_code=303)
 
@@ -601,8 +689,8 @@ def pedidos_detail(
         "pedido_detalle.html",
         {
             "pedido": decorated,
-            "transitions": sorted(PEDIDO_TRANSITIONS.get(pedido.status, frozenset())),
-            "can_fulfill": pedido.status in ("pending", "confirmed", "ready"),
+            "transitions": PedidoStateMachine.allowed_next(pedido.status),
+            "can_fulfill": PedidoStateMachine.is_fulfillable(pedido.status),
             "channels": CHANNELS,
             "payment_methods": sorted(
                 set(ALLOWED_PAYMENT_METHODS) | {"efectivo", "transferencia", "qr", "tarjeta", "otro"}
@@ -629,18 +717,18 @@ async def pedidos_status(
     if pedido is None:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
     new = (new_status or "").strip().lower()
-    if new not in PEDIDO_STATUSES:
+    if not PedidoStateMachine.is_known(new):
         raise HTTPException(
             status_code=422,
-            detail=f"Estado inválido. Permitidos: {sorted(PEDIDO_STATUSES)}",
+            detail=f"Estado inválido. Permitidos: {PEDIDO_STATUSES}",
         )
-    allowed = PEDIDO_TRANSITIONS.get(pedido.status, frozenset())
+    allowed = PedidoStateMachine.allowed_next(pedido.status)
     if new not in allowed:
         raise HTTPException(
             status_code=409,
             detail=(
                 f"Transición no permitida: {pedido.status!r} → {new!r}. "
-                f"Estados válidos desde {pedido.status!r}: {sorted(allowed) or '(terminal)'}"
+                f"Estados válidos desde {pedido.status!r}: {allowed or '(terminal)'}"
             ),
         )
 
@@ -662,7 +750,7 @@ async def pedidos_status(
         },
         request=request,
     )
-    session.commit()
+    safe_commit(session)
     return RedirectResponse(url=f"/pedidos/{pedido.id}", status_code=303)
 
 
@@ -685,14 +773,31 @@ def pedidos_fulfill(
     on a double-click. Without one, a fast click could create duplicate
     Sales + double stock decrement for the same pedido.
     """
-    # Idempotency check FIRST: if we've seen this key, redirect to the
-    # pedido detail (which now shows the fulfilled state).
+    # Idempotency: reserve the AppMeta row BEFORE running apply_sale for
+    # each line. AppMeta.key is the primary key; a duplicate INSERT raises
+    # IntegrityError which we catch and redirect to the original fulfill.
+    # This closes the F3 race window documented in
+    # SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md §F3.
     if idempotency_key:
-        from app.rms.models import AppMeta
-        existing = session.scalar(
-            select(AppMeta).where(AppMeta.key == f"pedido_fulfill_idem:{idempotency_key}")
-        )
-        if existing:
+        from sqlalchemy.exc import IntegrityError
+        from app.rms.models import AppMeta as _AppMeta
+        try:
+            # Use JSON shape (forward-compatible) so we can store
+            # request_id alongside the sale_id for duplicate-POST forensics.
+            request_id_pedido = getattr(request.state, "request_id", None) or ""
+            initial_value = __import__("json").dumps({
+                "pedido_id": str(pedido_id),
+                "sale_id": "",  # updated below
+                "request_id": request_id_pedido,
+            })
+            session.add(_AppMeta(
+                key=f"pedido_fulfill_idem:{idempotency_key}",
+                value=initial_value,
+                updated_at=datetime.now(timezone.utc).isoformat(),
+            ))
+            session.flush()  # surface IntegrityError without committing
+        except IntegrityError:
+            session.rollback()
             return RedirectResponse(
                 url=f"/pedidos/{pedido_id}?flash=pedido_fulfill_duplicate",
                 status_code=303,
@@ -703,7 +808,7 @@ def pedidos_fulfill(
     )
     if pedido is None:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
-    if pedido.status not in ("pending", "confirmed", "ready"):
+    if not PedidoStateMachine.is_fulfillable(pedido.status):
         raise HTTPException(
             status_code=409,
             detail=(
@@ -754,21 +859,35 @@ def pedidos_fulfill(
         },
         request=request,
     )
-    session.commit()
 
-    # Store idempotency key AFTER successful commit so retries don't
-    # double-fulfill. Use pedido_id as the value so we can verify on retry.
-    if idempotency_key:
+    # Update the idempotency record with the real first_sale_id. The AppMeta
+    # row was reserved BEFORE apply_sale (see top of function), so the row
+    # already exists by this point — we're just updating its value with the
+    # real first_sale_id while preserving the JSON shape (pedido_id, request_id).
+    if idempotency_key and first_sale_id is not None:
+        import json as _json
+        from app.rms.models import AppMeta as _AppMeta
+
+        # Re-read current value to preserve pedido_id + request_id, then
+        # add the just-created first_sale_id.
+        existing = session.scalar(
+            __import__("sqlalchemy").select(_AppMeta).where(
+                _AppMeta.key == f"pedido_fulfill_idem:{idempotency_key}"
+            )
+        )
         try:
-            from app.rms.models import AppMeta
-            session.add(AppMeta(
-                key=f"pedido_fulfill_idem:{idempotency_key}",
-                value=str(pedido_id),
-                updated_at=datetime.now(timezone.utc).isoformat(),
-            ))
-            session.commit()
-        except Exception:
-            session.rollback()  # idempotency record is best-effort
+            payload = _json.loads(existing.value) if existing and existing.value else {}
+        except (ValueError, TypeError):
+            # Legacy plain-string value (created before this fix shipped)
+            payload = {}
+        payload["sale_id"] = str(first_sale_id)
+        session.execute(
+            update(_AppMeta)
+            .where(_AppMeta.key == f"pedido_fulfill_idem:{idempotency_key}")
+            .values(value=_json.dumps(payload))
+        )
+
+    safe_commit(session)
 
     # ── Notify customer via WhatsApp or SMS ──────────────────────────────────
     _send_fulfill_notification(session, pedido)
@@ -809,8 +928,8 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
                 "total_gs": pedido.total_gs or 0,
                 "business_name": "Saskia RMS",
             })
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning(f"pedidos._send_fulfill_notification: render_template failed (fallback to legacy msg): {exc!r}")
     if msg is None:
         msg = (
             f"¡Tu pedido #{pedido.id} esta listo para retirar! Te esperamos 😊"
@@ -897,7 +1016,8 @@ def pedidos_stock_preview(
             continue
         try:
             moves = _compute_stock_moves(session, recipe, float(ln.qty), set())
-        except Exception:
+        except Exception as exc:
+            logger.warning(f"pedidos.stock_preview: _compute_stock_moves failed for product {product.id}: {exc!r}")
             continue
         for affected_recipe_id, ingredient_id, qty_delta in moves:
             ing = session.get("Ingredient", ingredient_id) if Ingredient else None  # type: ignore
@@ -989,7 +1109,7 @@ def pedidos_duplicate(
         detail={"original_id": original.id},
         request=request,
     )
-    session.commit()
+    safe_commit(session)
 
     return RedirectResponse(url=f"/pedidos/{copy.id}", status_code=303)
 
@@ -1159,7 +1279,7 @@ def pedidos_bulk_fulfill(
             .values(fulfilled_qty=PedidoLine.qty)
         )
         fulfilled += 1
-    session.commit()
+    safe_commit(session)
     flash = f"{fulfilled} pedido(s) marcado(s) como completado(s)"
     return RedirectResponse(url=f"/pedidos?flash={flash}", status_code=303)
 
@@ -1186,6 +1306,6 @@ def pedidos_bulk_cancel(
             continue
         pedido.status = "cancelled"
         cancelled += 1
-    session.commit()
+    safe_commit(session)
     flash = f"{cancelled} pedido(s) cancelado(s)"
     return RedirectResponse(url=f"/pedidos?flash={flash}", status_code=303)

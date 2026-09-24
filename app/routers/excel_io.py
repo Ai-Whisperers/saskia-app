@@ -22,6 +22,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -247,8 +248,9 @@ async def excel_import(
             request=request,
         )
         session.commit()
-    except Exception:
+    except Exception as exc:
         session.rollback()
+        logger.warning(f"excel_io: audit.record for excel.import failed (non-fatal): {exc!r}")
 
     return RedirectResponse(url="/excel", status_code=303)
 

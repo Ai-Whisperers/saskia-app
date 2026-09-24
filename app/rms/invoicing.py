@@ -89,8 +89,19 @@ def allocate_invoice_number(session: Session, invoice_type: str) -> int:
 
     Returns the assigned number. Caller is responsible for committing.
     Counter starts at 1 (the migration seeds this).
+
+    Atomicity: uses `with_for_update=True` on the ComplianceInfo read so
+    Postgres takes a row-level lock. Without this, two concurrent sales
+    can read the same counter value and emit duplicate fiscal invoice
+    numbers — rejected by the tax authority. SQLite is single-writer so
+    `with_for_update` is a no-op there, but the call is harmless.
     """
-    ci = session.get(ComplianceInfo, 1)
+    # Only use FOR UPDATE on Postgres (dialect-aware). SQLite serializes
+    # writes anyway, so the lock would be redundant overhead.
+    dialect_name = session.bind.dialect.name if session.bind else "sqlite"
+    use_for_update = dialect_name == "postgresql"
+
+    ci = session.get(ComplianceInfo, 1, with_for_update=use_for_update)
     if ci is None:
         ci = ComplianceInfo(id=1)
         session.add(ci)
