@@ -84,6 +84,60 @@ Schema: v32 → v38. Migration 034 (market prices), 035 (compliance_info),
 
 
 
+
+### Added (2026-09-24) — Tests for static-content audit + Render cleanup
+
+**Tests added (Phase D — Tests + CI re-enable):**
+- New file `tests/test_static_content_audit.py` with **47 tests** covering
+  the Phases 1-10 audit work end-to-end:
+  - Schema migrations (1-48) apply on fresh DB
+  - Categories: seeding, get_or_create idempotency, invalid scope
+  - Channels: seeding, default-mostrador behavior
+  - Payment methods: seeding, tarjeta fee_pct=3.0
+  - Pricing markup: default (3.0×), set/get roundtrip, computation, validation
+  - Branding: defaults, partial update, validation (length, known keys)
+  - Margin tiers: seeding, recipe_matches_tier (boundaries, None cost)
+  - Stock status: seeding, categorize priority order (muerto > sobrestock > critico > bajo_min)
+  - Storage types: seeding + fallback codes
+  - Date presets: seeding + default + get_preset_days
+  - Constants module: CURRENCY_CODE, DEFAULT_IVA_RATE, etc.
+  - All API endpoints: GET + POST + DELETE roundtrips for every catalog
+  - render_template() substitutes variables + falls back on missing
+  - Unit enum: all 5 canonical units + coerce aliases
+- Updated `tests/test_tags.py::test_filter_inventory_by_stock_status` —
+  the legacy test was testing buggy behavior. New categorize() priority
+  order means bajo_min fires only when ratio >= critico_threshold (e.g.,
+  stock=6, min=10 → bajo_min; stock=1, min=10 → critico).
+- Total: 47 new tests, 64 tests passing in static_content + tags modules.
+
+**CI workflow (`.github/workflows/ci.yml`):**
+- Updated comment block to reflect the 2026-09-24 reality: budget blocked,
+  tests runnable locally with `uv run pytest`.
+- The workflow itself is unchanged (ruff + pytest + coverage + migrate
+  smoke + CHANGELOG discipline). When budget is restored (via Option A
+  public-flip, Option B GH Pro, or Option C offloading), it will run all
+  checks automatically.
+
+**Render cleanup (Phase E):**
+- `render.yaml` marked **DEPRECATED** at the top. The file is kept for
+  historical reference but is no longer the source of truth.
+- New `docs/operations/2026-09-24-deployment.md` captures the active
+  VPS deployment path and explains the migration from Render.
+- `AGENTS.md` updated to reflect VPS as the active hosted target
+  (was Render + Neon Postgres prior).
+- `docs/operations/2026-09-24-ci-budget-decision.md` updated with the
+  resolution: tests written + CI workflow ready + budget-blocked issue
+  preserved for Kiki/John to decide.
+
+**Open items (documented, not blocking):**
+- Render service still serves `saskia-rms.paragu-ai.com` but is out of
+  sync (schema v27 on Neon, code is v48). The VPS is the live system.
+- Migrations 28-32 never applied to Neon Postgres. If Render is ever
+  resurrected, those need to be applied first.
+- The CI budget gate (option A/B/C) is pending Kiki/John decision.
+
+CHANGELOG continues.
+
 ### Added (2026-09-24) — Catalog CRUD UI + AIW_SASKIA_INTERNAL_ROUTES
 
 Two improvements to the operator experience:

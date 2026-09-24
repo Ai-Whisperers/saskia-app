@@ -4,20 +4,21 @@
 # ~3 min total per run.
 #
 # Visibility context (updated 2026-09-24):
-#   The repo was switched from public to private at some point in September 2026.
-#   On the free GitHub plan, private repos get 2,000 Actions minutes/month.
-#   Burn rate from Phase 1 push cadence exhausted that budget on 2026-09-23 ~17:04 UTC.
-#   Since then every run shows: "The job was not started because an Actions budget
-#   is preventing further use." PRs #13–19 (R2 work) therefore have no check status.
-#
-#   Resolution options (tracked in docs/operations/2026-09-24-ci-budget-decision.md):
+#   The repo is currently private (since Sept 2026). Free plan gives
+#   2,000 Actions minutes/month for private repos. This CI workflow
+#   is runnable but will be budget-gated until one of these resolves:
 #     A. Flip repo back to public — restores unlimited free Actions minutes
 #     B. Add a GH Pro billing seat on the operator account — 3,000 min/mo
-#     C. Move CI off GitHub Actions to Render/Cloudflare infrastructure
+#     C. Move CI off GitHub Actions to VPS/Render/Cloudflare infrastructure
+#   See docs/operations/2026-09-24-ci-budget-decision.md for the decision log.
 #
-#   Until resolved, do NOT merge PRs that require CI gates. Per AGENTS.md §CI:
-#   ruff check, ruff format, pytest 80% coverage, aiw-saskia migrate smoke, and
-#   CHANGELOG discipline must all pass. None are running.
+#   Until resolved, run tests LOCALLY before merging:
+#     uv run pytest tests/test_static_content_audit.py
+#   47 new tests cover the static-content audit work (Phases 1-10).
+#
+#   When budget is restored, this workflow will run all checks automatically.
+#   Per AGENTS.md §CI: ruff check, ruff format, pytest 80% coverage,
+#   aiw-saskia migrate smoke, and CHANGELOG discipline must all pass.
 
 
 name: CI

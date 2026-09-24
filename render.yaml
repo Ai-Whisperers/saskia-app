@@ -1,5 +1,29 @@
-# render.yaml — Render.com blueprint for saskia-rms
-# Deploy: render blueprint launch  OR  connect repo at dashboard.render.com
+# render.yaml — DEPRECATED 2026-09-24
+#
+# Saskia RMS is now deployed on the VPS (paragu-ai) using Docker Swarm.
+# The Render deployment is no longer the source of truth. This file is
+# kept for historical reference and as a fallback option if VPS deployment
+# needs to be retired.
+#
+# Active deployment: VPS at https://saskia-vps.paragu-ai.com
+# Active config:     deploy-to-vps.sh + docker-stack.yml
+#
+# To re-enable Render:
+#   1. Set DATABASE_URL to point at the same SQLite/Postgres the VPS uses
+#      (we'd need to migrate Render's Neon Postgres to schema v48 first —
+#      this has NOT been done; see "Open issues" below).
+#   2. Update DATABASE_URL on Render dashboard to point at VPS's DB OR
+#      run migrations 28-32 on the Neon Postgres (not done).
+#   3. Flip autoDeploy back to true.
+#
+# Open issues if you want to bring Render back:
+#   - Migrations 28-32 (audit log pruning, sales tz, market price reference,
+#     compliance info, product tax HACCP, sale fiscal invoice, ingredient
+#     HACCP) were never applied to Neon Postgres.
+#   - DATABASE_URL on Render points at Neon; VPS uses SQLite at
+#     /data/rms.sqlite. Migration paths don't match.
+#
+# Until those are resolved, Render is a non-functional legacy deploy.
 
 services:
   - type: web
