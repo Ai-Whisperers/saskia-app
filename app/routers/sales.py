@@ -492,6 +492,20 @@ async def sale_create(
             status_code=400,
             detail="Elegí un producto o escaneá un SKU",
         )
+
+    # Allergen guard (derived-intel engine 3): block sales that put a
+    # declared customer allergen in their hands. Hard stop, Spanish detail.
+    from app.rms.derived_intel import check_customer_risk
+    risk = check_customer_risk(session, customer_id, product_id)
+    if not risk.safe:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"⚠️ ALÉRGENO: {risk.matched}. El cliente es alérgico. "
+                "Confirmá con el cliente antes de vender (quitá la nota de "
+                "alergia en /clientes si es un error)."
+            ),
+        )
     # Form(...) didn't enforce upper bounds here because Form() with `le=`
     # requires a literal value, not a constant. So we re-check explicitly.
     # The 422 path is hit when gt/le/... mismatch happens (handled by

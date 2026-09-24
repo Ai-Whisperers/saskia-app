@@ -1,0 +1,389 @@
+"""app/rms/tag_algebra.py — derived dietary tags & allergens for recipes/products.
+
+Two propagation families (see docs: derived-intelligence engines):
+
+  ALLERGENS  ("contains X")   → UNION: any line carrying an allergen means
+                               the recipe contains it. Recursive through
+                               sub-recipes.
+  DIETARY    ("sin X / vegano") → INTERSECTION: a recipe qualifies for tag T
+                               only if EVERY non-packaging line's target
+                               qualifies for T. One gram of harina cancels
+                               "sin gluten" for the whole recipe. Sub-recipes
+                               contribute their own DERIVED set (not raw
+                               ingredients), with cycle protection.
+
+Also provides the shared recipe-tree walker used by other derivation engines
+(costing, nutrition, demand): walk_recipe_tree() with cycle guard.
+
+Design notes:
+- Pure functions over a Session; no schema writes. Caching is the caller's
+  concern (recipes.py refreshes Recipe.derived_dietary_tags on save).
+- Packaging ingredients (is_packaging) are EXCLUDED from dietary derivation
+  and allergen rollup — boxes/ribbons are not food claims.
+- "Sin TACC" requires may_contain_gluten=False on every line (SINACLA
+  cross-contamination), stricter than plain sin_gluten.
+- Traceability: every cancelled tag returns the blocking lines so the UI can
+  show "why isn't my pan sin gluten?" (blocked_by list).
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Iterator
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.rms.models import Ingredient, Recipe, RecipeLine
+
+# Tags where sub-recipe contribution is intersection-based (all of them —
+# dietary tags are "suit" claims). If a new union-style dietary tag is ever
+# added, list it here.
+_UNION_TAGS: frozenset[str] = frozenset()
+
+# Neutral ingredients never block a dietary tag (they carry every suit by
+# definition). Keeping this explicit (rather than inferring) so operators
+# can audit it.
+_NEUTRAL_KEYWORDS: tuple[str, ...] = (
+    "agua", "sal", "sal fina", "sal gruesa", "hielo",
+)
+
+
+@dataclass
+class TagDerivation:
+    """Result of deriving tags for one recipe.
+
+    Attributes:
+      allergens:        union of all line allergens (sorted).
+      dietary:          intersection-derived dietary tags (sorted).
+      blocked:          tag → [line labels that cancelled it]. For UI
+                        "why not sin gluten?" tooltips. Empty dict when
+                        nothing was cancelled.
+      undeclared:       ingredient names with allergens=None — NOT the same
+                        as allergen-free; the UI must show "sin declarar".
+      cycles:           sub-recipe reference cycles detected (should be
+                        empty; the walker guards, the route blocks).
+    """
+
+    allergens: list[str] = field(default_factory=list)
+    dietary: list[str] = field(default_factory=list)
+    blocked: dict[str, list[str]] = field(default_factory=dict)
+    undeclared: list[str] = field(default_factory=list)
+    cycles: list[str] = field(default_factory=list)
+
+
+def _split_tags(raw: str | None) -> list[str]:
+    if not raw:
+        return []
+    return [t.strip() for t in raw.split(",") if t.strip()]
+
+
+def _is_neutral(name: str) -> bool:
+    n = name.strip().lower()
+    return any(n == kw or n.startswith(kw + " ") for kw in _NEUTRAL_KEYWORDS)
+
+
+# ---------------------------------------------------------------------------
+# Shared recipe-tree walker (used by tag algebra; reusable by nutrition,
+# demand, and any future per-line derivation engine).
+# ---------------------------------------------------------------------------
+
+@dataclass
+class LineTarget:
+    """One resolved line of a recipe tree walk."""
+
+    line: RecipeLine
+    target: Ingredient | Recipe
+    depth: int  # 0 = direct line of the requested recipe
+
+
+def walk_recipe_tree(
+    session: Session,
+    recipe_id: int,
+    *,
+    include_packaging: bool = False,
+    max_depth: int = 8,
+) -> tuple[list[LineTarget], list[str]]:
+    """Walk a recipe tree depth-first, resolving sub-recipes recursively.
+
+    Returns (targets, cycles):
+      targets — every line's target in tree order (sub-recipe lines appear
+                after their parent line, with depth > 0)
+      cycles  — "RecipeA -> RecipeB -> RecipeA" strings if a cycle was cut
+
+    include_packaging=False skips is_packaging ingredients entirely (tag
+    and nutrition semantics). Costing callers pass True.
+    """
+    seen: set[int] = set()
+    targets: list[LineTarget] = []
+    cycles: list[str] = []
+    path: list[str] = []
+
+    def _walk(rid: int, depth: int) -> None:
+        label = f"#{rid}"
+        if label in path:
+            cycles.append(" -> ".join(path + [label]))
+            return
+        path.append(label)
+        try:
+            lines = session.scalars(
+                select(RecipeLine)
+                .where(RecipeLine.recipe_id == rid)
+                .order_by(RecipeLine.id)
+            ).all()
+            for line in lines:
+                if depth > 0 and line.line_kind == "sub_recipe":
+                    # sub-recipe at depth>0 means nested sub-recipe
+                    if line.line_ref_id in seen or depth >= max_depth:
+                        continue
+                    seen.add(line.line_ref_id)
+                    _walk(line.line_ref_id, depth + 1)
+                    continue
+                target = _resolve(session, line)
+                if target is None:
+                    continue
+                if (
+                    isinstance(target, Ingredient)
+                    and target.is_packaging
+                    and not include_packaging
+                ):
+                    continue
+                targets.append(LineTarget(line=line, target=target, depth=depth))
+                if line.line_kind == "sub_recipe" and depth < max_depth:
+                    # Direct sub-recipe lines: walk children after recording.
+                    if line.line_ref_id not in seen:
+                        seen.add(line.line_ref_id)
+                        _walk(line.line_ref_id, depth + 1)
+        finally:
+            path.pop()
+
+    _walk(recipe_id, 0)
+    return targets, cycles
+
+
+def _resolve(session: Session, line: RecipeLine) -> Ingredient | Recipe | None:
+    from app.rms.costing import resolve_line_target
+
+    try:
+        return resolve_line_target(session, line)
+    except ValueError:
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Ingredient-level tag sets
+# ---------------------------------------------------------------------------
+
+def ingredient_dietary_set(ing: Ingredient) -> frozenset[str]:
+    """Dietary tags an ingredient qualifies for.
+
+    Neutral ingredients (agua/sal/hielo) qualify for everything — they are
+    removed from the intersection domain by never blocking. We model that
+    by returning None from the blocker check instead of a full set, so this
+    function returns only the declared tags.
+    """
+    return frozenset(_split_tags(ing.dietary_tags))
+
+
+def ingredient_blocks(ing: Ingredient, tag: str) -> bool:
+    """True if this ingredient DISQUALIFIES the recipe from `tag`.
+
+    An ingredient blocks tag T unless T is in its declared dietary set.
+    Neutral ingredients never block. Sin TACC additionally requires
+    may_contain_gluten to be False (when the flag is set, the ingredient
+    blocks sin_tacc even if tagged sin_gluten — SINACLA cross-contamination).
+    """
+    if _is_neutral(ing.name or ""):
+        return False
+    declared = ingredient_dietary_set(ing)
+    if tag in declared:
+        # Declared sin_gluten + may_contain_gluten still blocks sin_tacc.
+        if tag == "sin tacc" and ing.may_contain_gluten:
+            return True
+        return False
+    return True
+
+
+# ---------------------------------------------------------------------------
+# The derivation
+# ---------------------------------------------------------------------------
+
+_ALLERGEN_ORDER = [
+    "gluten", "dairy", "eggs", "nuts", "soy", "sesame", "sulfites",
+]
+
+
+def derive_recipe_tags(
+    session: Session,
+    recipe_id: int,
+    *,
+    candidate_tags: list[str] | None = None,
+) -> TagDerivation:
+    """Derive allergens + dietary tags for a recipe.
+
+    candidate_tags: the tag vocabulary to test intersection against. When
+    None, uses the union of tags declared across the tree's ingredients —
+    i.e. "every tag any ingredient claims" — plus the canonical Paraguayan
+    bakery set. Pass the DB tag list (kind='recipe') from routes for
+    consistency with the operator's vocabulary.
+    """
+    result = TagDerivation()
+
+    # Union allergens across the whole tree (including sub-recipes' own
+    # cached allergen columns, which already union their ingredients).
+    targets, cycles = walk_recipe_tree(session, recipe_id, include_packaging=False)
+    result.cycles = cycles
+
+    allergen_set: set[str] = set()
+
+    # Dietary candidates: canonical set ∪ declared tags across tree.
+    declared_union: set[str] = set()
+    for t in targets:
+        if isinstance(t.target, Ingredient):
+            if t.target.allergens is None:
+                result.undeclared.append(t.target.name)
+            else:
+                allergen_set.update(_split_tags(t.target.allergens))
+            declared_union.update(ingredient_dietary_set(t.target))
+        elif isinstance(t.target, Recipe):
+            allergen_set.update(_split_tags(t.target.allergens))
+            declared_union.update(_split_tags(t.target.dietary_tags))
+
+    if candidate_tags is None:
+        from app.rms.constants import CANONICAL_DIETARY_TAGS
+
+        candidate_tags = sorted(set(CANONICAL_DIETARY_TAGS) | declared_union)
+
+    # Intersect: a candidate survives only if no non-sub-recipe ingredient
+    # blocks it. Sub-recipes block via their own derived set (cached
+    # dietary_tags column, which routes refresh on save).
+    direct = [t for t in targets if t.depth == 0]
+    kept: list[str] = []
+    for tag in candidate_tags:
+        tag_l = tag.strip().lower()
+        blockers: list[str] = []
+        for t in direct:
+            if isinstance(t.target, Ingredient):
+                if ingredient_blocks(t.target, tag_l):
+                    blockers.append(t.target.name)
+            elif isinstance(t.target, Recipe):
+                if tag_l not in {x.lower() for x in _split_tags(t.target.dietary_tags)}:
+                    blockers.append(f"{t.target.name} (sub-receta)")
+        if blockers:
+            result.blocked[tag] = blockers
+        else:
+            kept.append(tag)
+
+    result.allergens = sorted(allergen_set, key=_ALLERGEN_ORDER.index)
+    result.dietary = kept
+    return result
+
+
+def refresh_recipe_tag_cache(session: Session, recipe_id: int) -> None:
+    """Recompute + persist Recipe.allergens / derived tag cache.
+
+    Call on: recipe save (line changes), ingredient tag edits affecting this
+    recipe, sub-recipe cache refresh (cascade handled by caller walking
+    parents).
+    """
+    from app.rms.models import Recipe
+
+    r = session.get(Recipe, recipe_id)
+    if r is None:
+        return
+    d = derive_recipe_tags(session, recipe_id)
+    r.allergens = ",".join(d.allergens) if d.allergens else None
+    # Cache derived dietary into the existing column format; manual tags are
+    # reconciled by the route (they live in tag_link), so here we only store
+    # the derived portion for downstream product inheritance.
+    r.derived_dietary_tags = ",".join(d.dietary) if d.dietary else None
+
+
+def recipes_using_ingredient(session: Session, ingredient_id: int) -> list[int]:
+    """Recipe IDs with a DIRECT line to this ingredient (for cascade)."""
+    rows = session.execute(
+        select(RecipeLine.recipe_id).where(
+            RecipeLine.line_kind == "ingredient",
+            RecipeLine.line_ref_id == ingredient_id,
+        )
+    ).scalars().all()
+    return sorted(set(rows))
+
+
+def recipes_using_recipe(session: Session, sub_recipe_id: int) -> list[int]:
+    """Recipe IDs with a DIRECT sub-recipe line to this one (for cascade)."""
+    rows = session.execute(
+        select(RecipeLine.recipe_id).where(
+            RecipeLine.line_kind == "sub_recipe",
+            RecipeLine.line_ref_id == sub_recipe_id,
+        )
+    ).scalars().all()
+    return sorted(set(rows))
+
+
+def cascade_refresh(session: Session, ingredient_id: int | None = None,
+                    recipe_id: int | None = None) -> list[int]:
+    """Refresh tag caches for a recipe and every transitive parent.
+
+    Returns the recipe IDs refreshed. Guarded against cycles by the walker;
+    the loop terminates because parent chains form a DAG in practice and we
+    track visited sets.
+    """
+    start: set[int] = set()
+    if ingredient_id is not None:
+        start.update(recipes_using_ingredient(session, ingredient_id))
+    if recipe_id is not None:
+        start.add(recipe_id)
+
+    visited: set[int] = set()
+    queue = sorted(start)
+    refreshed: list[int] = []
+    while queue:
+        rid = queue.pop(0)
+        if rid in visited:
+            continue
+        visited.add(rid)
+        refresh_recipe_tag_cache(session, rid)
+        refreshed.append(rid)
+        queue.extend(recipes_using_recipe(session, rid))
+    return refreshed
+
+
+
+
+def _product_inherit_sync(session: Session, recipe_id: int) -> list[int]:
+    """Push a recipe's derived tags + allergens into linked products' caches.
+
+    Returns product IDs updated. Called after cascade_refresh so products
+    (POS cards, receipts, label printing) never show stale claims.
+    """
+    from app.rms.models import Product
+
+    r = session.get(Recipe, recipe_id)
+    if r is None:
+        return []
+    inherited = sorted(set(_split_tags(r.derived_dietary_tags)))
+    # Allergens ride along so the POS guard can check them cheaply.
+    allergens = _split_tags(r.allergens)
+    value = ",".join(inherited + [f"al:{a}" for a in allergens]) or None
+    products = session.scalars(
+        select(Product).where(Product.recipe_id == recipe_id)
+    ).all()
+    for p_ in products:
+        p_.inherited_tags = value
+    return [p_.id for p_ in products]
+
+
+__all__ = [
+    "TagDerivation",
+    "LineTarget",
+    "walk_recipe_tree",
+    "derive_recipe_tags",
+    "refresh_recipe_tag_cache",
+    "cascade_refresh",
+    "recipes_using_ingredient",
+    "recipes_using_recipe",
+    "ingredient_dietary_set",
+    "ingredient_blocks",
+    "_product_inherit_sync",
+]

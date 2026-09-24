@@ -50,6 +50,46 @@
 </div>
 {% endif %}
 
+{# Tag algebra (054): derived tags + why-cancelled traceability #}
+{% if tag_derivation %}
+<div class="card" style="margin-top: var(--space-3); padding: var(--space-3);">
+  <h2 style="font-size: 1rem; margin-bottom: var(--space-2);">
+    🧮 Etiquetas derivadas de ingredientes
+  </h2>
+  <p class="text-muted" style="margin-bottom: var(--space-2);">
+    Calculadas automáticamente: una etiqueta se mantiene solo si <strong>todos</strong> los insumos la cumplen.
+  </p>
+  {% if tag_derivation.dietary %}
+  <div class="tag-pill-row" style="margin-bottom: var(--space-2);" aria-label="Etiquetas derivadas">
+    <span class="tag-pill-row__label">✅ Se cumplen:</span>
+    {% for tag in tag_derivation.dietary %}{{ t.tag_pills(tag) }}{% endfor %}
+  </div>
+  {% else %}
+  <p class="text-muted">Ninguna etiqueta dietética se cumple en todas las líneas.</p>
+  {% endif %}
+  {% if tag_derivation.blocked %}
+  <details style="margin-top: var(--space-2);">
+    <summary style="cursor: pointer; font-weight: 600;">
+      ❌ Canceladas ({{ tag_derivation.blocked|length }}) — ver por qué
+    </summary>
+    <ul style="margin-top: var(--space-2); padding-left: 1.2rem;">
+      {% for tag, blockers in tag_derivation.blocked.items() %}
+      <li style="margin-bottom: 4px;">
+        <strong>{{ tag }}</strong> — bloqueada por:
+        {{ blockers|join(", ") }}
+      </li>
+      {% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+  {% if tag_derivation.undeclared %}
+  <p class="text-muted" style="margin-top: var(--space-2); font-size: 0.85rem;">
+    ⚠️ Sin alérgenos declarados: {{ tag_derivation.undeclared|join(", ") }} — declaralos en Inventario para un resumen confiable.
+  </p>
+  {% endif %}
+</div>
+{% endif %}
+
 {# Meta #}
 <div class="grid grid-3 mb-4" style="gap:var(--space-3);">
   {% if recipe.yield_qty %}

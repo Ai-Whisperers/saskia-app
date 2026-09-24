@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% block title %}Costo teórico vs real{% endblock %}
+{% block content %}
+<h1>Costo teórico vs real ({{ days }} días)</h1>
+<p class="text-muted">Teórico = ventas × costo de receta. Real = movimientos de stock + merma. La brecha = porciones extra, merma no registrada o faltantes.</p>
+
+<div class="grid grid-4 mb-4" style="gap:var(--space-3);">
+  <div class="metric-card"><div class="metric-label">Teórico</div><div class="metric-value">{{ m.gs(v.theoretical_gs) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Uso real</div><div class="metric-value">{{ m.gs(v.actual_ingredient_gs) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Merma</div><div class="metric-value">{{ m.gs(v.waste_gs) }}</div></div>
+  <div class="metric-card {% if v.variance_pct > 5 %}warn{% endif %}">
+    <div class="metric-label">Varianza</div>
+    <div class="metric-value">{{ m.gs(v.variance_gs) }} ({{ v.variance_pct }}%)</div>
+  </div>
+</div>
+
+<form method="get" class="mb-4" style="display:flex;gap:var(--space-2);align-items:end;">
+  <label>Días <input type="number" name="days" value="{{ days }}" min="1" max="365" style="width:90px;"></label>
+  <button class="btn btn-primary" type="submit">Recalcular</button>
+</form>
+
+<table class="table">
+  <thead><tr><th>Producto</th><th class="num">Cant. vendida</th><th class="num">Costo teórico</th></tr></thead>
+  <tbody>
+    {% for row in v.by_product %}
+    <tr><td>{{ row.name }}</td><td class="num">{{ row.qty }}</td><td class="num">{{ m.gs(row.theoretical_gs) }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

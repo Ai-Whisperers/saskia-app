@@ -98,6 +98,9 @@ class Ingredient(Base):
     # Whether this ingredient requires lot tracking (FIFO per batch).
     # True for dairy, eggs, meat, seafood, fresh produce. False for dry/sugar/salt.
     lot_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    # SINACLA cross-contamination flag: produced in facility with wheat.
+    # Blocks "sin tacc" derivation even when tagged sin_gluten (migration 054).
+    may_contain_gluten: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     # Audit items 109, 110: opening stock with date + reorder point override
     opening_stock_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     opening_stock_date: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # ISO date string
@@ -244,6 +247,12 @@ class Recipe(Base):
     direct_labor_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     # HEREBUS integration: image_url (book page or process photo)
     image_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # Tag algebra (migration 054): union of ingredient allergens, cached.
+    allergens: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Tag algebra: intersection-derived dietary tags, cached. Manual tags
+    # live in tag_link; this column is the derived-only portion so products
+    # can inherit without re-walking the tree.
+    derived_dietary_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships
     lines: Mapped[list["RecipeLine"]] = relationship(
@@ -331,6 +340,8 @@ class Product(Base):
 
     # Phase 1.C — HACCP + costing (lazy fields; detailed cost fields added in Phase 1.D)
     yield_percentage: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    # Tag algebra: cached inherited dietary/allergen tags from linked recipe.
+    inherited_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # 0.85 default = 15% moisture loss for breads (matches industry standard).
     # Operators can override per recipe.
 

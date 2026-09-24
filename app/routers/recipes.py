@@ -306,6 +306,17 @@ async def recipe_create(
         logger.warning("auto-fill inference failed for recipe %s: %s", recipe.id, exc)
         session.rollback()
 
+    # Tag algebra (054): refresh this recipe's cached derived tags + allergens,
+    # cascade to parents, and update linked products' inherited tags.
+    try:
+        from app.rms.tag_algebra import cascade_refresh, _product_inherit_sync
+        cascade_refresh(session, recipe_id=recipe.id)
+        _product_inherit_sync(session, recipe.id)
+        session.commit()
+    except Exception as exc:
+        logger.warning("tag cascade failed for recipe %s: %s", recipe.id, exc)
+        session.rollback()
+
     if also_create:
         return RedirectResponse(url=f"/recetas/{recipe.id}/crear-producto", status_code=303)
     return RedirectResponse(url="/recetas", status_code=303)
@@ -427,8 +438,11 @@ async def recipe_detail(
                 seen.add(a_clean)
                 aggregated_allergens.append(a_clean)
 
+    from app.rms.tag_algebra import derive_recipe_tags as _derive_tags
     return render(request, "receta_detalle.html", {
         "recipe": r,
+        "tag_derivation": _derive_tags(session, r_id),
+        "derived_tags": [t for t in (r.derived_dietary_tags or "").split(",") if t],
         "resolved_lines": resolved_lines,
         "batch_cost": batch_cost,
         "unit_cost": unit_cost,
@@ -544,6 +558,19 @@ async def recipe_update(
         if len(skipped) > 5:
             detail += f" (y {len(skipped) - 5} más)"
         raise _HTTPExc(status_code=400, detail=detail)
+
+    # Tag algebra (054): re-derive after line changes; cascade to parents
+    # and sync linked products' inherited tags.
+    try:
+        from app.rms.tag_algebra import cascade_refresh, _product_inherit_sync
+        refreshed = cascade_refresh(session, recipe_id=r.id)
+        for rid in refreshed:
+            _product_inherit_sync(session, rid)
+        session.commit()
+    except Exception as exc:
+        logger.warning("tag cascade failed for recipe %s: %s", r.id, exc)
+        session.rollback()
+
     session.commit()
     return RedirectResponse(url="/recetas", status_code=303)
 

@@ -578,6 +578,21 @@ def inventory_update(
                 ing.id, exc_info=True,
             )
 
+    # Tag algebra (054): ingredient tags/allergens may have changed —
+    # re-derive every recipe using it (transitively) and sync products.
+    try:
+        from app.rms.tag_algebra import cascade_refresh, _product_inherit_sync
+        refreshed = cascade_refresh(session, ingredient_id=ing.id)
+        for rid in refreshed:
+            _product_inherit_sync(session, rid)
+        session.commit()
+    except Exception:
+        logger.warning(
+            "tag cascade failed for ingredient ing_id=%s update", ing.id,
+            exc_info=True,
+        )
+        session.rollback()
+
     return RedirectResponse(url="/inventario", status_code=303)
 
 
