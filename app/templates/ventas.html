@@ -145,11 +145,17 @@
 
     <div class="form-row" style="margin-bottom: var(--space-2);">
       <label for="invoice_type">Tipo</label>
-      <select id="invoice_type" name="invoice_type">
-        <option value="boleta_resimple" {% if tax_regime == 'resimple' %}selected{% endif %}>Boleta Resimple (IRE RESIMPLE)</option>
-        <option value="factura" {% if tax_regime == 'general' %}selected{% endif %}>Factura (IVA General)</option>
-        <option value="none">Sin comprobante (interno)</option>
-      </select>
+      <div class="saskia-combo" data-source="static" data-display="name" data-value="value"
+             data-min-chars="0" data-row-builder="genericRowLabel">
+          <input type="text" id="invoice_type" class="combo-input" name="invoice_type_display" maxlength="40"
+                 value="{% if tax_regime == 'general' %}Factura (IVA General){% elif tax_regime == 'resimple' %}Boleta Resimple (IRE RESIMPLE){% else %}Boleta Resimple (IRE RESIMPLE){% endif %}" placeholder="Tipo">
+          <input type="hidden" name="invoice_type" value="{% if tax_regime == 'general' %}factura{% else %}boleta_resimple{% endif %}">
+          <div class="combo-results" role="listbox" hidden>
+            <div class="combo-static-option" data-value="boleta_resimple" data-display="Boleta Resimple (IRE RESIMPLE)"></div>
+            <div class="combo-static-option" data-value="factura" data-display="Factura (IVA General)"></div>
+            <div class="combo-static-option" data-value="none" data-display="Sin comprobante (interno)"></div>
+          </div>
+        </div>
       <small>Cambiá solo si esta venta difiere de tu régimen habitual.</small>
     </div>
 
@@ -204,399 +210,17 @@
       Registrá venta
     </button>
     <a href="/ventas" class="btn btn-ghost">Cancelar</a>
-  </div>
-</form>
-
-<h2>Historial</h2>
-
-<div class="card mb-4" aria-label="Resumen del historial">
-  <div class="grid grid-3">
-    <div>
-      <div class="metric-label">Ventas activas</div>
-      <div class="metric-value">{{ totals.count }}</div>
-    </div>
-    <div>
-      <div class="metric-label">Total recaudado</div>
-      <div class="metric-value">Gs. {{ m.gs(totals.total_gs) }}</div>
-    </div>
-    <div>
-      <div class="metric-label">Ticket promedio</div>
-      <div class="metric-value">Gs. {{ m.gs(totals.avg_ticket_gs) }}</div>
-    </div>
-  </div>
-  <p class="text-muted mt-2" style="font-size:var(--text-xs);">
-    Filtro actual: {{ totals.filters }}
-    <span class="badge badge-info" style="margin-left:var(--space-3);">
-      Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ total_count }}</strong> ventas
-    </span>
-    {% set csv_query = dict(request.query_params.multi_items()) %}
-    {% set _ = csv_query.update({'format': 'csv'}) %}
-    <a href="{{ request.url.path }}?{{ csv_query|urlencode }}" class="btn btn-sm"
-       style="margin-left:var(--space-3);"
-       download="ventas-{{ now_local[:10] }}.csv">
-      <svg class="icon" aria-hidden="true"><use href="#icon-excel"/></svg>
-      Exportar CSV
+    <a href="/ventas/historial" class="btn btn-ghost" style="margin-left: var(--space-2);">
+      <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
+      Ver historial
     </a>
-  </p>
-</div>
-
-<div class="form-row">
-  <label for="sales-search" class="sr-only">Buscar producto, nota o teléfono</label>
-  <input type="search" id="sales-search" name="q" value="{{ request.query_params.get('q','') }}" placeholder="Buscar producto, nota o teléfono" aria-label="Buscar producto, nota o teléfono">
-  <div class="saskia-combo" 
-       data-source="data:application/json,[{'name': 'Todos los productos', 'id': ''}{% for p in products %},{'name': '{{ p.name }}', 'id': {{ p.id }}}{% if not loop.last %},{% endif %}{% endfor %}]"
-       data-display="name"
-       data-value="id"
-       data-min-chars="0"
-       data-allow-freeform="false">
-    <input type="text"
-           id="product-filter"
-           class="combo-input"
-           name="product_name"
-           placeholder="Filtrar por producto..."
-           autocomplete="off">
-    <input type="hidden" name="product_id" value="{{ request.query_params.get('product_id') }}">
-    <div class="combo-results" role="listbox" aria-label="Productos" hidden></div>
   </div>
-  <div class="saskia-combo" 
-       data-source="data:application/json,[{'name': 'Todo el historial'}, {'name': 'Últimos 7 días'}, {'name': 'Últimos 30 días'}, {'name': 'Últimos 90 días'}]"
-       data-display="name"
-       data-value="name"
-       data-min-chars="0"
-       data-allow-freeform="false">
-    <input type="text"
-           id="days-filter"
-           class="combo-input"
-           name="days"
-           placeholder="Seleccionar período..."
-           autocomplete="off">
-    <input type="hidden" name="days" value="{{ request.query_params.get('days') }}">
-    <div class="combo-results" role="listbox" aria-label="Períodos" hidden></div>
-  </div>
-  <button type="submit" class="btn">
-    <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
-    Filtrar
-  </button>
-  <a href="/ventas" class="btn btn-ghost">Limpiar</a>
 </form>
-
-<form method="get" action="/ventas" class="form form-row" aria-label="Filtrar historial de ventas">
-  <div class="form-row">
-{% if sales %}
-<table class="table is-hoverable is-striped">
-  <thead>
-    <tr>
-      <th>Fecha</th>
-      <th>Producto</th>
-      <th class="num">Cantidad</th>
-      <th class="num">Precio unit.</th>
-      <th class="num">Total</th>
-      <th>Cliente</th>
-      <th>Pago</th>
-      <th>Estado</th>
-      <th class="actions"></th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for s in sales %}
-    <tr {% if s.voided_at %}class="is-voided"{% endif %}>
-      <td>
-        <a href="/ventas/{{ s.id }}/recibo" target="_blank" rel="noopener" title="Imprimir recibo" data-copy="{{ s.id }}">
-          {{ s.sold_at_str }}
-        </a>
-      </td>
-      <td>{{ s.product_name }}</td>
-      <td class="num">{{ "%.2f"|format(s.qty) }}</td>
-      <td class="num">{{ m.gs(s.unit_price_gs) }}</td>
-      <td class="num">{{ m.gs(s.total_gs) }}</td>
-      <td>
-        {% if s.customer_name %}
-          <strong data-copy="{{ s.customer_id if s.customer_id else '' }}">{{ s.customer_name }}</strong><br>
-          <small class="text-muted">{% if s.customer_phone %}{{ s.customer_phone }}{% else %}—{% endif %}</small>
-        {% elif s.customer_phone %}
-          <small class="text-muted">{{ s.customer_phone }}</small>
-        {% else %}
-          —
-        {% endif %}
-      </td>
-      <td>{% if s.payment_method %}<span class="badge badge-neutral">{{ s.payment_method }}</span>{% else %}—{% endif %}</td>
-      <td>
-        {% if s.voided_at %}
-          <span class="badge badge-danger"><svg class="icon" aria-hidden="true" style="width:1em;height:1em;vertical-align:middle"><use href="#icon-x"/></svg> Anulada</span>
-        {% else %}
-          <span class="badge badge-ok">Activa</span>
-        {% endif %}
-      </td>
-      <td class="actions">
-        <a href="/ventas/{{ s.id }}/recibo" class="btn btn-sm" target="_blank" rel="noopener" title="Imprimir recibo">
-          <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
-          Recibo
-        </a>
-        {% if not s.voided_at %}
-        <form method="post" action="/ventas/{{ s.id }}/anular" style="display: inline;">
-          <button type="button" class="btn btn-sm btn-danger-ghost"
-                onclick="SaskiaConfirmModal.show({title:'¿Anular venta?',body:'Se devolverá el stock al inventario.',action:'/ventas/{{ s.id }}/anular',confirmLabel:'Sí, anular',danger:true})">Anular</button>
-        </form>
-        {% endif %}
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% if total_count > 0 %}
-<div class="table-info">
-  <span>Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ total_count }}</strong> ventas</span>
-</div>
-{% endif %}
-
-{% if has_more %}
-<div style="text-align:center; margin: var(--space-4) 0;">
-  <a href="?{% for k, v in request.query_params.multi_items() %}{{ k }}={{ v }}&{% endfor %}offset={{ current_offset + current_page_size }}" class="btn" id="load-more-btn">
-    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
-    Cargar más ({{ totals.count - (current_offset + current_page_size) }} restantes)
-  </a>
-</div>
-{% endif %}
-
-{% else %}
-<div class="empty-state">
-  <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
-  <h3>Todavía no hay ventas registradas</h3>
-  <p>Cuando registres la primera venta va a aparecer acá.</p>
-  <a href="#sale-form" class="btn btn-primary">Cargar primera venta</a>
-</div>
-{% endif %}
-
 
 <script>
+// Quick-sell filter (only on Nueva venta page)
 (function() {
-  'use strict';
-
-  // ── Item 3: Auto-focus on SKU/product field ──────────────────────────
-  var skuInput = document.getElementById("sku");
-  var productSelect = document.getElementById("product_id");
-  function doAutoFocus() {
-    if (skuInput) {
-      skuInput.focus();
-    } else if (productSelect) {
-      productSelect.focus();
-    }
-  }
-  if (!("autofocus" in document.createElement("input")) || !skuInput || skuInput !== document.activeElement) {
-    doAutoFocus();
-  }
-
-  // ── SKU scan -> auto-fill product_id ──────────────────────────────────
-  if (skuInput && productSelect) {
-    var debounceTimer = null;
-    function lookup() {
-      var sku = (skuInput.value || "").trim();
-      if (!sku) return;
-      fetch("/ventas/buscar?sku=" + encodeURIComponent(sku))
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          if (!data.found) {
-            skuInput.setCustomValidity("SKU no encontrado");
-            skuInput.reportValidity();
-            return;
-          }
-          skuInput.setCustomValidity("");
-          productSelect.value = data.product_id;
-          skuInput.value = "";
-          productSelect.focus();
-        });
-    }
-    skuInput.addEventListener("change", lookup);
-    skuInput.addEventListener("blur", function() {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(lookup, 150);
-    });
-    skuInput.addEventListener("keydown", function(e) {
-      if (e.key === "Enter") {
-        if (debounceTimer) clearTimeout(debounceTimer);
-        lookup();
-      }
-    });
-  }
-
-  // ── Item 4: Max discount validation ───────────────────────────────────
-  var saleForm = document.getElementById("sale-form");
-  var discountInput = document.getElementById("discount_gs");
-  var productSelectEl = document.getElementById("product_id");
-  var qtyInput = document.getElementById("qty");
-
-  function validateDiscount() {
-    if (!discountInput || !productSelectEl || !qtyInput) return;
-    var selectedOption = productSelectEl.options[productSelectEl.selectedIndex];
-    if (!selectedOption || !selectedOption.value) return;
-    var unitPrice = parseFloat(selectedOption.getAttribute("data-price") || "0");
-    var qty = parseFloat(qtyInput.value || "1");
-    var maxTotal = unitPrice * qty;
-    var discount = parseFloat(discountInput.value || "0");
-    if (discount > maxTotal) {
-      discountInput.setCustomValidity("El descuento no puede superar el total de la venta (Gs. " + Math.round(maxTotal).toLocaleString() + ")");
-      discountInput.reportValidity();
-    } else {
-      discountInput.setCustomValidity("");
-    }
-  }
-
-  if (discountInput) {
-    discountInput.addEventListener("input", validateDiscount);
-    discountInput.addEventListener("blur", validateDiscount);
-  }
-  if (productSelectEl) {
-    productSelectEl.addEventListener("change", validateDiscount);
-  }
-  if (qtyInput) {
-    qtyInput.addEventListener("input", validateDiscount);
-  }
-
-  // ── Item 5: localStorage persistence ─────────────────────────────────
-  var STORAGE_KEY = "saskia_venta_form";
-  function saveForm() {
-    if (!saleForm) return;
-    var data = {
-      product_id: productSelectEl ? productSelectEl.value : "",
-      qty: qtyInput ? qtyInput.value : "1",
-      discount_gs: discountInput ? discountInput.value : "0",
-      notes: document.getElementById("notes") ? document.getElementById("notes").value : "",
-      customer_id: document.getElementById("customer_id") ? document.getElementById("customer_id").value : "",
-    };
-    try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch (e) {}
-  }
-
-  function restoreForm() {
-    try {
-      var raw = sessionStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      var data = JSON.parse(raw);
-      if (data.product_id && productSelectEl) productSelectEl.value = data.product_id;
-      if (data.qty && qtyInput) qtyInput.value = data.qty;
-      if (data.discount_gs && discountInput) discountInput.value = data.discount_gs;
-      if (data.notes) {
-        var notesEl = document.getElementById("notes");
-        if (notesEl) notesEl.value = data.notes;
-      }
-    } catch (e) {}
-  }
-
-  if (saleForm) {
-    restoreForm();
-    // Show toast when draft was recovered
-    if (sessionStorage.getItem(STORAGE_KEY)) {
-      (function() {
-        var toast = document.createElement("div");
-        toast.className = "alert alert-success";
-        toast.style.position = "fixed";
-        toast.style.bottom = "1.5rem";
-        toast.style.right = "1.5rem";
-        toast.style.zIndex = 9999;
-        toast.style.maxWidth = "320px";
-        toast.setAttribute("role", "alert");
-        toast.innerHTML = '<svg class="icon" aria-hidden="true" style="flex-shrink:0"><use href="#icon-check"/></svg> Borrador recuperado.';
-        document.body.appendChild(toast);
-        setTimeout(function() {
-          toast.style.opacity = "0";
-          toast.style.transition = "opacity 0.4s";
-          setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 400);
-        }, 3000);
-      })();
-    }
-    saleForm.addEventListener("input", saveForm);
-    saleForm.addEventListener("change", saveForm);
-    // Run validation on submit — blocks if discount exceeds line total
-    saleForm.addEventListener("submit", function(e) {
-      validateDiscount();
-      if (!saleForm.checkValidity()) {
-        e.preventDefault();
-        saleForm.reportValidity();
-        return;
-      }
-      try { sessionStorage.removeItem(STORAGE_KEY); } catch (err) {}
-    });
-  }
-
-  // ── Item 6: Keyboard shortcuts ────────────────────────────────────────
-  document.addEventListener("keydown", function(e) {
-    // Ignore if inside an input/select/textarea that isn't the SKU field
-    var tag = document.activeElement ? document.activeElement.tagName : "";
-    var isFormField = (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA");
-    if (e.key === "F2" && !isFormField) {
-      e.preventDefault();
-      var trigger = document.getElementById("customer_picker_trigger");
-      if (trigger) trigger.click();
-    } else if (e.key === "F3") {
-      e.preventDefault();
-      if (skuInput) skuInput.focus();
-      else if (productSelectEl) productSelectEl.focus();
-    } else if (e.key === "F4") {
-      e.preventDefault();
-      if (discountInput) discountInput.focus();
-    } else if (e.key === "Escape" && !isFormField) {
-      // Clear the in-progress sale form
-      if (saleForm) {
-        saleForm.reset();
-        try { sessionStorage.removeItem(STORAGE_KEY); } catch (err) {}
-        if (skuInput) skuInput.focus();
-      }
-    }
-  });
-
-  // ── Item 8/9/10/11: Quick-sell grid search + keyboard nav ─────────────
-  var qsGrid = document.getElementById("quick-sell-grid");
   var qsSearch = document.getElementById("quick-sell-search");
-
-  function getVisibleBtns() {
-    return Array.prototype.slice.call(
-      qsGrid.querySelectorAll(".quick-sell-btn:not(.is-out-of-stock) .btn:not([disabled])")
-    );
-  }
-
-  var qsNavIndex = -1;
-
-  if (qsGrid) {
-    qsGrid.addEventListener("keydown", function(e) {
-      var visibleBtns = getVisibleBtns();
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        qsNavIndex = Math.min(qsNavIndex + 1, visibleBtns.length - 1);
-        if (qsNavIndex >= 0 && visibleBtns[qsNavIndex]) {
-          visibleBtns[qsNavIndex].focus();
-        }
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        qsNavIndex = Math.max(qsNavIndex - 1, 0);
-        if (visibleBtns[qsNavIndex]) {
-          visibleBtns[qsNavIndex].focus();
-        }
-      } else if (e.key === "ArrowDown") {
-        e.preventDefault();
-        qsNavIndex = Math.min(qsNavIndex + 3, visibleBtns.length - 1);
-        if (qsNavIndex >= 0 && visibleBtns[qsNavIndex]) {
-          visibleBtns[qsNavIndex].focus();
-        }
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        qsNavIndex = Math.max(qsNavIndex - 3, 0);
-        if (visibleBtns[qsNavIndex]) {
-          visibleBtns[qsNavIndex].focus();
-        }
-      } else if (e.key === "Enter" && document.activeElement === qsGrid) {
-        e.preventDefault();
-        if (visibleBtns[0]) visibleBtns[0].click();
-      }
-    });
-
-    qsGrid.addEventListener("focusin", function(e) {
-      var visibleBtns = getVisibleBtns();
-      var idx = visibleBtns.indexOf(e.target);
-      if (idx >= 0) qsNavIndex = idx;
-    });
-  }
-
   if (qsSearch) {
     qsSearch.addEventListener("input", function() {
       var query = (this.value || "").toLowerCase().trim();
@@ -607,10 +231,9 @@
           form.style.display = (query === "" || name.indexOf(query) >= 0) ? "" : "none";
         }
       );
-      qsNavIndex = -1; // Reset nav when filter changes
+      qsNavIndex = -1;
     });
   }
 })();
 </script>
-
 {% endblock %}

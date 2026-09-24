@@ -94,10 +94,16 @@
           <tr class="line-row" data-kind="{{ line.line_kind }}"
               data-line-id="{{ line.id if line.id else '' }}">
             <td class="line-col-type">
-              <select name="line_kind" class="line-kind-select" aria-label="Tipo de línea">
-                <option value="ingredient" {% if line.line_kind == 'ingredient' %}selected{% endif %}>Insumo</option>
-                <option value="sub_recipe" {% if line.line_kind == 'sub_recipe' %}selected{% endif %}>Sub-receta</option>
-              </select>
+              <div class="saskia-combo" data-source="static" data-display="name" data-value="value"
+                   data-min-chars="0" data-row-builder="genericRowLabel">
+                <input type="text" class="combo-input" name="line_kind_display" maxlength="15"
+                       value="{% if line.line_kind == 'sub_recipe' %}Sub-receta{% else %}Insumo{% endif %}" placeholder="Tipo">
+                <input type="hidden" name="line_kind" value="{{ line.line_kind }}">
+                <div class="combo-results" role="listbox" hidden>
+                  <div class="combo-static-option" data-value="ingredient" data-display="Insumo"></div>
+                  <div class="combo-static-option" data-value="sub_recipe" data-display="Sub-receta"></div>
+                </div>
+              </div>
             </td>
             <td class="line-col-item">
               <div class="saskia-combo line-target-combo"
@@ -125,22 +131,28 @@
               </div>
             </td>
             <td class="line-col-qty">
-              <input type="number" step="0.001" min="0" name="qty"
+              <input type="number" step="0.001" min="0" name="line_qty"
                      class="line-qty-input"
                      value="{{ "%.3f"|format(line.qty or 0) }}" placeholder="0.000">
             </td>
             <td class="line-col-unit">
-              <select name="unit" class="line-unit-select" aria-label="Unidad">
-                {% for u in ['g', 'kg', 'ml', 'l', 'und'] %}
-                  <option value="{{ u }}" {% if (line.line_unit or line.unit or '') == u %}selected{% endif %}>{{ u }}</option>
-                {% endfor %}
-              </select>
+              <div class="saskia-combo" data-source="static" data-display="name" data-value="value"
+                   data-min-chars="0" data-row-builder="genericRowLabel">
+                <input type="text" class="combo-input" name="line_unit_display" maxlength="10"
+                       value="{{ line.line_unit or line.unit or 'g' }}" placeholder="g">
+                <input type="hidden" name="line_unit" value="{{ line.line_unit or line.unit or 'g' }}">
+                <div class="combo-results" role="listbox" hidden>
+                  {% for u in ['g', 'kg', 'ml', 'l', 'und'] %}
+                    <div class="combo-static-option" data-value="{{ u }}" data-display="{{ u }}"></div>
+                  {% endfor %}
+                </div>
+              </div>
             </td>
             <td class="line-col-cost">
               <span class="line-cost-display" data-cost-per-unit="0">Gs. 0</span>
             </td>
             <td class="line-col-note">
-              <input type="text" name="note" maxlength="200" value="{{ line.note or '' }}"
+              <input type="text" name="line_notes" maxlength="200" value="{{ line.note or '' }}"
                      class="line-note-input" placeholder="opcional">
             </td>
             <td class="line-col-action">
@@ -195,21 +207,43 @@
           <input type="number" id="yield_qty" name="yield_qty" step="0.01" min="0"
                  class="yield-qty-input"
                  value="{{ "%.2f"|format(recipe.yield_qty) if recipe and recipe.yield_qty is not none else '12' }}">
-          <select id="yield_unit_combo" name="yield_unit" class="yield-unit-select">
-            {% for u in units %}
-              <option value="{{ u }}" {% if recipe and recipe.yield_unit == u %}selected{% endif %}>{{ u }}</option>
-            {% endfor %}
-          </select>
+          <div class="saskia-combo" data-source="/recetas/api/units" data-display="display" data-value="value"
+               data-min-chars="0" data-row-builder="genericRowLabel">
+            <input type="text" id="yield_unit_combo" class="combo-input" name="yield_unit_display" maxlength="10"
+                   value="{{ recipe.yield_unit if recipe and recipe.yield_unit else 'und' }}" placeholder="und">
+            <input type="hidden" name="yield_unit" value="{{ recipe.yield_unit if recipe and recipe.yield_unit else 'und' }}">
+            <div class="combo-results" role="listbox" hidden></div>
+          </div>
         </div>
       </div>
 
       {% if mode == 'edit' and recipe and recipe.yield_qty %}
       <div class="form-row">
         <label for="scale_combo">Escalar rendimiento</label>
-        <div class="yield-group">
-          <input type="number" id="scale_combo" name="scale" step="0.25" min="0.25" max="10"
-                 class="yield-qty-input" value="{{ scale_factor }}" placeholder="1">
-          <span class="yield-unit-display">×</span>
+        <script>
+        // Auto-submit the scale form when the combo picks a multiplier
+        document.addEventListener('DOMContentLoaded', function() {
+          var scaleCombo = document.getElementById('scale_combo');
+          if (scaleCombo) {
+            var combo = scaleCombo.closest('.saskia-combo');
+            if (combo && combo._saskiaCombo) {
+              combo._saskiaCombo.opts.onSelect = function() {
+                combo.closest("form").submit();
+              };
+            }
+          }
+        });
+        </script>
+        <div class="saskia-combo" data-source="static" data-display="name" data-value="value"
+             data-min-chars="0" data-row-builder="genericRowLabel" data-autosubmit="true">
+          <input type="text" id="scale_combo" class="combo-input" name="scale_display" maxlength="6"
+                 value="{{ scale_factor }}x" placeholder="1x">
+          <input type="hidden" name="scale" value="{{ scale_factor }}">
+          <div class="combo-results" role="listbox" hidden>
+            {% for mult in [0.25, 0.5, 1, 1.5, 2, 3, 4, 5] %}
+              <div class="combo-static-option" data-value="{{ mult }}" data-display="{{ mult }}x"></div>
+            {% endfor %}
+          </div>
         </div>
         <small class="muted">Rinde escalado: {{ "%.2f"|format(recipe.yield_qty * scale_factor) }} {{ recipe.yield_unit }}</small>
       </div>
@@ -398,6 +432,22 @@
   background: var(--input-bg);
   font-family: inherit;
   font-size: var(--text-sm);
+}
+/* US 3.1 AC #3: sub-recipe lines must be visually distinct from ingredient
+   lines in the recipe form. A soft warm tint on the row + a small badge
+   in the type column tell the operator "this line refers to another
+   recipe, not a raw ingredient" so they don't double-count quantities. */
+.line-row[data-kind="sub_recipe"] {
+  background: var(--color-accent-soft);
+}
+.line-row[data-kind="sub_recipe"] .line-kind-select {
+  border-color: var(--color-accent);
+  font-weight: 600;
+}
+.line-row[data-kind="sub_recipe"] .line-target-input::before {
+  content: "↳ ";
+  color: var(--color-accent);
+  font-weight: 600;
 }
 .yield-unit-display {
   display: flex;
@@ -728,7 +778,7 @@
     lines.forEach(function(row) {
       var kind = (row.querySelector('.line-kind-select') || {}).value;
       var targetId = (row.querySelector('input[name="line_target_id"]') || {}).value;
-      var qty = parseFloat((row.querySelector('input[name="qty"]') || {}).value) || 0;
+      var qty = parseFloat((row.querySelector('input[name="line_qty"]') || {}).value) || 0;
       var lineCost = 0;
 
       if (kind === 'ingredient' && targetId && ingredientPrices[targetId]) {
@@ -781,18 +831,78 @@
     }
   }
 
+  // ---------- Line-kind → target-combo source switching ----------
+  // After the line_kind combo picks a new value, swap the item combo's
+  // source (ingredient vs sub-recipe API) so the right search runs.
+  function updateLineSource(row) {
+    var kindHidden = row.querySelector('input[name="line_kind"]');
+    var combo = row.querySelector('.line-target-combo');
+    if (!kindHidden || !combo) return;
+    var input = combo.querySelector('.combo-input');
+    var hidden = combo.querySelector('input[name="line_target_id"]');
+    var results = combo.querySelector('.combo-results');
+
+    var sourceUrl, ph, allowCreate;
+    if (kindHidden.value === 'sub_recipe') {
+      sourceUrl = '/recetas/api/search';
+      ph = 'Buscar sub-receta…';
+      allowCreate = false;
+      combo.removeAttribute('data-allow-create');
+    } else {
+      sourceUrl = '/inventario/api/search';
+      ph = 'Buscar ingrediente…';
+      allowCreate = true;
+      combo.setAttribute('data-allow-create', 'true');
+    }
+    combo.dataset.source = sourceUrl;
+    if (input) input.placeholder = ph;
+    // Clear stale selection when the kind changes
+    if (input) input.value = '';
+    if (hidden) hidden.value = '';
+    if (results) { results.innerHTML = ''; results.hidden = true; }
+
+    // Re-init the combo instance against the new source
+    if (window.SaskiaCombo) {
+      if (combo._saskiaCombo && combo._saskiaCombo.destroy) combo._saskiaCombo.destroy();
+      combo._saskiaCombo = new SaskiaCombo(combo, {
+        source: sourceUrl,
+        displayField: 'name',
+        valueField: 'id',
+        minChars: 0,
+        allowCreate: allowCreate,
+        buildRow: window.genericRowLabel,
+      });
+    }
+  }
+
+  // Wire the kind combo so selecting Insumo/Sub-receta triggers updateLineSource.
+  function wireLineKindHandlers(row) {
+    var combos = row.querySelectorAll('.saskia-combo');
+    var kindCombo = null;
+    for (var i = 0; i < combos.length; i++) {
+      if (combos[i].querySelector('input[name="line_kind"]')) { kindCombo = combos[i]; break; }
+    }
+    if (kindCombo && kindCombo._saskiaCombo) {
+      kindCombo._saskiaCombo.opts.onSelect = function () { updateLineSource(row); };
+    } else if (kindCombo) {
+      // Combo not yet initialized (dynamic row): catch value changes on the hidden input
+      var kindHidden = kindCombo.querySelector('input[name="line_kind"]');
+      if (kindHidden) kindHidden.addEventListener('change', function () { updateLineSource(row); });
+    }
+  }
+
   // ---------- Row wiring (re-init on every row, including new ones) ----------
   function initLineRow(row) {
-    var kindSelect = row.querySelector('.line-kind-select');
-    if (!kindSelect) return;
+    var kindHidden = row.querySelector('input[name="line_kind"]');
+    if (!kindHidden) return;
     var combo = row.querySelector('.line-target-combo');
     var comboInput = row.querySelector('.line-target-input');
     var comboHidden = row.querySelector('input[name="line_target_id"]');
-    var placeholder = row.querySelector('input[name="qty"]');
+    var placeholder = row.querySelector('input[name="line_qty"]');
     var removeBtn = row.querySelector('.line-remove');
 
     function syncKindToCombo() {
-      var kind = kindSelect.value;
+      var kind = kindHidden.value;
       if (!combo) return;
       // Toggle source
       if (kind === 'sub_recipe') {
@@ -861,10 +971,12 @@
       }
     }
 
-    kindSelect.addEventListener('change', syncKindToCombo);
+    // Kind combo select → re-sync source. Also re-fire when the hidden
+    // value changes (SaskiaCombo sets it on select).
+    wireLineKindHandlers(row);
 
     // Re-compute cost on qty change
-    var qtyInput = row.querySelector('input[name="qty"]');
+    var qtyInput = row.querySelector('input[name="line_qty"]');
     if (qtyInput) qtyInput.addEventListener('input', computeCosts);
 
     // Recompute when target selected (combo onPick)
@@ -897,10 +1009,15 @@
       row.dataset.kind = 'ingredient';
       row.innerHTML = `
         <td class="line-col-type">
-          <select name="line_kind" class="line-kind-select" aria-label="Tipo de línea">
-            <option value="ingredient" selected>Insumo</option>
-            <option value="sub_recipe">Sub-receta</option>
-          </select>
+          <div class="saskia-combo" data-source="static" data-display="name" data-value="value"
+               data-min-chars="0" data-row-builder="genericRowLabel">
+            <input type="text" class="combo-input" name="line_kind_display" maxlength="15" value="Insumo" placeholder="Tipo">
+            <input type="hidden" name="line_kind" value="ingredient">
+            <div class="combo-results" role="listbox" hidden>
+              <div class="combo-static-option" data-value="ingredient" data-display="Insumo"></div>
+              <div class="combo-static-option" data-value="sub_recipe" data-display="Sub-receta"></div>
+            </div>
+          </div>
         </td>
         <td class="line-col-item">
           <div class="saskia-combo line-target-combo"
@@ -919,19 +1036,24 @@
           </div>
         </td>
         <td class="line-col-qty">
-          <input type="number" step="0.001" min="0" name="qty"
+          <input type="number" step="0.001" min="0" name="line_qty"
                  class="line-qty-input" value="" placeholder="0.000">
         </td>
         <td class="line-col-unit">
-          <select name="unit" class="line-unit-select" aria-label="Unidad">
-            ${(window.SASKIA_UNITS || ["g","kg","ml","l","und"]).map(function(u){return '<option value="'+u+'"'+(u==="g"?' selected':'')+'>'+u+'</option>';}).join('')}
-          </select>
+          <div class="saskia-combo" data-source="static" data-display="name" data-value="value"
+               data-min-chars="0" data-row-builder="genericRowLabel">
+            <input type="text" class="combo-input" name="line_unit_display" maxlength="10" value="g" placeholder="g">
+            <input type="hidden" name="line_unit" value="g">
+            <div class="combo-results" role="listbox" hidden>
+              ${(window.SASKIA_UNITS || ["g","kg","ml","l","und"]).map(function(u){return '<div class="combo-static-option" data-value="'+u+'" data-display="'+u+'"></div>';}).join('')}
+            </div>
+          </div>
         </td>
         <td class="line-col-cost">
           <span class="line-cost-display" data-cost-per-unit="0">Gs. 0</span>
         </td>
         <td class="line-col-note">
-          <input type="text" name="note" maxlength="200" value=""
+          <input type="text" name="line_notes" maxlength="200" value=""
                  class="line-note-input" placeholder="opcional">
         </td>
         <td class="line-col-action">

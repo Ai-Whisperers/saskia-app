@@ -466,5 +466,634 @@ def render_template(template_body: str, vars: dict) -> str:
         return template_body
 
 
+
+
+
+# ─── Margin tiers (Phase 7) ────────────────────────────────────────
+
+
+@router.get("/margin-tiers")
+def list_margin_tiers_endpoint(
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Return all margin tiers (operator-tunable thresholds)."""
+    from app.rms.margin_tier import list_margin_tiers
+    tiers = list_margin_tiers(session)
+    return [
+        {
+            "id": t.id, "code": t.code, "label": t.label,
+            "min_cost_gs": t.min_cost_gs, "max_cost_gs": t.max_cost_gs,
+            "sort_order": t.sort_order, "is_active": t.is_active,
+            "notes": t.notes,
+        }
+        for t in tiers
+    ]
+
+
+class MarginTierUpdateIn(BaseModel):
+    label: str | None = Field(default=None, max_length=64)
+    min_cost_gs: int | None = Field(default=None, ge=0)
+    max_cost_gs: int | None = Field(default=None, ge=0)
+    sort_order: int | None = Field(default=None, ge=0)
+    is_active: bool | None = None
+
+
+@router.post("/margin-tiers/{tier_id}/update")
+def update_margin_tier_endpoint(
+    tier_id: int,
+    payload: MarginTierUpdateIn,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Update a margin tier. Operators use this to adjust thresholds."""
+    from app.rms.models import MarginTier
+
+    tier = session.get(MarginTier, tier_id)
+    if tier is None:
+        raise HTTPException(status_code=404, detail="Tier not found")
+    if payload.label is not None:
+        tier.label = payload.label
+    if payload.min_cost_gs is not None:
+        tier.min_cost_gs = payload.min_cost_gs
+    if payload.max_cost_gs is not None:
+        tier.max_cost_gs = payload.max_cost_gs
+    if payload.sort_order is not None:
+        tier.sort_order = payload.sort_order
+    if payload.is_active is not None:
+        tier.is_active = payload.is_active
+    session.commit()
+    return {
+        "id": tier.id, "code": tier.code, "label": tier.label,
+        "min_cost_gs": tier.min_cost_gs, "max_cost_gs": tier.max_cost_gs,
+        "sort_order": tier.sort_order, "is_active": tier.is_active,
+    }
+
+
+# ─── Stock status config (Phase 7) ────────────────────────────────
+
+
+@router.get("/stock-status-config")
+def list_stock_status_config_endpoint(
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Return all stock status thresholds."""
+    from app.rms.stock_status import list_status_configs
+    configs = list_status_configs(session)
+    return [
+        {
+            "id": c.id, "code": c.code, "label": c.label,
+            "threshold_ratio": c.threshold_ratio,
+            "threshold_days": c.threshold_days,
+            "sort_order": c.sort_order, "is_active": c.is_active,
+            "notes": c.notes,
+        }
+        for c in configs
+    ]
+
+
+class StockStatusConfigUpdateIn(BaseModel):
+    label: str | None = Field(default=None, max_length=64)
+    threshold_ratio: float | None = Field(default=None, ge=0)
+    threshold_days: int | None = Field(default=None, ge=0)
+    sort_order: int | None = Field(default=None, ge=0)
+    is_active: bool | None = None
+
+
+@router.post("/stock-status-config/{config_id}/update")
+def update_stock_status_config_endpoint(
+    config_id: int,
+    payload: StockStatusConfigUpdateIn,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Update a stock status threshold. Operators tune ratios/days here."""
+    from app.rms.models import StockStatusConfig
+
+    cfg = session.get(StockStatusConfig, config_id)
+    if cfg is None:
+        raise HTTPException(status_code=404, detail="Config not found")
+    if payload.label is not None:
+        cfg.label = payload.label
+    if payload.threshold_ratio is not None:
+        cfg.threshold_ratio = payload.threshold_ratio
+    if payload.threshold_days is not None:
+        cfg.threshold_days = payload.threshold_days
+    if payload.sort_order is not None:
+        cfg.sort_order = payload.sort_order
+    if payload.is_active is not None:
+        cfg.is_active = payload.is_active
+    session.commit()
+    return {
+        "id": cfg.id, "code": cfg.code, "label": cfg.label,
+        "threshold_ratio": cfg.threshold_ratio,
+        "threshold_days": cfg.threshold_days,
+        "sort_order": cfg.sort_order, "is_active": cfg.is_active,
+    }
+
+
+# ─── Tax / invoice constants (Phase 7) ────────────────────────────
+
+
+@router.get("/tax-config")
+def get_tax_config_endpoint(
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Return current tax config from ComplianceInfo + constants fallback.
+
+    Centralizes the tax/invoice defaults so all callers see the same
+    effective values. Future tax law changes touch only this endpoint.
+    """
+    from app.rms.constants import (
+        DEFAULT_IVA_RATE,
+        DEFAULT_INVOICE_TYPE,
+        DEFAULT_TAX_REGIME,
+        INVOICE_TYPES,
+        VALID_IVA_RATES,
+        VALID_TAX_REGIMES,
+    )
+    from app.rms.models import ComplianceInfo
+
+    ci = session.get(ComplianceInfo, 1)
+    return {
+        "iva_rate": ci.iva_default_rate if ci and ci.iva_default_rate else DEFAULT_IVA_RATE,
+        "tax_regime": ci.tax_regime if ci and ci.tax_regime else DEFAULT_TAX_REGIME,
+        "valid_iva_rates": sorted(VALID_IVA_RATES),
+        "valid_tax_regimes": sorted(VALID_TAX_REGIMES),
+        "invoice_types": sorted(INVOICE_TYPES),
+        "default_invoice_type": DEFAULT_INVOICE_TYPE,
+        "labor_cost_per_hour_gs": ci.labor_cost_per_hour_gs if ci else None,
+        "overhead_multiplier_pct": ci.overhead_multiplier_pct if ci else None,
+    }
+
+
+
+
+
+# ─── Storage types (Phase 8) ──────────────────────────────────────
+
+
+@router.get("/storage-types")
+def list_storage_types_endpoint(
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Return HACCP storage codes."""
+    from app.rms.storage_types import list_storage_types
+    types_ = list_storage_types(session)
+    return [
+        {
+            "id": t.id, "code": t.code, "label": t.label,
+            "requires_temp_min": t.requires_temp_min,
+            "requires_temp_max": t.requires_temp_max,
+            "requires_humidity_max": t.requires_humidity_max,
+            "sort_order": t.sort_order, "is_active": t.is_active,
+        }
+        for t in types_
+    ]
+
+
+class StorageTypeIn(BaseModel):
+    code: str = Field(min_length=1, max_length=32)
+    label: str = Field(min_length=1, max_length=64)
+    requires_temp_min: bool = False
+    requires_temp_max: bool = False
+    requires_humidity_max: bool = False
+    sort_order: int = Field(default=1000, ge=0)
+
+
+@router.post("/storage-types")
+def create_storage_type_endpoint(
+    payload: StorageTypeIn,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Create a new HACCP storage code. Idempotent on code."""
+    from app.rms.models import StorageType as STModel
+
+    existing = session.execute(
+        select(STModel).where(STModel.code == payload.code)
+    ).scalar_one_or_none()
+    if existing is not None:
+        existing.label = payload.label
+        existing.requires_temp_min = payload.requires_temp_min
+        existing.requires_temp_max = payload.requires_temp_max
+        existing.requires_humidity_max = payload.requires_humidity_max
+        existing.sort_order = payload.sort_order
+        session.commit()
+        return {"id": existing.id, "code": existing.code, "label": existing.label}
+
+    st = STModel(
+        code=payload.code, label=payload.label,
+        requires_temp_min=payload.requires_temp_min,
+        requires_temp_max=payload.requires_temp_max,
+        requires_humidity_max=payload.requires_humidity_max,
+        sort_order=payload.sort_order, is_active=True,
+    )
+    session.add(st)
+    session.commit()
+    return {"id": st.id, "code": st.code, "label": st.label}
+
+
+# ─── Date range presets (Phase 9) ──────────────────────────────────
+
+
+@router.get("/date-presets")
+def list_date_presets_endpoint(
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Return all date range presets."""
+    from app.rms.date_presets import list_presets
+    presets = list_presets(session)
+    return [
+        {
+            "id": p.id, "code": p.code, "label": p.label, "days": p.days,
+            "is_default": p.is_default,
+            "sort_order": p.sort_order, "is_active": p.is_active,
+        }
+        for p in presets
+    ]
+
+
+class DatePresetIn(BaseModel):
+    code: str = Field(min_length=1, max_length=32)
+    label: str = Field(min_length=1, max_length=64)
+    days: int = Field(gt=0, le=3650)
+    is_default: bool = False
+    sort_order: int = Field(default=1000, ge=0)
+
+
+@router.post("/date-presets")
+def create_date_preset_endpoint(
+    payload: DatePresetIn,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Create a new date range preset. Idempotent on code."""
+    from app.rms.models import DateRangePreset as DRP
+
+    existing = session.execute(
+        select(DRP).where(DRP.code == payload.code)
+    ).scalar_one_or_none()
+    if existing is not None:
+        existing.label = payload.label
+        existing.days = payload.days
+        existing.sort_order = payload.sort_order
+        if payload.is_default:
+            for p in session.execute(select(DRP)).scalars():
+                p.is_default = (p.code == payload.code)
+        session.commit()
+        return {"id": existing.id, "code": existing.code, "label": existing.label, "days": existing.days}
+
+    if payload.is_default:
+        for p in session.execute(select(DRP)).scalars():
+            p.is_default = False
+
+    drp = DRP(
+        code=payload.code, label=payload.label, days=payload.days,
+        is_default=payload.is_default, sort_order=payload.sort_order,
+        is_active=True,
+    )
+    session.add(drp)
+    session.commit()
+    return {"id": drp.id, "code": drp.code, "label": drp.label, "days": drp.days}
+
+
+# ─── IVA rates (Phase 10) ──────────────────────────────────────────
+
+
+@router.get("/iva-rates")
+def list_iva_rates_endpoint(
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Return valid IVA rates.
+
+    Static today (Paraguayan law), but exposed as an endpoint so future
+    tax law changes touch only one place.
+    """
+    from app.rms.constants import DEFAULT_IVA_RATE, VALID_IVA_RATES
+    ci = session.get(__import__("app.rms.models", fromlist=["ComplianceInfo"]).ComplianceInfo, 1)
+    return {
+        "valid_rates": sorted(VALID_IVA_RATES),
+        "default_rate": ci.iva_default_rate if ci and ci.iva_default_rate else DEFAULT_IVA_RATE,
+    }
+
+
+
+
+
+# ─── Channel + Payment method update/delete (Phase B) ──────────────
+
+
+class ChannelUpdateIn(BaseModel):
+    label: str | None = Field(default=None, max_length=64)
+    sort_order: int | None = Field(default=None, ge=0)
+    is_default: bool | None = None
+    notes: str | None = Field(default=None, max_length=500)
+
+
+@router.post("/channels/{channel_id}/update")
+def update_channel_endpoint(
+    channel_id: int,
+    payload: ChannelUpdateIn,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Update an existing channel."""
+    from app.rms.models import Channel as Ch
+
+    ch = session.get(Ch, channel_id)
+    if ch is None:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    if payload.label is not None:
+        ch.label = payload.label
+    if payload.sort_order is not None:
+        ch.sort_order = payload.sort_order
+    if payload.notes is not None:
+        ch.notes = payload.notes
+    if payload.is_default is not None and payload.is_default:
+        for c in session.execute(select(Ch)).scalars():
+            c.is_default = (c.id == channel_id)
+    session.commit()
+    return {"id": ch.id, "code": ch.code, "label": ch.label, "is_active": ch.is_active}
+
+
+@router.post("/channels/{channel_id}/delete")
+def delete_channel_endpoint(
+    channel_id: int,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Soft-delete a channel (sets is_active=False)."""
+    from app.rms.models import Channel as Ch
+
+    ch = session.get(Ch, channel_id)
+    if ch is None:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    ch.is_active = False
+    ch.is_default = False
+    session.commit()
+    return {"id": ch.id, "code": ch.code, "is_active": ch.is_active}
+
+
+class PaymentMethodUpdateIn(BaseModel):
+    label: str | None = Field(default=None, max_length=64)
+    requires_reference: bool | None = None
+    fee_pct: float | None = Field(default=None, ge=0, le=100)
+    sort_order: int | None = Field(default=None, ge=0)
+    is_default: bool | None = None
+    notes: str | None = Field(default=None, max_length=500)
+
+
+@router.post("/payment-methods/{method_id}/update")
+def update_payment_method_endpoint(
+    method_id: int,
+    payload: PaymentMethodUpdateIn,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Update an existing payment method."""
+    from app.rms.models import PaymentMethod as PM
+
+    pm = session.get(PM, method_id)
+    if pm is None:
+        raise HTTPException(status_code=404, detail="Payment method not found")
+    if payload.label is not None:
+        pm.label = payload.label
+    if payload.requires_reference is not None:
+        pm.requires_reference = payload.requires_reference
+    if payload.fee_pct is not None:
+        pm.fee_pct = payload.fee_pct
+    if payload.sort_order is not None:
+        pm.sort_order = payload.sort_order
+    if payload.notes is not None:
+        pm.notes = payload.notes
+    if payload.is_default is not None and payload.is_default:
+        for m in session.execute(select(PM)).scalars():
+            m.is_default = (m.id == method_id)
+    session.commit()
+    return {"id": pm.id, "code": pm.code, "label": pm.label, "is_active": pm.is_active}
+
+
+@router.post("/payment-methods/{method_id}/delete")
+def delete_payment_method_endpoint(
+    method_id: int,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Soft-delete a payment method (sets is_active=False)."""
+    from app.rms.models import PaymentMethod as PM
+
+    pm = session.get(PM, method_id)
+    if pm is None:
+        raise HTTPException(status_code=404, detail="Payment method not found")
+    pm.is_active = False
+    pm.is_default = False
+    session.commit()
+    return {"id": pm.id, "code": pm.code, "is_active": pm.is_active}
+
+
+# ─── Category update + delete ──────────────────────────────────────
+
+
+class CategoryUpdateIn(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=64)
+    sort_order: int | None = Field(default=None, ge=0)
+    is_active: bool | None = None
+
+
+@router.post("/categories/{category_id}/delete")
+def delete_category_endpoint(
+    category_id: int,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Soft-delete a category (sets is_active=False)."""
+    from app.rms.models import Category
+
+    cat = session.get(Category, category_id)
+    if cat is None:
+        raise HTTPException(status_code=404, detail="Category not found")
+    cat.is_active = False
+    session.commit()
+    return {"id": cat.id, "name": cat.name, "scope": cat.scope, "is_active": cat.is_active}
+
+
+# ─── Storage type + Date preset update + delete ───────────────────
+
+
+class StorageTypeUpdateIn(BaseModel):
+    label: str | None = Field(default=None, max_length=64)
+    requires_temp_min: bool | None = None
+    requires_temp_max: bool | None = None
+    requires_humidity_max: bool | None = None
+    sort_order: int | None = Field(default=None, ge=0)
+    is_active: bool | None = None
+
+
+@router.post("/storage-types/{type_id}/update")
+def update_storage_type_endpoint(
+    type_id: int,
+    payload: StorageTypeUpdateIn,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Update an existing storage type."""
+    from app.rms.models import StorageType as STModel
+
+    st = session.get(STModel, type_id)
+    if st is None:
+        raise HTTPException(status_code=404, detail="Storage type not found")
+    if payload.label is not None:
+        st.label = payload.label
+    if payload.requires_temp_min is not None:
+        st.requires_temp_min = payload.requires_temp_min
+    if payload.requires_temp_max is not None:
+        st.requires_temp_max = payload.requires_temp_max
+    if payload.requires_humidity_max is not None:
+        st.requires_humidity_max = payload.requires_humidity_max
+    if payload.sort_order is not None:
+        st.sort_order = payload.sort_order
+    if payload.is_active is not None:
+        st.is_active = payload.is_active
+    session.commit()
+    return {"id": st.id, "code": st.code, "label": st.label, "is_active": st.is_active}
+
+
+@router.post("/storage-types/{type_id}/delete")
+def delete_storage_type_endpoint(
+    type_id: int,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Soft-delete a storage type (sets is_active=False)."""
+    from app.rms.models import StorageType as STModel
+
+    st = session.get(STModel, type_id)
+    if st is None:
+        raise HTTPException(status_code=404, detail="Storage type not found")
+    st.is_active = False
+    session.commit()
+    return {"id": st.id, "code": st.code, "is_active": st.is_active}
+
+
+class DatePresetUpdateIn(BaseModel):
+    label: str | None = Field(default=None, max_length=64)
+    days: int | None = Field(default=None, gt=0, le=3650)
+    is_default: bool | None = None
+    sort_order: int | None = Field(default=None, ge=0)
+    is_active: bool | None = None
+
+
+@router.post("/date-presets/{preset_id}/update")
+def update_date_preset_endpoint(
+    preset_id: int,
+    payload: DatePresetUpdateIn,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Update an existing date preset."""
+    from app.rms.models import DateRangePreset as DRP
+
+    drp = session.get(DRP, preset_id)
+    if drp is None:
+        raise HTTPException(status_code=404, detail="Date preset not found")
+    if payload.label is not None:
+        drp.label = payload.label
+    if payload.days is not None:
+        drp.days = payload.days
+    if payload.sort_order is not None:
+        drp.sort_order = payload.sort_order
+    if payload.is_active is not None:
+        drp.is_active = payload.is_active
+    if payload.is_default is not None and payload.is_default:
+        for p in session.execute(select(DRP)).scalars():
+            p.is_default = (p.id == preset_id)
+    session.commit()
+    return {"id": drp.id, "code": drp.code, "label": drp.label, "days": drp.days, "is_active": drp.is_active}
+
+
+@router.post("/date-presets/{preset_id}/delete")
+def delete_date_preset_endpoint(
+    preset_id: int,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Soft-delete a date preset (sets is_active=False)."""
+    from app.rms.models import DateRangePreset as DRP
+
+    drp = session.get(DRP, preset_id)
+    if drp is None:
+        raise HTTPException(status_code=404, detail="Date preset not found")
+    drp.is_active = False
+    drp.is_default = False
+    session.commit()
+    return {"id": drp.id, "code": drp.code, "is_active": drp.is_active}
+
+
+# ─── Margin tier + Stock status delete ────────────────────────────
+
+
+@router.post("/margin-tiers/{tier_id}/delete")
+def delete_margin_tier_endpoint(
+    tier_id: int,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Soft-delete a margin tier."""
+    from app.rms.models import MarginTier
+
+    tier = session.get(MarginTier, tier_id)
+    if tier is None:
+        raise HTTPException(status_code=404, detail="Margin tier not found")
+    tier.is_active = False
+    session.commit()
+    return {"id": tier.id, "code": tier.code, "is_active": tier.is_active}
+
+
+@router.post("/stock-status-config/{config_id}/delete")
+def delete_stock_status_endpoint(
+    config_id: int,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Soft-delete a stock status config."""
+    from app.rms.models import StockStatusConfig
+
+    cfg = session.get(StockStatusConfig, config_id)
+    if cfg is None:
+        raise HTTPException(status_code=404, detail="Stock status config not found")
+    cfg.is_active = False
+    session.commit()
+    return {"id": cfg.id, "code": cfg.code, "is_active": cfg.is_active}
+
+
+# ─── Message template deactivate ───────────────────────────────────
+
+
+@router.post("/templates/{template_id}/delete")
+def delete_template_endpoint(
+    template_id: int,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Soft-delete a message template (sets is_active=False)."""
+    from app.rms.models import MessageTemplate as MT
+
+    row = session.get(MT, template_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Template not found")
+    row.is_active = False
+    session.commit()
+    return {"id": row.id, "channel": row.channel, "key": row.key, "is_active": row.is_active}
+
+
 __all__ = ["router"]
+
+
+
 

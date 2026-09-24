@@ -21,6 +21,10 @@ from decimal import Decimal, ROUND_HALF_UP
 from sqlalchemy.orm import Session
 
 from app.rms.costing import recipe_batch_cost_gs, CostResult
+from app.rms.constants import (
+    DEFAULT_LABOR_COST_PER_HOUR_GS,
+    DEFAULT_OVERHEAD_MULTIPLIER_PCT,
+)
 from app.rms.models import ComplianceInfo, Product, Recipe
 
 
@@ -109,8 +113,8 @@ def compute_prime_cost(session: Session, product_id: int) -> PrimeCostBreakdown:
 
     # Labor cost: direct_labor_minutes × (labor_rate / 60)
     ci = session.get(ComplianceInfo, 1)
-    labor_rate_gs_per_h = ci.labor_cost_per_hour_gs if ci else 25000
-    overhead_pct = ci.overhead_multiplier_pct if ci else 15
+    labor_rate_gs_per_h = ci.labor_cost_per_hour_gs if ci else DEFAULT_LABOR_COST_PER_HOUR_GS
+    overhead_pct = ci.overhead_multiplier_pct if ci else DEFAULT_OVERHEAD_MULTIPLIER_PCT
 
     labor = None
     if product.recipe_id is not None:

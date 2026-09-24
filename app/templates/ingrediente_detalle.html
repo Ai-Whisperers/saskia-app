@@ -121,6 +121,166 @@
   </a>
 </div>
 
+{# ============================================================ #}
+{# S7 — Variants panel (Decision A1)                              #}
+{# ============================================================ #}
+<section id="variants" class="detail-card" style="margin-top:1.5rem;">
+  <h2>Variantes</h2>
+  {% if variants_rollup and variants_rollup.variants %}
+  <p class="muted">
+    Stock total (en <code>{{ variants_rollup.base_unit }}</code>):
+    <strong>{{ "%.2f"|format(variants_rollup.base_qty) }} {{ variants_rollup.base_unit }}</strong>
+    en {{ variants_rollup.variant_count }} variante{{ '' if variants_rollup.variant_count == 1 else 's' }}.
+  </p>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Paquete</th>
+        <th>Stock</th>
+        <th>En unidad base</th>
+        <th>Precio (Gs.)</th>
+        <th>Proveedor</th>
+        <th>Notas</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for v in variants_rollup.variants %}
+      <tr{% if v.preferred %} style="background: var(--color-success-bg, #e6f4ea);"{% endif %}>
+        <td>
+          {{ v.package_size }} {{ v.package_unit }}
+          {% if v.preferred %}<strong>(preferida)</strong>{% endif %}
+        </td>
+        <td>{{ "%.2f"|format(v.stock_qty) }} {{ v.package_unit }}</td>
+        <td>{{ "%.2f"|format(v.stock_in_base) }} {{ variants_rollup.base_unit }}</td>
+        <td>{{ '{:,}'.format(v.purchase_price_gs) if v.purchase_price_gs else '—' }}</td>
+        <td>
+          {% if v.supplier_id %}<a href="/proveedores/{{ v.supplier_id }}">Proveedor #{{ v.supplier_id }}</a>{% else %}—{% endif %}
+        </td>
+        <td>{{ v.notes or '' }}</td>
+        <td>
+          {% if not v.preferred %}
+          <form method="post" action="/inventario/{{ ingredient.id }}/variantes/{{ v.variant_id }}/preferir" style="display:inline;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-sm btn-ghost">Marcar preferida</button>
+          </form>
+          {% endif %}
+          <form method="post" action="/inventario/{{ ingredient.id }}/variantes/{{ v.variant_id }}/eliminar" style="display:inline;" onsubmit="return confirm('¿Eliminar esta variante?');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">Sin variantes registradas. La migración 040 crea una variante por defecto al instalar; si no aparece, agregá una abajo.</p>
+  {% endif %}
+
+  <details style="margin-top:1rem;">
+    <summary><strong>Agregar variante</strong></summary>
+    <form method="post" action="/inventario/{{ ingredient.id }}/variantes/nuevo" class="form-grid">
+      <label>
+        Tamaño del paquete
+        <input type="number" step="0.01" name="package_size" required>
+      </label>
+      <label>
+        Unidad del paquete
+        <div class="saskia-combo" data-source="static" data-display="name" data-value="value"
+             data-min-chars="0" data-row-builder="genericRowLabel">
+          <input type="text" class="combo-input" name="package_unit_display" maxlength="10" value="und" placeholder="und" required>
+          <input type="hidden" name="package_unit" value="und">
+          <div class="combo-results" role="listbox" hidden>
+            <div class="combo-static-option" data-value="und" data-display="und"></div>
+            <div class="combo-static-option" data-value="kg" data-display="kg"></div>
+            <div class="combo-static-option" data-value="g" data-display="g"></div>
+            <div class="combo-static-option" data-value="l" data-display="l"></div>
+            <div class="combo-static-option" data-value="ml" data-display="ml"></div>
+          </div>
+        </div>
+      </label>
+      <label>
+        Precio (Gs.)
+        <input type="number" name="purchase_price_gs" min="0" step="100">
+      </label>
+      <label>
+        Stock inicial (en und. del paquete)
+        <input type="number" step="0.01" name="stock_qty" value="0" min="0">
+      </label>
+      <label style="grid-column: 1 / -1;">
+        Notas
+        <input type="text" name="notes" placeholder="Proveedor, marca, etc.">
+      </label>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Crear variante</button>
+      </div>
+    </form>
+  </details>
+</section>
+
+{# ============================================================ #}
+{# S7 — Forecast horizon (Decision B)                            #}
+{# ============================================================ #}
+<section id="forecast" class="detail-card" style="margin-top:1.5rem;">
+  <h2>Pronóstico — ¿cuándo me quedo corto?</h2>
+  {% if forecast %}
+  <dl>
+    <dt>Stock actual</dt>
+    <dd>{{ "%.2f"|format(forecast.current_stock_base) }} {{ forecast.base_unit }}</dd>
+    <dt>Consumo promedio diario</dt>
+    <dd>
+      {% if forecast.avg_daily_consumption > 0 %}
+        {{ "%.2f"|format(forecast.avg_daily_consumption) }} {{ forecast.base_unit }}/día
+      {% else %}
+        (sin consumo reciente)
+      {% endif %}
+    </dd>
+    <dt>Días restantes</dt>
+    <dd>
+      {% if forecast.days_remaining is none %}—{% else %}
+        <strong>{{ "%.0f"|format(forecast.days_remaining) }} días</strong>
+      {% endif %}
+    </dd>
+    <dt>Horizonte de pronóstico</dt>
+    <dd>{{ forecast.horizon_days }} días</dd>
+    <dt>Estado</dt>
+    <dd>
+      {% if forecast.status == 'short' %}
+        <span class="badge badge-danger">CORTO — reordená ya</span>
+      {% elif forecast.status == 'watch' %}
+        <span class="badge badge-warning">ATENCIÓN</span>
+      {% elif forecast.status == 'dead' %}
+        <span class="badge" style="background:var(--color-text-muted);color:#fff;">SIN CONSUMO</span>
+      {% else %}
+        <span class="badge badge-success">OK</span>
+      {% endif %}
+    </dd>
+  </dl>
+
+  <details style="margin-top:1rem;">
+    <summary><strong>Ajustar horizonte de pronóstico</strong></summary>
+    <p class="muted">
+      Por defecto {{ 14 }} días. Ajustá por proveedor (dulce de leche = 21, harina = 7, etc).
+      Vacío = usar el valor global.
+    </p>
+    <form method="post" action="/inventario/{{ ingredient.id }}/forecast-horizon" class="form-grid">
+      <label>
+        Horizonte (días)
+        <input type="number" name="forecast_horizon_days"
+               value="{{ ingredient.forecast_horizon_days or '' }}"
+               min="1" max="365">
+      </label>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </details>
+  {% else %}
+  <p class="muted">Sin datos para pronosticar.</p>
+  {% endif %}
+</section>
+
 <style>
 .detail-grid {
   display: grid;

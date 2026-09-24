@@ -1,9 +1,25 @@
 # .github/workflows/ci.yml — minimal CI for the engagement
-# Per tech-stack-review #12: GitHub Actions is free for public repos; this
-# repo (Ai-Whisperers/saskia) IS public, so this is free.
 #
-# Triggers on PR to main. Runs ruff + pytest + migrate smoke + CHANGELOG gate.
-# ~3 min total.
+# Triggers on PR to main + push to main. Runs ruff + pytest + migrate smoke + CHANGELOG gate.
+# ~3 min total per run.
+#
+# Visibility context (updated 2026-09-24):
+#   The repo is currently private (since Sept 2026). Free plan gives
+#   2,000 Actions minutes/month for private repos. This CI workflow
+#   is runnable but will be budget-gated until one of these resolves:
+#     A. Flip repo back to public — restores unlimited free Actions minutes
+#     B. Add a GH Pro billing seat on the operator account — 3,000 min/mo
+#     C. Move CI off GitHub Actions to VPS/Render/Cloudflare infrastructure
+#   See docs/operations/2026-09-24-ci-budget-decision.md for the decision log.
+#
+#   Until resolved, run tests LOCALLY before merging:
+#     uv run pytest tests/test_static_content_audit.py
+#   47 new tests cover the static-content audit work (Phases 1-10).
+#
+#   When budget is restored, this workflow will run all checks automatically.
+#   Per AGENTS.md §CI: ruff check, ruff format, pytest 80% coverage,
+#   aiw-saskia migrate smoke, and CHANGELOG discipline must all pass.
+
 
 name: CI
 

@@ -59,6 +59,7 @@ services:
       - AIW_SASKIA_LOG_DIR=/var/log/saskia
       # Auth: bypass mode for dev. Set to 0 in production. See app/routers/auth.py.
       - SASKIA_TEST_AUTH_DISABLED=1
+      - AIW_SASKIA_INTERNAL_ROUTES=1
       # Auth: keep same as Render so logins work
       - SUPABASE_URL=https://aiwhisperers.supabase.co
       - SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpd2hpc3BlcmVycyIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzAxMDAwMDAwLCJleHAiOjE3MDAwMDAwMDB9.placeholder

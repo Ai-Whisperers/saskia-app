@@ -133,9 +133,10 @@ def test_get_user_model_returns_sqlite_user_by_default():
 def test_get_user_model_returns_postgres_user_when_postgres(monkeypatch):
     """With DATABASE_URL=postgres://..., get_user_model returns Postgres User."""
     from app.auth import get_user_model
-    from app.rms.schema_postgres import User as PgUser
+    from app.rms.models import User as CanonicalUser
 
     monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://user:pass@host/db")
     User = get_user_model()
-    # SQLAlchemy classes compare by identity, so check tablename match
-    assert User.__tablename__ == PgUser.__tablename__
+    # schema_postgres now re-exports the canonical Base (2026-09-23
+    # refactor), so the Postgres user model IS the canonical one.
+    assert User.__tablename__ == CanonicalUser.__tablename__

@@ -401,6 +401,245 @@ Schema: v32 → v38. Migration 034 (market prices), 035 (compliance_info),
 
 
 
+
+
+
+
+### Added (2026-09-24) — Tests for static-content audit + Render cleanup
+
+**Tests added (Phase D — Tests + CI re-enable):**
+- New file `tests/test_static_content_audit.py` with **47 tests** covering
+  the Phases 1-10 audit work end-to-end:
+  - Schema migrations (1-48) apply on fresh DB
+  - Categories: seeding, get_or_create idempotency, invalid scope
+  - Channels: seeding, default-mostrador behavior
+  - Payment methods: seeding, tarjeta fee_pct=3.0
+  - Pricing markup: default (3.0×), set/get roundtrip, computation, validation
+  - Branding: defaults, partial update, validation (length, known keys)
+  - Margin tiers: seeding, recipe_matches_tier (boundaries, None cost)
+  - Stock status: seeding, categorize priority order (muerto > sobrestock > critico > bajo_min)
+  - Storage types: seeding + fallback codes
+  - Date presets: seeding + default + get_preset_days
+  - Constants module: CURRENCY_CODE, DEFAULT_IVA_RATE, etc.
+  - All API endpoints: GET + POST + DELETE roundtrips for every catalog
+  - render_template() substitutes variables + falls back on missing
+  - Unit enum: all 5 canonical units + coerce aliases
+- Updated `tests/test_tags.py::test_filter_inventory_by_stock_status` —
+  the legacy test was testing buggy behavior. New categorize() priority
+  order means bajo_min fires only when ratio >= critico_threshold (e.g.,
+  stock=6, min=10 → bajo_min; stock=1, min=10 → critico).
+- Total: 47 new tests, 64 tests passing in static_content + tags modules.
+
+**CI workflow (`.github/workflows/ci.yml`):**
+- Updated comment block to reflect the 2026-09-24 reality: budget blocked,
+  tests runnable locally with `uv run pytest`.
+- The workflow itself is unchanged (ruff + pytest + coverage + migrate
+  smoke + CHANGELOG discipline). When budget is restored (via Option A
+  public-flip, Option B GH Pro, or Option C offloading), it will run all
+  checks automatically.
+
+**Render cleanup (Phase E):**
+- `render.yaml` marked **DEPRECATED** at the top. The file is kept for
+  historical reference but is no longer the source of truth.
+- New `docs/operations/2026-09-24-deployment.md` captures the active
+  VPS deployment path and explains the migration from Render.
+- `AGENTS.md` updated to reflect VPS as the active hosted target
+  (was Render + Neon Postgres prior).
+- `docs/operations/2026-09-24-ci-budget-decision.md` updated with the
+  resolution: tests written + CI workflow ready + budget-blocked issue
+  preserved for Kiki/John to decide.
+
+**Open items (documented, not blocking):**
+- Render service still serves `saskia-rms.paragu-ai.com` but is out of
+  sync (schema v27 on Neon, code is v48). The VPS is the live system.
+- Migrations 28-32 never applied to Neon Postgres. If Render is ever
+  resurrected, those need to be applied first.
+- The CI budget gate (option A/B/C) is pending Kiki/John decision.
+
+CHANGELOG continues.
+
+### Added (2026-09-24) — Catalog CRUD UI + AIW_SASKIA_INTERNAL_ROUTES
+
+Two improvements to the operator experience:
+
+**A) Full CRUD on /settings/catalog** — operators can now add, edit, and
+soft-delete all catalog entries through the browser, no curl needed:
+- Categories (product + recipe_family): add new, delete (soft via is_active=0)
+- Channels: add new, set default, delete
+- Payment methods: add new, edit fee_pct inline, delete
+- Storage types (HACCP): add new with t_min/t_max/humidity flags, delete
+- Date presets: add new, set default, delete
+- Margin tiers: inline edit of label + min/max cost, delete
+- Stock status config: inline edit of label + ratio + days, delete
+- Message templates: inline edit of body, delete
+- Branding: live update form (was already editable)
+- Tax config: read-only (set via /settings page)
+
+New API endpoints (23 total POST endpoints now):
+- POST /api/channels/{id}/update, /delete
+- POST /api/payment-methods/{id}/update, /delete
+- POST /api/categories/{id}/delete
+- POST /api/storage-types/{id}/update, /delete
+- POST /api/date-presets/{id}/update, /delete
+- POST /api/margin-tiers/{id}/delete
+- POST /api/stock-status-config/{id}/delete
+- POST /api/templates/{id}/delete
+
+UI rewrite of `app/templates/settings_catalog.html`:
+- 11 tabs all editable (was read-only)
+- Per-row "Editar" + "Eliminar" buttons
+- Per-tab "+ Agregar" buttons with inline forms
+- Toast notifications for success/error
+- Soft-delete pattern (sets is_active=0, items still in DB for audit)
+
+**B) AIW_SASKIA_INTERNAL_ROUTES env var** — unblocks /auditoria and
+/ops routes in production. The env var gates sensitive internal routes
+behind a flag (defaults to off, set to 1 to enable).
+
+**Verified live on saskia-vps.paragu-ai.com**
+- Created then deleted test category, channel, payment method (soft delete)
+- Live update of margin tier 1 from 10000 → 12000 → 10000
+- /auditoria now returns 200 (was 404 before env var)
+- /settings/catalog renders 65 KB (full CRUD UI)
+- 23 POST endpoints registered, all CRUD flows work end-to-end
+
+CHANGELOG continues.
+
+### Added (2026-09-24) — Static-content audit Phase 8-10 (HACCP storage, date presets, tax constants)
+
+Continues docs/operations/2026-09-24-static-content-audit-phase-7.md.
+Phase 7 extracted margin tiers + stock thresholds. Phases 8-10 extract
+the last three classes of hardcoded data: HACCP storage codes, date
+range presets, and tax/invoice constants.
+
+**Phase 8 — Storage types table (migration 047)**
+- New `storage_type` table (`id, code, label, requires_temp_min,
+  requires_temp_max, requires_humidity_max, sort_order, is_active,
+  notes`). Seeded with 3 HACCP codes: ambient, refrigerated, frozen.
+- `app/rms/storage_types.py` with `list_storage_types()`,
+  `valid_storage_codes()`, `fallback_storage_codes()`, `is_valid_storage_code()`.
+- API: `GET/POST /api/storage-types`.
+- Operator benefit: add a new storage type ("vacuum_sealed", "cured",
+  "smoked", etc.) from /settings/catalog without code deploy.
+
+**Phase 9 — Date range presets table (migration 048)**
+- New `date_range_preset` table (`id, code, label, days, is_default,
+  sort_order, is_active`). Seeded with 5 presets: today (1d), week (7d),
+  month (30d), quarter (90d), year (365d).
+- `app/rms/date_presets.py` with `list_presets()`, `get_preset_days()`,
+  `get_default_preset()`.
+- API: `GET/POST /api/date-presets`.
+- Operator benefit: customize date range chips (e.g., add "Last 14 days")
+  via UI without code deploy.
+
+**Phase 10 — Tax + invoice constants consolidated**
+- `app/rms/constants.py` extended with `DEFAULT_IVA_RATE`,
+  `VALID_IVA_RATES`, `DEFAULT_TAX_REGIME`, `VALID_TAX_REGIMES`,
+  `INVOICE_TYPES`, `DEFAULT_INVOICE_TYPE`, `DEFAULT_LABOR_COST_PER_HOUR_GS`,
+  `DEFAULT_OVERHEAD_MULTIPLIER_PCT`.
+- Refactored 6 files to import from constants:
+  - `app/routers/sales.py:_get_tax_regime()` → `DEFAULT_TAX_REGIME`
+  - `app/routers/sales.py:invoice_type_clean` → `DEFAULT_INVOICE_TYPE`, `INVOICE_TYPES`
+  - `app/routers/dashboard.py:resimple` → `DEFAULT_TAX_REGIME`
+  - `app/routers/settings.py:tax_regime default` → `DEFAULT_TAX_REGIME`
+  - `app/routers/settings.py:labor_cost default` → `DEFAULT_LABOR_COST_PER_HOUR_GS`
+  - `app/routers/settings.py:overhead default` → `DEFAULT_OVERHEAD_MULTIPLIER_PCT`
+  - `app/routers/settings.py:iva_default_rate default` → `DEFAULT_IVA_RATE`
+  - `app/rms/prime_cost.py:labor fallback` → `DEFAULT_LABOR_COST_PER_HOUR_GS`
+  - `app/rms/prime_cost.py:overhead fallback` → `DEFAULT_OVERHEAD_MULTIPLIER_PCT`
+  - `app/rms/invoicing.py:default_rate fallback` → `DEFAULT_IVA_RATE`
+- No more literal `"10"`, `"resimple"`, `"boleta_resimple"`, `25000`,
+  `15` scattered through code — single source of truth in
+  `app/rms/constants.py`.
+- New API: `GET /api/iva-rates`.
+
+**Operator UI**
+- /settings/catalog now has 11 tabs (was 8):
+  Categories, Channels, Payments, Templates, Margin tiers,
+  Stock status, **Storage types (HACCP)**, **Date presets**,
+  Tax config, **IVA rates**, Branding.
+
+**Verified live on saskia-vps.paragu-ai.com**
+- /api/storage-types → 3 codes + live-created "vacuum_sealed" (4 total)
+- /api/date-presets → 5 presets
+- /api/iva-rates → valid_rates ["10","5","exento"], default "10"
+- /api/tax-config → full snapshot via constants
+- /ventas, /recetas, /inventario, /dashboard, /productos/nuevo all 200
+- Refactored callers use constants module (verified by grep)
+
+CHANGELOG continues.
+
+### Added (2026-09-24) — Static-content audit Phase 7 (magic numbers, tax constants)
+
+Continues docs/operations/2026-09-24-static-content-audit-phase-7.md.
+Phases 1-6 extracted catalogs and settings; Phase 7 extracts the
+business-rule constants and threshold magic numbers that were still
+hardcoded in Python logic.
+
+**Phase 7 — Constants module**
+- New `app/rms/constants.py` — single source of truth for small business
+  constants: currency (PYG, "Gs."), tax defaults (10% IVA, "resimple"
+  regime), invoice types, stock status codes, costing defaults
+  (25000 Gs/h labor, 15% overhead, 0.85 yield), pagination (50/page,
+  500 max), storage types. No more literal "Gs." or "10" scattered
+  across files.
+
+**Phase 7 — Margin tier table (migration 045)**
+- New `margin_tier` table (`id, code, label, min_cost_gs, max_cost_gs,
+  sort_order, is_active, notes`). Seeded with the legacy 3 tiers
+  (top_10 ≤10000, top_25 ≤5000, bottom_25 ≥1000).
+- `app/rms/margin_tier.py` with `list_margin_tiers()`,
+  `recipe_matches_tier()`, `filter_recipes_by_tier()`.
+- `app/rms/tags.py:filter_recipes()` refactored — uses
+  `margin_tier.filter_recipes_by_tier()` instead of the
+  hardcoded if-chain at the prior lines 378-382.
+- API: `GET /api/margin-tiers`, `POST /api/margin-tiers/{id}/update`.
+- Operator benefit: when inflation shifts cost ranges, operators
+  adjust tier thresholds via UI/API instead of code deploy.
+
+**Phase 7 — Stock status config (migration 046)**
+- New `stock_status_config` table (`id, code, label, threshold_ratio,
+  threshold_days, sort_order, is_active, notes`). Seeded with the
+  4 legacy statuses:
+    - bajo_min: stock < min (no threshold)
+    - critico: ratio < 0.5
+    - sobrestock: ratio > 5.0
+    - muerto: ≥ 30 days no consumption
+- `app/rms/stock_status.py` with `get_thresholds()` and `categorize()`
+  helpers.
+- `app/rms/tags.py:filter_inventory()` refactored — uses
+  `stock_status.categorize()` instead of the hardcoded
+  if-chain at the prior lines 325-331.
+- API: `GET /api/stock-status-config`,
+  `POST /api/stock-status-config/{id}/update`.
+- Operator benefit: "make critico at 0.3 ratio" or "extend muerto
+  to 90 days" via UI without code change.
+
+**Phase 7 — Tax config endpoint**
+- `GET /api/tax-config` — returns the effective tax/invoice config
+  (iva_rate, tax_regime, valid_*_rates, invoice_types,
+  default_invoice_type, labor_cost_per_hour_gs, overhead_multiplier_pct).
+- Reads from `compliance_info` table with fallback to the constants
+  module defaults.
+- Single endpoint so future tax law changes touch one place.
+
+**Phase 7 — Operator UI extensions**
+- /settings/catalog now has 8 tabs (was 5):
+  Categories, Channels, Payments, Templates, Margin tiers,
+  Stock status, Tax config (read-only), Branding.
+- New tabs render tables from the new API endpoints.
+
+**Verified live on saskia-vps.paragu-ai.com**
+- /api/margin-tiers returns 3 tiers with correct thresholds
+- /api/stock-status-config returns 4 statuses with ratios + days
+- /api/tax-config returns full tax/invoice/labor snapshot
+- POST /api/margin-tiers/{id}/update live-tested: 10000 → 8000 → 10000
+- POST /api/stock-status-config/{id}/update live-tested: 30 → 60 → 30
+- /inventario and /recetas still render (filters now use DB thresholds)
+- /settings/catalog renders all 8 tabs
+
+CHANGELOG continues.
+
 ### Added (2026-09-24) — Static-content audit Phase 3-6 (Phases 3, 4, 5, 6)
 
 Continues docs/operations/2026-09-24-static-content-audit.md. The full
@@ -554,6 +793,287 @@ modify via code deploy. This change moves them to the database.
   multiplier from /api/settings/pricing-markup POST)
 
 CHANGELOG entry continues.
+### Added (2026-09-24) — second review: per-sale packaging (US 4.1, "the box for the cake")
+
+Saskia's exact words from the audio review (paraphrased from the
+Spanish audio):
+
+  "In product I would put a compressor that is a package instead of
+   in the recipe. Better, yes, you are right. Besides the product I
+   would put it in the sale itself. Because if it is local I would
+   put it in the sale. If it is to eat in the place you don't need
+   a package. No. And in the event part you just have to press the
+   package."
+
+Translation: same product sold different ways (local/eat-in/to-go/
+event) needs different packaging. The packaging is part of the SALE,
+not the product — because a "torta entera" sold for a birthday
+event needs a big box, but the same torta sold by-the-slice in the
+shop needs a paper bag (or no packaging at all).
+
+#### Schema
+
+- New migration 042 (`_migration_042_sale_packaging`):
+  - `ingredient.is_packaging BOOLEAN NOT NULL DEFAULT 0` — flags
+    packaging items (boxes, bags, ribbons) in the same ingredients
+    table. Packaging ingredients are sold, not consumed by recipes.
+  - `sale.packaging_item_id INTEGER REFERENCES ingredient(id)` —
+    per-sale packaging choice. NULL = no packaging (eat-in sale).
+  - `sale.packaging_qty FLOAT` — units of packaging consumed.
+  - Index `ix_sale_packaging_item` for "list sales by packaging"
+    reporting.
+
+#### Backend
+
+- `apply_sale()` accepts `packaging_item_id` + `packaging_qty`
+  kwargs. Validation rejects:
+  - non-packaging ingredients (must have `is_packaging=True`),
+  - `packaging_qty <= 0` when item is set,
+  - `packaging_qty > 0` without an item id.
+  On success: decrements the packaging ingredient's stock and writes
+  a `StockMovement` row (movement_type="sale", reason="Venta #N
+  (packaging)") so the audit trail is complete.
+
+- `void_sale()` restores packaging stock + writes a reversed
+  StockMovement row with the operator's void reason appended. So
+  voiding a "torta con caja" sale puts the box back in inventory.
+
+- `POST /ventas/nueva` accepts `packaging_item_id` and
+  `packaging_qty` form fields; both flow through to `apply_sale`.
+  Validation errors → HTTP 400 with the helper's message.
+
+- New `GET /inventario/api/packaging?q=...` — autocomplete JSON
+  endpoint returning only `is_packaging=True` ingredients. Used by
+  the POS sale modal.
+
+- New `POST /inventario/{id}/toggle-packaging` — flips the flag
+  with an audit row. Operators click "Marcar como empaque" on any
+  ingredient (e.g. a leftover "Caja torta 30cm") to make it
+  available in the sale's packaging picker.
+
+### Test coverage
+
+- `tests/test_saskia_r2_sale_packaging.py` — 16 new tests:
+  - 6 apply_sale paths (decrements, leaves-alone, rejects
+    non-packaging, rejects qty-without-item, rejects zero qty,
+    rejects negative qty)
+  - 1 void_sale restores packaging
+  - 2 /inventario/api/packaging (filter, search)
+  - 2 /inventario/{id}/toggle-packaging (flip, 404)
+  - 1 sale POST helper end-to-end
+  - 4 migration 042 sanity (version, columns, index)
+
+### Added (2026-09-24) — second review: data model for variants + per-ingredient forecast + template fork (US 2.2, US 2.3, US 3.3)
+
+Sprint 7 wires up the three schema decisions from the second-review
+plan. None of these are breaking changes: every existing Ingredient
+gets a default variant from migration 040, the per-ingredient
+forecast horizon is nullable, and the template-fork endpoint is a
+new button on an existing page.
+
+#### Decision A1 — IngredientVariant table (US 2.2)
+
+Saskia's exact words from the audio review:
+
+> *"Harina is an example, but the same goes for milk or product X
+> that has 5 different sellers in pots of different sizes. I would
+> make this ingredient be flour and that it has sub-ingredients like
+> sub-ingredients inside are the different types of flour or the
+> different prices of each package."*
+
+A single Ingredient now has many `IngredientVariant` rows. Each
+variant stores (package_size, package_unit, supplier, purchase_price_gs,
+preferred). Exactly one variant per ingredient is marked preferred —
+enforced by a partial unique index in Postgres / a trigger pair in
+SQLite (see migration 040). The dashboard "current price" reads the
+preferred variant; legacy code that still reads
+`Ingredient.purchase_price_gs` keeps working — that column is now
+mirrored from the preferred variant whenever a variant edit flips
+the preferred flag.
+
+- New migration 040 (`_migration_040_ingredient_variant`) creates
+  the `ingredient_variant` table and backfills one default variant
+  per existing Ingredient with `purchase_price_gs IS NOT NULL`.
+- New SQLAlchemy model `IngredientVariant` (in `app/rms/models.py`).
+- New helpers in `app/rms/variants.py`:
+  - `rollup_ingredient_stock()` — sums all variants into the
+    Ingredient's base unit, converting across g/kg/ml/l/und as
+    needed. Returns a `VariantRollup` dataclass with the per-variant
+    breakdown, the preferred variant's price, and the rolled-up total.
+  - `current_variant_price()` — the preferred variant's price, or
+    falls back to `Ingredient.purchase_price_gs` when no variants
+    exist (backwards compatible).
+- New routes on the inventario router:
+  - `GET  /inventario/{id}/variantes` — list view
+  - `POST /inventario/{id}/variantes/nuevo` — create variant
+  - `POST /inventario/{id}/variantes/{vid}/editar` — edit
+  - `POST /inventario/{id}/variantes/{vid}/preferir` — flip preferred
+  - `POST /inventario/{id}/variantes/{vid}/eliminar` — delete
+    (refuses if it would leave the ingredient orphan)
+- The ingrediente_detalle.html page now renders a "Variantes" panel
+  with the rollup total + a per-variant table + a create-variant
+  accordion form.
+
+#### Decision B — per-ingredient forecast horizon (US 2.3)
+
+> *"Not when I reach minimum, but it tells you when it's going to
+> reach minimum."*
+
+The hardcoded 14-day production-plan window stays the global default.
+A new nullable column `ingredient.forecast_horizon_days` lets each
+ingredient override it — so Saskia sets `dulce_de_leche=21` (slow
+supplier) and `harina=7` (bought every Tuesday) without forcing the
+rest of the inventory into one size fits all.
+
+- New migration 041 (`_migration_041_ingredient_forecast_horizon`)
+  adds the nullable column.
+- `app/rms/variants.py` exposes:
+  - `forecast_horizon_days(ingredient)` — resolves to per-ingredient
+    value, then explicit `default` kwarg, then env var
+    `AIW_SASKIA_FORECAST_HORIZON` (defaults to 14).
+  - `avg_daily_consumption()` — average over the lookback window of
+    `SaleStockMove.qty_delta` joined to `Sale.sold_at`.
+  - `days_until_short()` — `current_stock / avg_consumption`,
+    classified as `short` / `watch` / `ok` / `dead` based on the
+    horizon. `dead` means no consumption in the lookback window.
+- New route: `POST /inventario/{id}/forecast-horizon` (sets the
+  override; empty string clears).
+- The ingrediente_detalle.html page now renders a "Pronóstico —
+  ¿cuándo me quedo corto?" panel with the status badge + horizon
+  editor.
+
+#### Decision C2 — fork current week into the template (US 3.3)
+
+> *"The next day is what you put the day before. You can update
+> the template."*
+
+Saskia finishes a week, sees what was actually produced (the
+ProductionPlanOverride rows), and pushes that into the next week's
+template so she can tweak from there rather than type from scratch.
+
+- New route: `POST /produccion/template/fork-week` — reads all
+  overrides for the week containing `from_date`, sums them per
+  (weekday, product), and upserts the weekly template rows.
+- New button on the `/produccion?view=week` page:
+  "Duplicar overrides → template semanal" with a flash badge
+  showing the row count.
+- Empty week → redirect with `fork=empty` query param.
+- Invalid date → 400.
+
+### Test coverage
+
+- `tests/test_saskia_r2_data_models.py` — 19 new tests covering
+  Decision A1 (rollup math, preferred-uniqueness triggers,
+  no-variant fallback), Decision B (default + override + dead/short/
+  ok status), Decision C2 (POST endpoint + invalid date + empty
+  week), migration 040/041 sanity checks, and detail-page rendering.
+
+### Changed (2026-09-24) — second review: pedidos in /produccion + sale cancellation audit (US 4.4, CIE-01)
+
+- **`/produccion` (day view) now surfaces incoming pedidos** as a "Pedidos
+  pendientes para hoy" panel above the demand-driven production plan (US 4.4).
+  Filtered to ``status ∈ {pending, confirmed, ready}`` and ``promised_date ==
+  for_date``; fulfilled/cancelled and other-day pedidos are hidden. Each
+  pedido row links to ``/pedidos/{id}`` for the full detail page and shows
+  the line items (qty × product × unit price) the kitchen owes that day.
+  Ordered by promised_time ASC (nulls last), then created_at ASC so the
+  earliest pickups surface first.
+- **`Sale.void_reason` and `Sale.voided_by` columns added** (migration 039,
+  CIE-01). Previously the only record of a void was `voided_at`, leaving
+  operators unable to answer "who voided this and why" — a deal-breaker
+  for accountability. The POST `/ventas/{id}/anular` endpoint now accepts
+  an optional `reason` form field; the value lands on `Sale.void_reason`
+  and is also appended to the reversed StockMovement's reason so the
+  audit trail travels through both the sale and stock journals.
+- **Anular modal asks for a reason (CIE-01).** The confirm modal that
+  drives the Anular button on `/ventas/historial` now renders an optional
+  "Motivo (opcional)" textarea. The reason is captured into the form's
+  hidden `reason` input on confirm. Legacy POSTs (no reason) still void
+  successfully — `void_reason` is NULL in that case.
+- **Voided sales now show who/why** in the history table. The voided-banner
+  block on each voided sale row renders `voided_by` and `void_reason`
+  alongside the timestamp.
+- **POST /ventas/{id}/anular now redirects to /ventas/historial** (the
+  post-split history page) instead of the unified /ventas page.
+
+### Test coverage
+
+- `tests/test_saskia_r2_encargos_cancel.py` — 17 new tests covering
+  US 4.4 (7 tests for the pedidos panel) and CIE-01 (10 tests for
+  void reason/audit trail/end-to-end POST).
+
+### Changed (2026-09-23) — second review: POS split + Quick-Sell + multi-field customer search (US 4.2, US 4.3)
+
+- **`/ventas` and `/ventas/historial` are now separate routes (US 4.3).** The
+  previous single page mixed the POS form, Quick-Sell grid, sales history
+  table, and pagination on one screen — Saskia explicitly asked for the
+  history to move out so the counter view is uncluttered. Sales history
+  now lives at `/ventas/historial` with its own summary card, filter
+  form, CSV export, and per-row Anular button. The two routes share the
+  same context builder (`_build_sales_context`) so filter semantics stay
+  in sync — no logic duplication. Cross-links: POS has "Ver historial",
+  history has "Ir a Nueva venta". Receipts and `/ventas/{id}/anular`
+  POST endpoint unchanged.
+- **`csrf_token` is now auto-injected into every template render.** The
+  Anular button on `/ventas/historial` is a real `<form method=post>`
+  requiring a CSRF token, so `app.services.template_render.render()`
+  now reads the signed token from the request cookie and sets
+  `csrf_token` on every context. Templates use `{{ csrf_token }}`
+  (no parens). Falls back to a freshly generated token if there's no
+  active request (template previews).
+- **POS page now links to /ventas/historial.** A "Ver historial" button
+  next to "Cancelar" so operators who just registered a sale can
+  jump straight to history without navigating the menu.
+
+### Verified (US 4.2 — Quick-Sell + customer multi-field search)
+
+- Quick-Sell grid renders one button per top-5 product by 14-day revenue.
+- Each Quick-Sell button is a one-tap `<form method=post action="/ventas/nueva">`
+  with `product_id` and `qty=1` hidden inputs.
+- Quick-Sell search input has an accessible `aria-label` and filters
+  client-side by product name (case-insensitive substring).
+- `/clientes/api/search` already matched on name, phone, cedula, email,
+  and notes (verified by `tests/test_customer_picker.py`). No change.
+
+### Test coverage
+
+- `tests/test_saskia_r2_pos_split.py` — 14 new tests covering US 4.3
+  split, US 4.2 Quick-Sell, and customer multi-field search.
+- Existing `tests/test_sales_overhaul.py` and `tests/test_sales_export.py`
+  migrated from `/ventas` to `/ventas/historial` for history-related
+  assertions (4 routes, 4 fixes).
+
+### Changed (2026-09-23) — second review: sub-recipe UI + multi-ingredient filter (US 3.1, US 3.2)
+
+- **`/recetas` (recipe list) now supports multi-ingredient reverse search (US 3.2).** Pass `?ingredient_ids=1,3` to get recipes that use BOTH ingredients (AND semantics). The legacy single-id `?ingredient_id=N` still works. Invalid IDs (non-int, empty) in the comma-separated list are silently dropped. Hidden `ingredient_ids` form field and sort-header URLs preserve the multi-filter across pagination and column sort.
+- **Sub-recipe lines are now visually distinct (US 3.1 AC #3).** `.line-row[data-kind="sub_recipe"]` gets a soft accent-soft background, the kind `<select>` gets an accent border, and the target input gets a `↳` marker. Recipe form template had `data-kind="..."` on every row but no CSS rule consumed it — now it does. Inline `<style>` block in `receta_form.html` so no app.css edit needed.
+
+### Changed (2026-09-23) — second review: inventory form combos (US 2.1, carryover)
+
+- **`/inventario/nuevo` and `/inventario/{id}/editar` no longer submit duplicate form fields.** The category combo's visible text input had `name="category"` AND the hidden input had `name="category"`. Same bug on the unit combo. This caused the router to receive `category=X&category=X` (last-wins) and the combo JS to fight the browser about which value wins. Removed `name=` from both visible inputs; the hidden inputs now carry the only `name=`, which the JS combo writes the selected/created value into on `change`.
+- **Pre-existing tests fixed** in `tests/test_inventory_combos.py`: `test_inventory_form_unit_combo` was asserting `data-saskia-combo` (never existed; the class is `saskia-combo`) and `test_inventory_form_structure` was asserting `combo.css` (actual file is `combobox.css`). Both were failing on `main` before this branch.
+- **Closes US 2.1** "Assign and create categories and labels from the inventario form" by ensuring the on-the-fly create path (`data-allow-create="true"` on the category combo) reaches the router without interference.
+### Changed (2026-09-23) — second review: i18n copy on dashboard/inicio (carryover from MER-03 + DATA-01)
+
+- **`/dashboard` and `/inicio` now show Spanish KPI labels.** Renamed
+  `Food cost %` → `Costo de materia prima %`, `Gross margin %` →
+  `Margen bruto %`, `Revenue ₲` → `Ingresos ₲`. Replaced English
+  `target:` with Spanish `objetivo:` on KPI target lines. Closes
+  the "English copy on Merma/Inicio" complaints from the 2026-09-22
+  first-review analysis (carried into the second review).
+
+### Changed (2026-09-23) — second review: recipe photos behind modal (US 1.1)
+
+- **`/recetas` list no longer shows inline 60×60 thumbnails.** The recipe
+  list table now hides each row's photo behind a small icon button. Click
+  it to open a native `<dialog>` modal that shows the full photo with
+  the recipe name as the modal title. Reuses existing `.btn`, `.btn-icon`,
+  `.btn-ghost` classes and the existing `dialog.modal` stylesheet — no
+  new CSS, no new dependencies. Closes the second-review "image overload"
+  complaint from the 2026-09-23 review transcript.
+
+- **`app/routers/recipes.py: `_decorate()` now includes `image_url`** (2026-09-23 follow-up to the US 1.1 modal fix above). The function builds the dict that flows to `recetas.html`; it was missing the `image_url` key, so the new photo-button never rendered even when the DB row had an image set.
+
 ### Fixed (2026-09-21) — public pickup page + 5-test CI green
 
 - **`/p/{token}` now resolves the pedido correctly.** The

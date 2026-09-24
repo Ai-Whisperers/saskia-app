@@ -284,12 +284,30 @@ def test_filter_sales_by_tag(session_factory):
 
 
 def test_filter_inventory_by_stock_status(session_factory):
-    """filter_inventory() filters by stock_status."""
+    """filter_inventory() filters by stock_status.
+
+    categorize() priority (Phase 7):
+      1. muerto (last_consumed_at None OR > 30 days)
+      2. sobrestock (ratio > 5.0)
+      3. critico (ratio < 0.5)
+      4. bajo_min (stock < min AND ratio >= critico_threshold)
+      5. None
+
+    Note: with stock_qty=1, min_stock_qty=10, ratio=0.1 → categorizes as
+    'critico' (not 'bajo_min'). To test 'bajo_min' we need stock in the
+    range where ratio is >= 0.5 but stock < min — e.g. stock=6, min=10
+    → ratio=0.6 → 'bajo_min'.
+    """
+    from datetime import datetime, timezone, timedelta
+
     s = session_factory()
     try:
-        low = Ingredient(name="harina", unit="kg", stock_qty=1.0, min_stock_qty=10.0, purchase_price_gs=4500)
-        high = Ingredient(name="azúcar", unit="kg", stock_qty=50.0, min_stock_qty=5.0, purchase_price_gs=5200)
-        s.add_all([low, high])
+        recent = datetime.now(timezone.utc) - timedelta(days=1)
+        # stock=6, min=10 → ratio=0.6 → 'bajo_min' (above critico threshold)
+        bajo = Ingredient(name="harina", unit="kg", stock_qty=6.0, min_stock_qty=10.0, purchase_price_gs=4500, last_consumed_at=recent)
+        # stock=100, min=5 → ratio=20 → 'sobrestock'
+        high = Ingredient(name="azúcar", unit="kg", stock_qty=100.0, min_stock_qty=5.0, purchase_price_gs=5200, last_consumed_at=recent)
+        s.add_all([bajo, high])
         s.commit()
 
         f = InventoryFilter(stock_status="bajo_min")

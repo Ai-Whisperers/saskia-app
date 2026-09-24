@@ -368,6 +368,11 @@ def supabase_auth_env(monkeypatch):
     monkeypatch.setenv("SUPABASE_URL", "https://test.supabase.co")
     monkeypatch.setenv("SUPABASE_ANON_KEY", "fake-anon-key")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "fake-service-key")
+    # The auth tests below exercise the REAL login flow. The dev bypass
+    # (SASKIA_TEST_AUTH_DISABLED) must be off or it fake-logs-in any
+    # password before Supabase is consulted. monkeypatch.delenv restores
+    # the original value at teardown.
+    monkeypatch.delenv("SASKIA_TEST_AUTH_DISABLED", raising=False)
 
     # Reload to pick up new env vars FIRST
     import importlib

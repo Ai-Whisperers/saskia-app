@@ -476,6 +476,15 @@ if os.getenv("AIW_SASKIA_INTERNAL_ROUTES") == "1":
     app.include_router(ops.router)
 app.include_router(settings.router)
 app.include_router(settings_runtime.router)
+
+
+# Spanish-language alias: /proveedores → /suppliers
+# Operators see "proveedores" in UI copy. Accepting both URLs means
+# external links/bookmarks work regardless of which word was used.
+@app.get("/proveedores", include_in_schema=False)
+def proveedores_alias():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/suppliers", status_code=303)
 app.include_router(users.router)
 app.include_router(reorder.router)
 app.include_router(help.router)
@@ -574,10 +583,10 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
         payload = exc.to_dict()
         payload["request_id"] = rid
         if _wants_html(request) and exc.status_code in (404,):
-            return templates.TemplateResponse(
-                request,
-                "errors/404.html",
-                {"path": request.url.path, "request": request, "reason": exc.reason_code},
+            from app.services.template_render import render as _render
+            return _render(
+                request, "errors/404.html",
+                {"path": request.url.path, "reason": exc.reason_code},
                 status_code=404,
             )
         return JSONResponse(
@@ -593,10 +602,10 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
             rid, exc.status_code, exc.detail,
         )
         if _wants_html(request) and exc.status_code == 404:
-            return templates.TemplateResponse(
-                request,
-                "errors/404.html",
-                {"path": request.url.path, "request": request},
+            from app.services.template_render import render as _render
+            return _render(
+                request, "errors/404.html",
+                {"path": request.url.path},
                 status_code=404,
             )
         return JSONResponse(
@@ -640,12 +649,11 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     # Browsers get the styled 500 page; API clients get JSON.
     if _wants_html(request):
         try:
-            return templates.TemplateResponse(
-                request,
-                "errors/500.html",
+            from app.services.template_render import render as _render
+            return _render(
+                request, "errors/500.html",
                 {
                     "request_id": rid,
-                    "request": request,
                     "error_class": exc.__class__.__name__,
                 },
                 status_code=500,
@@ -668,10 +676,10 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 async def not_found_handler(request: Request, exc: Exception):
     """404 handler — HTML for browsers, JSON for API clients."""
     if _wants_html(request):
-        return templates.TemplateResponse(
-            request,
-            "errors/404.html",
-            {"path": request.url.path, "request": request},
+        from app.services.template_render import render as _render
+        return _render(
+            request, "errors/404.html",
+            {"path": request.url.path},
             status_code=404,
         )
     return JSONResponse(

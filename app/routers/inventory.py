@@ -26,13 +26,75 @@ from app.rms.errors import (
 from app.rms.observability import record_audit
 from app.rms.charts import sparkline
 from app.rms.dependencies import get_session
-from app.rms.models import Ingredient, IngredientPriceEvent, RecipeLine, Recipe, StockMovement
+from app.rms.models import Ingredient, IngredientPriceEvent, IngredientVariant, RecipeLine, Recipe, StockMovement, Supplier
 from app.rms.price_history import price_history, price_stats, record_price_event
 from app.rms.units import Unit
 from app.rms.ingredient_intel import classify_ingredient
 from app.services.template_render import render
 
 router = APIRouter(prefix="/inventario", dependencies=[Depends(require_login)])
+
+
+@router.get("/api/packaging", response_class=JSONResponse)
+def packaging_api_search(
+    request: Request,
+    q: str = Query(""),
+    limit: int = Query(20, ge=1, le=100),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """US 4.1 — autocomplete for the sale's packaging picker.
+
+    Returns packaging-flagged ingredients only (is_packaging=True).
+    Response shape: [{"id": 12, "name": "Caja torta", "unit": "und",
+                       "stock_qty": 5.0, "purchase_price_gs": 1500}, ...]
+    """
+    like = f"%{q.strip().lower()}%"
+    rows = session.execute(
+        select(Ingredient)
+        .where(Ingredient.is_packaging == True)  # noqa: E712
+        .where(func.lower(Ingredient.name).like(like))
+        .order_by(Ingredient.name)
+        .limit(limit)
+    ).scalars().all()
+    return JSONResponse([
+        {
+            "id": r.id,
+            "name": r.name,
+            "unit": r.unit,
+            "stock_qty": r.stock_qty,
+            "purchase_price_gs": r.purchase_price_gs,
+        }
+        for r in rows
+    ])
+
+
+@router.post("/{ing_id}/toggle-packaging")
+def ingredient_toggle_packaging(
+    ing_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """US 4.1 — flag/unflag an Ingredient as a packaging item.
+
+    Operators click "Marcar como empaque" on a regular ingredient (e.g. a
+    leftover "Caja torta 30cm" they want to track as packaging). The flag
+    controls whether the sale's packaging picker shows this ingredient.
+    """
+    ing = session.get(Ingredient, ing_id)
+    if ing is None:
+        raise NotFound("Ingredient", id=ing_id)
+    ing.is_packaging = not bool(ing.is_packaging)
+    record_audit(
+        request,
+        session=session,
+        action="ingredient.toggle_packaging",
+        target_type="ingredient",
+        target_id=ing_id,
+        detail={"is_packaging": ing.is_packaging},
+    )
+    session.commit()
+    back = request.headers.get("referer") or f"/inventario/{ing_id}"
+    return RedirectResponse(url=back, status_code=303)
 
 
 @router.get("/api/search", response_class=JSONResponse)
@@ -263,7 +325,7 @@ def inventory_create(
     # If operator left the classification fields empty, fill from `name` keyword match.
     # Operator can always override any field after creation via /editar.
     name_for_inference = name.strip()
-    classification = classify_ingredient(name_for_inference)
+    classification = classify_ingredient(name_for_inference, session=session)
     inferred_category = classification["category"]
     inferred_subcategory = classification["subcategory"]
     inferred_role = classification["role"]
@@ -375,10 +437,23 @@ def inventory_detail(
                 "line_unit": line.line_unit,
             })
 
+    # S7 Decision B — forecast horizon computation (per-ingredient or default)
+    from app.rms.variants import (
+        days_until_short,
+        rollup_ingredient_stock,
+    )
+    rollup = rollup_ingredient_stock(session, ing_id)
+    forecast = days_until_short(session, ing_id)
+
     return render(
         request,
         "ingrediente_detalle.html",
-        {"ingredient": ing, "recipes": recipes},
+        {
+            "ingredient": ing,
+            "recipes": recipes,
+            "variants_rollup": rollup,
+            "forecast": forecast,
+        },
     )
 
 
@@ -449,7 +524,7 @@ def inventory_update(
         ing.category = explicit_category
         # Re-infer the rest of the classification against the new name so
         # the ingredient's metadata stays coherent after a rename.
-        cls = classify_ingredient(name_clean)
+        cls = classify_ingredient(name_clean, session=session)
         ing.subcategory = cls["subcategory"]
         ing.role = cls["role"]
         ing.allergens = ",".join(cls["allergens"]) or None
@@ -458,7 +533,7 @@ def inventory_update(
         ing.storage = cls["storage"]
     else:
         ing.category = None
-        cls = classify_ingredient(name_clean)
+        cls = classify_ingredient(name_clean, session=session)
         ing.category = cls["category"]
         ing.subcategory = cls["subcategory"]
         ing.role = cls["role"]
@@ -647,6 +722,331 @@ def inventory_movements(
             "current_stock": current_stock,
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# S7 — IngredientVariant CRUD (Decision A1)
+# ---------------------------------------------------------------------------
+#
+# Saskia's audio reference:
+#   "harina 1kg / harina 250g / proveedor X — a single ingredient 'harina'
+#    with sub-rows for each package".
+#
+# A variant is a specific (package_size, package_unit, supplier, price)
+# combination for an Ingredient. Each Ingredient has 1+ variants; exactly
+# one is marked preferred (the "current price" the dashboard reads).
+# Stock rolls up across variants by converting each variant's stock into
+# the Ingredient's base unit (unit on ingredient) and summing.
+#
+
+
+@router.get("/{ing_id}/variantes", response_class=HTMLResponse)
+def ingredient_variants(
+    ing_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """List all variants of an Ingredient.
+
+    Renders the same fragment added to ingrediente_detalle.html — kept as
+    a separate URL for power-users who want a clean view of variants only.
+    """
+    from app.rms.variants import rollup_ingredient_stock
+
+    ing = session.get(Ingredient, ing_id)
+    if ing is None:
+        raise NotFound("Ingredient", id=ing_id)
+    rollup = rollup_ingredient_stock(session, ing_id)
+    variants = session.scalars(
+        select(IngredientVariant)
+        .where(IngredientVariant.ingredient_id == ing_id)
+        .order_by(IngredientVariant.preferred.desc(), IngredientVariant.package_size)
+    ).all()
+    suppliers = session.scalars(select(Supplier).order_by(Supplier.name)).all() if "Supplier" in dir() else []
+    return render(
+        request,
+        "ingrediente_variantes.html",
+        {
+            "ingredient": ing,
+            "variants": variants,
+            "rollup": rollup,
+            "suppliers": suppliers,
+        },
+    )
+
+
+@router.post("/{ing_id}/variantes/nuevo")
+def ingredient_variant_create(
+    ing_id: int,
+    request: Request,
+    package_size: str = Form(...),
+    package_unit: str = Form("und"),
+    purchase_price_gs: str = Form(""),
+    supplier_id: str = Form(""),
+    stock_qty: str = Form("0"),
+    notes: str = Form(""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Create a new variant for this Ingredient.
+
+    If ``preferred`` is the only variant for this ingredient, it is marked
+    preferred automatically (so the rollup always has one).
+    """
+    ing = session.get(Ingredient, ing_id)
+    if ing is None:
+        raise NotFound("Ingredient", id=ing_id)
+    try:
+        size = float(package_size.replace(",", "."))
+        if size <= 0:
+            raise ValueError
+    except ValueError:
+        raise BadRequest(
+            f"Tamaño de paquete inválido: {package_size!r}",
+            context={"raw": package_size},
+        )
+    if package_unit not in ("g", "kg", "ml", "l", "und"):
+        raise BadRequest(f"Unidad inválida: {package_unit!r}")
+
+    try:
+        price = int(purchase_price_gs.replace(".", "").replace(",", "")) if purchase_price_gs else None
+    except ValueError:
+        raise BadRequest(
+            f"Precio inválido: {purchase_price_gs!r}",
+            context={"raw": purchase_price_gs},
+        )
+    if price is not None and price < 0:
+        raise BadRequest("El precio no puede ser negativo.")
+
+    sup_id: int | None = None
+    if supplier_id:
+        try:
+            sup_id = int(supplier_id)
+        except ValueError:
+            raise BadRequest(
+                f"ID de proveedor inválido: {supplier_id!r}",
+                context={"raw": supplier_id},
+            )
+
+    try:
+        stock = float(stock_qty.replace(",", "."))
+    except ValueError:
+        raise BadRequest(f"Stock inválido: {stock_qty!r}", context={"raw": stock_qty})
+    if stock < 0:
+        raise BadRequest("El stock no puede ser negativo.")
+
+    existing = session.scalars(
+        select(IngredientVariant).where(IngredientVariant.ingredient_id == ing_id)
+    ).all()
+    is_first = len(existing) == 0
+
+    v = IngredientVariant(
+        ingredient_id=ing_id,
+        package_size=size,
+        package_unit=package_unit,
+        purchase_price_gs=price,
+        supplier_id=sup_id,
+        preferred=is_first,  # auto-prefer the first variant; operator can flip
+        stock_qty=stock,
+        notes=notes.strip() or None,
+    )
+    session.add(v)
+    record_audit(
+        request,
+        session=session,
+        action="ingredient_variant.create",
+        target_type="ingredient_variant",
+        target_id=None,
+        detail={
+            "ingredient_id": ing_id,
+            "package_size": size,
+            "package_unit": package_unit,
+            "purchase_price_gs": price,
+            "supplier_id": sup_id,
+            "preferred": is_first,
+        },
+    )
+    session.commit()
+    return RedirectResponse(url=f"/inventario/{ing_id}#variants", status_code=303)
+
+
+@router.post("/{ing_id}/variantes/{variant_id}/preferir")
+def ingredient_variant_prefer(
+    ing_id: int,
+    variant_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Mark the given variant as preferred. Unset the previous preferred.
+
+    The DB triggers (migration 040) clear the old preferred flag, so we
+    just flip the new one to TRUE.
+    """
+    v = session.get(IngredientVariant, variant_id)
+    if v is None or v.ingredient_id != ing_id:
+        raise NotFound("IngredientVariant", id=variant_id)
+    v.preferred = True
+    # Update the parent ingredient's purchase_price_gs so legacy code
+    # continues to see the current price.
+    ing = session.get(Ingredient, ing_id)
+    if ing is not None and v.purchase_price_gs is not None:
+        ing.purchase_price_gs = v.purchase_price_gs
+    record_audit(
+        request,
+        session=session,
+        action="ingredient_variant.prefer",
+        target_type="ingredient_variant",
+        target_id=variant_id,
+        detail={"ingredient_id": ing_id},
+    )
+    session.commit()
+    return RedirectResponse(url=f"/inventario/{ing_id}#variants", status_code=303)
+
+
+@router.post("/{ing_id}/variantes/{variant_id}/eliminar")
+def ingredient_variant_delete(
+    ing_id: int,
+    variant_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Delete a variant.
+
+    Refuses to delete if it is the only variant (would orphan the parent
+    Ingredient). Preferring another first is the workaround.
+    """
+    v = session.get(IngredientVariant, variant_id)
+    if v is None or v.ingredient_id != ing_id:
+        raise NotFound("IngredientVariant", id=variant_id)
+    siblings = session.scalars(
+        select(IngredientVariant).where(
+            IngredientVariant.ingredient_id == ing_id,
+            IngredientVariant.id != variant_id,
+        )
+    ).all()
+    if not siblings:
+        raise BadRequest(
+            "No se puede eliminar la única variante. "
+            "Creá otra primero o convertí esta en la preferida con stock 0.",
+            context={"ingredient_id": ing_id},
+        )
+    session.delete(v)
+    record_audit(
+        request,
+        session=session,
+        action="ingredient_variant.delete",
+        target_type="ingredient_variant",
+        target_id=variant_id,
+        detail={"ingredient_id": ing_id},
+    )
+    session.commit()
+    return RedirectResponse(url=f"/inventario/{ing_id}#variants", status_code=303)
+
+
+@router.post("/{ing_id}/variantes/{variant_id}/editar")
+def ingredient_variant_edit(
+    ing_id: int,
+    variant_id: int,
+    request: Request,
+    package_size: str = Form(...),
+    package_unit: str = Form("und"),
+    purchase_price_gs: str = Form(""),
+    supplier_id: str = Form(""),
+    stock_qty: str = Form("0"),
+    notes: str = Form(""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Edit an existing variant (price, supplier, size, stock)."""
+    v = session.get(IngredientVariant, variant_id)
+    if v is None or v.ingredient_id != ing_id:
+        raise NotFound("IngredientVariant", id=variant_id)
+
+    try:
+        size = float(package_size.replace(",", "."))
+        if size <= 0:
+            raise ValueError
+    except ValueError:
+        raise BadRequest(f"Tamaño inválido: {package_size!r}")
+    if package_unit not in ("g", "kg", "ml", "l", "und"):
+        raise BadRequest(f"Unidad inválida: {package_unit!r}")
+    try:
+        price = int(purchase_price_gs.replace(".", "").replace(",", "")) if purchase_price_gs else None
+    except ValueError:
+        raise BadRequest(f"Precio inválido: {purchase_price_gs!r}")
+    sup_id: int | None = None
+    if supplier_id:
+        try:
+            sup_id = int(supplier_id)
+        except ValueError:
+            raise BadRequest(f"Proveedor inválido: {supplier_id!r}")
+    try:
+        stock = float(stock_qty.replace(",", "."))
+    except ValueError:
+        raise BadRequest(f"Stock inválido: {stock_qty!r}")
+    if stock < 0:
+        raise BadRequest("El stock no puede ser negativo.")
+
+    v.package_size = size
+    v.package_unit = package_unit
+    v.purchase_price_gs = price
+    v.supplier_id = sup_id
+    v.stock_qty = stock
+    v.notes = notes.strip() or None
+
+    # If this variant is preferred and the price changed, mirror it onto
+    # the parent Ingredient.purchase_price_gs for backwards compatibility.
+    if v.preferred:
+        ing = session.get(Ingredient, ing_id)
+        if ing is not None:
+            ing.purchase_price_gs = price
+
+    record_audit(
+        request,
+        session=session,
+        action="ingredient_variant.edit",
+        target_type="ingredient_variant",
+        target_id=variant_id,
+        detail={"ingredient_id": ing_id, "new_price": price},
+    )
+    session.commit()
+    return RedirectResponse(url=f"/inventario/{ing_id}#variants", status_code=303)
+
+
+@router.post("/{ing_id}/forecast-horizon")
+def ingredient_forecast_horizon_set(
+    ing_id: int,
+    request: Request,
+    forecast_horizon_days: str = Form(""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Set the per-ingredient forecast horizon (Decision B).
+
+    Empty string clears the override (falls back to global default).
+    """
+    ing = session.get(Ingredient, ing_id)
+    if ing is None:
+        raise NotFound("Ingredient", id=ing_id)
+    val: int | None = None
+    if forecast_horizon_days.strip():
+        try:
+            val = int(forecast_horizon_days)
+            if val < 1 or val > 365:
+                raise ValueError
+        except ValueError:
+            raise BadRequest(
+                f"Horizonte inválido: {forecast_horizon_days!r}",
+                context={"raw": forecast_horizon_days},
+            )
+    ing.forecast_horizon_days = val
+    record_audit(
+        request,
+        session=session,
+        action="ingredient.forecast_horizon",
+        target_type="ingredient",
+        target_id=ing_id,
+        detail={"forecast_horizon_days": val},
+    )
+    session.commit()
+    return RedirectResponse(url=f"/inventario/{ing_id}#forecast", status_code=303)
 
 
 def _parse_price(raw: str) -> int | None:

@@ -1301,6 +1301,158 @@ def _migration_038_ingredient_haccp(conn):
     _bump_schema_version(conn, 38)
 
 
+def _migration_050_sale_void_reason(conn: Any) -> None:
+    """Add void_reason and voided_by to sale for CIE-01 cancellation audit trail.
+
+    The previous void flow only stored ``voided_at``. That made it impossible
+    to tell *why* a sale was voided (customer request, wrong product, etc.)
+    or *who* voided it — both critical for a small bakery's accountability.
+    Both columns are nullable so legacy voided rows (and fresh sales) don't
+    need to populate them at write time.
+    """
+    _add_column_if_missing(conn, "sale", "void_reason", "TEXT", "TEXT")
+    _add_column_if_missing(conn, "sale", "voided_by", "VARCHAR(64)", "VARCHAR(64)")
+    _bump_schema_version(conn, 50)
+
+
+def _migration_051_ingredient_variant(conn: Any) -> None:
+    """Add ingredient_variant table (Sprint 7 — Decision A1).
+
+    Saskia's exact words from the audio review:
+      "harina 1kg / harina 250g / proveedor X — a single ingredient 'harina'
+       with sub-rows for each package".
+
+    The previous schema treated each package as its own Ingredient row, which
+    broke the rollup question "how much harina do I have total?" and made the
+    price-history chart meaningless (one chart per package instead of one
+    per ingredient with variant lines).
+
+    Schema:
+      ingredient_variant
+        id, ingredient_id (FK ingredient.id, CASCADE), package_size,
+        package_unit (g/kg/ml/l/und), purchase_price_gs (int Gs.),
+        supplier_id (FK supplier.id, NULL OK), preferred (bool — exactly one
+        per ingredient for "current price" semantics), created_at, updated_at.
+
+    Backfill: existing Ingredients with a purchase_price_gs get one default
+    variant with package_size=1, package_unit=ingredient.unit, price=current.
+    Done in Python after the table is created — see _backfill_default_variants.
+    """
+    dialect = conn.dialect.name
+    if dialect == "postgresql":
+        conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS ingredient_variant ("
+            "id SERIAL PRIMARY KEY,"
+            "ingredient_id INTEGER NOT NULL REFERENCES ingredient(id) ON DELETE CASCADE,"
+            "package_size DOUBLE PRECISION NOT NULL DEFAULT 1.0,"
+            "package_unit VARCHAR(8) NOT NULL DEFAULT 'und',"
+            "purchase_price_gs INTEGER,"
+            "supplier_id INTEGER REFERENCES supplier(id),"
+            "preferred BOOLEAN NOT NULL DEFAULT FALSE,"
+            "notes TEXT,"
+            "created_at TIMESTAMP NOT NULL DEFAULT NOW(),"
+            "updated_at TIMESTAMP NOT NULL DEFAULT NOW()"
+            ")"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_ingredient_variant_ingredient "
+            "ON ingredient_variant(ingredient_id)"
+        ))
+        # MySQL / Postgres partial unique: at most one preferred per ingredient
+        # Postgres supports this directly; SQLite emulates with a trigger.
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_ingredient_variant_preferred "
+            "ON ingredient_variant(ingredient_id) WHERE preferred = TRUE"
+        ))
+    else:
+        conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS ingredient_variant ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "ingredient_id INTEGER NOT NULL REFERENCES ingredient(id) ON DELETE CASCADE,"
+            "package_size REAL NOT NULL DEFAULT 1.0,"
+            "package_unit VARCHAR(8) NOT NULL DEFAULT 'und',"
+            "purchase_price_gs INTEGER,"
+            "supplier_id INTEGER REFERENCES supplier(id),"
+            "preferred BOOLEAN NOT NULL DEFAULT 0,"
+            "notes TEXT,"
+            "created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),"
+            "updated_at TIMESTAMP NOT NULL DEFAULT (datetime('now'))"
+            ")"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_ingredient_variant_ingredient "
+            "ON ingredient_variant(ingredient_id)"
+        ))
+        # SQLite doesn't support partial unique indexes before 3.8 — emulate
+        # the "at most one preferred per ingredient" rule with a trigger.
+        conn.execute(text(
+            "CREATE TRIGGER IF NOT EXISTS trg_ingredient_variant_preferred "
+            "BEFORE INSERT ON ingredient_variant "
+            "WHEN NEW.preferred = 1 "
+            "BEGIN "
+            "  UPDATE ingredient_variant SET preferred = 0 "
+            "  WHERE ingredient_id = NEW.ingredient_id AND preferred = 1; "
+            "END"
+        ))
+        conn.execute(text(
+            "CREATE TRIGGER IF NOT EXISTS trg_ingredient_variant_preferred_upd "
+            "BEFORE UPDATE ON ingredient_variant "
+            "WHEN NEW.preferred = 1 "
+            "BEGIN "
+            "  UPDATE ingredient_variant SET preferred = 0 "
+            "  WHERE id != NEW.id AND ingredient_id = NEW.ingredient_id AND preferred = 1; "
+            "END"
+        ))
+
+    # Backfill: for every existing Ingredient with a purchase_price_gs,
+    # create a default variant. Done in SQL so it works without importing
+    # the model layer (the migration must be self-contained).
+    if dialect == "postgresql":
+        conn.execute(text(
+            "INSERT INTO ingredient_variant "
+            "(ingredient_id, package_size, package_unit, purchase_price_gs, supplier_id, preferred) "
+            "SELECT id, 1.0, unit, purchase_price_gs, supplier_id, TRUE "
+            "FROM ingredient "
+            "WHERE purchase_price_gs IS NOT NULL "
+            "AND NOT EXISTS ("
+            "  SELECT 1 FROM ingredient_variant v "
+            "  WHERE v.ingredient_id = ingredient.id"
+            ")"
+        ))
+    else:
+        conn.execute(text(
+            "INSERT INTO ingredient_variant "
+            "(ingredient_id, package_size, package_unit, purchase_price_gs, supplier_id, preferred) "
+            "SELECT id, 1.0, unit, purchase_price_gs, supplier_id, 1 "
+            "FROM ingredient "
+            "WHERE purchase_price_gs IS NOT NULL "
+            "AND NOT EXISTS ("
+            "  SELECT 1 FROM ingredient_variant v "
+            "  WHERE v.ingredient_id = ingredient.id"
+            ")"
+        ))
+
+    _bump_schema_version(conn, 51)
+
+
+def _migration_052_ingredient_forecast_horizon(conn: Any) -> None:
+    """Add Ingredient.forecast_horizon_days (Sprint 7 — Decision B).
+
+    Per-ingredient forecast horizon for the "days until I'm short" widget
+    (US 2.3). Nullable — when NULL, falls back to the global
+    DEFAULT_FORECAST_HORIZON_DAYS env var (14).
+
+    Why per-ingredient and not just one global: supplier lead times vary
+    a lot. dulce_de_leche from supplier A arrives in 2 days; mantequilla
+    from supplier B takes a week. A single horizon can't capture both.
+    """
+    _add_column_if_missing(
+        conn, "ingredient", "forecast_horizon_days",
+        "INTEGER", "INTEGER",
+    )
+    _bump_schema_version(conn, 52)
+
+
 
 
 
@@ -1713,6 +1865,381 @@ def _migration_044_message_templates(conn):
     _bump_schema_version(conn, 44)
 
 
+
+
+
+def _migration_045_margin_tiers(conn):
+    """Phase 7 — Margin tier table (operator-tunable thresholds).
+
+    Replaces hardcoded magic numbers in app/rms/tags.py:378-382 that used
+    10000/5000/1000 Gs thresholds for "top 10%", "top 25%", "bottom 25%"
+    recipe filters. Operators can adjust thresholds via /api/margin-tiers.
+
+    Seed data preserves the legacy behavior exactly:
+      - top_10: max 10000 Gs
+      - top_25: max 5000 Gs
+      - bottom_25: min 1000 Gs
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS margin_tier (
+            id {pk_type},
+            code VARCHAR(32) NOT NULL UNIQUE,
+            label VARCHAR(64) NOT NULL,
+            min_cost_gs INTEGER,
+            max_cost_gs INTEGER,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active {bool_t} NOT NULL DEFAULT 1,
+            notes TEXT,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    ))
+
+    tiers = [
+        ("top_10", "Top 10% (más baratos)", 10000, 10),
+        ("top_25", "Top 25%", 5000, 20),
+        ("bottom_25", "Bottom 25% (más caros)", 1000, 30),
+    ]
+    for code, label, cost, sort in tiers:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO margin_tier (code, label, max_cost_gs, sort_order, is_active, created_at) "
+                "VALUES (:c, :l, :cost, :s, 1, CURRENT_TIMESTAMP)"
+            ) if dialect == "sqlite" else text(
+                "INSERT INTO margin_tier (code, label, max_cost_gs, sort_order, is_active, created_at) "
+                "VALUES (:c, :l, :cost, :s, TRUE, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (code) DO NOTHING"
+            ),
+            {"c": code, "l": label, "cost": cost, "s": sort},
+        )
+    # bottom_25 has min_cost_gs, not max
+    if dialect == "sqlite":
+        conn.execute(text(
+            "UPDATE margin_tier SET min_cost_gs = 1000, max_cost_gs = NULL WHERE code = 'bottom_25'"
+        ))
+    else:
+        conn.execute(text(
+            "UPDATE margin_tier SET min_cost_gs = 1000, max_cost_gs = NULL WHERE code = 'bottom_25'"
+        ))
+
+    _bump_schema_version(conn, 45)
+
+
+def _migration_046_stock_status_config(conn):
+    """Phase 7 — Stock status thresholds (operator-tunable).
+
+    Replaces hardcoded magic numbers in app/rms/tags.py:325-331:
+      - critico: ratio < 0.5
+      - sobrestock: ratio > 5.0
+      - muerto: no consumption in last 30 days
+      - bajo_min: stock < min_stock_qty (no threshold; just the comparison)
+
+    Seed data preserves the legacy behavior.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
+    float_t = "FLOAT" if dialect == "sqlite" else "DOUBLE PRECISION"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS stock_status_config (
+            id {pk_type},
+            code VARCHAR(32) NOT NULL UNIQUE,
+            label VARCHAR(64) NOT NULL,
+            threshold_ratio {float_t},
+            threshold_days INTEGER,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active {bool_t} NOT NULL DEFAULT 1,
+            notes TEXT,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    ))
+
+    statuses = [
+        # code, label, ratio, days, sort
+        ("bajo_min", "Bajo mínimo (stock < min)", None, None, 10),
+        ("critico", "Crítico (ratio < 0.5)", 0.5, None, 20),
+        ("sobrestock", "Sobrestock (ratio > 5.0)", 5.0, None, 30),
+        ("muerto", "Sin consumo (≥ 30 días)", None, 30, 40),
+    ]
+    for code, label, ratio, days, sort in statuses:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO stock_status_config "
+                "(code, label, threshold_ratio, threshold_days, sort_order, is_active, updated_at) "
+                "VALUES (:c, :l, :r, :d, :s, 1, CURRENT_TIMESTAMP)"
+            ) if dialect == "sqlite" else text(
+                "INSERT INTO stock_status_config "
+                "(code, label, threshold_ratio, threshold_days, sort_order, is_active, updated_at) "
+                "VALUES (:c, :l, :r, :d, :s, TRUE, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (code) DO NOTHING"
+            ),
+            {"c": code, "l": label, "r": ratio, "d": days, "s": sort},
+        )
+
+    _bump_schema_version(conn, 46)
+
+
+
+
+
+def _migration_047_storage_types(conn):
+    """Phase 8 — HACCP storage codes table.
+
+    Replaces the hardcoded _STORAGE_KEYWORDS dict in
+    app/rms/ingredient_intel.py. Operators add/edit storage codes from
+    /settings/catalog without code deploy.
+
+    Seed data matches the legacy codes exactly:
+      - ambient (default, no keyword match)
+      - refrigerated (matches dairy keywords)
+      - frozen (matches 'congelad*' keywords)
+    HACCP-related hints (requires_temp_min/max, requires_humidity_max)
+    let downstream HACCP reports know what data to surface.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS storage_type (
+            id {pk_type},
+            code VARCHAR(32) NOT NULL UNIQUE,
+            label VARCHAR(64) NOT NULL,
+            requires_temp_min {bool_t} NOT NULL DEFAULT 0,
+            requires_temp_max {bool_t} NOT NULL DEFAULT 0,
+            requires_humidity_max {bool_t} NOT NULL DEFAULT 0,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active {bool_t} NOT NULL DEFAULT 1,
+            notes TEXT,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    ))
+
+    defaults = [
+        # code, label, requires_temp_min, requires_temp_max, requires_humidity, sort
+        ("ambient",      "Ambiente (seco)",         0, 0, 0, 10),
+        ("refrigerated", "Refrigerado (2-8°C)",     1, 1, 0, 20),
+        ("frozen",       "Congelado (≤ -18°C)",     0, 1, 0, 30),
+    ]
+    for code, label, tmin, tmax, hum, sort in defaults:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO storage_type "
+                "(code, label, requires_temp_min, requires_temp_max, requires_humidity_max, sort_order, is_active, created_at) "
+                "VALUES (:c, :l, :tmin, :tmax, :hum, :s, 1, CURRENT_TIMESTAMP)"
+            ) if dialect == "sqlite" else text(
+                "INSERT INTO storage_type "
+                "(code, label, requires_temp_min, requires_temp_max, requires_humidity_max, sort_order, is_active, created_at) "
+                "VALUES (:c, :l, :tmin, :tmax, :hum, :s, TRUE, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (code) DO NOTHING"
+            ),
+            {"c": code, "l": label, "tmin": tmin, "tmax": tmax, "hum": hum, "s": sort},
+        )
+
+    _bump_schema_version(conn, 47)
+
+
+def _migration_048_date_range_presets(conn):
+    """Phase 9 — Date range presets table.
+
+    Replaces the hardcoded DATE_RANGE_PRESETS_DAYS dict in
+    app/rms/constants.py. Operators add/edit presets from
+    /settings/catalog without code deploy.
+
+    Seed data matches the legacy presets exactly:
+      - today (1 day), week (7), month (30), quarter (90), year (365)
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS date_range_preset (
+            id {pk_type},
+            code VARCHAR(32) NOT NULL UNIQUE,
+            label VARCHAR(64) NOT NULL,
+            days INTEGER NOT NULL,
+            is_default {bool_t} NOT NULL DEFAULT 0,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active {bool_t} NOT NULL DEFAULT 1,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    ))
+
+    defaults = [
+        # code, label, days, is_default, sort
+        ("today",    "Hoy",         1,   1, 10),
+        ("week",     "7 días",      7,   0, 20),
+        ("month",    "30 días",     30,  0, 30),
+        ("quarter",  "90 días",     90,  0, 40),
+        ("year",     "1 año",       365, 0, 50),
+    ]
+    for code, label, days, is_def, sort in defaults:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO date_range_preset "
+                "(code, label, days, is_default, sort_order, is_active, created_at) "
+                "VALUES (:c, :l, :d, :def, :s, 1, CURRENT_TIMESTAMP)"
+            ) if dialect == "sqlite" else text(
+                "INSERT INTO date_range_preset "
+                "(code, label, days, is_default, sort_order, is_active, created_at) "
+                "VALUES (:c, :l, :d, :def, :s, TRUE, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (code) DO NOTHING"
+            ),
+            {"c": code, "l": label, "d": days, "def": is_def, "s": sort},
+        )
+
+    _bump_schema_version(conn, 48)
+
+
+
+
+
+def _migration_049_storage_keywords(conn):
+    """Phase 11 — Localize HACCP storage keywords to DB.
+
+    Replaces the hardcoded _STORAGE_KEYWORDS dict in
+    app/rms/ingredient_intel.py. Operators add/edit storage keywords from
+    /settings/catalog without code deploy.
+
+    Seed data matches the legacy dict exactly:
+      - refrigerated: leche, crema, manteca, mantequilla, yogur, queso,
+        huevo, huevos, ricota, requesón, dulce de leche, crema agria,
+        queso crema
+      - frozen: congelad
+      - ambient: (default — no keywords; anything not perishable)
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS storage_keyword (
+            id {pk_type},
+            storage_code VARCHAR(32) NOT NULL,
+            keyword VARCHAR(64) NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active {bool_t} NOT NULL DEFAULT 1,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    ))
+
+    # Seed data: (storage_code, keyword, sort_order)
+    seeds = [
+        # Refrigerated — order by likelihood of match
+        ("refrigerated", "leche", 10),
+        ("refrigerated", "crema", 20),
+        ("refrigerated", "manteca", 30),
+        ("refrigerated", "mantequilla", 40),
+        ("refrigerated", "yogur", 50),
+        ("refrigerated", "queso", 60),
+        ("refrigerated", "huevo", 70),
+        ("refrigerated", "huevos", 80),
+        ("refrigerated", "ricota", 90),
+        ("refrigerated", "requesón", 100),
+        ("refrigerated", "dulce de leche", 110),
+        ("refrigerated", "crema agria", 120),
+        ("refrigerated", "queso crema", 130),
+        # Frozen — match 'congelad' prefix
+        ("frozen", "congelad", 10),
+    ]
+    for code, keyword, sort in seeds:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO storage_keyword (storage_code, keyword, sort_order, is_active, created_at) "
+                "VALUES (:c, :k, :s, 1, CURRENT_TIMESTAMP)"
+            ) if dialect == "sqlite" else text(
+                "INSERT INTO storage_keyword (storage_code, keyword, sort_order, is_active, created_at) "
+                "VALUES (:c, :k, :s, TRUE, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (storage_code, keyword) DO NOTHING"
+            ),
+            {"c": code, "k": keyword, "s": sort},
+        )
+
+    _bump_schema_version(conn, 49)
+
+
+def _migration_053_sale_packaging(conn: Any) -> None:
+    """Sprint 8 — US 4.1: per-sale packaging.
+
+    Saskia's exact words from the audio review (paraphrased from the
+    Spanish audio):
+
+      "In product I would put a compressor that is a package instead of in
+       the recipe. Better, yes, you are right. Besides the product I would
+       put it in the sale itself. Because if it is local I would put it in
+       the sale. If it is to eat in the place you don't need a package.
+       No. And in the event part you just have to press the package."
+
+    Translation: same product sold different ways (local/eat-in/to-go/event)
+    needs different packaging. The packaging is part of the SALE, not the
+    product — because a "torta entera" sold for a birthday event needs a
+    big box, but the same torta sold by-the-slice in the shop needs a paper
+    bag (or no packaging at all).
+
+    Schema additions:
+      ingredient.is_packaging   — flags an Ingredient as a packaging item
+                                  (boxes, bags, ribbons). NULL/False = regular
+                                  food ingredient; True = packaging.
+                                  Packaging ingredients are sold, not consumed
+                                  by recipes, so they appear in a separate
+                                  inventory panel and their stock moves are
+                                  recorded against sales, not recipe batches.
+      sale.packaging_item_id    — FK to ingredient.id (only valid when
+                                  ingredient.is_packaging = TRUE). NULL = no
+                                  packaging on this sale (e.g. eat-in).
+      sale.packaging_qty        — units of packaging consumed (>= 0, integer
+                                  when package_unit = und; float otherwise).
+                                  NULL when packaging_item_id IS NULL.
+
+    Cost effect on the sale is computed in apply_sale() and stored on the
+    Sale row as part of total_price_gs (the package cost is added to the
+    customer-facing price; this matches the existing "packaging_gs" field
+    on RecipePricing which adds it to the wholesale/retail price).
+    """
+    # 1. Ingredient.is_packaging — flag packaging items
+    _add_column_if_missing(
+        conn, "ingredient", "is_packaging",
+        "BOOLEAN", "BOOLEAN NOT NULL DEFAULT 0",
+    )
+    # 2. Sale.packaging_item_id — FK to ingredient
+    _add_column_if_missing(
+        conn, "sale", "packaging_item_id",
+        "INTEGER", "INTEGER REFERENCES ingredient(id)",
+    )
+    # 3. Sale.packaging_qty
+    _add_column_if_missing(
+        conn, "sale", "packaging_qty",
+        "FLOAT", "FLOAT",
+    )
+    # 4. Index for "list sales by packaging item" reporting
+    if conn.dialect.name == "postgresql":
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_sale_packaging_item "
+            "ON sale(packaging_item_id)"
+        ))
+    else:
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_sale_packaging_item "
+            "ON sale(packaging_item_id)"
+        ))
+    _bump_schema_version(conn, 53)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -1765,6 +2292,16 @@ def _migration_005_customer(conn: Any) -> None:
     42: _migration_042_payment_method_catalog,
 
     44: _migration_044_message_templates,
+    45: _migration_045_margin_tiers,
+    46: _migration_046_stock_status_config,
+    47: _migration_047_storage_types,
+    48: _migration_048_date_range_presets,
+    49: _migration_049_storage_keywords,
+    # R2 stack (renumbered 2026-09-24: collided with 039-041 on main)
+    50: _migration_050_sale_void_reason,
+    51: _migration_051_ingredient_variant,
+    52: _migration_052_ingredient_forecast_horizon,
+    53: _migration_053_sale_packaging,
 }
 
 

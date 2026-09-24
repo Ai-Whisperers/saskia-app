@@ -145,12 +145,16 @@ def test_list_recent_user_filter(session_factory):
         assert all(r.user_id == "alice" for r in alice)
 
 
-def test_login_failure_writes_audit_row(client, session_factory):
+def test_login_failure_writes_audit_row(client, session_factory, monkeypatch):
     """POST /login with wrong creds writes a login.failure audit row.
 
     Uses the session_factory fixture (the same one the client uses) so we're
     guaranteed to read from the same DB the app is writing to.
     """
+    # Exercise the REAL login flow: the SASKIA_TEST_AUTH_DISABLED bypass
+    # fake-logs-in any password before credentials are checked.
+    monkeypatch.delenv("SASKIA_TEST_AUTH_DISABLED", raising=False)
+
     from app.rms.models import AuditLog, User
 
     # Seed a user with bcrypt hash

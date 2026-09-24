@@ -14,7 +14,7 @@
   <div class="form-row">
     <label for="category_combo">Categoría</label>
     {# Combo supports creating new categories. No API — just creates on submit. #}
-    <div class="saskia-combo"
+    <div class="saskia-combo" data-saskia-combo="true"
          data-source=""
          data-display="name"
          data-value="value"
@@ -24,10 +24,13 @@
       <input type="text"
              id="category_combo"
              class="combo-input"
-             name="category"
              maxlength="32"
              value="{{ ingredient.category if ingredient and ingredient.category else '' }}"
              placeholder="Ej: Harinas, Lácteos, Aceites">
+      {# The hidden input is the only one that submits (the combo JS
+         writes the selected/created value here on change). Removing
+         `name=` from the visible text input prevents duplicate-name
+         form bugs where both values hit the router. #}
       <input type="hidden" name="category" value="{{ ingredient.category if ingredient and ingredient.category else '' }}">
       <div class="combo-results" role="listbox" hidden></div>
     </div>
@@ -38,7 +41,7 @@
     <label for="unit">Unidad</label>
       <div class="form-row">
     <label for="unit_combo">Unidad</label>
-    <div class="saskia-combo"
+    <div class="saskia-combo" data-saskia-combo="true"
          data-source="/recetas/api/units"
          data-display="display"
          data-value="value"
@@ -47,10 +50,11 @@
       <input type="text"
              id="unit_combo"
              class="combo-input"
-             name="unit"
              maxlength="10"
              value="{{ ingredient.unit_display if ingredient else '' }}"
              placeholder="Seleccionar unidad">
+      {# Hidden input carries the actual submit value; visible text has no
+         name= so we don't double-submit. Same pattern as the category combo above. #}
       <input type="hidden" name="unit" value="{{ ingredient.unit if ingredient else '' }}">
       <div class="combo-results" role="listbox" hidden></div>
     </div>

@@ -51,6 +51,11 @@ def _decorate(session: Session, r: Recipe, batch: CostResult, unit: CostResult |
         "cook_minutes": r.cook_minutes,
         "family": r.family,
         "dietary_tags": r.dietary_tags,
+        # 2026-09-23 (US 1.1): recipe-photo button in /recetas list depends on
+        # this key. Must be in the dict, not read from `r` directly in the
+        # template, because `r` isn't passed to the template — only `recipes`
+        # (a list of these dicts) is.
+        "image_url": r.image_url,
     }
 
 
@@ -58,7 +63,8 @@ def _decorate(session: Session, r: Recipe, batch: CostResult, unit: CostResult |
 async def recipes_list(
     request: Request,
     q: str = Query("", description="Search by recipe name"),
-    ingredient_id: str = Query("", description="Filter by ingredient ID (empty = all)"),
+    ingredient_id: str = Query("", description="Filter by single ingredient ID (legacy)"),
+    ingredient_ids: str = Query("", description="Filter by multiple ingredient IDs (comma-separated). US 3.2: AND semantics — recipe must use ALL selected."),
     sort: str = Query("name", pattern="^(name|yield_qty|batch_cost_gs)$"),
     dir: str = Query("asc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
@@ -70,26 +76,51 @@ async def recipes_list(
     ingredient_id comes from a form hidden field that may be empty (when the user
     hasn't picked an ingredient from the combo). Empty string → no filter.
 
+    ingredient_ids (US 3.2) accepts a comma-separated list. A recipe matches if
+    it uses ALL listed ingredients. The single-id legacy parameter still works.
+
     Batch-loaded to avoid N+1 on Neon.
     """
-    # Coerce empty / non-int to None so the user gets no filter rather than a 422
-    ing_id_int: int | None = None
+    # Coerce single-id (legacy) into the multi-id list for unified handling.
+    ing_id_ints: list[int] = []
     if ingredient_id and ingredient_id.strip():
         try:
-            ing_id_int = int(ingredient_id)
+            ing_id_ints.append(int(ingredient_id))
         except (TypeError, ValueError):
-            ing_id_int = None
+            pass
+    # Parse multi-id list. Strip whitespace, ignore empties, validate as int, dedupe.
+    if ingredient_ids and ingredient_ids.strip():
+        for raw in ingredient_ids.split(","):
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                val = int(raw)
+            except ValueError:
+                continue
+            if val not in ing_id_ints:
+                ing_id_ints.append(val)
 
     # Base query — first count for pagination
     count_stmt = select(func.count(Recipe.id))
     if q:
         count_stmt = count_stmt.where(Recipe.name.ilike(f"%{q}%"))
-    if ing_id_int is not None:
-        count_stmt = count_stmt.join(RecipeLine).where(
-            RecipeLine.line_kind == "ingredient",
-            RecipeLine.line_ref_id == ing_id_int,
+    if ing_id_ints:
+        # AND semantics: recipe must use ALL of these ingredients.
+        # Subquery: pick recipe_ids that have N distinct line_ref_id matches.
+        from sqlalchemy import func as _func
+        match_subq = (
+            select(RecipeLine.recipe_id)
+            .where(
+                RecipeLine.line_kind == "ingredient",
+                RecipeLine.line_ref_id.in_(ing_id_ints),
+            )
+            .group_by(RecipeLine.recipe_id)
+            .having(_func.count(_func.distinct(RecipeLine.line_ref_id)) == len(ing_id_ints))
+            .subquery()
         )
-    total_count = session.scalar(count_stmt.distinct()) or 0
+        count_stmt = count_stmt.where(Recipe.id.in_(select(match_subq.c.recipe_id)))
+    total_count = session.scalar(count_stmt) or 0
 
     # Building data stmt
     stmt = select(Recipe)
@@ -98,12 +129,20 @@ async def recipes_list(
     if q:
         stmt = stmt.where(Recipe.name.ilike(f"%{q}%"))
 
-    # Ingredient filter: find recipes that use this ingredient
-    if ing_id_int is not None:
-        stmt = stmt.join(RecipeLine).where(
-            RecipeLine.line_kind == "ingredient",
-            RecipeLine.line_ref_id == ing_id_int,
+    # Ingredient filter: find recipes that use ALL of these ingredients
+    if ing_id_ints:
+        from sqlalchemy import func as _func
+        match_subq = (
+            select(RecipeLine.recipe_id)
+            .where(
+                RecipeLine.line_kind == "ingredient",
+                RecipeLine.line_ref_id.in_(ing_id_ints),
+            )
+            .group_by(RecipeLine.recipe_id)
+            .having(_func.count(_func.distinct(RecipeLine.line_ref_id)) == len(ing_id_ints))
+            .subquery()
         )
+        stmt = stmt.where(Recipe.id.in_(select(match_subq.c.recipe_id)))
 
     # Sorting
     sort_col = {
@@ -137,7 +176,8 @@ async def recipes_list(
     return render(request, "recetas.html", {
         "recipes": decorated,
         "q": q,
-        "ingredient_id": ing_id_int if ing_id_int is not None else "",
+        "ingredient_id": ing_id_ints[0] if ing_id_ints else "",
+        "ingredient_ids": ",".join(str(i) for i in ing_id_ints),
         "sort": sort,
         "dir": dir,
         "ingredients": all_ingredients,

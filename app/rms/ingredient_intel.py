@@ -17,6 +17,8 @@ from __future__ import annotations
 import re
 from typing import Final
 
+from sqlalchemy.orm import Session
+
 # ---------------------------------------------------------------------------
 # Keyword tables
 # ---------------------------------------------------------------------------
@@ -294,19 +296,49 @@ def infer_shelf_life_days(name: str) -> int:
     return CATEGORY_SHELF_LIFE[infer_category(name)]
 
 
-def infer_storage(name: str) -> str:
-    """Where to store: refrigerated / frozen / ambient."""
+def infer_storage(name: str, session: Session | None = None) -> str:
+    """Where to store: refrigerated / frozen / ambient.
+
+    Phase 11: Reads keywords from the storage_keyword DB table (when a
+    session is provided). Falls back to the legacy _STORAGE_KEYWORDS dict
+    for the no-session case (tests, one-off scripts).
+    """
+    from app.rms.constants import (
+        STORAGE_AMBIENT, STORAGE_FROZEN, STORAGE_REFRIGERATED,
+    )
+
     norm = _normalize(name)
+
+    # When a session is provided, use DB-driven keywords.
+    if session is not None:
+        from sqlalchemy import select as _select
+        from app.rms.models import StorageKeyword
+
+        rows = session.execute(
+            _select(StorageKeyword)
+            .where(StorageKeyword.is_active.is_(True))
+            .order_by(StorageKeyword.sort_order.asc(), StorageKeyword.keyword.asc())
+        ).scalars().all()
+
+        # Check frozen first (more specific match), then refrigerated.
+        # If nothing matched, default to ambient.
+        for code in (STORAGE_FROZEN, STORAGE_REFRIGERATED):
+            for row in rows:
+                if row.storage_code == code and row.keyword in norm:
+                    return code
+        return STORAGE_AMBIENT
+
+    # No session — fall back to the hardcoded legacy dict.
     for kw in _STORAGE_KEYWORDS["frozen"]:
         if kw in norm:
-            return "frozen"
+            return STORAGE_FROZEN
     for kw in _STORAGE_KEYWORDS["refrigerated"]:
         if kw in norm:
-            return "refrigerated"
-    return "ambient"
+            return STORAGE_REFRIGERATED
+    return STORAGE_AMBIENT
 
 
-def classify_ingredient(name: str) -> dict:
+def classify_ingredient(name: str, session: Session | None = None) -> dict:
     """Full classification result for one ingredient."""
     category = infer_category(name)
     return {
@@ -316,7 +348,7 @@ def classify_ingredient(name: str) -> dict:
         "allergens": infer_allergens(name),
         "dietary_tags": infer_dietary_tags(name),
         "shelf_life_days": infer_shelf_life_days(name),
-        "storage": infer_storage(name),
+        "storage": infer_storage(name, session=session),
     }
 
 

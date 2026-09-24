@@ -141,13 +141,11 @@ def get_user_model():
     """
     from app.rms.db_dialect import _is_postgres
 
-    if _is_postgres(os.getenv("DATABASE_URL", "")):
-        from app.rms.schema_postgres import User as PgUser
+    # schema_postgres re-exports the canonical Base (2026-09-23 refactor),
+    # so both dialects use the same User model now.
+    from app.rms.models import User
 
-        return PgUser
-    from app.rms.models import User as SqliteUser
-
-    return SqliteUser
+    return User
 
 
 # --- Session helpers (dispatch to backend) ---

@@ -9,9 +9,11 @@ the restaurant management system. Supports **two deployment modes**:
 
 - **Local-first** (legacy): single-user install on Saskia's PC, binds to
   `127.0.0.1`, SQLite, no third-party SaaS.
-- **Hosted** (recommended since 2026-09-02): Neon Postgres + Render + Cloudflare
-  Tunnel + Supabase Auth. Saskia just opens a URL. See
-  `docs/operations/2026-09-02-saskia-decision-hosted-pivot.md`.
+- **Hosted** (since 2026-09-24): VPS at paragu-ai (ServaRica), Docker
+  Swarm + Traefik + Cloudflare DNS-01. Active URL:
+  https://saskia-vps.paragu-ai.com. Render.com was the prior hosted
+  target (2026-09-02 → 2026-09-23) but is now DEPRECATED — see
+  `docs/operations/2026-09-24-deployment.md` and `render.yaml` header.
 
 The dev plan is at `docs/plans/2026-08-31-rms-fase-1-dev-plan.md`. The build
 specs are at `docs/operations/2026-09-fase-1-specs.md`. Read both before

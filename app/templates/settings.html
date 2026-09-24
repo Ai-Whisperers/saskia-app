@@ -76,20 +76,32 @@
 
     <div class="form-group">
       <label for="tax_regime">Régimen</label>
-      <select id="tax_regime" name="tax_regime">
-        <option value="resimple" {% if compliance.tax_regime == 'resimple' %}selected{% endif %}>IRE RESIMPLE — Empresa unipersonal, ingresos ≤ G. 80M/año. Boleta Resimple. Cuotas trimestrales fijas (G. 60k–240k).</option>
-        <option value="general" {% if compliance.tax_regime == 'general' %}selected{% endif %}>IVA General + IRE General — Persona jurídica o ingresos > G. 80M/año. Factura + Libro IVA.</option>
-        <option value="no_libreta" {% if compliance.tax_regime == 'no_libreta' %}selected{% endif %}>Sin libreta — Informal. No emitir comprobantes (no recomendado; multa Ley 7165).</option>
-      </select>
+      <div class="saskia-combo" data-source="static" data-display="name" data-value="value"
+             data-min-chars="0" data-row-builder="genericRowLabel">
+          <input type="text" id="tax_regime" class="combo-input" name="tax_regime_display" maxlength="120"
+                 value="{% if compliance.tax_regime == 'resimple' %}IRE RESIMPLE — Empresa unipersonal{% elif compliance.tax_regime == 'general' %}IVA General + IRE General{% elif compliance.tax_regime == 'no_libreta' %}Sin libreta — Informal{% else %}IRE RESIMPLE{% endif %}" placeholder="Elegí un régimen…">
+          <input type="hidden" name="tax_regime" value="{{ compliance.tax_regime or 'resimple' }}">
+          <div class="combo-results" role="listbox" hidden>
+            <div class="combo-static-option" data-value="resimple" data-display="IRE RESIMPLE — Empresa unipersonal, ingresos ≤ G. 80M/año"></div>
+            <div class="combo-static-option" data-value="general" data-display="IVA General + IRE General — Persona jurídica"></div>
+            <div class="combo-static-option" data-value="no_libreta" data-display="Sin libreta — Informal"></div>
+          </div>
+        </div>
     </div>
 
     <div class="form-group">
       <label for="iva_default_rate">IVA por defecto para productos nuevos</label>
-      <select id="iva_default_rate" name="iva_default_rate">
-        <option value="10" {% if compliance.iva_default_rate == '10' %}selected{% endif %}>10% (general — panadería procesada, pastelería)</option>
-        <option value="5" {% if compliance.iva_default_rate == '5' %}selected{% endif %}>5% (productos agrícolas en estado natural — frutas, miel cruda)</option>
-        <option value="exento" {% if compliance.iva_default_rate == 'exento' %}selected{% endif %}>Exento (institucional / docencia / exportación)</option>
-      </select>
+      <div class="saskia-combo" data-source="static" data-display="name" data-value="value"
+             data-min-chars="0" data-row-builder="genericRowLabel">
+          <input type="text" id="iva_default_rate" class="combo-input" name="iva_default_rate_display" maxlength="90"
+                 value="{% if compliance.iva_default_rate == '5' %}5% (agro en estado natural){% elif compliance.iva_default_rate == 'exento' %}Exento (institucional / exportación){% else %}10% (general — panadería){% endif %}" placeholder="Elegí…">
+          <input type="hidden" name="iva_default_rate" value="{{ compliance.iva_default_rate or '10' }}">
+          <div class="combo-results" role="listbox" hidden>
+            <div class="combo-static-option" data-value="10" data-display="10% (general — panadería procesada, pastelería)"></div>
+            <div class="combo-static-option" data-value="5" data-display="5% (productos agrícolas en estado natural)"></div>
+            <div class="combo-static-option" data-value="exento" data-display="Exento (institucional / docencia / exportación)"></div>
+          </div>
+        </div>
     </div>
 
     <h3 style="margin-top: var(--space-5); border-top: 1px solid var(--border); padding-top: var(--space-4);">Timbrado (RESIMPLE)</h3>

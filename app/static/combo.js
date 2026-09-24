@@ -461,11 +461,18 @@
   global.SaskiaCombo = SaskiaCombo;
 
   // Auto-init any .saskia-combo element with data-* attributes.
+  // Combos with data-autosubmit="true" submit their form on pick
+  // (e.g. the recipe scale selector, matching the old onchange).
   document.addEventListener("DOMContentLoaded", function () {
     var combos = document.querySelectorAll(".saskia-combo[data-source]");
     Array.from(combos).forEach(function (el) {
       if (el._saskiaCombo) return; // already initialized
       el._saskiaCombo = new SaskiaCombo(el, {
+        onSelect: function () {
+          if (el.dataset.autosubmit === "true") {
+            el.closest("form").submit();
+          }
+        },
         source: el.dataset.source,
         displayField: el.dataset.display || "name",
         valueField: el.dataset.value || "id",

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
 
-{% block title %}Inicio
+{% block title %}Inicio{% endblock %}
 {# Wave 3: HEREBUS-folded KPIs — shopping list / wishlist / risk — at-a-glance on home #}
 <section class="card mt-4">
   <div class="card-header">
@@ -41,7 +41,6 @@
   </div>
 </section>
 
-{% endblock %}
 
 {% block alerts %}
 {% if alerts %}
@@ -194,7 +193,7 @@
     </div>
   </div>
   <div class="metric-card">
-    <div class="metric-label">Food cost % (30d)</div>
+    <div class="metric-label">Costo de materia prima % (30d)</div>
     <div class="metric-value">
       {{ "%.1f"|format(insights.food_cost.theoretical_food_cost_pct) }}%
     </div>
