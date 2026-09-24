@@ -1054,6 +1054,50 @@ which migrated to `saskia-app` repo. **Not yet on her PC.**
 
 **Status:** Closed Fase 1 production hotfixes + hardened deploy CI. **On her PC** once operator syncs `main` branch.
 
+### Refactor (2026-09-23) — Phase 3.1: split app/rms/models.py
+
+The monolithic `app/rms/models.py` (1350 LOC, 36 model classes) was split into a
+per-domain sub-package at `app/rms/models/`:
+
+| File | Models |
+|---|---|
+| `core.py` | `Base` (shared declarative registry) |
+| `audit.py` | `AppMeta` |
+| `auth.py` | `User`, `AuditLog`, `SettingsKV`, `Tenant` |
+| `inventory.py` | `Ingredient`, `Recipe`, `RecipeLine`, `Product`, `IngredientPriceEvent`, `PriceHistory` |
+| `sales.py` | `Sale`, `SaleStockMove`, `Customer`, `Tag`, `TagLink`, `RecipePricing` |
+| `orders.py` | `Pedido`, `PedidoLine` |
+| `production.py` | `ProductionCompletion`, `ProductionPlanTemplate`, `ProductionPlanOverride`, `ProductionPlan` |
+| `procurement.py` | `Supplier`, `WasteLog`, `ShoppingListItem`, `StockMovement`, `ImportBatch` |
+| `delivery.py` | `DeliveryZone` |
+| `herbus_drive.py` | `WishlistItem`, `RiskItem`, `MarketBenchmark`, `BankTransaction`, `ComplianceInfo`, `MarketPriceReference` |
+
+**Backward compatibility:** `app/rms/models/__init__.py` re-exports every model
+class at the top level, so all 470+ existing `from app.rms.models import X`
+call sites in `app/` and `tests/` continue to work unchanged. Verified by AST
+analysis: **992 import symbols resolved, 0 missing.**
+
+**Migration:** no code changes required at any call site. `app/rms/models.py`
+deleted; the package `app/rms/models/` is now in its place.
+
+### Migration notes
+
+- The split moves files only — no model definitions, column types, FKs,
+  relationships, or constraints were altered.
+- The shared `Base` lives in `app/rms/models/core.py`. Import it via
+  `from app.rms.models.core import Base`. Domain modules import `Base` once at
+  module level; SQLAlchemy's mapper config attaches to the shared registry.
+- Cross-domain `relationship("X", back_populates="...")` strings resolve at
+  mapper-config time. Order of imports across the 9 sub-modules doesn't matter
+  because each class registers with the same `Base.registry` on import.
+
+### Verified
+
+- **35 mappers registered** (Base + 36 model classes - 1 = 35 tables; matches
+  the schema's prior count).
+- **1981 tests collected** with 0 collection errors.
+- **Full subset runs:** 1656 pass / 101 fail (vs `main`: 1656 / 101 — identical).
+
 ### Added
 
 - **`docs/wishlist/`** (append-only bucket for future ideas; 21 seeds from
