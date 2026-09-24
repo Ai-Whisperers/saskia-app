@@ -221,15 +221,6 @@ def _migration_006_waste_log(conn: Any) -> None:
     _bump_schema_version(conn, 6)
 
 
-def _migration_005_customer(conn: Any) -> None:
-    """Add Customer table + Sale.customer_id FK (E13).
-
-    Tables are created via create_all() in init_db(). The Sale
-    FK column is added in case create_all didn't (e.g. on an existing
-    DB that pre-dates the customer table).
-    """
-    _bump_schema_version(conn, 5)
-
 
 def _migration_004_tags(conn: Any) -> None:
     """Add Tag + TagLink tables (E9.S1).
@@ -1728,7 +1719,14 @@ MIGRATIONS = {
     3: _migration_003_analytics_columns,
     4: _migration_004_tags,
     5: _migration_005_customer,
+
     6: _migration_006_waste_log,
+
+
+def _migration_005_customer(conn: Any) -> None:
+    """Add Customer table + Sale.customer_id FK (E13).
+
+
     7: _migration_007_product_sku,
     8: _migration_008_tenant,
     9: _migration_009_ingredient_intel,
@@ -1769,16 +1767,6 @@ MIGRATIONS = {
     44: _migration_044_message_templates,
 }
 
-# Import pkgutil-discovered migrations and merge with existing
-try:
-    from app.rms.migrations import MIGRATIONS as discovered_migrations
-    # Merge discovered migrations with existing dict (new migrations added to the end)
-    # We need to update the module-level MIGRATIONS dict
-    globals()['MIGRATIONS'].update(discovered_migrations)
-except ImportError:
-    # pkgutil discovery not available (e.g., in tests) - no migrations added
-    pass
-
 
 def _bump_schema_version(conn, version: int) -> None:
     """Set schema_version to `version`, working on both SQLite and Postgres.
@@ -1790,8 +1778,8 @@ def _bump_schema_version(conn, version: int) -> None:
     the cast.
 
     Replaces the old hard-coded pattern `text("UPDATE app_meta SET value = '27', ...")`
-    that silently no-op'd on Postgres (the UPDATE failed with a type
-    error and the migration appeared to "succeed" without bumping
+    that silently no-op'd on Postgres (the UPDATE failed with a type"
+    error and the migration appeared to "succeed" without bumping"
     schema_version).
 
     Implementation note: `text(":v::jsonb")` causes psycopg to fail with
