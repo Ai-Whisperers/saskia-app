@@ -1612,31 +1612,6 @@ def _migration_042_payment_method_catalog(conn):
 
 
 
-def _migration_043_branding_setting(conn):
-    """Phase 5 — Branding settings.
-
-    Seeds SettingsKV["branding"] with defaults that match the previous
-    hardcoded copy in templates/login.html and templates/base.html:
-      - business_name: "Saskia RMS"
-      - tagline: "Panadería / Bakery — Sistema de gestión"
-      - footer: "Sistema local · 2026"
-      - accent_color: "#f97316" (CSS --color-accent)
-      - logo_path: "" (no logo by default)
-
-    Operators can change any field from /settings/branding without code
-    deploy (Phase 5 follow-up UI page).
-    """
-    import json as _json
-    branding = {
-        "business_name": "Saskia RMS",
-        "tagline": "Panadería / Bakery — Sistema de gestión",
-        "footer": "Sistema local · 2026",
-        "accent_color": "#f97316",
-        "logo_path": "",
-    }
-    from app.rms.db import app_meta_write
-    app_meta_write(conn, "branding", _json.dumps(branding))
-    _bump_schema_version(conn, 43)
 
 
 
@@ -1790,7 +1765,7 @@ MIGRATIONS = {
     40: _migration_040_pricing_setting,
     41: _migration_041_channel_catalog,
     42: _migration_042_payment_method_catalog,
-    43: _migration_043_branding_setting,
+
     44: _migration_044_message_templates,
 }
 
