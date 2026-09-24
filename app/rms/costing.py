@@ -363,17 +363,52 @@ def apply_sale(
     payment_method: str | None = None,
     discount_gs: int = 0,
     channel: str | None = None,
+    packaging_item_id: int | None = None,
+    packaging_qty: float | None = None,
 ) -> ApplySaleResult:
     """Record a sale. Atomic. Drops theoretical stock.
+
+    US 4.1 — per-sale packaging. ``packaging_item_id`` must reference an
+    Ingredient with ``is_packaging=True``. ``packaging_qty`` defaults to
+    1 when packaging_item_id is set but qty is None. The packaging
+    ingredient's stock_qty is decremented by packaging_qty, and a
+    StockMovement audit row is written.
 
     Raises:
         ProductWithoutRecipe: if product has no recipe (sale is still saved,
             but with has_recipe=False and zero stock moves).
         RecipeWithoutYield: if the recipe has yield_qty NULL.
         CycleInRecipeTree: if recipe tree has a cycle.
+        ValueError: if packaging_item_id is not a packaging ingredient, or
+            packaging_qty is negative, or both/neither packaging_* params
+            are set inconsistently.
     """
     if qty <= 0:
         raise ValueError(f"qty must be > 0, got {qty}")
+
+    # US 4.1 packaging validation
+    packaging_item: Ingredient | None = None
+    if packaging_item_id is not None:
+        if packaging_qty is None or packaging_qty <= 0:
+            raise ValueError(
+                f"packaging_qty must be > 0 when packaging_item_id is set, "
+                f"got {packaging_qty!r}"
+            )
+        packaging_item = session.get(Ingredient, packaging_item_id)
+        if packaging_item is None:
+            raise ValueError(
+                f"Packaging ingredient {packaging_item_id} not found"
+            )
+        if not packaging_item.is_packaging:
+            raise ValueError(
+                f"Ingredient {packaging_item_id} ({packaging_item.name!r}) is "
+                f"not flagged as packaging. Set is_packaging=True on the "
+                f"ingredient first."
+            )
+    elif packaging_qty is not None and packaging_qty > 0:
+        raise ValueError(
+            f"packaging_qty={packaging_qty} was set without packaging_item_id"
+        )
 
     product = session.get(Product, product_id)
     if product is None:
@@ -394,9 +429,28 @@ def apply_sale(
         payment_method=payment_method,
         discount_gs=discount_gs,
         channel=channel or "mostrador",
+        # US 4.1 — per-sale packaging. Persisted on the sale so the
+        # cost report can attribute packaging consumption to the sale.
+        packaging_item_id=packaging_item_id,
+        packaging_qty=packaging_qty,
     )
     session.add(sale)
     session.flush()  # assigns sale.id
+
+    # US 4.1 — decrement packaging stock + audit row.
+    if packaging_item is not None and packaging_qty is not None and packaging_qty > 0:
+        packaging_item.stock_qty = (packaging_item.stock_qty or 0) - packaging_qty
+        stock_movement = StockMovement(
+            ingredient_id=packaging_item.id,
+            movement_type="sale",
+            qty=-abs(packaging_qty),
+            reason=f"Venta #{sale.id} (packaging)",
+            reference_id=sale.id,
+            reference_type="sale",
+            recorded_at=sold_at,
+            created_by=None,
+        )
+        session.add(stock_movement)
 
     has_recipe = product.recipe_id is not None
     stock_moves: list[tuple[int, float]] = []
@@ -566,6 +620,27 @@ def void_sale(
         sale.void_reason = reason
     if voided_by:
         sale.voided_by = voided_by
+
+    # US 4.1 — restore packaging ingredient stock + audit row.
+    if sale.packaging_item_id is not None and sale.packaging_qty:
+        pkg = session.get(Ingredient, sale.packaging_item_id)
+        if pkg is not None:
+            restored_qty = float(sale.packaging_qty)
+            pkg.stock_qty = (pkg.stock_qty or 0) + restored_qty
+            restored.append((pkg.id, restored_qty))
+            stock_movement = StockMovement(
+                ingredient_id=pkg.id,
+                movement_type="sale",
+                qty=restored_qty,
+                reason=f"Anulación venta #{sale.id} (packaging)"
+                       + (f" — {reason}" if reason else ""),
+                reference_id=sale.id,
+                reference_type="sale",
+                recorded_at=now_utc,
+                created_by=voided_by,
+            )
+            session.add(stock_movement)
+
     session.commit()
 
     return VoidSaleResult(sale_id=sale_id, restored_moves=restored)

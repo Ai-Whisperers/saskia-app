@@ -105,6 +105,13 @@ class Ingredient(Base):
     # S7 Decision B — per-ingredient forecast horizon. NULL = use global default
     # (DEFAULT_FORECAST_HORIZON_DAYS env var, typically 14).
     forecast_horizon_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # S8 US 4.1 — flag ingredients that are packaging items (boxes, bags,
+    # ribbons) rather than food ingredients. Packaging items live in the
+    # same table for inventory simplicity but are sold, not consumed by
+    # recipes. See app/rms/costing.py:apply_sale for the per-sale wiring.
+    is_packaging: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
 
     # Relationships
     # NOTE: `recipe_lines` (the reverse of RecipeLine.ingredient) is NOT defined here
@@ -355,6 +362,15 @@ class Sale(Base):
     # /ventas/{id}/anular modal when voiding.
     void_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     voided_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    # S8 US 4.1 — per-sale packaging (audio review: "the box for the cake").
+    # The same product sold different ways (local/eat-in/to-go/event) may
+    # need different packaging; the choice is on the SALE, not the product.
+    # packaging_item_id must point to an Ingredient with is_packaging=True.
+    # packaging_qty is NULL when there's no packaging (eat-in local sale).
+    packaging_item_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("ingredient.id"), nullable=True, index=True
+    )
+    packaging_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     # Phase 5: payment + discount
     payment_method: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     discount_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")

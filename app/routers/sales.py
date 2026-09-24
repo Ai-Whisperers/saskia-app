@@ -455,6 +455,11 @@ async def sale_create(
     invoice_type: str = Form("boleta_resimple"),
     invoice_customer_ruc: str = Form(""),
     invoice_customer_name: str = Form(""),
+    # US 4.1 — per-sale packaging (audio: "the box for the cake"). The same
+    # product sold to-go vs. eat-in vs. event may need different packaging.
+    # Both fields must be set together (or both empty).
+    packaging_item_id: int | None = Form(None, gt=0),
+    packaging_qty: float | None = Form(None, gt=0),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Create a sale with stock drop.
@@ -587,6 +592,8 @@ async def sale_create(
             payment_method=payment_method_clean,
             discount_gs=discount_gs,
             channel=channel_clean,
+            packaging_item_id=packaging_item_id,
+            packaging_qty=packaging_qty,
         )
     except RecipeWithoutYield as e:
         raise HTTPException(status_code=409, detail=str(e)) from e

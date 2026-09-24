@@ -15,14 +15,12 @@ from sqlalchemy import select
 
 from app.rms.models import (
     Ingredient,
-    IngredientPriceEvent,
     IngredientVariant,
+    Product,
     ProductionPlanOverride,
     ProductionPlanTemplate,
-    Product,
     SaleStockMove,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -220,7 +218,7 @@ class TestIngredientVariantRollup:
 class TestForecastHorizon:
 
     def test_default_horizon_is_14_days(self, session_factory):
-        from app.rms.variants import forecast_horizon_days, DEFAULT_FORECAST_HORIZON_DAYS
+        from app.rms.variants import DEFAULT_FORECAST_HORIZON_DAYS, forecast_horizon_days
         n = _unique_name("horizon")
         with session_factory() as s:
             ing = Ingredient(name=n, unit="kg", stock_qty=1.0)
@@ -254,8 +252,8 @@ class TestForecastHorizon:
             assert forecast_horizon_days(ing2, default=30) == 30
 
     def test_days_until_short_marks_short_when_depleted(self, session_factory):
+        from app.rms.models import Recipe, Sale
         from app.rms.variants import days_until_short
-        from app.rms.models import Recipe, RecipeLine, Sale, SaleStockMove
 
         n = _unique_name("depleted")
         today = date.today()
@@ -312,8 +310,8 @@ class TestForecastHorizon:
 
     def test_days_until_short_marks_ok_when_plenty(self, session_factory):
         """Stock exceeds 2× horizon × avg consumption → 'ok'."""
+        from app.rms.models import Recipe, Sale
         from app.rms.variants import days_until_short
-        from app.rms.models import Recipe, Sale, SaleStockMove
 
         n = _unique_name("plenty")
         rname = _unique_name("r-ok")
@@ -397,11 +395,11 @@ class TestForkWeek:
 
         client = None  # not needed for this unit test variant
         # Reach into the underlying function instead of POST
-        from app.routers.produccion import produccion_template_fork_week
         # Easier path: use a real Request and call it directly
         # ... but the rate-limiter check makes it simpler to just call the
         # upsert_template_row helper and replicate the summation manually.
         from collections import defaultdict
+
         with session_factory() as s:
             overrides = s.scalars(
                 select(ProductionPlanOverride)
@@ -462,7 +460,6 @@ class TestForkWeek:
 
     def test_fork_endpoint_returns_empty_when_no_overrides(self, client):
         """Empty week → 303 with fork=empty query param."""
-        from datetime import datetime as _dt
         # Use a date that has no overrides (week of 2026-06-15, but at least
         # one Monday — use a known one far in the future to avoid noise).
         future_monday = date(2030, 1, 7)
@@ -490,17 +487,17 @@ class TestForkWeek:
 
 class TestMigrations:
 
-    def test_schema_version_41(self, session_factory):
-        """CURRENT_SCHEMA_VERSION = 41 — verify the marker row reflects it."""
+    def test_schema_version_is_current(self, session_factory):
+        """Schema version reflects CURRENT_SCHEMA_VERSION (42 after S8)."""
         from app.rms.config import CURRENT_SCHEMA_VERSION
         from app.rms.models import AppMeta
 
-        assert CURRENT_SCHEMA_VERSION == 41
+        assert CURRENT_SCHEMA_VERSION >= 42
         with session_factory() as s:
             row = s.scalar(
                 select(AppMeta.value).where(AppMeta.key == "schema_version")
             )
-        assert int(row) == 41
+        assert int(row) == CURRENT_SCHEMA_VERSION
 
     def test_forecast_horizon_column_exists(self, session_factory):
         """Migration 041: ingredient.forecast_horizon_days column."""
@@ -530,7 +527,6 @@ class TestMigrations:
     def test_backfill_creates_default_variant(self, session_factory):
         """Migration 040: every existing Ingredient with purchase_price_gs
         got a default variant from the backfill."""
-        from sqlalchemy import text
         # Existing test ingredients should have at least 1 variant each by
         # the time the migration ran (in conftest, init_db() runs migrations).
         with session_factory() as s:

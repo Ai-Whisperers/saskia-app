@@ -35,6 +35,68 @@ from app.services.template_render import render
 router = APIRouter(prefix="/inventario", dependencies=[Depends(require_login)])
 
 
+@router.get("/api/packaging", response_class=JSONResponse)
+def packaging_api_search(
+    request: Request,
+    q: str = Query(""),
+    limit: int = Query(20, ge=1, le=100),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """US 4.1 — autocomplete for the sale's packaging picker.
+
+    Returns packaging-flagged ingredients only (is_packaging=True).
+    Response shape: [{"id": 12, "name": "Caja torta", "unit": "und",
+                       "stock_qty": 5.0, "purchase_price_gs": 1500}, ...]
+    """
+    like = f"%{q.strip().lower()}%"
+    rows = session.execute(
+        select(Ingredient)
+        .where(Ingredient.is_packaging == True)  # noqa: E712
+        .where(func.lower(Ingredient.name).like(like))
+        .order_by(Ingredient.name)
+        .limit(limit)
+    ).scalars().all()
+    return JSONResponse([
+        {
+            "id": r.id,
+            "name": r.name,
+            "unit": r.unit,
+            "stock_qty": r.stock_qty,
+            "purchase_price_gs": r.purchase_price_gs,
+        }
+        for r in rows
+    ])
+
+
+@router.post("/{ing_id}/toggle-packaging")
+def ingredient_toggle_packaging(
+    ing_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """US 4.1 — flag/unflag an Ingredient as a packaging item.
+
+    Operators click "Marcar como empaque" on a regular ingredient (e.g. a
+    leftover "Caja torta 30cm" they want to track as packaging). The flag
+    controls whether the sale's packaging picker shows this ingredient.
+    """
+    ing = session.get(Ingredient, ing_id)
+    if ing is None:
+        raise NotFound("Ingredient", id=ing_id)
+    ing.is_packaging = not bool(ing.is_packaging)
+    record_audit(
+        request,
+        session=session,
+        action="ingredient.toggle_packaging",
+        target_type="ingredient",
+        target_id=ing_id,
+        detail={"is_packaging": ing.is_packaging},
+    )
+    session.commit()
+    back = request.headers.get("referer") or f"/inventario/{ing_id}"
+    return RedirectResponse(url=back, status_code=303)
+
+
 @router.get("/api/search", response_class=JSONResponse)
 def ingredients_api_search(
     q: str = Query("", description="Search query"),
