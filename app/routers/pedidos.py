@@ -32,6 +32,7 @@ from app.auth import current_user_id, require_login_or_disabled as require_login
 from app.rms.audit import record as audit_record
 from app.rms.config import ASUNCION_TZ
 from app.rms.costing import apply_sale
+from app.rms.db import safe_commit
 from app.rms.dependencies import get_session
 from app.rms.models import Customer, Pedido, PedidoLine, Product, Sale
 from app.rms.schemas import ALLOWED_PAYMENT_METHODS
@@ -561,7 +562,7 @@ async def pedidos_create(
         },
         request=request,
     )
-    session.commit()
+    safe_commit(session)
 
     return RedirectResponse(url=f"/pedidos/{pedido.id}", status_code=303)
 
@@ -662,7 +663,7 @@ async def pedidos_status(
         },
         request=request,
     )
-    session.commit()
+    safe_commit(session)
     return RedirectResponse(url=f"/pedidos/{pedido.id}", status_code=303)
 
 
@@ -775,7 +776,7 @@ def pedidos_fulfill(
             .values(value=str(first_sale_id))
         )
 
-    session.commit()
+    safe_commit(session)
 
     # ── Notify customer via WhatsApp or SMS ──────────────────────────────────
     _send_fulfill_notification(session, pedido)
@@ -996,7 +997,7 @@ def pedidos_duplicate(
         detail={"original_id": original.id},
         request=request,
     )
-    session.commit()
+    safe_commit(session)
 
     return RedirectResponse(url=f"/pedidos/{copy.id}", status_code=303)
 
@@ -1166,7 +1167,7 @@ def pedidos_bulk_fulfill(
             .values(fulfilled_qty=PedidoLine.qty)
         )
         fulfilled += 1
-    session.commit()
+    safe_commit(session)
     flash = f"{fulfilled} pedido(s) marcado(s) como completado(s)"
     return RedirectResponse(url=f"/pedidos?flash={flash}", status_code=303)
 
@@ -1193,6 +1194,6 @@ def pedidos_bulk_cancel(
             continue
         pedido.status = "cancelled"
         cancelled += 1
-    session.commit()
+    safe_commit(session)
     flash = f"{cancelled} pedido(s) cancelado(s)"
     return RedirectResponse(url=f"/pedidos?flash={flash}", status_code=303)

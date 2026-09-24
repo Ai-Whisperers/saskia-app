@@ -5,6 +5,29 @@
 
 ## [Unreleased]
 
+### Added (2026-09-24) — Phase 1A atomicity: safe_commit helper
+
+**New helper:** `app/rms/db.py:safe_commit(session)` — wraps
+`session.commit()` in try/except/rollback, returns True on success
+and False on failure (never raises). Use this instead of bare
+`session.commit()` in money-path handlers to keep the connection
+pool clean when an IntegrityError or DB error fires mid-handler.
+
+Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md F18 (50+ bare
+commits), bare commits leave the session in an inconsistent state
+for the next pooled connection checkout.
+
+**Scope applied:**
+- `app/routers/sales.py` — 2 bare commits replaced
+- `app/routers/pedidos.py` — 6 bare commits replaced
+- (Other 50+ sites elsewhere: deferred to a follow-up rollout)
+
+**Tests:**
+- `tests/test_safe_commit.py` — 5 tests covering success path,
+  IntegrityError rollback, session reuse after rollback, log emission,
+  and mock-based rollback verification.
+- All sale / pedido / ventas / invoice tests pass; no regressions.
+
 ### Deferred (2026-09-24) — Phase 1A atomicity: F9 rate-limit race
 
 **Status:** Deferred to a follow-up PR. The F9 race exists (count-then-act

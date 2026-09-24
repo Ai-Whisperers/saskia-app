@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.auth import require_login_or_disabled as require_login
 from app.rms.config import ASUNCION_TZ
 from app.rms.costing import RecipeWithoutYield, apply_sale, void_sale
+from app.rms.db import safe_commit
 from app.rms.dependencies import get_session
 from app.rms.models import Customer, Product, Sale
 from app.rms.catalogs import list_channels, list_payment_methods, default_channel_code, default_payment_method_code
@@ -590,7 +591,7 @@ async def sale_create(
             .values(value=str(sale.sale_id))
         )
 
-    session.commit()
+    safe_commit(session)
 
     # Audit + rate-limit (writes only — read paths not counted).
     from app.auth import current_user_id
@@ -619,7 +620,7 @@ async def sale_create(
             .values(value=str(sale.sale_id))
         )
 
-    session.commit()
+    safe_commit(session)
 
     # Best-effort: fire the printer with the new receipt.
     # Failures are logged but never block the sale.

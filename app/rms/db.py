@@ -2040,11 +2040,59 @@ def get_db_session(session_factory: sessionmaker) -> Session:
     return session_factory()
 
 
+def safe_commit(session: Session) -> bool:
+    """Commit the current transaction, rolling back on any error.
+
+    Returns True on success, False on failure. NEVER raises — the
+    caller can choose how to react (raise HTTPException, log + skip, etc.)
+
+    Why this exists (per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md F18):
+    Bare `session.commit()` in a request handler raises an unhandled
+    exception on IntegrityError or any DB error mid-handler. That leaves
+    the session in an inconsistent state for the next pooled connection
+    checkout, causing the next request to receive a SQLAlchemy error
+    from a half-completed prior transaction.
+
+    Wrapping commit() in try/except/rollback keeps the connection pool
+    clean. The function logs the rollback so ops can see it without
+    needing to instrument every call site.
+
+    Scope: this is the canonical commit helper for handlers in
+    app/routers/sales.py and app/routers/pedidos.py (the money paths).
+    Bare commits elsewhere should also migrate to safe_commit, but that
+    is a follow-up rollout.
+    """
+    try:
+        session.commit()
+        return True
+    except Exception as exc:  # noqa: BLE001 — see docstring
+        try:
+            session.rollback()
+        except Exception:
+            # If rollback itself fails, the connection pool will recycle
+            # it on close. Log and continue.
+            pass
+        # Use the project's logger if available, else print to stderr.
+        try:
+            from loguru import logger as _log
+
+            _log.warning(
+                "safe_commit: rollback after error: {err!r}",
+                err=exc,
+            )
+        except ImportError:
+            import sys
+
+            print(f"WARNING: safe_commit rollback: {exc!r}", file=sys.stderr)
+        return False
+
+
 __all__ = [
     "make_engine",
     "init_db",
     "make_session_factory",
     "get_db_session",
+    "safe_commit",
     "MIGRATIONS",
     "MigrationFn",
 ]
