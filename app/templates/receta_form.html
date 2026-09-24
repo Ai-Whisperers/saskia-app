@@ -50,10 +50,8 @@
                    autocomplete="off">
             <input type="hidden" name="family" value="{{ recipe.family if recipe and recipe.family else '' }}">
             <div class="combo-results" role="listbox" hidden>
-              {% for fam in ['Panadería', 'Pastelería', 'Bollería', 'Dulces', 'Galletería',
-                             'Tortas', 'Masas', 'Rellenos', 'Coberturas', 'Salsas',
-                             'Bases', 'Temporada', 'Especiales'] %}
-                <div class="combo-static-option" data-value="{{ fam }}" data-display="{{ fam }}"></div>
+              {% for fam in recipe_families %}
+                <div class="combo-static-option" data-value="{{ fam.name }}" data-display="{{ fam.name }}"></div>
               {% endfor %}
             </div>
           </div>
@@ -281,7 +279,7 @@
       {{ t.tag_picker(
            name='dietary_tags',
            current_value=recipe.dietary_tags if recipe else '',
-           options_markup=t.dietary_tag_options(),
+           options_markup=t.render_tag_pills(dietary_tags),
            allow_custom=True,
            label='',
            help=''
@@ -756,7 +754,13 @@
     // Yield and divide
     var yieldQty = parseFloat((document.getElementById('yield_qty') || {}).value) || 1;
     var unitCost = yieldQty > 0 ? batchTotal / yieldQty : 0;
-    var suggestedPrice = unitCost * 3;
+    // Fetch pricing markup config from API (configurable in /settings/pricing)
+    var markupCfg = { multiplier: 3.0, round_to_gs: 1000 };
+    fetch('/api/settings/pricing-markup').then(function(r){return r.json()}).then(function(cfg){
+      markupCfg = cfg;
+    }).catch(function(){}).finally(function(){
+      var suggestedPrice = Math.ceil(unitCost * markupCfg.multiplier / markupCfg.round_to_gs) * markupCfg.round_to_gs;
+    });
 
     var batchEl = document.getElementById('batch-cost');
     var unitEl = document.getElementById('unit-cost');

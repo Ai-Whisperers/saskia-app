@@ -120,6 +120,22 @@ def ensure_starter_tags(session: Session) -> list[Tag]:
     return out
 
 
+def list_tags_for_kind(session: Session, kind: str) -> list[Tag]:
+    """Return all Tag rows for a given kind (product|ingredient|recipe).
+
+    Used by templates that need to render tag pills dynamically — the
+    static lists previously hardcoded in app/templates/_components/tags.html
+    are gone. Sort order: alphabetical by name.
+    """
+    return list(
+        session.execute(
+            select(Tag)
+            .where(Tag.kind == kind)
+            .order_by(Tag.name)
+        ).scalars()
+    )
+
+
 def tag_target(
     session: Session, tag: Tag, target_kind: str, target_id: int
 ) -> TagLink:
@@ -397,6 +413,7 @@ __all__ = [
     "STARTER_TAGS",
     "ensure_tag",
     "ensure_starter_tags",
+    "list_tags_for_kind",
     "tag_target",
     "untag_target",
     "tags_for_target",

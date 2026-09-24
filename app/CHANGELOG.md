@@ -79,6 +79,68 @@ Schema: v32 → v38. Migration 034 (market prices), 035 (compliance_info),
 + flaky UI snapshot tests) — all unrelated to Phase 1.
 
 
+
+### Added (2026-09-24) — Static-content audit Phase 1 + 2
+
+Per the static-content audit (docs/operations/2026-09-24-static-content-audit.md),
+the codebase had hardcoded catalogs in templates that operators had to
+modify via code deploy. This change moves them to the database.
+
+**Phase 1: Catalog tables + DB-driven macros**
+- Migration 039: new `category` table (`id, name, scope, sort_order,
+  is_active, created_at`). Seeded with the prior hardcoded values:
+  - 13 product categories (Panadería, Pastelería, Dulces, Bollería,
+    Bebidas, Lácteos, Salados, Congelados, Especiales, Temporada,
+    Sin TACC, Vegano, Light)
+  - 13 recipe families (Panadería, Pastelería, Bollería, Dulces,
+    Galletería, Tortas, Masas, Rellenos, Coberturas, Salsas, Bases,
+    Temporada, Especiales)
+- Migration 039 also re-seeds the `tag` table with the 31 starter tags
+  if missing (vegetariano, vegano, sin-gluten, sin-lactosa, etc.)
+- New `app/rms/categories.py` with `list_categories()` and
+  `get_or_create_category()` helpers
+- New `app/rms/tags.py:list_tags_for_kind()` helper
+- New `Category` SQLAlchemy model in `app/rms/models.py`
+- `app/templates/_components/tags.html` updated to use DB-driven macros
+  (`render_category_options`, `render_tag_pills`) — old hardcoded
+  `product_category_options`, `recipe_family_options`,
+  `product_tag_options`, `dietary_tag_options` removed
+- `app/templates/receta_form.html` line 53: removed duplicated inline
+  family list (was a 3rd copy of the recipe families hardcoded)
+- `/recetas/{nueva,editar}` and `/productos/{nuevo,editar}` routes pass
+  `recipe_families`, `product_categories`, `dietary_tags` from DB
+
+**Phase 2: SettingsKV-backed pricing markup**
+- Migration 040: new `settings_kv` row `pricing.suggested_markup`
+  = `{"multiplier": 3.0, "round_to_gs": 1000}`
+- New `app/rms/settings_runtime.py` with `get_pricing_markup()`,
+  `set_pricing_markup()`, `compute_suggested_price()`, `settings_get/set`
+- `app/routers/recipes.py:519` (crear-producto helper) now reads markup
+  from SettingsKV
+- New `app/routers/settings_runtime.py` with API endpoints:
+  - `GET  /api/settings/pricing-markup`
+  - `POST /api/settings/pricing-markup` (update multiplier)
+  - `GET  /api/settings/pricing-markup/preview?cost_gs=N`
+  - `GET  /api/categories?scope=product|recipe_family`
+  - `POST /api/categories` (idempotent create)
+  - `POST /api/categories/{id}/update` (partial update)
+- `app/templates/producto_form.html` JS now fetches markup from API
+  instead of hardcoding `* 3`
+- `app/templates/receta_form.html` JS now fetches markup from API
+  instead of hardcoding `* 3`
+
+**Verified live at https://saskia-vps.paragu-ai.com:**
+- GET /api/settings/pricing-markup → {"multiplier":3.0,"round_to_gs":1000}
+- POST same with multiplier=2.5 → persists, GET returns 2.5
+- GET /api/categories?scope=product → 13 product categories
+- GET /api/categories?scope=recipe_family → 13 families
+- POST /api/categories creates new (id=27 verified)
+- /recetas/nueva renders Galletería, Tortas, etc. (recipe_families from DB)
+- /productos/nuevo renders 17 product tag pills (sin-gluten, vegano, etc.)
+- Pricing changes do NOT require code deploy (operator can change
+  multiplier from /api/settings/pricing-markup POST)
+
+CHANGELOG entry continues.
 ### Fixed (2026-09-21) — public pickup page + 5-test CI green
 
 - **`/p/{token}` now resolves the pedido correctly.** The

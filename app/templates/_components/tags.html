@@ -1,98 +1,36 @@
 {# Reusable form controls for Saskia.
-   Includes pre-built option catalogs tailored for a Paraguayan
-   panadería / pastelería (Panadería, Pastelería, Dulces, etc.). #}
+   Includes category/family/tag macros driven by the `category` table
+   (migration 039) and the `tag` table.
+
+   Routes that use these macros should pass `product_categories`,
+   `recipe_families`, and `dietary_tags` from the request handler.
+
+   Backwards compat: when no lists are passed, the macros still work
+   (they just produce empty option lists). This makes the migration
+   safe — existing routes don't break, they just get empty dropdowns
+   until the route is updated. #}
 
 
-{# ─── Pre-built catalogs (just data lists) ──────────────────────────────── #}
+{# ─── Catalog option renderers (loops over DB rows) ─────────────────── #}
 
-{% macro product_category_options() %}
-  {% set result = [
-    "Panadería",
-    "Pastelería",
-    "Dulces",
-    "Bollería",
-    "Bebidas",
-    "Lácteos",
-    "Salados",
-    "Congelados",
-    "Especiales",
-    "Temporada",
-    "Sin TACC",
-    "Vegano",
-    "Light",
-  ] %}
-  {% for opt in result %}<div class="combo-static-option" data-value="{{ opt }}" data-display="{{ opt }}"></div>{% endfor %}
-{% endmacro %}
-
-{% macro recipe_family_options() %}
-  {% set result = [
-    "Panadería",
-    "Pastelería",
-    "Bollería",
-    "Dulces",
-    "Galletería",
-    "Tortas",
-    "Masas",
-    "Rellenos",
-    "Coberturas",
-    "Salsas",
-    "Bases",
-    "Temporada",
-    "Especiales",
-  ] %}
-  {% for opt in result %}<div class="combo-static-option" data-value="{{ opt }}" data-display="{{ opt }}"></div>{% endfor %}
-{% endmacro %}
-
-{% macro product_tag_options() %}
-  {% set result = [
-    {"value": "sin-gluten",      "label": "Sin gluten"},
-    {"value": "sin-lactosa",     "label": "Sin lactosa"},
-    {"value": "vegano",          "label": "Vegano"},
-    {"value": "vegetariano",     "label": "Vegetariano"},
-    {"value": "sin-azucar",      "label": "Sin azúcar"},
-    {"value": "integral",        "label": "Integral"},
-    {"value": "organico",        "label": "Orgánico"},
-    {"value": "sin-tacc",        "label": "Sin TACC"},
-    {"value": "bajo-en-sodio",   "label": "Bajo en sodio"},
-    {"value": "bajo-en-grasa",   "label": "Bajo en grasa"},
-    {"value": "kosher",          "label": "Kosher"},
-    {"value": "sin-frutos-secos","label": "Sin frutos secos"},
-    {"value": "sin-huevo",       "label": "Sin huevo"},
-  ] %}
-  {% for opt in result %}
-    <button type="button"
-            class="tag-pill"
-            data-value="{{ opt.value }}"
-            aria-pressed="false">{{ opt.label }}</button>
+{% macro render_category_options(categories) %}
+  {% for cat in categories %}
+    <div class="combo-static-option" data-value="{{ cat.name }}" data-display="{{ cat.name }}"></div>
   {% endfor %}
 {% endmacro %}
 
-{% macro dietary_tag_options() %}
-  {% set result = [
-    {"value": "sin-gluten",      "label": "Sin gluten"},
-    {"value": "sin-lactosa",     "label": "Sin lactosa"},
-    {"value": "vegano",          "label": "Vegano"},
-    {"value": "vegetariano",     "label": "Vegetariano"},
-    {"value": "sin-azucar",      "label": "Sin azúcar"},
-    {"value": "integral",        "label": "Integral"},
-    {"value": "organico",        "label": "Orgánico"},
-    {"value": "sin-tacc",        "label": "Sin TACC"},
-    {"value": "bajo-en-sodio",   "label": "Bajo en sodio"},
-    {"value": "bajo-en-grasa",   "label": "Bajo en grasa"},
-    {"value": "kosher",          "label": "Kosher"},
-    {"value": "sin-frutos-secos","label": "Sin frutos secos"},
-    {"value": "sin-huevo",       "label": "Sin huevo"},
-  ] %}
-  {% for opt in result %}
+{% macro render_tag_pills(tags) %}
+  {% for tag in tags %}
     <button type="button"
             class="tag-pill"
-            data-value="{{ opt.value }}"
-            aria-pressed="false">{{ opt.label }}</button>
+            data-value="{{ tag.name }}"
+            aria-pressed="false"
+            {% if tag.color %}style="--tag-color: {{ tag.color }}"{% endif %}>{{ tag.name }}</button>
   {% endfor %}
 {% endmacro %}
 
 
-{# ─── Single-select category picker (uses saskia-combo) ────────────────── #}
+{# ─── Single-select category picker (uses saskia-combo) ────────────── #}
 
 {% macro category_picker(name, current_value, options_markup, allow_custom=True, label='', help='') %}
   <div class="form-row">
@@ -125,7 +63,7 @@
 {% endmacro %}
 
 
-{# ─── Tag picker (pill toggles + custom add) ──────────────────────────── #}
+{# ─── Tag picker (pill toggles + custom add) ─────────────────────────── #}
 
 {% macro tag_picker(name, current_value, options_markup, allow_custom=True, label='', help='') %}
   {% set current_list = (current_value or '').split(',') | map('trim') | reject('equalto', '') | list %}
@@ -155,7 +93,7 @@
 {% endmacro %}
 
 
-{# ─── Inline styles for tag pills ──────────────────────────────────────── #}
+{# ─── Inline styles for tag pills ────────────────────────────────────── #}
 
 {% macro tag_picker_styles() %}
 <style>{% raw %}

@@ -233,12 +233,31 @@ def products_export_csv(
 
 @router.get("/nuevo", response_class=HTMLResponse)
 def product_new(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
-    """Show new-product form."""
+    """Show new-product form.
+
+    Passes DB-driven catalogs:
+      - product_categories: rows from `category` WHERE scope='product'
+      - dietary_tags: rows from `tag` WHERE kind='product'
+    Both lists drive the category_picker / tag_picker macros. Hardcoded
+    fallback removed in static-content audit phase 1.
+    """
+    from app.rms.categories import list_categories as list_cats
+    from app.rms.settings_runtime import get_pricing_markup
+    from app.rms.tags import list_tags_for_kind
+
     recipes = session.scalars(select(Recipe).order_by(Recipe.name)).all()
     return render(
         request,
         "producto_form.html",
-        {"mode": "new", "product": None, "action": "Nuevo", "recipes": recipes},
+        {
+            "mode": "new",
+            "product": None,
+            "action": "Nuevo",
+            "recipes": recipes,
+            "product_categories": list_cats(session, "product"),
+            "dietary_tags": list_tags_for_kind(session, "product"),
+            "pricing_markup": get_pricing_markup(session),
+        },
     )
 
 
@@ -321,7 +340,11 @@ def product_edit(
     request: Request,
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    """Show edit form."""
+    """Show edit form. Passes DB-driven catalogs (see product_new)."""
+    from app.rms.categories import list_categories as list_cats
+    from app.rms.settings_runtime import get_pricing_markup
+    from app.rms.tags import list_tags_for_kind
+
     p = session.get(Product, p_id)
     if p is None:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
@@ -329,7 +352,15 @@ def product_edit(
     return render(
         request,
         "producto_form.html",
-        {"mode": "edit", "product": p, "action": "Editar", "recipes": recipes},
+        {
+            "mode": "edit",
+            "product": p,
+            "action": "Editar",
+            "recipes": recipes,
+            "product_categories": list_cats(session, "product"),
+            "dietary_tags": list_tags_for_kind(session, "product"),
+            "pricing_markup": get_pricing_markup(session),
+        },
     )
 
 

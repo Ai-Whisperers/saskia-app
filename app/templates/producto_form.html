@@ -37,13 +37,13 @@
     <small class="muted">Formato: <code>PREFIX-NNN</code> basado en el nombre. Editable.</small>
   </div>
 
-  {% set product_cats = t.product_category_options() %}
-  {% set product_tags = t.product_tag_options() %}
+  {% set product_cats = t.render_category_options(product_categories) %}
+  {% set product_tags = t.render_tag_pills(dietary_tags) %}
 
   {{ t.category_picker(
        name='category',
        current_value=request.query_params.get('category', product.category if product else ''),
-       options_markup=t.product_category_options(),
+       options_markup=t.render_category_options(product_categories),
        allow_custom=True,
        label='Categoría',
        help='Elegí una de las categorías predefinidas o escribí una nueva.'
@@ -52,7 +52,7 @@
   {{ t.tag_picker(
        name='tags',
        current_value=request.query_params.get('tags', product.tags if product else ''),
-       options_markup=t.product_tag_options(),
+       options_markup=t.render_tag_pills(dietary_tags),
        allow_custom=True,
        label='Etiquetas',
        help='Tocá una etiqueta para activarla. Útil para búsquedas y filtros rápidos.'
@@ -316,8 +316,18 @@
         if (m) {
           var cost = parseInt(m[1].replace(/\./g, '').replace(',', ''), 10);
           if (cost > 0) {
-            // 3x markup, rounded up to nearest 1000
-            var suggested = Math.ceil(cost * 3 / 1000) * 1000;
+            // Fetch pricing markup config from API (configurable in /settings/pricing)
+            fetch('/api/settings/pricing-markup').then(function(r){return r.json()}).then(function(cfg){
+                var mult = cfg.multiplier || 3.0;
+                var rnd = cfg.round_to_gs || 1000;
+                var suggested = Math.ceil(cost * mult / rnd) * rnd;
+                salePriceInput.value = suggested;
+                salePriceInput.placeholder = '0 (sugerido: ' + suggested.toLocaleString('es-PY') + ')';
+            }).catch(function(){
+                // Fallback to 3x if API fails
+                var suggested = Math.ceil(cost * 3 / 1000) * 1000;
+                salePriceInput.value = suggested;
+            });
             var priceEl = document.getElementById('sale_price_gs');
             if (!priceEl.value || parseInt(priceEl.value, 10) === 0) {
               priceEl.value = suggested;

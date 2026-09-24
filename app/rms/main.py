@@ -66,6 +66,7 @@ from app.routers import (
     sales,
     search,
     settings,
+    settings_runtime,
     shopping,
     suppliers,
     users,
@@ -473,6 +474,7 @@ if os.getenv("AIW_SASKIA_INTERNAL_ROUTES") == "1":
     app.include_router(auditoria.router)
     app.include_router(ops.router)
 app.include_router(settings.router)
+app.include_router(settings_runtime.router)
 app.include_router(users.router)
 app.include_router(reorder.router)
 app.include_router(help.router)

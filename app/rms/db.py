@@ -1311,6 +1311,182 @@ def _migration_038_ingredient_haccp(conn):
 
 
 
+
+
+
+def _migration_039_category_table(conn):
+    """Phase 1 catalog unification — operator-configurable categories/families.
+
+    Replaces the hardcoded lists previously living in
+    app/templates/_components/tags.html (product_category_options,
+    recipe_family_options, product_tag_options, dietary_tag_options)
+    and the duplicated family list in app/templates/receta_form.html.
+
+    Schema:
+      - id SERIAL/INTEGER PRIMARY KEY
+      - name VARCHAR(64) NOT NULL UNIQUE per scope
+      - scope VARCHAR(16) NOT NULL   -- 'product' | 'recipe_family'
+      - sort_order INTEGER NOT NULL DEFAULT 0
+      - is_active BOOLEAN NOT NULL DEFAULT 1
+      - created_at TIMESTAMP
+
+    Seed data matches the prior hardcoded values exactly so the migration
+    is invisible to operators — every existing dropdown still shows the
+    same options in the same order.
+
+    Idempotent: INSERT OR IGNORE so re-runs are no-ops.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS category (
+            id {pk_type},
+            name VARCHAR(64) NOT NULL,
+            scope VARCHAR(16) NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active {bool_t} NOT NULL DEFAULT 1,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (scope, name)
+        )
+        """
+    ))
+    conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_category_scope_active "
+        "ON category (scope, is_active, sort_order)"
+    ))
+
+    # Seed product categories
+    product_cats = [
+        ("Panadería", 10),
+        ("Pastelería", 20),
+        ("Dulces", 30),
+        ("Bollería", 40),
+        ("Bebidas", 50),
+        ("Lácteos", 60),
+        ("Salados", 70),
+        ("Congelados", 80),
+        ("Especiales", 90),
+        ("Temporada", 100),
+        ("Sin TACC", 110),
+        ("Vegano", 120),
+        ("Light", 130),
+    ]
+    # Seed recipe families
+    recipe_fams = [
+        ("Panadería", 10),
+        ("Pastelería", 20),
+        ("Bollería", 30),
+        ("Dulces", 40),
+        ("Galletería", 50),
+        ("Tortas", 60),
+        ("Masas", 70),
+        ("Rellenos", 80),
+        ("Coberturas", 90),
+        ("Salsas", 100),
+        ("Bases", 110),
+        ("Temporada", 120),
+        ("Especiales", 130),
+    ]
+
+    # SQLAlchemy's create_all() runs BEFORE this migration and creates
+    # the category table WITHOUT defaults on is_active / created_at.
+    # So INSERTs must pass all NOT NULL columns explicitly.
+    # Insert idempotently: ON CONFLICT DO NOTHING / INSERT OR IGNORE.
+    for name, sort in product_cats:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO category "
+                "(name, scope, sort_order, is_active, created_at) "
+                "VALUES (:n, 'product', :s, 1, CURRENT_TIMESTAMP)"
+            ) if dialect == "sqlite" else text(
+                "INSERT INTO category "
+                "(name, scope, sort_order, is_active, created_at) "
+                "VALUES (:n, 'product', :s, TRUE, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (scope, name) DO NOTHING"
+            ),
+            {"n": name, "s": sort},
+        )
+    for name, sort in recipe_fams:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO category "
+                "(name, scope, sort_order, is_active, created_at) "
+                "VALUES (:n, 'recipe_family', :s, 1, CURRENT_TIMESTAMP)"
+            ) if dialect == "sqlite" else text(
+                "INSERT INTO category "
+                "(name, scope, sort_order, is_active, created_at) "
+                "VALUES (:n, 'recipe_family', :s, TRUE, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (scope, name) DO NOTHING"
+            ),
+            {"n": name, "s": sort},
+        )
+
+    # Seed Tag table with dietary tags (idempotent). The Tag model is created
+    # via SQLAlchemy create_all() in init_db() — this just ensures rows exist.
+    # ensure_starter_tags is a no-op on rows already present.
+    try:
+        # Use the same connection as the migration so it's in the same transaction.
+        from app.rms.tags import STARTER_TAGS, ensure_tag
+        for name, kind, color in STARTER_TAGS:
+            try:
+                ensure_tag_with_conn(conn, name, kind, color)
+            except Exception:
+                pass  # Already exists, or transient — skip.
+    except Exception as exc:
+        # Tag seeding is best-effort — don't block schema migration.
+        print(f"WARN: tag seeding skipped: {exc!r}", file=sys.stderr)
+
+    _bump_schema_version(conn, 39)
+
+
+def ensure_tag_with_conn(conn, name: str, kind: str, color: str = "#757575"):
+    """INSERT OR IGNORE a tag by (name, kind). Used inside migrations.
+
+    Mirrors app.rms.tags.ensure_tag but takes a raw connection instead of
+    a Session (migrations don't have ORM sessions).
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    if dialect == "sqlite":
+        conn.execute(
+            text("INSERT OR IGNORE INTO tag (name, kind, color) VALUES (:n, :k, :c)"),
+            {"n": name, "k": kind, "c": color},
+        )
+    else:
+        # Postgres: ON CONFLICT DO NOTHING on (name, kind)
+        conn.execute(
+            text(
+                "INSERT INTO tag (name, kind, color) VALUES (:n, :k, :c) "
+                "ON CONFLICT (name, kind) DO NOTHING"
+            ),
+            {"n": name, "k": kind, "c": color},
+        )
+
+
+def _migration_040_pricing_setting(conn):
+    """Phase 2 — SettingsKV-backed pricing markup setting.
+
+    The suggested retail multiplier (cost * 3) was previously hardcoded
+    in three places: app/routers/recipes.py:519, app/templates/producto_form.html:320,
+    and app/templates/receta_form.html:759. This migration:
+
+    1. Adds a settings_kv row keyed 'pricing.suggested_markup' with the
+       legacy default (multiplier=3.0, round_to_gs=1000).
+    2. Operators can now change the multiplier from /settings/pricing
+       without code deploy.
+
+    Idempotent: app_meta_write uses ON CONFLICT DO UPDATE which is a no-op
+    if the value already matches.
+    """
+    import json as _json
+    pricing_value = _json.dumps({"multiplier": 3.0, "round_to_gs": 1000})
+    from app.rms.db import app_meta_write
+    app_meta_write(conn, "pricing.suggested_markup", pricing_value)
+    _bump_schema_version(conn, 40)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -1350,6 +1526,8 @@ MIGRATIONS = {
     36: _migration_036_product_tax_haccp,
     37: _migration_037_sale_fiscal_invoice,
     38: _migration_038_ingredient_haccp,
+    39: _migration_039_category_table,
+    40: _migration_040_pricing_setting,
 }
 
 

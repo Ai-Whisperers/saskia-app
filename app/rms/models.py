@@ -1272,6 +1272,42 @@ class ComplianceInfo(Base):
     )
 
 
+class Category(Base):
+    """Operator-configurable category/family catalog (migration 039).
+
+    Replaces the hardcoded lists previously living in
+    app/templates/_components/tags.html (product_category_options,
+    recipe_family_options) and the duplicated family list in
+    app/templates/receta_form.html line 53.
+
+    scope ∈ {'product', 'recipe_family'}
+      - 'product'        — categories shown on /productos forms
+      - 'recipe_family'  — families shown on /recetas forms
+
+    Operators can add/edit/reorder from /settings/categories (TODO).
+    For now, seed data matches the prior hardcoded values exactly.
+
+    Uniqueness: (scope, name) — same name allowed across scopes
+    ("Pastelería" is both a product category and a recipe family).
+    """
+
+    __tablename__ = "category"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+    scope: Mapped[str] = mapped_column(String(16), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    __table_args__ = (
+        UniqueConstraint("scope", "name", name="uq_category_scope_name"),
+        Index("ix_category_scope_active", "scope", "is_active", "sort_order"),
+    )
+
+
 __all__ = [
     "Base",
     "AppMeta",
@@ -1309,6 +1345,8 @@ __all__ = [
     "BankTransaction",
     "SettingsKV",
     "ComplianceInfo",
+    # Static-content-audit fix — migration 039
+    "Category",
 ]
 
 

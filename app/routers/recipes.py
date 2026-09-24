@@ -155,6 +155,13 @@ async def recipes_list(
 
 @router.get("/nueva", response_class=HTMLResponse)
 async def recipe_new(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
+    """Show new-recipe form. Passes DB-driven catalogs:
+      - recipe_families: rows from `category` WHERE scope='recipe_family'
+      - dietary_tags: rows from `tag` WHERE kind='recipe'
+    """
+    from app.rms.categories import list_categories as list_cats
+    from app.rms.tags import list_tags_for_kind
+
     ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
     other_recipes = session.scalars(select(Recipe).order_by(Recipe.name)).all()
     return render(
@@ -168,6 +175,8 @@ async def recipe_new(request: Request, session: Session = Depends(get_session)) 
             "units": [u.value for u in Unit],
             "ingredients": ingredients,
             "other_recipes": other_recipes,
+            "recipe_families": list_cats(session, "recipe_family"),
+            "dietary_tags": list_tags_for_kind(session, "recipe"),
         },
     )
 
@@ -423,6 +432,9 @@ async def recipe_edit(
     except ValueError:
         scale_factor = 1.0
 
+    from app.rms.categories import list_categories as list_cats
+    from app.rms.tags import list_tags_for_kind
+
     return render(
         request,
         "receta_form.html",
@@ -438,6 +450,8 @@ async def recipe_edit(
             "unit_cost_gs": unit_cost.batch_cost_gs if unit_cost else None,
             "products_using": [{"id": p.id, "name": p.name} for p in products_using],
             "scale_factor": scale_factor,
+            "recipe_families": list_cats(session, "recipe_family"),
+            "dietary_tags": list_tags_for_kind(session, "recipe"),
         },
     )
 
@@ -511,13 +525,14 @@ async def recipe_create_product_redirect(
     if r is None:
         raise HTTPException(status_code=404, detail="Receta no encontrada")
 
-    # Compute suggested price: cost * 3 markup
+    # Compute suggested price: cost × SettingsKV-configured markup (default 3.0)
     from app.rms.costing import recipe_unit_cost_gs
+    from app.rms.settings_runtime import get_pricing_markup, compute_suggested_price
     unit = recipe_unit_cost_gs(session, r_id)
     suggested_price = ""
     if unit.batch_cost_gs:
-        # 3x markup rounded to nearest 1000 guaraníes
-        suggested_price = str(int(round(unit.batch_cost_gs * 3 / 1000) * 1000))
+        markup_cfg = get_pricing_markup(session)
+        suggested_price = str(compute_suggested_price(unit.batch_cost_gs, markup_cfg))
 
     # Suggested portion label
     portion_label = "1 unidad"
