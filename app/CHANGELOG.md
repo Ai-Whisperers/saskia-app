@@ -81,6 +81,78 @@ Schema: v32 → v38. Migration 034 (market prices), 035 (compliance_info),
 
 
 
+
+### Added (2026-09-24) — Static-content audit Phase 7 (magic numbers, tax constants)
+
+Continues docs/operations/2026-09-24-static-content-audit-phase-7.md.
+Phases 1-6 extracted catalogs and settings; Phase 7 extracts the
+business-rule constants and threshold magic numbers that were still
+hardcoded in Python logic.
+
+**Phase 7 — Constants module**
+- New `app/rms/constants.py` — single source of truth for small business
+  constants: currency (PYG, "Gs."), tax defaults (10% IVA, "resimple"
+  regime), invoice types, stock status codes, costing defaults
+  (25000 Gs/h labor, 15% overhead, 0.85 yield), pagination (50/page,
+  500 max), storage types. No more literal "Gs." or "10" scattered
+  across files.
+
+**Phase 7 — Margin tier table (migration 045)**
+- New `margin_tier` table (`id, code, label, min_cost_gs, max_cost_gs,
+  sort_order, is_active, notes`). Seeded with the legacy 3 tiers
+  (top_10 ≤10000, top_25 ≤5000, bottom_25 ≥1000).
+- `app/rms/margin_tier.py` with `list_margin_tiers()`,
+  `recipe_matches_tier()`, `filter_recipes_by_tier()`.
+- `app/rms/tags.py:filter_recipes()` refactored — uses
+  `margin_tier.filter_recipes_by_tier()` instead of the
+  hardcoded if-chain at the prior lines 378-382.
+- API: `GET /api/margin-tiers`, `POST /api/margin-tiers/{id}/update`.
+- Operator benefit: when inflation shifts cost ranges, operators
+  adjust tier thresholds via UI/API instead of code deploy.
+
+**Phase 7 — Stock status config (migration 046)**
+- New `stock_status_config` table (`id, code, label, threshold_ratio,
+  threshold_days, sort_order, is_active, notes`). Seeded with the
+  4 legacy statuses:
+    - bajo_min: stock < min (no threshold)
+    - critico: ratio < 0.5
+    - sobrestock: ratio > 5.0
+    - muerto: ≥ 30 days no consumption
+- `app/rms/stock_status.py` with `get_thresholds()` and `categorize()`
+  helpers.
+- `app/rms/tags.py:filter_inventory()` refactored — uses
+  `stock_status.categorize()` instead of the hardcoded
+  if-chain at the prior lines 325-331.
+- API: `GET /api/stock-status-config`,
+  `POST /api/stock-status-config/{id}/update`.
+- Operator benefit: "make critico at 0.3 ratio" or "extend muerto
+  to 90 days" via UI without code change.
+
+**Phase 7 — Tax config endpoint**
+- `GET /api/tax-config` — returns the effective tax/invoice config
+  (iva_rate, tax_regime, valid_*_rates, invoice_types,
+  default_invoice_type, labor_cost_per_hour_gs, overhead_multiplier_pct).
+- Reads from `compliance_info` table with fallback to the constants
+  module defaults.
+- Single endpoint so future tax law changes touch one place.
+
+**Phase 7 — Operator UI extensions**
+- /settings/catalog now has 8 tabs (was 5):
+  Categories, Channels, Payments, Templates, Margin tiers,
+  Stock status, Tax config (read-only), Branding.
+- New tabs render tables from the new API endpoints.
+
+**Verified live on saskia-vps.paragu-ai.com**
+- /api/margin-tiers returns 3 tiers with correct thresholds
+- /api/stock-status-config returns 4 statuses with ratios + days
+- /api/tax-config returns full tax/invoice/labor snapshot
+- POST /api/margin-tiers/{id}/update live-tested: 10000 → 8000 → 10000
+- POST /api/stock-status-config/{id}/update live-tested: 30 → 60 → 30
+- /inventario and /recetas still render (filters now use DB thresholds)
+- /settings/catalog renders all 8 tabs
+
+CHANGELOG continues.
+
 ### Added (2026-09-24) — Static-content audit Phase 3-6 (Phases 3, 4, 5, 6)
 
 Continues docs/operations/2026-09-24-static-content-audit.md. The full

@@ -1747,6 +1747,128 @@ def _migration_044_message_templates(conn):
     _bump_schema_version(conn, 44)
 
 
+
+
+
+def _migration_045_margin_tiers(conn):
+    """Phase 7 — Margin tier table (operator-tunable thresholds).
+
+    Replaces hardcoded magic numbers in app/rms/tags.py:378-382 that used
+    10000/5000/1000 Gs thresholds for "top 10%", "top 25%", "bottom 25%"
+    recipe filters. Operators can adjust thresholds via /api/margin-tiers.
+
+    Seed data preserves the legacy behavior exactly:
+      - top_10: max 10000 Gs
+      - top_25: max 5000 Gs
+      - bottom_25: min 1000 Gs
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS margin_tier (
+            id {pk_type},
+            code VARCHAR(32) NOT NULL UNIQUE,
+            label VARCHAR(64) NOT NULL,
+            min_cost_gs INTEGER,
+            max_cost_gs INTEGER,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active {bool_t} NOT NULL DEFAULT 1,
+            notes TEXT,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    ))
+
+    tiers = [
+        ("top_10", "Top 10% (más baratos)", 10000, 10),
+        ("top_25", "Top 25%", 5000, 20),
+        ("bottom_25", "Bottom 25% (más caros)", 1000, 30),
+    ]
+    for code, label, cost, sort in tiers:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO margin_tier (code, label, max_cost_gs, sort_order, is_active, created_at) "
+                "VALUES (:c, :l, :cost, :s, 1, CURRENT_TIMESTAMP)"
+            ) if dialect == "sqlite" else text(
+                "INSERT INTO margin_tier (code, label, max_cost_gs, sort_order, is_active, created_at) "
+                "VALUES (:c, :l, :cost, :s, TRUE, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (code) DO NOTHING"
+            ),
+            {"c": code, "l": label, "cost": cost, "s": sort},
+        )
+    # bottom_25 has min_cost_gs, not max
+    if dialect == "sqlite":
+        conn.execute(text(
+            "UPDATE margin_tier SET min_cost_gs = 1000, max_cost_gs = NULL WHERE code = 'bottom_25'"
+        ))
+    else:
+        conn.execute(text(
+            "UPDATE margin_tier SET min_cost_gs = 1000, max_cost_gs = NULL WHERE code = 'bottom_25'"
+        ))
+
+    _bump_schema_version(conn, 45)
+
+
+def _migration_046_stock_status_config(conn):
+    """Phase 7 — Stock status thresholds (operator-tunable).
+
+    Replaces hardcoded magic numbers in app/rms/tags.py:325-331:
+      - critico: ratio < 0.5
+      - sobrestock: ratio > 5.0
+      - muerto: no consumption in last 30 days
+      - bajo_min: stock < min_stock_qty (no threshold; just the comparison)
+
+    Seed data preserves the legacy behavior.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
+    float_t = "FLOAT" if dialect == "sqlite" else "DOUBLE PRECISION"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS stock_status_config (
+            id {pk_type},
+            code VARCHAR(32) NOT NULL UNIQUE,
+            label VARCHAR(64) NOT NULL,
+            threshold_ratio {float_t},
+            threshold_days INTEGER,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active {bool_t} NOT NULL DEFAULT 1,
+            notes TEXT,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    ))
+
+    statuses = [
+        # code, label, ratio, days, sort
+        ("bajo_min", "Bajo mínimo (stock < min)", None, None, 10),
+        ("critico", "Crítico (ratio < 0.5)", 0.5, None, 20),
+        ("sobrestock", "Sobrestock (ratio > 5.0)", 5.0, None, 30),
+        ("muerto", "Sin consumo (≥ 30 días)", None, 30, 40),
+    ]
+    for code, label, ratio, days, sort in statuses:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO stock_status_config "
+                "(code, label, threshold_ratio, threshold_days, sort_order, is_active, updated_at) "
+                "VALUES (:c, :l, :r, :d, :s, 1, CURRENT_TIMESTAMP)"
+            ) if dialect == "sqlite" else text(
+                "INSERT INTO stock_status_config "
+                "(code, label, threshold_ratio, threshold_days, sort_order, is_active, updated_at) "
+                "VALUES (:c, :l, :r, :d, :s, TRUE, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (code) DO NOTHING"
+            ),
+            {"c": code, "l": label, "r": ratio, "d": days, "s": sort},
+        )
+
+    _bump_schema_version(conn, 46)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -1792,6 +1914,8 @@ MIGRATIONS = {
     42: _migration_042_payment_method_catalog,
     43: _migration_043_branding_setting,
     44: _migration_044_message_templates,
+    45: _migration_045_margin_tiers,
+    46: _migration_046_stock_status_config,
 }
 
 

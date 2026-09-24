@@ -1272,6 +1272,86 @@ class ComplianceInfo(Base):
     )
 
 
+class MarginTier(Base):
+    """Operator-tunable margin tier thresholds (migration 045).
+
+    Replaces the hardcoded if-chain in app/rms/tags.py:378-382 that used
+    magic numbers (10000 / 5000 / 1000 Gs) to filter recipes into
+    "top 10%" / "top 25%" / "bottom 25%" tiers.
+
+    Schema:
+      - id, code (unique)
+      - label (display name, e.g. "Top 10%")
+      - min_cost_gs (nullable; recipes with cost >= this value)
+      - max_cost_gs (nullable; recipes with cost <= this value)
+      - sort_order
+      - is_active
+
+    Operators can adjust tier thresholds when the economy shifts without
+    code deploy.
+    """
+
+    __tablename__ = "margin_tier"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
+    label: Mapped[str] = mapped_column(String(64), nullable=False)
+    min_cost_gs: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_cost_gs: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    __table_args__ = (
+        Index("ix_margin_tier_active_sort", "is_active", "sort_order"),
+    )
+
+
+class StockStatusConfig(Base):
+    """Operator-tunable stock status thresholds (migration 046).
+
+    Replaces the hardcoded magic numbers in app/rms/tags.py:325-331 that
+    defined:
+      - bajo_min: stock < min_stock_qty (no parameter; just the comparison)
+      - critico: stock_qty / min_stock_qty < 0.5
+      - sobrestock: stock_qty / min_stock_qty > 5.0
+      - muerto: no consumption in last N days (default 30)
+
+    Each row = one stock status code + its thresholds. Operators adjust
+    via /api/stock-status-config.
+
+    Schema:
+      - id, code (unique)
+      - label (display name)
+      - threshold_ratio (for critico/sobrestock; nullable if not used)
+      - threshold_days (for muerto; nullable if not used)
+      - sort_order
+      - is_active
+    """
+
+    __tablename__ = "stock_status_config"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
+    label: Mapped[str] = mapped_column(String(64), nullable=False)
+    threshold_ratio: Mapped[float | None] = mapped_column(Float, nullable=True)
+    threshold_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False,
+        default=datetime.utcnow, onupdate=datetime.utcnow,
+    )
+
+    __table_args__ = (
+        Index("ix_stock_status_config_active", "is_active", "sort_order"),
+    )
+
+
 class Channel(Base):
     """Operator-configurable sale channel catalog (migration 041).
 
@@ -1452,6 +1532,9 @@ __all__ = [
     "PaymentMethod",
     # Static-content-audit Phase 6 — migration 044
     "MessageTemplate",
+    # Static-content-audit Phase 7 — migrations 045, 046
+    "MarginTier",
+    "StockStatusConfig",
 ]
 
 

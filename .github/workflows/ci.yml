@@ -1,9 +1,24 @@
 # .github/workflows/ci.yml — minimal CI for the engagement
-# Per tech-stack-review #12: GitHub Actions is free for public repos; this
-# repo (Ai-Whisperers/saskia) IS public, so this is free.
 #
-# Triggers on PR to main. Runs ruff + pytest + migrate smoke + CHANGELOG gate.
-# ~3 min total.
+# Triggers on PR to main + push to main. Runs ruff + pytest + migrate smoke + CHANGELOG gate.
+# ~3 min total per run.
+#
+# Visibility context (updated 2026-09-24):
+#   The repo was switched from public to private at some point in September 2026.
+#   On the free GitHub plan, private repos get 2,000 Actions minutes/month.
+#   Burn rate from Phase 1 push cadence exhausted that budget on 2026-09-23 ~17:04 UTC.
+#   Since then every run shows: "The job was not started because an Actions budget
+#   is preventing further use." PRs #13–19 (R2 work) therefore have no check status.
+#
+#   Resolution options (tracked in docs/operations/2026-09-24-ci-budget-decision.md):
+#     A. Flip repo back to public — restores unlimited free Actions minutes
+#     B. Add a GH Pro billing seat on the operator account — 3,000 min/mo
+#     C. Move CI off GitHub Actions to Render/Cloudflare infrastructure
+#
+#   Until resolved, do NOT merge PRs that require CI gates. Per AGENTS.md §CI:
+#   ruff check, ruff format, pytest 80% coverage, aiw-saskia migrate smoke, and
+#   CHANGELOG discipline must all pass. None are running.
+
 
 name: CI
 

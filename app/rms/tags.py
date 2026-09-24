@@ -318,26 +318,21 @@ def filter_inventory(session: Session, f: InventoryFilter) -> list[Ingredient]:
     ingredients = list(session.execute(q.order_by(Ingredient.name)).scalars())
 
     if f.stock_status:
-        # Filter in Python (cheap; small lists)
+        # Phase 7 — thresholds come from stock_status_config table (with
+        # DEFAULT_* constants fallback). See app/rms/stock_status.py.
+        from app.rms.stock_status import get_thresholds, categorize
+
+        thresholds = get_thresholds(session)
         out: list[Ingredient] = []
         for ing in ingredients:
-            ratio = (ing.stock_qty / ing.min_stock_qty) if ing.min_stock_qty > 0 else 1.0
-            if f.stock_status == "bajo_min" and ing.stock_qty >= ing.min_stock_qty:
-                continue
-            if f.stock_status == "critico" and ratio >= 0.5:
-                continue
-            if f.stock_status == "sobrestock" and ratio < 5:
-                continue
-            if f.stock_status == "muerto":
-                # "Muerto" = no consumption in 30 days; use last_consumed_at
-                if ing.last_consumed_at is not None:
-                    age = (datetime.now(timezone.utc) - ing.last_consumed_at.replace(tzinfo=timezone.utc)).days
-                    if age < 30:
-                        continue
-                else:
-                    # No last_consumed_at at all = treat as muerto
-                    pass
-            out.append(ing)
+            status = categorize(
+                ing.stock_qty,
+                ing.min_stock_qty,
+                ing.last_consumed_at,
+                thresholds,
+            )
+            if status == f.stock_status:
+                out.append(ing)
         return out
     return ingredients
 
@@ -363,26 +358,17 @@ def filter_recipes(session: Session, f: RecipeFilter) -> list[Recipe]:
         q = q.where(Recipe.id.in_(tag_subq))
     recipes = list(session.execute(q.order_by(Recipe.name)).scalars())
     if f.margin_tier:
-        # Compute batch cost for each recipe and pick tier
+        # Phase 7 — thresholds come from the margin_tier table. Operators
+        # adjust via /api/margin-tiers. See app/rms/margin_tier.py.
         from app.rms.costing import recipe_batch_cost_gs
+        from app.rms.margin_tier import filter_recipes_by_tier
 
         recipes_with_cost: list[tuple[Recipe, int | None]] = []
         for r in recipes:
             cost = recipe_batch_cost_gs(session, r.id).batch_cost_gs
             recipes_with_cost.append((r, cost))
-        # Filter by tier
-        out: list[Recipe] = []
-        for r, cost in recipes_with_cost:
-            if cost is None:
-                continue
-            if f.margin_tier == "top_10" and cost > 10000:
-                continue
-            if f.margin_tier == "top_25" and cost > 5000:
-                continue
-            if f.margin_tier == "bottom_25" and cost < 1000:
-                continue
-            out.append(r)
-        return out
+        # filter_recipes_by_tier handles missing tier code (returns all)
+        return filter_recipes_by_tier(session, recipes_with_cost, f.margin_tier)
     return recipes
 
 
