@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from loguru import logger
 
 from app.auth import require_login_or_disabled as require_login
 from app.rms.models import AppMeta, ComplianceInfo, DeliveryZone, Sale, SaleStockMove, StockMovement, User
@@ -275,6 +276,7 @@ def settings_seed_demo(
     except Exception as exc:
         # Roll back partial work and surface the error
         session.rollback()
+        logger.exception(f"seed_demo_data failed: {exc}")
         return RedirectResponse(
             url=f"/settings?flash=Error+al+cargar+ejemplo:+{type(exc).__name__}",
             status_code=303,
