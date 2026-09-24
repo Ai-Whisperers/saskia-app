@@ -1986,6 +1986,75 @@ def _migration_048_date_range_presets(conn):
     _bump_schema_version(conn, 48)
 
 
+
+
+
+def _migration_049_storage_keywords(conn):
+    """Phase 11 — Localize HACCP storage keywords to DB.
+
+    Replaces the hardcoded _STORAGE_KEYWORDS dict in
+    app/rms/ingredient_intel.py. Operators add/edit storage keywords from
+    /settings/catalog without code deploy.
+
+    Seed data matches the legacy dict exactly:
+      - refrigerated: leche, crema, manteca, mantequilla, yogur, queso,
+        huevo, huevos, ricota, requesón, dulce de leche, crema agria,
+        queso crema
+      - frozen: congelad
+      - ambient: (default — no keywords; anything not perishable)
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS storage_keyword (
+            id {pk_type},
+            storage_code VARCHAR(32) NOT NULL,
+            keyword VARCHAR(64) NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active {bool_t} NOT NULL DEFAULT 1,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    ))
+
+    # Seed data: (storage_code, keyword, sort_order)
+    seeds = [
+        # Refrigerated — order by likelihood of match
+        ("refrigerated", "leche", 10),
+        ("refrigerated", "crema", 20),
+        ("refrigerated", "manteca", 30),
+        ("refrigerated", "mantequilla", 40),
+        ("refrigerated", "yogur", 50),
+        ("refrigerated", "queso", 60),
+        ("refrigerated", "huevo", 70),
+        ("refrigerated", "huevos", 80),
+        ("refrigerated", "ricota", 90),
+        ("refrigerated", "requesón", 100),
+        ("refrigerated", "dulce de leche", 110),
+        ("refrigerated", "crema agria", 120),
+        ("refrigerated", "queso crema", 130),
+        # Frozen — match 'congelad' prefix
+        ("frozen", "congelad", 10),
+    ]
+    for code, keyword, sort in seeds:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO storage_keyword (storage_code, keyword, sort_order, is_active, created_at) "
+                "VALUES (:c, :k, :s, 1, CURRENT_TIMESTAMP)"
+            ) if dialect == "sqlite" else text(
+                "INSERT INTO storage_keyword (storage_code, keyword, sort_order, is_active, created_at) "
+                "VALUES (:c, :k, :s, TRUE, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (storage_code, keyword) DO NOTHING"
+            ),
+            {"c": code, "k": keyword, "s": sort},
+        )
+
+    _bump_schema_version(conn, 49)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -2035,6 +2104,7 @@ MIGRATIONS = {
     46: _migration_046_stock_status_config,
     47: _migration_047_storage_types,
     48: _migration_048_date_range_presets,
+    49: _migration_049_storage_keywords,
 }
 
 

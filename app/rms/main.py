@@ -475,6 +475,15 @@ if os.getenv("AIW_SASKIA_INTERNAL_ROUTES") == "1":
     app.include_router(ops.router)
 app.include_router(settings.router)
 app.include_router(settings_runtime.router)
+
+
+# Spanish-language alias: /proveedores → /suppliers
+# Operators see "proveedores" in UI copy. Accepting both URLs means
+# external links/bookmarks work regardless of which word was used.
+@app.get("/proveedores", include_in_schema=False)
+def proveedores_alias():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/suppliers", status_code=303)
 app.include_router(users.router)
 app.include_router(reorder.router)
 app.include_router(help.router)

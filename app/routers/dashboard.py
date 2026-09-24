@@ -41,6 +41,7 @@ from decimal import Decimal
 router = APIRouter(dependencies=[Depends(require_login)])
 
 
+
 def _period_window(period: str) -> tuple[datetime, datetime]:
     """Return [start, end) of the current period in Asunción local time.
 
@@ -157,9 +158,6 @@ def _delta_pct(current: int, prior: int) -> dict[str, float | str | None]:
     return {"pct": pct, "direction": direction, "label": label}
 
 
-@router.get("/", response_class=HTMLResponse)
-
-
 def _compliance_alerts(session) -> list[dict]:
     """Phase 1.A — Return list of expiring / missing regulatory IDs.
 
@@ -257,6 +255,8 @@ def _compliance_alerts(session) -> list[dict]:
     return alerts
 
 
+@router.get("/", response_class=HTMLResponse)
+@router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(
     request: Request,
     period: str = Query("today", pattern="^(today|week|month|custom)$"),

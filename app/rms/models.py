@@ -1415,6 +1415,40 @@ class StockStatusConfig(Base):
     )
 
 
+class StorageKeyword(Base):
+    """Operator-tunable HACCP storage keyword map (migration 049).
+
+    Replaces the hardcoded _STORAGE_KEYWORDS dict in
+    app/rms/ingredient_intel.py. Operators add/edit storage keywords from
+    /settings/catalog without code deploy.
+
+    Schema:
+      - id, storage_code (links to storage_type.code)
+      - keyword (lowercase substring matched against ingredient name)
+      - sort_order (priority — lower = checked first)
+      - is_active
+
+    When infer_storage() runs on an ingredient name, it normalizes the
+    name (lowercase + stripped) and checks for substring matches against
+    the keyword list, sorted by sort_order.
+    """
+
+    __tablename__ = "storage_keyword"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    storage_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    keyword: Mapped[str] = mapped_column(String(64), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    __table_args__ = (
+        Index("ix_storage_keyword_active_sort", "storage_code", "is_active", "sort_order"),
+    )
+
+
 class Channel(Base):
     """Operator-configurable sale channel catalog (migration 041).
 
@@ -1602,6 +1636,8 @@ __all__ = [
     "StorageType",
     # Static-content-audit Phase 9 — migration 048
     "DateRangePreset",
+    # Static-content-audit Phase 11 — migration 049
+    "StorageKeyword",
 ]
 
 

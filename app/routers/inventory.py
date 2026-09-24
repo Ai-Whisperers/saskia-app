@@ -263,7 +263,7 @@ def inventory_create(
     # If operator left the classification fields empty, fill from `name` keyword match.
     # Operator can always override any field after creation via /editar.
     name_for_inference = name.strip()
-    classification = classify_ingredient(name_for_inference)
+    classification = classify_ingredient(name_for_inference, session=session)
     inferred_category = classification["category"]
     inferred_subcategory = classification["subcategory"]
     inferred_role = classification["role"]
@@ -449,7 +449,7 @@ def inventory_update(
         ing.category = explicit_category
         # Re-infer the rest of the classification against the new name so
         # the ingredient's metadata stays coherent after a rename.
-        cls = classify_ingredient(name_clean)
+        cls = classify_ingredient(name_clean, session=session)
         ing.subcategory = cls["subcategory"]
         ing.role = cls["role"]
         ing.allergens = ",".join(cls["allergens"]) or None
@@ -458,7 +458,7 @@ def inventory_update(
         ing.storage = cls["storage"]
     else:
         ing.category = None
-        cls = classify_ingredient(name_clean)
+        cls = classify_ingredient(name_clean, session=session)
         ing.category = cls["category"]
         ing.subcategory = cls["subcategory"]
         ing.role = cls["role"]
