@@ -924,11 +924,7 @@
         </td>
         <td class="line-col-unit">
           <select name="unit" class="line-unit-select" aria-label="Unidad">
-            <option value="g" selected>g</option>
-            <option value="kg">kg</option>
-            <option value="ml">ml</option>
-            <option value="l">l</option>
-            <option value="und">und</option>
+            ${(window.SASKIA_UNITS || ["g","kg","ml","l","und"]).map(function(u){return '<option value="'+u+'"'+(u==="g"?' selected':'')+'>'+u+'</option>';}).join('')}
           </select>
         </td>
         <td class="line-col-cost">

@@ -1487,6 +1487,266 @@ def _migration_040_pricing_setting(conn):
     _bump_schema_version(conn, 40)
 
 
+
+
+
+def _migration_041_channel_catalog(conn):
+    """Phase 4 — Sale channel catalog table.
+
+    Replaces the hardcoded CHANNELS_DISPLAY / ALLOWED_CHANNELS frozenset
+    in app/rms/schemas.py with a DB-backed table. Operators can add/edit
+    channels from /settings/channels without code deploy.
+
+    Seed data matches the legacy frozenset exactly:
+      - mostrador (default)
+      - mostrador-encargo
+      - whatsapp
+      - pedidosya
+      - monchis
+    """
+    from app.rms.db import ensure_tag_with_conn
+
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
+    float_t = "FLOAT" if dialect == "sqlite" else "DOUBLE PRECISION"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS channel (
+            id {pk_type},
+            code VARCHAR(32) NOT NULL UNIQUE,
+            label VARCHAR(64) NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_default {bool_t} NOT NULL DEFAULT 0,
+            is_active {bool_t} NOT NULL DEFAULT 1,
+            notes TEXT,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    ))
+
+    channels = [
+        ("mostrador", "Mostrador", 10, True),
+        ("mostrador-encargo", "Mostrador (encargo)", 20, False),
+        ("whatsapp", "WhatsApp", 30, False),
+        ("pedidosya", "PedidosYa", 40, False),
+        ("monchis", "Monchis", 50, False),
+    ]
+    for code, label, sort, is_default in channels:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO channel (code, label, sort_order, is_default, is_active, created_at) "
+                "VALUES (:c, :l, :s, :d, 1, CURRENT_TIMESTAMP)"
+            ) if dialect == "sqlite" else text(
+                "INSERT INTO channel (code, label, sort_order, is_default, is_active, created_at) "
+                "VALUES (:c, :l, :s, :d, TRUE, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (code) DO NOTHING"
+            ),
+            {"c": code, "l": label, "s": sort, "d": 1 if is_default else 0},
+        )
+
+    _bump_schema_version(conn, 41)
+
+
+def _migration_042_payment_method_catalog(conn):
+    """Phase 4 — Payment method catalog table.
+
+    Replaces PAYMENT_METHODS_DISPLAY / ALLOWED_PAYMENT_METHODS frozenset
+    in app/rms/schemas.py with a DB-backed table.
+
+    Seed data matches the legacy frozenset:
+      - efectivo (default)
+      - transferencia (requires reference)
+      - qr
+      - tarjeta (typically has fee_pct)
+      - otro
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
+    float_t = "FLOAT" if dialect == "sqlite" else "DOUBLE PRECISION"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS payment_method (
+            id {pk_type},
+            code VARCHAR(32) NOT NULL UNIQUE,
+            label VARCHAR(64) NOT NULL,
+            requires_reference {bool_t} NOT NULL DEFAULT 0,
+            fee_pct {float_t} NOT NULL DEFAULT 0.0,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_default {bool_t} NOT NULL DEFAULT 0,
+            is_active {bool_t} NOT NULL DEFAULT 1,
+            notes TEXT,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    ))
+
+    methods = [
+        ("efectivo", "Efectivo", False, 0.0, True),
+        ("transferencia", "Transferencia", True, 0.0, False),
+        ("qr", "QR", True, 0.0, False),
+        ("tarjeta", "Tarjeta", True, 3.0, False),
+        ("otro", "Otro", False, 0.0, False),
+    ]
+    for code, label, req_ref, fee, is_default in methods:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO payment_method "
+                "(code, label, requires_reference, fee_pct, sort_order, is_default, is_active, created_at) "
+                "VALUES (:c, :l, :r, :f, :s, :d, 1, CURRENT_TIMESTAMP)"
+            ) if dialect == "sqlite" else text(
+                "INSERT INTO payment_method "
+                "(code, label, requires_reference, fee_pct, sort_order, is_default, is_active, created_at) "
+                "VALUES (:c, :l, :r, :f, :s, :d, TRUE, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (code) DO NOTHING"
+            ),
+            {"c": code, "l": label, "r": 1 if req_ref else 0, "f": fee, "s": 0, "d": 1 if is_default else 0},
+        )
+
+    _bump_schema_version(conn, 42)
+
+
+
+
+
+def _migration_043_branding_setting(conn):
+    """Phase 5 — Branding settings.
+
+    Seeds SettingsKV["branding"] with defaults that match the previous
+    hardcoded copy in templates/login.html and templates/base.html:
+      - business_name: "Saskia RMS"
+      - tagline: "Panadería / Bakery — Sistema de gestión"
+      - footer: "Sistema local · 2026"
+      - accent_color: "#f97316" (CSS --color-accent)
+      - logo_path: "" (no logo by default)
+
+    Operators can change any field from /settings/branding without code
+    deploy (Phase 5 follow-up UI page).
+    """
+    import json as _json
+    branding = {
+        "business_name": "Saskia RMS",
+        "tagline": "Panadería / Bakery — Sistema de gestión",
+        "footer": "Sistema local · 2026",
+        "accent_color": "#f97316",
+        "logo_path": "",
+    }
+    from app.rms.db import app_meta_write
+    app_meta_write(conn, "branding", _json.dumps(branding))
+    _bump_schema_version(conn, 43)
+
+
+
+
+
+def _migration_044_message_templates(conn):
+    """Phase 6 — MessageTemplate table + seed common templates.
+
+    Replaces hardcoded copy in pedidos.py, email notifications, etc.
+    Operators can edit from /settings/templates without code deploy.
+
+    Seed data matches the prior hardcoded copy in app/routers/pedidos.py
+    and similar files. Body uses {placeholder} format() syntax — substitute
+    at send time.
+
+    Idempotent: INSERT OR IGNORE on (channel, key, locale) unique.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    text_type = "TEXT"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS message_template (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel VARCHAR(16) NOT NULL,
+            key VARCHAR(64) NOT NULL,
+            subject VARCHAR(200),
+            body {text_type} NOT NULL,
+            locale VARCHAR(8) NOT NULL DEFAULT 'es-PY',
+            is_active BOOLEAN NOT NULL DEFAULT 1,
+            version INTEGER NOT NULL DEFAULT 1,
+            notes {text_type},
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (channel, key, locale)
+        )
+        """
+    ))
+
+    # Seed default templates (Paraguayan Spanish, es-PY)
+    defaults = [
+        # WhatsApp — pedido ready for pickup
+        (
+            "whatsapp", "pedido_listo",
+            None,
+            "¡Hola {customer_name}! Tu pedido #{pedido_id} ya está listo para retirar. "
+            "Total: Gs. {total_gs}. ¡Gracias por confiar en {business_name}!",
+            "es-PY", 1,
+            "Sent via WhatsApp when pedido is marked ready for pickup.",
+        ),
+        # WhatsApp — pedido confirmed
+        (
+            "whatsapp", "pedido_confirmado",
+            None,
+            "¡{customer_name}, tu pedido #{pedido_id} fue confirmado! "
+            "Prometido para {promised_date}. Total: Gs. {total_gs}.",
+            "es-PY", 1,
+            "Sent via WhatsApp when pedido is first created.",
+        ),
+        # WhatsApp — low stock alert (for supplier/internal)
+        (
+            "whatsapp", "stock_bajo",
+            None,
+            "⚠ Stock bajo: {ingredient_name}. Actual: {stock_qty} {unit} "
+            "(mínimo: {min_stock_qty} {unit}). Reposición sugerida: {reorder_qty} {unit}.",
+            "es-PY", 1,
+            "Sent to operator when an ingredient drops below minimum.",
+        ),
+        # Email — daily summary (subject + body)
+        (
+            "email", "resumen_diario",
+            "Resumen del día — {date}",
+            "Buen día, Iván.\n\n"
+            "Ventas de ayer: {total_sales_gs} Gs. ({total_count} ventas).\n"
+            "Stock bajo: {low_stock_count} ingredientes.\n"
+            "Por vencer: {expiring_count} ingredientes.\n\n"
+            "Detalle en {dashboard_url}.",
+            "es-PY", 1,
+            "Daily morning email with key metrics.",
+        ),
+        # WhatsApp — customer order share link
+        (
+            "whatsapp", "pedido_compartir",
+            None,
+            "Tu pedido #{pedido_id} en {business_name}: {public_url}",
+            "es-PY", 1,
+            "Sent to customer with the public pickup-tracking link.",
+        ),
+        # Generic — fallback
+        (
+            "email", "generic",
+            "Notificación de {business_name}",
+            "{message_body}",
+            "es-PY", 1,
+            "Generic email template. Subject + body interpolated.",
+        ),
+    ]
+
+    for ch, key, subject, body, locale, version, notes in defaults:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO message_template "
+                "(channel, key, subject, body, locale, version, notes, is_active, updated_at) "
+                "VALUES (:ch, :k, :sub, :body, :loc, :v, :notes, 1, CURRENT_TIMESTAMP)"
+            ),
+            {"ch": ch, "k": key, "sub": subject, "body": body, "loc": locale, "v": version, "notes": notes},
+        )
+
+    _bump_schema_version(conn, 44)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -1528,6 +1788,10 @@ MIGRATIONS = {
     38: _migration_038_ingredient_haccp,
     39: _migration_039_category_table,
     40: _migration_040_pricing_setting,
+    41: _migration_041_channel_catalog,
+    42: _migration_042_payment_method_catalog,
+    43: _migration_043_branding_setting,
+    44: _migration_044_message_templates,
 }
 
 

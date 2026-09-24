@@ -223,6 +223,64 @@ Not yet searched exhaustively — see **Open finding** below.
 
 ---
 
+## Phase 3 — Unit enum exposure (next)
+
+The `Unit` enum in `app/rms/units.py` already enforces unit discipline at
+the Python level (per `app/rms/AGENTS.md`). But the UI `<option>` lists in
+`receta_form.html` and other forms are still hardcoded:
+
+```html
+<select name="line_unit">
+  <option value="g">g</option>
+  <option value="kg">kg</option>
+  ...
+</select>
+```
+
+**Fix:** Expose `app/rms/units.py:Unit` members through a Jinja macro that
+loops the enum. Adding a new unit = 1-line Enum import + label.
+
+## Phase 4 — Channels + payment methods
+
+The `sale.channel` column (migration 015) currently holds free-text strings:
+`mostrador`, `whatsapp`, `pedidosya`, `monchis`, `mostrador-encargo`.
+Same for `sale.payment_method`. Channel-specific margins already live in
+`SettingsKV["channels_margins"]` (loaded by `app/routers/herebus.py:261`).
+
+**Fix:**
+- New `Channel` table (`id, code, label, is_default, sort_order, is_active`)
+- New `PaymentMethod` table (`id, code, label, requires_reference, fee_pct`)
+- Seed with the existing 5 channels and 4 payment methods
+- Update `Sale.channel` and `Sale.payment_method` to FK these tables
+- Sales filter dropdowns load from these tables
+
+## Phase 5 — Branding strings
+
+Currently hardcoded in:
+- `app/templates/login.html:16-17` — "Saskia RMS" + "Panadería / Bakery — Sistema de gestión"
+- `app/templates/base.html` — footer "Sistema local · 2026"
+- CSS variables (e.g. `--color-accent: #f97316`) — color in CSS files
+
+**Fix:**
+- `SettingsKV["branding.business_name"]` — "Saskia RMS"
+- `SettingsKV["branding.tagline"]` — "Panadería / Bakery — Sistema de gestión"
+- `SettingsKV["branding.footer"]` — "Sistema local · 2026"
+- `SettingsKV["branding.accent_color"]` — "#f97316"
+- `SettingsKV["branding.logo_path"]` — "/static/uploads/logo.png"
+- Templates read these via a helper module
+- Add `/settings/branding` HTML page for operators
+
+## Phase 6 — Message templates
+
+Email and WhatsApp message templates. Currently hardcoded copy in
+`app/routers/pedidos.py`, notification flows, etc.
+
+**Fix (longer term):**
+- `MessageTemplate` table (`id, channel, key, subject, body, locale`)
+- UI in `/settings/templates` for Kiki to edit copy without code deploy
+
+---
+
 ## Estimated impact
 
 | Phase | Effort | Operator benefit |

@@ -142,9 +142,33 @@ def render(
     """Render a Jinja2 template with the standard context.
 
     Always injects `request` so templates can use {{ url_for(...) }}.
+    Also injects `branding` (Phase 5 — operator-configurable) so every
+    page can read {{ branding.business_name }}, {{ branding.tagline }},
+    etc. The branding dict is loaded once per request from SettingsKV;
+    failures fall back to DEFAULT_BRANDING so a missing/broken settings
+    row never breaks the render path.
     """
     ctx = context or {}
     ctx.setdefault("request", request)
+
+    # Phase 5 — load branding once per request. Lazy import keeps
+    # template_render import-light.
+    if "branding" not in ctx:
+        try:
+            from app.rms.db import make_session_factory, get_db_session
+            from app.rms.settings_runtime import get_branding
+            engine = request.app.state.engine if hasattr(request.app.state, "engine") else None
+            if engine is not None:
+                sf = make_session_factory(engine)
+                with get_db_session(sf) as session:
+                    ctx["branding"] = get_branding(session)
+            else:
+                from app.rms.settings_runtime import DEFAULT_BRANDING
+                ctx["branding"] = DEFAULT_BRANDING
+        except Exception:
+            from app.rms.settings_runtime import DEFAULT_BRANDING
+            ctx["branding"] = DEFAULT_BRANDING
+
     return templates.TemplateResponse(request, template_name, ctx, status_code=status_code)
 
 

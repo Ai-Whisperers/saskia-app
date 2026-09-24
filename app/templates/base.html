@@ -105,6 +105,7 @@
         <div class="menu-section">Sistema</div>
         {{ m.nav_link("/excel", "Excel", icon="icon-excel", current_path=request.url.path) }}
         {{ m.nav_link("/settings", "Configuración", icon="icon-config", current_path=request.url.path) }}
+        {{ m.nav_link("/settings/catalog", "Catálogos", icon="icon-config", current_path=request.url.path) }}
       </div><div class="nav-right">
 
       <button type="button" class="search-btn btn-ghost btn-icon" id="global-search-btn"
@@ -206,7 +207,7 @@
 
   <footer class="footer">
 
-    <small>Saskia RMS v1.0 · Sistema local · {{ now_year() }}</small>
+    <small>{{ branding.business_name }} v1.0 · {{ branding.footer }} · {{ now_year() }}</small>
 
   </footer>
 

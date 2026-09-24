@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}Configuración — Catálogos{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Catálogos y configuración</h1>
+  <p class="muted">
+    Modificá categorías, canales de venta, formas de pago, plantillas de
+    mensajes y branding sin tocar código.
+  </p>
+</div>
+
+<!-- ── Tab navigation ──────────────────────────────────────────────── -->
+<nav class="tabs" aria-label="Secciones de configuración">
+  <button type="button" class="tab is-active" data-tab="categories">Categorías</button>
+  <button type="button" class="tab" data-tab="channels">Canales de venta</button>
+  <button type="button" class="tab" data-tab="payments">Formas de pago</button>
+  <button type="button" class="tab" data-tab="templates">Plantillas</button>
+  <button type="button" class="tab" data-tab="branding">Branding</button>
+</nav>
+
+<!-- ── Categories tab ─────────────────────────────────────────────── -->
+<section class="tab-panel is-active" data-panel="categories">
+  <h2>Categorías de producto</h2>
+  <table class="data-table" id="product-categories-table">
+    <thead><tr><th>Nombre</th><th>Orden</th><th>Estado</th><th></th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <h2>Familias de receta</h2>
+  <table class="data-table" id="recipe-families-table">
+    <thead><tr><th>Nombre</th><th>Orden</th><th>Estado</th><th></th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Channels tab ───────────────────────────────────────────────── -->
+<section class="tab-panel" data-panel="channels">
+  <h2>Canales de venta</h2>
+  <table class="data-table" id="channels-table">
+    <thead><tr><th>Código</th><th>Etiqueta</th><th>Orden</th><th>Predeterminado</th><th></th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Payments tab ───────────────────────────────────────────────── -->
+<section class="tab-panel" data-panel="payments">
+  <h2>Formas de pago</h2>
+  <table class="data-table" id="payments-table">
+    <thead>
+      <tr>
+        <th>Código</th><th>Etiqueta</th><th>Rec. ref.</th>
+        <th>% Comisión</th><th>Orden</th><th>Predeterminado</th><th></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Templates tab ─────────────────────────────────────────────── -->
+<section class="tab-panel" data-panel="templates">
+  <h2>Plantillas de mensajes</h2>
+  <p class="muted">Editá el cuerpo del mensaje. Usá <code>{nombre}</code>, <code>{total_gs}</code>, etc. como placeholders.</p>
+  <table class="data-table" id="templates-table">
+    <thead>
+      <tr><th>Canal</th><th>Clave</th><th>Asunto</th><th>Cuerpo</th><th>Estado</th><th></th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Branding tab ───────────────────────────────────────────────── -->
+<section class="tab-panel" data-panel="branding">
+  <h2>Branding</h2>
+  <form id="branding-form">
+    <div class="form-row">
+      <label for="business_name">Nombre del negocio</label>
+      <input type="text" id="business_name" name="business_name" maxlength="200" required>
+    </div>
+    <div class="form-row">
+      <label for="tagline">Lema</label>
+      <input type="text" id="tagline" name="tagline" maxlength="200">
+    </div>
+    <div class="form-row">
+      <label for="footer">Pie de página</label>
+      <input type="text" id="footer" name="footer" maxlength="200">
+    </div>
+    <div class="form-row">
+      <label for="accent_color">Color de acento (hex)</label>
+      <input type="text" id="accent_color" name="accent_color" maxlength="20"
+             pattern="^#[0-9A-Fa-f]{3,8}$">
+      <small class="muted">Ej: <code>#f97316</code></small>
+    </div>
+    <div class="form-row">
+      <label for="logo_path">Ruta del logo (opcional)</label>
+      <input type="text" id="logo_path" name="logo_path" maxlength="500">
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Guardar cambios</button>
+    </div>
+  </form>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  // ── Tab switching ──────────────────────────────────────────────
+  document.querySelectorAll('.tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('is-active'); });
+      document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('is-active'); });
+      tab.classList.add('is-active');
+      var panel = document.querySelector('.tab-panel[data-panel="' + tab.dataset.tab + '"]');
+      if (panel) panel.classList.add('is-active');
+    });
+  });
+
+  // ── Generic fetch helper ──────────────────────────────────────
+  function api(method, path, body) {
+    var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    return fetch(path, opts).then(function(r) {
+      if (!r.ok) throw new Error(r.status + ': ' + r.statusText);
+      return r.json();
+    });
+  }
+
+  // ── Categories + families ─────────────────────────────────────
+  function loadCategories(scope, tableId) {
+    return api('GET', '/api/categories?scope=' + scope).then(function(rows) {
+      var tbody = document.querySelector('#' + tableId + ' tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      rows.forEach(function(c) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td>' + c.name + '</td>' +
+          '<td>' + c.sort_order + '</td>' +
+          '<td>' + (c.is_active ? 'Activo' : 'Inactivo') + '</td>' +
+          '<td></td>';
+        tbody.appendChild(tr);
+      });
+    }).catch(function(err) {
+      console.error('loadCategories failed:', err);
+    });
+  }
+
+  loadCategories('product', 'product-categories-table');
+  loadCategories('recipe_family', 'recipe-families-table');
+
+  // ── Channels ──────────────────────────────────────────────────
+  function loadChannels() {
+    api('GET', '/api/channels').then(function(rows) {
+      var tbody = document.querySelector('#channels-table tbody');
+      tbody.innerHTML = '';
+      rows.forEach(function(c) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td><code>' + c.code + '</code></td>' +
+          '<td>' + c.label + '</td>' +
+          '<td>' + c.sort_order + '</td>' +
+          '<td>' + (c.is_default ? '✓' : '') + '</td>' +
+          '<td></td>';
+        tbody.appendChild(tr);
+      });
+    });
+  }
+  loadChannels();
+
+  // ── Payment methods ───────────────────────────────────────────
+  function loadPayments() {
+    api('GET', '/api/payment-methods').then(function(rows) {
+      var tbody = document.querySelector('#payments-table tbody');
+      tbody.innerHTML = '';
+      rows.forEach(function(p) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td><code>' + p.code + '</code></td>' +
+          '<td>' + p.label + '</td>' +
+          '<td>' + (p.requires_reference ? 'Sí' : 'No') + '</td>' +
+          '<td>' + p.fee_pct + '%</td>' +
+          '<td>' + p.sort_order + '</td>' +
+          '<td>' + (p.is_default ? '✓' : '') + '</td>' +
+          '<td></td>';
+        tbody.appendChild(tr);
+      });
+    });
+  }
+  loadPayments();
+
+  // ── Templates ─────────────────────────────────────────────────
+  function loadTemplates() {
+    api('GET', '/api/templates').then(function(rows) {
+      var tbody = document.querySelector('#templates-table tbody');
+      tbody.innerHTML = '';
+      rows.forEach(function(t) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td><code>' + t.channel + '</code></td>' +
+          '<td><code>' + t.key + '</code></td>' +
+          '<td>' + (t.subject || '—') + '</td>' +
+          '<td><pre style="white-space:pre-wrap;font-size:0.85em;margin:0;">' +
+            t.body.substring(0, 100) + (t.body.length > 100 ? '…' : '') +
+          '</pre></td>' +
+          '<td>' + (t.is_active ? 'Activo' : 'Inactivo') + ' (v' + t.version + ')</td>' +
+          '<td></td>';
+        tbody.appendChild(tr);
+      });
+    });
+  }
+  loadTemplates();
+
+  // ── Branding form ─────────────────────────────────────────────
+  api('GET', '/api/settings/branding').then(function(b) {
+    document.getElementById('business_name').value = b.business_name || '';
+    document.getElementById('tagline').value = b.tagline || '';
+    document.getElementById('footer').value = b.footer || '';
+    document.getElementById('accent_color').value = b.accent_color || '';
+    document.getElementById('logo_path').value = b.logo_path || '';
+  });
+
+  document.getElementById('branding-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var body = {
+      business_name: document.getElementById('business_name').value,
+      tagline: document.getElementById('tagline').value,
+      footer: document.getElementById('footer').value,
+      accent_color: document.getElementById('accent_color').value,
+      logo_path: document.getElementById('logo_path').value,
+    };
+    api('POST', '/api/settings/branding', body).then(function() {
+      alert('Branding guardado. Recargá para ver los cambios en toda la app.');
+      location.reload();
+    }).catch(function(err) {
+      alert('Error: ' + err.message);
+    });
+  });
+})();
+</script>
+{% endblock %}

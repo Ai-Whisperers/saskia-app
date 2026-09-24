@@ -116,11 +116,59 @@ def compute_suggested_price(cost_gs: int, markup_cfg: dict | None = None) -> int
     return int(math.ceil(cost_gs * mult / rnd) * rnd)
 
 
+
+
+
+# ─── Branding (Phase 5) ────────────────────────────────────────────────
+
+DEFAULT_BRANDING = {
+    "business_name": "Saskia RMS",
+    "tagline": "Panadería / Bakery — Sistema de gestión",
+    "footer": "Sistema local · 2026",
+    "accent_color": "#f97316",
+    "logo_path": "",
+}
+
+
+def get_branding(session) -> dict:
+    """Return the branding dict with defaults for missing keys."""
+    cfg = settings_get(session, "branding", {})
+    out = dict(DEFAULT_BRANDING)
+    if isinstance(cfg, dict):
+        for k in DEFAULT_BRANDING:
+            if k in cfg and isinstance(cfg[k], str):
+                out[k] = cfg[k]
+    return out
+
+
+def set_branding(session, **fields) -> dict:
+    """Update branding fields. Returns the new full dict.
+
+    Allowed keys: business_name, tagline, footer, accent_color, logo_path.
+    Each is validated to be a string and within reasonable length.
+    """
+    current = get_branding(session)
+    for k, v in fields.items():
+        if k not in DEFAULT_BRANDING:
+            raise ValueError(f"Unknown branding key: {k!r}")
+        if not isinstance(v, str):
+            raise ValueError(f"branding.{k} must be a string")
+        if len(v) > 500:
+            raise ValueError(f"branding.{k} too long (max 500 chars)")
+        current[k] = v
+    settings_set(session, "branding", current)
+    return current
+
+
 __all__ = [
     "DEFAULT_PRICING_MARKUP",
+    "DEFAULT_BRANDING",
     "settings_get",
     "settings_set",
     "get_pricing_markup",
     "set_pricing_markup",
     "compute_suggested_price",
+    "get_branding",
+    "set_branding",
 ]
+

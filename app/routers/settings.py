@@ -293,4 +293,19 @@ def settings_seed_demo(
     )
 
 
+
+
+
+@router.get("/catalog", response_class=HTMLResponse)
+def settings_catalog_page(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Operator-facing catalog configuration page (Phase 4 + 5 + 6).
+
+    Lets Kiki/Saskia manage categories, channels, payment methods,
+    message templates, and branding without touching code. All writes
+    go through the JSON API endpoints in app/routers/settings_runtime.py.
+    """
+    return render(request, "settings_catalog.html", {})
 __all__ = ["router"]

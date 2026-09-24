@@ -19,6 +19,7 @@ from app.rms.config import ASUNCION_TZ
 from app.rms.costing import RecipeWithoutYield, apply_sale, void_sale
 from app.rms.dependencies import get_session
 from app.rms.models import Customer, Product, Sale
+from app.rms.catalogs import list_channels, list_payment_methods, default_channel_code, default_payment_method_code
 from app.rms.schemas import (
     ALLOWED_CHANNELS,
     CHANNELS_DISPLAY,
@@ -206,10 +207,12 @@ async def sales_list(
             "products": products,
             "sales": [_decorated(s) for s in sales_page],
             "quick_sell": quick_sell,
-            "payment_methods": list(PAYMENT_METHODS_DISPLAY),
-            "payment_method_default": PAYMENT_METHOD_DEFAULT,
-            "channels": list(CHANNELS_DISPLAY),
-            "channel_default": CHANNEL_DEFAULT,
+            # DB-driven catalogs (Phase 4 of static-content audit). Falls back
+            # to schema constants if the DB tables haven't been seeded yet.
+            "channels": [c.code for c in list_channels(session)] or list(CHANNELS_DISPLAY),
+            "channel_default": default_channel_code(session) or CHANNEL_DEFAULT,
+            "payment_methods": [pm.code for pm in list_payment_methods(session)] or list(PAYMENT_METHODS_DISPLAY),
+            "payment_method_default": default_payment_method_code(session) or PAYMENT_METHOD_DEFAULT,
             "now_local": datetime.now(ASUNCION_TZ).strftime("%Y-%m-%dT%H:%M"),
             "idem_key": _generate_idem_key(),
             # Phase 1.B — pass tax regime so the form defaults the invoice type

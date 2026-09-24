@@ -786,11 +786,37 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
         return
 
     phone = pedido.customer_phone.strip()
-    msg = (
-        f"¡Tu pedido #{pedido.id} esta listo para retirar! Te esperamos 😊"
-        if pedido.channel == "WhatsApp"
-        else f"Tu pedido #{pedido.id} esta listo para retirar. Gracias!"
-    )
+    # Phase 6 — pull message body from MessageTemplate table when available.
+    # Falls back to the legacy hardcoded copy if the template row is missing.
+    msg = None
+    try:
+        from app.rms.models import MessageTemplate as MT
+        from sqlalchemy import select as _select
+        template_key = "pedido_listo" if pedido.channel == "WhatsApp" else "generic"
+        template_channel = "whatsapp" if pedido.channel == "WhatsApp" else "email"
+        row = session.execute(
+            _select(MT).where(
+                MT.channel == template_channel,
+                MT.key == template_key,
+                MT.is_active.is_(True),
+            )
+        ).scalar_one_or_none()
+        if row is not None:
+            from app.routers.settings_runtime import render_template
+            msg = render_template(row.body, {
+                "customer_name": pedido.customer_name or "",
+                "pedido_id": pedido.id,
+                "total_gs": pedido.total_gs or 0,
+                "business_name": "Saskia RMS",
+            })
+    except Exception:
+        pass
+    if msg is None:
+        msg = (
+            f"¡Tu pedido #{pedido.id} esta listo para retirar! Te esperamos 😊"
+            if pedido.channel == "WhatsApp"
+            else f"Tu pedido #{pedido.id} esta listo para retirar. Gracias!"
+        )
 
     import logging, os
     twilio_sid     = os.getenv("TWILIO_ACCOUNT_SID",     "").strip()

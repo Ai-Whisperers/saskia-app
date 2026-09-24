@@ -1272,6 +1272,106 @@ class ComplianceInfo(Base):
     )
 
 
+class Channel(Base):
+    """Operator-configurable sale channel catalog (migration 041).
+
+    Replaces hardcoded CHANNELS_DISPLAY / ALLOWED_CHANNELS frozenset
+    previously in app/rms/schemas.py. Operators add/edit channels from
+    /settings/channels without a code deploy.
+
+    The sale.channel column stays as a free-text VARCHAR for now (no FK)
+    so existing rows don't break and adding a new channel doesn't require
+    a backfill. New writes should use the channel code from this table.
+    """
+
+    __tablename__ = "channel"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
+    label: Mapped[str] = mapped_column(String(64), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    __table_args__ = (
+        Index("ix_channel_active_sort", "is_active", "sort_order"),
+    )
+
+
+class PaymentMethod(Base):
+    """Operator-configurable payment method catalog (migration 042).
+
+    Replaces hardcoded PAYMENT_METHODS_DISPLAY / ALLOWED_PAYMENT_METHODS
+    frozenset previously in app/rms/schemas.py.
+
+    fee_pct: % surcharge/discount for using this method (e.g., tarjeta
+    may have +3% fee). 0 = no adjustment. Future use: sales apply this
+    automatically. Today: just informational.
+    """
+
+    __tablename__ = "payment_method"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
+    label: Mapped[str] = mapped_column(String(64), nullable=False)
+    requires_reference: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    fee_pct: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    __table_args__ = (
+        Index("ix_payment_method_active_sort", "is_active", "sort_order"),
+    )
+
+
+class MessageTemplate(Base):
+    """Operator-editable message templates (Phase 6).
+
+    Replaces hardcoded copy in app/routers/pedidos.py, notifications,
+    email/WhatsApp copy throughout. Kiki can edit copy from
+    /settings/templates without a code deploy.
+
+    Schema:
+      - id, channel (email | whatsapp | sms), key (template identifier),
+        subject (nullable; emails only), body (the template body),
+        locale (es-PY default; future i18n), is_active, version, notes
+        updated_at
+
+    Body uses {placeholders} like Python str.format() — substitute
+    variables at send time (e.g., {customer_name}, {order_total}).
+    """
+
+    __tablename__ = "message_template"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    channel: Mapped[str] = mapped_column(String(16), nullable=False)
+    key: Mapped[str] = mapped_column(String(64), nullable=False)
+    subject: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    locale: Mapped[str] = mapped_column(String(8), nullable=False, default="es-PY")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False,
+        default=datetime.utcnow, onupdate=datetime.utcnow,
+    )
+
+    __table_args__ = (
+        UniqueConstraint("channel", "key", "locale", name="uq_message_template_chan_key_locale"),
+        Index("ix_message_template_chan_active", "channel", "is_active"),
+    )
+
+
 class Category(Base):
     """Operator-configurable category/family catalog (migration 039).
 
@@ -1347,6 +1447,11 @@ __all__ = [
     "ComplianceInfo",
     # Static-content-audit fix — migration 039
     "Category",
+    # Static-content-audit Phase 4 — migrations 041, 042
+    "Channel",
+    "PaymentMethod",
+    # Static-content-audit Phase 6 — migration 044
+    "MessageTemplate",
 ]
 
 

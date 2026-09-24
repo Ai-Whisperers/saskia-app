@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled
@@ -163,4 +164,307 @@ def update_category_endpoint(
     }
 
 
+
+
+# ─── Channels + Payment methods ────────────────────────────────────────
+
+
+@router.get("/channels")
+def list_channels_endpoint(
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Return active channels sorted by sort_order."""
+    from app.rms.catalogs import list_channels
+    cats = list_channels(session)
+    return [
+        {
+            "id": c.id, "code": c.code, "label": c.label,
+            "sort_order": c.sort_order, "is_default": c.is_default, "is_active": c.is_active,
+            "notes": c.notes,
+        }
+        for c in cats
+    ]
+
+
+class ChannelIn(BaseModel):
+    code: str = Field(min_length=1, max_length=32)
+    label: str = Field(min_length=1, max_length=64)
+    sort_order: int = Field(default=1000, ge=0)
+    is_default: bool = False
+    notes: str | None = Field(default=None, max_length=500)
+
+
+@router.post("/channels")
+def create_channel_endpoint(
+    payload: ChannelIn,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Create a new channel. Idempotent on code."""
+    from app.rms.models import Channel as ChannelModel
+
+    existing = session.execute(
+        select(ChannelModel).where(ChannelModel.code == payload.code)
+    ).scalar_one_or_none()
+    if existing is not None:
+        # Update label/sort/etc but don't replace is_active
+        existing.label = payload.label
+        existing.sort_order = payload.sort_order
+        if payload.is_default:
+            # Clear other defaults first
+            session.execute(
+                select(ChannelModel).where(ChannelModel.is_default.is_(True))
+            ).scalars().all()
+            for c in session.execute(select(ChannelModel)).scalars():
+                c.is_default = (c.code == payload.code)
+        existing.notes = payload.notes
+        session.commit()
+        return {
+            "id": existing.id, "code": existing.code, "label": existing.label,
+            "sort_order": existing.sort_order, "is_default": existing.is_default,
+        }
+
+    if payload.is_default:
+        # Clear other defaults first
+        for c in session.execute(select(ChannelModel)).scalars():
+            c.is_default = False
+
+    ch = ChannelModel(
+        code=payload.code, label=payload.label,
+        sort_order=payload.sort_order, is_default=payload.is_default,
+        is_active=True, notes=payload.notes,
+    )
+    session.add(ch)
+    session.commit()
+    return {"id": ch.id, "code": ch.code, "label": ch.label, "sort_order": ch.sort_order, "is_default": ch.is_default}
+
+
+@router.get("/payment-methods")
+def list_payment_methods_endpoint(
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Return active payment methods sorted by sort_order."""
+    from app.rms.catalogs import list_payment_methods
+    methods = list_payment_methods(session)
+    return [
+        {
+            "id": m.id, "code": m.code, "label": m.label,
+            "requires_reference": m.requires_reference, "fee_pct": m.fee_pct,
+            "sort_order": m.sort_order, "is_default": m.is_default,
+        }
+        for m in methods
+    ]
+
+
+class PaymentMethodIn(BaseModel):
+    code: str = Field(min_length=1, max_length=32)
+    label: str = Field(min_length=1, max_length=64)
+    requires_reference: bool = False
+    fee_pct: float = Field(default=0.0, ge=0, le=100)
+    sort_order: int = Field(default=1000, ge=0)
+    is_default: bool = False
+    notes: str | None = Field(default=None, max_length=500)
+
+
+@router.post("/payment-methods")
+def create_payment_method_endpoint(
+    payload: PaymentMethodIn,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Create a new payment method. Idempotent on code."""
+    from app.rms.models import PaymentMethod as PMModel
+
+    existing = session.execute(
+        select(PMModel).where(PMModel.code == payload.code)
+    ).scalar_one_or_none()
+    if existing is not None:
+        existing.label = payload.label
+        existing.requires_reference = payload.requires_reference
+        existing.fee_pct = payload.fee_pct
+        existing.sort_order = payload.sort_order
+        existing.notes = payload.notes
+        if payload.is_default:
+            for m in session.execute(select(PMModel)).scalars():
+                m.is_default = (m.code == payload.code)
+        session.commit()
+        return {"id": existing.id, "code": existing.code, "label": existing.label}
+
+    if payload.is_default:
+        for m in session.execute(select(PMModel)).scalars():
+            m.is_default = False
+
+    pm = PMModel(
+        code=payload.code, label=payload.label,
+        requires_reference=payload.requires_reference,
+        fee_pct=payload.fee_pct, sort_order=payload.sort_order,
+        is_default=payload.is_default, is_active=True, notes=payload.notes,
+    )
+    session.add(pm)
+    session.commit()
+    return {"id": pm.id, "code": pm.code, "label": pm.label}
+
+
+
+
+
+# ─── Branding (Phase 5) ────────────────────────────────────────────────
+
+
+@router.get("/settings/branding")
+def read_branding(
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Return the branding config dict.
+
+    Public to any logged-in user (the login page itself reads this to
+    render the title — operators can change business name without code
+    deploy).
+    """
+    from app.rms.settings_runtime import get_branding
+    return get_branding(session)
+
+
+class BrandingIn(BaseModel):
+    business_name: str | None = Field(default=None, max_length=200)
+    tagline: str | None = Field(default=None, max_length=200)
+    footer: str | None = Field(default=None, max_length=200)
+    accent_color: str | None = Field(default=None, max_length=20)
+    logo_path: str | None = Field(default=None, max_length=500)
+
+
+@router.post("/settings/branding")
+def write_branding(
+    payload: BrandingIn,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Update branding. Only non-None fields are written (partial update)."""
+    from app.rms.settings_runtime import set_branding
+    fields = {k: v for k, v in payload.model_dump().items() if v is not None}
+    new_cfg = set_branding(session, **fields)
+    session.commit()
+    return new_cfg
+
+
+
+
+
+# ─── Message templates (Phase 6) ──────────────────────────────────────
+
+
+@router.get("/templates")
+def list_templates_endpoint(
+    channel: str | None = Query(default=None, pattern="^(email|whatsapp|sms)$"),
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Return active message templates, optionally filtered by channel."""
+    from app.rms.models import MessageTemplate as MT
+    q = select(MT).where(MT.is_active.is_(True))
+    if channel:
+        q = q.where(MT.channel == channel)
+    q = q.order_by(MT.channel.asc(), MT.key.asc())
+    rows = list(session.execute(q).scalars())
+    return [
+        {
+            "id": t.id, "channel": t.channel, "key": t.key,
+            "subject": t.subject, "body": t.body, "locale": t.locale,
+            "version": t.version, "notes": t.notes,
+        }
+        for t in rows
+    ]
+
+
+@router.get("/templates/{template_key}")
+def get_template_endpoint(
+    template_key: str,
+    channel: str = Query("whatsapp", pattern="^(email|whatsapp|sms)$"),
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Return a single template by channel+key. Renders with provided vars if 'vars' param present."""
+    from app.rms.models import MessageTemplate as MT
+
+    row = session.execute(
+        select(MT).where(
+            MT.channel == channel,
+            MT.key == template_key,
+            MT.is_active.is_(True),
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Template {channel}/{template_key} not found")
+
+    return {
+        "id": row.id, "channel": row.channel, "key": row.key,
+        "subject": row.subject, "body": row.body, "locale": row.locale,
+        "version": row.version, "notes": row.notes,
+    }
+
+
+class TemplateUpdateIn(BaseModel):
+    subject: str | None = Field(default=None, max_length=200)
+    body: str | None = Field(default=None, min_length=1, max_length=5000)
+    notes: str | None = Field(default=None, max_length=500)
+    is_active: bool | None = None
+
+
+@router.post("/templates/{template_id}/update")
+def update_template_endpoint(
+    template_id: int,
+    payload: TemplateUpdateIn,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Update a message template. Only non-None fields are written.
+
+    Bumps the `version` on body change so callers can invalidate caches.
+    """
+    from app.rms.models import MessageTemplate as MT
+    from datetime import datetime, timezone
+
+    row = session.get(MT, template_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    body_changed = False
+    if payload.subject is not None:
+        row.subject = payload.subject
+    if payload.body is not None and payload.body != row.body:
+        row.body = payload.body
+        body_changed = True
+    if payload.notes is not None:
+        row.notes = payload.notes
+    if payload.is_active is not None:
+        row.is_active = payload.is_active
+    if body_changed:
+        row.version += 1
+    row.updated_at = datetime.now(timezone.utc)
+    session.commit()
+    return {
+        "id": row.id, "channel": row.channel, "key": row.key,
+        "subject": row.subject, "body": row.body, "locale": row.locale,
+        "version": row.version, "notes": row.notes,
+        "is_active": row.is_active,
+    }
+
+
+def render_template(template_body: str, vars: dict) -> str:
+    """Pure helper: substitute {placeholder} tokens in a template body.
+
+    Used by the notification routes (when they're migrated to read from
+    this table). Falls back to the original body on any KeyError so a
+    missing variable never crashes a send.
+    """
+    try:
+        return template_body.format(**vars)
+    except (KeyError, IndexError):
+        return template_body
+
+
 __all__ = ["router"]
+

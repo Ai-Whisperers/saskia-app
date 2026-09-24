@@ -80,6 +80,99 @@ Schema: v32 → v38. Migration 034 (market prices), 035 (compliance_info),
 
 
 
+
+### Added (2026-09-24) — Static-content audit Phase 3-6 (Phases 3, 4, 5, 6)
+
+Continues docs/operations/2026-09-24-static-content-audit.md. The full
+6-phase plan is now complete: every catalog, setting, and message template
+that previously required a code deploy is now DB-backed and operator-editable.
+
+**Phase 3 — Units exposed via enum**
+- New `render_unit_options()` Jinja macro in `tags.html` that loops over
+  the canonical `Unit` enum (g/kg/ml/l/und) instead of hardcoded `<option>`
+  tags.
+- `receta_form.html` main select + JS row-builder template use the macro.
+  `window.SASKIA_UNITS` global injected for the JS template literal.
+- Adding a unit = 1-line edit to `app/rms/units.py:Unit` enum + alias map.
+
+**Phase 4 — Channels + Payment methods**
+- Migration 041: `channel` table (`id, code, label, sort_order,
+  is_default, is_active, notes`). Seeded with 5 channels:
+  mostrador (default), mostrador-encargo, whatsapp, pedidosya, monchis.
+- Migration 042: `payment_method` table (`id, code, label,
+  requires_reference, fee_pct, sort_order, is_default, is_active, notes`).
+  Seeded with 5 methods: efectivo (default), transferencia (req ref), qr
+  (req ref), tarjeta (3% fee, req ref), otro.
+- New `app/rms/catalogs.py` with `list_channels()`,
+  `list_payment_methods()`, `default_channel_code()`,
+  `default_payment_method_code()`.
+- `app/routers/sales.py:211` — `/ventas` form now reads channels +
+  payment methods from the DB with fallback to schema constants if
+  tables are empty.
+- API endpoints:
+  - `GET/POST /api/channels`
+  - `GET/POST /api/payment-methods`
+
+**Phase 5 — Branding**
+- Migration 043: SettingsKV["branding"] seeded with defaults
+  (business_name, tagline, footer, accent_color, logo_path) that match
+  the previous hardcoded strings.
+- New `get_branding()` and `set_branding()` helpers in
+  `app/rms/settings_runtime.py`.
+- New `DEFAULT_BRANDING` constant for safe fallback.
+- `app/services/template_render.py:render()` — every template render
+  now injects `{{ branding }}` automatically so every page can read
+  `{{ branding.business_name }}`, `{{ branding.tagline }}`, etc.
+- `app/templates/login.html` — title and tagline now read from branding.
+- `app/templates/base.html` — footer uses branding.business_name +
+  branding.footer.
+- API endpoints:
+  - `GET  /api/settings/branding`
+  - `POST /api/settings/branding` (partial update)
+
+**Phase 6 — Message templates**
+- Migration 044: `message_template` table (`id, channel, key, subject,
+  body, locale, version, is_active, notes, updated_at`).
+- Seeded with 6 default templates:
+  - whatsapp/pedido_listo
+  - whatsapp/pedido_confirmado
+  - whatsapp/pedido_compartir
+  - whatsapp/stock_bajo
+  - email/resumen_diario (with subject)
+  - email/generic (fallback)
+- Body uses {placeholder} str.format() syntax. render_template() helper
+  in `app/routers/settings_runtime.py` substitutes variables at send time
+  and falls back to the raw body on missing keys.
+- `app/routers/pedidos.py:_send_fulfill_notification` now reads from
+  MessageTemplate when sending WhatsApp pickup notifications.
+- API endpoints:
+  - `GET    /api/templates` (list, optional ?channel=)
+  - `GET    /api/templates/{key}?channel=X`
+  - `POST   /api/templates/{id}/update` (bumps version on body change)
+
+**Phase 1+2+5 operator UI**
+- New `app/templates/settings_catalog.html` — single-page UI at
+  /settings/catalog with 5 tabs: Categories, Channels, Payments,
+  Templates, Branding. Lets Kiki/Saskia manage all catalogs via
+  browser without curl.
+- New nav link: "Catálogos" in base.html navbar.
+- All settings flow through the JSON API endpoints; the UI is a thin
+  client.
+
+**Verified live on saskia-vps.paragu-ai.com**
+- /api/channels returns 5 channels
+- /api/payment-methods returns 5 methods (tarjeta fee=3%)
+- /api/settings/branding returns full dict; POST updates persist
+- /api/templates returns 6 templates
+- /ventas renders all 5 channels (mostrador, mostrador-encargo,
+  whatsapp, pedidosya, monchis)
+- /recetas/nueva renders all 5 units (g, kg, ml, l, und)
+- /login reflects branding changes (operator can change "Saskia RMS" →
+  "Panadería Saskia" via POST API, refreshes page)
+- /settings/catalog renders all 5 tabs
+
+CHANGELOG continues.
+
 ### Added (2026-09-24) — Static-content audit Phase 1 + 2
 
 Per the static-content audit (docs/operations/2026-09-24-static-content-audit.md),

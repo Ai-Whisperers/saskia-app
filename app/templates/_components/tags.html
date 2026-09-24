@@ -30,6 +30,24 @@
 {% endmacro %}
 
 
+{# ─── Unit options (driven by app/rms/units.py:Unit enum) ──────────── #}
+{# Pass `units=[u.value for u in Unit]` from the route to render options. #}
+
+{% macro render_unit_options(units, selected='') %}
+  {% for u in units %}
+    <option value="{{ u }}" {% if u == selected %}selected{% endif %}>{{ u }}</option>
+  {% endfor %}
+{% endmacro %}
+
+
+{# Combo box variant (used by reorder.html, etc.) #}
+{% macro render_unit_combo_options(units) %}
+  {% for u in units %}
+    <div class="combo-static-option" data-value="{{ u }}" data-display="{{ u }}"></div>
+  {% endfor %}
+{% endmacro %}
+
+
 {# ─── Single-select category picker (uses saskia-combo) ────────────── #}
 
 {% macro category_picker(name, current_value, options_markup, allow_custom=True, label='', help='') %}
