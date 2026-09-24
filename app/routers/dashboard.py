@@ -256,7 +256,6 @@ def _compliance_alerts(session) -> list[dict]:
 
 
 @router.get("/", response_class=HTMLResponse)
-@router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(
     request: Request,
     period: str = Query("today", pattern="^(today|week|month|custom)$"),

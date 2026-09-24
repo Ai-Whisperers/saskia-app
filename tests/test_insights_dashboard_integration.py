@@ -38,7 +38,7 @@ def test_dashboard_route_renders_insights_panel(client):
     assert "Capital en inventario" in body
     assert "Hora pico" in body
     assert "Día pico" in body
-    assert "Food cost %" in body
+    assert "Costo de materia prima %" in body  # MER-03: Spanish label
 
 
 def test_dashboard_insights_with_seed(client):
