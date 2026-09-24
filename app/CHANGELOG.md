@@ -5,6 +5,24 @@
 
 ## [Unreleased]
 
+### Fixed (2026-09-24) — Phase 1A atomicity: F16 function-attribute shared state
+
+**Bug:** `app/routers/sales.py:_fire_printer_for_sale._last_sale_id`
+(F16 in SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md). The
+function used `getattr(_fire_printer_for_sale, "_last_sale_id", "")`
+to retrieve its own function-attribute as shared mutable state. Two
+concurrent sale POSTs would interleave writes to that attribute,
+so the idempotency record would capture the WRONG sale ID.
+
+**Status:** Already resolved as a side effect of ticket #1 (F2 sale
+idempotency fix). The new implementation does not use function
+attributes — the idempotency record's value comes from the actual
+`sale.sale_id` returned by `apply_sale()` and is committed in the
+same transaction.
+
+Verified: `grep -rn "getattr(.*_," app/routers/ app/rms/` returns
+zero matches for function-attribute shared state.
+
 ### Fixed (2026-09-24) — Phase 1A atomicity: invoice counter row-level lock
 
 **Bug:** `app/rms/invoicing.py:allocate_invoice_number` (F10 in
