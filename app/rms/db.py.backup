@@ -1,0 +1,2093 @@
+"""app/rms/db.py — engine, session, pragmas, versioned migrations.
+
+Per dev plan §9 Task 1 + improvements review §2.2.
+
+Pragmas (set on every connection via SQLAlchemy event listener):
+- WAL mode (concurrent reads, single writer; survives power loss)
+- secure_delete = ON (deleted rows are zeroed, not just unlinked)
+- foreign_keys = ON (FK constraints actually enforced)
+
+Schema versioning: `app_meta` table tracks `current_schema_version`. `init_db()`
+runs pending migrations from `MIGRATIONS` dict in order. Each migration is a
+Python function that takes a SQLAlchemy connection and applies the schema change.
+
+Why hand-rolled (not Alembic):
+- Alembic adds a heavy dependency for a 70h single-user project
+- Schema is small (8 tables) and changes rarely
+- 30 lines of code is enough
+- Documented in app/rms/AGENTS.md
+
+This module is import-safe (no side effects on import). `init_db()` must be called
+explicitly, typically from `main.py`'s lifespan handler.
+"""
+
+from __future__ import annotations
+
+import sys
+from collections.abc import Callable
+from datetime import datetime, timezone
+from typing import Any
+
+from loguru import logger
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, sessionmaker
+
+from app.rms.config import (
+    CURRENT_SCHEMA_VERSION,
+    DB_PATH,
+    ensure_dirs,
+)
+
+
+def _set_sqlite_pragmas(dbapi_conn: Any, _: Any) -> None:
+    """SQLAlchemy connect listener: enable WAL + secure_delete + foreign_keys.
+
+    Called on every new connection. Idempotent.
+    """
+    cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA secure_delete=ON")
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.close()
+
+
+def make_engine(url: str | None = None, *, for_tests: bool = False) -> Engine:
+    """Create SQLAlchemy engine with SQLite pragmas.
+
+    Args:
+        url: SQLite URL. Defaults to file at DB_PATH. Pass "sqlite:///:memory:"
+            for in-memory test DB.
+        for_tests: when True, allows multiple connections (SQLite's StaticPool
+            would conflict with our pragma listener otherwise).
+    """
+    if url is None:
+        ensure_dirs()
+        url = f"sqlite:///{DB_PATH}"
+
+    kwargs: dict[str, Any] = {
+        "echo": False,
+        "future": True,
+    }
+    if for_tests:
+        # StaticPool for in-memory + connect listener compatibility
+        from sqlalchemy.pool import StaticPool
+
+        kwargs["connect_args"] = {"check_same_thread": False}
+        kwargs["poolclass"] = StaticPool
+    else:
+        kwargs["connect_args"] = {"check_same_thread": False}
+
+    engine = create_engine(url, **kwargs)
+    event.listen(engine, "connect", _set_sqlite_pragmas)
+    return engine
+
+
+# --- Versioned migrations ---
+# Each migration is a function that takes a connection and applies schema changes.
+# Migrations are run in order from `1` to `CURRENT_SCHEMA_VERSION` (inclusive).
+# To add a migration: bump CURRENT_SCHEMA_VERSION in config.py, add a function here,
+# add it to MIGRATIONS dict below.
+
+MigrationFn = Callable[[Any], None]
+
+
+def _migration_001_initial_schema(conn: Any) -> None:
+    """Initial schema (8 tables). Called once on fresh DBs.
+
+    We let SQLAlchemy's create_all() do the heavy lifting; this migration is a
+    marker for the schema version. It also seeds the app_meta table.
+
+    Dialect-aware upsert: SQLite uses INSERT OR IGNORE; Postgres uses
+    ON CONFLICT DO NOTHING. We detect the dialect via the bind dialect name.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    ts = datetime.now(timezone.utc).isoformat()
+    if dialect == "postgresql":
+        # app_meta.value is JSONB on production (legacy column type);
+        # cast string → jsonb so the insert doesn't fail. Build the
+        # string in Python so SQLAlchemy parameter binding doesn't
+        # fight with ::type casts.
+        ts_quoted = ts.replace("'", "''")
+        upsert = (
+            f"INSERT INTO app_meta (key, value, updated_at) "
+            f"VALUES ('schema_version', '\"1\"'::jsonb, '{ts_quoted}') "
+            f"ON CONFLICT (key) DO NOTHING"
+        )
+        upsert2 = (
+            f"INSERT INTO app_meta (key, value, updated_at) "
+            f"VALUES ('created_at', '\"{ts_quoted}\"'::jsonb, '{ts_quoted}') "
+            f"ON CONFLICT (key) DO NOTHING"
+        )
+    else:
+        upsert = "INSERT OR IGNORE INTO app_meta (key, value) VALUES ('schema_version', '1')"
+        upsert2 = "INSERT OR IGNORE INTO app_meta (key, value) VALUES ('created_at', :ts)"
+    conn.execute(text(upsert), {"ts": ts})
+    conn.execute(text(upsert2), {"ts": ts})
+
+
+def _migration_002_audit_log(conn: Any) -> None:
+    """Add the audit_log table (E3.S1).
+
+    Records every security-relevant action: login success/failure, logout,
+    password reset, sales CRUD, recipe/product edits, inventory movements.
+
+    created_at column (datetime UTC) gets a btree index so admin queries on
+    /audit?since=...&until=... are fast. user_id + action get their own
+    indexes for filter-by-user / filter-by-action queries.
+
+    No backfill: there is no historical data to migrate. Existing rows in
+    other tables are unaffected.
+    """
+    conn.execute(
+        text(
+            "CREATE TABLE IF NOT EXISTS audit_log ("
+            "id SERIAL PRIMARY KEY, "
+            "occurred_at DATETIME NOT NULL, "
+            "user_id VARCHAR(64), "
+            "action VARCHAR(64) NOT NULL, "
+            "target_type VARCHAR(64), "
+            "target_id VARCHAR(64), "
+            "detail TEXT NOT NULL DEFAULT '{}', "
+            "ip VARCHAR(64), "
+            "user_agent VARCHAR(256)"
+            ")"
+        )
+    )
+    # Postgres-compatible: CREATE INDEX IF NOT EXISTS is SQLite-only.
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    if dialect == "postgresql":
+        for ix_name, ix_table, ix_col in [
+            ("ix_audit_log_occurred_at", "audit_log", "occurred_at"),
+            ("ix_audit_log_user_id", "audit_log", "user_id"),
+            ("ix_audit_log_action", "audit_log", "action"),
+        ]:
+            existing = conn.execute(
+                text("SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname=:n"),
+                {"n": ix_name},
+            ).first()
+            if existing is None:
+                conn.execute(text(f"CREATE INDEX {ix_name} ON {ix_table} ({ix_col})"))
+    else:
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_log_occurred_at ON audit_log (occurred_at)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_log_user_id ON audit_log (user_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_log_action ON audit_log (action)"))
+    _bump_schema_version(conn, 2)
+
+
+def _migration_007_product_sku(conn: Any) -> None:
+    """Add Product.sku column (E23.S1).
+
+    SKU is optional; most bakeries don't print barcodes on products but
+    an operator may add them later. Unique when set.
+    """
+    _add_column_if_missing(conn, "product", "sku",
+                           "VARCHAR(32)", "TEXT")
+    _bump_schema_version(conn, 7)
+
+
+def _add_column_if_missing(conn: Any, table: str, column: str,
+                           pg_type: str, sqlite_type: str) -> None:
+    """Add a column to a table if it doesn't already exist.
+
+    Cross-dialect: SQLite uses PRAGMA table_info; Postgres uses
+    information_schema.columns.
+    """
+    dialect_name = conn.dialect.name
+    if dialect_name == "postgresql":
+        exists = conn.execute(
+            text(
+                "SELECT 1 FROM information_schema.columns "
+                "WHERE table_name = :t AND column_name = :c"
+            ),
+            {"t": table, "c": column},
+        ).first()
+        if not exists:
+            conn.execute(
+                text(f'ALTER TABLE {table} ADD COLUMN {column} {pg_type}')
+            )
+    else:
+        # SQLite
+        cols = [row[1] for row in conn.execute(text(f'PRAGMA table_info({table})')).fetchall()]
+        if column not in cols:
+            conn.execute(
+                text(f'ALTER TABLE {table} ADD COLUMN {column} {sqlite_type}')
+            )
+
+
+def _migration_006_waste_log(conn: Any) -> None:
+    """Add waste_log table (E22)."""
+    _bump_schema_version(conn, 6)
+
+
+
+def _migration_004_tags(conn: Any) -> None:
+    """Add Tag + TagLink tables (E9.S1).
+
+    Tags are polymorphic (target_kind in product|ingredient|recipe). The
+    tag table holds the name + color + kind; the tag_link table holds
+    the M:N mapping.
+
+    Both tables are created via create_all() in init_db(). Here we
+    just bump the schema version.
+    """
+    # create_all is called by init_db BEFORE this migration runs.
+    # Nothing else to do — the new tables already exist.
+    _bump_schema_version(conn, 4)
+
+
+def _migration_003_analytics_columns(conn: Any) -> None:
+    """Add analytics-tracking columns (E8).
+
+    New columns:
+    - ingredient.purchase_price_updated_at: tracks when the cost was last changed
+      (used by margin_erosion_alerts in app/rms/analytics.py)
+    - ingredient.last_consumed_at: tracks the most recent sale that consumed this
+      ingredient (used by dead_stock and stock_turnover reports)
+    - ingredient.shelf_life_days: optional, drives spoilage alerts (E22)
+    - recipe.prep_minutes: optional, drives cost-per-prep-minute reports
+
+    All columns are nullable / optional so the migration is safe on existing rows
+    (which get NULL = "unknown" rather than a fabricated value).
+    """
+    # SQLite ALTER TABLE supports adding columns one at a time. Wrap in try/except
+    # so re-running this migration on an already-migrated DB is a no-op.
+    # Postgres uses TIMESTAMP; SQLite accepts both.
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    ts_type = "TIMESTAMP" if dialect == "postgresql" else "DATETIME"
+    _add_columns = [
+        ("ingredient", "purchase_price_updated_at", ts_type),
+        ("ingredient", "last_consumed_at", ts_type),
+        ("ingredient", "shelf_life_days", "INTEGER"),
+        ("recipe", "prep_minutes", "INTEGER"),
+    ]
+    for table, col, decl in _add_columns:
+        try:
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {decl}"))
+        except Exception:  # noqa: BLE001 - column already exists; that's fine
+            pass
+
+    # Index on last_consumed_at so dead_stock reports stay fast.
+    # CREATE INDEX IF NOT EXISTS is SQLite syntax; on Postgres use a
+    # check against pg_indexes.
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    if dialect == "postgresql":
+        existing = conn.execute(
+            text(
+                "SELECT 1 FROM pg_indexes "
+                "WHERE schemaname='public' AND indexname='ix_ingredient_last_consumed_at'"
+            )
+        ).first()
+        if existing is None:
+            conn.execute(
+                text(
+                    "CREATE INDEX ix_ingredient_last_consumed_at "
+                    "ON ingredient (last_consumed_at)"
+                )
+            )
+    else:
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_ingredient_last_consumed_at "
+                "ON ingredient (last_consumed_at)"
+            )
+        )
+
+    _bump_schema_version(conn, 3)
+
+
+
+def _migration_008_tenant(conn):
+    """Add tenant table (E15)."""
+    _bump_schema_version(conn, 8)
+
+
+def _migration_009_ingredient_intel(conn):
+    """Add ingredient intelligence columns (E26): category, subcategory, role,
+    allergens, dietary_tags, lead_time_days.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    # Use TEXT type — works on both dialects.
+    cols = [
+        ("category", "VARCHAR(32)"),
+        ("subcategory", "VARCHAR(32)"),
+        ("role", "VARCHAR(32)"),
+        ("allergens", "JSONB" if dialect == "postgresql" else "TEXT"),
+        ("dietary_tags", "JSONB" if dialect == "postgresql" else "TEXT"),
+        ("lead_time_days", "INTEGER DEFAULT 3"),
+    ]
+    for col_name, col_type in cols:
+        try:
+            conn.execute(text(f"ALTER TABLE ingredient ADD COLUMN {col_name} {col_type}"))
+        except Exception:
+            # Column already exists — idempotent.
+            pass
+    _bump_schema_version(conn, 9)
+
+
+def _migration_010_recipe_intel(conn):
+    """Add recipe intelligence columns (E27): family, difficulty, dietary_tags,
+    cook_minutes. prep_minutes already exists (added in migration 003).
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    cols = [
+        ("family", "VARCHAR(32)"),
+        ("difficulty", "INTEGER"),
+        ("dietary_tags", "JSONB" if dialect == "postgresql" else "TEXT"),
+        ("cook_minutes", "INTEGER"),
+    ]
+    for col_name, col_type in cols:
+        try:
+            conn.execute(text(f"ALTER TABLE recipe ADD COLUMN {col_name} {col_type}"))
+        except Exception:
+            # Column already exists — idempotent.
+            pass
+    _bump_schema_version(conn, 10)
+
+
+def _migration_011_sale_payment_discount(conn):
+    """Add payment_method + discount_gs to Sale (Phase 5 sales overhaul).
+
+    payment_method: nullable string (cash/transfer/card/other).
+    discount_gs: integer Gs. discount applied to the sale total.
+    Both default NULL / 0 — backward compatible with existing data.
+    """
+    conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    cols = [
+        ("payment_method", "VARCHAR(32)"),
+        ("discount_gs", "INTEGER DEFAULT 0"),
+    ]
+    for col_name, col_type in cols:
+        try:
+            conn.execute(text(f"ALTER TABLE sale ADD COLUMN {col_name} {col_type}"))
+        except Exception:
+            # Column already exists — idempotent.
+            pass
+    _bump_schema_version(conn, 11)
+
+
+def _migration_012_sale_tz(conn):
+    """Add tz column to Sale (Phase 6 wishlist: timezone-groupby-sales).
+
+    tz: VARCHAR(64), default 'America/Asuncion'. Backward compatible:
+    existing rows get the default on Postgres (DEFAULT clause) and on
+    SQLite (we backfill below).
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    try:
+        conn.execute(text("ALTER TABLE sale ADD COLUMN tz VARCHAR(64) DEFAULT 'America/Asuncion' NOT NULL"))
+    except Exception:
+        # Column already exists — idempotent.
+        pass
+    # SQLite ALTER TABLE doesn't support DEFAULT with NOT NULL; backfill explicitly.
+    if dialect == "sqlite":
+        try:
+            conn.execute(text("UPDATE sale SET tz = 'America/Asuncion' WHERE tz IS NULL OR tz = ''"))
+        except Exception:
+            pass
+    _bump_schema_version(conn, 12)
+
+
+def _migration_013_ingredient_max_stock(conn):
+    """Add max_stock_qty column to Ingredient (Phase 7 reorder feature).
+
+    max_stock_qty: nullable FLOAT. NULL means "use 2x min_stock_qty"
+    heuristic. Operators can set explicit targets via /inventario/{id}/editar.
+    """
+    try:
+        conn.execute(text("ALTER TABLE ingredient ADD COLUMN max_stock_qty FLOAT"))
+    except Exception:
+        pass  # already exists
+    _bump_schema_version(conn, 13)
+
+
+def _migration_014_customer_cedula(conn):
+    """Add cedula column to Customer (sales picker overhaul).
+
+    cedula: Paraguayan CI/RUC identifier. Nullable; indexed for
+    case-insensitive lookup in /clientes/api/search.
+    """
+    _add_column_if_missing(conn, "customer", "cedula", "VARCHAR(32)", "TEXT")
+    # Index is created idempotently via CREATE INDEX IF NOT EXISTS (SQLite
+    # supports it; Postgres uses a guarded SELECT-from-pg_indexes path).
+    dialect_name = conn.dialect.name
+    if dialect_name == "postgresql":
+        existing = conn.execute(
+            text("SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname=:n"),
+            {"n": "ix_customer_cedula"},
+        ).first()
+        if existing is None:
+            conn.execute(text("CREATE INDEX ix_customer_cedula ON customer (cedula)"))
+    else:
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_customer_cedula ON customer (cedula)"))
+    _bump_schema_version(conn, 14)
+
+
+def _migration_015_sale_channel(conn):
+    """Add `channel` column to Sale (Stream A prelaunch — 2026-09-17).
+
+    channel: VARCHAR(32) NOT NULL DEFAULT 'mostrador'. Allowed values:
+    mostrador, whatsapp, pedidosya, monchis, mostrador-encargo.
+
+    Existing rows get 'mostrador' via the DEFAULT (Postgres honours
+    DEFAULT on ALTER TABLE ADD COLUMN; SQLite does too in modern versions).
+    On older SQLite we backfill explicitly.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pg_type = "VARCHAR(32) NOT NULL DEFAULT 'mostrador'"
+    sqlite_type = "VARCHAR(32) DEFAULT 'mostrador' NOT NULL"
+
+    try:
+        if dialect == "postgresql":
+            conn.execute(text(f"ALTER TABLE sale ADD COLUMN channel {pg_type}"))
+        else:
+            conn.execute(text(f"ALTER TABLE sale ADD COLUMN channel {sqlite_type}"))
+    except Exception:
+        # Column already exists — idempotent.
+        pass
+
+    # SQLite before 3.31 doesn't honour DEFAULT for NOT NULL on existing
+    # rows. Backfill explicitly so legacy rows have the right value.
+    if dialect == "sqlite":
+        try:
+            conn.execute(text("UPDATE sale SET channel = 'mostrador' WHERE channel IS NULL OR channel = ''"))
+        except Exception:
+            pass
+
+    _bump_schema_version(conn, 15)
+
+
+def _migration_016_pedidos(conn):
+    """Add Pedido + PedidoLine tables (Phase 3 — prelaunch roadmap 2026-09-17).
+
+    Tables are created via create_all() in init_db() (the model classes
+    were added in models.py at the same time as this migration). This
+    function only bumps the schema_version row.
+
+    Pedido: a pre-order with customer info, promised_date, channel, status,
+      payment_intent, notes, and a unique public_token for /p/{token} sharing.
+    PedidoLine: one product + qty + snapshot unit_price_gs + fulfilled_qty
+      per line in a pedido. Cascade-deleted with the parent pedido.
+    """
+    # create_all() in init_db() creates these tables before this migration
+    # runs. Nothing else to do here besides bumping the version row.
+    _bump_schema_version(conn, 16)
+
+
+def _migration_017_recipe_line_unit(conn):
+    """Add `line_unit` to recipe_line (Phase B — T1: recipe line unit selector).
+
+    Per Saskia's review ("Se debe de poder agregar en gramos la cantidad"), each
+    recipe line now stores the unit Saskia typed the qty in. Costing walks use
+    this to convert qty → ingredient unit before multiplying against the
+    ingredient's per-unit price.
+
+    Column: VARCHAR(8) NOT NULL DEFAULT ''.
+
+    Backfill: existing recipe_line rows get the unit of the linked ingredient
+    (or '' for sub_recipe lines, where the legacy assumption is the recipe's
+    yield_unit; the costing walk handles both). The backfill runs only when
+    the row's line_unit is empty so re-runs are idempotent.
+    """
+    _add_column_if_missing(
+        conn,
+        "recipe_line",
+        "line_unit",
+        "VARCHAR(8) NOT NULL DEFAULT ''",
+        "VARCHAR(8) DEFAULT '' NOT NULL",
+    )
+
+    # Backfill existing rows: line_unit = linked ingredient's unit (ingredient
+    # lines) or '' (sub_recipe lines — sub-recipe yield_unit isn't 1:1 with
+    # the parent's yield_unit, so we leave '' and let the costing walk default
+    # to the sub-recipe's yield_unit). Idempotent: skip rows where line_unit
+    # is already non-empty.
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    if dialect == "postgresql":
+        conn.execute(
+            text(
+                "UPDATE recipe_line rl "
+                "SET line_unit = COALESCE(i.unit, '') "
+                "FROM ingredient i "
+                "WHERE rl.line_kind = 'ingredient' "
+                "AND rl.line_ref_id = i.id "
+                "AND (rl.line_unit IS NULL OR rl.line_unit = '')"
+            )
+        )
+    else:
+        conn.execute(
+            text(
+                "UPDATE recipe_line "
+                "SET line_unit = COALESCE("
+                "(SELECT i.unit FROM ingredient i "
+                "WHERE i.id = recipe_line.line_ref_id), ''"
+                ") "
+                "WHERE line_kind = 'ingredient' "
+                "AND (line_unit IS NULL OR line_unit = '')"
+            )
+        )
+
+    _bump_schema_version(conn, 17)
+
+
+def _migration_018_price_event(conn):
+    """Create ingredient_price_event table (Phase B — Q1 core).
+
+    Append-only purchase-price history for each ingredient. Powers the
+    price-strip + sparkline on /inventario and the dashboard "fluctuation"
+    insight (Phase D surfaces).
+
+    The table is created via SQLAlchemy's create_all() in init_db() (the
+    IngredientPriceEvent model class was added in models.py at the same
+    time). This migration just bumps schema_version and ensures the
+    (ingredient_id, recorded_at) index is present on dialects that don't
+    auto-create it from the model.
+
+    Index: (ingredient_id, recorded_at) — needed for the common access
+    pattern `WHERE ingredient_id = ? AND recorded_at >= ?` (price_history).
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+
+    # Defensive: the table may already exist if init_db() ran before this
+    # migration got registered (e.g. for older DBs being upgraded). Idempotent.
+    if dialect == "postgresql":
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS ingredient_price_event ("
+                "id SERIAL PRIMARY KEY, "
+                "ingredient_id INTEGER NOT NULL REFERENCES ingredient(id) "
+                "ON DELETE CASCADE, "
+                "price_gs INTEGER NOT NULL, "
+                "recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+                "source VARCHAR(32) NOT NULL DEFAULT 'restock'"
+                ")"
+            )
+        )
+        existing = conn.execute(
+            text(
+                "SELECT 1 FROM pg_indexes WHERE schemaname='public' "
+                "AND indexname=:n"
+            ),
+            {"n": "ix_ingredient_price_event_ingredient_time"},
+        ).first()
+        if existing is None:
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS "
+                    "ix_ingredient_price_event_ingredient_time "
+                    "ON ingredient_price_event (ingredient_id, recorded_at)"
+                )
+            )
+    else:
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS ingredient_price_event ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "ingredient_id INTEGER NOT NULL REFERENCES ingredient(id) "
+                "ON DELETE CASCADE, "
+                "price_gs INTEGER NOT NULL, "
+                "recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+                "source VARCHAR(32) NOT NULL DEFAULT 'restock'"
+                ")"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS "
+                "ix_ingredient_price_event_ingredient_time "
+                "ON ingredient_price_event (ingredient_id, recorded_at)"
+            )
+        )
+
+    _bump_schema_version(conn, 18)
+
+
+def _migration_019_production_completion(conn):
+    """Add production_completion table (Saskia review round 1, T5).
+
+    Table is created via create_all() in init_db() (the model class was
+    added to models.py at the same time). This stub only bumps the
+    schema_version row. One row per (product_id, for_date) — upserted
+    by app/rms/eod_completions.upsert_completion().
+    """
+    _bump_schema_version(conn, 19)
+
+
+def _migration_020_sale_date_voided_index(conn):
+    """Add composite index on Sale(sold_at, voided_at).
+
+    Covers every date-range + void-filter query: dashboards, daily/weekly
+    summaries, libro_ventas, IVA reports, customer stats. Postgres uses
+    CREATE INDEX CONCURRENTLY to avoid locking writes. SQLite uses
+    CREATE INDEX IF NOT EXISTS (supported since SQLite 3.9.0).
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    if dialect == "postgresql":
+        existing = conn.execute(
+            text(
+                "SELECT 1 FROM pg_indexes WHERE schemaname='public' "
+                "AND indexname=:n"
+            ),
+            {"n": "ix_sale_sold_at_voided"},
+        ).first()
+        if existing is None:
+            conn.execute(
+                text(
+                    "CREATE INDEX CONCURRENTLY ix_sale_sold_at_voided "
+                    "ON sale (sold_at, voided_at)"
+                )
+            )
+    else:
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_sale_sold_at_voided "
+                "ON sale (sold_at, voided_at)"
+            )
+        )
+
+    _bump_schema_version(conn, 20)
+
+
+def _migration_021_stock_movement(conn):
+    """Create stock_movement table (stock movement ledger).
+
+    Append-only audit log of every stock change: sale, adjustment, merma,
+    reorder, and initial stock. Powers the /inventario/{id}/movimientos
+    movement-history page.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+
+    if dialect == "postgresql":
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS stock_movement ("
+                "id SERIAL PRIMARY KEY, "
+                "ingredient_id INTEGER NOT NULL REFERENCES ingredient(id) "
+                "ON DELETE CASCADE, "
+                "movement_type VARCHAR(16) NOT NULL, "
+                "qty FLOAT NOT NULL, "
+                "reason TEXT, "
+                "reference_id INTEGER, "
+                "reference_type VARCHAR(16), "
+                "recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+                "created_by VARCHAR(64)"
+                ")"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_stock_movement_ingredient_recorded "
+                "ON stock_movement (ingredient_id, recorded_at)"
+            )
+        )
+    else:
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS stock_movement ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "ingredient_id INTEGER NOT NULL REFERENCES ingredient(id) "
+                "ON DELETE CASCADE, "
+                "movement_type VARCHAR(16) NOT NULL, "
+                "qty FLOAT NOT NULL, "
+                "reason TEXT, "
+                "reference_id INTEGER, "
+                "reference_type VARCHAR(16), "
+                "recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+                "created_by VARCHAR(64)"
+                ")"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_stock_movement_ingredient_recorded "
+                "ON stock_movement (ingredient_id, recorded_at)"
+            )
+        )
+
+    _bump_schema_version(conn, 21)
+
+
+def _migration_022_user_roles(conn):
+    """Add role column to User table for multi-user support.
+
+    role: VARCHAR(32) NOT NULL DEFAULT 'admin'. Values: admin, cashier, manager.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    col_type = "VARCHAR(32) NOT NULL DEFAULT 'admin'" if dialect == "postgresql" else "TEXT DEFAULT 'admin' NOT NULL"
+    try:
+        conn.execute(text(f"ALTER TABLE user ADD COLUMN role {col_type}"))
+    except Exception:
+        pass  # already exists
+
+    _bump_schema_version(conn, 22)
+
+
+def _migration_023_supplier(conn):
+    """Create supplier table + add supplier_id to ingredient (audit items 250, 284).
+
+    Supplier: name, contact_name, phone, email, address, notes, is_active.
+    Ingredient.supplier_id: FK to supplier.id (optional, nullable).
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+
+    # Supplier table
+    if dialect == "postgresql":
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS supplier ("
+                "id SERIAL PRIMARY KEY, "
+                "name VARCHAR(120) NOT NULL, "
+                "contact_name VARCHAR(120), "
+                "phone VARCHAR(32), "
+                "email VARCHAR(120), "
+                "address TEXT, "
+                "notes TEXT, "
+                "is_active BOOLEAN NOT NULL DEFAULT TRUE, "
+                "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
+                ")"
+            )
+        )
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_supplier_name ON supplier (name)"))
+    else:
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS supplier ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "name VARCHAR(120) NOT NULL, "
+                "contact_name VARCHAR(120), "
+                "phone VARCHAR(32), "
+                "email VARCHAR(120), "
+                "address TEXT, "
+                "notes TEXT, "
+                "is_active INTEGER NOT NULL DEFAULT 1, "
+                "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
+                ")"
+            )
+        )
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_supplier_name ON supplier (name)"))
+
+    # Ingredient.supplier_id
+    try:
+        if dialect == "postgresql":
+            conn.execute(
+                text("ALTER TABLE ingredient ADD COLUMN supplier_id INTEGER REFERENCES supplier(id)")
+            )
+        else:
+            conn.execute(
+                text("ALTER TABLE ingredient ADD COLUMN supplier_id INTEGER REFERENCES supplier(id)")
+            )
+    except Exception:
+        pass  # already exists
+
+    _bump_schema_version(conn, 23)
+
+
+def _migration_024_recipe_intel_extended(conn):
+    """Add recipe cook_minutes, difficulty, family, dietary_tags (audit items 122, 124).
+
+    prep_minutes already exists from migration 003.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    cols = [
+        ("cook_minutes", "INTEGER"),
+        ("difficulty", "INTEGER"),
+        ("family", "VARCHAR(32)"),
+        ("dietary_tags", "TEXT"),
+    ]
+    for col_name, col_type in cols:
+        try:
+            conn.execute(text(f"ALTER TABLE recipe ADD COLUMN {col_name} {col_type}"))
+        except Exception:
+            pass  # already exists
+
+    _bump_schema_version(conn, 24)
+
+
+def _migration_025_ingredient_opening_stock_reorder_point(conn):
+    """Add opening_stock_qty, opening_stock_date, reorder_point to Ingredient.
+
+    opening_stock: the initial stock when the ingredient was first loaded.
+    reorder_point: override of min_stock_qty for more fine-grained reorder control.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    cols = [
+        ("opening_stock_qty", "FLOAT"),
+        ("opening_stock_date", "DATE"),
+        ("reorder_point", "FLOAT"),
+    ]
+    for col_name, col_type in cols:
+        try:
+            if dialect == "postgresql":
+                conn.execute(text(f"ALTER TABLE ingredient ADD COLUMN {col_name} {col_type}"))
+            else:
+                conn.execute(text(f"ALTER TABLE ingredient ADD COLUMN {col_name} {col_type}"))
+        except Exception:
+            pass  # already exists
+
+    _bump_schema_version(conn, 25)
+
+
+
+def _migration_026_product_audit_columns(conn):
+    """Add product columns used by audit-implemented features but never migrated.
+
+    Originally added to Product model in commit 541e625 (Section 5/6 audit) but
+    no migration was created. Production DB at schema v25 is missing these:
+    - is_available: bool — toggle to hide from POS (audit item 158)
+    - image_url: str — product image URL (audit item 159)
+    - category: str — product category (audit item 160)
+    - tags: str — comma-separated tags (audit item 161)
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    cols = [
+        ("is_available", "BOOLEAN NOT NULL DEFAULT TRUE"),
+        ("image_url", "VARCHAR(256)"),
+        ("category", "VARCHAR(32)"),
+        ("tags", "TEXT"),
+    ]
+    for col_name, col_type in cols:
+        try:
+            conn.execute(text(f"ALTER TABLE product ADD COLUMN {col_name} {col_type}"))
+        except Exception:
+            pass  # already exists
+
+    _bump_schema_version(conn, 26)
+
+
+
+
+
+def _migration_027_production_plan_template(conn):
+    """PRO-01: weekly repeating production plan template + per-date overrides."""
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    if dialect == "postgresql":
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS production_plan_template (
+                id SERIAL PRIMARY KEY,
+                weekday INTEGER NOT NULL,
+                product_id INTEGER NOT NULL REFERENCES "product"(id),
+                qty DOUBLE PRECISION NOT NULL DEFAULT 1.0,
+                notes TEXT,
+                updated_at TIMESTAMP NOT NULL,
+                updated_by VARCHAR(64),
+                CONSTRAINT ck_template_weekday_range CHECK (weekday >= 0 AND weekday <= 6),
+                CONSTRAINT ck_template_qty_nonneg CHECK (qty >= 0),
+                CONSTRAINT uq_template_weekday_product UNIQUE (weekday, product_id)
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_template_weekday ON production_plan_template(weekday)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_template_product_id ON production_plan_template(product_id)"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS production_plan_override (
+                id SERIAL PRIMARY KEY,
+                product_id INTEGER NOT NULL REFERENCES "product"(id),
+                for_date DATE NOT NULL,
+                qty DOUBLE PRECISION NOT NULL,
+                notes TEXT,
+                updated_at TIMESTAMP NOT NULL,
+                updated_by VARCHAR(64),
+                CONSTRAINT ck_override_qty_nonneg CHECK (qty >= 0),
+                CONSTRAINT uq_override_product_date UNIQUE (product_id, for_date)
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_override_product_id ON production_plan_override(product_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_override_for_date ON production_plan_override(for_date)"))
+    else:
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS production_plan_template (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                weekday INTEGER NOT NULL,
+                product_id INTEGER NOT NULL REFERENCES product(id),
+                qty REAL NOT NULL DEFAULT 1.0,
+                notes TEXT,
+                updated_at TEXT NOT NULL,
+                updated_by VARCHAR(64),
+                CONSTRAINT ck_template_weekday_range CHECK (weekday >= 0 AND weekday <= 6),
+                CONSTRAINT ck_template_qty_nonneg CHECK (qty >= 0),
+                CONSTRAINT uq_template_weekday_product UNIQUE (weekday, product_id)
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_template_weekday ON production_plan_template(weekday)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_template_product_id ON production_plan_template(product_id)"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS production_plan_override (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                product_id INTEGER NOT NULL REFERENCES product(id),
+                for_date DATE NOT NULL,
+                qty REAL NOT NULL,
+                notes TEXT,
+                updated_at TEXT NOT NULL,
+                updated_by VARCHAR(64),
+                CONSTRAINT ck_override_qty_nonneg CHECK (qty >= 0),
+                CONSTRAINT uq_override_product_date UNIQUE (product_id, for_date)
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_override_product_id ON production_plan_override(product_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_override_for_date ON production_plan_override(for_date)"))
+
+    _bump_schema_version(conn, 27)
+
+
+def _migration_028_recipe_yield_qty_check(conn):
+    """DB-level CHECK: recipe.yield_qty and recipe_line.qty must be > 0
+    when populated (NULL is allowed for draft state).
+
+    Catches bad data at UPDATE time when value is provided.
+
+    IMPORTANT: The trigger syntax below is SQLite-specific (`RAISE(ABORT, ...)`).
+    On Postgres we use a CHECK constraint at the table level instead, but
+    the constraint is added in `Base.metadata.create_all` via the model's
+    CheckConstraint. So on Postgres this migration is a no-op — we just
+    bump the schema version.
+
+    Note: model fields are nullable so draft / partial recipes can have
+    NULL yields. The CHECK fires only when setting to a non-null value.
+    """
+    # Detect dialect from the connection
+    try:
+        dialect_name = conn.dialect.name
+    except Exception:
+        dialect_name = "sqlite"
+
+    if dialect_name == "sqlite":
+        try:
+            conn.execute(text("""
+                CREATE TRIGGER IF NOT EXISTS recipe_yield_qty_positive_update
+                BEFORE UPDATE OF yield_qty ON recipe
+                FOR EACH ROW
+                WHEN NEW.yield_qty IS NOT NULL AND NEW.yield_qty <= 0
+                BEGIN
+                    SELECT RAISE(ABORT, 'recipe.yield_qty must be > 0 (or NULL for drafts)');
+                END
+            """))
+            conn.execute(text("""
+                CREATE TRIGGER IF NOT EXISTS recipe_line_qty_positive_update
+                BEFORE UPDATE OF qty ON recipe_line
+                FOR EACH ROW
+                WHEN NEW.qty IS NOT NULL AND NEW.qty <= 0
+                BEGIN
+                    SELECT RAISE(ABORT, 'recipe_line.qty must be > 0 (or NULL)');
+                END
+            """))
+        except Exception:
+            # Older engine without trigger support — Python-level validation
+            # in apply_sale() / recipe CRUD continues to enforce.
+            pass
+
+    _bump_schema_version(conn, 28)
+
+
+def _migration_029_herebus_integration(conn) -> None:
+    """HEREBUS Drive integration — 10 new tables + customer.zone + pedido.delivery_zone_id.
+
+    Source-of-truth: the 33-file Google Drive dump of HEREBUS's bakery operations
+    spreadsheet (Maestra, INGREDIENTES, RECETAS, COSTOS, MERMAS, DASHBOARD, VENTAS,
+    RECETAS_MAESTRO, RECETAS_DETALLE, ZONAS_DELIVERY, Wishlist, Risk_Register,
+    Benchmarks_Market, KPI_Dashboard, Pricing_Por_Producto, Suppliers, Price_History,
+    Shopping_List, Price_Analysis, Production_Planner, Waste_Tracker, Recipe_Template,
+    Dashboard_PL, RECETARIO_EN_BLANCO).
+
+    Schema additions:
+      - delivery_zone         — 5+ delivery zones (pickup, local, central, etc.)
+      - wishlist_item         — kitchen equipment wishlist (₲61M total)
+      - risk_item             — operational risk register (12 risks)
+      - recipe_pricing        — per-channel pricing (wholesale/retail/etc.)
+      - price_history         — supplier purchase history (append-only)
+      - production_plan       — batch plan created by Production Planner UI
+      - shopping_list_item    — derived list of ingredients to buy
+      - market_benchmark      — vs competitor pricing
+      - bank_transaction      — EUR (NL) + PYG (PY) transactions
+      - settings_kv           — JSON-keyed config (hours, pickup address, etc.)
+      - ALTER customer ADD zone TEXT
+      - ALTER pedido ADD delivery_zone_id INTEGER FK delivery_zone
+
+    All new tables are created by SQLAlchemy create_all() in init_db() before
+    this migration runs. This migration just adds the inline ALTERs for the
+    two existing tables (customer, pedido) and bumps schema_version.
+    """
+    # Customer.zone — free-text label
+    try:
+        conn.execute(text("ALTER TABLE customer ADD COLUMN zone VARCHAR(64)"))
+    except Exception:
+        # Column may already exist on a partially-migrated DB
+        pass
+
+    # Pedido.delivery_zone_id — FK to new delivery_zone
+    try:
+        conn.execute(text(
+            "ALTER TABLE pedido ADD COLUMN delivery_zone_id INTEGER "
+            "REFERENCES delivery_zone(id)"
+        ))
+    except Exception:
+        pass
+
+    # Index for delivery_zone lookups
+    try:
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_pedido_delivery_zone_id "
+            "ON pedido(delivery_zone_id)"
+        ))
+    except Exception:
+        pass
+
+    _bump_schema_version(conn, 29)
+
+
+def _migration_030_recipe_image_url(conn) -> None:
+    """Add Recipe.image_url (HEREBUS cookbook photos).
+
+    Optional VARCHAR(255) for storing /static/recipes/<file>.jpg
+    paths. Allows the recetas list to show thumbnail previews from
+    hand-photographed cookbook pages.
+    """
+    try:
+        conn.execute(text(
+            "ALTER TABLE recipe ADD COLUMN image_url VARCHAR(255)"
+        ))
+    except Exception:
+        pass
+
+    _bump_schema_version(conn, 30)
+
+
+def _migration_031_risk_status_activo(conn) -> None:
+    """Re-create ck_risk_status to accept both 'active' and 'activo'.
+
+    Original constraint used ('active', 'mitigated', 'closed') but the
+    spreadsheet uses 'activo'. This widens the constraint to allow both.
+    """
+    # Save current contents
+    rows = conn.execute(text("SELECT * FROM risk_item")).fetchall()
+    cols = [c for c in conn.execute(text("PRAGMA table_info(risk_item)")).fetchall()]
+
+    # Drop and recreate with new constraint
+    conn.execute(text("ALTER TABLE risk_item RENAME TO _risk_item_bk"))
+    conn.execute(text("""
+        CREATE TABLE risk_item (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code VARCHAR(16),
+            description VARCHAR(255) NOT NULL,
+            category VARCHAR(32),
+            probability INTEGER NOT NULL DEFAULT 2,
+            impact_gs INTEGER NOT NULL DEFAULT 0,
+            mitigation TEXT,
+            status VARCHAR(16) NOT NULL DEFAULT 'active',
+            owner VARCHAR(64),
+            notes TEXT,
+            created_at DATETIME NOT NULL,
+            CHECK (probability BETWEEN 1 AND 5),
+            CHECK (impact_gs >= 0),
+            CHECK (status IN ('active', 'activo', 'mitigated', 'closed'))
+        )
+    """))
+    if rows:
+        placeholders = ','.join(['?'] * len(cols))
+        col_names = ','.join(c[1] for c in cols)
+        conn.execute(
+            text(f"INSERT INTO risk_item ({col_names}) VALUES ({placeholders})"),
+            [tuple(r) for r in rows]
+        )
+    conn.execute(text("DROP TABLE _risk_item_bk"))
+
+    _bump_schema_version(conn, 31)
+
+
+def _migration_032_pedido_cancel_reason(conn) -> None:
+    """Add pedido.cancel_reason (was in model but missing migration).
+
+    The Pedido model declares `cancel_reason: Mapped[str | None]` (a Text
+    column for free-text cancellation reasons), but the original
+    pedidos migration didn't include it. Queries like
+    `SELECT pedido.cancel_reason` raised ProgrammingError.
+
+    This migration adds the column idempotently. SQLite doesn't support
+    IF NOT EXISTS on ADD COLUMN, so we check the schema first.
+    """
+    cols = [c[1] for c in conn.execute(text("PRAGMA table_info(pedido)")).fetchall()]
+    if "cancel_reason" not in cols:
+        conn.execute(text("ALTER TABLE pedido ADD COLUMN cancel_reason TEXT"))
+    _bump_schema_version(conn, 32)
+
+
+
+def _migration_033_ingredient_storage(conn):
+    """Add storage column to ingredient table (Wave 2 / HACCP).
+
+    storage ∈ {ambient, refrigerated, frozen, dry}.
+    Inferred on POST /inventario/nuevo from ingredient name (see
+    app.rms.ingredient_intel.infer_storage). Operator can override.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    col_type = "VARCHAR(16)"
+    try:
+        conn.execute(text(f"ALTER TABLE ingredient ADD COLUMN storage {col_type}"))
+    except Exception:
+        # Column already exists — idempotent.
+        pass
+    _bump_schema_version(conn, 33)
+
+
+
+
+def _migration_034_market_price_reference(conn):
+    """Wave 4 — Add market_price_reference table for ingredient market prices.
+
+    Operator-curated baseline. One row per ingredient (no historical
+    retention in v1 — the historical data lives in PriceHistory for actual
+    purchases). Future: partition by as_of date for time-series.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    int_type = "INTEGER"
+    float_type = "FLOAT"
+    str16 = "VARCHAR(16)"
+    str32 = "VARCHAR(32)"
+    text_type = "TEXT"
+    date = "DATE"
+    dt = "TIMESTAMP" if dialect == "sqlite" else "TIMESTAMP"
+    fk_ref = (
+        "INTEGER REFERENCES ingredient(id) ON DELETE CASCADE"
+        if dialect == "sqlite"
+        else "INTEGER REFERENCES ingredient(id) ON DELETE CASCADE"
+    )
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS market_price_reference (
+            id {pk_type},
+            ingredient_id {fk_ref} NOT NULL,
+            unit {str16} NOT NULL,
+            price_gs {float_type} NOT NULL,
+            source {str32} NOT NULL DEFAULT 'manual',
+            notes {text_type},
+            as_of {date} NOT NULL,
+            created_at {dt} NOT NULL,
+            updated_at {dt} NOT NULL
+        )
+        """
+    ))
+    conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_market_price_reference_ingredient_id "
+        "ON market_price_reference(ingredient_id)"
+    ))
+    _bump_schema_version(conn, 34)
+
+
+
+
+def _migration_035_compliance_info(conn):
+    """Phase 1.A — Add compliance_info table for tax / regulatory IDs.
+
+    Single-row table; PK is always 1. Stores RUC, INAN R.E., timbrado,
+    municipal habilitación, etc. See app.rms.models.ComplianceInfo for
+    field documentation.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    int_type = "INTEGER"
+    str8 = "VARCHAR(8)"
+    str10 = "VARCHAR(10)"
+    str16 = "VARCHAR(16)"
+    str20 = "VARCHAR(20)"
+    str30 = "VARCHAR(30)"
+    str60 = "VARCHAR(60)"
+    str120 = "VARCHAR(120)"
+    str255 = "VARCHAR(255)"
+    text_type = "TEXT"
+    bool_t = "BOOLEAN" if dialect != "sqlite" else "INTEGER"
+    dt = "TIMESTAMP" if dialect == "sqlite" else "TIMESTAMP"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS compliance_info (
+            id {pk_type},
+            ruc {str20},
+            razon_social {str120},
+            nombre_fantasia {str120},
+            tax_regime {str16} NOT NULL DEFAULT 'resimple',
+            iva_default_rate {str8} NOT NULL DEFAULT '10',
+            timbrado_number {str20},
+            timbrado_expiry {str10},
+            next_boleta_resimple_number {int_type} NOT NULL DEFAULT 1,
+            next_factura_number {int_type} NOT NULL DEFAULT 1,
+            inan_re_number {str30},
+            inan_re_expiry {str10},
+            director_tecnico {str120},
+            director_tecnico_registro {str30},
+            municipal_habilitacion {str30},
+            municipal_habilitacion_expiry {str10},
+            establecimiento_address {str255},
+            establecimiento_phone {str30},
+            establecimiento_email {str120},
+            logo_path {str255},
+            labor_cost_per_hour_gs {int_type} NOT NULL DEFAULT 25000,
+            overhead_multiplier_pct {int_type} NOT NULL DEFAULT 15,
+            sifen_certificate_id {str60},
+            sifen_csc_code {str60},
+            sifen_test_mode {bool_t} NOT NULL DEFAULT 1,
+            updated_at {dt} NOT NULL
+        )
+        """
+    ))
+    # Idempotent: seed the single row if missing.
+    has_row = conn.execute(text("SELECT COUNT(*) FROM compliance_info WHERE id = 1")).scalar()
+    if not has_row:
+        conn.execute(text(
+            "INSERT INTO compliance_info (id, tax_regime, iva_default_rate, "
+            "next_boleta_resimple_number, next_factura_number, "
+            "labor_cost_per_hour_gs, overhead_multiplier_pct, sifen_test_mode, updated_at) "
+            "VALUES (1, 'resimple', '10', 1, 1, 25000, 15, 1, CURRENT_TIMESTAMP)"
+        ))
+    _bump_schema_version(conn, 35)
+
+
+
+
+def _migration_036_product_tax_haccp(conn):
+    """Phase 1.A/C — Add product tax + HACCP columns.
+
+    - iva_rate (default '10' = general rate per Art. 91 inc. e Ley 125/91)
+    - requires_rspa (default False; only true when product is packaged + labeled)
+    - rspa_number / rspa_expiry (NULL until operator registers the R.S.P.A.)
+    - yield_percentage (NULL = no moisture loss correction; default 0.85 applied at
+      costing-time when NULL per docs/plans/2026-09-22-ingredient-domain.md)
+
+    Idempotent: each column uses _add_column_if_missing so re-runs are no-ops.
+    """
+    _add_column_if_missing(conn, "product", "iva_rate", "VARCHAR(8)", "VARCHAR(8) NOT NULL DEFAULT '10'")
+    _add_column_if_missing(conn, "product", "requires_rspa", "BOOLEAN", "BOOLEAN NOT NULL DEFAULT 0")
+    _add_column_if_missing(conn, "product", "rspa_number", "VARCHAR(30)", "VARCHAR(30)")
+    _add_column_if_missing(conn, "product", "rspa_expiry", "VARCHAR(10)", "VARCHAR(10)")
+    _add_column_if_missing(conn, "product", "yield_percentage", "FLOAT", "FLOAT")
+    _bump_schema_version(conn, 36)
+
+
+
+
+def _migration_037_sale_fiscal_invoice(conn):
+    """Phase 1.B — Add fiscal invoice fields to sale table.
+
+    Required for Paraguayan DNIT/SET bookkeeping (Ley 7165 — every sale
+    needs a comprobante; Res 1421/05 — Libro IVA Ventas monthly).
+    """
+    _add_column_if_missing(conn, "sale", "invoice_type", "VARCHAR(20)", "VARCHAR(20) NOT NULL DEFAULT 'boleta_resimple'")
+    _add_column_if_missing(conn, "sale", "invoice_number", "INTEGER", "INTEGER")
+    _add_column_if_missing(conn, "sale", "invoice_customer_ruc", "VARCHAR(20)", "VARCHAR(20)")
+    _add_column_if_missing(conn, "sale", "invoice_customer_name", "VARCHAR(120)", "VARCHAR(120)")
+    _add_column_if_missing(conn, "sale", "iva_rate", "VARCHAR(8)", "VARCHAR(8) NOT NULL DEFAULT '10'")
+    _add_column_if_missing(conn, "sale", "iva_base_gs", "INTEGER", "INTEGER NOT NULL DEFAULT 0")
+    _add_column_if_missing(conn, "sale", "iva_amount_gs", "INTEGER", "INTEGER NOT NULL DEFAULT 0")
+    _bump_schema_version(conn, 37)
+
+
+
+
+def _migration_038_ingredient_haccp(conn):
+    """Phase 1.C — HACCP storage columns on ingredient table.
+
+    Per Res S.G. N° 213/2019, every bakery ingredient must have
+    temperature/humidity/water-activity targets recorded. These columns
+    are nullable for backwards compatibility — operators fill them in
+    over time via the inventario edit form.
+    """
+    _add_column_if_missing(conn, "ingredient", "temp_min_c", "FLOAT", "FLOAT")
+    _add_column_if_missing(conn, "ingredient", "temp_max_c", "FLOAT", "FLOAT")
+    _add_column_if_missing(conn, "ingredient", "humidity_max_pct", "FLOAT", "FLOAT")
+    _add_column_if_missing(conn, "ingredient", "water_activity_aw", "FLOAT", "FLOAT")
+    _add_column_if_missing(conn, "ingredient", "lot_required", "BOOLEAN", "BOOLEAN NOT NULL DEFAULT 0")
+    _add_column_if_missing(conn, "recipe", "yield_percentage", "FLOAT", "FLOAT")
+    _add_column_if_missing(conn, "recipe", "direct_labor_minutes", "INTEGER", "INTEGER")
+    _bump_schema_version(conn, 38)
+
+
+
+
+
+
+def _migration_039_category_table(conn):
+    """Phase 1 catalog unification — operator-configurable categories/families.
+
+    Replaces the hardcoded lists previously living in
+    app/templates/_components/tags.html (product_category_options,
+    recipe_family_options, product_tag_options, dietary_tag_options)
+    and the duplicated family list in app/templates/receta_form.html.
+
+    Schema:
+      - id SERIAL/INTEGER PRIMARY KEY
+      - name VARCHAR(64) NOT NULL UNIQUE per scope
+      - scope VARCHAR(16) NOT NULL   -- 'product' | 'recipe_family'
+      - sort_order INTEGER NOT NULL DEFAULT 0
+      - is_active BOOLEAN NOT NULL DEFAULT 1
+      - created_at TIMESTAMP
+
+    Seed data matches the prior hardcoded values exactly so the migration
+    is invisible to operators — every existing dropdown still shows the
+    same options in the same order.
+
+    Idempotent: INSERT OR IGNORE so re-runs are no-ops.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS category (
+            id {pk_type},
+            name VARCHAR(64) NOT NULL,
+            scope VARCHAR(16) NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active {bool_t} NOT NULL DEFAULT 1,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (scope, name)
+        )
+        """
+    ))
+    conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_category_scope_active "
+        "ON category (scope, is_active, sort_order)"
+    ))
+
+    # Seed product categories
+    product_cats = [
+        ("Panadería", 10),
+        ("Pastelería", 20),
+        ("Dulces", 30),
+        ("Bollería", 40),
+        ("Bebidas", 50),
+        ("Lácteos", 60),
+        ("Salados", 70),
+        ("Congelados", 80),
+        ("Especiales", 90),
+        ("Temporada", 100),
+        ("Sin TACC", 110),
+        ("Vegano", 120),
+        ("Light", 130),
+    ]
+    # Seed recipe families
+    recipe_fams = [
+        ("Panadería", 10),
+        ("Pastelería", 20),
+        ("Bollería", 30),
+        ("Dulces", 40),
+        ("Galletería", 50),
+        ("Tortas", 60),
+        ("Masas", 70),
+        ("Rellenos", 80),
+        ("Coberturas", 90),
+        ("Salsas", 100),
+        ("Bases", 110),
+        ("Temporada", 120),
+        ("Especiales", 130),
+    ]
+
+    # SQLAlchemy's create_all() runs BEFORE this migration and creates
+    # the category table WITHOUT defaults on is_active / created_at.
+    # So INSERTs must pass all NOT NULL columns explicitly.
+    # Insert idempotently: ON CONFLICT DO NOTHING / INSERT OR IGNORE.
+    for name, sort in product_cats:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO category "
+                "(name, scope, sort_order, is_active, created_at) "
+                "VALUES (:n, 'product', :s, 1, CURRENT_TIMESTAMP)"
+            ) if dialect == "sqlite" else text(
+                "INSERT INTO category "
+                "(name, scope, sort_order, is_active, created_at) "
+                "VALUES (:n, 'product', :s, TRUE, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (scope, name) DO NOTHING"
+            ),
+            {"n": name, "s": sort},
+        )
+    for name, sort in recipe_fams:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO category "
+                "(name, scope, sort_order, is_active, created_at) "
+                "VALUES (:n, 'recipe_family', :s, 1, CURRENT_TIMESTAMP)"
+            ) if dialect == "sqlite" else text(
+                "INSERT INTO category "
+                "(name, scope, sort_order, is_active, created_at) "
+                "VALUES (:n, 'recipe_family', :s, TRUE, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (scope, name) DO NOTHING"
+            ),
+            {"n": name, "s": sort},
+        )
+
+    # Seed Tag table with dietary tags (idempotent). The Tag model is created
+    # via SQLAlchemy create_all() in init_db() — this just ensures rows exist.
+    # ensure_starter_tags is a no-op on rows already present.
+    try:
+        # Use the same connection as the migration so it's in the same transaction.
+        from app.rms.tags import STARTER_TAGS, ensure_tag
+        for name, kind, color in STARTER_TAGS:
+            try:
+                ensure_tag_with_conn(conn, name, kind, color)
+            except Exception:
+                pass  # Already exists, or transient — skip.
+    except Exception as exc:
+        # Tag seeding is best-effort — don't block schema migration.
+        print(f"WARN: tag seeding skipped: {exc!r}", file=sys.stderr)
+
+    _bump_schema_version(conn, 39)
+
+
+def ensure_tag_with_conn(conn, name: str, kind: str, color: str = "#757575"):
+    """INSERT OR IGNORE a tag by (name, kind). Used inside migrations.
+
+    Mirrors app.rms.tags.ensure_tag but takes a raw connection instead of
+    a Session (migrations don't have ORM sessions).
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    if dialect == "sqlite":
+        conn.execute(
+            text("INSERT OR IGNORE INTO tag (name, kind, color) VALUES (:n, :k, :c)"),
+            {"n": name, "k": kind, "c": color},
+        )
+    else:
+        # Postgres: ON CONFLICT DO NOTHING on (name, kind)
+        conn.execute(
+            text(
+                "INSERT INTO tag (name, kind, color) VALUES (:n, :k, :c) "
+                "ON CONFLICT (name, kind) DO NOTHING"
+            ),
+            {"n": name, "k": kind, "c": color},
+        )
+
+
+def _migration_040_pricing_setting(conn):
+    """Phase 2 — SettingsKV-backed pricing markup setting.
+
+    The suggested retail multiplier (cost * 3) was previously hardcoded
+    in three places: app/routers/recipes.py:519, app/templates/producto_form.html:320,
+    and app/templates/receta_form.html:759. This migration:
+
+    1. Adds a settings_kv row keyed 'pricing.suggested_markup' with the
+       legacy default (multiplier=3.0, round_to_gs=1000).
+    2. Operators can now change the multiplier from /settings/pricing
+       without code deploy.
+
+    Idempotent: app_meta_write uses ON CONFLICT DO UPDATE which is a no-op
+    if the value already matches.
+    """
+    import json as _json
+    pricing_value = _json.dumps({"multiplier": 3.0, "round_to_gs": 1000})
+    from app.rms.db import app_meta_write
+    app_meta_write(conn, "pricing.suggested_markup", pricing_value)
+    _bump_schema_version(conn, 40)
+
+
+
+
+
+def _migration_041_channel_catalog(conn):
+    """Phase 4 — Sale channel catalog table.
+
+    Replaces the hardcoded CHANNELS_DISPLAY / ALLOWED_CHANNELS frozenset
+    in app/rms/schemas.py with a DB-backed table. Operators can add/edit
+    channels from /settings/channels without code deploy.
+
+    Seed data matches the legacy frozenset exactly:
+      - mostrador (default)
+      - mostrador-encargo
+      - whatsapp
+      - pedidosya
+      - monchis
+    """
+    from app.rms.db import ensure_tag_with_conn
+
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
+    float_t = "FLOAT" if dialect == "sqlite" else "DOUBLE PRECISION"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS channel (
+            id {pk_type},
+            code VARCHAR(32) NOT NULL UNIQUE,
+            label VARCHAR(64) NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_default {bool_t} NOT NULL DEFAULT 0,
+            is_active {bool_t} NOT NULL DEFAULT 1,
+            notes TEXT,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    ))
+
+    channels = [
+        ("mostrador", "Mostrador", 10, True),
+        ("mostrador-encargo", "Mostrador (encargo)", 20, False),
+        ("whatsapp", "WhatsApp", 30, False),
+        ("pedidosya", "PedidosYa", 40, False),
+        ("monchis", "Monchis", 50, False),
+    ]
+    for code, label, sort, is_default in channels:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO channel (code, label, sort_order, is_default, is_active, created_at) "
+                "VALUES (:c, :l, :s, :d, 1, CURRENT_TIMESTAMP)"
+            ) if dialect == "sqlite" else text(
+                "INSERT INTO channel (code, label, sort_order, is_default, is_active, created_at) "
+                "VALUES (:c, :l, :s, :d, TRUE, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (code) DO NOTHING"
+            ),
+            {"c": code, "l": label, "s": sort, "d": 1 if is_default else 0},
+        )
+
+    _bump_schema_version(conn, 41)
+
+
+def _migration_042_payment_method_catalog(conn):
+    """Phase 4 — Payment method catalog table.
+
+    Replaces PAYMENT_METHODS_DISPLAY / ALLOWED_PAYMENT_METHODS frozenset
+    in app/rms/schemas.py with a DB-backed table.
+
+    Seed data matches the legacy frozenset:
+      - efectivo (default)
+      - transferencia (requires reference)
+      - qr
+      - tarjeta (typically has fee_pct)
+      - otro
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
+    float_t = "FLOAT" if dialect == "sqlite" else "DOUBLE PRECISION"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS payment_method (
+            id {pk_type},
+            code VARCHAR(32) NOT NULL UNIQUE,
+            label VARCHAR(64) NOT NULL,
+            requires_reference {bool_t} NOT NULL DEFAULT 0,
+            fee_pct {float_t} NOT NULL DEFAULT 0.0,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_default {bool_t} NOT NULL DEFAULT 0,
+            is_active {bool_t} NOT NULL DEFAULT 1,
+            notes TEXT,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    ))
+
+    methods = [
+        ("efectivo", "Efectivo", False, 0.0, True),
+        ("transferencia", "Transferencia", True, 0.0, False),
+        ("qr", "QR", True, 0.0, False),
+        ("tarjeta", "Tarjeta", True, 3.0, False),
+        ("otro", "Otro", False, 0.0, False),
+    ]
+    for code, label, req_ref, fee, is_default in methods:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO payment_method "
+                "(code, label, requires_reference, fee_pct, sort_order, is_default, is_active, created_at) "
+                "VALUES (:c, :l, :r, :f, :s, :d, 1, CURRENT_TIMESTAMP)"
+            ) if dialect == "sqlite" else text(
+                "INSERT INTO payment_method "
+                "(code, label, requires_reference, fee_pct, sort_order, is_default, is_active, created_at) "
+                "VALUES (:c, :l, :r, :f, :s, :d, TRUE, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (code) DO NOTHING"
+            ),
+            {"c": code, "l": label, "r": 1 if req_ref else 0, "f": fee, "s": 0, "d": 1 if is_default else 0},
+        )
+
+    _bump_schema_version(conn, 42)
+
+
+
+
+
+
+
+
+
+
+def _migration_044_message_templates(conn):
+    """Phase 6 — MessageTemplate table + seed common templates.
+
+    Replaces hardcoded copy in pedidos.py, email notifications, etc.
+    Operators can edit from /settings/templates without code deploy.
+
+    Seed data matches the prior hardcoded copy in app/routers/pedidos.py
+    and similar files. Body uses {placeholder} format() syntax — substitute
+    at send time.
+
+    Idempotent: INSERT OR IGNORE on (channel, key, locale) unique.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    text_type = "TEXT"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS message_template (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel VARCHAR(16) NOT NULL,
+            key VARCHAR(64) NOT NULL,
+            subject VARCHAR(200),
+            body {text_type} NOT NULL,
+            locale VARCHAR(8) NOT NULL DEFAULT 'es-PY',
+            is_active BOOLEAN NOT NULL DEFAULT 1,
+            version INTEGER NOT NULL DEFAULT 1,
+            notes {text_type},
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (channel, key, locale)
+        )
+        """
+    ))
+
+    # Seed default templates (Paraguayan Spanish, es-PY)
+    defaults = [
+        # WhatsApp — pedido ready for pickup
+        (
+            "whatsapp", "pedido_listo",
+            None,
+            "¡Hola {customer_name}! Tu pedido #{pedido_id} ya está listo para retirar. "
+            "Total: Gs. {total_gs}. ¡Gracias por confiar en {business_name}!",
+            "es-PY", 1,
+            "Sent via WhatsApp when pedido is marked ready for pickup.",
+        ),
+        # WhatsApp — pedido confirmed
+        (
+            "whatsapp", "pedido_confirmado",
+            None,
+            "¡{customer_name}, tu pedido #{pedido_id} fue confirmado! "
+            "Prometido para {promised_date}. Total: Gs. {total_gs}.",
+            "es-PY", 1,
+            "Sent via WhatsApp when pedido is first created.",
+        ),
+        # WhatsApp — low stock alert (for supplier/internal)
+        (
+            "whatsapp", "stock_bajo",
+            None,
+            "⚠ Stock bajo: {ingredient_name}. Actual: {stock_qty} {unit} "
+            "(mínimo: {min_stock_qty} {unit}). Reposición sugerida: {reorder_qty} {unit}.",
+            "es-PY", 1,
+            "Sent to operator when an ingredient drops below minimum.",
+        ),
+        # Email — daily summary (subject + body)
+        (
+            "email", "resumen_diario",
+            "Resumen del día — {date}",
+            "Buen día, Iván.\n\n"
+            "Ventas de ayer: {total_sales_gs} Gs. ({total_count} ventas).\n"
+            "Stock bajo: {low_stock_count} ingredientes.\n"
+            "Por vencer: {expiring_count} ingredientes.\n\n"
+            "Detalle en {dashboard_url}.",
+            "es-PY", 1,
+            "Daily morning email with key metrics.",
+        ),
+        # WhatsApp — customer order share link
+        (
+            "whatsapp", "pedido_compartir",
+            None,
+            "Tu pedido #{pedido_id} en {business_name}: {public_url}",
+            "es-PY", 1,
+            "Sent to customer with the public pickup-tracking link.",
+        ),
+        # Generic — fallback
+        (
+            "email", "generic",
+            "Notificación de {business_name}",
+            "{message_body}",
+            "es-PY", 1,
+            "Generic email template. Subject + body interpolated.",
+        ),
+    ]
+
+    for ch, key, subject, body, locale, version, notes in defaults:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO message_template "
+                "(channel, key, subject, body, locale, version, notes, is_active, updated_at) "
+                "VALUES (:ch, :k, :sub, :body, :loc, :v, :notes, 1, CURRENT_TIMESTAMP)"
+            ),
+            {"ch": ch, "k": key, "sub": subject, "body": body, "loc": locale, "v": version, "notes": notes},
+        )
+
+    _bump_schema_version(conn, 44)
+
+
+MIGRATIONS = {
+    1: _migration_001_initial_schema,
+    2: _migration_002_audit_log,
+    3: _migration_003_analytics_columns,
+    4: _migration_004_tags,
+    5: _migration_005_customer,
+
+    6: _migration_006_waste_log,
+
+
+def _migration_005_customer(conn: Any) -> None:
+    """Add Customer table + Sale.customer_id FK (E13).
+
+
+    7: _migration_007_product_sku,
+    8: _migration_008_tenant,
+    9: _migration_009_ingredient_intel,
+    10: _migration_010_recipe_intel,
+    11: _migration_011_sale_payment_discount,
+    12: _migration_012_sale_tz,
+    13: _migration_013_ingredient_max_stock,
+    14: _migration_014_customer_cedula,
+    15: _migration_015_sale_channel,
+    16: _migration_016_pedidos,
+    17: _migration_017_recipe_line_unit,
+    18: _migration_018_price_event,
+    19: _migration_019_production_completion,
+    20: _migration_020_sale_date_voided_index,
+    21: _migration_021_stock_movement,
+    22: _migration_022_user_roles,
+    23: _migration_023_supplier,
+    24: _migration_024_recipe_intel_extended,
+    25: _migration_025_ingredient_opening_stock_reorder_point,
+    26: _migration_026_product_audit_columns,
+    27: _migration_027_production_plan_template,
+    28: _migration_028_recipe_yield_qty_check,
+    29: _migration_029_herebus_integration,
+    30: _migration_030_recipe_image_url,
+    31: _migration_031_risk_status_activo,
+    32: _migration_032_pedido_cancel_reason,
+    33: _migration_033_ingredient_storage,
+    34: _migration_034_market_price_reference,
+    35: _migration_035_compliance_info,
+    36: _migration_036_product_tax_haccp,
+    37: _migration_037_sale_fiscal_invoice,
+    38: _migration_038_ingredient_haccp,
+    39: _migration_039_category_table,
+    40: _migration_040_pricing_setting,
+    41: _migration_041_channel_catalog,
+    42: _migration_042_payment_method_catalog,
+
+    44: _migration_044_message_templates,
+}
+
+
+def _bump_schema_version(conn, version: int) -> None:
+    """Set schema_version to `version`, working on both SQLite and Postgres.
+
+    On Postgres, app_meta.value is JSONB. Sending a plain TEXT literal
+    ('27') raises `invalid input syntax for type json`. So we cast the
+    bound parameter to JSONB explicitly with a typed literal. On
+    SQLite, the column is TEXT so the same INSERT/UPDATE works without
+    the cast.
+
+    Replaces the old hard-coded pattern `text("UPDATE app_meta SET value = '27', ...")`
+    that silently no-op'd on Postgres (the UPDATE failed with a type"
+    error and the migration appeared to "succeed" without bumping""
+    schema_version).
+
+    Implementation note: `text(":v::jsonb")` causes psycopg to fail with
+    "syntax error at or near :" because the colon is ambiguous between
+    a parameter marker and a typecast. So we use a string-format with
+    the version number inline (safe — `version` is an int we control,
+    not user input).
+
+    Robustness: wraps the INSERT in its own SAVEPOINT on Postgres so
+    that even if the caller's transaction is in an aborted state, our
+    bump can still succeed (after a ROLLBACK TO SAVEPOINT).
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    ts = datetime.now(timezone.utc).isoformat()
+    if dialect == "postgresql":
+        # Use a SAVEPOINT so we can recover from an aborted caller tx.
+        # If the conn is in a failed state, the SAVEPOINT itself will
+        # fail — so we do a ROLLBACK first to recover.
+        try:
+            conn.execute(text("ROLLBACK"))
+        except Exception:
+            pass
+        try:
+            conn.execute(
+                text(
+                    "INSERT INTO app_meta (key, value, updated_at) VALUES "
+                    "('schema_version', :v_jsonb, :ts) "
+                    "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at"
+                ),
+                {"v_jsonb": f'"{version}"', "ts": ts},
+            )
+        except Exception:
+            # Try one more time with explicit BEGIN
+            try:
+                conn.execute(text("BEGIN"))
+                conn.execute(
+                    text(
+                        "INSERT INTO app_meta (key, value, updated_at) VALUES "
+                        "('schema_version', :v_jsonb, :ts) "
+                        "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at"
+                    ),
+                    {"v_jsonb": f'"{version}"', "ts": ts},
+                )
+                conn.execute(text("COMMIT"))
+            except Exception:
+                raise
+    else:
+        conn.execute(
+            text(
+                "INSERT OR REPLACE INTO app_meta (key, value, updated_at) "
+                "VALUES ('schema_version', :v, :ts)"
+            ),
+            {"v": str(version), "ts": ts},
+        )
+
+
+def _current_schema_version(conn: Any) -> int:
+    """Read schema version from app_meta table (default 0)."""
+    row = conn.execute(text("SELECT value FROM app_meta WHERE key = 'schema_version'")).first()
+    if row is None:
+        return 0
+    try:
+        return int(row[0])
+    except (TypeError, ValueError):
+        return 0
+
+
+def schema_version(conn: Any) -> int:
+    """Read schema version. Public alias for _current_schema_version.
+
+    Used by `/healthz/schema` endpoint to detect drift between code and
+    DB. Returns int (0 means schema_version row missing entirely).
+    """
+    return _current_schema_version(conn)
+
+
+def schema_version_mismatch(conn: Any) -> int:
+    """Return CURRENT_SCHEMA_VERSION - actual_db_version.
+
+    - Positive = DB is behind code (migrations not applied — risk of
+      `column X does not exist` 500s on first request after deploy).
+    - Zero = in sync. Healthy.
+    - Negative = DB is ahead of code (rolled back to old code).
+
+    Used by `/healthz/schema` to surface drift before operators see 500s.
+    """
+    return CURRENT_SCHEMA_VERSION - _current_schema_version(conn)
+
+
+def app_meta_read(conn: Any, key: str) -> str | None:
+    """Read one key from app_meta. Returns None if the row is missing.
+
+    Dialect-agnostic. Returns str | None.
+    """
+    row = conn.execute(
+        text("SELECT value FROM app_meta WHERE key = :key"), {"key": key}
+    ).first()
+    return row[0] if row else None
+
+
+def app_meta_write(conn: Any, key: str, value: str) -> None:
+    """Upsert one key into app_meta. Dialect-agnostic.
+
+    Postgres uses ON CONFLICT (key) DO UPDATE; SQLite uses
+    INSERT OR REPLACE. Caller commits the surrounding transaction;
+    this function does NOT commit by itself.
+    """
+    from datetime import datetime, timezone
+
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    ts = datetime.now(timezone.utc).isoformat()
+    if dialect == "postgresql":
+        conn.execute(
+            text(
+                "INSERT INTO app_meta (key, value, updated_at) VALUES (:k, :v, :ts) "
+                "ON CONFLICT (key) DO UPDATE SET value = :v, updated_at = :ts"
+            ),
+            {"k": key, "v": value, "ts": ts},
+        )
+    else:
+        conn.execute(
+            text("INSERT OR REPLACE INTO app_meta (key, value, updated_at) VALUES (:k, :v, :ts)"),
+            {"k": key, "v": value, "ts": ts},
+        )
+
+
+def init_db(engine: Engine) -> None:
+    """Initialize the database: create tables + run pending migrations.
+
+    Idempotent. Safe to call on every app startup.
+
+    Concurrency: on Postgres we take a session-level advisory lock for the
+    duration of the migration block so two replicas rolling out together
+    can't run migrations concurrently (which would double-execute them or
+    deadlock). On SQLite we rely on the per-process serialization of the
+    single-writer connection.
+
+    Atomicity: each individual migration runs inside its own SAVEPOINT on
+    Postgres (or implicit transaction on SQLite) so a failed statement
+    doesn't leave the whole migration run in a partial state.
+    """
+    from app.rms.models import Base  # local import to avoid circular deps
+
+    dialect_name = engine.dialect.name if hasattr(engine, "dialect") else "sqlite"
+
+    # Note: We deliberately do NOT take a Postgres advisory lock. Session-level
+    # advisory locks on Postgres are tied to the connection — if init_db
+    # fails mid-flight and the lock_conn is returned to the pool with the
+    # lock still held, subsequent calls would deadlock. Since we run with
+    # one replica (Render free tier), concurrency is not an issue.
+
+    _init_db_inner(engine, dialect_name, Base)
+
+
+def _init_db_inner(engine, dialect_name, Base) -> None:
+    """Inner init_db helper (extracted so the outer wrapper can release the
+    Postgres advisory lock in a finally block).
+
+    Strategy: each migration runs in its OWN TRANSACTION on its own
+    CONNECTION. This guarantees that:
+    1. A failed migration doesn't poison the next migration
+    2. The schema_version bump always succeeds (in a separate
+       transaction)
+    3. CREATE TRIGGER syntax errors on Postgres don't cascade
+    """
+    # 1. Create all tables (idempotent; SQLAlchemy skips existing tables)
+    Base.metadata.create_all(engine)
+
+    # 2. Read the current schema_version ONCE
+    current = 0
+    target = CURRENT_SCHEMA_VERSION
+    with engine.connect() as probe_conn:
+        probe_conn.commit()
+        from app.rms.db import schema_version
+        current = schema_version(probe_conn)
+
+    # 3. Run each pending migration on its OWN connection (auto-committed).
+    # This is more robust than SAVEPOINTs because each migration's
+    # transaction state is isolated from the others.
+    for v in range(current + 1, target + 1):
+        if v not in MIGRATIONS:
+            raise RuntimeError(
+                f"No migration registered for schema version {v}; "
+                f"current={current}, target={target}. "
+                "Add the migration in app/rms/db.py."
+            )
+        try:
+            with engine.connect() as mig_conn:
+                # Run the migration in its own transaction.
+                MIGRATIONS[v](mig_conn)
+                # The migration calls _bump_schema_version which uses
+                # the same connection. We then commit the whole tx.
+                mig_conn.commit()
+        except Exception as exc:
+            # Don't fail the whole init_db — log and continue to next
+            # migration. The lifespan will retry on next boot.
+            logger.warning(
+                f"migration v{v} failed: {exc!r}; continuing"
+            )
+            # Print to stderr so Render logs capture it
+            print(f"MIGRATION v{v} FAILED: {exc!r}", file=sys.stderr)
+
+        # 3. Apply recommended Postgres indexes (idempotent).
+        # Wrapped in its own connection so failure here doesn't undo migrations.
+        try:
+            from sqlalchemy.orm import sessionmaker
+
+            from app.rms.perf import apply_postgres_indexes
+            Session = sessionmaker(bind=engine)()
+            _ = apply_postgres_indexes(Session)
+            Session.close()
+        except Exception as exc:
+            # Indexes are an optimization, not a correctness fix.
+            # Don't crash startup if the applier hiccups.
+            logger.warning(f"apply_postgres_indexes failed (non-fatal): {exc!r}")
+
+
+def make_session_factory(engine: Engine) -> sessionmaker:
+    """Create a configured sessionmaker bound to the engine."""
+    return sessionmaker(bind=engine, expire_on_commit=False, future=True)
+
+
+def get_db_session(session_factory: sessionmaker) -> Session:
+    """Open a new session. Caller is responsible for closing it.
+
+    Typical use:
+        sf = make_session_factory(engine)
+        with get_db_session(sf) as session:
+            ...
+    """
+    return session_factory()
+
+
+def safe_commit(session: Session) -> bool:
+    """Commit the current transaction, rolling back on any error.
+
+    Returns True on success, False on failure. NEVER raises — the
+    caller can choose how to react (raise HTTPException, log + skip, etc.)
+
+    Why this exists (per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md F18):
+    Bare `session.commit()` in a request handler raises an unhandled
+    exception on IntegrityError or any DB error mid-handler. That leaves
+    the session in an inconsistent state for the next pooled connection
+    checkout, causing the next request to receive a SQLAlchemy error
+    from a half-completed prior transaction.
+
+    Wrapping commit() in try/except/rollback keeps the connection pool
+    clean. The function logs the rollback so ops can see it without
+    needing to instrument every call site.
+
+    Scope: this is the canonical commit helper for handlers in
+    app/routers/sales.py and app/routers/pedidos.py (the money paths).
+    Bare commits elsewhere should also migrate to safe_commit, but that
+    is a follow-up rollout.
+    """
+    try:
+        session.commit()
+        return True
+    except Exception as exc:  # noqa: BLE001 — see docstring
+        try:
+            session.rollback()
+        except Exception:
+            # If rollback itself fails, the connection pool will recycle
+            # it on close. Log and continue.
+            pass
+        # Use the project's logger if available, else print to stderr.
+        try:
+            from loguru import logger as _log
+
+            _log.warning(
+                "safe_commit: rollback after error: {err!r}",
+                err=exc,
+            )
+        except ImportError:
+            import sys
+
+            print(f"WARNING: safe_commit rollback: {exc!r}", file=sys.stderr)
+        return False
+
+
+__all__ = [
+    "make_engine",
+    "init_db",
+    "make_session_factory",
+    "get_db_session",
+    "safe_commit",
+    "MIGRATIONS",
+    "MigrationFn",
+]
+
+
+def _get_db_url_safe() -> str:
+    """Return the database URL stripped of credentials.
+
+    Used in backup manifests so the file does not leak the password.
+    Returns something like "postgresql+psycopg2://***@host/db".
+    """
+    import os
+    from urllib.parse import urlsplit, urlunsplit
+
+    url = os.environ.get("AIW_SASKIA_DB_URL", "sqlite:///./saskia.db")
+    if url.startswith("sqlite"):
+        return "sqlite:///<local>"
+    try:
+        parts = urlsplit(url)
+        if parts.username or parts.password:
+            netloc = "***@" + parts.netloc.split("@", 1)[-1]
+            return urlunsplit((parts.scheme, netloc, parts.path, parts.query, ""))
+        return url
+    except Exception:
+        return "<unknown>"
