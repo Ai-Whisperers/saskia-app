@@ -9,13 +9,13 @@ def test_inventory_form_unit_combo(client: TestClient):
     """Test that inventory form uses combobox for unit selection."""
     response = client.get("/inventario/nuevo")
     assert response.status_code == 200
-    
+
     # Check for combobox elements instead of native selects
-    assert "data-saskia-combo" in response.text
+    assert 'class="saskia-combo"' in response.text
     assert 'data-source="/recetas/api/units"' in response.text
     assert "unit_combo" in response.text
     assert "combo-input" in response.text
-    
+
     # Should not contain native unit select
     assert '<select id="unit"' not in response.text
 
@@ -54,15 +54,15 @@ def test_inventory_form_structure(client: TestClient):
     """Test that inventory form has proper structure."""
     response = client.get("/inventario/nuevo")
     assert response.status_code == 200
-    
+
     # Check for required form elements
     assert 'method="post"' in response.text
     assert 'action="/inventario/nuevo"' in response.text
-    
+
     # Check for form rows
     assert '<div class="form-row">' in response.text
     assert response.text.count('<div class="form-row">') >= 3  # name, category, unit at minimum
-    
+
     # Check for combo system integration
     assert "/static/combo.js" in response.text
-    assert "/static/combo.css" in response.text
+    assert "/static/combobox.css" in response.text  # fixed: was combo.css

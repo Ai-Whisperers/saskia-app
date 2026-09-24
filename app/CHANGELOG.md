@@ -5,7 +5,11 @@
 
 ## [Unreleased]
 
-### Changed (2026-09-23) — second review: recipe photos behind modal (US 1.1)
+### Changed (2026-09-23) — second review: inventory form combos (US 2.1, carryover)
+
+- **`/inventario/nuevo` and `/inventario/{id}/editar` no longer submit duplicate form fields.** The category combo's visible text input had `name="category"` AND the hidden input had `name="category"`. Same bug on the unit combo. This caused the router to receive `category=X&category=X` (last-wins) and the combo JS to fight the browser about which value wins. Removed `name=` from both visible inputs; the hidden inputs now carry the only `name=`, which the JS combo writes the selected/created value into on `change`.
+- **Pre-existing tests fixed** in `tests/test_inventory_combos.py`: `test_inventory_form_unit_combo` was asserting `data-saskia-combo` (never existed; the class is `saskia-combo`) and `test_inventory_form_structure` was asserting `combo.css` (actual file is `combobox.css`). Both were failing on `main` before this branch.
+- **Closes US 2.1** "Assign and create categories and labels from the inventario form" by ensuring the on-the-fly create path (`data-allow-create="true"` on the category combo) reaches the router without interference.
 
 - **`/recetas` list no longer shows inline 60×60 thumbnails.** The recipe
   list table now hides each row's photo behind a small icon button. Click
