@@ -2329,7 +2329,7 @@ MIGRATIONS = {
     51: _migration_051_ingredient_variant,
     52: _migration_052_ingredient_forecast_horizon,
     53: _migration_053_sale_packaging,
-
+}
 
 
 def _bump_schema_version(conn, version: int) -> None:
