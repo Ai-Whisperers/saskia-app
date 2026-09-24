@@ -629,6 +629,161 @@ def get_tax_config_endpoint(
     }
 
 
+
+
+
+# ─── Storage types (Phase 8) ──────────────────────────────────────
+
+
+@router.get("/storage-types")
+def list_storage_types_endpoint(
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Return HACCP storage codes."""
+    from app.rms.storage_types import list_storage_types
+    types_ = list_storage_types(session)
+    return [
+        {
+            "id": t.id, "code": t.code, "label": t.label,
+            "requires_temp_min": t.requires_temp_min,
+            "requires_temp_max": t.requires_temp_max,
+            "requires_humidity_max": t.requires_humidity_max,
+            "sort_order": t.sort_order, "is_active": t.is_active,
+        }
+        for t in types_
+    ]
+
+
+class StorageTypeIn(BaseModel):
+    code: str = Field(min_length=1, max_length=32)
+    label: str = Field(min_length=1, max_length=64)
+    requires_temp_min: bool = False
+    requires_temp_max: bool = False
+    requires_humidity_max: bool = False
+    sort_order: int = Field(default=1000, ge=0)
+
+
+@router.post("/storage-types")
+def create_storage_type_endpoint(
+    payload: StorageTypeIn,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Create a new HACCP storage code. Idempotent on code."""
+    from app.rms.models import StorageType as STModel
+
+    existing = session.execute(
+        select(STModel).where(STModel.code == payload.code)
+    ).scalar_one_or_none()
+    if existing is not None:
+        existing.label = payload.label
+        existing.requires_temp_min = payload.requires_temp_min
+        existing.requires_temp_max = payload.requires_temp_max
+        existing.requires_humidity_max = payload.requires_humidity_max
+        existing.sort_order = payload.sort_order
+        session.commit()
+        return {"id": existing.id, "code": existing.code, "label": existing.label}
+
+    st = STModel(
+        code=payload.code, label=payload.label,
+        requires_temp_min=payload.requires_temp_min,
+        requires_temp_max=payload.requires_temp_max,
+        requires_humidity_max=payload.requires_humidity_max,
+        sort_order=payload.sort_order, is_active=True,
+    )
+    session.add(st)
+    session.commit()
+    return {"id": st.id, "code": st.code, "label": st.label}
+
+
+# ─── Date range presets (Phase 9) ──────────────────────────────────
+
+
+@router.get("/date-presets")
+def list_date_presets_endpoint(
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Return all date range presets."""
+    from app.rms.date_presets import list_presets
+    presets = list_presets(session)
+    return [
+        {
+            "id": p.id, "code": p.code, "label": p.label, "days": p.days,
+            "is_default": p.is_default,
+            "sort_order": p.sort_order, "is_active": p.is_active,
+        }
+        for p in presets
+    ]
+
+
+class DatePresetIn(BaseModel):
+    code: str = Field(min_length=1, max_length=32)
+    label: str = Field(min_length=1, max_length=64)
+    days: int = Field(gt=0, le=3650)
+    is_default: bool = False
+    sort_order: int = Field(default=1000, ge=0)
+
+
+@router.post("/date-presets")
+def create_date_preset_endpoint(
+    payload: DatePresetIn,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Create a new date range preset. Idempotent on code."""
+    from app.rms.models import DateRangePreset as DRP
+
+    existing = session.execute(
+        select(DRP).where(DRP.code == payload.code)
+    ).scalar_one_or_none()
+    if existing is not None:
+        existing.label = payload.label
+        existing.days = payload.days
+        existing.sort_order = payload.sort_order
+        if payload.is_default:
+            for p in session.execute(select(DRP)).scalars():
+                p.is_default = (p.code == payload.code)
+        session.commit()
+        return {"id": existing.id, "code": existing.code, "label": existing.label, "days": existing.days}
+
+    if payload.is_default:
+        for p in session.execute(select(DRP)).scalars():
+            p.is_default = False
+
+    drp = DRP(
+        code=payload.code, label=payload.label, days=payload.days,
+        is_default=payload.is_default, sort_order=payload.sort_order,
+        is_active=True,
+    )
+    session.add(drp)
+    session.commit()
+    return {"id": drp.id, "code": drp.code, "label": drp.label, "days": drp.days}
+
+
+# ─── IVA rates (Phase 10) ──────────────────────────────────────────
+
+
+@router.get("/iva-rates")
+def list_iva_rates_endpoint(
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Return valid IVA rates.
+
+    Static today (Paraguayan law), but exposed as an endpoint so future
+    tax law changes touch only one place.
+    """
+    from app.rms.constants import DEFAULT_IVA_RATE, VALID_IVA_RATES
+    ci = session.get(__import__("app.rms.models", fromlist=["ComplianceInfo"]).ComplianceInfo, 1)
+    return {
+        "valid_rates": sorted(VALID_IVA_RATES),
+        "default_rate": ci.iva_default_rate if ci and ci.iva_default_rate else DEFAULT_IVA_RATE,
+    }
+
+
 __all__ = ["router"]
+
 
 

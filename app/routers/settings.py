@@ -12,6 +12,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
+from app.rms.constants import (
+    DEFAULT_IVA_RATE,
+    DEFAULT_LABOR_COST_PER_HOUR_GS,
+    DEFAULT_OVERHEAD_MULTIPLIER_PCT,
+    DEFAULT_TAX_REGIME,
+)
 from app.rms.models import AppMeta, ComplianceInfo, DeliveryZone, Sale, SaleStockMove, StockMovement, User
 from app.rms.dependencies import get_session
 from app.services.template_render import render
@@ -88,8 +94,8 @@ def save_business_settings(
     business_email: str = Form(""),
     nombre_fantasia: str = Form(""),
     razon_social: str = Form(""),
-    tax_regime: str = Form("resimple"),
-    iva_default_rate: str = Form("10"),
+    tax_regime: str = Form(DEFAULT_TAX_REGIME),
+    iva_default_rate: str = Form(DEFAULT_IVA_RATE),
     timbrado_number: str = Form(""),
     timbrado_expiry: str = Form(""),
     inan_re_number: str = Form(""),
@@ -98,8 +104,8 @@ def save_business_settings(
     director_tecnico_registro: str = Form(""),
     municipal_habilitacion: str = Form(""),
     municipal_habilitacion_expiry: str = Form(""),
-    labor_cost_per_hour_gs: str = Form("25000"),
-    overhead_multiplier_pct: str = Form("15"),
+    labor_cost_per_hour_gs: str = Form(str(DEFAULT_LABOR_COST_PER_HOUR_GS)),
+    overhead_multiplier_pct: str = Form(str(DEFAULT_OVERHEAD_MULTIPLIER_PCT)),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Save business + Phase 1.A compliance info.
@@ -120,8 +126,8 @@ def save_business_settings(
     email = optional_text(business_email, max_len=120)
     fantasia = optional_text(nombre_fantasia, max_len=120)
     rz = optional_text(razon_social, max_len=120)
-    regime = optional_text(tax_regime, max_len=16) or "resimple"
-    iva_def = optional_text(iva_default_rate, max_len=8) or "10"
+    regime = optional_text(tax_regime, max_len=16) or DEFAULT_TAX_REGIME
+    iva_def = optional_text(iva_default_rate, max_len=8) or DEFAULT_IVA_RATE
     timbrado = optional_text(timbrado_number, max_len=20)
     timbrado_exp = optional_text(timbrado_expiry, max_len=10)
     re_number = optional_text(inan_re_number, max_len=30)
@@ -130,8 +136,8 @@ def save_business_settings(
     dt_reg = optional_text(director_tecnico_registro, max_len=30)
     hab = optional_text(municipal_habilitacion, max_len=30)
     hab_exp = optional_text(municipal_habilitacion_expiry, max_len=10)
-    labor = optional_int(labor_cost_per_hour_gs) or 25000
-    overhead = optional_int(overhead_multiplier_pct) or 15
+    labor = optional_int(labor_cost_per_hour_gs) or DEFAULT_LABOR_COST_PER_HOUR_GS
+    overhead = optional_int(overhead_multiplier_pct) or DEFAULT_OVERHEAD_MULTIPLIER_PCT
 
     # Persist the legacy AppMeta keys (still used by old templates)
     settings = [

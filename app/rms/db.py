@@ -1869,6 +1869,123 @@ def _migration_046_stock_status_config(conn):
     _bump_schema_version(conn, 46)
 
 
+
+
+
+def _migration_047_storage_types(conn):
+    """Phase 8 — HACCP storage codes table.
+
+    Replaces the hardcoded _STORAGE_KEYWORDS dict in
+    app/rms/ingredient_intel.py. Operators add/edit storage codes from
+    /settings/catalog without code deploy.
+
+    Seed data matches the legacy codes exactly:
+      - ambient (default, no keyword match)
+      - refrigerated (matches dairy keywords)
+      - frozen (matches 'congelad*' keywords)
+    HACCP-related hints (requires_temp_min/max, requires_humidity_max)
+    let downstream HACCP reports know what data to surface.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS storage_type (
+            id {pk_type},
+            code VARCHAR(32) NOT NULL UNIQUE,
+            label VARCHAR(64) NOT NULL,
+            requires_temp_min {bool_t} NOT NULL DEFAULT 0,
+            requires_temp_max {bool_t} NOT NULL DEFAULT 0,
+            requires_humidity_max {bool_t} NOT NULL DEFAULT 0,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active {bool_t} NOT NULL DEFAULT 1,
+            notes TEXT,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    ))
+
+    defaults = [
+        # code, label, requires_temp_min, requires_temp_max, requires_humidity, sort
+        ("ambient",      "Ambiente (seco)",         0, 0, 0, 10),
+        ("refrigerated", "Refrigerado (2-8°C)",     1, 1, 0, 20),
+        ("frozen",       "Congelado (≤ -18°C)",     0, 1, 0, 30),
+    ]
+    for code, label, tmin, tmax, hum, sort in defaults:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO storage_type "
+                "(code, label, requires_temp_min, requires_temp_max, requires_humidity_max, sort_order, is_active, created_at) "
+                "VALUES (:c, :l, :tmin, :tmax, :hum, :s, 1, CURRENT_TIMESTAMP)"
+            ) if dialect == "sqlite" else text(
+                "INSERT INTO storage_type "
+                "(code, label, requires_temp_min, requires_temp_max, requires_humidity_max, sort_order, is_active, created_at) "
+                "VALUES (:c, :l, :tmin, :tmax, :hum, :s, TRUE, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (code) DO NOTHING"
+            ),
+            {"c": code, "l": label, "tmin": tmin, "tmax": tmax, "hum": hum, "s": sort},
+        )
+
+    _bump_schema_version(conn, 47)
+
+
+def _migration_048_date_range_presets(conn):
+    """Phase 9 — Date range presets table.
+
+    Replaces the hardcoded DATE_RANGE_PRESETS_DAYS dict in
+    app/rms/constants.py. Operators add/edit presets from
+    /settings/catalog without code deploy.
+
+    Seed data matches the legacy presets exactly:
+      - today (1 day), week (7), month (30), quarter (90), year (365)
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
+    bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
+
+    conn.execute(text(
+        f"""
+        CREATE TABLE IF NOT EXISTS date_range_preset (
+            id {pk_type},
+            code VARCHAR(32) NOT NULL UNIQUE,
+            label VARCHAR(64) NOT NULL,
+            days INTEGER NOT NULL,
+            is_default {bool_t} NOT NULL DEFAULT 0,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active {bool_t} NOT NULL DEFAULT 1,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    ))
+
+    defaults = [
+        # code, label, days, is_default, sort
+        ("today",    "Hoy",         1,   1, 10),
+        ("week",     "7 días",      7,   0, 20),
+        ("month",    "30 días",     30,  0, 30),
+        ("quarter",  "90 días",     90,  0, 40),
+        ("year",     "1 año",       365, 0, 50),
+    ]
+    for code, label, days, is_def, sort in defaults:
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO date_range_preset "
+                "(code, label, days, is_default, sort_order, is_active, created_at) "
+                "VALUES (:c, :l, :d, :def, :s, 1, CURRENT_TIMESTAMP)"
+            ) if dialect == "sqlite" else text(
+                "INSERT INTO date_range_preset "
+                "(code, label, days, is_default, sort_order, is_active, created_at) "
+                "VALUES (:c, :l, :d, :def, :s, TRUE, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (code) DO NOTHING"
+            ),
+            {"c": code, "l": label, "d": days, "def": is_def, "s": sort},
+        )
+
+    _bump_schema_version(conn, 48)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -1916,6 +2033,8 @@ MIGRATIONS = {
     44: _migration_044_message_templates,
     45: _migration_045_margin_tiers,
     46: _migration_046_stock_status_config,
+    47: _migration_047_storage_types,
+    48: _migration_048_date_range_presets,
 }
 
 

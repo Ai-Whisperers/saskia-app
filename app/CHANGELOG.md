@@ -82,6 +82,71 @@ Schema: v32 → v38. Migration 034 (market prices), 035 (compliance_info),
 
 
 
+
+### Added (2026-09-24) — Static-content audit Phase 8-10 (HACCP storage, date presets, tax constants)
+
+Continues docs/operations/2026-09-24-static-content-audit-phase-7.md.
+Phase 7 extracted margin tiers + stock thresholds. Phases 8-10 extract
+the last three classes of hardcoded data: HACCP storage codes, date
+range presets, and tax/invoice constants.
+
+**Phase 8 — Storage types table (migration 047)**
+- New `storage_type` table (`id, code, label, requires_temp_min,
+  requires_temp_max, requires_humidity_max, sort_order, is_active,
+  notes`). Seeded with 3 HACCP codes: ambient, refrigerated, frozen.
+- `app/rms/storage_types.py` with `list_storage_types()`,
+  `valid_storage_codes()`, `fallback_storage_codes()`, `is_valid_storage_code()`.
+- API: `GET/POST /api/storage-types`.
+- Operator benefit: add a new storage type ("vacuum_sealed", "cured",
+  "smoked", etc.) from /settings/catalog without code deploy.
+
+**Phase 9 — Date range presets table (migration 048)**
+- New `date_range_preset` table (`id, code, label, days, is_default,
+  sort_order, is_active`). Seeded with 5 presets: today (1d), week (7d),
+  month (30d), quarter (90d), year (365d).
+- `app/rms/date_presets.py` with `list_presets()`, `get_preset_days()`,
+  `get_default_preset()`.
+- API: `GET/POST /api/date-presets`.
+- Operator benefit: customize date range chips (e.g., add "Last 14 days")
+  via UI without code deploy.
+
+**Phase 10 — Tax + invoice constants consolidated**
+- `app/rms/constants.py` extended with `DEFAULT_IVA_RATE`,
+  `VALID_IVA_RATES`, `DEFAULT_TAX_REGIME`, `VALID_TAX_REGIMES`,
+  `INVOICE_TYPES`, `DEFAULT_INVOICE_TYPE`, `DEFAULT_LABOR_COST_PER_HOUR_GS`,
+  `DEFAULT_OVERHEAD_MULTIPLIER_PCT`.
+- Refactored 6 files to import from constants:
+  - `app/routers/sales.py:_get_tax_regime()` → `DEFAULT_TAX_REGIME`
+  - `app/routers/sales.py:invoice_type_clean` → `DEFAULT_INVOICE_TYPE`, `INVOICE_TYPES`
+  - `app/routers/dashboard.py:resimple` → `DEFAULT_TAX_REGIME`
+  - `app/routers/settings.py:tax_regime default` → `DEFAULT_TAX_REGIME`
+  - `app/routers/settings.py:labor_cost default` → `DEFAULT_LABOR_COST_PER_HOUR_GS`
+  - `app/routers/settings.py:overhead default` → `DEFAULT_OVERHEAD_MULTIPLIER_PCT`
+  - `app/routers/settings.py:iva_default_rate default` → `DEFAULT_IVA_RATE`
+  - `app/rms/prime_cost.py:labor fallback` → `DEFAULT_LABOR_COST_PER_HOUR_GS`
+  - `app/rms/prime_cost.py:overhead fallback` → `DEFAULT_OVERHEAD_MULTIPLIER_PCT`
+  - `app/rms/invoicing.py:default_rate fallback` → `DEFAULT_IVA_RATE`
+- No more literal `"10"`, `"resimple"`, `"boleta_resimple"`, `25000`,
+  `15` scattered through code — single source of truth in
+  `app/rms/constants.py`.
+- New API: `GET /api/iva-rates`.
+
+**Operator UI**
+- /settings/catalog now has 11 tabs (was 8):
+  Categories, Channels, Payments, Templates, Margin tiers,
+  Stock status, **Storage types (HACCP)**, **Date presets**,
+  Tax config, **IVA rates**, Branding.
+
+**Verified live on saskia-vps.paragu-ai.com**
+- /api/storage-types → 3 codes + live-created "vacuum_sealed" (4 total)
+- /api/date-presets → 5 presets
+- /api/iva-rates → valid_rates ["10","5","exento"], default "10"
+- /api/tax-config → full snapshot via constants
+- /ventas, /recetas, /inventario, /dashboard, /productos/nuevo all 200
+- Refactored callers use constants module (verified by grep)
+
+CHANGELOG continues.
+
 ### Added (2026-09-24) — Static-content audit Phase 7 (magic numbers, tax constants)
 
 Continues docs/operations/2026-09-24-static-content-audit-phase-7.md.

@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
+from app.rms.constants import DEFAULT_TAX_REGIME
 from app.rms.analytics import (
     batch_stock_turnover,
     day_of_week_heatmap,
@@ -243,7 +244,7 @@ def _compliance_alerts(session) -> list[dict]:
         missing.append("INAN R.E. N°")
     if not ci.director_tecnico:
         missing.append("Director Técnico")
-    if ci.tax_regime == "resimple" and not ci.timbrado_number:
+    if ci.tax_regime == DEFAULT_TAX_REGIME and not ci.timbrado_number:
         missing.append("Timbrado (RESIMPLE)")
     if missing and not alerts:
         alerts.append({

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from app.rms.constants import DEFAULT_IVA_RATE
 from app.rms.models import ComplianceInfo
 
 
@@ -45,7 +46,7 @@ def compute_invoice_snapshot(
 
     # Default from compliance info if product has no rate set
     ci = session.get(ComplianceInfo, 1)
-    default_rate = ci.iva_default_rate if ci else "10"
+    default_rate = ci.iva_default_rate if ci else DEFAULT_IVA_RATE
 
     if invoice_type == "boleta_resimple":
         # RESIMPLE: IRE covered by fixed quarterly cuota; no IVA itemization.

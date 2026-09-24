@@ -70,10 +70,11 @@ def _generate_idem_key() -> str:
 
 
 def _get_tax_regime(session) -> str:
-    """Return the configured tax_regime from ComplianceInfo. Defaults to 'resimple'."""
+    """Return the configured tax_regime from ComplianceInfo. Defaults to DEFAULT_TAX_REGIME."""
+    from app.rms.constants import DEFAULT_TAX_REGIME
     from app.rms.models import ComplianceInfo
     ci = session.get(ComplianceInfo, 1)
-    return ci.tax_regime if ci else "resimple"
+    return ci.tax_regime if ci else DEFAULT_TAX_REGIME
 
 
 @router.get("", response_class=HTMLResponse)
@@ -492,12 +493,13 @@ async def sale_create(
 
     # Phase 1.B — Compute fiscal invoice fields BEFORE apply_sale so we can
     # pass them as part of the Sale row creation.
+    from app.rms.constants import DEFAULT_INVOICE_TYPE, INVOICE_TYPES
     from app.rms.models import ComplianceInfo, Product as _Product
     from app.rms.invoicing import compute_invoice_snapshot
 
-    invoice_type_clean = (invoice_type or "boleta_resimple").strip()
-    if invoice_type_clean not in {"boleta_resimple", "factura", "none"}:
-        invoice_type_clean = "boleta_resimple"
+    invoice_type_clean = (invoice_type or DEFAULT_INVOICE_TYPE).strip()
+    if invoice_type_clean not in INVOICE_TYPES:
+        invoice_type_clean = DEFAULT_INVOICE_TYPE
     invoice_customer_ruc_clean = (invoice_customer_ruc or "").strip() or None
     invoice_customer_name_clean = (invoice_customer_name or "").strip() or None
 

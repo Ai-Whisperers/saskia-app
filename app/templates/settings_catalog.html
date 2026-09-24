@@ -19,6 +19,8 @@
   <button type="button" class="tab" data-tab="templates">Plantillas</button>
   <button type="button" class="tab" data-tab="margin-tiers">Tiers de margen</button>
   <button type="button" class="tab" data-tab="stock-status">Umbrales de stock</button>
+  <button type="button" class="tab" data-tab="storage-types">Almacenamiento HACCP</button>
+  <button type="button" class="tab" data-tab="date-presets">Períodos</button>
   <button type="button" class="tab" data-tab="tax-config">Impuestos</button>
   <button type="button" class="tab" data-tab="branding">Branding</button>
 </nav>
@@ -105,6 +107,40 @@
         <th>Código</th><th>Etiqueta</th><th>Ratio (stock/min)</th>
         <th>Días sin consumo</th><th>Activo</th>
       </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Storage types tab ────────────────────────────────────────── -->
+<section class="tab-panel" data-panel="storage-types">
+  <h2>Códigos de almacenamiento HACCP</h2>
+  <p class="muted">
+    Códigos que se aplican al campo <code>ingredient.storage</code>.
+    Las casillas "Requiere temp/humedad" indican qué campos HACCP se
+    deben completar para ingredientes almacenados bajo este código.
+  </p>
+  <table class="data-table" id="storage-types-table">
+    <thead>
+      <tr>
+        <th>Código</th><th>Etiqueta</th><th>Temp mín</th><th>Temp máx</th>
+        <th>Humedad máx</th><th>Activo</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Date presets tab ─────────────────────────────────────────── -->
+<section class="tab-panel" data-panel="date-presets">
+  <h2>Períodos de fecha (filtros rápidos)</h2>
+  <p class="muted">
+    Chips de filtro rápido para dashboard / reportes / auditoría.
+    Cambiá los días sin tocar código.
+  </p>
+  <table class="data-table" id="date-presets-table">
+    <thead>
+      <tr><th>Código</th><th>Etiqueta</th><th>Días</th><th>Predeterminado</th><th>Activo</th></tr>
     </thead>
     <tbody></tbody>
   </table>
@@ -305,12 +341,45 @@
     });
   });
 
+  // ── Storage types ─────────────────────────────────────────────
+  api('GET', '/api/storage-types').then(function(rows) {
+    var tbody = document.querySelector('#storage-types-table tbody');
+    tbody.innerHTML = '';
+    rows.forEach(function(c) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><code>' + c.code + '</code></td>' +
+        '<td>' + c.label + '</td>' +
+        '<td>' + (c.requires_temp_min ? 'Sí' : '—') + '</td>' +
+        '<td>' + (c.requires_temp_max ? 'Sí' : '—') + '</td>' +
+        '<td>' + (c.requires_humidity_max ? 'Sí' : '—') + '</td>' +
+        '<td>' + (c.is_active ? '✓' : '✗') + '</td>';
+      tbody.appendChild(tr);
+    });
+  });
+
+  // ── Date presets ──────────────────────────────────────────────
+  api('GET', '/api/date-presets').then(function(rows) {
+    var tbody = document.querySelector('#date-presets-table tbody');
+    tbody.innerHTML = '';
+    rows.forEach(function(p) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><code>' + p.code + '</code></td>' +
+        '<td>' + p.label + '</td>' +
+        '<td>' + p.days + '</td>' +
+        '<td>' + (p.is_default ? '✓' : '') + '</td>' +
+        '<td>' + (p.is_active ? '✓' : '✗') + '</td>';
+      tbody.appendChild(tr);
+    });
+  });
+
   // ── Tax config (read-only) ─────────────────────────────────────
   api('GET', '/api/tax-config').then(function(c) {
     var tbody = document.querySelector('#tax-config-table tbody');
     tbody.innerHTML = '';
     var rows = [
-      ['IVA por defecto', c.iva_rate + '%'],
+      ['IVA por defecto', c.iva_rate === 'exento' ? 'Exento' : c.iva_rate + '%'],
       ['Régimen tributario', c.tax_regime],
       ['Tipos de factura', c.invoice_types.join(', ')],
       ['Tipo de factura por defecto', c.default_invoice_type],

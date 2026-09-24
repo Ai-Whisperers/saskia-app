@@ -1272,6 +1272,69 @@ class ComplianceInfo(Base):
     )
 
 
+class DateRangePreset(Base):
+    """Operator-tunable date range presets (migration 048).
+
+    Replaces the hardcoded DATE_RANGE_PRESETS_DAYS dict in
+    app/rms/constants.py. Operators add/edit presets from
+    /settings/catalog without code deploy.
+
+    Used by date-filter chips in dashboard / reportes.
+    """
+
+    __tablename__ = "date_range_preset"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
+    label: Mapped[str] = mapped_column(String(64), nullable=False)
+    days: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    __table_args__ = (
+        Index("ix_date_range_preset_active_sort", "is_active", "sort_order"),
+    )
+
+
+class StorageType(Base):
+    """HACCP storage codes (migration 047).
+
+    Operator-configurable list of storage codes used in ingredient.storage.
+    Replaces the hardcoded _STORAGE_KEYWORDS dict in
+    app/rms/ingredient_intel.py which had fixed "refrigerated", "frozen",
+    "ambient" codes.
+
+    Schema:
+      - id, code (unique)
+      - label (Spanish display name)
+      - requires_temp_min/max, requires_humidity_max (HACCP hints)
+      - sort_order, is_active
+    """
+
+    __tablename__ = "storage_type"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
+    label: Mapped[str] = mapped_column(String(64), nullable=False)
+    requires_temp_min: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    requires_temp_max: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    requires_humidity_max: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    __table_args__ = (
+        Index("ix_storage_type_active_sort", "is_active", "sort_order"),
+    )
+
+
 class MarginTier(Base):
     """Operator-tunable margin tier thresholds (migration 045).
 
@@ -1535,6 +1598,10 @@ __all__ = [
     # Static-content-audit Phase 7 — migrations 045, 046
     "MarginTier",
     "StockStatusConfig",
+    # Static-content-audit Phase 8 — migration 047
+    "StorageType",
+    # Static-content-audit Phase 9 — migration 048
+    "DateRangePreset",
 ]
 
 
