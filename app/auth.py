@@ -93,15 +93,42 @@ def hash_password(plain: str) -> str:
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    """Constant-time bcrypt verify. Returns False on any error."""
+    """Constant-time bcrypt verify. Returns False on any error.
+
+    Backwards-compatible contract: never raises, returns False on any
+    failure (wrong password, malformed hash, bcrypt internal error).
+    Use `verify_password_or_raise` if you need to distinguish corruption
+    from bad-password at the call site.
+    """
+    try:
+        return _verify_password_unsafe(plain, hashed)
+    except (ValueError, TypeError):
+        return False
+
+
+def verify_password_or_raise(plain: str, hashed: str) -> bool:
+    """Same as verify_password but propagates ValueError/TypeError.
+
+    Use this when the caller needs to distinguish:
+      - False return → wrong password (user error, normal flow)
+      - ValueError  → malformed hash (DB corruption, schema drift)
+      - TypeError   → wrong argument types (caller bug)
+
+    Operators using this for forensics should log the exception so
+    a corrupted-hash incident is visible in logs.
+    """
+    return _verify_password_unsafe(plain, hashed)
+
+
+def _verify_password_unsafe(plain: str, hashed: str) -> bool:
+    """Bcrypt verify. Raises on any error."""
     import bcrypt
 
     if not hashed:
-        return False
-    try:
-        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
-    except (ValueError, TypeError):
-        return False
+        # Treat empty hash as a corruption signal — ValueError so callers
+        # using verify_password_or_raise can distinguish from wrong-password.
+        raise ValueError("Empty hash")
+    return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
 
 
 # --- User model selector (dialect-agnostic, bcrypt path only) ---

@@ -5,6 +5,24 @@
 
 ## [Unreleased]
 
+### Added (2026-09-24) — Phase 1B: distinguish corruption from bad password
+
+**New helper:** `app/auth.py:verify_password_or_raise(plain, hashed)` —
+propagates ValueError/TypeError so callers can distinguish:
+  - False return → wrong password (user error, normal flow)
+  - ValueError  → malformed hash (DB corruption, schema drift)
+  - TypeError   → wrong argument types (caller bug)
+
+**Refactor:** `verify_password` is unchanged in contract (still returns
+False on any error) but now delegates to a private `_verify_password_unsafe`
+that raises. This preserves the existing 3 tests while enabling
+diagnostics in admin / login forensics paths.
+
+**Tests:**
+- `tests/test_verify_password_distinguish.py` — 7 tests covering
+  backwards-compat (3) and new contract (4).
+- All existing `test_auth.py` tests pass; no regressions.
+
 ### Added (2026-09-24) — Phase 1A atomicity: safe_commit helper
 
 **New helper:** `app/rms/db.py:safe_commit(session)` — wraps
