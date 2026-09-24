@@ -5,6 +5,111 @@
 
 ## [Unreleased]
 
+### Added (2026-09-24) — second review: data model for variants + per-ingredient forecast + template fork (US 2.2, US 2.3, US 3.3)
+
+Sprint 7 wires up the three schema decisions from the second-review
+plan. None of these are breaking changes: every existing Ingredient
+gets a default variant from migration 040, the per-ingredient
+forecast horizon is nullable, and the template-fork endpoint is a
+new button on an existing page.
+
+#### Decision A1 — IngredientVariant table (US 2.2)
+
+Saskia's exact words from the audio review:
+
+> *"Harina is an example, but the same goes for milk or product X
+> that has 5 different sellers in pots of different sizes. I would
+> make this ingredient be flour and that it has sub-ingredients like
+> sub-ingredients inside are the different types of flour or the
+> different prices of each package."*
+
+A single Ingredient now has many `IngredientVariant` rows. Each
+variant stores (package_size, package_unit, supplier, purchase_price_gs,
+preferred). Exactly one variant per ingredient is marked preferred —
+enforced by a partial unique index in Postgres / a trigger pair in
+SQLite (see migration 040). The dashboard "current price" reads the
+preferred variant; legacy code that still reads
+`Ingredient.purchase_price_gs` keeps working — that column is now
+mirrored from the preferred variant whenever a variant edit flips
+the preferred flag.
+
+- New migration 040 (`_migration_040_ingredient_variant`) creates
+  the `ingredient_variant` table and backfills one default variant
+  per existing Ingredient with `purchase_price_gs IS NOT NULL`.
+- New SQLAlchemy model `IngredientVariant` (in `app/rms/models.py`).
+- New helpers in `app/rms/variants.py`:
+  - `rollup_ingredient_stock()` — sums all variants into the
+    Ingredient's base unit, converting across g/kg/ml/l/und as
+    needed. Returns a `VariantRollup` dataclass with the per-variant
+    breakdown, the preferred variant's price, and the rolled-up total.
+  - `current_variant_price()` — the preferred variant's price, or
+    falls back to `Ingredient.purchase_price_gs` when no variants
+    exist (backwards compatible).
+- New routes on the inventario router:
+  - `GET  /inventario/{id}/variantes` — list view
+  - `POST /inventario/{id}/variantes/nuevo` — create variant
+  - `POST /inventario/{id}/variantes/{vid}/editar` — edit
+  - `POST /inventario/{id}/variantes/{vid}/preferir` — flip preferred
+  - `POST /inventario/{id}/variantes/{vid}/eliminar` — delete
+    (refuses if it would leave the ingredient orphan)
+- The ingrediente_detalle.html page now renders a "Variantes" panel
+  with the rollup total + a per-variant table + a create-variant
+  accordion form.
+
+#### Decision B — per-ingredient forecast horizon (US 2.3)
+
+> *"Not when I reach minimum, but it tells you when it's going to
+> reach minimum."*
+
+The hardcoded 14-day production-plan window stays the global default.
+A new nullable column `ingredient.forecast_horizon_days` lets each
+ingredient override it — so Saskia sets `dulce_de_leche=21` (slow
+supplier) and `harina=7` (bought every Tuesday) without forcing the
+rest of the inventory into one size fits all.
+
+- New migration 041 (`_migration_041_ingredient_forecast_horizon`)
+  adds the nullable column.
+- `app/rms/variants.py` exposes:
+  - `forecast_horizon_days(ingredient)` — resolves to per-ingredient
+    value, then explicit `default` kwarg, then env var
+    `AIW_SASKIA_FORECAST_HORIZON` (defaults to 14).
+  - `avg_daily_consumption()` — average over the lookback window of
+    `SaleStockMove.qty_delta` joined to `Sale.sold_at`.
+  - `days_until_short()` — `current_stock / avg_consumption`,
+    classified as `short` / `watch` / `ok` / `dead` based on the
+    horizon. `dead` means no consumption in the lookback window.
+- New route: `POST /inventario/{id}/forecast-horizon` (sets the
+  override; empty string clears).
+- The ingrediente_detalle.html page now renders a "Pronóstico —
+  ¿cuándo me quedo corto?" panel with the status badge + horizon
+  editor.
+
+#### Decision C2 — fork current week into the template (US 3.3)
+
+> *"The next day is what you put the day before. You can update
+> the template."*
+
+Saskia finishes a week, sees what was actually produced (the
+ProductionPlanOverride rows), and pushes that into the next week's
+template so she can tweak from there rather than type from scratch.
+
+- New route: `POST /produccion/template/fork-week` — reads all
+  overrides for the week containing `from_date`, sums them per
+  (weekday, product), and upserts the weekly template rows.
+- New button on the `/produccion?view=week` page:
+  "Duplicar overrides → template semanal" with a flash badge
+  showing the row count.
+- Empty week → redirect with `fork=empty` query param.
+- Invalid date → 400.
+
+### Test coverage
+
+- `tests/test_saskia_r2_data_models.py` — 19 new tests covering
+  Decision A1 (rollup math, preferred-uniqueness triggers,
+  no-variant fallback), Decision B (default + override + dead/short/
+  ok status), Decision C2 (POST endpoint + invalid date + empty
+  week), migration 040/041 sanity checks, and detail-page rendering.
+
 ### Changed (2026-09-24) — second review: pedidos in /produccion + sale cancellation audit (US 4.4, CIE-01)
 
 - **`/produccion` (day view) now surfaces incoming pedidos** as a "Pedidos
