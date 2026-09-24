@@ -25,6 +25,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Path, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from loguru import logger
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, selectinload
 
@@ -817,8 +818,8 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
                 "total_gs": pedido.total_gs or 0,
                 "business_name": "Saskia RMS",
             })
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning(f"pedidos._send_fulfill_notification: render_template failed (fallback to legacy msg): {exc!r}")
     if msg is None:
         msg = (
             f"¡Tu pedido #{pedido.id} esta listo para retirar! Te esperamos 😊"
@@ -905,7 +906,8 @@ def pedidos_stock_preview(
             continue
         try:
             moves = _compute_stock_moves(session, recipe, float(ln.qty), set())
-        except Exception:
+        except Exception as exc:
+            logger.warning(f"pedidos.stock_preview: _compute_stock_moves failed for product {product.id}: {exc!r}")
             continue
         for affected_recipe_id, ingredient_id, qty_delta in moves:
             ing = session.get("Ingredient", ingredient_id) if Ingredient else None  # type: ignore

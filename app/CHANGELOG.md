@@ -5,6 +5,34 @@
 
 ## [Unreleased]
 
+### Fixed (2026-09-24) — Phase 1B: log silent exception swallowing
+
+Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md F12 (silent except:pass),
+8 high-impact sites now log via loguru instead of swallowing errors:
+
+**`app/routers/search.py`** — 4 query blocks (customers, products,
+pedidos, recipes) now log `logger.warning` instead of bare `pass`.
+Previously a DB error in any of these returned partial results to the
+Cmd+K modal with zero indication in the logs.
+
+**`app/routers/excel_io.py:250`** — Excel import audit log failure
+now logged. Previously the import succeeded but audit log silently
+dropped, leaving no traceability for spreadsheet imports.
+
+**`app/routers/pedidos.py:820`** — `_send_fulfill_notification`
+template-render failure now logged. The fallback to legacy hardcoded
+message still works, but ops can now see when templates misbehave.
+
+**`app/routers/pedidos.py:908`** — Stock-preview calculation error
+per-line now logged with product id. The preview degrades to showing
+no info for that line; before, the error was invisible.
+
+Each `except` block now captures `exc` and emits a warning with
+context. The exceptions still do not bubble (best-effort behavior
+preserved) — operators now have signal instead of silence.
+
+No regressions: 126 search/excel_io/pedido/excel tests pass.
+
 ### Added (2026-09-24) — Phase 1B: distinguish corruption from bad password
 
 **New helper:** `app/auth.py:verify_password_or_raise(plain, hashed)` —
