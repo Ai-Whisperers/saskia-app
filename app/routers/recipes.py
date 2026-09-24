@@ -51,6 +51,11 @@ def _decorate(session: Session, r: Recipe, batch: CostResult, unit: CostResult |
         "cook_minutes": r.cook_minutes,
         "family": r.family,
         "dietary_tags": r.dietary_tags,
+        # 2026-09-23 (US 1.1): recipe-photo button in /recetas list depends on
+        # this key. Must be in the dict, not read from `r` directly in the
+        # template, because `r` isn't passed to the template — only `recipes`
+        # (a list of these dicts) is.
+        "image_url": r.image_url,
     }
 
 

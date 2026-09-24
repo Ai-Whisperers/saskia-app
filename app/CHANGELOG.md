@@ -15,10 +15,7 @@
   new CSS, no new dependencies. Closes the second-review "image overload"
   complaint from the 2026-09-23 review transcript.
 
-- **Modal closes on X-button click, backdrop click, and `img.src` reset
-  on close** (memory hygiene). The photo `<img>` inside the modal starts
-  with `src=""` and is only set when the user opens a photo — preventing
-  the modal from briefly showing a stale image when reopened.
+- **`app/routers/recipes.py: `_decorate()` now includes `image_url`** (2026-09-23 follow-up to the US 1.1 modal fix above). The function builds the dict that flows to `recetas.html`; it was missing the `image_url` key, so the new photo-button never rendered even when the DB row had an image set.
 
 ### Fixed (2026-09-21) — public pickup page + 5-test CI green
 

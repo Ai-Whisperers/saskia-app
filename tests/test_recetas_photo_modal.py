@@ -16,11 +16,33 @@ US 1.1):
 """
 
 import pytest
+from sqlalchemy import select
 
-# --- These tests use /recetas directly without seeding recipe data.
-#     The 4 structural tests assert on the template HTML regardless of
-#     data (modal scaffold, ARIA, button shape). They pass against any
-#     /recetas render, including empty. ---
+
+@pytest.fixture
+def recipes_with_and_without_photos(session_factory):
+    """Seed two recipes: one WITH image_url, one WITHOUT.
+
+    Round-trip verified before returning so test failures get a clear
+    'seed didn't persist' error rather than a confusing template diff.
+    """
+    from app.rms.models import Recipe
+
+    sf = session_factory
+    with sf() as s:
+        s.add(Recipe(name="Brownie con foto", yield_qty=12, yield_unit="und",
+                     image_url="/static/recipes/brownie.jpg"))
+        s.add(Recipe(name="Galleta sin foto", yield_qty=24, yield_unit="und",
+                     image_url=None))
+        s.commit()
+    # Verify image_url really persisted (catches the "_decorate drops it" bug)
+    with sf() as s:
+        rows = s.execute(select(Recipe).order_by(Recipe.name)).scalars().all()
+        names = {r.name: r.image_url for r in rows}
+        assert names.get("Brownie con foto") == "/static/recipes/brownie.jpg", (
+            f"image_url didn't persist in seed: {names}"
+        )
+    return sf
 
 
 def test_recetas_list_no_inline_image_tag(authed_client):
@@ -55,16 +77,12 @@ def test_recetas_modal_script_resets_src_on_close(authed_client):
     r = authed_client.get("/recetas")
     assert r.status_code == 200
     body = r.text
-    # Reset on close
     assert "img.src = ''" in body, (
         "Modal script must reset <img src> on close to avoid stale image leak"
     )
-    # showModal + close wired
     assert "modal.showModal()" in body
     assert "modal.close()" in body
-    # Backdrop click closes
     assert "e.target === modal" in body
-    # Iterate buttons
     assert "data-recipe-photo" in body
     assert "querySelectorAll('[data-recipe-photo]')" in body
 
@@ -74,26 +92,54 @@ def test_recetas_template_no_legacy_image_inline(authed_client):
     r = authed_client.get("/recetas")
     assert r.status_code == 200
     body = r.text
-    # No inline 60px image (would imply the legacy thumbnail is back)
     assert "object-fit:cover;border-radius:6px" not in body
 
 
-# --- The next two tests need data with image_url set on a Recipe row.
-#     pytest's autouse fixtures (session_factory + client) create two engines
-#     in this codebase's test setup, so seeding via session_factory doesn't
-#     always reach the GET /recetas handler. Skipping until that's fixed;
-#     the structural tests above already prove the modal+button HTML is
-#     rendered correctly. The data-binding path can be verified manually. ---
-@pytest.mark.skip(reason="Recipe seed-fixture isolation: client uses separate engine "
-                  "from session_factory in this codebase's conftest. Verify "
-                  "manually by uploading an image in /recetas/nueva and "
-                  "checking the list page.")
-def test_recetas_with_photo_row_renders_button(authed_client):
-    """Recipe with image_url renders a [data-recipe-photo] button."""
-    pass
+def test_recetas_with_photo_row_renders_button(
+    authed_client, recipes_with_and_without_photos
+):
+    """Recipe with image_url renders a [data-recipe-photo] button per row.
+
+    Regression guard for the bug where _decorate() in app/routers/recipes.py
+    omitted 'image_url' from its returned dict — so the template couldn't
+    see the photo URL even when the DB row had one set.
+    """
+    r = authed_client.get("/recetas")
+    assert r.status_code == 200
+    body = r.text
+    assert "data-recipe-photo" in body, (
+        "Photo button not rendered for the seeded recipe with image_url. "
+        "Check that _decorate() in app/routers/recipes.py includes 'image_url'."
+    )
+    assert 'data-src="/static/recipes/brownie.jpg"' in body
+    assert 'data-name="Brownie con foto"' in body
+    assert 'aria-label="Ver foto de Brownie con foto"' in body
 
 
-@pytest.mark.skip(reason="Same seed-fixture isolation issue as above.")
-def test_recetas_without_photo_row_shows_dash(authed_client):
-    """Recipe without image_url renders the em-dash placeholder, no button."""
-    pass
+def test_recetas_without_photo_row_shows_dash(
+    authed_client, recipes_with_and_without_photos
+):
+    """Recipe without image_url renders the em-dash placeholder, not a button.
+
+    The placeholder <span aria-label="Sin foto">—</span> must appear in
+    the row for 'Galleta sin foto', and that row must NOT contain a
+    [data-recipe-photo] button.
+    """
+    r = authed_client.get("/recetas")
+    assert r.status_code == 200
+    body = r.text
+    assert "Galleta sin foto" in body
+    assert 'aria-label="Sin foto"' in body
+    # Button elements (not the JS querySelector that references the same
+    # attribute) — count occurrences of `<button ... data-recipe-photo`.
+    button_count = body.count("<button") - body.count("<button type=\"submit\"")
+    photo_buttons = body.count(" data-recipe-photo")
+    # The opener script also references the attribute once, but it's inside
+    # a JS string (querySelectorAll('[data-recipe-photo]')). We count
+    # button elements specifically by looking for the full button pattern.
+    actual_button_count = body.count('class="btn btn-ghost btn-icon" data-recipe-photo')
+    assert actual_button_count == 1, (
+        f"Expected exactly 1 photo BUTTON element (Brownie only), "
+        f"found {actual_button_count}. Note: querySelectorAll('[data-recipe-photo]') "
+        f"appears once in JS (intentional)."
+    )
