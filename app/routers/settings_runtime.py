@@ -466,5 +466,169 @@ def render_template(template_body: str, vars: dict) -> str:
         return template_body
 
 
+
+
+
+# ─── Margin tiers (Phase 7) ────────────────────────────────────────
+
+
+@router.get("/margin-tiers")
+def list_margin_tiers_endpoint(
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Return all margin tiers (operator-tunable thresholds)."""
+    from app.rms.margin_tier import list_margin_tiers
+    tiers = list_margin_tiers(session)
+    return [
+        {
+            "id": t.id, "code": t.code, "label": t.label,
+            "min_cost_gs": t.min_cost_gs, "max_cost_gs": t.max_cost_gs,
+            "sort_order": t.sort_order, "is_active": t.is_active,
+            "notes": t.notes,
+        }
+        for t in tiers
+    ]
+
+
+class MarginTierUpdateIn(BaseModel):
+    label: str | None = Field(default=None, max_length=64)
+    min_cost_gs: int | None = Field(default=None, ge=0)
+    max_cost_gs: int | None = Field(default=None, ge=0)
+    sort_order: int | None = Field(default=None, ge=0)
+    is_active: bool | None = None
+
+
+@router.post("/margin-tiers/{tier_id}/update")
+def update_margin_tier_endpoint(
+    tier_id: int,
+    payload: MarginTierUpdateIn,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Update a margin tier. Operators use this to adjust thresholds."""
+    from app.rms.models import MarginTier
+
+    tier = session.get(MarginTier, tier_id)
+    if tier is None:
+        raise HTTPException(status_code=404, detail="Tier not found")
+    if payload.label is not None:
+        tier.label = payload.label
+    if payload.min_cost_gs is not None:
+        tier.min_cost_gs = payload.min_cost_gs
+    if payload.max_cost_gs is not None:
+        tier.max_cost_gs = payload.max_cost_gs
+    if payload.sort_order is not None:
+        tier.sort_order = payload.sort_order
+    if payload.is_active is not None:
+        tier.is_active = payload.is_active
+    session.commit()
+    return {
+        "id": tier.id, "code": tier.code, "label": tier.label,
+        "min_cost_gs": tier.min_cost_gs, "max_cost_gs": tier.max_cost_gs,
+        "sort_order": tier.sort_order, "is_active": tier.is_active,
+    }
+
+
+# ─── Stock status config (Phase 7) ────────────────────────────────
+
+
+@router.get("/stock-status-config")
+def list_stock_status_config_endpoint(
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Return all stock status thresholds."""
+    from app.rms.stock_status import list_status_configs
+    configs = list_status_configs(session)
+    return [
+        {
+            "id": c.id, "code": c.code, "label": c.label,
+            "threshold_ratio": c.threshold_ratio,
+            "threshold_days": c.threshold_days,
+            "sort_order": c.sort_order, "is_active": c.is_active,
+            "notes": c.notes,
+        }
+        for c in configs
+    ]
+
+
+class StockStatusConfigUpdateIn(BaseModel):
+    label: str | None = Field(default=None, max_length=64)
+    threshold_ratio: float | None = Field(default=None, ge=0)
+    threshold_days: int | None = Field(default=None, ge=0)
+    sort_order: int | None = Field(default=None, ge=0)
+    is_active: bool | None = None
+
+
+@router.post("/stock-status-config/{config_id}/update")
+def update_stock_status_config_endpoint(
+    config_id: int,
+    payload: StockStatusConfigUpdateIn,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Update a stock status threshold. Operators tune ratios/days here."""
+    from app.rms.models import StockStatusConfig
+
+    cfg = session.get(StockStatusConfig, config_id)
+    if cfg is None:
+        raise HTTPException(status_code=404, detail="Config not found")
+    if payload.label is not None:
+        cfg.label = payload.label
+    if payload.threshold_ratio is not None:
+        cfg.threshold_ratio = payload.threshold_ratio
+    if payload.threshold_days is not None:
+        cfg.threshold_days = payload.threshold_days
+    if payload.sort_order is not None:
+        cfg.sort_order = payload.sort_order
+    if payload.is_active is not None:
+        cfg.is_active = payload.is_active
+    session.commit()
+    return {
+        "id": cfg.id, "code": cfg.code, "label": cfg.label,
+        "threshold_ratio": cfg.threshold_ratio,
+        "threshold_days": cfg.threshold_days,
+        "sort_order": cfg.sort_order, "is_active": cfg.is_active,
+    }
+
+
+# ─── Tax / invoice constants (Phase 7) ────────────────────────────
+
+
+@router.get("/tax-config")
+def get_tax_config_endpoint(
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+):
+    """Return current tax config from ComplianceInfo + constants fallback.
+
+    Centralizes the tax/invoice defaults so all callers see the same
+    effective values. Future tax law changes touch only this endpoint.
+    """
+    from app.rms.constants import (
+        DEFAULT_IVA_RATE,
+        DEFAULT_INVOICE_TYPE,
+        DEFAULT_TAX_REGIME,
+        INVOICE_TYPES,
+        VALID_IVA_RATES,
+        VALID_TAX_REGIMES,
+    )
+    from app.rms.models import ComplianceInfo
+
+    ci = session.get(ComplianceInfo, 1)
+    return {
+        "iva_rate": ci.iva_default_rate if ci and ci.iva_default_rate else DEFAULT_IVA_RATE,
+        "tax_regime": ci.tax_regime if ci and ci.tax_regime else DEFAULT_TAX_REGIME,
+        "valid_iva_rates": sorted(VALID_IVA_RATES),
+        "valid_tax_regimes": sorted(VALID_TAX_REGIMES),
+        "invoice_types": sorted(INVOICE_TYPES),
+        "default_invoice_type": DEFAULT_INVOICE_TYPE,
+        "labor_cost_per_hour_gs": ci.labor_cost_per_hour_gs if ci else None,
+        "overhead_multiplier_pct": ci.overhead_multiplier_pct if ci else None,
+    }
+
+
 __all__ = ["router"]
+
 

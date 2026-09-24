@@ -17,6 +17,9 @@
   <button type="button" class="tab" data-tab="channels">Canales de venta</button>
   <button type="button" class="tab" data-tab="payments">Formas de pago</button>
   <button type="button" class="tab" data-tab="templates">Plantillas</button>
+  <button type="button" class="tab" data-tab="margin-tiers">Tiers de margen</button>
+  <button type="button" class="tab" data-tab="stock-status">Umbrales de stock</button>
+  <button type="button" class="tab" data-tab="tax-config">Impuestos</button>
   <button type="button" class="tab" data-tab="branding">Branding</button>
 </nav>
 
@@ -66,6 +69,53 @@
     <thead>
       <tr><th>Canal</th><th>Clave</th><th>Asunto</th><th>Cuerpo</th><th>Estado</th><th></th></tr>
     </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Margin tiers tab ──────────────────────────────────────────── -->
+<section class="tab-panel" data-panel="margin-tiers">
+  <h2>Tiers de margen (umbrales para filtros de recetas)</h2>
+  <p class="muted">
+    Cambiá el rango de costos para clasificar recetas en tiers
+    (Top 10%, Top 25%, Bottom 25%). Útil cuando la economía cambia y
+    los umbrales ya no son representativos.
+  </p>
+  <table class="data-table" id="margin-tiers-table">
+    <thead>
+      <tr>
+        <th>Código</th><th>Etiqueta</th><th>Min Gs.</th><th>Max Gs.</th>
+        <th>Orden</th><th>Activo</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Stock status thresholds tab ───────────────────────────────── -->
+<section class="tab-panel" data-panel="stock-status">
+  <h2>Umbrales de estado de stock</h2>
+  <p class="muted">
+    Definí cuándo un ingrediente se considera "Bajo mínimo", "Crítico",
+    "Sobrestock" o "Sin consumo" (muerto).
+  </p>
+  <table class="data-table" id="stock-status-table">
+    <thead>
+      <tr>
+        <th>Código</th><th>Etiqueta</th><th>Ratio (stock/min)</th>
+        <th>Días sin consumo</th><th>Activo</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Tax config tab ────────────────────────────────────────────── -->
+<section class="tab-panel" data-panel="tax-config">
+  <h2>Configuración de impuestos (IVA, régimen)</h2>
+  <p class="muted">Vista de solo lectura — editá en <a href="/settings">/settings</a>.</p>
+  <table class="data-table" id="tax-config-table">
+    <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
     <tbody></tbody>
   </table>
 </section>
@@ -220,6 +270,58 @@
     document.getElementById('footer').value = b.footer || '';
     document.getElementById('accent_color').value = b.accent_color || '';
     document.getElementById('logo_path').value = b.logo_path || '';
+  });
+
+  // ── Margin tiers ───────────────────────────────────────────────
+  api('GET', '/api/margin-tiers').then(function(rows) {
+    var tbody = document.querySelector('#margin-tiers-table tbody');
+    tbody.innerHTML = '';
+    rows.forEach(function(t) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><code>' + t.code + '</code></td>' +
+        '<td>' + t.label + '</td>' +
+        '<td>' + (t.min_cost_gs != null ? t.min_cost_gs.toLocaleString('es-PY') : '—') + '</td>' +
+        '<td>' + (t.max_cost_gs != null ? t.max_cost_gs.toLocaleString('es-PY') : '—') + '</td>' +
+        '<td>' + t.sort_order + '</td>' +
+        '<td>' + (t.is_active ? '✓' : '✗') + '</td>';
+      tbody.appendChild(tr);
+    });
+  });
+
+  // ── Stock status thresholds ────────────────────────────────────
+  api('GET', '/api/stock-status-config').then(function(rows) {
+    var tbody = document.querySelector('#stock-status-table tbody');
+    tbody.innerHTML = '';
+    rows.forEach(function(c) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><code>' + c.code + '</code></td>' +
+        '<td>' + c.label + '</td>' +
+        '<td>' + (c.threshold_ratio != null ? c.threshold_ratio.toFixed(2) : '—') + '</td>' +
+        '<td>' + (c.threshold_days != null ? c.threshold_days : '—') + '</td>' +
+        '<td>' + (c.is_active ? '✓' : '✗') + '</td>';
+      tbody.appendChild(tr);
+    });
+  });
+
+  // ── Tax config (read-only) ─────────────────────────────────────
+  api('GET', '/api/tax-config').then(function(c) {
+    var tbody = document.querySelector('#tax-config-table tbody');
+    tbody.innerHTML = '';
+    var rows = [
+      ['IVA por defecto', c.iva_rate + '%'],
+      ['Régimen tributario', c.tax_regime],
+      ['Tipos de factura', c.invoice_types.join(', ')],
+      ['Tipo de factura por defecto', c.default_invoice_type],
+      ['Costo mano de obra (Gs./h)', c.labor_cost_per_hour_gs != null ? c.labor_cost_per_hour_gs.toLocaleString('es-PY') : '—'],
+      ['Overhead (%)', c.overhead_multiplier_pct != null ? c.overhead_multiplier_pct + '%' : '—'],
+    ];
+    rows.forEach(function(r) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + r[0] + '</td><td><code>' + r[1] + '</code></td>';
+      tbody.appendChild(tr);
+    });
   });
 
   document.getElementById('branding-form').addEventListener('submit', function(e) {
