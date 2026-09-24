@@ -5,6 +5,41 @@
 
 ## [Unreleased]
 
+### Refactored (2026-09-24) — Phase 2A: sales_in_window helper + migrate 7 call sites
+
+Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md ticket #26 (C-1):
+the same `select(Sale).where(Sale.sold_at >= start, Sale.sold_at <= end,
+Sale.voided_at.is_(None))` query was duplicated in 7 report functions.
+If we ever need to honor tz or change void semantics, we'd edit 7 places.
+
+**Refactor:**
+- New `app/rms/accounting.py:sales_in_window(session, start, end, *,
+  include_voided=False, end_inclusive=True)` — single source of truth
+  for the "non-voided sales in window" query. Returns `list[Sale]`
+  ordered by sold_at ascending.
+- `end_inclusive=True` (default) → `sold_at <= end`. Set to False for
+  half-open windows (daily_summary uses midnight-to-midnight-excluding).
+
+**Call sites migrated:**
+1. `monthly_iva_breakdown` (line ~143) — inclusive window.
+2. `libro_ventas` (line ~202) — inclusive window + `[:limit]` post-slice.
+3. `daily_summary` (line ~280) — half-open window (`end_inclusive=False`).
+4. `product_margin_summary` (line ~337) — inclusive window.
+5. `cross_period_comparison._period_summary` (line ~408) — half-open.
+6. `top_products_report` (line ~457) — inclusive window.
+7. `average_order_value` (line ~491) — inclusive window.
+
+**Not migrated (different patterns, helper doesn't apply):**
+- `sales_by_payment_method` uses `func.count()` / `func.sum()`
+  GROUP BY aggregation, not a row-list.
+- COGS sub-queries use `SaleStockMove` JOINs — different SQL shape.
+
+**Tests:**
+- `tests/test_sales_in_window_helper.py` (new, 5 tests):
+  - Returns matching sales; excludes voided; excludes out-of-window;
+    ordered ascending; `end_inclusive=False` excludes boundary.
+- 30 accounting/reportes tests pass; 6 pre-existing failures unrelated.
+
 ### Refactored (2026-09-24) — Phase 3C: rename expenses placeholder
 
 Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md ticket #66:
