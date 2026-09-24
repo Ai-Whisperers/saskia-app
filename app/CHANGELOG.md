@@ -5,6 +5,27 @@
 
 ## [Unreleased]
 
+### Deferred (2026-09-24) — Phase 1A atomicity: F9 rate-limit race
+
+**Status:** Deferred to a follow-up PR. The F9 race exists (count-then-act
+on AuditLog count), but a proper fix requires either:
+
+  (a) A new `rate_limit` table with atomic counter
+      (`INSERT ... ON CONFLICT DO UPDATE`), or
+  (b) Postgres advisory locks (won't work on SQLite tests), or
+  (c) AppMeta-based atomic counter (small schema concept but new key prefix).
+
+The audit row counter pattern is in use across 6 routers (sales, eod,
+reorder, merma, produccion) so the migration is not trivial.
+
+**Tests added:** `tests/test_rate_limit_atomicity.py` documents the
+current behavior and the race, locking in expectations for the
+follow-up fix.
+
+**Risk:** Low. The race allows a few extra writes beyond the limit
+under concurrent load — not a security boundary, more of a soft
+throttle. Login rate limit has the same race but is similarly soft.
+
 ### Fixed (2026-09-24) — Phase 1A atomicity: F16 function-attribute shared state
 
 **Bug:** `app/routers/sales.py:_fire_printer_for_sale._last_sale_id`
