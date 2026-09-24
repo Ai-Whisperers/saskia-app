@@ -29,6 +29,7 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.rms.audit import record as audit_record
@@ -91,6 +92,7 @@ def is_rate_limited(
             .count()
         )
     except Exception:
+        logger.warning("rate_limit_check failed: DB query failed, failing open for safety")
         return RateLimitDecision(
             allowed=True,
             current_count=0,
@@ -172,6 +174,7 @@ def is_write_rate_limited(
             .count()
         )
     except Exception:
+        logger.warning("is_write_rate_limited DB query failed, failing closed for safety")
         return False
     return count >= max_per_minute
 
