@@ -102,6 +102,9 @@ class Ingredient(Base):
     opening_stock_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     opening_stock_date: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # ISO date string
     reorder_point: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # overrides min_stock_qty for reorder
+    # S7 Decision B — per-ingredient forecast horizon. NULL = use global default
+    # (DEFAULT_FORECAST_HORIZON_DAYS env var, typically 14).
+    forecast_horizon_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     # Relationships
     # NOTE: `recipe_lines` (the reverse of RecipeLine.ingredient) is NOT defined here
@@ -111,6 +114,12 @@ class Ingredient(Base):
     # AND line_ref_id = :id. Helper functions live in costing.py.
     stock_moves: Mapped[list["SaleStockMove"]] = relationship(back_populates="ingredient")
     supplier: Mapped[Optional["Supplier"]] = relationship(back_populates="ingredients")
+    # S7 Decision A1 — one Ingredient has many IngredientVariants (1kg, 250g, etc).
+    variants: Mapped[list["IngredientVariant"]] = relationship(
+        back_populates="ingredient",
+        cascade="all, delete-orphan",
+        order_by="IngredientVariant.preferred.desc(), IngredientVariant.package_size",
+    )
 
     __table_args__ = (
         CheckConstraint("unit IN ('g', 'kg', 'ml', 'l', 'und')", name="ck_ingredient_unit"),
@@ -122,6 +131,89 @@ class Ingredient(Base):
         ),
         Index("ix_ingredient_name", "name", unique=True),
     )
+
+
+class IngredientVariant(Base):
+    """A specific package of an Ingredient (Sprint 7 — Decision A1).
+
+    E.g. for Ingredient "harina", variants are "harina 1kg @ Proveedor A",
+    "harina 250g @ Proveedor B", "harina 5kg @ Proveedor C". Each variant
+    has its own purchase price + supplier, and price history can be
+    tracked per variant (future: IngredientPriceEvent will get a
+    variant_id column).
+
+    Rollups: "how much harina total?" = sum over variants of
+    (variant.stock_qty * package_size, converted to the Ingredient's base
+    unit). Helper in app/rms/inventory.py: rollup_ingredient_stock().
+
+    Preferred: exactly one variant per ingredient should be marked
+    preferred — that variant is the "current price" the dashboard reads
+    when reporting current purchase_price_gs. Enforced by a partial unique
+    index in Postgres / a trigger in SQLite (see migration 040).
+    """
+
+    __tablename__ = "ingredient_variant"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ingredient_id: Mapped[int] = mapped_column(
+        ForeignKey("ingredient.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # Human-readable label of the package (e.g. "Bolsa 1kg", "Saco 25kg").
+    # Optional — operators can leave it empty if the size + unit is clear.
+    package_size: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    package_unit: Mapped[str] = mapped_column(
+        String(8), nullable=False, default="und"
+    )
+    purchase_price_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Stock for THIS variant only (e.g. 3 bags of 1kg harina). The
+    # ingredient.stock_qty column on the parent is kept for backwards
+    # compatibility but new code should read variant-level stock.
+    stock_qty: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.0, server_default="0"
+    )
+    supplier_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("supplier.id"), nullable=True, index=True
+    )
+    preferred: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    # Relationships
+    ingredient: Mapped["Ingredient"] = relationship(back_populates="variants")
+    supplier: Mapped[Optional["Supplier"]] = relationship()
+
+    __table_args__ = (
+        CheckConstraint("package_size > 0", name="ck_variant_size_positive"),
+        CheckConstraint(
+            "package_unit IN ('g', 'kg', 'ml', 'l', 'und')",
+            name="ck_variant_unit_allowed",
+        ),
+        CheckConstraint(
+            "purchase_price_gs IS NULL OR purchase_price_gs >= 0",
+            name="ck_variant_price_nonneg",
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<IngredientVariant id={self.id} "
+            f"ingredient_id={self.ingredient_id} "
+            f"package_size={self.package_size} {self.package_unit} "
+            f"price={self.purchase_price_gs} "
+            f"preferred={self.preferred}>"
+        )
 
 
 class Recipe(Base):
@@ -258,6 +350,11 @@ class Sale(Base):
     unit_price_gs: Mapped[int] = mapped_column(Integer, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     voided_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # CIE-01: cancellation audit trail. Nullable so legacy rows and fresh
+    # sales don't need to populate them. Operators fill in via the
+    # /ventas/{id}/anular modal when voiding.
+    void_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    voided_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     # Phase 5: payment + discount
     payment_method: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     discount_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")

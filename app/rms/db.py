@@ -1310,6 +1310,158 @@ def _migration_038_ingredient_haccp(conn):
     _bump_schema_version(conn, 38)
 
 
+def _migration_050_sale_void_reason(conn: Any) -> None:
+    """Add void_reason and voided_by to sale for CIE-01 cancellation audit trail.
+
+    The previous void flow only stored ``voided_at``. That made it impossible
+    to tell *why* a sale was voided (customer request, wrong product, etc.)
+    or *who* voided it — both critical for a small bakery's accountability.
+    Both columns are nullable so legacy voided rows (and fresh sales) don't
+    need to populate them at write time.
+    """
+    _add_column_if_missing(conn, "sale", "void_reason", "TEXT", "TEXT")
+    _add_column_if_missing(conn, "sale", "voided_by", "VARCHAR(64)", "VARCHAR(64)")
+    _bump_schema_version(conn, 50)
+
+
+def _migration_051_ingredient_variant(conn: Any) -> None:
+    """Add ingredient_variant table (Sprint 7 — Decision A1).
+
+    Saskia's exact words from the audio review:
+      "harina 1kg / harina 250g / proveedor X — a single ingredient 'harina'
+       with sub-rows for each package".
+
+    The previous schema treated each package as its own Ingredient row, which
+    broke the rollup question "how much harina do I have total?" and made the
+    price-history chart meaningless (one chart per package instead of one
+    per ingredient with variant lines).
+
+    Schema:
+      ingredient_variant
+        id, ingredient_id (FK ingredient.id, CASCADE), package_size,
+        package_unit (g/kg/ml/l/und), purchase_price_gs (int Gs.),
+        supplier_id (FK supplier.id, NULL OK), preferred (bool — exactly one
+        per ingredient for "current price" semantics), created_at, updated_at.
+
+    Backfill: existing Ingredients with a purchase_price_gs get one default
+    variant with package_size=1, package_unit=ingredient.unit, price=current.
+    Done in Python after the table is created — see _backfill_default_variants.
+    """
+    dialect = conn.dialect.name
+    if dialect == "postgresql":
+        conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS ingredient_variant ("
+            "id SERIAL PRIMARY KEY,"
+            "ingredient_id INTEGER NOT NULL REFERENCES ingredient(id) ON DELETE CASCADE,"
+            "package_size DOUBLE PRECISION NOT NULL DEFAULT 1.0,"
+            "package_unit VARCHAR(8) NOT NULL DEFAULT 'und',"
+            "purchase_price_gs INTEGER,"
+            "supplier_id INTEGER REFERENCES supplier(id),"
+            "preferred BOOLEAN NOT NULL DEFAULT FALSE,"
+            "notes TEXT,"
+            "created_at TIMESTAMP NOT NULL DEFAULT NOW(),"
+            "updated_at TIMESTAMP NOT NULL DEFAULT NOW()"
+            ")"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_ingredient_variant_ingredient "
+            "ON ingredient_variant(ingredient_id)"
+        ))
+        # MySQL / Postgres partial unique: at most one preferred per ingredient
+        # Postgres supports this directly; SQLite emulates with a trigger.
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_ingredient_variant_preferred "
+            "ON ingredient_variant(ingredient_id) WHERE preferred = TRUE"
+        ))
+    else:
+        conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS ingredient_variant ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "ingredient_id INTEGER NOT NULL REFERENCES ingredient(id) ON DELETE CASCADE,"
+            "package_size REAL NOT NULL DEFAULT 1.0,"
+            "package_unit VARCHAR(8) NOT NULL DEFAULT 'und',"
+            "purchase_price_gs INTEGER,"
+            "supplier_id INTEGER REFERENCES supplier(id),"
+            "preferred BOOLEAN NOT NULL DEFAULT 0,"
+            "notes TEXT,"
+            "created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),"
+            "updated_at TIMESTAMP NOT NULL DEFAULT (datetime('now'))"
+            ")"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_ingredient_variant_ingredient "
+            "ON ingredient_variant(ingredient_id)"
+        ))
+        # SQLite doesn't support partial unique indexes before 3.8 — emulate
+        # the "at most one preferred per ingredient" rule with a trigger.
+        conn.execute(text(
+            "CREATE TRIGGER IF NOT EXISTS trg_ingredient_variant_preferred "
+            "BEFORE INSERT ON ingredient_variant "
+            "WHEN NEW.preferred = 1 "
+            "BEGIN "
+            "  UPDATE ingredient_variant SET preferred = 0 "
+            "  WHERE ingredient_id = NEW.ingredient_id AND preferred = 1; "
+            "END"
+        ))
+        conn.execute(text(
+            "CREATE TRIGGER IF NOT EXISTS trg_ingredient_variant_preferred_upd "
+            "BEFORE UPDATE ON ingredient_variant "
+            "WHEN NEW.preferred = 1 "
+            "BEGIN "
+            "  UPDATE ingredient_variant SET preferred = 0 "
+            "  WHERE id != NEW.id AND ingredient_id = NEW.ingredient_id AND preferred = 1; "
+            "END"
+        ))
+
+    # Backfill: for every existing Ingredient with a purchase_price_gs,
+    # create a default variant. Done in SQL so it works without importing
+    # the model layer (the migration must be self-contained).
+    if dialect == "postgresql":
+        conn.execute(text(
+            "INSERT INTO ingredient_variant "
+            "(ingredient_id, package_size, package_unit, purchase_price_gs, supplier_id, preferred) "
+            "SELECT id, 1.0, unit, purchase_price_gs, supplier_id, TRUE "
+            "FROM ingredient "
+            "WHERE purchase_price_gs IS NOT NULL "
+            "AND NOT EXISTS ("
+            "  SELECT 1 FROM ingredient_variant v "
+            "  WHERE v.ingredient_id = ingredient.id"
+            ")"
+        ))
+    else:
+        conn.execute(text(
+            "INSERT INTO ingredient_variant "
+            "(ingredient_id, package_size, package_unit, purchase_price_gs, supplier_id, preferred) "
+            "SELECT id, 1.0, unit, purchase_price_gs, supplier_id, 1 "
+            "FROM ingredient "
+            "WHERE purchase_price_gs IS NOT NULL "
+            "AND NOT EXISTS ("
+            "  SELECT 1 FROM ingredient_variant v "
+            "  WHERE v.ingredient_id = ingredient.id"
+            ")"
+        ))
+
+    _bump_schema_version(conn, 51)
+
+
+def _migration_052_ingredient_forecast_horizon(conn: Any) -> None:
+    """Add Ingredient.forecast_horizon_days (Sprint 7 — Decision B).
+
+    Per-ingredient forecast horizon for the "days until I'm short" widget
+    (US 2.3). Nullable — when NULL, falls back to the global
+    DEFAULT_FORECAST_HORIZON_DAYS env var (14).
+
+    Why per-ingredient and not just one global: supplier lead times vary
+    a lot. dulce_de_leche from supplier A arrives in 2 days; mantequilla
+    from supplier B takes a week. A single horizon can't capture both.
+    """
+    _add_column_if_missing(
+        conn, "ingredient", "forecast_horizon_days",
+        "INTEGER", "INTEGER",
+    )
+    _bump_schema_version(conn, 52)
+
+
 
 
 
@@ -2105,6 +2257,10 @@ MIGRATIONS = {
     47: _migration_047_storage_types,
     48: _migration_048_date_range_presets,
     49: _migration_049_storage_keywords,
+    # R2 stack (renumbered 2026-09-24: collided with 039-041 on main)
+    50: _migration_050_sale_void_reason,
+    51: _migration_051_ingredient_variant,
+    52: _migration_052_ingredient_forecast_horizon,
 }
 
 

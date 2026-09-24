@@ -433,6 +433,22 @@
   font-family: inherit;
   font-size: var(--text-sm);
 }
+/* US 3.1 AC #3: sub-recipe lines must be visually distinct from ingredient
+   lines in the recipe form. A soft warm tint on the row + a small badge
+   in the type column tell the operator "this line refers to another
+   recipe, not a raw ingredient" so they don't double-count quantities. */
+.line-row[data-kind="sub_recipe"] {
+  background: var(--color-accent-soft);
+}
+.line-row[data-kind="sub_recipe"] .line-kind-select {
+  border-color: var(--color-accent);
+  font-weight: 600;
+}
+.line-row[data-kind="sub_recipe"] .line-target-input::before {
+  content: "↳ ";
+  color: var(--color-accent);
+  font-weight: 600;
+}
 .yield-unit-display {
   display: flex;
   align-items: center;

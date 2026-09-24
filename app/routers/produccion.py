@@ -22,11 +22,11 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
-from app.rms.models import Product, Recipe, Sale
+from app.rms.models import Pedido, PedidoLine, Product, ProductionPlanOverride, Recipe, Sale
 from app.rms.production import plan_production
 from app.services.template_render import render
 
@@ -240,6 +240,46 @@ def produccion_worksheet(
 
     # day view (default)
     plan = plan_production(session, for_date=for_date, manual_forecast=overrides or None)
+
+    # US 4.4 — Surface incoming pedidos for the SAME day as a "kitchen ticket"
+    # panel so the cook sees "we owe 3 tortas + 1 cookie tray today" alongside
+    # the demand-driven production plan. Includes pending/confirmed/ready
+    # (not fulfilled — those are done — and not cancelled — those are gone).
+    pending_pedidos = []
+    target_date = for_date or _asuncion_today()
+    pedido_rows = session.execute(
+        select(Pedido)
+        .options(selectinload(Pedido.lines).selectinload(PedidoLine.product))
+        .where(
+            Pedido.promised_date == target_date,
+            Pedido.status.in_(("pending", "confirmed", "ready")),
+        )
+        .order_by(Pedido.promised_time.asc().nullslast(), Pedido.created_at.asc())
+    ).scalars().all()
+    for p in pedido_rows:
+        line_items = []
+        for ln in p.lines:
+            if ln.qty <= 0:
+                continue
+            line_items.append({
+                "product_id": ln.product_id,
+                "product_name": ln.product.name if ln.product else "(deleted)",
+                "qty": float(ln.qty),
+                "unit_price_gs": ln.unit_price_gs,
+            })
+        if not line_items:
+            continue
+        pending_pedidos.append({
+            "id": p.id,
+            "customer_name": p.customer_name or "(sin nombre)",
+            "customer_phone": p.customer_phone or "",
+            "promised_time": p.promised_time or "",
+            "channel": p.channel,
+            "status": p.status,
+            "notes": p.notes or "",
+            "line_items": line_items,
+        })
+
     return render(request, "produccion.html", {
         "plan": plan,
         "for_date": plan.for_date.isoformat() if plan.for_date else "",
@@ -250,6 +290,7 @@ def produccion_worksheet(
         "recipes": session.execute(
             select(Recipe).order_by(Recipe.name)
         ).scalars().all(),
+        "pending_pedidos": pending_pedidos,
     })
 
 
@@ -370,6 +411,97 @@ def produccion_template_set(
     )
     session.commit()
     return RedirectResponse(url="/produccion?view=week", status_code=303)
+
+
+@router.post("/template/fork-week")
+def produccion_template_fork_week(
+    request: Request,
+    from_date: str = Form(...),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """S7 Decision C2 — "Fork current week" button.
+
+    Reads the overrides in the week containing ``from_date`` and clones
+    them into the weekly template, summing qty per (weekday, product)
+    across the 7 days of the source week. Existing template rows for
+    the same (weekday, product) are overwritten — the operator can then
+    tweak rather than type from scratch.
+
+    Use case (audio review): "the next day is what you put the day before".
+    The operator finishes a week, wants next week's template to start from
+    this week's actual plan (since overrides represent what was actually
+    done / sold).
+    """
+    from app.rms.rate_limit import is_write_rate_limited
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
+        )
+    from datetime import date as _date, datetime as _dt, timedelta as _td
+    try:
+        src = _dt.strptime(from_date, "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="from_date debe ser YYYY-MM-DD")
+    # Source week: Monday-of(src.date()) .. Monday+6
+    monday = src - _td(days=src.weekday())
+    end_exclusive = monday + _td(days=7)
+
+    overrides = session.scalars(
+        select(ProductionPlanOverride)
+        .where(ProductionPlanOverride.for_date >= monday)
+        .where(ProductionPlanOverride.for_date < end_exclusive)
+    ).all()
+    if not overrides:
+        return RedirectResponse(
+            url="/produccion?view=week&fork=empty",
+            status_code=303,
+        )
+
+    # Sum qty per (weekday, product) across the 7-day window
+    from collections import defaultdict
+    bucket: dict[tuple[int, int], float] = defaultdict(float)
+    for ov in overrides:
+        wd = ov.for_date.weekday()  # 0=Mon .. 6=Sun
+        bucket[(wd, ov.product_id)] += float(ov.qty or 0.0)
+
+    from app.rms.production import upsert_template_row
+    from app.auth import current_user_id
+    from app.rms.audit import record as audit_record
+
+    user_id = current_user_id(request) or "operator"
+    user_id = str(user_id)
+    now = datetime.now()
+    rows_written = 0
+    for (wd, pid), qty in bucket.items():
+        if qty <= 0:
+            continue
+        upsert_template_row(
+            session,
+            weekday=wd,
+            product_id=pid,
+            qty=qty,
+            notes=None,
+            updated_by=user_id,
+        )
+        rows_written += 1
+
+    audit_record(
+        session,
+        user_id=user_id,
+        action="write.produccion.template.fork_week",
+        request=request,
+        detail={
+            "from_date": from_date,
+            "week_start": monday.isoformat(),
+            "rows_written": rows_written,
+        },
+    )
+    session.commit()
+    return RedirectResponse(
+        url=f"/produccion?view=week&fork=ok&rows={rows_written}",
+        status_code=303,
+    )
 
 
 __all__ = ["router"]

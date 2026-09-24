@@ -47,6 +47,9 @@ def _decorated(s: Sale) -> dict:
         "notes": s.notes,
         "voided_at": s.voided_at,
         "voided_at_str": s.voided_at.strftime("%d/%m/%Y %H:%M") if s.voided_at else None,
+        # CIE-01: void metadata exposed to templates for audit display.
+        "void_reason": getattr(s, "void_reason", None),
+        "voided_by": getattr(s, "voided_by", None),
         "customer_id": s.customer_id,
         "customer_phone": s.customer.phone if s.customer else None,
         "customer_name": s.customer.name if s.customer else None,
@@ -77,20 +80,20 @@ def _get_tax_regime(session) -> str:
     return ci.tax_regime if ci else DEFAULT_TAX_REGIME
 
 
-@router.get("", response_class=HTMLResponse)
-async def sales_list(
+def _build_sales_context(
     request: Request,
-    q: str | None = None,
-    product_id: int | None = None,
-    days: int | None = None,
-    offset: int | None = None,
-    session: Session = Depends(get_session),
-) -> HTMLResponse:
-    """Sales list with optional filter (?q=substring, ?product_id=, ?days=N, ?offset=N).
+    q: str | None,
+    product_id: int | None,
+    days: int | None,
+    offset: int | None,
+    session: Session,
+) -> dict:
+    """Build the render context shared by /ventas and /ventas/historial.
 
-    Filters run on the existing sales query so `/ventas?q=cabernet`
-    only returns matches. Helps operators find old sales without
-    scrolling 50+ rows.
+    Computes products, filtered sales page, summary totals, and Quick-Sell
+    top-5 in one pass. Both routes call this then render a different
+    template (ventas.html for the POS, ventas_historial.html for history)
+    so the filter logic stays in sync — US 4.3 split.
     """
     PAGE_SIZE = 20
     products = session.scalars(select(Product).order_by(Product.name)).all()
@@ -208,6 +211,10 @@ async def sales_list(
             "products": products,
             "sales": [_decorated(s) for s in sales_page],
             "quick_sell": quick_sell,
+            "q": q or "",
+            "product_id": product_id or "",
+            "days": days,
+            "products_filtered": products,  # alias used by historial.html
             # DB-driven catalogs (Phase 4 of static-content audit). Falls back
             # to schema constants if the DB tables haven't been seeded yet.
             "channels": [c.code for c in list_channels(session)] or list(CHANNELS_DISPLAY),
@@ -233,7 +240,65 @@ async def sales_list(
             "page_end": min(start_offset + PAGE_SIZE, total_count),
             "total_count": total_count,
         },
+        "has_more": has_more,
+        "current_offset": start_offset,
+        "current_page_size": PAGE_SIZE,
+        "page_start": start_offset + 1,
+        "page_end": min(start_offset + PAGE_SIZE, total_count),
+        "total_count": total_count,
+    }
+
+
+@router.get("", response_class=HTMLResponse)
+async def sales_list(
+    request: Request,
+    q: str | None = None,
+    product_id: int | None = None,
+    days: int | None = None,
+    offset: int | None = None,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """POS landing page — Nueva venta (new sale form + Quick-Sell).
+
+    US 4.3 (S5): History view moved to /ventas/historial so the
+    counter screen isn't cluttered with 50+ past rows.
+    """
+    ctx = _build_sales_context(
+        request=request,
+        session=session,
+        q=q,
+        product_id=product_id,
+        days=days,
+        offset=offset,
     )
+    return render(request, "ventas.html", ctx)
+
+
+@router.get("/historial", response_class=HTMLResponse)
+async def sales_history(
+    request: Request,
+    q: str | None = None,
+    product_id: int | None = None,
+    days: int | None = None,
+    offset: int | None = None,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Sales history (US 4.3 split).
+
+    Shares query logic with sales_list via _build_sales_context so the
+    filter semantics stay in sync. Renders ventas_historial.html which
+    shows the summary card, filter form, table of past sales, and the
+    per-row Anular button.
+    """
+    ctx = _build_sales_context(
+        request=request,
+        session=session,
+        q=q,
+        product_id=product_id,
+        days=days,
+        offset=offset,
+    )
+    return render(request, "ventas_historial.html", ctx)
 
 
 def _filter_summary(q, product_id, days, products):
@@ -662,14 +727,27 @@ def _fire_printer_for_sale(
 async def sale_void(
     sale_id: int,
     request: Request,
+    reason: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
-    """Void a sale and reverse stock."""
+    """Void a sale and reverse stock.
+
+    CIE-01: accepts an optional ``reason`` form field (free text) and the
+    authenticated user id, both persisted on Sale.void_reason /
+    Sale.voided_by for audit. The modal that triggers this POST lives on
+    /ventas/historial; legacy callers that POST without a reason still
+    work — the void just records no reason.
+    """
+    from app.auth import current_user_id
+
     try:
-        void_sale(session, sale_id)
+        uid = current_user_id(request)
+        user_id = str(uid) if uid is not None else "operator"
+        reason_clean = (reason or "").strip() or None
+        void_sale(session, sale_id, reason=reason_clean, voided_by=user_id)
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
-    return RedirectResponse(url="/ventas?flash=sale_void_ok", status_code=303)
+    return RedirectResponse(url="/ventas/historial?flash=sale_void_ok", status_code=303)
 
 
 __all__ = ["router"]

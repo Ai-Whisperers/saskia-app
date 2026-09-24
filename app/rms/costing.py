@@ -512,10 +512,19 @@ class VoidSaleResult:
     restored_moves: list[tuple[int, float]]  # (ingredient_id, qty_restored)
 
 
-def void_sale(session: Session, sale_id: int) -> VoidSaleResult:
+def void_sale(
+    session: Session,
+    sale_id: int,
+    reason: str | None = None,
+    voided_by: str | None = None,
+) -> VoidSaleResult:
     """Reverse a sale's stock moves. Atomic.
 
     If the sale was already voided, raises ValueError (idempotency via state check).
+
+    CIE-01: ``reason`` and ``voided_by`` are persisted on the Sale row so
+    operators can audit who voided what and why — critical for accountability
+    in a small bakery where every cancelled sale matters.
     """
     sale = session.get(Sale, sale_id)
     if sale is None:
@@ -544,15 +553,19 @@ def void_sale(session: Session, sale_id: int) -> VoidSaleResult:
             ingredient_id=move.ingredient_id,
             movement_type="sale",
             qty=restored_qty,
-            reason=f"Anulación venta #{sale.id}",
+            reason=f"Anulación venta #{sale.id}" + (f" — {reason}" if reason else ""),
             reference_id=sale.id,
             reference_type="sale",
             recorded_at=now_utc,
-            created_by=None,
+            created_by=voided_by,
         )
         session.add(stock_movement)
 
     sale.voided_at = now_utc
+    if reason:
+        sale.void_reason = reason
+    if voided_by:
+        sale.voided_by = voided_by
     session.commit()
 
     return VoidSaleResult(sale_id=sale_id, restored_moves=restored)
