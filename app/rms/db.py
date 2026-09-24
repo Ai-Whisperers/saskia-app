@@ -39,15 +39,6 @@ from app.rms.config import (
     ensure_dirs,
 )
 
-# Import migrations with automatic discovery
-try:
-    from app.rms.migrations import MIGRATIONS as discovered_migrations
-except ImportError:
-    discovered_migrations = {}  # fallback for tests
-
-# MIGRATIONS dict — now with automatic discovery support
-MIGRATIONS = {
-
 
 def _set_sqlite_pragmas(dbapi_conn: Any, _: Any) -> None:
     """SQLAlchemy connect listener: enable WAL + secure_delete + foreign_keys.
@@ -1756,11 +1747,62 @@ def _migration_044_message_templates(conn):
     _bump_schema_version(conn, 44)
 
 
-}  # end of MIGRATIONS dict
+MIGRATIONS = {
+    1: _migration_001_initial_schema,
+    2: _migration_002_audit_log,
+    3: _migration_003_analytics_columns,
+    4: _migration_004_tags,
+    5: _migration_005_customer,
+    6: _migration_006_waste_log,
+    7: _migration_007_product_sku,
+    8: _migration_008_tenant,
+    9: _migration_009_ingredient_intel,
+    10: _migration_010_recipe_intel,
+    11: _migration_011_sale_payment_discount,
+    12: _migration_012_sale_tz,
+    13: _migration_013_ingredient_max_stock,
+    14: _migration_014_customer_cedula,
+    15: _migration_015_sale_channel,
+    16: _migration_016_pedidos,
+    17: _migration_017_recipe_line_unit,
+    18: _migration_018_price_event,
+    19: _migration_019_production_completion,
+    20: _migration_020_sale_date_voided_index,
+    21: _migration_021_stock_movement,
+    22: _migration_022_user_roles,
+    23: _migration_023_supplier,
+    24: _migration_024_recipe_intel_extended,
+    25: _migration_025_ingredient_opening_stock_reorder_point,
+    26: _migration_026_product_audit_columns,
+    27: _migration_027_production_plan_template,
+    28: _migration_028_recipe_yield_qty_check,
+    29: _migration_029_herebus_integration,
+    30: _migration_030_recipe_image_url,
+    31: _migration_031_risk_status_activo,
+    32: _migration_032_pedido_cancel_reason,
+    33: _migration_033_ingredient_storage,
+    34: _migration_034_market_price_reference,
+    35: _migration_035_compliance_info,
+    36: _migration_036_product_tax_haccp,
+    37: _migration_037_sale_fiscal_invoice,
+    38: _migration_038_ingredient_haccp,
+    39: _migration_039_category_table,
+    40: _migration_040_pricing_setting,
+    41: _migration_041_channel_catalog,
+    42: _migration_042_payment_method_catalog,
+    43: _migration_043_branding_setting,
+    44: _migration_044_message_templates,
+}
 
-# MIGRATIONS is now imported from app.rms.migrations via pkgutil discovery
-# During transition, we merge discovered migrations with the existing ones
-MIGRATIONS.update(discovered_migrations)  # add discovered migrations to existing
+# Import pkgutil-discovered migrations and merge with existing
+try:
+    from app.rms.migrations import MIGRATIONS as discovered_migrations
+    # Merge discovered migrations with existing dict (new migrations added to the end)
+    # We need to update the module-level MIGRATIONS dict
+    globals()['MIGRATIONS'].update(discovered_migrations)
+except ImportError:
+    # pkgutil discovery not available (e.g., in tests) - no migrations added
+    pass
 
 
 def _bump_schema_version(conn, version: int) -> None:
