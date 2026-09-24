@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Historial de ventas{% endblock %}
+
+{% block content %}
+<h1>Historial de ventas</h1>
+
+<p>
+  <a href="/ventas" class="btn btn-ghost">
+    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+    Ir a Nueva venta
+  </a>
+</p>
+
+<div class="card mb-4" aria-label="Resumen del historial">
+  <div class="grid grid-3">
+    <div>
+      <div class="metric-label">Ventas activas</div>
+      <div class="metric-value">{{ totals.count }}</div>
+    </div>
+    <div>
+      <div class="metric-label">Total recaudado</div>
+      <div class="metric-value">Gs. {{ m.gs(totals.total_gs) }}</div>
+    </div>
+    <div>
+      <div class="metric-label">Ticket promedio</div>
+      <div class="metric-value">Gs. {{ m.gs(totals.avg_ticket_gs) }}</div>
+    </div>
+  </div>
+  <p class="text-muted mt-2" style="font-size:var(--text-xs);">
+    Filtro actual: {{ totals.filters }}
+    <span class="badge badge-info" style="margin-left:var(--space-3);">
+      Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ total_count }}</strong> ventas
+    </span>
+    {% set csv_query = dict(request.query_params.multi_items()) %}
+    {% set _ = csv_query.update({'format': 'csv'}) %}
+    <a href="{{ request.url.path }}?{{ csv_query|urlencode }}" class="btn btn-sm"
+       style="margin-left:var(--space-3);"
+       download="ventas-{{ now_local[:10] }}.csv">
+      <svg class="icon" aria-hidden="true"><use href="#icon-excel"/></svg>
+      Exportar CSV
+    </a>
+  </p>
+</div>
+
+<div class="form-row">
+  <label for="sales-search" class="sr-only">Buscar producto, nota o teléfono</label>
+  <input type="search" id="sales-search" name="q" value="{{ request.query_params.get('q','') }}" placeholder="Buscar producto, nota o teléfono" aria-label="Buscar producto, nota o teléfono">
+  <div class="saskia-combo"
+       data-source="data:application/json,[{'name': 'Todos los productos', 'id': ''}{% for p in products %},{'name': '{{ p.name }}', 'id': {{ p.id }}}{% if not loop.last %},{% endif %}{% endfor %}]"
+       data-display="name"
+       data-value="id"
+       data-min-chars="0"
+       data-allow-freeform="false">
+    <input type="text"
+           id="product-filter"
+           class="combo-input"
+           name="product_name"
+           placeholder="Filtrar por producto..."
+           autocomplete="off">
+    <input type="hidden" name="product_id" value="{{ request.query_params.get('product_id') }}">
+    <div class="combo-results" role="listbox" aria-label="Productos" hidden></div>
+  </div>
+
+  <label for="days-filter" class="sr-only">Rango de días</label>
+  <select id="days-filter" name="days" aria-label="Rango de días">
+    <option value="" {% if not days %}selected{% endif %}>Todos los días</option>
+    <option value="7" {% if days == 7 %}selected{% endif %}>Últimos 7 días</option>
+    <option value="30" {% if days == 30 %}selected{% endif %}>Últimos 30 días</option>
+    <option value="90" {% if days == 90 %}selected{% endif %}>Últimos 90 días</option>
+  </select>
+
+  <button type="submit" class="btn btn-primary">Filtrar</button>
+  {% if q or product_id or days %}
+  <a href="/ventas/historial" class="btn btn-ghost">Limpiar</a>
+  {% endif %}
+</div>
+
+{% if sales %}
+<table class="table is-hoverable is-striped">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Producto</th>
+      <th class="num">Cant.</th>
+      <th class="num">Unit. (Gs.)</th>
+      <th class="num">Total (Gs.)</th>
+      <th>Cliente</th>
+      <th>Pago</th>
+      <th>Notas</th>
+      <th class="actions"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in sales %}
+    <tr class="{{ 'is-voided' if s.voided_at else '' }}">
+      <td>{{ s.sold_at_str }}</td>
+      <td>
+        {{ s.product_name }}
+        {% if s.voided_at %}
+        <div class="voided-banner">
+          <strong>ANULADA</strong>
+          <span>{{ s.voided_at_str }}</span>
+        </div>
+        {% endif %}
+      </td>
+      <td class="num">{{ s.qty }}</td>
+      <td class="num">{{ m.gs(s.unit_price_gs) }}</td>
+      <td class="num">{{ m.gs(s.total_gs) }}</td>
+      <td>
+        {% if s.customer_name %}
+          {{ s.customer_name }}
+        {% else %}
+          <span class="text-muted">—</span>
+        {% endif %}
+        {% if s.customer_phone %}<br><small class="text-muted">{{ s.customer_phone }}</small>{% endif %}
+      </td>
+      <td>{{ s.payment_method }}</td>
+      <td>{{ s.notes or '' }}</td>
+      <td class="actions">
+        <a href="/ventas/{{ s.id }}/recibo" class="btn btn-sm btn-ghost">
+          <svg class="icon" aria-hidden="true"><use href="#icon-print"/></svg>
+          Recibo
+        </a>
+        {% if not s.voided_at %}
+        <form method="post" action="/ventas/{{ s.id }}/anular" style="display: inline;">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+          <button type="button" class="btn btn-sm btn-danger-ghost"
+                  onclick="SaskiaConfirmModal.show({title:'¿Anular venta?',body:'Se devolverá el stock al inventario.',action:'/ventas/{{ s.id }}/anular',confirmLabel:'Sí, anular',danger:true})">Anular</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if pagination and pagination.total_count > 0 %}
+<div class="table-info">
+  Mostrando <strong>{{ page_start }}–{{ page_end }}</strong>
+  de <strong>{{ pagination.total_count }}</strong> ventas
+  (página {{ pagination.page }} de {{ pagination.total_pages }})
+</div>
+{% if pagination.total_pages > 1 %}
+<nav class="pagination" aria-label="Paginación de ventas">
+  {% if pagination.page > 1 %}
+  <a href="?page={{ pagination.page - 1 }}&amp;q={{ q }}&amp;product_id={{ product_id }}&amp;days={{ days }}" class="btn btn-ghost">← Anterior</a>
+  {% endif %}
+  {% if pagination.page < pagination.total_pages %}
+  <a href="?page={{ pagination.page + 1 }}&amp;q={{ q }}&amp;product_id={{ product_id }}&amp;days={{ days }}" class="btn btn-ghost">Siguiente →</a>
+  {% endif %}
+</nav>
+{% endif %}
+{% endif %}
+
+{% else %}
+<div class="empty-state">
+  <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
+  <h3>Todavía no hay ventas en el historial</h3>
+  <p>Las ventas que registres aparecerán acá.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -133,6 +133,26 @@ templates.env.globals["asset_version"] = _asset_version
 templates.env.globals["m"] = _make_money_helper()
 
 
+def _csrf_token_for_request(request: Request | None) -> str:
+    """Return the current CSRF token for the active request, or empty
+    string outside an active request context (template previews, tests).
+
+    Reads the signed cookie set by the CSRF middleware; if absent,
+    generates a fresh token so the form input still renders something
+    the verify path can validate.
+    """
+    from app.rms.csrf import _CSRF_COOKIE as cookie_name, generate_csrf_token
+
+    if request is not None:
+        token = request.cookies.get(cookie_name)
+        if token:
+            return token
+    return generate_csrf_token()
+
+
+templates.env.globals["csrf_token"] = _csrf_token_for_request
+
+
 def render(
     request: Request,
     template_name: str,
@@ -145,6 +165,7 @@ def render(
     """
     ctx = context or {}
     ctx.setdefault("request", request)
+    ctx["csrf_token"] = _csrf_token_for_request(request)
     return templates.TemplateResponse(request, template_name, ctx, status_code=status_code)
 
 

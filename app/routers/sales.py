@@ -75,20 +75,20 @@ def _get_tax_regime(session) -> str:
     return ci.tax_regime if ci else "resimple"
 
 
-@router.get("", response_class=HTMLResponse)
-async def sales_list(
+def _build_sales_context(
     request: Request,
-    q: str | None = None,
-    product_id: int | None = None,
-    days: int | None = None,
-    offset: int | None = None,
-    session: Session = Depends(get_session),
-) -> HTMLResponse:
-    """Sales list with optional filter (?q=substring, ?product_id=, ?days=N, ?offset=N).
+    q: str | None,
+    product_id: int | None,
+    days: int | None,
+    offset: int | None,
+    session: Session,
+) -> dict:
+    """Build the render context shared by /ventas and /ventas/historial.
 
-    Filters run on the existing sales query so `/ventas?q=cabernet`
-    only returns matches. Helps operators find old sales without
-    scrolling 50+ rows.
+    Computes products, filtered sales page, summary totals, and Quick-Sell
+    top-5 in one pass. Both routes call this then render a different
+    template (ventas.html for the POS, ventas_historial.html for history)
+    so the filter logic stays in sync — US 4.3 split.
     """
     PAGE_SIZE = 20
     products = session.scalars(select(Product).order_by(Product.name)).all()
@@ -199,37 +199,89 @@ async def sales_list(
                 "stock_qty": getattr(p, "stock_qty", None),
             })
 
-    return render(
-        request,
-        "ventas.html",
-        {
-            "products": products,
-            "sales": [_decorated(s) for s in sales_page],
-            "quick_sell": quick_sell,
-            "payment_methods": list(PAYMENT_METHODS_DISPLAY),
-            "payment_method_default": PAYMENT_METHOD_DEFAULT,
-            "channels": list(CHANNELS_DISPLAY),
-            "channel_default": CHANNEL_DEFAULT,
-            "now_local": datetime.now(ASUNCION_TZ).strftime("%Y-%m-%dT%H:%M"),
-            "idem_key": _generate_idem_key(),
-            # Phase 1.B — pass tax regime so the form defaults the invoice type
-            "tax_regime": _get_tax_regime(session),
-            "totals": {
-                "count": total_count,
-                "total_gs": total_gs,
-                "avg_ticket_gs": int(total_gs / total_count) if total_count else 0,
-                "filters": _filter_summary(
-                    q=q, product_id=product_id, days=days, products=products
-                ),
-            },
-            "has_more": has_more,
-            "current_offset": start_offset,
-            "current_page_size": PAGE_SIZE,
-            "page_start": start_offset + 1,
-            "page_end": min(start_offset + PAGE_SIZE, total_count),
-            "total_count": total_count,
+    return {
+        "products": products,
+        "sales": [_decorated(s) for s in sales_page],
+        "quick_sell": quick_sell,
+        "q": q or "",
+        "product_id": product_id or "",
+        "days": days,
+        "products_filtered": products,  # alias used by historial.html
+        "now_local": datetime.now(ASUNCION_TZ).strftime("%Y-%m-%dT%H:%M"),
+        "idem_key": _generate_idem_key(),
+        # Phase 1.B — pass tax regime so the form defaults the invoice type
+        "tax_regime": _get_tax_regime(session),
+        "payment_methods": list(PAYMENT_METHODS_DISPLAY),
+        "payment_method_default": PAYMENT_METHOD_DEFAULT,
+        "channels": list(CHANNELS_DISPLAY),
+        "channel_default": CHANNEL_DEFAULT,
+        "totals": {
+            "count": total_count,
+            "total_gs": total_gs,
+            "avg_ticket_gs": int(total_gs / total_count) if total_count else 0,
+            "filters": _filter_summary(
+                q=q, product_id=product_id, days=days, products=products
+            ),
         },
+        "has_more": has_more,
+        "current_offset": start_offset,
+        "current_page_size": PAGE_SIZE,
+        "page_start": start_offset + 1,
+        "page_end": min(start_offset + PAGE_SIZE, total_count),
+        "total_count": total_count,
+    }
+
+
+@router.get("", response_class=HTMLResponse)
+async def sales_list(
+    request: Request,
+    q: str | None = None,
+    product_id: int | None = None,
+    days: int | None = None,
+    offset: int | None = None,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """POS landing page — Nueva venta (new sale form + Quick-Sell).
+
+    US 4.3 (S5): History view moved to /ventas/historial so the
+    counter screen isn't cluttered with 50+ past rows.
+    """
+    ctx = _build_sales_context(
+        request=request,
+        session=session,
+        q=q,
+        product_id=product_id,
+        days=days,
+        offset=offset,
     )
+    return render(request, "ventas.html", ctx)
+
+
+@router.get("/historial", response_class=HTMLResponse)
+async def sales_history(
+    request: Request,
+    q: str | None = None,
+    product_id: int | None = None,
+    days: int | None = None,
+    offset: int | None = None,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Sales history (US 4.3 split).
+
+    Shares query logic with sales_list via _build_sales_context so the
+    filter semantics stay in sync. Renders ventas_historial.html which
+    shows the summary card, filter form, table of past sales, and the
+    per-row Anular button.
+    """
+    ctx = _build_sales_context(
+        request=request,
+        session=session,
+        q=q,
+        product_id=product_id,
+        days=days,
+        offset=offset,
+    )
+    return render(request, "ventas_historial.html", ctx)
 
 
 def _filter_summary(q, product_id, days, products):

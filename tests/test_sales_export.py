@@ -51,7 +51,7 @@ def seeded_sales(session_factory):
 # ---- summary card ----
 
 def test_ventas_renders_summary_card(client, session_factory):
-    """/ventas includes the totals card for active (non-voided) sales."""
+    """/ventas/historial includes the totals card for active (non-voided) sales."""
     with session_factory() as s:
         p = Product(name="Apenas", sale_price_gs=1000, recipe_id=None)
         s.add(p); s.flush()
@@ -59,7 +59,7 @@ def test_ventas_renders_summary_card(client, session_factory):
         s.add(Sale(product_id=p.id, qty=2, unit_price_gs=1000, sold_at=now, voided_at=None))
         s.commit()
 
-    resp = client.get("/ventas")
+    resp = client.get("/ventas/historial")
     assert resp.status_code == 200
     body = resp.text
     assert "Ventas activas" in body
@@ -70,8 +70,8 @@ def test_ventas_renders_summary_card(client, session_factory):
 
 
 def test_ventas_summary_excludes_voided(client, seeded_sales):
-    """/ventas totals must not count anulada sales."""
-    resp = client.get("/ventas")
+    """/ventas/historial totals must not count anulada sales."""
+    resp = client.get("/ventas/historial")
     assert resp.status_code == 200
     # 5 total rows (3+2 non-voided; 1 voided still shows in table)
     # Active count must be 4 (the voided sale is excluded from totals)
@@ -82,7 +82,7 @@ def test_ventas_filtered_totals(client, seeded_sales):
     """?days=1 only counts today+sales (last 24h) for the totals."""
     # Sales: -1d (2x p1 + 1x p2) and 0d (1x p1 voided + 1x p2 active)
     # days=1 means only "now" sales count toward totals (1 active of 2 total)
-    resp = client.get("/ventas?days=1")
+    resp = client.get("/ventas/historial?days=1")
     assert resp.status_code == 200
     # Filter description visible
     assert "últimos 1 días" in resp.text or "últimos 1 d" in resp.text
@@ -165,7 +165,7 @@ def test_recibo_marks_voided_sale(client, seeded_sales, session_factory):
 
 def test_ventas_has_export_button_in_card(client, seeded_sales):
     """The summary card exposes a CSV export link with the current filters."""
-    resp = client.get("/ventas?days=7")
+    resp = client.get("/ventas/historial?days=7")
     assert resp.status_code == 200
     body = resp.text
     assert "Exportar CSV" in body

@@ -64,8 +64,8 @@ def test_ventas_page_has_payment_method_field(client):
 
 
 def test_ventas_filter_search_exists(client):
-    """/ventas shows search input + product filter + days filter."""
-    resp = client.get("/ventas")
+    """/ventas/historial shows search input + product filter + days filter (US 4.3)."""
+    resp = client.get("/ventas/historial")
     assert resp.status_code == 200
     body = resp.text
     for field in ['name="q"', 'name="product_id"', 'name="days"']:
@@ -73,7 +73,7 @@ def test_ventas_filter_search_exists(client):
 
 
 def test_ventas_filter_by_q(client, session_factory):
-    """/ventas?q=foo only returns matching sales."""
+    """/ventas/historial?q=foo only returns matching sales."""
     from datetime import datetime, timezone
 
     from app.rms.models import Product, Sale
@@ -87,13 +87,13 @@ def test_ventas_filter_by_q(client, session_factory):
         s.add(Sale(product_id=p2.id, qty=1, unit_price_gs=15000, sold_at=datetime.now(timezone.utc)))
         s.commit()
 
-    resp = client.get("/ventas?q=cabernet")
+    resp = client.get("/ventas/historial?q=cabernet")
     assert resp.status_code == 200
     assert "Cabernet" in resp.text
 
 
 def test_ventas_filter_by_product(client, session_factory):
-    """/ventas?product_id=N filters to that product's sales."""
+    """/ventas/historial?product_id=N filters to that product's sales."""
     from datetime import datetime, timezone
 
     from app.rms.models import Product, Sale
@@ -108,8 +108,8 @@ def test_ventas_filter_by_product(client, session_factory):
         s.commit()
         p1_id = p1.id
 
-    resp_all = client.get("/ventas")
-    resp_filt = client.get(f"/ventas?product_id={p1_id}")
+    resp_all = client.get("/ventas/historial")
+    resp_filt = client.get(f"/ventas/historial?product_id={p1_id}")
     assert resp_all.status_code == 200
     assert resp_filt.status_code == 200
     # Filtered should contain p1's name; unfiltered should contain both.
@@ -118,7 +118,7 @@ def test_ventas_filter_by_product(client, session_factory):
 
 
 def test_ventas_filter_by_days(client, session_factory):
-    """/ventas?days=7 should not 500; recent sales still appear."""
+    """/ventas/historial?days=7 should not 500; recent sales still appear."""
     from datetime import datetime, timezone
 
     from app.rms.models import Product, Sale

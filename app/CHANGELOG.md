@@ -5,6 +5,47 @@
 
 ## [Unreleased]
 
+### Changed (2026-09-23) — second review: POS split + Quick-Sell + multi-field customer search (US 4.2, US 4.3)
+
+- **`/ventas` and `/ventas/historial` are now separate routes (US 4.3).** The
+  previous single page mixed the POS form, Quick-Sell grid, sales history
+  table, and pagination on one screen — Saskia explicitly asked for the
+  history to move out so the counter view is uncluttered. Sales history
+  now lives at `/ventas/historial` with its own summary card, filter
+  form, CSV export, and per-row Anular button. The two routes share the
+  same context builder (`_build_sales_context`) so filter semantics stay
+  in sync — no logic duplication. Cross-links: POS has "Ver historial",
+  history has "Ir a Nueva venta". Receipts and `/ventas/{id}/anular`
+  POST endpoint unchanged.
+- **`csrf_token` is now auto-injected into every template render.** The
+  Anular button on `/ventas/historial` is a real `<form method=post>`
+  requiring a CSRF token, so `app.services.template_render.render()`
+  now reads the signed token from the request cookie and sets
+  `csrf_token` on every context. Templates use `{{ csrf_token }}`
+  (no parens). Falls back to a freshly generated token if there's no
+  active request (template previews).
+- **POS page now links to /ventas/historial.** A "Ver historial" button
+  next to "Cancelar" so operators who just registered a sale can
+  jump straight to history without navigating the menu.
+
+### Verified (US 4.2 — Quick-Sell + customer multi-field search)
+
+- Quick-Sell grid renders one button per top-5 product by 14-day revenue.
+- Each Quick-Sell button is a one-tap `<form method=post action="/ventas/nueva">`
+  with `product_id` and `qty=1` hidden inputs.
+- Quick-Sell search input has an accessible `aria-label` and filters
+  client-side by product name (case-insensitive substring).
+- `/clientes/api/search` already matched on name, phone, cedula, email,
+  and notes (verified by `tests/test_customer_picker.py`). No change.
+
+### Test coverage
+
+- `tests/test_saskia_r2_pos_split.py` — 14 new tests covering US 4.3
+  split, US 4.2 Quick-Sell, and customer multi-field search.
+- Existing `tests/test_sales_overhaul.py` and `tests/test_sales_export.py`
+  migrated from `/ventas` to `/ventas/historial` for history-related
+  assertions (4 routes, 4 fixes).
+
 ### Changed (2026-09-23) — second review: sub-recipe UI + multi-ingredient filter (US 3.1, US 3.2)
 
 - **`/recetas` (recipe list) now supports multi-ingredient reverse search (US 3.2).** Pass `?ingredient_ids=1,3` to get recipes that use BOTH ingredients (AND semantics). The legacy single-id `?ingredient_id=N` still works. Invalid IDs (non-int, empty) in the comma-separated list are silently dropped. Hidden `ingredient_ids` form field and sort-header URLs preserve the multi-filter across pagination and column sort.
