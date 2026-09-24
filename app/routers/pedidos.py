@@ -782,9 +782,17 @@ def pedidos_fulfill(
         from sqlalchemy.exc import IntegrityError
         from app.rms.models import AppMeta as _AppMeta
         try:
+            # Use JSON shape (forward-compatible) so we can store
+            # request_id alongside the sale_id for duplicate-POST forensics.
+            request_id_pedido = getattr(request.state, "request_id", None) or ""
+            initial_value = __import__("json").dumps({
+                "pedido_id": str(pedido_id),
+                "sale_id": "",  # updated below
+                "request_id": request_id_pedido,
+            })
             session.add(_AppMeta(
                 key=f"pedido_fulfill_idem:{idempotency_key}",
-                value=str(pedido_id),  # updated below to real sale_id
+                value=initial_value,
                 updated_at=datetime.now(timezone.utc).isoformat(),
             ))
             session.flush()  # surface IntegrityError without committing
@@ -854,13 +862,29 @@ def pedidos_fulfill(
 
     # Update the idempotency record with the real first_sale_id. The AppMeta
     # row was reserved BEFORE apply_sale (see top of function), so the row
-    # already exists by this point — we're just updating its value.
+    # already exists by this point — we're just updating its value with the
+    # real first_sale_id while preserving the JSON shape (pedido_id, request_id).
     if idempotency_key and first_sale_id is not None:
+        import json as _json
         from app.rms.models import AppMeta as _AppMeta
+
+        # Re-read current value to preserve pedido_id + request_id, then
+        # add the just-created first_sale_id.
+        existing = session.scalar(
+            __import__("sqlalchemy").select(_AppMeta).where(
+                _AppMeta.key == f"pedido_fulfill_idem:{idempotency_key}"
+            )
+        )
+        try:
+            payload = _json.loads(existing.value) if existing and existing.value else {}
+        except (ValueError, TypeError):
+            # Legacy plain-string value (created before this fix shipped)
+            payload = {}
+        payload["sale_id"] = str(first_sale_id)
         session.execute(
             update(_AppMeta)
             .where(_AppMeta.key == f"pedido_fulfill_idem:{idempotency_key}")
-            .values(value=str(first_sale_id))
+            .values(value=_json.dumps(payload))
         )
 
     safe_commit(session)

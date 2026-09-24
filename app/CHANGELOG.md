@@ -5,6 +5,40 @@
 
 ## [Unreleased]
 
+### Added (2026-09-24) — Phase 1B: idempotency records carry request_id
+
+Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md ticket #10:
+duplicate-POST forensics need to correlate the two requests. The
+idempotency records (AppMeta rows) previously stored only the
+sale_id/pedido_id as a plain string. We now store JSON
+`{"sale_id": "1", "request_id": "abc123..."}` so operators can grep
+the access log for `request_id=abc123` and see both POSTs side by side.
+
+**Implementation:**
+- `app/routers/sales.py:sale_create` — value column now JSON-encoded
+  with `{sale_id, request_id}`. request_id pulled from
+  `request.state.request_id` (set by RequestContextMiddleware).
+- `app/routers/pedidos.py:pedidos_fulfill` — same JSON shape with
+  `{pedido_id, sale_id, request_id}`. The post-fulfill UPDATE now
+  re-reads the existing value (preserving request_id + pedido_id)
+  and merges in the real sale_id.
+- Backwards-compat: legacy plain-string values still parse (the
+  UPDATE path catches `json.JSONDecodeError` and starts with `{}`).
+
+**Tests:**
+- `tests/test_idempotency_request_id.py` — 3 tests covering:
+  - request_id stored when header provided
+  - request_id auto-generated when header absent
+  - existing sale_id still extractable from JSON payload
+- `tests/test_pedido_idempotency_request_id.py` — 2 tests:
+  - pedido fulfill idem record has pedido_id + sale_id + request_id
+  - generated request_id when header absent
+- `tests/test_pedido_fulfill_idempotency.py` — existing
+  `test_appmeta_record_exists_after_successful_fulfill` updated to
+  parse the new JSON shape.
+- 31 idempotency + safe_commit tests pass; 285 sale/pedido/ventas/invoice
+  tests pass; 6 pre-existing failures unrelated.
+
 ### Refactored (2026-09-24) — Phase 2A: sales_in_window helper + migrate 7 call sites
 
 Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md ticket #26 (C-1):

@@ -170,7 +170,12 @@ def test_appmeta_record_exists_after_successful_fulfill(client, session_factory)
             )
         )
     assert row is not None, "idempotency record missing after fulfill"
-    assert row.value == str(pedido_id), f"expected value={pedido_id}, got {row.value}"
+    # Value is JSON (Phase 1B #10): {pedido_id, sale_id, request_id}
+    import json as _json
+    payload = _json.loads(row.value)
+    assert payload["pedido_id"] == str(pedido_id), (
+        f"expected pedido_id={pedido_id}, got {payload['pedido_id']}"
+    )
 
 
 def test_concurrent_fulfills_one_winner_at_most(client, session_factory):

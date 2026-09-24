@@ -608,16 +608,26 @@ async def sale_create(
         detail={"product_id": product_id, "qty": qty, "discount_gs": discount_gs, "channel": channel_clean},
     )
 
-    # Update the idempotency record's value with the real sale_id now that we
-    # know it. This is a SECOND commit, but the AppMeta row was already
-    # persisted in the first commit (along with the Sale), so a retry
-    # immediately sees the idem record and aborts via IntegrityError.
+    # Update the idempotency record's value with the real sale_id AND
+    # request_id, so duplicate-POST forensics can correlate the two
+    # requests via the access log. Value is JSON-encoded for forward
+    # compatibility (we may add more fields later).
+    #
+    # This is a SECOND commit, but the AppMeta row was already persisted
+    # in the first commit (along with the Sale), so a retry immediately
+    # sees the idem record and aborts via IntegrityError.
     if idempotency_key:
+        import json
         from app.rms.models import AppMeta as _AppMeta
+        request_id = getattr(request.state, "request_id", None) or ""
+        payload = json.dumps({
+            "sale_id": str(sale.sale_id),
+            "request_id": request_id,
+        })
         session.execute(
             update(_AppMeta)
             .where(_AppMeta.key == f"sale_idem:{idempotency_key}")
-            .values(value=str(sale.sale_id))
+            .values(value=payload)
         )
 
     safe_commit(session)
