@@ -5,6 +5,32 @@
 
 ## [Unreleased]
 
+### Fixed (2026-09-24) — Phase 1A atomicity: pedido fulfill idempotency race
+
+**Bug:** `app/routers/pedidos.py:pedidos_fulfill` (F3 in
+`docs/operations/SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md`).
+The pedido_fulfill_idem AppMeta row was written in a separate
+try/commit AFTER the fulfill work committed. A concurrent retry
+between commits could observe no idem record and proceed to create
+a second set of Sales, double-deduct stock, and emit a second
+WhatsApp notification.
+
+**Fix:** Reserve the AppMeta row BEFORE applying Sales for each line.
+Duplicate INSERT raises IntegrityError (AppMeta.key is the primary
+key), which we catch and redirect to the original fulfill. A
+second UPDATE fixes the value to the actual `first_sale_id` after
+the fulfill completes.
+
+**Race window:** Before fix: between line 757 (fulfill commit) and
+line 769 (idem commit) in separate transactions. After fix: zero —
+the idem row is reserved in the same transaction as the fulfill work.
+
+**Tests:**
+- `tests/test_pedido_fulfill_idempotency.py` — 6 tests covering
+  same-key retry, stock-deduction double-count, status check, empty
+  key, AppMeta record existence, and concurrent-fulfill post-condition.
+- All 55 pedido tests pass; no regressions.
+
 ### Fixed (2026-09-24) — Phase 1A atomicity: sale idempotency race
 
 **Bug:** `app/routers/sales.py:sale_create` (F2 in

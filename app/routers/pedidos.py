@@ -25,7 +25,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Path, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import current_user_id, require_login_or_disabled as require_login
@@ -685,14 +685,23 @@ def pedidos_fulfill(
     on a double-click. Without one, a fast click could create duplicate
     Sales + double stock decrement for the same pedido.
     """
-    # Idempotency check FIRST: if we've seen this key, redirect to the
-    # pedido detail (which now shows the fulfilled state).
+    # Idempotency: reserve the AppMeta row BEFORE running apply_sale for
+    # each line. AppMeta.key is the primary key; a duplicate INSERT raises
+    # IntegrityError which we catch and redirect to the original fulfill.
+    # This closes the F3 race window documented in
+    # SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md §F3.
     if idempotency_key:
-        from app.rms.models import AppMeta
-        existing = session.scalar(
-            select(AppMeta).where(AppMeta.key == f"pedido_fulfill_idem:{idempotency_key}")
-        )
-        if existing:
+        from sqlalchemy.exc import IntegrityError
+        from app.rms.models import AppMeta as _AppMeta
+        try:
+            session.add(_AppMeta(
+                key=f"pedido_fulfill_idem:{idempotency_key}",
+                value=str(pedido_id),  # updated below to real sale_id
+                updated_at=datetime.now(timezone.utc).isoformat(),
+            ))
+            session.flush()  # surface IntegrityError without committing
+        except IntegrityError:
+            session.rollback()
             return RedirectResponse(
                 url=f"/pedidos/{pedido_id}?flash=pedido_fulfill_duplicate",
                 status_code=303,
@@ -754,21 +763,19 @@ def pedidos_fulfill(
         },
         request=request,
     )
-    session.commit()
 
-    # Store idempotency key AFTER successful commit so retries don't
-    # double-fulfill. Use pedido_id as the value so we can verify on retry.
-    if idempotency_key:
-        try:
-            from app.rms.models import AppMeta
-            session.add(AppMeta(
-                key=f"pedido_fulfill_idem:{idempotency_key}",
-                value=str(pedido_id),
-                updated_at=datetime.now(timezone.utc).isoformat(),
-            ))
-            session.commit()
-        except Exception:
-            session.rollback()  # idempotency record is best-effort
+    # Update the idempotency record with the real first_sale_id. The AppMeta
+    # row was reserved BEFORE apply_sale (see top of function), so the row
+    # already exists by this point — we're just updating its value.
+    if idempotency_key and first_sale_id is not None:
+        from app.rms.models import AppMeta as _AppMeta
+        session.execute(
+            update(_AppMeta)
+            .where(_AppMeta.key == f"pedido_fulfill_idem:{idempotency_key}")
+            .values(value=str(first_sale_id))
+        )
+
+    session.commit()
 
     # ── Notify customer via WhatsApp or SMS ──────────────────────────────────
     _send_fulfill_notification(session, pedido)
