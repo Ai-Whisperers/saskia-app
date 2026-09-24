@@ -5,6 +5,22 @@
 
 ## [Unreleased]
 
+### Verified (2026-09-24) — Phase 1B: rate_limit `now` kwarg already supported
+
+Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md ticket D-1:
+"`datetime.now()` in business logic" — flagged as missing clock
+injection. Audit also noted "rate_limit accepts now kwarg (good) but
+no caller passes it."
+
+**Status:** The `now` parameter is already implemented on both
+`is_rate_limited` and `is_write_rate_limited` in `app/rms/rate_limit.py`
+(lines 76, 161). Tests pass `now=` explicitly. Production callers
+don't pass it because `datetime.now(timezone.utc)` is the correct
+default for production. No code change needed.
+
+This was already part of the original implementation — flagged for
+verification, not for implementation.
+
 ### Added (2026-09-24) — Phase 1B: idempotency records carry request_id
 
 Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md ticket #10:
