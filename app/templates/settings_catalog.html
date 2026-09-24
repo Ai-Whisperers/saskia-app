@@ -3,160 +3,315 @@
 {% block title %}Configuración — Catálogos{% endblock %}
 
 {% block content %}
+<style>
+.catalog-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+.catalog-tabs .tab {
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--radius) var(--radius) 0 0;
+  font-size: var(--text-sm);
+}
+.catalog-tabs .tab.is-active {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  border-bottom: 1px solid var(--color-surface);
+  margin-bottom: -1px;
+  font-weight: 600;
+}
+.tab-panel { display: none; padding-top: var(--space-4); }
+.tab-panel.is-active { display: block; }
+
+.add-form {
+  background: var(--color-surface-subtle);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+  display: none;
+}
+.add-form.is-open { display: block; }
+.add-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-2);
+  align-items: end;
+  margin-bottom: var(--space-2);
+}
+.add-form-row label {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  display: block;
+  margin-bottom: 2px;
+}
+.add-form input, .add-form select {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+.add-form-actions { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
+
+.data-table td.is-inactive { opacity: 0.5; }
+.data-table .row-actions {
+  display: flex;
+  gap: 4px;
+  white-space: nowrap;
+}
+.row-btn {
+  font-size: var(--text-xs);
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+.row-btn:hover { background: var(--color-surface-subtle); }
+.row-btn.danger { color: var(--color-danger); }
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  background: var(--color-success);
+  color: white;
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  z-index: 999;
+  display: none;
+}
+.toast.is-error { background: var(--color-danger); }
+.toast.is-visible { display: block; }
+
+.tmpl-body { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.8em; }
+</style>
+
 <div class="page-header">
   <h1>Catálogos y configuración</h1>
   <p class="muted">
-    Modificá categorías, canales de venta, formas de pago, plantillas de
-    mensajes y branding sin tocar código.
+    Gestioná categorías, canales de venta, formas de pago, plantillas de mensajes y más.
+    Todos los cambios se aplican de inmediato — no requiere deploy.
   </p>
 </div>
 
-<!-- ── Tab navigation ──────────────────────────────────────────────── -->
-<nav class="tabs" aria-label="Secciones de configuración">
-  <button type="button" class="tab is-active" data-tab="categories">Categorías</button>
+<nav class="catalog-tabs" aria-label="Secciones de configuración">
+  <button type="button" class="tab is-active" data-tab="categories-product">Categorías producto</button>
+  <button type="button" class="tab" data-tab="categories-recipe">Familias de receta</button>
   <button type="button" class="tab" data-tab="channels">Canales de venta</button>
   <button type="button" class="tab" data-tab="payments">Formas de pago</button>
-  <button type="button" class="tab" data-tab="templates">Plantillas</button>
   <button type="button" class="tab" data-tab="margin-tiers">Tiers de margen</button>
   <button type="button" class="tab" data-tab="stock-status">Umbrales de stock</button>
   <button type="button" class="tab" data-tab="storage-types">Almacenamiento HACCP</button>
   <button type="button" class="tab" data-tab="date-presets">Períodos</button>
+  <button type="button" class="tab" data-tab="templates">Plantillas</button>
   <button type="button" class="tab" data-tab="tax-config">Impuestos</button>
   <button type="button" class="tab" data-tab="branding">Branding</button>
 </nav>
 
-<!-- ── Categories tab ─────────────────────────────────────────────── -->
-<section class="tab-panel is-active" data-panel="categories">
-  <h2>Categorías de producto</h2>
-  <table class="data-table" id="product-categories-table">
-    <thead><tr><th>Nombre</th><th>Orden</th><th>Estado</th><th></th></tr></thead>
-    <tbody></tbody>
-  </table>
+<div id="toast" class="toast"></div>
 
-  <h2>Familias de receta</h2>
-  <table class="data-table" id="recipe-families-table">
-    <thead><tr><th>Nombre</th><th>Orden</th><th>Estado</th><th></th></tr></thead>
+<!-- ── Categorías de producto ──────────────────────────────────── -->
+<section class="tab-panel is-active" data-panel="categories-product">
+  <button class="btn btn-secondary" data-toggle-form="add-cat-product">+ Agregar categoría</button>
+  <div class="add-form" id="add-cat-product">
+    <h3>Nueva categoría de producto</h3>
+    <div class="add-form-row">
+      <div><label>Nombre</label><input type="text" id="add-cat-product-name" maxlength="64" placeholder="Ej: Tartas"></div>
+      <div><label>Orden</label><input type="number" id="add-cat-product-sort" min="0" value="1000"></div>
+    </div>
+    <div class="add-form-actions">
+      <button class="btn btn-primary" id="save-cat-product">Guardar</button>
+      <button class="btn" data-toggle-form="add-cat-product">Cancelar</button>
+    </div>
+  </div>
+  <table class="data-table" id="table-cat-product">
+    <thead><tr><th>Nombre</th><th>Orden</th><th>Activo</th><th></th></tr></thead>
     <tbody></tbody>
   </table>
 </section>
 
-<!-- ── Channels tab ───────────────────────────────────────────────── -->
+<!-- ── Familias de receta ───────────────────────────────────────── -->
+<section class="tab-panel" data-panel="categories-recipe">
+  <button class="btn btn-secondary" data-toggle-form="add-cat-recipe">+ Agregar familia</button>
+  <div class="add-form" id="add-cat-recipe">
+    <h3>Nueva familia de receta</h3>
+    <div class="add-form-row">
+      <div><label>Nombre</label><input type="text" id="add-cat-recipe-name" maxlength="64" placeholder="Ej: Tartas"></div>
+      <div><label>Orden</label><input type="number" id="add-cat-recipe-sort" min="0" value="1000"></div>
+    </div>
+    <div class="add-form-actions">
+      <button class="btn btn-primary" id="save-cat-recipe">Guardar</button>
+      <button class="btn" data-toggle-form="add-cat-recipe">Cancelar</button>
+    </div>
+  </div>
+  <table class="data-table" id="table-cat-recipe">
+    <thead><tr><th>Nombre</th><th>Orden</th><th>Activo</th><th></th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Channels ─────────────────────────────────────────────────── -->
 <section class="tab-panel" data-panel="channels">
-  <h2>Canales de venta</h2>
-  <table class="data-table" id="channels-table">
-    <thead><tr><th>Código</th><th>Etiqueta</th><th>Orden</th><th>Predeterminado</th><th></th></tr></thead>
+  <button class="btn btn-secondary" data-toggle-form="add-channel">+ Agregar canal</button>
+  <div class="add-form" id="add-channel">
+    <h3>Nuevo canal de venta</h3>
+    <div class="add-form-row">
+      <div><label>Código</label><input type="text" id="add-channel-code" maxlength="32" placeholder="Ej: instagram_dm"></div>
+      <div><label>Etiqueta</label><input type="text" id="add-channel-label" maxlength="64" placeholder="Ej: Instagram DM"></div>
+      <div><label>Orden</label><input type="number" id="add-channel-sort" min="0" value="1000"></div>
+      <div><label>Predeterminado</label><select id="add-channel-default"><option value="0">No</option><option value="1">Sí</option></select></div>
+    </div>
+    <div class="add-form-actions">
+      <button class="btn btn-primary" id="save-channel">Guardar</button>
+      <button class="btn" data-toggle-form="add-channel">Cancelar</button>
+    </div>
+  </div>
+  <table class="data-table" id="table-channel">
+    <thead><tr><th>Código</th><th>Etiqueta</th><th>Orden</th><th>Predeterminado</th><th>Activo</th><th></th></tr></thead>
     <tbody></tbody>
   </table>
 </section>
 
-<!-- ── Payments tab ───────────────────────────────────────────────── -->
+<!-- ── Payment methods ──────────────────────────────────────────── -->
 <section class="tab-panel" data-panel="payments">
-  <h2>Formas de pago</h2>
-  <table class="data-table" id="payments-table">
+  <button class="btn btn-secondary" data-toggle-form="add-payment">+ Agregar forma de pago</button>
+  <div class="add-form" id="add-payment">
+    <h3>Nueva forma de pago</h3>
+    <div class="add-form-row">
+      <div><label>Código</label><input type="text" id="add-payment-code" maxlength="32" placeholder="Ej: billeteras"></div>
+      <div><label>Etiqueta</label><input type="text" id="add-payment-label" maxlength="64" placeholder="Ej: Billeteras móviles"></div>
+      <div><label>% Comisión</label><input type="number" id="add-payment-fee" min="0" max="100" step="0.01" value="0"></div>
+      <div><label>Requiere referencia</label><select id="add-payment-ref"><option value="0">No</option><option value="1">Sí</option></select></div>
+      <div><label>Orden</label><input type="number" id="add-payment-sort" min="0" value="1000"></div>
+      <div><label>Predeterminado</label><select id="add-payment-default"><option value="0">No</option><option value="1">Sí</option></select></div>
+    </div>
+    <div class="add-form-actions">
+      <button class="btn btn-primary" id="save-payment">Guardar</button>
+      <button class="btn" data-toggle-form="add-payment">Cancelar</button>
+    </div>
+  </div>
+  <table class="data-table" id="table-payment">
     <thead>
       <tr>
-        <th>Código</th><th>Etiqueta</th><th>Rec. ref.</th>
-        <th>% Comisión</th><th>Orden</th><th>Predeterminado</th><th></th>
+        <th>Código</th><th>Etiqueta</th><th>% Com.</th><th>Ref.</th>
+        <th>Orden</th><th>Predet.</th><th>Activo</th><th></th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 </section>
 
-<!-- ── Templates tab ─────────────────────────────────────────────── -->
-<section class="tab-panel" data-panel="templates">
-  <h2>Plantillas de mensajes</h2>
-  <p class="muted">Editá el cuerpo del mensaje. Usá <code>{nombre}</code>, <code>{total_gs}</code>, etc. como placeholders.</p>
-  <table class="data-table" id="templates-table">
-    <thead>
-      <tr><th>Canal</th><th>Clave</th><th>Asunto</th><th>Cuerpo</th><th>Estado</th><th></th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</section>
-
-<!-- ── Margin tiers tab ──────────────────────────────────────────── -->
+<!-- ── Margin tiers ─────────────────────────────────────────────── -->
 <section class="tab-panel" data-panel="margin-tiers">
-  <h2>Tiers de margen (umbrales para filtros de recetas)</h2>
-  <p class="muted">
-    Cambiá el rango de costos para clasificar recetas en tiers
-    (Top 10%, Top 25%, Bottom 25%). Útil cuando la economía cambia y
-    los umbrales ya no son representativos.
-  </p>
-  <table class="data-table" id="margin-tiers-table">
+  <p class="muted">Editá el rango de costos para clasificar recetas en tiers.</p>
+  <table class="data-table" id="table-margin-tier">
     <thead>
-      <tr>
-        <th>Código</th><th>Etiqueta</th><th>Min Gs.</th><th>Max Gs.</th>
-        <th>Orden</th><th>Activo</th>
-      </tr>
+      <tr><th>Código</th><th>Etiqueta</th><th>Min Gs.</th><th>Max Gs.</th><th>Orden</th><th>Activo</th><th></th></tr>
     </thead>
     <tbody></tbody>
   </table>
 </section>
 
-<!-- ── Stock status thresholds tab ───────────────────────────────── -->
+<!-- ── Stock status thresholds ──────────────────────────────────── -->
 <section class="tab-panel" data-panel="stock-status">
-  <h2>Umbrales de estado de stock</h2>
-  <p class="muted">
-    Definí cuándo un ingrediente se considera "Bajo mínimo", "Crítico",
-    "Sobrestock" o "Sin consumo" (muerto).
-  </p>
-  <table class="data-table" id="stock-status-table">
+  <p class="muted">Cuándo un ingrediente se considera Bajo/Crítico/Sobrestock/Muerto.</p>
+  <table class="data-table" id="table-stock-status">
     <thead>
       <tr>
-        <th>Código</th><th>Etiqueta</th><th>Ratio (stock/min)</th>
-        <th>Días sin consumo</th><th>Activo</th>
+        <th>Código</th><th>Etiqueta</th><th>Ratio</th>
+        <th>Días sin consumo</th><th>Orden</th><th>Activo</th><th></th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 </section>
 
-<!-- ── Storage types tab ────────────────────────────────────────── -->
+<!-- ── Storage types ────────────────────────────────────────────── -->
 <section class="tab-panel" data-panel="storage-types">
-  <h2>Códigos de almacenamiento HACCP</h2>
-  <p class="muted">
-    Códigos que se aplican al campo <code>ingredient.storage</code>.
-    Las casillas "Requiere temp/humedad" indican qué campos HACCP se
-    deben completar para ingredientes almacenados bajo este código.
-  </p>
-  <table class="data-table" id="storage-types-table">
+  <button class="btn btn-secondary" data-toggle-form="add-storage">+ Agregar tipo de almacenamiento</button>
+  <div class="add-form" id="add-storage">
+    <h3>Nuevo código de almacenamiento HACCP</h3>
+    <div class="add-form-row">
+      <div><label>Código</label><input type="text" id="add-storage-code" maxlength="32" placeholder="Ej: vacuum_sealed"></div>
+      <div><label>Etiqueta</label><input type="text" id="add-storage-label" maxlength="64" placeholder="Ej: Envasado al vacío"></div>
+      <div><label>Orden</label><input type="number" id="add-storage-sort" min="0" value="1000"></div>
+      <div><label>Temp mín requerida</label><select id="add-storage-tmin"><option value="0">No</option><option value="1">Sí</option></select></div>
+      <div><label>Temp máx requerida</label><select id="add-storage-tmax"><option value="0">No</option><option value="1">Sí</option></select></div>
+      <div><label>Humedad máx requerida</label><select id="add-storage-hum"><option value="0">No</option><option value="1">Sí</option></select></div>
+    </div>
+    <div class="add-form-actions">
+      <button class="btn btn-primary" id="save-storage">Guardar</button>
+      <button class="btn" data-toggle-form="add-storage">Cancelar</button>
+    </div>
+  </div>
+  <table class="data-table" id="table-storage">
     <thead>
       <tr>
         <th>Código</th><th>Etiqueta</th><th>Temp mín</th><th>Temp máx</th>
-        <th>Humedad máx</th><th>Activo</th>
+        <th>Humedad máx</th><th>Activo</th><th></th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 </section>
 
-<!-- ── Date presets tab ─────────────────────────────────────────── -->
+<!-- ── Date presets ─────────────────────────────────────────────── -->
 <section class="tab-panel" data-panel="date-presets">
-  <h2>Períodos de fecha (filtros rápidos)</h2>
-  <p class="muted">
-    Chips de filtro rápido para dashboard / reportes / auditoría.
-    Cambiá los días sin tocar código.
-  </p>
-  <table class="data-table" id="date-presets-table">
+  <button class="btn btn-secondary" data-toggle-form="add-preset">+ Agregar período</button>
+  <div class="add-form" id="add-preset">
+    <h3>Nuevo período de fecha</h3>
+    <div class="add-form-row">
+      <div><label>Código</label><input type="text" id="add-preset-code" maxlength="32" placeholder="Ej: biweekly"></div>
+      <div><label>Etiqueta</label><input type="text" id="add-preset-label" maxlength="64" placeholder="Ej: Quincena"></div>
+      <div><label>Días</label><input type="number" id="add-preset-days" min="1" max="3650" value="14"></div>
+      <div><label>Orden</label><input type="number" id="add-preset-sort" min="0" value="1000"></div>
+      <div><label>Predeterminado</label><select id="add-preset-default"><option value="0">No</option><option value="1">Sí</option></select></div>
+    </div>
+    <div class="add-form-actions">
+      <button class="btn btn-primary" id="save-preset">Guardar</button>
+      <button class="btn" data-toggle-form="add-preset">Cancelar</button>
+    </div>
+  </div>
+  <table class="data-table" id="table-preset">
     <thead>
-      <tr><th>Código</th><th>Etiqueta</th><th>Días</th><th>Predeterminado</th><th>Activo</th></tr>
+      <tr><th>Código</th><th>Etiqueta</th><th>Días</th><th>Predeterminado</th><th>Activo</th><th></th></tr>
     </thead>
     <tbody></tbody>
   </table>
 </section>
 
-<!-- ── Tax config tab ────────────────────────────────────────────── -->
+<!-- ── Templates ───────────────────────────────────────────────── -->
+<section class="tab-panel" data-panel="templates">
+  <p class="muted">Editá el cuerpo del mensaje. Usá <code>{nombre}</code>, <code>{total_gs}</code>, etc. como placeholders.</p>
+  <table class="data-table" id="table-template">
+    <thead>
+      <tr><th>Canal</th><th>Clave</th><th>Asunto</th><th>Cuerpo</th><th>Versión</th><th>Activo</th><th></th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Tax config ───────────────────────────────────────────────── -->
 <section class="tab-panel" data-panel="tax-config">
   <h2>Configuración de impuestos (IVA, régimen)</h2>
   <p class="muted">Vista de solo lectura — editá en <a href="/settings">/settings</a>.</p>
-  <table class="data-table" id="tax-config-table">
+  <table class="data-table" id="table-tax">
     <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
     <tbody></tbody>
   </table>
 </section>
 
-<!-- ── Branding tab ───────────────────────────────────────────────── -->
+<!-- ── Branding ─────────────────────────────────────────────────── -->
 <section class="tab-panel" data-panel="branding">
   <h2>Branding</h2>
   <form id="branding-form">
@@ -190,13 +345,13 @@
 
 {% endblock %}
 
-{% block scripts %}
+{% block page_scripts %}
 <script>
 (function() {
   // ── Tab switching ──────────────────────────────────────────────
-  document.querySelectorAll('.tab').forEach(function(tab) {
+  document.querySelectorAll('.catalog-tabs .tab').forEach(function(tab) {
     tab.addEventListener('click', function() {
-      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('is-active'); });
+      document.querySelectorAll('.catalog-tabs .tab').forEach(function(t) { t.classList.remove('is-active'); });
       document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('is-active'); });
       tab.classList.add('is-active');
       var panel = document.querySelector('.tab-panel[data-panel="' + tab.dataset.tab + '"]');
@@ -204,179 +359,487 @@
     });
   });
 
-  // ── Generic fetch helper ──────────────────────────────────────
+  // ── Toggle add-forms ───────────────────────────────────────────
+  document.querySelectorAll('[data-toggle-form]').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      var id = btn.dataset.toggleForm;
+      var f = document.getElementById(id);
+      if (f) f.classList.toggle('is-open');
+    });
+  });
+
+  // ── Toast ─────────────────────────────────────────────────────
+  var toastEl = document.getElementById('toast');
+  function toast(msg, isError) {
+    toastEl.textContent = msg;
+    toastEl.className = 'toast is-visible' + (isError ? ' is-error' : '');
+    setTimeout(function() { toastEl.className = 'toast'; }, 3000);
+  }
+
+  // ── API helper ────────────────────────────────────────────────
   function api(method, path, body) {
     var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
-    if (body) opts.body = JSON.stringify(body);
+    if (body !== undefined) opts.body = JSON.stringify(body);
     return fetch(path, opts).then(function(r) {
-      if (!r.ok) throw new Error(r.status + ': ' + r.statusText);
+      if (!r.ok) {
+        return r.json().then(function(e) { throw new Error(e.detail || r.statusText); });
+      }
       return r.json();
     });
   }
+  function err(e) { toast('Error: ' + e.message, true); console.error(e); }
 
-  // ── Categories + families ─────────────────────────────────────
+  // ── Categories (product + recipe) ────────────────────────────
   function loadCategories(scope, tableId) {
-    return api('GET', '/api/categories?scope=' + scope).then(function(rows) {
+    api('GET', '/api/categories?scope=' + scope).then(function(rows) {
       var tbody = document.querySelector('#' + tableId + ' tbody');
-      if (!tbody) return;
       tbody.innerHTML = '';
       rows.forEach(function(c) {
         var tr = document.createElement('tr');
+        if (!c.is_active) tr.classList.add('is-inactive');
         tr.innerHTML =
-          '<td>' + c.name + '</td>' +
+          '<td>' + escapeHtml(c.name) + '</td>' +
           '<td>' + c.sort_order + '</td>' +
-          '<td>' + (c.is_active ? 'Activo' : 'Inactivo') + '</td>' +
-          '<td></td>';
+          '<td>' + (c.is_active ? '✓' : '✗') + '</td>' +
+          '<td class="row-actions">' +
+            '<button class="row-btn" data-action="delete-cat" data-id="' + c.id + '">Eliminar</button>' +
+          '</td>';
         tbody.appendChild(tr);
       });
-    }).catch(function(err) {
-      console.error('loadCategories failed:', err);
-    });
+      tbody.querySelectorAll('[data-action="delete-cat"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          if (!confirm('¿Eliminar "' + b.closest('tr').cells[0].textContent + '"?')) return;
+          api('POST', '/api/categories/' + b.dataset.id + '/delete').then(function() {
+            toast('Eliminado');
+            loadCategories(scope, tableId);
+          }).catch(err);
+        });
+      });
+    }).catch(err);
   }
+  loadCategories('product', 'table-cat-product');
+  loadCategories('recipe_family', 'table-cat-recipe');
 
-  loadCategories('product', 'product-categories-table');
-  loadCategories('recipe_family', 'recipe-families-table');
+  document.getElementById('save-cat-product').addEventListener('click', function() {
+    var name = document.getElementById('add-cat-product-name').value.trim();
+    var sort = parseInt(document.getElementById('add-cat-product-sort').value || '1000');
+    if (!name) { toast('Nombre requerido', true); return; }
+    api('POST', '/api/categories', { name: name, scope: 'product', sort_order: sort })
+      .then(function() {
+        toast('Categoría creada');
+        document.getElementById('add-cat-product').classList.remove('is-open');
+        document.getElementById('add-cat-product-name').value = '';
+        loadCategories('product', 'table-cat-product');
+      }).catch(err);
+  });
+  document.getElementById('save-cat-recipe').addEventListener('click', function() {
+    var name = document.getElementById('add-cat-recipe-name').value.trim();
+    var sort = parseInt(document.getElementById('add-cat-recipe-sort').value || '1000');
+    if (!name) { toast('Nombre requerido', true); return; }
+    api('POST', '/api/categories', { name: name, scope: 'recipe_family', sort_order: sort })
+      .then(function() {
+        toast('Familia creada');
+        document.getElementById('add-cat-recipe').classList.remove('is-open');
+        document.getElementById('add-cat-recipe-name').value = '';
+        loadCategories('recipe_family', 'table-cat-recipe');
+      }).catch(err);
+  });
 
   // ── Channels ──────────────────────────────────────────────────
   function loadChannels() {
     api('GET', '/api/channels').then(function(rows) {
-      var tbody = document.querySelector('#channels-table tbody');
+      var tbody = document.querySelector('#table-channel tbody');
       tbody.innerHTML = '';
       rows.forEach(function(c) {
         var tr = document.createElement('tr');
+        if (!c.is_active) tr.classList.add('is-inactive');
         tr.innerHTML =
-          '<td><code>' + c.code + '</code></td>' +
-          '<td>' + c.label + '</td>' +
+          '<td><code>' + escapeHtml(c.code) + '</code></td>' +
+          '<td>' + escapeHtml(c.label) + '</td>' +
           '<td>' + c.sort_order + '</td>' +
           '<td>' + (c.is_default ? '✓' : '') + '</td>' +
-          '<td></td>';
+          '<td>' + (c.is_active ? '✓' : '✗') + '</td>' +
+          '<td class="row-actions">' +
+            '<button class="row-btn" data-action="set-default-channel" data-id="' + c.id + '">Predeterminar</button>' +
+            '<button class="row-btn danger" data-action="delete-channel" data-id="' + c.id + '">Eliminar</button>' +
+          '</td>';
         tbody.appendChild(tr);
       });
-    });
+      tbody.querySelectorAll('[data-action="delete-channel"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          if (!confirm('¿Eliminar canal "' + b.closest('tr').cells[0].textContent + '"?')) return;
+          api('POST', '/api/channels/' + b.dataset.id + '/delete').then(function() {
+            toast('Canal eliminado');
+            loadChannels();
+          }).catch(err);
+        });
+      });
+      tbody.querySelectorAll('[data-action="set-default-channel"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          api('POST', '/api/channels/' + b.dataset.id + '/update', { is_default: true }).then(function() {
+            toast('Canal predeterminado actualizado');
+            loadChannels();
+          }).catch(err);
+        });
+      });
+    }).catch(err);
   }
   loadChannels();
+
+  document.getElementById('save-channel').addEventListener('click', function() {
+    var code = document.getElementById('add-channel-code').value.trim();
+    var label = document.getElementById('add-channel-label').value.trim();
+    var sort = parseInt(document.getElementById('add-channel-sort').value || '1000');
+    var isDefault = document.getElementById('add-channel-default').value === '1';
+    if (!code || !label) { toast('Código y etiqueta requeridos', true); return; }
+    api('POST', '/api/channels', { code: code, label: label, sort_order: sort, is_default: isDefault })
+      .then(function() {
+        toast('Canal creado');
+        document.getElementById('add-channel').classList.remove('is-open');
+        document.getElementById('add-channel-code').value = '';
+        document.getElementById('add-channel-label').value = '';
+        loadChannels();
+      }).catch(err);
+  });
 
   // ── Payment methods ───────────────────────────────────────────
   function loadPayments() {
     api('GET', '/api/payment-methods').then(function(rows) {
-      var tbody = document.querySelector('#payments-table tbody');
+      var tbody = document.querySelector('#table-payment tbody');
       tbody.innerHTML = '';
       rows.forEach(function(p) {
         var tr = document.createElement('tr');
+        if (!p.is_active) tr.classList.add('is-inactive');
         tr.innerHTML =
-          '<td><code>' + p.code + '</code></td>' +
-          '<td>' + p.label + '</td>' +
-          '<td>' + (p.requires_reference ? 'Sí' : 'No') + '</td>' +
+          '<td><code>' + escapeHtml(p.code) + '</code></td>' +
+          '<td>' + escapeHtml(p.label) + '</td>' +
           '<td>' + p.fee_pct + '%</td>' +
+          '<td>' + (p.requires_reference ? 'Sí' : 'No') + '</td>' +
           '<td>' + p.sort_order + '</td>' +
           '<td>' + (p.is_default ? '✓' : '') + '</td>' +
-          '<td></td>';
+          '<td>' + (p.is_active ? '✓' : '✗') + '</td>' +
+          '<td class="row-actions">' +
+            '<button class="row-btn" data-action="edit-payment-fee" data-id="' + p.id + '" data-fee="' + p.fee_pct + '">Editar %</button>' +
+            '<button class="row-btn danger" data-action="delete-payment" data-id="' + p.id + '">Eliminar</button>' +
+          '</td>';
         tbody.appendChild(tr);
       });
-    });
+      tbody.querySelectorAll('[data-action="delete-payment"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          if (!confirm('¿Eliminar "' + b.closest('tr').cells[0].textContent + '"?')) return;
+          api('POST', '/api/payment-methods/' + b.dataset.id + '/delete').then(function() {
+            toast('Forma de pago eliminada');
+            loadPayments();
+          }).catch(err);
+        });
+      });
+      tbody.querySelectorAll('[data-action="edit-payment-fee"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          var newFee = prompt('Nueva comisión %:', b.dataset.fee);
+          if (newFee === null) return;
+          var f = parseFloat(newFee);
+          if (isNaN(f) || f < 0 || f > 100) { toast('Comisión inválida', true); return; }
+          api('POST', '/api/payment-methods/' + b.dataset.id + '/update', { fee_pct: f }).then(function() {
+            toast('Comisión actualizada');
+            loadPayments();
+          }).catch(err);
+        });
+      });
+    }).catch(err);
   }
   loadPayments();
+
+  document.getElementById('save-payment').addEventListener('click', function() {
+    var code = document.getElementById('add-payment-code').value.trim();
+    var label = document.getElementById('add-payment-label').value.trim();
+    var fee = parseFloat(document.getElementById('add-payment-fee').value || '0');
+    var reqRef = document.getElementById('add-payment-ref').value === '1';
+    var sort = parseInt(document.getElementById('add-payment-sort').value || '1000');
+    var isDefault = document.getElementById('add-payment-default').value === '1';
+    if (!code || !label) { toast('Código y etiqueta requeridos', true); return; }
+    api('POST', '/api/payment-methods', {
+      code: code, label: label, fee_pct: fee,
+      requires_reference: reqRef, sort_order: sort, is_default: isDefault
+    }).then(function() {
+      toast('Forma de pago creada');
+      document.getElementById('add-payment').classList.remove('is-open');
+      document.getElementById('add-payment-code').value = '';
+      document.getElementById('add-payment-label').value = '';
+      loadPayments();
+    }).catch(err);
+  });
+
+  // ── Margin tiers ──────────────────────────────────────────────
+  function loadMarginTiers() {
+    api('GET', '/api/margin-tiers').then(function(rows) {
+      var tbody = document.querySelector('#table-margin-tier tbody');
+      tbody.innerHTML = '';
+      rows.forEach(function(t) {
+        var tr = document.createElement('tr');
+        if (!t.is_active) tr.classList.add('is-inactive');
+        tr.innerHTML =
+          '<td><code>' + escapeHtml(t.code) + '</code></td>' +
+          '<td>' + escapeHtml(t.label) + '</td>' +
+          '<td>' + (t.min_cost_gs != null ? t.min_cost_gs.toLocaleString('es-PY') : '—') + '</td>' +
+          '<td>' + (t.max_cost_gs != null ? t.max_cost_gs.toLocaleString('es-PY') : '—') + '</td>' +
+          '<td>' + t.sort_order + '</td>' +
+          '<td>' + (t.is_active ? '✓' : '✗') + '</td>' +
+          '<td class="row-actions">' +
+            '<button class="row-btn" data-action="edit-tier" data-id="' + t.id + '" data-label="' + escapeAttr(t.label) + '" data-max="' + (t.max_cost_gs || '') + '" data-min="' + (t.min_cost_gs || '') + '">Editar</button>' +
+            '<button class="row-btn danger" data-action="delete-tier" data-id="' + t.id + '">Eliminar</button>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('[data-action="delete-tier"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          if (!confirm('¿Eliminar tier "' + b.closest('tr').cells[0].textContent + '"?')) return;
+          api('POST', '/api/margin-tiers/' + b.dataset.id + '/delete').then(function() {
+            toast('Tier eliminado');
+            loadMarginTiers();
+          }).catch(err);
+        });
+      });
+      tbody.querySelectorAll('[data-action="edit-tier"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          var label = prompt('Etiqueta:', b.dataset.label);
+          if (label === null) return;
+          var max = prompt('Max Gs (vacío para sin tope):', b.dataset.max);
+          if (max === null) return;
+          var min = prompt('Min Gs (vacío para sin piso):', b.dataset.min);
+          if (min === null) return;
+          var body = { label: label };
+          if (max !== '') body.max_cost_gs = parseInt(max);
+          else body.max_cost_gs = null;
+          if (min !== '') body.min_cost_gs = parseInt(min);
+          else body.min_cost_gs = null;
+          api('POST', '/api/margin-tiers/' + b.dataset.id + '/update', body).then(function() {
+            toast('Tier actualizado');
+            loadMarginTiers();
+          }).catch(err);
+        });
+      });
+    }).catch(err);
+  }
+  loadMarginTiers();
+
+  // ── Stock status ──────────────────────────────────────────────
+  function loadStockStatus() {
+    api('GET', '/api/stock-status-config').then(function(rows) {
+      var tbody = document.querySelector('#table-stock-status tbody');
+      tbody.innerHTML = '';
+      rows.forEach(function(c) {
+        var tr = document.createElement('tr');
+        if (!c.is_active) tr.classList.add('is-inactive');
+        tr.innerHTML =
+          '<td><code>' + escapeHtml(c.code) + '</code></td>' +
+          '<td>' + escapeHtml(c.label) + '</td>' +
+          '<td>' + (c.threshold_ratio != null ? c.threshold_ratio.toFixed(2) : '—') + '</td>' +
+          '<td>' + (c.threshold_days != null ? c.threshold_days : '—') + '</td>' +
+          '<td>' + c.sort_order + '</td>' +
+          '<td>' + (c.is_active ? '✓' : '✗') + '</td>' +
+          '<td class="row-actions">' +
+            '<button class="row-btn" data-action="edit-stock" data-id="' + c.id + '" data-label="' + escapeAttr(c.label) + '" data-ratio="' + (c.threshold_ratio != null ? c.threshold_ratio : '') + '" data-days="' + (c.threshold_days != null ? c.threshold_days : '') + '">Editar</button>' +
+            '<button class="row-btn danger" data-action="delete-stock" data-id="' + c.id + '">Eliminar</button>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('[data-action="delete-stock"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          if (!confirm('¿Eliminar umbral "' + b.closest('tr').cells[0].textContent + '"?')) return;
+          api('POST', '/api/stock-status-config/' + b.dataset.id + '/delete').then(function() {
+            toast('Umbral eliminado');
+            loadStockStatus();
+          }).catch(err);
+        });
+      });
+      tbody.querySelectorAll('[data-action="edit-stock"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          var label = prompt('Etiqueta:', b.dataset.label);
+          if (label === null) return;
+          var ratio = prompt('Ratio umbral (vacío para sin umbral):', b.dataset.ratio);
+          if (ratio === null) return;
+          var days = prompt('Días sin consumo (vacío para sin umbral):', b.dataset.days);
+          if (days === null) return;
+          var body = { label: label };
+          if (ratio !== '') body.threshold_ratio = parseFloat(ratio);
+          else body.threshold_ratio = null;
+          if (days !== '') body.threshold_days = parseInt(days);
+          else body.threshold_days = null;
+          api('POST', '/api/stock-status-config/' + b.dataset.id + '/update', body).then(function() {
+            toast('Umbral actualizado');
+            loadStockStatus();
+          }).catch(err);
+        });
+      });
+    }).catch(err);
+  }
+  loadStockStatus();
+
+  // ── Storage types ─────────────────────────────────────────────
+  function loadStorageTypes() {
+    api('GET', '/api/storage-types').then(function(rows) {
+      var tbody = document.querySelector('#table-storage tbody');
+      tbody.innerHTML = '';
+      rows.forEach(function(c) {
+        var tr = document.createElement('tr');
+        if (!c.is_active) tr.classList.add('is-inactive');
+        tr.innerHTML =
+          '<td><code>' + escapeHtml(c.code) + '</code></td>' +
+          '<td>' + escapeHtml(c.label) + '</td>' +
+          '<td>' + (c.requires_temp_min ? 'Sí' : '—') + '</td>' +
+          '<td>' + (c.requires_temp_max ? 'Sí' : '—') + '</td>' +
+          '<td>' + (c.requires_humidity_max ? 'Sí' : '—') + '</td>' +
+          '<td>' + (c.is_active ? '✓' : '✗') + '</td>' +
+          '<td class="row-actions">' +
+            '<button class="row-btn danger" data-action="delete-storage" data-id="' + c.id + '">Eliminar</button>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('[data-action="delete-storage"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          if (!confirm('¿Eliminar "' + b.closest('tr').cells[0].textContent + '"?')) return;
+          api('POST', '/api/storage-types/' + b.dataset.id + '/delete').then(function() {
+            toast('Tipo de almacenamiento eliminado');
+            loadStorageTypes();
+          }).catch(err);
+        });
+      });
+    }).catch(err);
+  }
+  loadStorageTypes();
+
+  document.getElementById('save-storage').addEventListener('click', function() {
+    var code = document.getElementById('add-storage-code').value.trim();
+    var label = document.getElementById('add-storage-label').value.trim();
+    var sort = parseInt(document.getElementById('add-storage-sort').value || '1000');
+    var tmin = document.getElementById('add-storage-tmin').value === '1';
+    var tmax = document.getElementById('add-storage-tmax').value === '1';
+    var hum = document.getElementById('add-storage-hum').value === '1';
+    if (!code || !label) { toast('Código y etiqueta requeridos', true); return; }
+    api('POST', '/api/storage-types', {
+      code: code, label: label, sort_order: sort,
+      requires_temp_min: tmin, requires_temp_max: tmax, requires_humidity_max: hum
+    }).then(function() {
+      toast('Tipo de almacenamiento creado');
+      document.getElementById('add-storage').classList.remove('is-open');
+      document.getElementById('add-storage-code').value = '';
+      document.getElementById('add-storage-label').value = '';
+      loadStorageTypes();
+    }).catch(err);
+  });
+
+  // ── Date presets ──────────────────────────────────────────────
+  function loadPresets() {
+    api('GET', '/api/date-presets').then(function(rows) {
+      var tbody = document.querySelector('#table-preset tbody');
+      tbody.innerHTML = '';
+      rows.forEach(function(p) {
+        var tr = document.createElement('tr');
+        if (!p.is_active) tr.classList.add('is-inactive');
+        tr.innerHTML =
+          '<td><code>' + escapeHtml(p.code) + '</code></td>' +
+          '<td>' + escapeHtml(p.label) + '</td>' +
+          '<td>' + p.days + '</td>' +
+          '<td>' + (p.is_default ? '✓' : '') + '</td>' +
+          '<td>' + (p.is_active ? '✓' : '✗') + '</td>' +
+          '<td class="row-actions">' +
+            '<button class="row-btn" data-action="set-default-preset" data-id="' + p.id + '">Predeterminar</button>' +
+            '<button class="row-btn danger" data-action="delete-preset" data-id="' + p.id + '">Eliminar</button>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('[data-action="delete-preset"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          if (!confirm('¿Eliminar "' + b.closest('tr').cells[0].textContent + '"?')) return;
+          api('POST', '/api/date-presets/' + b.dataset.id + '/delete').then(function() {
+            toast('Período eliminado');
+            loadPresets();
+          }).catch(err);
+        });
+      });
+      tbody.querySelectorAll('[data-action="set-default-preset"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          api('POST', '/api/date-presets/' + b.dataset.id + '/update', { is_default: true }).then(function() {
+            toast('Período predeterminado actualizado');
+            loadPresets();
+          }).catch(err);
+        });
+      });
+    }).catch(err);
+  }
+  loadPresets();
+
+  document.getElementById('save-preset').addEventListener('click', function() {
+    var code = document.getElementById('add-preset-code').value.trim();
+    var label = document.getElementById('add-preset-label').value.trim();
+    var days = parseInt(document.getElementById('add-preset-days').value || '14');
+    var sort = parseInt(document.getElementById('add-preset-sort').value || '1000');
+    var isDefault = document.getElementById('add-preset-default').value === '1';
+    if (!code || !label) { toast('Código y etiqueta requeridos', true); return; }
+    api('POST', '/api/date-presets', {
+      code: code, label: label, days: days,
+      sort_order: sort, is_default: isDefault
+    }).then(function() {
+      toast('Período creado');
+      document.getElementById('add-preset').classList.remove('is-open');
+      document.getElementById('add-preset-code').value = '';
+      document.getElementById('add-preset-label').value = '';
+      loadPresets();
+    }).catch(err);
+  });
 
   // ── Templates ─────────────────────────────────────────────────
   function loadTemplates() {
     api('GET', '/api/templates').then(function(rows) {
-      var tbody = document.querySelector('#templates-table tbody');
+      var tbody = document.querySelector('#table-template tbody');
       tbody.innerHTML = '';
       rows.forEach(function(t) {
         var tr = document.createElement('tr');
+        if (!t.is_active) tr.classList.add('is-inactive');
         tr.innerHTML =
-          '<td><code>' + t.channel + '</code></td>' +
-          '<td><code>' + t.key + '</code></td>' +
-          '<td>' + (t.subject || '—') + '</td>' +
-          '<td><pre style="white-space:pre-wrap;font-size:0.85em;margin:0;">' +
-            t.body.substring(0, 100) + (t.body.length > 100 ? '…' : '') +
-          '</pre></td>' +
-          '<td>' + (t.is_active ? 'Activo' : 'Inactivo') + ' (v' + t.version + ')</td>' +
-          '<td></td>';
+          '<td><code>' + escapeHtml(t.channel) + '</code></td>' +
+          '<td><code>' + escapeHtml(t.key) + '</code></td>' +
+          '<td>' + escapeHtml(t.subject || '—') + '</td>' +
+          '<td><pre class="tmpl-body">' + escapeHtml(t.body.substring(0, 200) + (t.body.length > 200 ? '…' : '')) + '</pre></td>' +
+          '<td>v' + t.version + '</td>' +
+          '<td>' + (t.is_active ? '✓' : '✗') + '</td>' +
+          '<td class="row-actions">' +
+            '<button class="row-btn" data-action="edit-template" data-id="' + t.id + '">Editar</button>' +
+            '<button class="row-btn danger" data-action="delete-template" data-id="' + t.id + '">Eliminar</button>' +
+          '</td>';
         tbody.appendChild(tr);
       });
-    });
+      tbody.querySelectorAll('[data-action="delete-template"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          if (!confirm('¿Eliminar plantilla "' + b.closest('tr').cells[1].textContent + '"?')) return;
+          api('POST', '/api/templates/' + b.dataset.id + '/delete').then(function() {
+            toast('Plantilla eliminada');
+            loadTemplates();
+          }).catch(err);
+        });
+      });
+      tbody.querySelectorAll('[data-action="edit-template"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          api('GET', '/api/templates').then(function(rows) {
+            var tpl = rows.find(function(r) { return r.id == b.dataset.id; });
+            if (!tpl) return;
+            var newBody = prompt('Cuerpo del mensaje:', tpl.body);
+            if (newBody === null || newBody === tpl.body) return;
+            api('POST', '/api/templates/' + b.dataset.id + '/update', { body: newBody }).then(function() {
+              toast('Plantilla actualizada');
+              loadTemplates();
+            }).catch(err);
+          });
+        });
+      });
+    }).catch(err);
   }
   loadTemplates();
 
-  // ── Branding form ─────────────────────────────────────────────
-  api('GET', '/api/settings/branding').then(function(b) {
-    document.getElementById('business_name').value = b.business_name || '';
-    document.getElementById('tagline').value = b.tagline || '';
-    document.getElementById('footer').value = b.footer || '';
-    document.getElementById('accent_color').value = b.accent_color || '';
-    document.getElementById('logo_path').value = b.logo_path || '';
-  });
-
-  // ── Margin tiers ───────────────────────────────────────────────
-  api('GET', '/api/margin-tiers').then(function(rows) {
-    var tbody = document.querySelector('#margin-tiers-table tbody');
-    tbody.innerHTML = '';
-    rows.forEach(function(t) {
-      var tr = document.createElement('tr');
-      tr.innerHTML =
-        '<td><code>' + t.code + '</code></td>' +
-        '<td>' + t.label + '</td>' +
-        '<td>' + (t.min_cost_gs != null ? t.min_cost_gs.toLocaleString('es-PY') : '—') + '</td>' +
-        '<td>' + (t.max_cost_gs != null ? t.max_cost_gs.toLocaleString('es-PY') : '—') + '</td>' +
-        '<td>' + t.sort_order + '</td>' +
-        '<td>' + (t.is_active ? '✓' : '✗') + '</td>';
-      tbody.appendChild(tr);
-    });
-  });
-
-  // ── Stock status thresholds ────────────────────────────────────
-  api('GET', '/api/stock-status-config').then(function(rows) {
-    var tbody = document.querySelector('#stock-status-table tbody');
-    tbody.innerHTML = '';
-    rows.forEach(function(c) {
-      var tr = document.createElement('tr');
-      tr.innerHTML =
-        '<td><code>' + c.code + '</code></td>' +
-        '<td>' + c.label + '</td>' +
-        '<td>' + (c.threshold_ratio != null ? c.threshold_ratio.toFixed(2) : '—') + '</td>' +
-        '<td>' + (c.threshold_days != null ? c.threshold_days : '—') + '</td>' +
-        '<td>' + (c.is_active ? '✓' : '✗') + '</td>';
-      tbody.appendChild(tr);
-    });
-  });
-
-  // ── Storage types ─────────────────────────────────────────────
-  api('GET', '/api/storage-types').then(function(rows) {
-    var tbody = document.querySelector('#storage-types-table tbody');
-    tbody.innerHTML = '';
-    rows.forEach(function(c) {
-      var tr = document.createElement('tr');
-      tr.innerHTML =
-        '<td><code>' + c.code + '</code></td>' +
-        '<td>' + c.label + '</td>' +
-        '<td>' + (c.requires_temp_min ? 'Sí' : '—') + '</td>' +
-        '<td>' + (c.requires_temp_max ? 'Sí' : '—') + '</td>' +
-        '<td>' + (c.requires_humidity_max ? 'Sí' : '—') + '</td>' +
-        '<td>' + (c.is_active ? '✓' : '✗') + '</td>';
-      tbody.appendChild(tr);
-    });
-  });
-
-  // ── Date presets ──────────────────────────────────────────────
-  api('GET', '/api/date-presets').then(function(rows) {
-    var tbody = document.querySelector('#date-presets-table tbody');
-    tbody.innerHTML = '';
-    rows.forEach(function(p) {
-      var tr = document.createElement('tr');
-      tr.innerHTML =
-        '<td><code>' + p.code + '</code></td>' +
-        '<td>' + p.label + '</td>' +
-        '<td>' + p.days + '</td>' +
-        '<td>' + (p.is_default ? '✓' : '') + '</td>' +
-        '<td>' + (p.is_active ? '✓' : '✗') + '</td>';
-      tbody.appendChild(tr);
-    });
-  });
-
-  // ── Tax config (read-only) ─────────────────────────────────────
+  // ── Tax config (read-only) ────────────────────────────────────
   api('GET', '/api/tax-config').then(function(c) {
-    var tbody = document.querySelector('#tax-config-table tbody');
+    var tbody = document.querySelector('#table-tax tbody');
     tbody.innerHTML = '';
     var rows = [
       ['IVA por defecto', c.iva_rate === 'exento' ? 'Exento' : c.iva_rate + '%'],
@@ -393,6 +856,15 @@
     });
   });
 
+  // ── Branding ──────────────────────────────────────────────────
+  api('GET', '/api/settings/branding').then(function(b) {
+    document.getElementById('business_name').value = b.business_name || '';
+    document.getElementById('tagline').value = b.tagline || '';
+    document.getElementById('footer').value = b.footer || '';
+    document.getElementById('accent_color').value = b.accent_color || '';
+    document.getElementById('logo_path').value = b.logo_path || '';
+  });
+
   document.getElementById('branding-form').addEventListener('submit', function(e) {
     e.preventDefault();
     var body = {
@@ -403,12 +875,19 @@
       logo_path: document.getElementById('logo_path').value,
     };
     api('POST', '/api/settings/branding', body).then(function() {
-      alert('Branding guardado. Recargá para ver los cambios en toda la app.');
-      location.reload();
-    }).catch(function(err) {
-      alert('Error: ' + err.message);
-    });
+      toast('Branding guardado. Recargá para ver los cambios en toda la app.');
+    }).catch(err);
   });
+
+  // ── Utilities ──────────────────────────────────────────────────
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/"/g, '&quot;');
+  }
 })();
 </script>
 {% endblock %}

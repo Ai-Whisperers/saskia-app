@@ -83,6 +83,54 @@ Schema: v32 → v38. Migration 034 (market prices), 035 (compliance_info),
 
 
 
+
+### Added (2026-09-24) — Catalog CRUD UI + AIW_SASKIA_INTERNAL_ROUTES
+
+Two improvements to the operator experience:
+
+**A) Full CRUD on /settings/catalog** — operators can now add, edit, and
+soft-delete all catalog entries through the browser, no curl needed:
+- Categories (product + recipe_family): add new, delete (soft via is_active=0)
+- Channels: add new, set default, delete
+- Payment methods: add new, edit fee_pct inline, delete
+- Storage types (HACCP): add new with t_min/t_max/humidity flags, delete
+- Date presets: add new, set default, delete
+- Margin tiers: inline edit of label + min/max cost, delete
+- Stock status config: inline edit of label + ratio + days, delete
+- Message templates: inline edit of body, delete
+- Branding: live update form (was already editable)
+- Tax config: read-only (set via /settings page)
+
+New API endpoints (23 total POST endpoints now):
+- POST /api/channels/{id}/update, /delete
+- POST /api/payment-methods/{id}/update, /delete
+- POST /api/categories/{id}/delete
+- POST /api/storage-types/{id}/update, /delete
+- POST /api/date-presets/{id}/update, /delete
+- POST /api/margin-tiers/{id}/delete
+- POST /api/stock-status-config/{id}/delete
+- POST /api/templates/{id}/delete
+
+UI rewrite of `app/templates/settings_catalog.html`:
+- 11 tabs all editable (was read-only)
+- Per-row "Editar" + "Eliminar" buttons
+- Per-tab "+ Agregar" buttons with inline forms
+- Toast notifications for success/error
+- Soft-delete pattern (sets is_active=0, items still in DB for audit)
+
+**B) AIW_SASKIA_INTERNAL_ROUTES env var** — unblocks /auditoria and
+/ops routes in production. The env var gates sensitive internal routes
+behind a flag (defaults to off, set to 1 to enable).
+
+**Verified live on saskia-vps.paragu-ai.com**
+- Created then deleted test category, channel, payment method (soft delete)
+- Live update of margin tier 1 from 10000 → 12000 → 10000
+- /auditoria now returns 200 (was 404 before env var)
+- /settings/catalog renders 65 KB (full CRUD UI)
+- 23 POST endpoints registered, all CRUD flows work end-to-end
+
+CHANGELOG continues.
+
 ### Added (2026-09-24) — Static-content audit Phase 8-10 (HACCP storage, date presets, tax constants)
 
 Continues docs/operations/2026-09-24-static-content-audit-phase-7.md.
