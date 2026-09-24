@@ -68,7 +68,7 @@ BACKUP_THRESHOLD_HOURS = int(os.getenv("AIW_SASKIA_BACKUP_HOURS", "24"))
 KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_SASKIA_KEEP_LOCAL_DAYS", "30"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 52  # 052 = ingredient.forecast_horizon_days (S7; stack renumbered: 039-041 → 050-052)
+CURRENT_SCHEMA_VERSION = 53  # 053 = sale.packaging (US 4.1; stack renumbered 039-042 → 050-053)
 
 
 def ensure_dirs() -> None:

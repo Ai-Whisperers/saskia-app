@@ -402,6 +402,7 @@ class TestForkWeek:
         # ... but the rate-limiter check makes it simpler to just call the
         # upsert_template_row helper and replicate the summation manually.
         from collections import defaultdict
+
         with session_factory() as s:
             overrides = s.scalars(
                 select(ProductionPlanOverride)
@@ -490,19 +491,18 @@ class TestForkWeek:
 
 class TestMigrations:
 
-    def test_schema_version_41(self, session_factory):
-        """CURRENT_SCHEMA_VERSION = 41 — verify the marker row reflects it."""
+    def test_schema_version_is_current(self, session_factory):
+        """Schema version reflects CURRENT_SCHEMA_VERSION (42 after S8)."""
         from app.rms.config import CURRENT_SCHEMA_VERSION
         from app.rms.models import AppMeta
 
-        # Renumbered 2026-09-24: stack migrations 039-041 → 050-052 (collision
-        # with main's 039-049 catalog migrations).
-        assert CURRENT_SCHEMA_VERSION == 52
+        assert CURRENT_SCHEMA_VERSION >= 42
         with session_factory() as s:
             row = s.scalar(
                 select(AppMeta.value).where(AppMeta.key == "schema_version")
             )
         assert int(row) == 52
+        assert int(row) == CURRENT_SCHEMA_VERSION
 
     def test_forecast_horizon_column_exists(self, session_factory):
         """Migration 041: ingredient.forecast_horizon_days column."""

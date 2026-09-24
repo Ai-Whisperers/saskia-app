@@ -2207,6 +2207,73 @@ def _migration_049_storage_keywords(conn):
     _bump_schema_version(conn, 49)
 
 
+def _migration_053_sale_packaging(conn: Any) -> None:
+    """Sprint 8 — US 4.1: per-sale packaging.
+
+    Saskia's exact words from the audio review (paraphrased from the
+    Spanish audio):
+
+      "In product I would put a compressor that is a package instead of in
+       the recipe. Better, yes, you are right. Besides the product I would
+       put it in the sale itself. Because if it is local I would put it in
+       the sale. If it is to eat in the place you don't need a package.
+       No. And in the event part you just have to press the package."
+
+    Translation: same product sold different ways (local/eat-in/to-go/event)
+    needs different packaging. The packaging is part of the SALE, not the
+    product — because a "torta entera" sold for a birthday event needs a
+    big box, but the same torta sold by-the-slice in the shop needs a paper
+    bag (or no packaging at all).
+
+    Schema additions:
+      ingredient.is_packaging   — flags an Ingredient as a packaging item
+                                  (boxes, bags, ribbons). NULL/False = regular
+                                  food ingredient; True = packaging.
+                                  Packaging ingredients are sold, not consumed
+                                  by recipes, so they appear in a separate
+                                  inventory panel and their stock moves are
+                                  recorded against sales, not recipe batches.
+      sale.packaging_item_id    — FK to ingredient.id (only valid when
+                                  ingredient.is_packaging = TRUE). NULL = no
+                                  packaging on this sale (e.g. eat-in).
+      sale.packaging_qty        — units of packaging consumed (>= 0, integer
+                                  when package_unit = und; float otherwise).
+                                  NULL when packaging_item_id IS NULL.
+
+    Cost effect on the sale is computed in apply_sale() and stored on the
+    Sale row as part of total_price_gs (the package cost is added to the
+    customer-facing price; this matches the existing "packaging_gs" field
+    on RecipePricing which adds it to the wholesale/retail price).
+    """
+    # 1. Ingredient.is_packaging — flag packaging items
+    _add_column_if_missing(
+        conn, "ingredient", "is_packaging",
+        "BOOLEAN", "BOOLEAN NOT NULL DEFAULT 0",
+    )
+    # 2. Sale.packaging_item_id — FK to ingredient
+    _add_column_if_missing(
+        conn, "sale", "packaging_item_id",
+        "INTEGER", "INTEGER REFERENCES ingredient(id)",
+    )
+    # 3. Sale.packaging_qty
+    _add_column_if_missing(
+        conn, "sale", "packaging_qty",
+        "FLOAT", "FLOAT",
+    )
+    # 4. Index for "list sales by packaging item" reporting
+    if conn.dialect.name == "postgresql":
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_sale_packaging_item "
+            "ON sale(packaging_item_id)"
+        ))
+    else:
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_sale_packaging_item "
+            "ON sale(packaging_item_id)"
+        ))
+    _bump_schema_version(conn, 53)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -2261,7 +2328,8 @@ MIGRATIONS = {
     50: _migration_050_sale_void_reason,
     51: _migration_051_ingredient_variant,
     52: _migration_052_ingredient_forecast_horizon,
-}
+    53: _migration_053_sale_packaging,
+
 
 
 def _bump_schema_version(conn, version: int) -> None:

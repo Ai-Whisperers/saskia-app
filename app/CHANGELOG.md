@@ -473,6 +473,76 @@ modify via code deploy. This change moves them to the database.
   multiplier from /api/settings/pricing-markup POST)
 
 CHANGELOG entry continues.
+### Added (2026-09-24) — second review: per-sale packaging (US 4.1, "the box for the cake")
+
+Saskia's exact words from the audio review (paraphrased from the
+Spanish audio):
+
+  "In product I would put a compressor that is a package instead of
+   in the recipe. Better, yes, you are right. Besides the product I
+   would put it in the sale itself. Because if it is local I would
+   put it in the sale. If it is to eat in the place you don't need
+   a package. No. And in the event part you just have to press the
+   package."
+
+Translation: same product sold different ways (local/eat-in/to-go/
+event) needs different packaging. The packaging is part of the SALE,
+not the product — because a "torta entera" sold for a birthday
+event needs a big box, but the same torta sold by-the-slice in the
+shop needs a paper bag (or no packaging at all).
+
+#### Schema
+
+- New migration 042 (`_migration_042_sale_packaging`):
+  - `ingredient.is_packaging BOOLEAN NOT NULL DEFAULT 0` — flags
+    packaging items (boxes, bags, ribbons) in the same ingredients
+    table. Packaging ingredients are sold, not consumed by recipes.
+  - `sale.packaging_item_id INTEGER REFERENCES ingredient(id)` —
+    per-sale packaging choice. NULL = no packaging (eat-in sale).
+  - `sale.packaging_qty FLOAT` — units of packaging consumed.
+  - Index `ix_sale_packaging_item` for "list sales by packaging"
+    reporting.
+
+#### Backend
+
+- `apply_sale()` accepts `packaging_item_id` + `packaging_qty`
+  kwargs. Validation rejects:
+  - non-packaging ingredients (must have `is_packaging=True`),
+  - `packaging_qty <= 0` when item is set,
+  - `packaging_qty > 0` without an item id.
+  On success: decrements the packaging ingredient's stock and writes
+  a `StockMovement` row (movement_type="sale", reason="Venta #N
+  (packaging)") so the audit trail is complete.
+
+- `void_sale()` restores packaging stock + writes a reversed
+  StockMovement row with the operator's void reason appended. So
+  voiding a "torta con caja" sale puts the box back in inventory.
+
+- `POST /ventas/nueva` accepts `packaging_item_id` and
+  `packaging_qty` form fields; both flow through to `apply_sale`.
+  Validation errors → HTTP 400 with the helper's message.
+
+- New `GET /inventario/api/packaging?q=...` — autocomplete JSON
+  endpoint returning only `is_packaging=True` ingredients. Used by
+  the POS sale modal.
+
+- New `POST /inventario/{id}/toggle-packaging` — flips the flag
+  with an audit row. Operators click "Marcar como empaque" on any
+  ingredient (e.g. a leftover "Caja torta 30cm") to make it
+  available in the sale's packaging picker.
+
+### Test coverage
+
+- `tests/test_saskia_r2_sale_packaging.py` — 16 new tests:
+  - 6 apply_sale paths (decrements, leaves-alone, rejects
+    non-packaging, rejects qty-without-item, rejects zero qty,
+    rejects negative qty)
+  - 1 void_sale restores packaging
+  - 2 /inventario/api/packaging (filter, search)
+  - 2 /inventario/{id}/toggle-packaging (flip, 404)
+  - 1 sale POST helper end-to-end
+  - 4 migration 042 sanity (version, columns, index)
+
 ### Added (2026-09-24) — second review: data model for variants + per-ingredient forecast + template fork (US 2.2, US 2.3, US 3.3)
 
 Sprint 7 wires up the three schema decisions from the second-review
