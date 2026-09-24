@@ -155,3 +155,20 @@ __all__ = [
     "STORAGE_AMBIENT", "STORAGE_REFRIGERATED", "STORAGE_FROZEN", "STORAGE_DRY",
     "ALL_STORAGE_TYPES",
 ]
+
+# ── Tag algebra (2026-09-24) ──────────────────────────────────────────────
+# Canonical Paraguayan bakery dietary-tag vocabulary used as the default
+# intersection domain when deriving recipe tags (app/rms/tag_algebra.py).
+# Operators extend per-installation via the `tag` table (kind='recipe').
+CANONICAL_DIETARY_TAGS: tuple[str, ...] = (
+    "sin gluten",
+    "sin tacc",
+    "sin lactosa",
+    "sin huevo",
+    "sin frutos secos",
+    "vegano",
+    "vegetariano",
+    "sin azúcar",
+    "integral",
+    "orgánico",
+)

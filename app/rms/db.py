@@ -2240,6 +2240,30 @@ def _migration_053_sale_packaging(conn: Any) -> None:
     _bump_schema_version(conn, 53)
 
 
+
+def _migration_054_tag_algebra(conn: Any) -> None:
+    """Tag algebra: cached derived tags + SINACLA cross-contamination flag.
+
+    - recipe.allergens (Text, nullable) — union cache
+    - recipe.derived_dietary_tags (Text, nullable) — intersection cache
+    - ingredient.may_contain_gluten (bool, default 0)
+    - product.inherited_tags (Text, nullable)
+    No data backfill: caches populate lazily on first recipe save/visit.
+    """
+    def _add_column(table: str, col: str, ddl: str) -> None:
+        # Idempotent: create_all may have already added the column via the
+        # ORM model before migrations run; ALTER would then fail.
+        try:
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
+        except Exception:
+            pass  # column already exists
+    _add_column("recipe", "allergens", "TEXT")
+    _add_column("recipe", "derived_dietary_tags", "TEXT")
+    _add_column("ingredient", "may_contain_gluten", "BOOLEAN NOT NULL DEFAULT 0")
+    _add_column("product", "inherited_tags", "TEXT")
+    _bump_schema_version(conn, 54)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -2302,6 +2326,7 @@ def _migration_005_customer(conn: Any) -> None:
     51: _migration_051_ingredient_variant,
     52: _migration_052_ingredient_forecast_horizon,
     53: _migration_053_sale_packaging,
+    54: _migration_054_tag_algebra,
 }
 
 

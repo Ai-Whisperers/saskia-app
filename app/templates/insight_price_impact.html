@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% block title %}Impacto de precio{% endblock %}
+{% block content %}
+<h1>Impacto: {{ impact.ingredient_name }}</h1>
+<p class="text-muted">{{ m.gs(old_price) }} → {{ m.gs(new_price) }} por unidad base.</p>
+
+<h2>Recetas afectadas ({{ impact.affected_recipes|length }})</h2>
+{% if impact.affected_recipes %}
+<table class="table">
+  <thead><tr><th>Receta</th><th class="num">Δ costo por unidad</th></tr></thead>
+  <tbody>
+    {% for r in impact.affected_recipes %}
+    <tr><td><a href="/recetas/{{ r.id }}">{{ r.name }}</a></td>
+        <td class="num {% if r.delta_unit_cost_gs > 0 %}text-danger{% else %}text-success{% endif %}">
+          {{ "+" if r.delta_unit_cost_gs > 0 else "" }}{{ m.gs(r.delta_unit_cost_gs) }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>Ninguna receta cambia de forma significativa.</p>
+{% endif %}
+
+<h2 style="margin-top:var(--space-4);">Productos bajo objetivo (33%)</h2>
+{% if impact.affected_products %}
+<table class="table">
+  <thead><tr><th>Producto</th><th class="num">Food cost %</th><th class="num">Precio sugerido</th></tr></thead>
+  <tbody>
+    {% for p in impact.affected_products %}
+    <tr><td>{{ p.name }}</td>
+        <td class="num {% if p.under_target %}text-danger{% endif %}">{{ p.food_cost_pct }}%</td>
+        <td class="num">{{ m.gs(p.suggested_price_gs) if p.suggested_price_gs else '—' }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>Ningún producto cruza el objetivo. ✅</p>
+{% endif %}
+{% endblock %}
