@@ -5,6 +5,37 @@
 
 ## [Unreleased]
 
+### Refactored (2026-09-24) — Phase 2A: PedidoStatus enum + state machine
+
+Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md OC-2, the pedido
+status state machine was a plain dict (`PEDIDO_TRANSITIONS`) plus
+scattered `if status in ("pending", "confirmed", "ready"):` checks
+across 3 places. Adding a new status required editing all of them.
+
+**Refactor:**
+- New `PedidoStatus(str, Enum)` with 5 members.
+- New `PedidoStateMachine` class with methods:
+  - `can_transition(from, to)` — query if a transition is valid.
+  - `allowed_next(from)` — sorted list of reachable statuses.
+  - `is_known(status)` / `is_terminal(status)` / `is_fulfillable(status)`.
+- Backwards-compat shim: `PEDIDO_STATUSES` tuple and `PEDIDO_TRANSITIONS`
+  dict are still exported (built from the enum) so callers that
+  import them continue to work.
+
+**Call sites migrated:**
+- `pedidos_status` (line ~702): status validation uses `is_known` +
+  `allowed_next`.
+- `pedidos_fulfill` (line ~785): fulfillability check uses `is_fulfillable`.
+- Detail template context (line ~673): `transitions` and `can_fulfill`
+  use the new methods.
+
+**Tests:**
+- `tests/test_pedido_status_enum.py` (new, 20 tests):
+  - 16 parametrized (from, to) transition-allowed cases
+  - All-statuses-have-entry, terminal-statuses-empty,
+    unknown-status-raises
+- All 75 pedido tests pass; no regressions.
+
 ### Fixed (2026-09-24) — Phase 1B: log silent exception swallowing
 
 Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md F12 (silent except:pass),

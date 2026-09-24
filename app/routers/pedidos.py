@@ -50,16 +50,102 @@ public_router = APIRouter()
 
 # --- Status state machine ----------------------------------------------------
 
-PEDIDO_STATUSES = ("pending", "confirmed", "ready", "fulfilled", "cancelled")
+from enum import Enum
 
-# Status transition rules. Key is the current status; value is the set of
-# statuses it can transition to. fulfilled and cancelled are terminal.
+
+class PedidoStatus(str, Enum):
+    """Pedido lifecycle states.
+
+    String enum so existing str comparisons in templates, queries,
+    and form parsing keep working. The state machine (PedidoStateMachine)
+    owns the transition rules.
+    """
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    READY = "ready"
+    FULFILLED = "fulfilled"
+    CANCELLED = "cancelled"
+
+
+class PedidoStateMachine:
+    """Encapsulates pedido transition rules.
+
+    Replaces the scattered `if status in PEDIDO_TRANSITIONS[status]:`
+    pattern with a single source of truth. Adding a new status now
+    requires editing only this class.
+    """
+
+    # Source of truth for valid transitions.
+    _TRANSITIONS: dict[PedidoStatus, frozenset[PedidoStatus]] = {
+        PedidoStatus.PENDING: frozenset({PedidoStatus.CONFIRMED, PedidoStatus.CANCELLED}),
+        PedidoStatus.CONFIRMED: frozenset({PedidoStatus.READY, PedidoStatus.CANCELLED}),
+        PedidoStatus.READY: frozenset({PedidoStatus.FULFILLED, PedidoStatus.CANCELLED}),
+        PedidoStatus.FULFILLED: frozenset(),  # terminal
+        PedidoStatus.CANCELLED: frozenset(),  # terminal
+    }
+
+    @classmethod
+    def can_transition(cls, from_status: str, to_status: str) -> bool:
+        """True iff `from_status` may transition to `to_status`."""
+        try:
+            from_enum = PedidoStatus(from_status)
+            to_enum = PedidoStatus(to_status)
+        except ValueError:
+            return False
+        return to_enum in cls._TRANSITIONS[from_enum]
+
+    @classmethod
+    def allowed_next(cls, from_status: str) -> list[str]:
+        """Sorted list of statuses reachable from `from_status`."""
+        try:
+            from_enum = PedidoStatus(from_status)
+        except ValueError:
+            return []
+        return sorted(s.value for s in cls._TRANSITIONS[from_enum])
+
+    @classmethod
+    def is_known(cls, status: str) -> bool:
+        """True iff `status` is a known PedidoStatus value."""
+        try:
+            PedidoStatus(status)
+            return True
+        except ValueError:
+            return False
+
+    @classmethod
+    def is_terminal(cls, status: str) -> bool:
+        """True iff `status` has no outgoing transitions."""
+        try:
+            from_enum = PedidoStatus(status)
+        except ValueError:
+            return False
+        return len(cls._TRANSITIONS[from_enum]) == 0
+
+    @classmethod
+    def is_fulfillable(cls, status: str) -> bool:
+        """True iff a pedido in this status can be fulfilled.
+
+        Equivalent to: status in {pending, confirmed, ready} (the
+        non-terminal pre-fulfill states). Centralized here so adding
+        a new pre-fulfill state is a one-line change.
+        """
+        try:
+            from_enum = PedidoStatus(status)
+        except ValueError:
+            return False
+        return from_enum in (
+            PedidoStatus.PENDING,
+            PedidoStatus.CONFIRMED,
+            PedidoStatus.READY,
+        )
+
+
+# Backwards-compat shim for existing callers that imported the dict
+# and tuple. Tests in tests/test_pedido_status_enum.py pin this shape.
+PEDIDO_STATUSES = tuple(s.value for s in PedidoStatus)
 PEDIDO_TRANSITIONS: dict[str, frozenset[str]] = {
-    "pending": frozenset({"confirmed", "cancelled"}),
-    "confirmed": frozenset({"ready", "cancelled"}),
-    "ready": frozenset({"fulfilled", "cancelled"}),
-    "fulfilled": frozenset(),  # terminal
-    "cancelled": frozenset(),  # terminal
+    s.value: frozenset(t.value for t in targets)
+    for s, targets in PedidoStateMachine._TRANSITIONS.items()
 }
 
 CHANNELS = ("whatsapp", "pedidosya", "mostrador", "phone", "other")
@@ -603,8 +689,8 @@ def pedidos_detail(
         "pedido_detalle.html",
         {
             "pedido": decorated,
-            "transitions": sorted(PEDIDO_TRANSITIONS.get(pedido.status, frozenset())),
-            "can_fulfill": pedido.status in ("pending", "confirmed", "ready"),
+            "transitions": PedidoStateMachine.allowed_next(pedido.status),
+            "can_fulfill": PedidoStateMachine.is_fulfillable(pedido.status),
             "channels": CHANNELS,
             "payment_methods": sorted(
                 set(ALLOWED_PAYMENT_METHODS) | {"efectivo", "transferencia", "qr", "tarjeta", "otro"}
@@ -631,18 +717,18 @@ async def pedidos_status(
     if pedido is None:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
     new = (new_status or "").strip().lower()
-    if new not in PEDIDO_STATUSES:
+    if not PedidoStateMachine.is_known(new):
         raise HTTPException(
             status_code=422,
-            detail=f"Estado inválido. Permitidos: {sorted(PEDIDO_STATUSES)}",
+            detail=f"Estado inválido. Permitidos: {PEDIDO_STATUSES}",
         )
-    allowed = PEDIDO_TRANSITIONS.get(pedido.status, frozenset())
+    allowed = PedidoStateMachine.allowed_next(pedido.status)
     if new not in allowed:
         raise HTTPException(
             status_code=409,
             detail=(
                 f"Transición no permitida: {pedido.status!r} → {new!r}. "
-                f"Estados válidos desde {pedido.status!r}: {sorted(allowed) or '(terminal)'}"
+                f"Estados válidos desde {pedido.status!r}: {allowed or '(terminal)'}"
             ),
         )
 
@@ -714,7 +800,7 @@ def pedidos_fulfill(
     )
     if pedido is None:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
-    if pedido.status not in ("pending", "confirmed", "ready"):
+    if not PedidoStateMachine.is_fulfillable(pedido.status):
         raise HTTPException(
             status_code=409,
             detail=(
