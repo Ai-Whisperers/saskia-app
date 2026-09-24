@@ -550,7 +550,9 @@ def test_sales_list_renders_sales(client, session_factory):
     r = client.get("/ventas")
     assert r.status_code == 200
     # Spanish chrome
-    assert "Historial" in r.text
+    # US 4.3 POS split: history moved to /ventas/historial. The POS page
+    # links to it ("Ver historial").
+    assert "Ver historial" in r.text
     assert "Nueva venta" in r.text
 
 

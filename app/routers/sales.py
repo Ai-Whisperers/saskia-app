@@ -54,6 +54,7 @@ def _decorated(s: Sale) -> dict:
         "customer_phone": s.customer.phone if s.customer else None,
         "customer_name": s.customer.name if s.customer else None,
         "payment_method": s.payment_method,
+        "channel": s.channel,
         "discount_gs": s.discount_gs,
         "channel": s.channel or "mostrador",
     }

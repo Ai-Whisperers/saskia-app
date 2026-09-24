@@ -183,13 +183,19 @@ def test_ventas_loads_with_customer_attached_to_sale(client, session_factory):
                 ))
             s2.commit()
 
+    # US 4.3 POS split: /ventas is the counter screen (new sales only);
+    # past sales + customer rows render on /ventas/historial. Both must
+    # return 200 with realistic data — if any Jinja2 attribute is missing
+    # the render fails BEFORE these assertions.
     r = client.get("/ventas")
     assert r.status_code == 200, (
         f"/ventas with realistic data returned {r.status_code}: {r.text[:400]}"
     )
-    # Body should contain every populated field — if any Jinja2 attribute is
-    # missing the render fails BEFORE this assertion.
-    body = r.text
+    rh = client.get("/ventas/historial")
+    assert rh.status_code == 200, (
+        f"/ventas/historial returned {rh.status_code}: {rh.text[:400]}"
+    )
+    body = rh.text
     assert "Cliente K1" in body
     assert "efectivo" in body
     assert "qr" in body

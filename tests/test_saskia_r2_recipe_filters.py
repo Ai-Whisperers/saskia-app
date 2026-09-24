@@ -62,7 +62,7 @@ def test_receta_form_has_sub_recipe_kind_option(authed_client):
     r = authed_client.get("/recetas/nueva")
     assert r.status_code == 200
     body = r.text
-    assert '<option value="sub_recipe">' in body, (
+    assert 'data-value="sub_recipe"' in body, (
         "Recipe form must offer a 'Sub-receta' option for line_kind "
         "(US 3.1 — sub-recipes as ingredients in another recipe)"
     )
