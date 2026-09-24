@@ -22,11 +22,11 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
-from app.rms.models import Product, Recipe, Sale
+from app.rms.models import Pedido, PedidoLine, Product, Recipe, Sale
 from app.rms.production import plan_production
 from app.services.template_render import render
 
@@ -240,6 +240,46 @@ def produccion_worksheet(
 
     # day view (default)
     plan = plan_production(session, for_date=for_date, manual_forecast=overrides or None)
+
+    # US 4.4 — Surface incoming pedidos for the SAME day as a "kitchen ticket"
+    # panel so the cook sees "we owe 3 tortas + 1 cookie tray today" alongside
+    # the demand-driven production plan. Includes pending/confirmed/ready
+    # (not fulfilled — those are done — and not cancelled — those are gone).
+    pending_pedidos = []
+    target_date = for_date or _asuncion_today()
+    pedido_rows = session.execute(
+        select(Pedido)
+        .options(selectinload(Pedido.lines).selectinload(PedidoLine.product))
+        .where(
+            Pedido.promised_date == target_date,
+            Pedido.status.in_(("pending", "confirmed", "ready")),
+        )
+        .order_by(Pedido.promised_time.asc().nullslast(), Pedido.created_at.asc())
+    ).scalars().all()
+    for p in pedido_rows:
+        line_items = []
+        for ln in p.lines:
+            if ln.qty <= 0:
+                continue
+            line_items.append({
+                "product_id": ln.product_id,
+                "product_name": ln.product.name if ln.product else "(deleted)",
+                "qty": float(ln.qty),
+                "unit_price_gs": ln.unit_price_gs,
+            })
+        if not line_items:
+            continue
+        pending_pedidos.append({
+            "id": p.id,
+            "customer_name": p.customer_name or "(sin nombre)",
+            "customer_phone": p.customer_phone or "",
+            "promised_time": p.promised_time or "",
+            "channel": p.channel,
+            "status": p.status,
+            "notes": p.notes or "",
+            "line_items": line_items,
+        })
+
     return render(request, "produccion.html", {
         "plan": plan,
         "for_date": plan.for_date.isoformat() if plan.for_date else "",
@@ -250,6 +290,7 @@ def produccion_worksheet(
         "recipes": session.execute(
             select(Recipe).order_by(Recipe.name)
         ).scalars().all(),
+        "pending_pedidos": pending_pedidos,
     })
 
 

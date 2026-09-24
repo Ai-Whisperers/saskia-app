@@ -5,6 +5,40 @@
 
 ## [Unreleased]
 
+### Changed (2026-09-24) — second review: pedidos in /produccion + sale cancellation audit (US 4.4, CIE-01)
+
+- **`/produccion` (day view) now surfaces incoming pedidos** as a "Pedidos
+  pendientes para hoy" panel above the demand-driven production plan (US 4.4).
+  Filtered to ``status ∈ {pending, confirmed, ready}`` and ``promised_date ==
+  for_date``; fulfilled/cancelled and other-day pedidos are hidden. Each
+  pedido row links to ``/pedidos/{id}`` for the full detail page and shows
+  the line items (qty × product × unit price) the kitchen owes that day.
+  Ordered by promised_time ASC (nulls last), then created_at ASC so the
+  earliest pickups surface first.
+- **`Sale.void_reason` and `Sale.voided_by` columns added** (migration 039,
+  CIE-01). Previously the only record of a void was `voided_at`, leaving
+  operators unable to answer "who voided this and why" — a deal-breaker
+  for accountability. The POST `/ventas/{id}/anular` endpoint now accepts
+  an optional `reason` form field; the value lands on `Sale.void_reason`
+  and is also appended to the reversed StockMovement's reason so the
+  audit trail travels through both the sale and stock journals.
+- **Anular modal asks for a reason (CIE-01).** The confirm modal that
+  drives the Anular button on `/ventas/historial` now renders an optional
+  "Motivo (opcional)" textarea. The reason is captured into the form's
+  hidden `reason` input on confirm. Legacy POSTs (no reason) still void
+  successfully — `void_reason` is NULL in that case.
+- **Voided sales now show who/why** in the history table. The voided-banner
+  block on each voided sale row renders `voided_by` and `void_reason`
+  alongside the timestamp.
+- **POST /ventas/{id}/anular now redirects to /ventas/historial** (the
+  post-split history page) instead of the unified /ventas page.
+
+### Test coverage
+
+- `tests/test_saskia_r2_encargos_cancel.py` — 17 new tests covering
+  US 4.4 (7 tests for the pedidos panel) and CIE-01 (10 tests for
+  void reason/audit trail/end-to-end POST).
+
 ### Changed (2026-09-23) — second review: POS split + Quick-Sell + multi-field customer search (US 4.2, US 4.3)
 
 - **`/ventas` and `/ventas/historial` are now separate routes (US 4.3).** The

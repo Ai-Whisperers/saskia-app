@@ -77,6 +77,38 @@
 
 <h2>Para el día {{ for_date }}</h2>
 
+{% if pending_pedidos %}
+<div class="card mb-4" style="border-left: 4px solid var(--color-warning, #f59e0b);">
+  <div class="card-header">
+    <h3 style="margin:0;">📦 Pedidos pendientes para hoy ({{ pending_pedidos|length }})</h3>
+    <small class="text-muted">US 4.4 — El cocinero ve estos pedidos antes que el plan automático. Click para abrir el detalle.</small>
+  </div>
+  <div class="card-body">
+    <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:var(--space-3);">
+      {% for p in pending_pedidos %}
+      <li style="padding:var(--space-3);background:var(--color-surface-subtle, #f8fafc);border-radius:var(--radius);border:1px solid var(--color-border);">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:var(--space-3);flex-wrap:wrap;">
+          <div>
+            <strong><a href="/pedidos/{{ p.id }}" style="color:var(--color-text-link);">Pedido #{{ p.id }} — {{ p.customer_name }}</a></strong>
+            {% if p.customer_phone %}<small class="text-muted"> · {{ p.customer_phone }}</small>{% endif %}
+            {% if p.promised_time %}<span class="badge" style="margin-left:var(--space-2);">⏰ {{ p.promised_time }}</span>{% endif %}
+            <span class="badge badge-info" style="margin-left:var(--space-2);">{{ p.channel }}</span>
+            <span class="badge badge-{{ 'warning' if p.status == 'pending' else 'success' if p.status == 'ready' else 'info' }}" style="margin-left:var(--space-2);">{{ p.status }}</span>
+          </div>
+        </div>
+        <ul style="margin-top:var(--space-2);padding-left:var(--space-5);">
+          {% for it in p.line_items %}
+          <li>{{ it.qty }} × {{ it.product_name }} (Gs. {{ '{:,}'.format(it.unit_price_gs).replace(',', '.') }})</li>
+          {% endfor %}
+        </ul>
+        {% if p.notes %}<small class="text-muted">📝 {{ p.notes }}</small>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
 {% if plan.rows %}
 <h3>Productos a producir</h3>
 <table class="table is-hoverable is-striped">

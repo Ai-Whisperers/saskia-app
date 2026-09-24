@@ -45,11 +45,47 @@
 
   modal.showModal = function(opts) {
     titleEl.textContent = opts.title || '';
-    bodyEl.textContent  = opts.body  || '';
+    bodyEl.textContent  = '';
     confirmBtn.textContent = opts.confirmLabel || 'Confirmar';
 
     // Style confirm button
     confirmBtn.className = 'btn ' + (opts.danger ? 'btn-danger' : 'btn-primary');
+
+    // Optional reason textarea (CIE-01). Rendered inside the modal body
+    // and captured into the hidden `reason` input on confirm.
+    var reasonValue = '';
+    if (opts.reasonField) {
+      var wrap = document.createElement('div');
+      wrap.style.marginTop = 'var(--space-3)';
+      var lbl = document.createElement('label');
+      lbl.htmlFor = 'confirm-modal-reason';
+      lbl.textContent = opts.reasonLabel || 'Motivo (opcional):';
+      lbl.style.display = 'block';
+      lbl.style.fontSize = 'var(--text-sm)';
+      lbl.style.marginBottom = 'var(--space-1)';
+      wrap.appendChild(lbl);
+      var ta = document.createElement('textarea');
+      ta.id = 'confirm-modal-reason';
+      ta.name = 'reason_ta';
+      ta.rows = 2;
+      ta.style.width = '100%';
+      ta.style.padding = 'var(--space-2)';
+      ta.style.border = '1px solid var(--color-border)';
+      ta.style.borderRadius = 'var(--radius)';
+      ta.style.fontFamily = 'inherit';
+      ta.placeholder = opts.reasonPlaceholder || 'Ej: cliente devolvió producto';
+      wrap.appendChild(ta);
+      bodyEl.appendChild(wrap);
+      if (opts.body) {
+        var p = document.createElement('p');
+        p.textContent = opts.body;
+        p.style.marginBottom = 'var(--space-2)';
+        bodyEl.insertBefore(p, wrap);
+      }
+      ta.addEventListener('input', function() { reasonValue = ta.value; });
+    } else if (opts.body) {
+      bodyEl.textContent = opts.body;
+    }
 
     pendingForm = null;
     if (opts.formId) {
@@ -64,6 +100,9 @@
 
     modal.querySelector('.modal-dialog').classList.toggle('is-danger', !!opts.danger);
     modal.showModal();
+
+    // After open, store latest reason value for the confirm handler
+    modal.__getReason = function() { return reasonValue; };
   };
 
   function close() { modal.close(); }
@@ -83,11 +122,24 @@
           inp.type = 'hidden'; inp.name = '_csrf_token'; inp.value = csrf.value;
           f.appendChild(inp);
         }
-        // Extra inputs
+        // Extra inputs (may include a <input name="reason"> we want to
+        // populate with the live textarea value, if any)
         if (pendingForm.extraInputs) {
           var d = document.createElement('div');
           d.innerHTML = pendingForm.extraInputs;
           while (d.firstChild) f.appendChild(d.firstChild);
+        }
+        // Capture reason from the live textarea (if reasonField was used)
+        var reasonLive = modal.__getReason ? modal.__getReason() : '';
+        if (reasonLive) {
+          var reasonInput = f.querySelector('input[name="reason"]');
+          if (reasonInput) {
+            reasonInput.value = reasonLive;
+          } else {
+            var rIn = document.createElement('input');
+            rIn.type = 'hidden'; rIn.name = 'reason'; rIn.value = reasonLive;
+            f.appendChild(rIn);
+          }
         }
         document.body.appendChild(f);
         f.submit();

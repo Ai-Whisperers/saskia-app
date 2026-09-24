@@ -1310,6 +1310,20 @@ def _migration_038_ingredient_haccp(conn):
     _bump_schema_version(conn, 38)
 
 
+def _migration_039_sale_void_reason(conn: Any) -> None:
+    """Add void_reason and voided_by to sale for CIE-01 cancellation audit trail.
+
+    The previous void flow only stored ``voided_at``. That made it impossible
+    to tell *why* a sale was voided (customer request, wrong product, etc.)
+    or *who* voided it — both critical for a small bakery's accountability.
+    Both columns are nullable so legacy voided rows (and fresh sales) don't
+    need to populate them at write time.
+    """
+    _add_column_if_missing(conn, "sale", "void_reason", "TEXT", "TEXT")
+    _add_column_if_missing(conn, "sale", "voided_by", "VARCHAR(64)", "VARCHAR(64)")
+    _bump_schema_version(conn, 39)
+
+
 
 MIGRATIONS = {
     1: _migration_001_initial_schema,
@@ -1350,6 +1364,7 @@ MIGRATIONS = {
     36: _migration_036_product_tax_haccp,
     37: _migration_037_sale_fiscal_invoice,
     38: _migration_038_ingredient_haccp,
+    39: _migration_039_sale_void_reason,
 }
 
 

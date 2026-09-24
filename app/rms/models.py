@@ -258,6 +258,11 @@ class Sale(Base):
     unit_price_gs: Mapped[int] = mapped_column(Integer, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     voided_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # CIE-01: cancellation audit trail. Nullable so legacy rows and fresh
+    # sales don't need to populate them. Operators fill in via the
+    # /ventas/{id}/anular modal when voiding.
+    void_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    voided_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     # Phase 5: payment + discount
     payment_method: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     discount_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")

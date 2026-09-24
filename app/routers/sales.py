@@ -46,6 +46,9 @@ def _decorated(s: Sale) -> dict:
         "notes": s.notes,
         "voided_at": s.voided_at,
         "voided_at_str": s.voided_at.strftime("%d/%m/%Y %H:%M") if s.voided_at else None,
+        # CIE-01: void metadata exposed to templates for audit display.
+        "void_reason": getattr(s, "void_reason", None),
+        "voided_by": getattr(s, "voided_by", None),
         "customer_id": s.customer_id,
         "customer_phone": s.customer.phone if s.customer else None,
         "customer_name": s.customer.name if s.customer else None,
@@ -709,14 +712,27 @@ def _fire_printer_for_sale(
 async def sale_void(
     sale_id: int,
     request: Request,
+    reason: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
-    """Void a sale and reverse stock."""
+    """Void a sale and reverse stock.
+
+    CIE-01: accepts an optional ``reason`` form field (free text) and the
+    authenticated user id, both persisted on Sale.void_reason /
+    Sale.voided_by for audit. The modal that triggers this POST lives on
+    /ventas/historial; legacy callers that POST without a reason still
+    work — the void just records no reason.
+    """
+    from app.auth import current_user_id
+
     try:
-        void_sale(session, sale_id)
+        uid = current_user_id(request)
+        user_id = str(uid) if uid is not None else "operator"
+        reason_clean = (reason or "").strip() or None
+        void_sale(session, sale_id, reason=reason_clean, voided_by=user_id)
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
-    return RedirectResponse(url="/ventas?flash=sale_void_ok", status_code=303)
+    return RedirectResponse(url="/ventas/historial?flash=sale_void_ok", status_code=303)
 
 
 __all__ = ["router"]
