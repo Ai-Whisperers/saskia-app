@@ -240,13 +240,7 @@ def _build_sales_context(
             "page_end": min(start_offset + PAGE_SIZE, total_count),
             "total_count": total_count,
         },
-        "has_more": has_more,
-        "current_offset": start_offset,
-        "current_page_size": PAGE_SIZE,
-        "page_start": start_offset + 1,
-        "page_end": min(start_offset + PAGE_SIZE, total_count),
-        "total_count": total_count,
-    }
+    )
 
 
 @router.get("", response_class=HTMLResponse)
