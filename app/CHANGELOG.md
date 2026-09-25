@@ -5,6 +5,13 @@
 
 ## [Unreleased]
 
+### Added (2026-09-25) — AIW QA Department gate hook (CI only, no app code)
+
+Caller workflow `.github/workflows/qa-gates.yml` invokes the reusable
+AIW QA gates from `Ai-Whisperers/aiw-org`. Advisory only; no app code
+touched. Note: Actions currently budget-blocked, so this will show as
+not-started until the operator lifts the budget.
+
 ### Verified (2026-09-24) — Phase 1B: rate_limit `now` kwarg already supported
 
 Per SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md ticket D-1:
