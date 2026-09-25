@@ -110,6 +110,12 @@
     <div class="metric-value">{{ recipe.cook_minutes }} min</div>
   </div>
   {% endif %}
+  {% if recipe.difficulty %}
+  <div class="metric-card">
+    <div class="metric-label">Dificultad</div>
+    <div class="metric-value" title="1=fácil, 5=experto">{{ "★" * recipe.difficulty }}{{ "☆" * (5 - recipe.difficulty) }}</div>
+  </div>
+  {% endif %}
 </div>
 
 {# Cost breakdown #}

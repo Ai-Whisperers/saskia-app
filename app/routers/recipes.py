@@ -235,6 +235,13 @@ async def recipe_create(
     notes = str(form.get("notes", "")).strip()
     prep_minutes_raw = str(form.get("prep_minutes", "")).strip()
     cook_minutes_raw = str(form.get("cook_minutes", "")).strip()
+    difficulty_raw = str(form.get("difficulty", "")).strip()
+    difficulty_val: int | None = None
+    if difficulty_raw:
+        try:
+            difficulty_val = max(1, min(5, int(difficulty_raw)))
+        except ValueError:
+            difficulty_val = None
     family = str(form.get("family", "")).strip() or None
     dietary_tags = str(form.get("dietary_tags", "")).strip() or None
 
@@ -298,7 +305,11 @@ async def recipe_create(
             recipe.dietary_tags = ",".join(inferred_tags) if inferred_tags else None
         n_ing = recipe_ingredient_count(recipe)
         # Sub-recipe depth requires recursive walk; skip if deep.
-        recipe.difficulty = infer_difficulty(recipe, n_ing, sub_recipe_depth=0)
+        if difficulty_val is None:
+            # auto-infer only when the operator didn't type one (1-5)
+            recipe.difficulty = infer_difficulty(recipe, n_ing, sub_recipe_depth=0)
+        else:
+            recipe.difficulty = difficulty_val
         if not prep_min:
             recipe.prep_minutes = estimate_prep_minutes(recipe, n_ing)
         if not cook_min:

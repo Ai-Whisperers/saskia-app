@@ -113,7 +113,7 @@
   <strong>Notas:</strong>
   <ul style="margin: var(--space-2) 0 0 var(--space-4); padding: 0;">
     <li><em>Mano de obra</em> es 0 para recetas sin tiempo declarado (la mayoría). Configurá en cada receta cuando lo sepas.</li>
-    <li><em>Overhead</em> es {{ close.rows[0].overhead_gs }} % del costo de materiales (config en Configuración).</li>
+    <li><em>Overhead</em> es {{ close.rows[0].overhead_gs if close.rows else '—' }} % del costo de materiales (config en Configuración).</li>
     <li>IVA incluye solo Facturas (no Boletas Resimple). Para el IVA débito fiscal completo, usá /reportes/iva.</li>
     <li>Margen saludable: > 30% del precio de venta. Por debajo de 15%, el producto no cubre sus costos reales.</li>
   </ul>

@@ -30,6 +30,23 @@
   </div>
 </div>
 
+{% if erosion_alerts %}
+<div class="alert alert-warning" style="margin:1rem 0;padding:0.75rem 1rem;border-left:4px solid #d97706;">
+  <strong>⚠️ Márgenes en riesgo</strong> — {{ erosion_alerts|length }} producto{{ 's' if erosion_alerts|length > 1 }} perdió margen por suba de insumos:
+  <ul style="margin:0.5rem 0 0 1.2rem;">
+    {% for a in erosion_alerts[:5] %}
+    <li>
+      <a href="/reportes/margenes/{{ a.product_id }}">{{ a.product_name }}</a>
+      — {{ a.ingredient_name }} subió
+      {% if a.price_delta_pct is not none %}{{ "%.0f"|format(a.price_delta_pct) }}%{% else %}de precio{% endif %}
+      {% if a.margin_delta_pct is not none %}(margen {{ "%+.0f"|format(a.margin_delta_pct) }}%){% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  <a href="/reportes/margenes">Ver deriva completa →</a>
+</div>
+{% endif %}
+
 <h2>📦 Recipes</h2>
 <div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
   <div class="kpi-card"><div class="kpi-label">Recetas en el sistema</div><div class="kpi-value">{{ recipe_count }}</div></div>

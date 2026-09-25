@@ -274,6 +274,15 @@
               <span class="time-suffix">min</span>
             </div>
           </div>
+          <div class="time-field">
+            <label for="difficulty" class="time-field-label">Dificultad</label>
+            <div class="time-input-group">
+              <input type="number" id="difficulty" name="difficulty" min="1" max="5"
+                     class="time-input" value="{{ recipe.difficulty if recipe and recipe.difficulty is not none else '' }}"
+                     placeholder="auto">
+              <span class="time-suffix">/5</span>
+            </div>
+          </div>
         </div>
       </div>
     </section>
