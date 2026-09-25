@@ -114,8 +114,8 @@ def batch_production_plans(
         yield_per_batch = max(1, _recipe_yield(session, p))
         batches = max(1, -(-target // yield_per_batch))
         reason = (
-            f"velocity={velocity:.1f}/day + {int(safety_pct*100)}% safety "
-            f"→ target {target} units ({batches} batch{'es' if batches > 1 else ''})"
+            f"Vendés ~{velocity:.1f}/día; con {int(safety_pct*100)}% de colchón "
+            f"→ hacer {target} u. ({batches} tanda{'s' if batches > 1 else ''})"
         )
         plans.append(ProductionPlan(
             product_id=p.id,
@@ -164,8 +164,8 @@ def production_plan_for_day(session: Session, product: Product,
     yield_per_batch = max(1, _recipe_yield(session, product))
     batches = max(1, -(-target // yield_per_batch))  # ceil div
     reason = (
-        f"velocity={velocity:.1f}/day + {int(safety_pct*100)}% safety "
-        f"→ target {target} units ({batches} batch{'es' if batches > 1 else ''})"
+        f"Vendés ~{velocity:.1f}/día; con {int(safety_pct*100)}% de colchón "
+        f"→ hacer {target} u. ({batches} tanda{'s' if batches > 1 else ''})"
     )
     return ProductionPlan(
         product_id=product.id,

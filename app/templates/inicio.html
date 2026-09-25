@@ -74,18 +74,18 @@
 
 <div class="grid grid-3 mb-4">
   <div class="metric-card">
-    <div class="metric-label">Ventas</div>
-    <div class="metric-value">{{ m.gs_full(ventas_gs) }}</div>
+    <div class="metric-label">Ventas <small class="text-muted">({% if period == 'today' %}hoy{% elif period == 'week' %}esta semana{% elif period == 'month' %}este mes{% else %}período custom{% endif %})</small></div>
+    <div class="metric-value">{% if ventas_gs %}{{ m.gs_full(ventas_gs) }}{% else %}<small class="text-muted">aún no hay ventas en este período</small>{% endif %}</div>
     {{ m.delta_pill(delta_ventas, prior_label) }}
   </div>
   <div class="metric-card">
-    <div class="metric-label">Costo de lo vendido</div>
-    <div class="metric-value">{{ m.gs_full(cogs_gs) }}</div>
+    <div class="metric-label">Costo de lo vendido <small class="text-muted">({% if period == 'today' %}hoy{% elif period == 'week' %}esta semana{% elif period == 'month' %}este mes{% else %}período custom{% endif %})</small></div>
+    <div class="metric-value">{% if cogs_gs %}{{ m.gs_full(cogs_gs) }}{% else %}<small class="text-muted">—</small>{% endif %}</div>
     {{ m.delta_pill(delta_cogs, prior_label) }}
   </div>
   <div class="metric-card">
-    <div class="metric-label">Margen</div>
-    <div class="metric-value">{{ m.gs_full(margen_gs) }}</div>
+    <div class="metric-label">Margen <small class="text-muted">({% if period == 'today' %}hoy{% elif period == 'week' %}esta semana{% elif period == 'month' %}este mes{% else %}período custom{% endif %})</small></div>
+    <div class="metric-value">{% if margen_gs %}{{ m.gs_full(margen_gs) }}{% else %}<small class="text-muted">—</small>{% endif %}</div>
     {{ m.delta_pill(delta_margen, prior_label) }}
     <div class="metric-delta is-up">{{ margen_pct_fmt }}</div>
   </div>
@@ -114,7 +114,7 @@
 </section>
 {% endif %}
 
-<h2>Ranking de productos</h2>
+<h2>Ranking de productos <small class="text-muted">· período seleccionado arriba</small></h2>
 {% if ranking %}
 <table class="table is-hoverable is-striped">
   <thead>
@@ -148,32 +148,46 @@
 {% endif %}
 
 <h2>Avisos</h2>
-{% if not stock_low and not recipes_no_cost and not sales_no_recipe %}
+{% set avisos_total = (stock_low|length) + (recipes_no_cost|length) + (sales_no_recipe|length) %}
+{% if avisos_total == 0 %}
 <div class="alert alert-success" role="status">
   <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
   Todo en orden. No hay avisos por ahora.
 </div>
 {% else %}
+{# Grouped + capped: top 5 per type with severity order and an overflow
+   link — the unbounded wall pushed everything below the fold (Inicio-v2
+   critique 3.5). Every line is now actionable. #}
 <ul class="avisos">
-  {% for s in stock_low %}
+  {% for s in stock_low[:5] %}
   <li class="aviso-stock">
-    <span style="white-space:nowrap">Stock bajo: <strong>{{ s.name }}</strong> ({{ "%.2f"|format(s.stock_qty) }} {{ s.unit }}, mínimo {{ "%.2f"|format(s.min_stock_qty) }} {{ s.unit }})</span>
+    <span style="white-space:nowrap">⚠️ Stock bajo: <strong>{{ s.name }}</strong> ({{ "%.2f"|format(s.stock_qty) }} {{ s.unit }}, mínimo {{ "%.2f"|format(s.min_stock_qty) }} {{ s.unit }})</span>
+    — <a href="/reorder">reponer →</a>
   </li>
   {% endfor %}
-  {% for r in recipes_no_cost %}
+  {% if stock_low|length > 5 %}
+  <li class="text-muted">… y {{ stock_low|length - 5 }} ingredientes más con stock bajo — <a href="/reorder">ver todos en Reponer</a></li>
+  {% endif %}
+  {% for r in recipes_no_cost[:5] %}
   <li class="aviso-recipe">
-    Receta sin precio de ingrediente: <strong>{{ r.name }}</strong>. Cargá los precios para ver el costo.
+    Receta sin precio de ingrediente: <strong>{{ r.name }}</strong>. Cargá los precios para ver el costo — <a href="/recetas/{{ r.id }}/editar">editar receta →</a>
   </li>
   {% endfor %}
-  {% for s in sales_no_recipe %}
+  {% if recipes_no_cost|length > 5 %}
+  <li class="text-muted">… y {{ recipes_no_cost|length - 5 }} recetas más sin costo — <a href="/recetas">ver recetas</a></li>
+  {% endif %}
+  {% for s in sales_no_recipe[:5] %}
   <li class="aviso-sale">
-    Venta sin receta: <strong>{{ s.product_name }}</strong> ({{ s.sold_at_str }}). Asignale una receta para ver el margen.
+    Venta sin receta: <strong>{{ s.product_name }}</strong> ({{ s.sold_at_str }}). Asignale una receta para ver el margen — <a href="/productos">ver productos →</a>
   </li>
   {% endfor %}
+  {% if sales_no_recipe|length > 5 %}
+  <li class="text-muted">… y {{ sales_no_recipe|length - 5 }} ventas más sin receta.</li>
+  {% endif %}
 </ul>
 {% endif %}
 
-<h2>Inteligencia</h2>
+<h2>Inteligencia <small class="text-muted">· últimos 30 días</small></h2>
 <div class="grid grid-4 mb-4">
   <div class="metric-card">
     <div class="metric-label">Capital en inventario</div>
@@ -182,20 +196,29 @@
   <div class="metric-card">
     <div class="metric-label">Hora pico de ventas</div>
     <div class="metric-value">
-      {% if insights.sales_peak_hour >= 0 %}{{ insights.sales_peak_hour }}:00{% else %}—{% endif %}
+      {% if insights.sales_peak_hour is not none and insights.sales_peak_hour >= 0 %}{{ "%02d"|format(insights.sales_peak_hour|int) }}:00{% else %}—{% endif %}
     </div>
   </div>
   <div class="metric-card">
     <div class="metric-label">Día pico de ventas</div>
     <div class="metric-value">
       {% set dow_names = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'] %}
-      {% if insights.sales_peak_dow >= 0 %}{{ dow_names[insights.sales_peak_dow] }}{% else %}—{% endif %}
+      {% if insights.sales_peak_dow is not none and insights.sales_peak_dow >= 0 %}{{ dow_names[insights.sales_peak_dow|int] }}{% else %}—{% endif %}
     </div>
   </div>
   <div class="metric-card">
     <div class="metric-label">Costo de materia prima % (30d)</div>
     <div class="metric-value">
-      {{ "%.1f"|format(insights.food_cost.theoretical_food_cost_pct) }}%
+      {# Sanity clamp: a ratio >100% means broken/missing cost or revenue
+         data — never headline an impossible number (2184.5% bug). #}
+      {% set mp_pct = insights.food_cost.theoretical_food_cost_pct %}
+      {% if mp_pct is none or insights.food_cost.sales_revenue_gs <= 0 %}
+        <small class="text-muted">sin ventas para comparar</small>
+      {% elif mp_pct > 100 %}
+        <small class="text-muted">revisar datos de costo</small>
+      {% else %}
+        {{ "%.1f"|format(mp_pct) }}%
+      {% endif %}
     </div>
   </div>
 </div>
@@ -239,7 +262,7 @@
 {% if insights.production_tomorrow %}
 <h3>
   <svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>
-  Produção de mañana
+  Producción de mañana
 </h3>
 <table class="table is-hoverable">
   <thead><tr><th>Producto</th><th class="num">Cantidad</th><th class="num">Batches</th><th>Motivo</th></tr></thead>

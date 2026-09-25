@@ -121,11 +121,11 @@ def test_delta_pct_tiny_change_is_neutral():
 
 
 def test_delta_pct_decrease_from_zero_is_new():
-    """current=0, prior>0 should be 'down' (business went to zero), not 'new'."""
+    """current=0, prior>0 — 2026-09-25 Inicio-v2 critique: an empty window is
+    a neutral state ("sin ventas en el período"), never a -100% alarm."""
     d = _delta_pct(0, 100)
-    # Current < prior by 100% — that's a decrease, not a new product.
-    assert d["direction"] == "down"
-    assert d["label"] == "100% abajo"
+    assert d["direction"] == "neutral"
+    assert d["label"] == "sin ventas en el período"
 
 
 # ---- integration with route ----------------------------------------------

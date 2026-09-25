@@ -103,8 +103,11 @@ def test_production_plan_includes_reason(session_factory):
     with session_factory() as s:
         p, _, _ = _setup_simple_product(s)
         plan = production_plan_for_day(s, p)
-        assert "velocity" in plan.reason
-        assert "safety" in plan.reason
+        # Human-facing reason (2026-09-25 Inicio-v2 critique: no debug
+        # formula strings in user copy). Old format was
+        # "velocity=X/day + N% safety -> target N units".
+        assert "colchón" in plan.reason
+        assert "tanda" in plan.reason
 
 
 # ---------------------------------------------------------------------------

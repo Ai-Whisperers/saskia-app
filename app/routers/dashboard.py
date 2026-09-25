@@ -145,9 +145,17 @@ def _delta_pct(current: int, prior: int) -> dict[str, float | str | None]:
 
     Returns {"pct": float|None, "direction": "up"|"down"|"neutral"|"new",
              "label": "12% arriba"|"8% abajo"|"—"|None}.
+
+    2026-09-25 Inicio-v2 critique: when the current window has ZERO sales we
+    suppress the delta entirely — "↓100% abajo" on an empty morning is a
+    divide-by-zero artifact that reads as "the business died" every day
+    until the first sale lands. Show a neutral label instead.
     """
     if prior == 0 and current == 0:
         return {"pct": None, "direction": "neutral", "label": None}
+    if current == 0:
+        # Empty current window: neutral state, never a -100% alarm.
+        return {"pct": None, "direction": "neutral", "label": "sin ventas en el período"}
     if prior == 0:
         return {"pct": None, "direction": "new", "label": "nuevo"}
     pct = (current - prior) / prior * 100
