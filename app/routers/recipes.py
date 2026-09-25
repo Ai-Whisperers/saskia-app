@@ -33,6 +33,8 @@ from app.rms.recipe_intel import (
 )
 from app.services.template_render import render
 
+from loguru import logger
+
 router = APIRouter(prefix="/recetas", dependencies=[Depends(require_login)])
 
 
