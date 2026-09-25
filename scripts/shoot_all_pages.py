@@ -1,0 +1,207 @@
+#!/usr/bin/env python3
+"""scripts/shoot_all_pages.py — full-page PNG screenshots of every page.
+
+Boots the real app (seeded via factories) + headless Chromium — same wiring
+as tests/browser/helpers.py — then visits every renderable GET route and
+saves a full-page screenshot.
+
+Usage:
+    uv run python scripts/shoot_all_pages.py [output_dir]
+
+Output: <dir>/*.png + index.html (contact sheet) + summary.json
+"""
+from __future__ import annotations
+
+import json
+import re
+import sys
+import threading
+import time
+from pathlib import Path
+
+OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "docs/user-guide/screenshots/all-pages")
+CHROME = "/opt/hermes/.playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell"
+
+
+def boot_app():
+    import os
+    import tempfile
+
+    os.environ.setdefault("SASKIA_TEST_AUTH_DISABLED", "1")
+
+    import uvicorn
+
+    from app.rms.db import init_db, make_engine, make_session_factory
+    from app.rms.main import app as fastapi_app
+
+    d = tempfile.mkdtemp(prefix="shoot-")
+    engine = make_engine(f"sqlite:///{d}/shoot.sqlite")
+    init_db(engine)
+    sf = make_session_factory(engine)
+
+    # Seed a rich little world so pages show real content
+    from datetime import datetime, timedelta
+
+    from tests.factories import (
+        ing_line,
+        make_catalog,
+        make_customer,
+        make_ingredient,
+        make_pedido,
+        make_product,
+        make_recipe,
+        make_sale,
+    )
+
+    with sf() as s:
+        cat = make_catalog(s, price_gs=10_000)
+        ing2 = make_ingredient(s, name="Levadura seca", stock_qty=0.4,
+                               min_stock_qty=1.0, purchase_price_gs=18_000)
+        make_product(s, name="Café con leche", sale_price_gs=7_000)
+        make_recipe(s, name="Chipa guazú", lines=[ing_line(ing2, qty=0.05)])
+        c1 = make_customer(s, name="María López", notes="alergia: gluten")
+        make_customer(s, name="Pedro Giménez")
+        t0 = datetime.utcnow() - timedelta(days=3)
+        for i in range(6):
+            make_sale(s, product=cat["product"], qty=2, at=t0 + timedelta(hours=i * 8))
+        s.commit()
+        ids = {"product": cat["product"].id, "ingredient": cat["ingredient"].id,
+               "recipe": cat["recipe"].id, "customer": c1.id}
+
+    from app.rms import db as db_module
+    from app.rms import main as main_module
+
+    main_module.make_engine_dialect = lambda *a, **k: engine
+    db_module.make_engine_dialect = lambda *a, **k: engine
+    fastapi_app.state.engine = engine
+    fastapi_app.state.session_factory = sf
+
+    config = uvicorn.Config(fastapi_app, host="127.0.0.1", port=0, log_level="warning")
+    server = uvicorn.Server(config)
+    threading.Thread(target=server.run, daemon=True).start()
+    for _ in range(50):
+        if server.started:
+            break
+        time.sleep(0.1)
+    port = server.servers[0].sockets[0].getsockname()[1]
+    return f"http://127.0.0.1:{port}", server, engine, ids
+
+
+def routes_to_shoot(ids):
+    """(path, filename) for every renderable page; param routes use seeded ids."""
+    return [
+        ("/dashboard", "dashboard"),
+        ("/", "inicio"),
+        ("/ventas", "ventas"),
+        ("/ventas/historial", "ventas-historial"),
+        ("/pedidos", "pedidos"),
+        ("/pedidos/board", "pedidos-board"),
+        ("/pedidos/nuevo", "pedidos-nuevo"),
+        ("/inventario", "inventario"),
+        ("/inventario/nuevo", "inventario-nuevo"),
+        (f"/inventario/{ids['ingredient']}", "inventario-detalle"),
+        ("/productos", "productos"),
+        ("/productos/nuevo", "productos-nuevo"),
+        (f"/productos/{ids['product']}/editar", "producto-editar"),
+        ("/recetas", "recetas"),
+        ("/recetas/nueva", "recetas-nueva"),
+        (f"/recetas/{ids['recipe']}", "receta-detalle"),
+        (f"/recetas/{ids['recipe']}/editar", "receta-editar"),
+        ("/clientes", "clientes"),
+        (f"/clientes/{ids['customer']}", "cliente-detalle"),
+        (f"/clientes/{ids['customer']}/editar", "cliente-editar"),
+        ("/produccion", "produccion"),
+        ("/produccion-planner", "produccion-planner"),
+        ("/eod", "eod"),
+        ("/merma", "merma"),
+        ("/reportes", "reportes"),
+        ("/reportes/iva", "reportes-iva"),
+        ("/reportes/libro-ventas", "reportes-libro-ventas"),
+        ("/reportes/diario", "reportes-diario"),
+        ("/reportes/comparacion", "reportes-comparacion"),
+        ("/reportes/top-productos", "reportes-top-productos"),
+        ("/reportes/retencion", "reportes-retencion"),
+        ("/reportes/valor-pedido", "reportes-valor-pedido"),
+        ("/reportes/ventas-hora", "reportes-ventas-hora"),
+        ("/reportes/metodos-pago", "reportes-metodos-pago"),
+        ("/reportes/precios", "reportes-precios"),
+        ("/reportes/cierre-mensual", "reportes-cierre-mensual"),
+        ("/reportes/food-cost-variance", "reportes-food-cost-variance"),
+        ("/reportes/demand", "reportes-demand"),
+        ("/reportes/freshness", "reportes-freshness"),
+        ("/reportes/stock-intel", "reportes-stock-intel"),
+        ("/reportes/afinidades", "reportes-afinidades"),
+        ("/reportes/margenes", "reportes-margenes"),
+        ("/shopping-list", "shopping-list"),
+        ("/suppliers", "suppliers"),
+        ("/proveedores", "proveedores-alias"),
+        ("/wishlist", "wishlist"),
+        ("/reorder", "reorder"),
+        ("/pricing", "pricing"),
+        ("/vs-mercado", "vs-mercado"),
+        ("/bank", "bank"),
+        ("/delivery-zones", "delivery-zones"),
+        ("/auditoria", "auditoria"),
+        ("/ops/status", "ops-status"),
+        ("/excel", "excel"),
+        ("/settings", "settings"),
+        ("/settings/catalog", "settings-catalog"),
+        ("/users", "users"),
+        ("/guia", "guia"),
+        ("/riesgos", "riesgos"),
+        ("/login", "login"),
+    ]
+
+
+def main():
+    from playwright.sync_api import sync_playwright
+
+    OUT.mkdir(parents=True, exist_ok=True)
+    base, server, engine, ids = boot_app()
+
+    summary = {}
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            executable_path=CHROME, args=["--no-sandbox", "--disable-dev-shm-usage"]
+        )
+        ctx = browser.new_context(viewport={"width": 1280, "height": 900})
+        page = ctx.new_page()
+        page.goto(base + "/dashboard")
+        page.wait_for_load_state("networkidle")
+
+        for path, name in routes_to_shoot(ids):
+            try:
+                page.goto(base + path)
+                page.wait_for_load_state("networkidle")
+                page.wait_for_timeout(250)
+                page.screenshot(path=str(OUT / f"{name}.png"), full_page=True)
+                status = "ok"
+            except Exception as exc:  # noqa: BLE001
+                status = f"ERROR: {exc}"[:120]
+            summary[path] = {"file": f"{name}.png", "status": status}
+            print(f"  {path:42s} {status}")
+
+        ctx.close()
+        browser.close()
+
+    (OUT / "summary.json").write_text(json.dumps(summary, indent=2))
+
+    ok = sum(1 for v in summary.values() if v["status"] == "ok")
+    # contact sheet
+    cards = "\n".join(
+        f'<figure><img src="{v["file"]}" loading="lazy"><figcaption>{k}</figcaption></figure>'
+        for k, v in summary.items() if v["status"] == "ok"
+    )
+    (OUT / "index.html").write_text(
+        f"<!doctype html><meta charset='utf-8'><title>Saskia pages</title>"
+        f"<style>body{{font-family:sans-serif;margin:20px}}figure{{margin:0 0 28px}}"
+        f"img{{max-width:100%;border:1px solid #ccc}}figcaption{{font-size:13px;color:#556}}</style>"
+        f"<h1>Saskia RMS — {ok}/{len(summary)} pages</h1>{cards}"
+    )
+    print(f"\n{ok}/{len(summary)} pages captured → {OUT.resolve()}")
+    server.should_exit = True
+    engine.dispose()
+
+
+if __name__ == "__main__":
+    main()
