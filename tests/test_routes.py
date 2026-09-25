@@ -16,42 +16,19 @@ import pytest
 
 
 def _seed(session_factory):
-    """Create a small test world: 3 ingredients + 1 recipe + 1 product."""
-    from app.rms.models import Ingredient, Product, Recipe, RecipeLine
+    """3 ingredients + 1 recipe + 1 product — via tests/factories."""
+    from tests.factories import ing_line, make_ingredient, make_product, make_recipe
 
     with session_factory() as s:
-        flour = Ingredient(name="Harina", unit="kg", stock_qty=2.0, purchase_price_gs=5000)
-        sugar = Ingredient(name="Azúcar", unit="kg", stock_qty=1.5, purchase_price_gs=4000)
-        egg = Ingredient(name="Huevo", unit="und", stock_qty=20.0, purchase_price_gs=1500)
-        s.add_all([flour, sugar, egg])
-        s.flush()
-
-        recipe = Recipe(name="Muffin", yield_qty=12.0, yield_unit="und")
-        s.add(recipe)
-        s.flush()
-
-        s.add_all(
-            [
-                RecipeLine(
-                    recipe_id=recipe.id, line_kind="ingredient", line_ref_id=flour.id, qty=0.3
-                ),
-                RecipeLine(
-                    recipe_id=recipe.id, line_kind="ingredient", line_ref_id=sugar.id, qty=0.2
-                ),
-                RecipeLine(
-                    recipe_id=recipe.id, line_kind="ingredient", line_ref_id=egg.id, qty=2.0
-                ),
-            ]
-        )
-        s.flush()
-
-        product = Product(
-            name="Muffin",
-            portion_label="1 muffin",
-            sale_price_gs=8000,
-            recipe_id=recipe.id,
-        )
-        s.add(product)
+        flour = make_ingredient(s, name="Harina", unit="kg", stock_qty=2.0, purchase_price_gs=5000)
+        sugar = make_ingredient(s, name="Azúcar", unit="kg", stock_qty=1.5, purchase_price_gs=4000)
+        egg = make_ingredient(s, name="Huevo", unit="und", stock_qty=20.0, purchase_price_gs=1500)
+        recipe = make_recipe(s, name="Muffin", yield_qty=12.0, yield_unit="und",
+                             lines=[ing_line(flour, qty=0.3, unit="kg"),
+                                    ing_line(sugar, qty=0.2, unit="kg"),
+                                    ing_line(egg, qty=2.0, unit="und")])
+        product = make_product(s, name="Muffin", recipe=recipe, sale_price_gs=8000,
+                               portion_label="1 muffin")
         s.commit()
         return product.id
 

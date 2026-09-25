@@ -106,6 +106,29 @@ def tmp_db_path(tmp_path, monkeypatch):
 
 
 @pytest.fixture
+def freeze_asuncion(monkeypatch):
+    """Freeze 'today' in Asunción for the duration of a test.
+
+    Patches app.routers.produccion._asuncion_today (the source the
+    /produccion route filters pedidos by). The midnight-UTC vs
+    Asunción-date divergence flaked the encargos tests near 00:00 local.
+
+    Usage:
+        def test_x(freeze_asuncion):
+            frozen = freeze_asuncion(date(2026, 9, 25))
+            ...
+    """
+    from datetime import date
+
+    def _freeze(d: date):
+        import app.routers.produccion as prod_mod
+        monkeypatch.setattr(prod_mod, "_asuncion_today", lambda: d)
+        return d
+
+    return _freeze
+
+
+@pytest.fixture
 def temp_dir(tmp_path):
     """A fresh temp directory for file-based tests."""
     return tmp_path

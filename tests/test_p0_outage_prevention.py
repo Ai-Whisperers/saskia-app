@@ -149,18 +149,25 @@ def test_get_session_returns_session_not_connection_when_fallback(app_engine, mo
 
     req = FakeRequest(main_app)
 
-    # The fallback should return a Session, not a Connection
-    sess = get_session(req)
+    # get_session is now a GENERATOR dependency (2026-09-25 session-leak
+    # fix): FastAPI runs the post-yield teardown, guaranteeing close().
+    # The fallback must still yield a Session, not a Connection.
+    gen = get_session(req)
+    sess = next(gen)
     try:
         assert isinstance(sess, Session), (
-            f"get_session must return Session, got {type(sess).__name__}. "
-            f"Connection returned today — caused ProgrammingError on session.execute(text(...))"
+            f"get_session must yield Session, got {type(sess).__name__}. "
+            f"Connection yielded today — caused ProgrammingError on session.execute(text(...))"
         )
         # Verify it can execute text queries
         result = sess.execute(text("SELECT 1")).scalar()
         assert result == 1, "Session fallback must support text() queries"
     finally:
         sess.close()
+        try:
+            next(gen)  # exhaust → teardown path must not raise
+        except StopIteration:
+            pass
 
 
 def test_migrations_applied_count_matches_registered(tmp_db_path):

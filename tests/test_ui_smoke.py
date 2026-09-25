@@ -30,65 +30,20 @@ import pytest
 
 
 def _seed_min_catalog(session_factory):
-    """2 ingredients, 1 recipe, 1 product, 1 sale."""
-    from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale
+    """2 ingredients, 1 recipe, 1 product, 1 sale — via tests/factories."""
+    from tests.factories import ing_line, make_ingredient, make_product, make_recipe, make_sale
 
     with session_factory() as s:
-        flour = Ingredient(
-            name="Harina",
-            unit="kg",
-            stock_qty=2.0,
-            purchase_price_gs=5000,
-            min_stock_qty=1.0,
-        )
-        egg = Ingredient(
-            name="Huevo",
-            unit="und",
-            stock_qty=20.0,
-            purchase_price_gs=1500,
-            min_stock_qty=0.0,
-        )
-        s.add_all([flour, egg])
-        s.flush()
-
-        recipe = Recipe(name="Muffin", yield_qty=12.0, yield_unit="und")
-        s.add(recipe)
-        s.flush()
-
-        s.add_all(
-            [
-                RecipeLine(
-                    recipe_id=recipe.id,
-                    line_kind="ingredient",
-                    line_ref_id=flour.id,
-                    qty=0.3,
-                ),
-                RecipeLine(
-                    recipe_id=recipe.id,
-                    line_kind="ingredient",
-                    line_ref_id=egg.id,
-                    qty=2.0,
-                ),
-            ]
-        )
-        s.flush()
-
-        product = Product(
-            name="Muffin",
-            portion_label="1 muffin",
-            sale_price_gs=8000,
-            recipe_id=recipe.id,
-        )
-        s.add(product)
-        s.flush()
-
-        sale = Sale(
-            sold_at=datetime.now(),
-            product_id=product.id,
-            qty=2.0,
-            unit_price_gs=8000,
-        )
-        s.add(sale)
+        flour = make_ingredient(s, name="Harina", unit="kg", stock_qty=2.0,
+                                purchase_price_gs=5000, min_stock_qty=1.0)
+        egg = make_ingredient(s, name="Huevo", unit="und", stock_qty=20.0,
+                              purchase_price_gs=1500, min_stock_qty=0.0)
+        recipe = make_recipe(s, name="Muffin", yield_qty=12.0, yield_unit="und",
+                             lines=[ing_line(flour, qty=0.3, unit="kg"),
+                                    ing_line(egg, qty=2.0, unit="und")])
+        product = make_product(s, name="Muffin", recipe=recipe, sale_price_gs=8000,
+                               portion_label="1 muffin")
+        sale = make_sale(s, product=product, qty=2.0)
         s.commit()
         return flour.id, egg.id, recipe.id, product.id, sale.id
 

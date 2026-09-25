@@ -18,28 +18,46 @@ from fastapi import Request
 from sqlalchemy.orm import Session
 
 
-def get_session(request: Request) -> Session:
-    """Yield a SQLAlchemy session bound to the request-scoped engine.
+def get_session(request: Request):
+    """YIELD a SQLAlchemy session bound to the request-scoped engine.
 
-    Identical to the 13 inline copies that used to live in
-    app/routers/*.py — consolidated here so any future change
-    (e.g. read-replica routing) lives in one place.
+    Generator dependency: FastAPI runs the code after ``yield`` at request
+    teardown, guaranteeing.close() → connection returned to the pool even
+    when the handler raises. The previous plain-function version returned
+    the Session and NOTHING ever closed it — every route leaked its
+    connection until GC (184 routes). Under WAL SQLite this surfaced as
+    `database is locked` on the next write from another connection (found
+    by tests/e2e shopping flows: add → mark-purchased → unmark).
 
-    Defensive: if session_factory isn't set yet (server is still initializing
-    or running without the lifespan hook), create an ephemeral engine for this
-    request to prevent 500 crashes.
+    Defensive: if session_factory isn't set yet (server is still
+    initializing or running without the lifespan hook), create an
+    ephemeral engine for this request to prevent 500 crashes during
+    cold-start or on pre-lifespan code.
     """
     sf = getattr(request.app.state, "session_factory", None)
     if sf is None:
         import os
+
         from sqlalchemy import create_engine
         from sqlalchemy.orm import Session as SQLASession
+
         db_url = os.getenv("DATABASE_URL")
         if not db_url:
             raise RuntimeError("DATABASE_URL env var not set")
         engine = create_engine(db_url, pool_pre_ping=True)
-        return SQLASession(bind=engine)
-    return sf()
+        session = SQLASession(bind=engine)
+        try:
+            yield session
+        finally:
+            session.close()
+            engine.dispose()
+        return
+
+    session = sf()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 def get_app_state(request: Request):

@@ -27,26 +27,20 @@ pytestmark = pytest.mark.crud
 
 
 def _seed_product(session_factory, name="Muffin", price=10000, qty=10, recipe_id=None):
-    """Create a Product row. Returns (product_id, ...)."""
-    from app.rms.models import Product
+    """Create a Product row. Returns product_id. Delegates to factories."""
+    from tests.factories import make_product
 
     with session_factory() as s:
-        p = Product(
-            name=name,
-            sale_price_gs=price,
-            recipe_id=recipe_id,
-        )
-        s.add(p)
+        p = make_product(s, name=name, sale_price_gs=price, recipe=recipe_id)
         s.commit()
         return p.id
 
 
-def _seed_customer(session_factory, name="Cliente", phone="+595999001"):
-    from app.rms.models import Customer
+def _seed_customer(session_factory, name="Cliente", phone="+595****9001"):
+    from tests.factories import make_customer
 
     with session_factory() as s:
-        c = Customer(name=name, phone=phone)
-        s.add(c)
+        c = make_customer(s, name=name, phone=phone)
         s.commit()
         return c.id
 
