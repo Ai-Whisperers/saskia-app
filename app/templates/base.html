@@ -63,6 +63,7 @@
 
     </a>
 
+    {% if is_logged_in %}
     <div class="nav-menu" id="nav-menu">
       <button type="button" class="menu-btn" id="nav-menu-btn"
               aria-haspopup="true" aria-expanded="false" aria-controls="nav-menu-panel">
@@ -168,6 +169,7 @@
 
     </div>
 
+  {% endif %}
   </nav>
 
 

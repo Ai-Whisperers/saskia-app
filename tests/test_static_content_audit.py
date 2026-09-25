@@ -170,11 +170,12 @@ def test_set_pricing_markup_rejects_zero(session):
 
 
 def test_branding_default(session):
-    """Migration 043 seeded default branding."""
+    """Migration 043 seeded default branding (footer normalized — no year;
+    base.html appends the current year dynamically)."""
     b = sr.get_branding(session)
     assert b["business_name"] == "Saskia RMS"
     assert "Panadería" in b["tagline"]
-    assert b["footer"] == "Sistema local · 2026"
+    assert b["footer"] == "Sistema local"
 
 
 def test_set_branding_partial_update(session):

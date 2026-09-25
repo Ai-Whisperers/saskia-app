@@ -23,7 +23,7 @@
 {% elif request.query_params.get('from_sync') %}
 <div class="card mb-3" style="background: #d1fae5; border-color: #10b981;">
   <div class="card-body">
-    🔄 <strong>Sync low stock</strong> ejecutado: {{ request.query_params.get('from_sync', 0) }} items añadidos.
+    🔄 <strong>Sincronizar faltantes</strong> ejecutado: {{ request.query_params.get('from_sync', 0) }} items añadidos.
   </div>
 </div>
 {% endif %}
@@ -45,7 +45,7 @@
   <a href="/produccion-planner" class="btn">📐 Crear plan</a>
   <form method="post" action="/shopping-list/sync-low-stock" style="display:inline;">
     <button type="submit" class="btn btn-warning" title="Importar todos los ingredientes con stock &lt; mínimo">
-      🔄 Sync low stock
+      🔄 Sincronizar faltantes
     </button>
   </form>
 </div>
@@ -117,6 +117,6 @@
 {% endif %}
 
 <p class="muted" style="margin-top:2rem;">
-  💡 Tip: Marcar "Comprado" no toca el inventario todavía. Cuando llegué el pedido, vas a Inventory → edit → ajustás stock_qty.
+  💡 Tip: Marcar "Comprado" no toca el inventario todavía. Cuando llegué el pedido, ajustás el stock desde la ficha del ingrediente.
 </p>
 {% endblock %}

@@ -99,7 +99,7 @@
       <td class="col-checkbox"><input type="checkbox" name="selected" value="{{ p.id }}" aria-label="Seleccionar {{ p.name }}"></td>
       <td class="col-name">
         <strong>{{ p.name }}</strong>
-        {% if p.is_dead %}<span class="badge badge-warn" title="Este producto nunca fue vendido">🕱 muerto</span>{% endif %}
+        {% if p.is_dead %}<span class="badge badge-warn" title="Este producto nunca fue vendido">Sin ventas</span>{% endif %}
         {% if p.category %}{{ t.category_pill(p.category) }}{% endif %}
         {% if p.tags %}
           <div class="tag-pill-row">

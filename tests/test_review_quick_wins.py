@@ -2,7 +2,9 @@
 
 - PRO-04: "Ver receta" links to recipe detail (not edit) + "Sin receta" empty state
 - MER-03: Merma page Spanish copy (no "food cost" / "benchmark")
-- NAV-02: Auditoría and Ops return 404 in production
+- NAV-02: Auditoría and Ops are mounted by DEFAULT (real auth is live, the
+  2026-09-25 60-page critique called the audit log a must-have). Setting
+  AIW_SASKIA_INTERNAL_ROUTES=0 unmounts them (opt-out escape hatch).
 - PRO-02: Production default qty rounded UP to whole piece (no 0.1 muffins)
 """
 from __future__ import annotations
@@ -11,40 +13,15 @@ import os
 import subprocess
 from decimal import Decimal
 
-# NAV-02: production mode means internal routes are NOT mounted. The conftest
-# at top of file sets AIW_SASKIA_INTERNAL_ROUTES=1 so we have a working app
-# with all routes during tests. To simulate production behaviour for this
-# specific test, save and clear the env var, then reimport the app module.
+# NAV-02: internal routes are mounted by default (2026-09-25 decision — the
+# 60-page critique called the audit log a must-have and real auth is live).
+# AIW_SASKIA_INTERNAL_ROUTES=0 is the opt-out. The route check runs in a
+# subprocess so module purging never poisons other tests.
 _AIW_ENV_SAVED = dict(os.environ)
 
 
-def _force_production_mode():
-    """Reimport app.rms.main without internal routes (simulates Render)."""
-    os.environ.pop("AIW_SASKIA_INTERNAL_ROUTES", None)
-    # Clear the module cache so the new env var takes effect
-    import sys
-    for mod in list(sys.modules):
-        if mod.startswith("app."):
-            del sys.modules[mod]
-
-
-def _restore_test_mode():
-    os.environ.clear()
-    os.environ.update(_AIW_ENV_SAVED)
-    import sys
-    for mod in list(sys.modules):
-        if mod.startswith("app."):
-            del sys.modules[mod]
-    # Re-prime the full app package so every later test (any file that
-    # imported app.rms.models at collection time OR at runtime) shares one
-    # coherent Base/registry. Without this, module purge leaves half-loaded
-    # mapper state that breaks unrelated tests (KeyError: 'SaleStockMove').
-    import app.rms.models  # noqa: F401
-    import app.rms.main  # noqa: F401
-
-
-def _run_prod_mode_check(path: str) -> int:
-    """Run a production-mode route check in a SUBPROCESS.
+def _run_route_check(path: str, env_value: str | None) -> int:
+    """Run a route check in a SUBPROCESS with a controlled env value.
 
     The old in-process approach purged sys.modules of all app.* modules,
     which left every other test file holding stale SQLAlchemy class
@@ -54,21 +31,31 @@ def _run_prod_mode_check(path: str) -> int:
     import sys
     from pathlib import Path
     runner = Path(__file__).parent / "_prod_mode_check.py"
+    env = dict(os.environ)
+    env.pop("AIW_SASKIA_INTERNAL_ROUTES", None)
+    if env_value is not None:
+        env["AIW_SASKIA_INTERNAL_ROUTES"] = env_value
     out = subprocess.run([sys.executable, str(runner), path],
-                         capture_output=True, text=True, cwd=os.getcwd())
+                         capture_output=True, text=True, cwd=os.getcwd(), env=env)
     if out.returncode != 0:
-        raise AssertionError(f"prod-mode runner failed: {out.stderr[-400:]}")
+        raise AssertionError(f"route-check runner failed: {out.stderr[-400:]}")
     return int(out.stdout.strip().splitlines()[-1])
 
 
-def test_nav_02_auditoria_returns_404_in_production_mode():
-    """NAV-02: GET /auditoria must 404 in production (no env var set)."""
-    assert _run_prod_mode_check("/auditoria") == 404
+def test_nav_02_auditoria_mounted_by_default_in_production_mode():
+    """NAV-02: GET /auditoria works with NO env var set (default: mounted)."""
+    assert _run_route_check("/auditoria", env_value=None) == 200
 
 
-def test_nav_02_ops_returns_404_in_production_mode():
-    """NAV-02: GET /ops/status must 404 in production."""
-    assert _run_prod_mode_check("/ops/status") == 404
+def test_nav_02_ops_mounted_by_default_in_production_mode():
+    """NAV-02: GET /ops/status works with NO env var set (default: mounted)."""
+    assert _run_route_check("/ops/status", env_value=None) == 200
+
+
+def test_nav_02_env_zero_unmounts_internal_routes():
+    """NAV-02: AIW_SASKIA_INTERNAL_ROUTES=0 restores the old 404 behaviour."""
+    assert _run_route_check("/auditoria", env_value="0") == 404
+    assert _run_route_check("/ops/status", env_value="0") == 404
 
 
 def test_nav_02_internal_routes_mounted_in_test_mode(client):

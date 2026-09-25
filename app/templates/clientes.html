@@ -15,7 +15,7 @@
 {% endif %}
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
-  <p class="text-muted" style="margin:0;">Programa de puntos: 1 punto por cada 1.000 Gs. gastados. 1 punto = 1.000 Gs. de descuento.</p>
+  <p class="text-muted" style="margin:0;">Programa de puntos: 1 punto por cada 1.000 Gs. gastados. 1 punto = 100 Gs. de descuento.</p>
   <div style="display:flex;gap:var(--space-2);align-items:center;">
     {% set csv_q = dict(request.query_params.multi_items()) %}{% set _ = csv_q.update({'format': 'csv'}) %}
     <a href="{{ request.url.path }}?{{ csv_q|urlencode }}" class="btn btn-sm btn-ghost" download="clientes.csv">

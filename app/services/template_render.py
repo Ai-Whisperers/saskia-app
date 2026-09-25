@@ -175,6 +175,14 @@ def render(
 
     # Phase 5 — load branding once per request. Lazy import keeps
     # template_render import-light.
+    # auth state for chrome (hide nav/search on the login screen)
+    try:
+        from app.auth import get_current_user
+
+        ctx.setdefault("is_logged_in", get_current_user(request) is not None)
+    except Exception:  # noqa: BLE001 — chrome must never break a page
+        ctx.setdefault("is_logged_in", True)
+
     if "branding" not in ctx:
         try:
             from app.rms.db import make_session_factory, get_db_session

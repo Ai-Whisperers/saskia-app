@@ -124,20 +124,29 @@ def compute_suggested_price(cost_gs: int, markup_cfg: dict | None = None) -> int
 DEFAULT_BRANDING = {
     "business_name": "Saskia RMS",
     "tagline": "Panadería / Bakery — Sistema de gestión",
-    "footer": "Sistema local · 2026",
+    "footer": "Sistema local",
     "accent_color": "#f97316",
     "logo_path": "",
 }
 
 
 def get_branding(session) -> dict:
-    """Return the branding dict with defaults for missing keys."""
+    """Return the branding dict with defaults for missing keys.
+
+    The footer gets a trailing year (e.g. "· 2026") stripped at read time:
+    base.html always appends the CURRENT year via now_year(), so a stored
+    footer carrying its own year rendered as "2026 · 2026" (60-page
+    critique G-4). Normalizing here fixes legacy DBs without a migration.
+    """
+    import re
+
     cfg = settings_get(session, "branding", {})
     out = dict(DEFAULT_BRANDING)
     if isinstance(cfg, dict):
         for k in DEFAULT_BRANDING:
             if k in cfg and isinstance(cfg[k], str):
                 out[k] = cfg[k]
+    out["footer"] = re.sub(r"\s*[·•\-–]\s*\d{4}\s*$", "", out["footer"]).strip()
     return out
 
 

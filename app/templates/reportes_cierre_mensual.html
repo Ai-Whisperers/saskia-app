@@ -96,12 +96,12 @@
   <tfoot>
     <tr style="font-weight: 700; border-top: 2px solid var(--color-border-strong);">
       <td>TOTAL</td>
-      <td class="num">{{ "%.1f"|format(close.rows | sum(attribute='qty_sold')) }}</td>
+      <td class="num">{{ "%.1f"|format(close.product_rows | sum(attribute='qty_sold')) }}</td>
       <td class="num">{{ m.gs(close.total_ventas_gs) }}</td>
       <td class="num">{{ m.gs(close.total_iva_ventas_gs) }}</td>
-      <td class="num">{{ m.gs(close.rows | sum(attribute='costo_materiales_gs')) }}</td>
-      <td class="num">{{ m.gs(close.rows | sum(attribute='mano_de_obra_gs')) }}</td>
-      <td class="num">{{ m.gs(close.rows | sum(attribute='overhead_gs')) }}</td>
+      <td class="num">{{ m.gs(close.product_rows | sum(attribute='costo_materiales_gs')) }}</td>
+      <td class="num">{{ m.gs(close.product_rows | sum(attribute='mano_de_obra_gs')) }}</td>
+      <td class="num">{{ m.gs(close.product_rows | sum(attribute='overhead_gs')) }}</td>
       <td class="num"><strong>{{ m.gs(close.total_prime_cost_gs) }}</strong></td>
       <td class="num">{{ m.gs(close.total_margen_neto_gs) }}</td>
       <td class="num">{% if close.total_margen_pct %}{{ "%.1f"|format(close.total_margen_pct) }}%{% endif %}</td>

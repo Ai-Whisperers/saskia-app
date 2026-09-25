@@ -51,6 +51,8 @@ class MonthlyClose:
     start: date
     end: date
     rows: list[MonthlyCloseRow]
+    # only real products (excludes family rollups) — use for totals math
+    product_rows: list[MonthlyCloseRow] = field(default_factory=list)
     # Aggregate totals (sum of all rows)
     total_ventas_gs: int = 0
     total_iva_ventas_gs: int = 0
@@ -203,6 +205,9 @@ def compute_monthly_close(session: Session, year: int, month: int) -> MonthlyClo
 
     # Compose final: family breakdown first, then per-product detail
     all_rows = family_rows + rows
+    # product_rows: rows WITHOUT sku are family rollups — the tfoot and any
+    # "sum of rows" math must only count real products (bug: TOTAL used to
+    # double-count qty/materials when family rollups shared the table).
 
     total_ventas = sum(r.ventas_gs for r in rows)
     total_prime = sum(r.prime_cost_gs for r in rows)
@@ -220,6 +225,7 @@ def compute_monthly_close(session: Session, year: int, month: int) -> MonthlyClo
         start=start,
         end=end,
         rows=all_rows,
+        product_rows=rows,
         total_ventas_gs=total_ventas,
         total_iva_ventas_gs=sum(r.iva_ventas_gs for r in rows),
         total_prime_cost_gs=total_prime,

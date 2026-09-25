@@ -143,12 +143,12 @@ function updateBulkBtn() {
                    class="combo-input"
                    name="qty_unit_display"
                    maxlength="6"
-                   value="{% if item.unit in ('g', 'kg') %}g{% elif item.unit in ('ml', 'l') %}ml{% else %}{{ item.unit }}{% endif %}"
+                   value="{{ item.unit }}"
                    aria-label="Unidad de la cantidad para {{ item.name }}"
                    style="width: 5em;">
             <input type="hidden"
                    name="qty_unit"
-                   value="{% if item.unit in ('g', 'kg') %}g{% elif item.unit in ('ml', 'l') %}ml{% else %}{{ item.unit }}{% endif %}">
+                   value="{{ item.unit }}">
             <div class="combo-results" role="listbox" hidden>
               {% if item.unit in ('g', 'kg') %}
                 <div class="combo-static-option" data-value="g" data-display="g"></div>

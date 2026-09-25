@@ -10,7 +10,8 @@ path = sys.argv[1]
 
 import os
 
-os.environ.pop("AIW_SASKIA_INTERNAL_ROUTES", None)
+# The calling test controls AIW_SASKIA_INTERNAL_ROUTES precisely via the
+# subprocess env — do NOT pop it here (default when absent: routes mounted).
 os.environ.setdefault("SASKIA_TEST_AUTH_DISABLED", "1")
 
 from fastapi.testclient import TestClient

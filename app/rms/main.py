@@ -475,7 +475,10 @@ app.include_router(shopping.router)
 # Default behaviour (no env var): NOT mounted (production).
 # Set AIW_SASKIA_INTERNAL_ROUTES=1 to mount (tests, internal admin).
 # This env var must be set BEFORE app.rms.main is imported.
-if os.getenv("AIW_SASKIA_INTERNAL_ROUTES") == "1":
+# Audit + ops pages: mounted by DEFAULT since real auth went live
+# (2026-09-25). The audit log is a core multi-user feature. Set
+# AIW_SASKIA_INTERNAL_ROUTES=0 to unmount (tests that need the old 404).
+if os.getenv("AIW_SASKIA_INTERNAL_ROUTES", "1") != "0":
     app.include_router(auditoria.router)
     app.include_router(ops.router)
 app.include_router(settings.router)

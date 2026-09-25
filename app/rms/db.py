@@ -1778,7 +1778,7 @@ def _migration_043_branding_setting(conn):
     branding = {
         "business_name": "Saskia RMS",
         "tagline": "Panadería / Bakery — Sistema de gestión",
-        "footer": "Sistema local · 2026",
+        "footer": "Sistema local",
         "accent_color": "#f97316",
         "logo_path": "",
     }
