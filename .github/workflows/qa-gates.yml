@@ -14,7 +14,7 @@ on:
 
 jobs:
   qa-gates:
-    uses: Ai-Whisperers/aiw-org/.github/workflows/qa-gates.yml@main
+    uses: Ai-Whisperers/aiw-org/.github/workflows/qa-gates.yml@docs/qa-dept-wiring-2026-09-25
     with:
       coverage_floor: 80
       perf_budget_seconds: 600
