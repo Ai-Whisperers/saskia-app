@@ -220,6 +220,18 @@ _ALLERGEN_ORDER = [
 ]
 
 
+def _allergen_sort_key(a: str):
+    """Canonical allergens first (in _ALLERGEN_ORDER), unknown ones after,
+    alphabetically. Ingredients carry free-text Spanish allergens (e.g.
+    'lacteos', 'mani') — .index() raised ValueError on any unknown string,
+    which crashed derive_recipe_tags; routes swallowed it as a warning, so
+    product derived tags silently NEVER updated. Found by tests/e2e/."""
+    try:
+        return (0, _ALLERGEN_ORDER.index(a), a)
+    except ValueError:
+        return (1, 0, a)
+
+
 def derive_recipe_tags(
     session: Session,
     recipe_id: int,
@@ -283,7 +295,7 @@ def derive_recipe_tags(
         else:
             kept.append(tag)
 
-    result.allergens = sorted(allergen_set, key=_ALLERGEN_ORDER.index)
+    result.allergens = sorted(allergen_set, key=_allergen_sort_key)
     result.dietary = kept
     return result
 
@@ -370,7 +382,7 @@ def _product_inherit_sync(session: Session, recipe_id: int) -> list[int]:
     Returns product IDs updated. Called after cascade_refresh so products
     (POS cards, receipts, label printing) never show stale claims.
     """
-    from app.rms.models import Product
+    from app.rms.models import Product, Recipe
 
     r = session.get(Recipe, recipe_id)
     if r is None:
