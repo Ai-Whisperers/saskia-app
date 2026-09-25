@@ -1,0 +1,21 @@
+# QA Department gates (advisory) — caller only.
+# All department code lives in Ai-Whisperers/aiw-org (.github/workflows/qa-gates.yml).
+# Current mode: ADVISORY (app suite has known reds; budget-blocked CI anyway).
+# To enforce: the aiw-org runner already exits non-zero; remove
+# continue-on-error here once saskia-app main is green.
+name: AIW QA Gates (department)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  qa-gates:
+    uses: Ai-Whisperers/aiw-org/.github/workflows/qa-gates.yml@main
+    with:
+      coverage_floor: 80
+      perf_budget_seconds: 600
+      python_version: '3.13'
