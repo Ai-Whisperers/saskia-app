@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% block title %}Márgenes{% endblock %}
+{% block content %}
+<h1>Deriva de márgenes</h1>
+<p class="text-muted">Precio de venta observado (primera vs última venta del período) contra el costo de receta actual. Márgenes que bajan = costo subiendo más rápido que el precio.</p>
+
+{% if drift %}
+<table class="table">
+  <thead><tr><th>Producto</th><th class="num">Precio inicial</th><th class="num">Precio actual</th><th class="num">Δ Precio</th><th class="num">Margen inicial</th><th class="num">Margen actual</th><th class="num">Δ Margen</th></tr></thead>
+  <tbody>
+    {% for d in drift %}
+    <tr>
+      <td><a href="/reportes/margenes/{{ d.product_id }}">{{ d.product_name }}</a></td>
+      <td class="num">{{ m.gs(d.first_price_gs) }}</td>
+      <td class="num">{{ m.gs(d.last_price_gs) }}</td>
+      <td class="num">{% if d.price_change_pct is not none %}{{ '%+.0f'|format(d.price_change_pct * 100) }}%{% else %}—{% endif %}</td>
+      <td class="num">{% if d.first_margin_gs is not none %}{{ m.gs(d.first_margin_gs) }}{% else %}—{% endif %}</td>
+      <td class="num">{% if d.last_margin_gs is not none %}{{ m.gs(d.last_margin_gs) }}{% else %}—{% endif %}</td>
+      <td class="num">{% if d.margin_change_gs is not none %}{% if d.margin_change_gs < 0 %}<span class="badge badge-danger">{{ m.gs(d.margin_change_gs) }}</span>{% elif d.margin_change_gs > 0 %}<span class="badge badge-ok">+{{ m.gs(d.margin_change_gs) }}</span>{% else %}0{% endif %}{% else %}—{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="text-muted">Sin ventas suficientes en los últimos {{ days }} días.</p>
+{% endif %}
+{% endblock %}

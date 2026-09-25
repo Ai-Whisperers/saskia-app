@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Afinidades{% endblock %}
+{% block content %}
+<h1>Afinidades de productos</h1>
+<p class="text-muted">Productos que se venden juntos (misma canasta: ventas dentro de 2 horas). Útil para combos y para el pedido sugerido.</p>
+
+{% if pairs %}
+<table class="table">
+  <thead><tr><th>#</th><th>Producto A</th><th>Producto B</th><th class="num">Canastas juntas</th></tr></thead>
+  <tbody>
+    {% for p in pairs %}
+    <tr>
+      <td class="text-muted">{{ loop.index }}</td>
+      <td><a href="/productos/{{ p.product_a_id }}">{{ p.product_a_name or p.product_a_id }}</a></td>
+      <td><a href="/productos/{{ p.product_b_id }}">{{ p.product_b_name or p.product_b_id }}</a></td>
+      <td class="num">{{ p.count }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="text-muted">Todavía no hay canastas con 2+ productos. Registrá ventas de combos para ver afinidades.</p>
+{% endif %}
+{% endblock %}

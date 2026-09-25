@@ -141,7 +141,12 @@ def _walk_recipe_cost(
             if ingredient is None:
                 missing.append(f"line:{line.id} (ingrediente no existe)")
                 return None
-            if ingredient.purchase_price_gs is None:
+            # variants.current_variant_price: preferred variant price if
+            # any, else the parent Ingredient price (backward compatible).
+            from app.rms.variants import current_variant_price
+
+            effective_price = current_variant_price(session, ingredient.id)
+            if effective_price is None:
                 missing.append(f"ingredient:{ingredient.name} (sin precio)")
                 return None
             # Resolve which unit to normalize qty INTO: prefer line_unit when
@@ -158,7 +163,7 @@ def _walk_recipe_cost(
                 return None
             # Multiply the normalized qty against the ingredient's per-unit price.
             line_cost = line_qty_in_ingredient_unit * Decimal(
-                str(ingredient.purchase_price_gs)
+                str(effective_price)
             )
             total += line_cost
 

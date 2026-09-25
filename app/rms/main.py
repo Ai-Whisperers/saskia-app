@@ -46,6 +46,7 @@ from app.rms.security_headers import SecurityHeadersMiddleware
 from app.rms.session_lifecycle import SessionLifecycleMiddleware
 from app.routers import (
     insights_derived,
+    insights_stock,
     auditoria,
     auth,
     customers,
@@ -462,6 +463,7 @@ app.include_router(herebus.bank_router)
 app.include_router(herebus.benchmarks_router)
 app.include_router(herebus.dashboard_router)
 app.include_router(insights_derived.router)
+app.include_router(insights_stock.router)
 app.include_router(herebus.planner_router)
 app.include_router(herebus.delivery_router)
 app.include_router(shopping.router)

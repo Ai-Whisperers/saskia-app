@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% block title %}{{ product.name }} — historial de precios{% endblock %}
+{% block content %}
+<h1>{{ product.name }} — historial de precios</h1>
+<p class="text-muted">Precio de venta observado por día (última venta del día), últimos {{ days }} días.</p>
+
+{% if history %}
+<table class="table">
+  <thead><tr><th>Día</th><th class="num">Precio de venta</th></tr></thead>
+  <tbody>
+    {% for h in history %}
+    <tr>
+      <td>{{ h.sold_at.strftime('%d-%m-%Y') }}</td>
+      <td class="num">{{ m.gs(h.unit_price_gs) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="text-muted">Sin ventas registradas en el período.</p>
+{% endif %}
+{% endblock %}

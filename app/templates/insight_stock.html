@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% block title %}Stock — rotación y muerto{% endblock %}
+{% block content %}
+<h1>Rotación y stock muerto</h1>
+<p class="text-muted">Últimos {{ days }} días. El stock muerto es dinero en la estantería: insumos sin consumo en {{ dead_days }} días.</p>
+
+<h2 style="font-size:1.05rem;margin-top:var(--space-4);">💀 Stock muerto</h2>
+{% if dead %}
+<table class="table">
+  <thead><tr><th>Insumo</th><th class="num">Stock</th><th class="num">Días sin consumo</th><th>Último consumo</th></tr></thead>
+  <tbody>
+    {% for d in dead %}
+    <tr>
+      <td><a href="/inventario/{{ d.ingredient_id }}">{{ d.ingredient_name }}</a></td>
+      <td class="num">{{ d.stock_qty }}</td>
+      <td class="num">{% if d.days_since_consumed is not none %}{{ d.days_since_consumed }}{% else %}nunca{% endif %}</td>
+      <td>{{ d.last_consumed_at.strftime('%d-%m-%Y') if d.last_consumed_at else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="text-muted">Sin stock muerto en los últimos {{ dead_days }} días. 🎉</p>
+{% endif %}
+
+<h2 style="font-size:1.05rem;margin-top:var(--space-4);">🔄 Rotación (más lento primero)</h2>
+{% if turnover %}
+<table class="table">
+  <thead><tr><th>Insumo</th><th class="num">Consumo {{ days }}d</th><th class="num">Stock prom.</th><th class="num">Rotación</th><th class="num">Días de stock</th></tr></thead>
+  <tbody>
+    {% for t in turnover %}
+    <tr>
+      <td><a href="/inventario/{{ t.ingredient_id }}">{{ t.ingredient_name }}</a></td>
+      <td class="num">{{ t.consumed_qty }}</td>
+      <td class="num">{{ '%.1f'|format(t.avg_stock) }}</td>
+      <td class="num">{{ '%.2f'|format(t.turnover_ratio) }}</td>
+      <td class="num">{% if t.days_of_stock is not none %}{{ t.days_of_stock }}{% else %}∞{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="text-muted">Sin consumo registrado en el período.</p>
+{% endif %}
+{% endblock %}
