@@ -12,6 +12,7 @@ Covers:
 - _MODEL_BY_NAME maps all expected models
 """
 from __future__ import annotations
+from tests.factories import make_ingredient, make_product
 
 import pytest
 
@@ -49,8 +50,8 @@ def test_dump_full_state_includes_all_tables(session_factory):
 def test_dump_full_state_serializes_rows(session_factory):
     s = session_factory()
     try:
-        s.add(Ingredient(name="harina", unit="kg", stock_qty=10.0, purchase_price_gs=4500))
-        s.add(Product(name="Muffin", sale_price_gs=2500))
+        s.add(make_ingredient(s, name="harina", unit="kg", stock_qty=10.0, purchase_price_gs=4500))
+        s.add(make_product(s, name="Muffin", sale_price_gs=2500))
         s.commit()
         state = dump_full_state(s)
         assert len(state["ingredient"]) == 1
@@ -62,8 +63,8 @@ def test_dump_full_state_serializes_rows(session_factory):
 def test_backup_database_writes_to_directory(tmp_path, session_factory):
     s = session_factory()
     try:
-        s.add(Ingredient(name="azúcar", unit="kg", stock_qty=20.0, purchase_price_gs=5200))
-        s.add(Product(name="Muffin", sale_price_gs=2500))
+        s.add(make_ingredient(s, name="azúcar", unit="kg", stock_qty=20.0, purchase_price_gs=5200))
+        s.add(make_product(s, name="Muffin", sale_price_gs=2500))
         s.commit()
         manifest = backup_database(s, tmp_path)
         assert manifest.n_rows >= 2
@@ -81,7 +82,7 @@ def test_backup_database_writes_to_directory(tmp_path, session_factory):
 def test_backup_database_file_is_loadable(tmp_path, session_factory):
     s = session_factory()
     try:
-        s.add(Product(name="Torta", sale_price_gs=35000))
+        s.add(make_product(s, name="Torta", sale_price_gs=35000))
         s.commit()
         manifest = backup_database(s, tmp_path)
         out_file = next(tmp_path.glob("saskia-backup-*.json.gz"))
@@ -98,7 +99,7 @@ def test_backup_database_file_is_loadable(tmp_path, session_factory):
 def test_verify_backup_passes_on_valid_archive(tmp_path, session_factory):
     s = session_factory()
     try:
-        s.add(Ingredient(name="harina", unit="kg", stock_qty=5.0))
+        s.add(make_ingredient(s, name="harina", unit="kg", stock_qty=5.0))
         s.commit()
         backup_database(s, tmp_path)
         out_file = next(tmp_path.glob("saskia-backup-*.json.gz"))
@@ -113,7 +114,7 @@ def test_verify_backup_raises_on_tampered(tmp_path, session_factory):
     """Mutate the JSON inside the backup to simulate tampering."""
     s = session_factory()
     try:
-        s.add(Product(name="Torta", sale_price_gs=35000))
+        s.add(make_product(s, name="Torta", sale_price_gs=35000))
         s.commit()
         backup_database(s, tmp_path)  # compressed by default
         out_file = next(tmp_path.glob("saskia-backup-*.json.gz"))
@@ -137,9 +138,9 @@ def test_restore_database_preserves_rows(session_factory, tmp_path):
     source_sf = session_factory
     s = source_sf()
     try:
-        s.add(Product(name="Muffin", sale_price_gs=2500))
-        s.add(Product(name="Torta", sale_price_gs=35000))
-        s.add(Ingredient(name="harina", unit="kg", stock_qty=10.0, purchase_price_gs=4500))
+        s.add(make_product(s, name="Muffin", sale_price_gs=2500))
+        s.add(make_product(s, name="Torta", sale_price_gs=35000))
+        s.add(make_ingredient(s, name="harina", unit="kg", stock_qty=10.0, purchase_price_gs=4500))
         s.commit()
         backup_database(s, tmp_path)
     finally:

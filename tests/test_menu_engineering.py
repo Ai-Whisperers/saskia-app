@@ -11,6 +11,7 @@ from app.rms.menu_engineering import (
     menu_engineering_report,
 )
 from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale
+from tests.factories import make_ingredient, make_product
 
 # ---------------------------------------------------------------------------
 # Median + quadrant edge cases
@@ -25,7 +26,7 @@ def test_classify_empty_db(session_factory):
 def test_classify_single_product_no_sales(session_factory):
     """One product with no sales → STAR (volume=0=median, price=margin=median)."""
     with session_factory() as s:
-        p = Product(name="solo_xyz", portion_label="und",
+        p = make_product(s, name="solo_xyz", portion_label="und",
                     sale_price_gs=10000)
         s.add(p)
         s.commit()
@@ -39,7 +40,7 @@ def test_classify_star_high_volume_high_margin(session_factory):
     """One product with HIGH sales + HIGH margin → STAR (relative to itself,
     median equals itself, so volume >= median AND margin >= median)."""
     with session_factory() as s:
-        ing = Ingredient(name="flour_xyz", unit="kg", stock_qty=1,
+        ing = make_ingredient(s, name="flour_xyz", unit="kg", stock_qty=1,
                          purchase_price_gs=1000)
         s.add(ing)
         s.flush()
@@ -51,7 +52,7 @@ def test_classify_star_high_volume_high_margin(session_factory):
         s.flush()
 
         # High price, low cost → high margin.
-        p_high = Product(name="star_xyz", portion_label="und",
+        p_high = make_product(s, name="star_xyz", portion_label="und",
                          sale_price_gs=50000, recipe_id=r.id)
         s.add(p_high)
         s.flush()
@@ -72,7 +73,7 @@ def test_classify_star_high_volume_high_margin(session_factory):
 def test_classify_dog_low_volume_low_margin(session_factory):
     """Two products: high-volume/high-margin star + low-volume/low-margin dog."""
     with session_factory() as s:
-        ing = Ingredient(name="flour_xyz", unit="kg", stock_qty=1,
+        ing = make_ingredient(s, name="flour_xyz", unit="kg", stock_qty=1,
                          purchase_price_gs=20000)  # expensive
         s.add(ing)
         s.flush()
@@ -83,9 +84,9 @@ def test_classify_dog_low_volume_low_margin(session_factory):
                          line_ref_id=ing.id, qty=1.0))
         s.flush()
 
-        p_dog = Product(name="dog_xyz", portion_label="und",
+        p_dog = make_product(s, name="dog_xyz", portion_label="und",
                         sale_price_gs=25000, recipe_id=r.id)
-        p_star = Product(name="star_companion_xyz", portion_label="und",
+        p_star = make_product(s, name="star_companion_xyz", portion_label="und",
                          sale_price_gs=80000, recipe_id=r.id)
         s.add_all([p_dog, p_star])
         s.flush()
@@ -112,7 +113,7 @@ def test_classify_dog_low_volume_low_margin(session_factory):
 def test_report_has_all_four_buckets(session_factory):
     """With 4 products of contrasting profiles, each quadrant is populated."""
     with session_factory() as s:
-        ing = Ingredient(name="flour_xyz2", unit="kg", stock_qty=1,
+        ing = make_ingredient(s, name="flour_xyz2", unit="kg", stock_qty=1,
                          purchase_price_gs=1000)
         s.add(ing)
         s.flush()
@@ -178,7 +179,7 @@ def test_report_total_margin_gs(session_factory):
 def test_report_as_dict_shape(session_factory):
     """report.as_dict() has counts, total_margin_gs, and 4 lists."""
     with session_factory() as s:
-        s.add(Product(name="p_xyz", portion_label="und", sale_price_gs=10000))
+        s.add(make_product(s, name="p_xyz", portion_label="und", sale_price_gs=10000))
         s.commit()
         d = menu_engineering_report(s).as_dict()
         assert "counts" in d
@@ -216,7 +217,7 @@ def test_volume_excludes_voided_sales(session_factory):
     """Voided sales don't count toward volume."""
     from datetime import timezone
     with session_factory() as s:
-        p = Product(name="void_test_xyz", portion_label="und",
+        p = make_product(s, name="void_test_xyz", portion_label="und",
                     sale_price_gs=10000)
         s.add(p)
         s.flush()

@@ -12,6 +12,7 @@ Covers:
 """
 
 from __future__ import annotations
+from tests.factories import make_ingredient, make_product
 
 from sqlalchemy import select
 
@@ -25,9 +26,9 @@ def _seed_basic(session_factory):
     from app.rms.models import Ingredient, Recipe, RecipeLine
 
     with session_factory() as s:
-        flour = Ingredient(name="Harina", unit="kg", stock_qty=2.0, purchase_price_gs=5000)
-        sugar = Ingredient(name="Azúcar", unit="kg", stock_qty=1.5, purchase_price_gs=4000)
-        egg = Ingredient(name="Huevo", unit="und", stock_qty=20.0, purchase_price_gs=1500)
+        flour = make_ingredient(s, name="Harina", unit="kg", stock_qty=2.0, purchase_price_gs=5000)
+        sugar = make_ingredient(s, name="Azúcar", unit="kg", stock_qty=1.5, purchase_price_gs=4000)
+        egg = make_ingredient(s, name="Huevo", unit="und", stock_qty=20.0, purchase_price_gs=1500)
         s.add_all([flour, sugar, egg])
         s.flush()
 
@@ -66,8 +67,8 @@ def _seed_sub_recipe(session_factory):
     from app.rms.models import Ingredient, Product, Recipe, RecipeLine
 
     with session_factory() as s:
-        flour = Ingredient(name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
-        egg = Ingredient(name="Huevo", unit="und", stock_qty=30.0, purchase_price_gs=1500)
+        flour = make_ingredient(s, name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
+        egg = make_ingredient(s, name="Huevo", unit="und", stock_qty=30.0, purchase_price_gs=1500)
         s.add_all([flour, egg])
         s.flush()
 
@@ -155,7 +156,7 @@ def test_recipe_batch_cost_cycle(session_factory):
     from app.rms.models import Ingredient, Recipe, RecipeLine
 
     with session_factory() as s:
-        ing = Ingredient(name="Harina", unit="kg", stock_qty=2.0, purchase_price_gs=5000)
+        ing = make_ingredient(s, name="Harina", unit="kg", stock_qty=2.0, purchase_price_gs=5000)
         s.add(ing)
         s.flush()
 
@@ -190,9 +191,9 @@ def test_recipe_batch_cost_missing_price(session_factory):
     from app.rms.models import Ingredient, Recipe, RecipeLine
 
     with session_factory() as s:
-        flour = Ingredient(name="Harina", unit="kg", stock_qty=2.0, purchase_price_gs=5000)
+        flour = make_ingredient(s, name="Harina", unit="kg", stock_qty=2.0, purchase_price_gs=5000)
         # Sugar has no price yet
-        sugar = Ingredient(name="Azúcar", unit="kg", stock_qty=1.5, purchase_price_gs=None)
+        sugar = make_ingredient(s, name="Azúcar", unit="kg", stock_qty=1.5, purchase_price_gs=None)
         s.add_all([flour, sugar])
         s.flush()
 
@@ -243,7 +244,7 @@ def test_recipe_batch_cost_no_yield(session_factory):
     from app.rms.models import Ingredient, Recipe, RecipeLine
 
     with session_factory() as s:
-        flour = Ingredient(name="Harina", unit="kg", stock_qty=2.0, purchase_price_gs=5000)
+        flour = make_ingredient(s, name="Harina", unit="kg", stock_qty=2.0, purchase_price_gs=5000)
         s.add(flour)
         s.flush()
 
@@ -304,7 +305,7 @@ def test_recipe_unit_cost_propagates_missing(session_factory):
     from app.rms.models import Ingredient, Recipe, RecipeLine
 
     with session_factory() as s:
-        ing = Ingredient(name="X", unit="kg", stock_qty=1.0, purchase_price_gs=None)
+        ing = make_ingredient(s, name="X", unit="kg", stock_qty=1.0, purchase_price_gs=None)
         s.add(ing)
         s.flush()
         rec = Recipe(name="R", yield_qty=10.0, yield_unit="und")
@@ -339,7 +340,7 @@ def test_product_unit_cost_no_recipe(session_factory):
     from app.rms.models import Product
 
     with session_factory() as s:
-        s.add(Product(name="Mystery", portion_label="1", sale_price_gs=5000, recipe_id=None))
+        s.add(make_product(s, name="Mystery", portion_label="1", sale_price_gs=5000, recipe_id=None))
         s.commit()
 
     with session_factory() as s:
@@ -380,7 +381,7 @@ def test_product_margin_no_cost(session_factory):
     from app.rms.models import Product
 
     with session_factory() as s:
-        s.add(Product(name="Mystery", portion_label="1", sale_price_gs=5000, recipe_id=None))
+        s.add(make_product(s, name="Mystery", portion_label="1", sale_price_gs=5000, recipe_id=None))
         s.commit()
 
     with session_factory() as s:
@@ -395,7 +396,7 @@ def test_product_margin_zero_sale_price(session_factory):
     from app.rms.models import Ingredient, Product, Recipe, RecipeLine
 
     with session_factory() as s:
-        ing = Ingredient(name="X", unit="kg", stock_qty=1.0, purchase_price_gs=100)
+        ing = make_ingredient(s, name="X", unit="kg", stock_qty=1.0, purchase_price_gs=100)
         rec = Recipe(name="R", yield_qty=10.0, yield_unit="und")
         s.add_all([ing, rec])
         s.flush()
@@ -506,7 +507,7 @@ def test_batch_products_with_null_recipe(session_factory):
     from app.rms.models import Product
 
     with session_factory() as s:
-        s.add(Product(name="Mystery", portion_label="1", sale_price_gs=5000, recipe_id=None))
+        s.add(make_product(s, name="Mystery", portion_label="1", sale_price_gs=5000, recipe_id=None))
         s.commit()
         p = s.scalars(select(Product)).one()
         results = batch_products_cost_margin(s, [p])

@@ -11,6 +11,7 @@ Covers:
 - plan_production surfaces seasonal notes
 """
 from __future__ import annotations
+from tests.factories import make_ingredient, make_product
 
 from datetime import date, datetime, timedelta, timezone
 
@@ -24,7 +25,7 @@ from app.rms.production import (
 def test_forecast_sales_zero_when_no_history(session_factory):
     s = session_factory()
     try:
-        prod = Product(name="Muffin", sale_price_gs=2500)
+        prod = make_product(s, name="Muffin", sale_price_gs=2500)
         s.add(prod)
         s.commit()
         assert forecast_sales(s, product_id=prod.id, days_history=14) == 0.0
@@ -36,7 +37,7 @@ def test_forecast_sales_average_over_window(session_factory):
     """14 sales over 14 days -> forecast = 1.0 per day."""
     s = session_factory()
     try:
-        prod = Product(name="Muffin", sale_price_gs=2500)
+        prod = make_product(s, name="Muffin", sale_price_gs=2500)
         s.add(prod)
         s.flush()
         now = datetime.now(timezone.utc)
@@ -58,7 +59,7 @@ def test_forecast_excludes_voided(session_factory):
     """Voided sales excluded from forecast."""
     s = session_factory()
     try:
-        prod = Product(name="Muffin", sale_price_gs=2500)
+        prod = make_product(s, name="Muffin", sale_price_gs=2500)
         s.add(prod)
         s.flush()
         now = datetime.now(timezone.utc)
@@ -102,7 +103,7 @@ def test_plan_production_computes_lines_from_recipes(session_factory):
     forecast 10 muffins, we need 3kg harina."""
     s = session_factory()
     try:
-        ing = Ingredient(name="harina", unit="kg", stock_qty=0.0, purchase_price_gs=4500)
+        ing = make_ingredient(s, name="harina", unit="kg", stock_qty=0.0, purchase_price_gs=4500)
         rec = Recipe(name="Muffin", yield_qty=12.0, yield_unit="und")
         s.add_all([ing, rec])
         s.flush()
@@ -110,7 +111,7 @@ def test_plan_production_computes_lines_from_recipes(session_factory):
             recipe_id=rec.id, line_kind="ingredient",
             line_ref_id=ing.id, qty=0.3,
         ))
-        prod = Product(name="Muffin", sale_price_gs=2500, recipe_id=rec.id)
+        prod = make_product(s, name="Muffin", sale_price_gs=2500, recipe_id=rec.id)
         s.add(prod)
         s.flush()
         # 5 muffins sold today -> forecast ~0.36/day (rounded down)
@@ -143,7 +144,7 @@ def test_plan_production_with_seasonal_multiplier(session_factory):
     """Multiplicador 2x duplica el forecast (PRO-02: both round UP to integer)."""
     s = session_factory()
     try:
-        prod = Product(name="Torta", sale_price_gs=25000, recipe_id=None)
+        prod = make_product(s, name="Torta", sale_price_gs=25000, recipe_id=None)
         s.add(prod)
         s.flush()
         now = datetime.now(timezone.utc)
@@ -171,7 +172,7 @@ def test_plan_production_with_seasonal_multiplier(session_factory):
 
         # Use a scenario where the multiplier DOES bump the count:
         # 11 sales over 14d = 0.79, with 2x = 1.57 -> rounds up to 2.
-        prod2 = Product(name="Torta grande", sale_price_gs=50000, recipe_id=None)
+        prod2 = make_product(s, name="Torta grande", sale_price_gs=50000, recipe_id=None)
         s.add(prod2)
         s.flush()
         for i in range(11):
@@ -197,7 +198,7 @@ def test_plan_production_with_manual_forecast_override(session_factory):
     """manual_forecast overrides the auto-computed forecast."""
     s = session_factory()
     try:
-        prod = Product(name="Torta", sale_price_gs=25000, recipe_id=None)
+        prod = make_product(s, name="Torta", sale_price_gs=25000, recipe_id=None)
         s.add(prod)
         s.flush()
         # Some sales history
@@ -227,7 +228,7 @@ def test_plan_production_stock_on_hand_subtracts_requirement(session_factory):
     """If stock on hand > qty_required, qty_to_buy = 0."""
     s = session_factory()
     try:
-        ing = Ingredient(name="harina", unit="kg", stock_qty=100.0, purchase_price_gs=4500)
+        ing = make_ingredient(s, name="harina", unit="kg", stock_qty=100.0, purchase_price_gs=4500)
         rec = Recipe(name="Muffin", yield_qty=12.0, yield_unit="und")
         s.add_all([ing, rec])
         s.flush()
@@ -235,7 +236,7 @@ def test_plan_production_stock_on_hand_subtracts_requirement(session_factory):
             recipe_id=rec.id, line_kind="ingredient",
             line_ref_id=ing.id, qty=0.05,  # 50g per muffin
         ))
-        prod = Product(name="Muffin", sale_price_gs=2500, recipe_id=rec.id)
+        prod = make_product(s, name="Muffin", sale_price_gs=2500, recipe_id=rec.id)
         s.add(prod)
         s.flush()
         now = datetime.now(timezone.utc)

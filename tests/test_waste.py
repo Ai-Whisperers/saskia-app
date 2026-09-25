@@ -10,6 +10,7 @@ Covers:
 - waste_as_pct_of_revenue computes percentage
 """
 from __future__ import annotations
+from tests.factories import make_ingredient, make_product
 
 from datetime import datetime, timedelta, timezone
 
@@ -55,7 +56,7 @@ def test_record_waste_with_no_purchase_price_costs_zero(session_factory):
     """If purchase_price is NULL, cost is 0 (we don't know)."""
     s = session_factory()
     try:
-        ing = Ingredient(name="x", unit="kg", stock_qty=5.0, purchase_price_gs=None)
+        ing = make_ingredient(s, name="x", unit="kg", stock_qty=5.0, purchase_price_gs=None)
         s.add(ing)
         s.flush()
         log = record_waste(
@@ -83,7 +84,7 @@ def test_stock_does_not_go_negative(session_factory):
     """If waste > stock, stock floors at 0 (no negative)."""
     s = session_factory()
     try:
-        ing = Ingredient(name="x", unit="kg", stock_qty=0.5, purchase_price_gs=1000)
+        ing = make_ingredient(s, name="x", unit="kg", stock_qty=0.5, purchase_price_gs=1000)
         s.add(ing)
         s.flush()
         record_waste(s, ingredient_id=ing.id, qty=10.0, reason=WasteReason.OTRA)
@@ -96,7 +97,7 @@ def test_stock_does_not_go_negative(session_factory):
 def test_list_waste_with_reason_filter(session_factory):
     s = session_factory()
     try:
-        ing = Ingredient(name="x", unit="kg", stock_qty=10.0, purchase_price_gs=1000)
+        ing = make_ingredient(s, name="x", unit="kg", stock_qty=10.0, purchase_price_gs=1000)
         s.add(ing)
         s.flush()
         record_waste(s, ingredient_id=ing.id, qty=1.0, reason=WasteReason.QUEMADA)
@@ -116,8 +117,8 @@ def test_list_waste_with_reason_filter(session_factory):
 def test_list_waste_with_ingredient_filter(session_factory):
     s = session_factory()
     try:
-        i1 = Ingredient(name="a", unit="kg", stock_qty=5.0, purchase_price_gs=1000)
-        i2 = Ingredient(name="b", unit="kg", stock_qty=5.0, purchase_price_gs=2000)
+        i1 = make_ingredient(s, name="a", unit="kg", stock_qty=5.0, purchase_price_gs=1000)
+        i2 = make_ingredient(s, name="b", unit="kg", stock_qty=5.0, purchase_price_gs=2000)
         s.add_all([i1, i2])
         s.flush()
         record_waste(s, ingredient_id=i1.id, qty=1.0, reason=WasteReason.OTRA)
@@ -133,8 +134,8 @@ def test_list_waste_with_ingredient_filter(session_factory):
 def test_waste_impact_aggregates_by_reason_and_ingredient(session_factory):
     s = session_factory()
     try:
-        i1 = Ingredient(name="harina", unit="kg", stock_qty=10.0, purchase_price_gs=4500)
-        i2 = Ingredient(name="azúcar", unit="kg", stock_qty=10.0, purchase_price_gs=5200)
+        i1 = make_ingredient(s, name="harina", unit="kg", stock_qty=10.0, purchase_price_gs=4500)
+        i2 = make_ingredient(s, name="azúcar", unit="kg", stock_qty=10.0, purchase_price_gs=5200)
         s.add_all([i1, i2])
         s.flush()
         # harina: 1kg vencida (4500) + 0.5kg quemada (2250) = 6750
@@ -163,7 +164,7 @@ def test_waste_impact_default_window_is_30_days(session_factory):
     """Default window: last 30 days."""
     s = session_factory()
     try:
-        ing = Ingredient(name="x", unit="kg", stock_qty=10.0, purchase_price_gs=1000)
+        ing = make_ingredient(s, name="x", unit="kg", stock_qty=10.0, purchase_price_gs=1000)
         s.add(ing)
         s.flush()
         # Old event: 60 days ago
@@ -184,7 +185,7 @@ def test_waste_impact_default_window_is_30_days(session_factory):
 def test_waste_as_pct_of_revenue(session_factory):
     s = session_factory()
     try:
-        ing = Ingredient(name="x", unit="kg", stock_qty=10.0, purchase_price_gs=1000)
+        ing = make_ingredient(s, name="x", unit="kg", stock_qty=10.0, purchase_price_gs=1000)
         s.add(ing)
         s.flush()
         record_waste(s, ingredient_id=ing.id, qty=2.0, reason=WasteReason.VENCIDA)
@@ -214,9 +215,9 @@ def test_record_recipe_waste_creates_one_log_per_ingredient(session_factory):
     """
     s = session_factory()
     try:
-        flour = Ingredient(name="flour", unit="kg", stock_qty=10.0, purchase_price_gs=2000)
-        sugar = Ingredient(name="sugar", unit="kg", stock_qty=10.0, purchase_price_gs=1500)
-        eggs = Ingredient(name="eggs", unit="und", stock_qty=100.0, purchase_price_gs=500)
+        flour = make_ingredient(s, name="flour", unit="kg", stock_qty=10.0, purchase_price_gs=2000)
+        sugar = make_ingredient(s, name="sugar", unit="kg", stock_qty=10.0, purchase_price_gs=1500)
+        eggs = make_ingredient(s, name="eggs", unit="und", stock_qty=100.0, purchase_price_gs=500)
         s.add_all([flour, sugar, eggs])
         s.flush()
 

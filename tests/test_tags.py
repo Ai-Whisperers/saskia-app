@@ -15,6 +15,7 @@ Covers:
 - filter_products respects category equivalent, tag, has_recipe
 """
 from __future__ import annotations
+from tests.factories import make_ingredient, make_product
 
 from datetime import datetime, timedelta, timezone
 
@@ -88,7 +89,7 @@ def test_tag_target_is_idempotent(session_factory):
     """tag_target() called twice does not duplicate the link."""
     s = session_factory()
     try:
-        ing = Ingredient(name="harina", unit="kg", stock_qty=5.0, purchase_price_gs=4500)
+        ing = make_ingredient(s, name="harina", unit="kg", stock_qty=5.0, purchase_price_gs=4500)
         s.add(ing)
         s.flush()
         tag = ensure_tag(s, "perecedero", TagKind.INGREDIENT.value)
@@ -106,7 +107,7 @@ def test_untag_target_returns_true_on_removal(session_factory):
     """untag_target() returns True if removed, False if no link existed."""
     s = session_factory()
     try:
-        ing = Ingredient(name="azúcar", unit="kg", stock_qty=3.0, purchase_price_gs=5200)
+        ing = make_ingredient(s, name="azúcar", unit="kg", stock_qty=3.0, purchase_price_gs=5200)
         s.add(ing)
         s.flush()
         tag = ensure_tag(s, "seco", TagKind.INGREDIENT.value)
@@ -125,7 +126,7 @@ def test_tags_for_target_returns_ordered_list(session_factory):
     """tags_for_target returns tags sorted by name."""
     s = session_factory()
     try:
-        prod = Product(name="Docena muffins", sale_price_gs=25000)
+        prod = make_product(s, name="Docena muffins", sale_price_gs=25000)
         s.add(prod)
         s.flush()
         t1 = ensure_tag(s, "premium", TagKind.PRODUCT.value)
@@ -148,8 +149,8 @@ def test_targets_with_tag_returns_ids(session_factory):
     """targets_with_tag returns all target_ids that have the given tag."""
     s = session_factory()
     try:
-        i1 = Ingredient(name="harina", unit="kg", stock_qty=5.0, purchase_price_gs=4500)
-        i2 = Ingredient(name="azúcar", unit="kg", stock_qty=3.0, purchase_price_gs=5200)
+        i1 = make_ingredient(s, name="harina", unit="kg", stock_qty=5.0, purchase_price_gs=4500)
+        i2 = make_ingredient(s, name="azúcar", unit="kg", stock_qty=3.0, purchase_price_gs=5200)
         s.add_all([i1, i2])
         s.flush()
         tag = ensure_tag(s, "seco", TagKind.INGREDIENT.value)
@@ -167,7 +168,7 @@ def test_filter_sales_by_date_range(session_factory):
     """filter_sales() respects start_date + end_date."""
     s = session_factory()
     try:
-        prod = Product(name="Muffin", sale_price_gs=2500)
+        prod = make_product(s, name="Muffin", sale_price_gs=2500)
         s.add(prod)
         s.flush()
 
@@ -193,8 +194,8 @@ def test_filter_sales_by_product_ids(session_factory):
     """filter_sales() respects product_ids filter."""
     s = session_factory()
     try:
-        p1 = Product(name="Docena muffins", sale_price_gs=25000)
-        p2 = Product(name="Cheesecake", sale_price_gs=35000)
+        p1 = make_product(s, name="Docena muffins", sale_price_gs=25000)
+        p2 = make_product(s, name="Cheesecake", sale_price_gs=35000)
         s.add_all([p1, p2])
         s.flush()
         s.add_all([
@@ -215,7 +216,7 @@ def test_filter_sales_by_only_voided(session_factory):
     """filter_sales() respects only_voided flag."""
     s = session_factory()
     try:
-        prod = Product(name="Muffin", sale_price_gs=2500)
+        prod = make_product(s, name="Muffin", sale_price_gs=2500)
         s.add(prod)
         s.flush()
         s.add_all([
@@ -241,7 +242,7 @@ def test_filter_sales_by_amount_range(session_factory):
     """filter_sales() respects min_amount_gs + max_amount_gs."""
     s = session_factory()
     try:
-        prod = Product(name="Muffin", sale_price_gs=2500)
+        prod = make_product(s, name="Muffin", sale_price_gs=2500)
         s.add(prod)
         s.flush()
         # One small (qty=1, total=2500), one big (qty=10, total=25000)
@@ -263,8 +264,8 @@ def test_filter_sales_by_tag(session_factory):
     """filter_sales() filters by product tag."""
     s = session_factory()
     try:
-        p_tagged = Product(name="Muffinito", sale_price_gs=2500)
-        p_other = Product(name="Croissant", sale_price_gs=3000)
+        p_tagged = make_product(s, name="Muffinito", sale_price_gs=2500)
+        p_other = make_product(s, name="Croissant", sale_price_gs=3000)
         s.add_all([p_tagged, p_other])
         s.flush()
         tag = ensure_tag(s, "popular", TagKind.PRODUCT.value)
@@ -304,9 +305,9 @@ def test_filter_inventory_by_stock_status(session_factory):
     try:
         recent = datetime.now(timezone.utc) - timedelta(days=1)
         # stock=6, min=10 → ratio=0.6 → 'bajo_min' (above critico threshold)
-        bajo = Ingredient(name="harina", unit="kg", stock_qty=6.0, min_stock_qty=10.0, purchase_price_gs=4500, last_consumed_at=recent)
+        bajo = make_ingredient(s, name="harina", unit="kg", stock_qty=6.0, min_stock_qty=10.0, purchase_price_gs=4500, last_consumed_at=recent)
         # stock=100, min=5 → ratio=20 → 'sobrestock'
-        high = Ingredient(name="azúcar", unit="kg", stock_qty=100.0, min_stock_qty=5.0, purchase_price_gs=5200, last_consumed_at=recent)
+        high = make_ingredient(s, name="azúcar", unit="kg", stock_qty=100.0, min_stock_qty=5.0, purchase_price_gs=5200, last_consumed_at=recent)
         s.add_all([bajo, high])
         s.commit()
 
@@ -323,8 +324,8 @@ def test_filter_inventory_by_cost_band(session_factory):
     """filter_inventory() respects min/max cost band."""
     s = session_factory()
     try:
-        cheap = Ingredient(name="sal", unit="kg", stock_qty=2.0, purchase_price_gs=1800)
-        expensive = Ingredient(name="almendra", unit="kg", stock_qty=1.0, purchase_price_gs=85000)
+        cheap = make_ingredient(s, name="sal", unit="kg", stock_qty=2.0, purchase_price_gs=1800)
+        expensive = make_ingredient(s, name="almendra", unit="kg", stock_qty=1.0, purchase_price_gs=85000)
         s.add_all([cheap, expensive])
         s.commit()
 
@@ -362,8 +363,8 @@ def test_filter_products_by_has_recipe(session_factory):
         rec = Recipe(name="Muffin", yield_qty=12.0, yield_unit="und")
         s.add(rec)
         s.flush()
-        with_recipe = Product(name="Docena muffins", sale_price_gs=25000, recipe_id=rec.id)
-        without_recipe = Product(name="Soda", sale_price_gs=5000)
+        with_recipe = make_product(s, name="Docena muffins", sale_price_gs=25000, recipe_id=rec.id)
+        without_recipe = make_product(s, name="Soda", sale_price_gs=5000)
         s.add_all([with_recipe, without_recipe])
         s.commit()
 

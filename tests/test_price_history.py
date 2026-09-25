@@ -14,6 +14,7 @@ restock form surface and the dashboard sparkline.
 """
 
 from __future__ import annotations
+from tests.factories import make_ingredient, make_product
 
 from datetime import datetime, timedelta, timezone
 
@@ -32,7 +33,7 @@ def test_record_price_event_inserts_row(session_factory):
     from app.rms.price_history import record_price_event
 
     with session_factory() as s:
-        ing = Ingredient(name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
+        ing = make_ingredient(s, name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
         s.add(ing)
         s.commit()
         ing_id = ing.id
@@ -94,7 +95,7 @@ def test_record_price_event_default_source_is_restock(session_factory):
     with session_factory() as s:
         from app.rms.models import Ingredient
 
-        ing = Ingredient(name="X", unit="kg", stock_qty=0.0)
+        ing = make_ingredient(s, name="X", unit="kg", stock_qty=0.0)
         s.add(ing)
         s.commit()
         record_price_event(s, ing.id, 1000)
@@ -110,7 +111,7 @@ def test_record_price_event_validates_source(session_factory):
     with session_factory() as s:
         from app.rms.models import Ingredient
 
-        ing = Ingredient(name="X", unit="kg", stock_qty=0.0)
+        ing = make_ingredient(s, name="X", unit="kg", stock_qty=0.0)
         s.add(ing)
         s.commit()
         with pytest.raises(ValueError, match="source"):
@@ -126,7 +127,7 @@ def test_price_history_returns_chronological_order(session_factory):
     from app.rms.price_history import price_history, record_price_event
 
     with session_factory() as s:
-        ing = Ingredient(name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
+        ing = make_ingredient(s, name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
         s.add(ing)
         s.commit()
         ing_id = ing.id
@@ -155,7 +156,7 @@ def test_price_history_filters_by_days(session_factory):
     from app.rms.price_history import price_history, record_price_event
 
     with session_factory() as s:
-        ing = Ingredient(name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
+        ing = make_ingredient(s, name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
         s.add(ing)
         s.commit()
         ing_id = ing.id
@@ -187,7 +188,7 @@ def test_price_history_empty_when_no_events(session_factory):
     from app.rms.price_history import price_history
 
     with session_factory() as s:
-        ing = Ingredient(name="Harina", unit="kg", stock_qty=0.0)
+        ing = make_ingredient(s, name="Harina", unit="kg", stock_qty=0.0)
         s.add(ing)
         s.commit()
         history = price_history(s, ing.id, days=90)
@@ -203,7 +204,7 @@ def test_price_stats_current_is_latest_event(session_factory):
     from app.rms.price_history import price_stats, record_price_event
 
     with session_factory() as s:
-        ing = Ingredient(name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
+        ing = make_ingredient(s, name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
         s.add(ing)
         s.commit()
         ing_id = ing.id
@@ -226,7 +227,7 @@ def test_price_stats_min_max_avg(session_factory):
     from app.rms.price_history import price_stats, record_price_event
 
     with session_factory() as s:
-        ing = Ingredient(name="Harina", unit="kg", stock_qty=5.0)
+        ing = make_ingredient(s, name="Harina", unit="kg", stock_qty=5.0)
         s.add(ing)
         s.commit()
         ing_id = ing.id
@@ -248,7 +249,7 @@ def test_price_stats_empty_window(session_factory):
     from app.rms.price_history import price_stats
 
     with session_factory() as s:
-        ing = Ingredient(name="Harina", unit="kg", stock_qty=0.0)
+        ing = make_ingredient(s, name="Harina", unit="kg", stock_qty=0.0)
         s.add(ing)
         s.commit()
         stats = price_stats(s, ing.id, days=90)
@@ -268,7 +269,7 @@ def test_inventory_create_writes_manual_price_event(session_factory):
     with session_factory() as s:
         from app.rms.models import Ingredient
 
-        ing = Ingredient(name="Harina", unit="kg", stock_qty=5.0)
+        ing = make_ingredient(s, name="Harina", unit="kg", stock_qty=5.0)
         s.add(ing)
         s.commit()
         ing_id = ing.id
