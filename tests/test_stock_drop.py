@@ -13,7 +13,7 @@ Covers:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def _seed_simple(session_factory):
@@ -146,7 +146,7 @@ def test_apply_sale_sub_recipe_walks_tree(session_factory):
     flour_id, product_id = _seed_sub_recipe(session_factory)
 
     with session_factory() as s:
-        result = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now())
+        result = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now(timezone.utc))
 
     assert result.has_recipe is True
     assert len(result.stock_moves) == 1
@@ -171,7 +171,7 @@ def test_apply_sale_no_recipe_saves_without_stock_moves(session_factory):
 
     with session_factory() as s:
         product_id = 1
-        result = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now())
+        result = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now(timezone.utc))
 
     assert result.has_recipe is False
     assert result.stock_moves == []
@@ -199,7 +199,7 @@ def test_apply_sale_null_yield_raises(session_factory):
 
     with pytest.raises(RecipeWithoutYield):
         with session_factory() as s:
-            apply_sale(s, 1, qty=1.0, sold_at=datetime.now())
+            apply_sale(s, 1, qty=1.0, sold_at=datetime.now(timezone.utc))
 
 
 def test_apply_sale_zero_qty_raises(session_factory):
@@ -212,7 +212,7 @@ def test_apply_sale_zero_qty_raises(session_factory):
 
     with pytest.raises(ValueError, match="qty must be > 0"):
         with session_factory() as s:
-            apply_sale(s, 1, qty=0, sold_at=datetime.now())
+            apply_sale(s, 1, qty=0, sold_at=datetime.now(timezone.utc))
 
 
 def test_apply_sale_negative_qty_raises(session_factory):
@@ -225,7 +225,7 @@ def test_apply_sale_negative_qty_raises(session_factory):
 
     with pytest.raises(ValueError, match="qty must be > 0"):
         with session_factory() as s:
-            apply_sale(s, 1, qty=-1.0, sold_at=datetime.now())
+            apply_sale(s, 1, qty=-1.0, sold_at=datetime.now(timezone.utc))
 
 
 def test_apply_sale_unknown_product_raises(session_factory):
@@ -236,4 +236,4 @@ def test_apply_sale_unknown_product_raises(session_factory):
 
     with pytest.raises(ValueError, match="Product .* not found"):
         with session_factory() as s:
-            apply_sale(s, 99999, qty=1.0, sold_at=datetime.now())
+            apply_sale(s, 99999, qty=1.0, sold_at=datetime.now(timezone.utc))

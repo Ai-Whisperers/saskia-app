@@ -110,3 +110,20 @@ def test_date_preset_days_bounds(client):
 def test_payment_method_fee_bounds(client):
     r = client.post("/api/payment-methods", json={"code": "x", "label": "x", "fee_pct": 150})
     assert r.status_code in (400, 422)
+
+
+def test_iva_rates_endpoint_loads(client):
+    r = client.get("/api/iva-rates")
+    assert r.status_code == 200, f"{r.status_code} {r.text[:200]}"
+
+
+def test_stock_status_config_endpoints(client):
+    """GET list + update/delete on a config row (id from the list)."""
+    r = client.get("/api/stock-status-config")
+    assert r.status_code == 200, f"{r.status_code} {r.text[:200]}"
+    items = r.json() if isinstance(r.json(), list) else r.json().get("items", [])
+    if not items:
+        pytest.skip("no stock-status configs seeded")
+    cid = items[0]["id"]
+    r2 = client.post(f"/api/stock-status-config/{cid}/update", json={})
+    assert r2.status_code == 200, f"{r2.status_code} {r2.text[:200]}"

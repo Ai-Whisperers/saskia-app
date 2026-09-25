@@ -22,7 +22,7 @@ inventory.py/products.py/recipes.py were at ~50% coverage.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -540,7 +540,7 @@ def test_sale_create_success(client, session_factory):
         data={
             "product_id": str(product_id),
             "qty": "1.5",
-            "sold_at": datetime.now().strftime("%Y-%m-%dT%H:%M"),
+            "sold_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M"),
             "notes": "",
         },
         follow_redirects=False,
@@ -648,11 +648,11 @@ def test_footer_renders_year_not_function_repr(client):
     in the template printed `<function _now_year at 0x...>` because
     Jinja2 doesn't auto-call globals. Fixed by using `{{ now_year() }}`.
     """
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     r = client.get("/")
     assert r.status_code == 200
-    current_year = str(datetime.now().year)
+    current_year = str(datetime.now(timezone.utc).year)
     assert current_year in r.text
     # The function repr must NOT appear
     assert "<function _now_year" not in r.text

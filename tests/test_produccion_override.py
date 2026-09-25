@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import pytest
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from app.rms.models import Recipe, ProductionCompletion
 
 
@@ -25,7 +25,7 @@ def test_produccion_override_updates_completion(authed_client, session_factory):
             product_id=product.id,
             for_date=date.today(),
             completed_qty=5.0,
-            recorded_at=datetime.now(),
+            recorded_at=datetime.now(timezone.utc),
         )
         s.add(completion)
         s.commit()

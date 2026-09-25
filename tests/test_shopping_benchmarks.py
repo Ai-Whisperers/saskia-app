@@ -10,7 +10,21 @@ from app.rms.main import app
 @pytest.fixture(scope="module")
 def dump():
     """Load dump.json for benchmark/import data shape checks."""
-    with open("/tmp/herbus_drive/dump.json") as f:
+    # I2: build the fixture on demand instead of hard-failing on a
+    # machine-specific /tmp path (was: FileNotFoundError on every fresh CI box).
+    import pathlib as _pl
+
+    dump = _pl.Path("/tmp/herbus_drive/dump.json")
+    if not dump.exists():
+        builder = _pl.Path(__file__).parent / "fixtures" / "build_herbus_drive_fixture.py"
+        if not builder.exists():
+            pytest.skip("herbus drive fixture builder unavailable")
+        subprocess_run = __import__("subprocess").run(
+            ["uv", "run", "python", str(builder)], capture_output=True
+        )
+        if subprocess_run.returncode != 0 or not dump.exists():
+            pytest.skip(f"fixture build failed: {subprocess_run.stderr[-200:]}")
+    with open(dump) as f:
         return json.load(f)
 
 

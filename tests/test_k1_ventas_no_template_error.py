@@ -14,7 +14,7 @@ Each must return 200 with no TemplateRuntimeError.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import text

@@ -68,11 +68,11 @@ def test_record_price_event_updates_ingredient(session_factory):
         ing_id = ing.id
         original_updated_at = ing.purchase_price_updated_at
 
-        # Sleep briefly so the timestamp moves forward (datetime resolution).
-        import time
+        from datetime import timedelta
 
-        time.sleep(0.01)
-        event = record_price_event(s, ing_id, 7500, source="manual")
+        base = datetime.now(timezone.utc)
+        record_price_event(s, ing_id, 7000, source="restock", at=base - timedelta(seconds=3))
+        event = record_price_event(s, ing_id, 7500, source="manual", at=base)
         s.commit()
 
         ing_fresh = s.get(Ingredient, ing_id)
@@ -131,16 +131,14 @@ def test_price_history_returns_chronological_order(session_factory):
         s.commit()
         ing_id = ing.id
 
-        record_price_event(s, ing_id, 5000, source="manual")
-        s.commit()
-        # Force timestamp ordering by sleeping
-        import time
+        from datetime import timedelta
 
-        time.sleep(0.01)
-        record_price_event(s, ing_id, 5500, source="restock")
+        base = datetime.now(timezone.utc)
+        record_price_event(s, ing_id, 5000, source="manual", at=base - timedelta(seconds=4))
         s.commit()
-        time.sleep(0.01)
-        record_price_event(s, ing_id, 7000, source="excel_import")
+        record_price_event(s, ing_id, 5500, source="restock", at=base - timedelta(seconds=2))
+        s.commit()
+        record_price_event(s, ing_id, 7000, source="excel_import", at=base)
         s.commit()
 
         history = price_history(s, ing_id, days=90)

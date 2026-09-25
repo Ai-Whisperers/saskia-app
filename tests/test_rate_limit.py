@@ -181,7 +181,7 @@ def test_login_returns_429_after_failures(session_factory, monkeypatch):
     wipes app.state between tests) and a unique IP. The in-memory DB is
     wiped between tests via tmp_db_path so audit rows do not leak.
     """
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     from app.rms.audit import record as audit_record
     from app.rms.models import AuditLog, User
@@ -227,7 +227,7 @@ def test_login_submit_returns_429_when_limiter_blocks(client, session_factory, m
     This is the thin glue test that verifies the rate-limiter integrates with
     the login route. Uses fresh seed + unique IP for isolation.
     """
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     from app.rms.audit import record as audit_record
     from app.rms.models import AuditLog, User

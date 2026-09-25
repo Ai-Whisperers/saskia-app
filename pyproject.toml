@@ -61,8 +61,8 @@ packages = ["app"]
 
 # Pytest config
 [tool.pytest.ini_options]
+addopts = "-v --tb=short -p no:randomly"
 testpaths = ["tests"]
-addopts = "-v --tb=short"
 pythonpath = ["."]
 markers = [
     "pg: real Postgres tests (testcontainers); skipped locally without Docker, run in CI",
@@ -73,6 +73,8 @@ markers = [
     "security: security tests (run on every commit)",
     "auth: auth tests (run on every commit)",
     "manual: tests requiring human verification or long setup; skipped in default CI",
+    "e2e: end-to-end scenario tests driving real routes (tests/e2e/)",
+    "migration: schema-migration replay/archaeology tests",
     "slow: tests that take >1s; useful for `--ignore-glob`",
 ]
 filterwarnings = [

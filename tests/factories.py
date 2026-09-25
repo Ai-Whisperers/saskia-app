@@ -25,14 +25,22 @@ from typing import Any
 
 from app.rms.models import (
     Customer,
+    DeliveryZone,
     Ingredient,
+    IngredientPriceEvent,
+    IngredientVariant,
     Pedido,
     PedidoLine,
     Product,
     Recipe,
     RecipeLine,
     Sale,
+    StockMovement,
     Supplier,
+    Tag,
+    TagLink,
+    User,
+    WasteLog,
 )
 
 
@@ -42,6 +50,13 @@ def _uniq(prefix: str) -> str:
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def gs(n) -> "Decimal":
+    """Money helper (A4): Decimal-safe Gs. value per AGENTS.md money rules."""
+    from decimal import Decimal
+
+    return Decimal(str(n))
 
 
 # ---------------------------------------------------------------------------
@@ -83,10 +98,21 @@ def make_ingredient(
     stock_qty: float = 10.0,
     min_stock_qty: float = 1.0,
     purchase_price_gs: int = 3000,
+    traits: list[str] | None = None,
     **kw,
 ) -> Ingredient:
     """Defaults mirror quick_seed's 'harina QA'. **kw passes any other column
-    (allergens='gluten,lacteos', dietary_tags='sin tacc', shelf_life_days=30 …)."""
+    (allergens='gluten,lacteos', dietary_tags='sin tacc', shelf_life_days=30 …).
+    traits: named presets (low_stock, near_expiry, allergen_heavy, packaging)."""
+    for t in traits or []:
+        if t not in _ING_TRAITS:
+            raise ValueError(f"unknown trait {t!r}; known: {sorted(_ING_TRAITS)}")
+        for tk, tv in _ING_TRAITS[t].items():
+            kw[tk] = tv  # trait overrides default param
+    if "stock_qty" in kw:
+        stock_qty = kw.pop("stock_qty")
+    if "min_stock_qty" in kw:
+        min_stock_qty = kw.pop("min_stock_qty")
     ing = Ingredient(
         name=name or _uniq("Ingrediente"),
         unit=unit,
@@ -98,6 +124,109 @@ def make_ingredient(
     s.add(ing)
     s.flush()
     return ing
+
+
+_ING_TRAITS: dict = {
+    "low_stock": {"stock_qty": 0.5, "min_stock_qty": 5.0},
+    "near_expiry": {"shelf_life_days": 1},
+    "allergen_heavy": {"allergens": "gluten,lacteos,huevos"},
+    "packaging": {"is_packaging": True, "unit": "und"},
+}
+
+
+def make_ingredient_variant(s, ingredient: Ingredient, *, price_gs: int = 3500,
+                            package_size: float = 1.0, package_unit: str = "kg",
+                            preferred: bool = True, **kw) -> IngredientVariant:
+    # NOTE: IngredientVariant has no `label` column — package identity is
+    # (package_size, package_unit). `preferred` exists per variants.py.
+    v = IngredientVariant(
+        ingredient_id=ingredient.id,
+        package_size=package_size,
+        package_unit=package_unit,
+        purchase_price_gs=price_gs,
+        preferred=preferred,
+        **kw,
+    )
+    s.add(v)
+    s.flush()
+    return v
+
+
+def make_price_event(s, ingredient: Ingredient, *, price_gs: int = 3000,
+                     at: datetime | None = None, source: str = "manual") -> IngredientPriceEvent:
+    ev = IngredientPriceEvent(
+        ingredient_id=ingredient.id,
+        price_gs=price_gs,
+        recorded_at=at or _now(),
+        source=source,
+    )
+    s.add(ev)
+    s.flush()
+    return ev
+
+
+def make_user(s, *, username: str | None = None, role: str = "operator",
+              is_active: bool = True, password_hash: str | None = None, **kw) -> User:
+    """Local-backend user (G3 groundwork: role param ready for authz matrix).
+    password_hash None = unusable-by-password probe account."""
+    from datetime import datetime, timezone as _tz
+    u = User(username=username or _uniq("user"), role=role, is_active=is_active,
+             password_hash=password_hash or "!",
+             created_at=kw.pop("created_at", None) or datetime.now(_tz.utc), **kw)
+    s.add(u)
+    s.flush()
+    return u
+
+
+def make_delivery_zone(s, *, name: str | None = None, code: str | None = None, **kw) -> DeliveryZone:
+    z = DeliveryZone(code=code or _uuid.uuid4().hex[:8].upper(),
+                     name=name or _uniq("Zona"), **kw)
+    s.add(z)
+    s.flush()
+    return z
+
+
+def make_waste_log(s, *, ingredient: Ingredient, qty: float = 0.5,
+                   reason: str = "vencida", at: datetime | None = None, **kw) -> WasteLog:
+    w = WasteLog(ingredient_id=ingredient.id, qty=qty, reason=reason,
+                 recorded_at=at or _now(), **kw)
+    s.add(w)
+    s.flush()
+    return w
+
+
+def make_stock_move(s, *, ingredient: Ingredient, delta: float,
+                    movement_type: str = "adjustment", at: datetime | None = None,
+                    **kw) -> StockMovement:
+    m = StockMovement(ingredient_id=ingredient.id, movement_type=movement_type,
+                      qty=delta, recorded_at=at or _now(), **kw)
+    s.add(m)
+    s.flush()
+    return m
+
+
+def make_tag(s, *, name: str | None = None, kind: str = "dietary", **kw) -> Tag:
+    t = Tag(name=name or _uniq("Tag"), kind=kind, **kw)
+    s.add(t)
+    s.flush()
+    return t
+
+
+def make_tag_link(s, *, tag: Tag, ingredient: Ingredient | None = None,
+                  recipe: Recipe | None = None, product: Product | None = None, **kw) -> TagLink:
+    # TagLink is polymorphic: (target_kind, target_id) — not per-table FKs.
+    if ingredient is not None:
+        kind, tid = "ingredient", ingredient.id
+    elif recipe is not None:
+        kind, tid = "recipe", recipe.id
+    elif product is not None:
+        kind, tid = "product", product.id
+    else:
+        raise ValueError("pass one of ingredient=/recipe=/product=")
+    ln = TagLink(tag_id=tag.id, target_kind=kind, target_id=tid, **kw)
+    s.add(ln)
+    s.flush()
+    return ln
 
 
 # ---------------------------------------------------------------------------
@@ -167,9 +296,12 @@ def make_product(
     *,
     name: str | None = None,
     recipe: Recipe | None = None,
+    recipe_id: int | None = None,
     sale_price_gs: int = 25000,
     **kw,
 ) -> Product:
+    if recipe is None and recipe_id is not None:
+        recipe = s.get(Recipe, recipe_id)
     p = Product(
         name=name or _uniq("Producto"),
         sale_price_gs=sale_price_gs,
@@ -179,6 +311,28 @@ def make_product(
     s.add(p)
     s.flush()
     return p
+
+
+# ---------------------------------------------------------------------------
+# Composition sugar (A2): the 3-step preamble, one call
+# ---------------------------------------------------------------------------
+
+
+def make_catalog(s, *, price_gs: int = 25000, stock_qty: float = 100.0,
+                 line_qty: float = 0.3, ingredient_kwargs: dict | None = None) -> dict:
+    """ingredient + recipe (1 line) + product wired together.
+
+    Returns {"ingredient", "recipe", "product"}.
+    """
+    ing = make_ingredient(s, stock_qty=stock_qty, **(ingredient_kwargs or {}))
+    rec = make_recipe(s, lines=[ing_line(ing, qty=line_qty)])
+    prod = make_product(s, recipe=rec, sale_price_gs=price_gs)
+    return {"ingredient": ing, "recipe": rec, "product": prod}
+
+
+def make_sellable(s, *, price_gs: int = 25000, stock_qty: float = 100.0) -> Product:
+    """A product backed by a stock-backed recipe — the POS-ready preamble."""
+    return make_catalog(s, price_gs=price_gs, stock_qty=stock_qty)["product"]
 
 
 # ---------------------------------------------------------------------------

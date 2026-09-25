@@ -10,7 +10,7 @@ Tests cover the happy path of each route + key edge cases.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -68,7 +68,7 @@ def test_dashboard_with_sale(client, session_factory):
         data={
             "product_id": "1",
             "qty": "2",
-            "sold_at": datetime.now().strftime("%Y-%m-%dT%H:%M"),
+            "sold_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M"),
             "notes": "",
         },
         follow_redirects=False,

@@ -165,14 +165,19 @@ def merma_register(
     if is_write_rate_limited(session, request, max_per_minute=10):
         raise HTTPException(status_code=429, detail="Demasiadas acciones en 1 minuto. Esperá un momento.")
 
-    record_waste(
-        session,
-        ingredient_id=ingredient_id,
-        qty=qty,
-        qty_unit=qty_unit or None,
-        reason=reason_enum,
-        notes=notes or None,
-    )
+    try:
+        record_waste(
+            session,
+            ingredient_id=ingredient_id,
+            qty=qty,
+            qty_unit=qty_unit or None,
+            reason=reason_enum,
+            notes=notes or None,
+        )
+    except ValueError as exc:
+        # Unknown ingredient FK etc. — 404, not a 500 crash (found by the
+        # e2e negative-path matrix).
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     # Audit + commit
     from app.auth import current_user_id

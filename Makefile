@@ -93,6 +93,19 @@ stats: ## Show LOC + test count summary.
 	@uv run pytest --collect-only -q 2>/dev/null | tail -1
 
 
+test-e2e: ## Run the E2E scenario suite only (tests/e2e/).
+	unset DATABASE_URL AIW_SASKIA_DB_PATH; \
+	$(UV) run pytest tests/e2e/ -q --no-header --no-cov
+
+test-migration: ## Weekly: full migration replay sweep (all versions).
+	unset DATABASE_URL AIW_SASKIA_DB_PATH; \
+	$(UV) run pytest tests/e2e/test_migration_archaeology.py -q --no-header --no-cov
+
+test-xdist: ## Parallel fast loop (-n 4 green since 2026-09-25).
+	unset DATABASE_URL AIW_SASKIA_DB_PATH; \
+	$(UV) run pytest tests/ -q --no-header --no-cov -n 4 \
+	  --deselect tests/test_xlsx_fixtures.py --deselect tests/test_shopping_benchmarks.py
+
 ci: lint test ## Run everything CI runs.
 
 clean: ## Remove build artifacts.

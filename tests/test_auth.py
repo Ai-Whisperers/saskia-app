@@ -68,7 +68,7 @@ def test_session_secret_dev_fallback(monkeypatch):
 
 def test_user_model_set_and_check_password(session_factory):
     """User.set_password + check_password works through the SQLAlchemy session."""
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     from app.rms.models import User
 
@@ -77,7 +77,7 @@ def test_user_model_set_and_check_password(session_factory):
             username="testuser",
             password_hash="",  # will be set
             is_active=True,
-            created_at=datetime.now().isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
         )
         u.set_password("my-password")
         assert u.password_hash.startswith("$2")
@@ -93,7 +93,7 @@ def test_user_model_set_and_check_password(session_factory):
 
 def test_user_model_check_password_empty_hash(session_factory):
     """User.check_password returns False when password_hash is empty."""
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     from app.rms.models import User
 
@@ -102,7 +102,7 @@ def test_user_model_check_password_empty_hash(session_factory):
             username="emptyhash",
             password_hash="",
             is_active=True,
-            created_at=datetime.now().isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
         )
         s.add(u)
         s.commit()

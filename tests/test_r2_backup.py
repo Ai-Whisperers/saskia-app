@@ -22,7 +22,7 @@ Tests cover:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import pytest
@@ -239,8 +239,8 @@ def test_run_backup_skips_when_recent(session_factory, tmp_path: Path, monkeypat
         s.add(
             AppMeta(
                 key=APP_META_LAST_BACKUP,
-                value=(datetime.now() - timedelta(hours=1)).isoformat(),
-                updated_at=datetime.now().isoformat(),
+                value=(datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
+                updated_at=datetime.now(timezone.utc).isoformat(),
             )
         )
         s.commit()
@@ -274,8 +274,8 @@ def test_run_backup_executes_when_old(session_factory, tmp_path: Path):
         s.add(
             AppMeta(
                 key=APP_META_LAST_BACKUP,
-                value=(datetime.now() - timedelta(hours=25)).isoformat(),
-                updated_at=datetime.now().isoformat(),
+                value=(datetime.now(timezone.utc) - timedelta(hours=25)).isoformat(),
+                updated_at=datetime.now(timezone.utc).isoformat(),
             )
         )
         s.commit()

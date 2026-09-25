@@ -43,6 +43,7 @@ def record_price_event(
     ingredient_id: int,
     price_gs: int,
     source: str = "restock",
+    at: datetime | None = None,
 ) -> IngredientPriceEvent:
     """Append a purchase-price event and update the ingredient's current price.
 
@@ -70,7 +71,7 @@ def record_price_event(
     if ingredient is None:
         raise ValueError(f"ingredient {ingredient_id} not found")
 
-    now_utc = datetime.now(timezone.utc)
+    now_utc = at or datetime.now(timezone.utc)
     event = IngredientPriceEvent(
         ingredient_id=ingredient_id,
         price_gs=price_gs,

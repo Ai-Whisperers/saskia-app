@@ -152,3 +152,16 @@ def test_supplier_ingredient_linkage_shows_on_page(client, session_factory):
 
     r = client.get(f"/suppliers/{sid}/ordenes")
     assert r.status_code == 200
+
+
+def test_proveedores_spanish_alias_redirects(client):
+    """/proveedores → /suppliers (Spanish nav alias)."""
+    r = client.get("/proveedores", follow_redirects=False)
+    assert r.status_code == 303
+    assert "/suppliers" in (r.headers.get("location") or "")
+
+
+def test_riesgos_page_loads(client):
+    """/riesgos — risk dashboard page."""
+    r = client.get("/riesgos", follow_redirects=True)
+    assert r.status_code == 200

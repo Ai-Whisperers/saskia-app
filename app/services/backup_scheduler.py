@@ -88,7 +88,13 @@ def _last_backup_at_meta(session: Session) -> datetime | None:
 def _needs_backup(last: datetime | None, threshold_hours: int) -> bool:
     if last is None:
         return True
-    return datetime.now() - last > timedelta(hours=threshold_hours)
+    from datetime import timezone as _tz
+
+    now = datetime.now(_tz.utc)
+    if last.tzinfo is None:
+        # last was stored naive (legacy rows) — assume UTC
+        last = last.replace(tzinfo=_tz.utc)
+    return now - last > timedelta(hours=threshold_hours)
 
 
 def _prune_old_local_backups(folder: Path, keep_last_n: int) -> int:

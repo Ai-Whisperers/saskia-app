@@ -12,7 +12,7 @@ Covers:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def _seed(session_factory):
@@ -53,7 +53,7 @@ def test_void_sale_double_void_message_in_spanish(session_factory):
 
     _, product_id = _seed(session_factory)
     with session_factory() as s:
-        result = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now())
+        result = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now(timezone.utc))
         sale_id = result.sale_id
 
     with session_factory() as s:
@@ -72,7 +72,7 @@ def test_void_sale_preserves_sale_row(session_factory):
 
     _, product_id = _seed(session_factory)
     with session_factory() as s:
-        result = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now())
+        result = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now(timezone.utc))
         sale_id = result.sale_id
 
     with session_factory() as s:
@@ -91,7 +91,7 @@ def test_void_sale_restored_moves_positive_qty(session_factory):
 
     _, product_id = _seed(session_factory)
     with session_factory() as s:
-        result = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now())
+        result = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now(timezone.utc))
         sale_id = result.sale_id
 
     with session_factory() as s:
@@ -113,7 +113,7 @@ def test_void_sale_no_moves_is_noop(session_factory):
         s.commit()
 
     with session_factory() as s:
-        result = apply_sale(s, 1, qty=1.0, sold_at=datetime.now())
+        result = apply_sale(s, 1, qty=1.0, sold_at=datetime.now(timezone.utc))
         sale_id = result.sale_id
 
     with session_factory() as s:
@@ -135,13 +135,13 @@ def test_void_sale_restores_to_exact_original_qty(session_factory):
 
     # Cycle 1
     with session_factory() as s:
-        r1 = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now())
+        r1 = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now(timezone.utc))
     with session_factory() as s:
         void_sale(s, r1.sale_id)
 
     # Cycle 2
     with session_factory() as s:
-        r2 = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now())
+        r2 = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now(timezone.utc))
     with session_factory() as s:
         void_sale(s, r2.sale_id)
 

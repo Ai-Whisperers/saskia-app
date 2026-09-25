@@ -11,7 +11,7 @@ Covers:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def _seed(session_factory):
@@ -100,7 +100,7 @@ def test_void_sale_sets_voided_at(session_factory):
 
     _, _, product_id = _seed(session_factory)
     with session_factory() as s:
-        result = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now())
+        result = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now(timezone.utc))
         sale_id = result.sale_id
 
     with session_factory() as s:
@@ -123,7 +123,7 @@ def test_void_sale_double_void_raises(session_factory):
 
     _, _, product_id = _seed(session_factory)
     with session_factory() as s:
-        result = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now())
+        result = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now(timezone.utc))
         sale_id = result.sale_id
 
     with session_factory() as s:
@@ -190,7 +190,7 @@ def test_void_sale_sub_recipe_restores(session_factory):
 
     # Apply sale
     with session_factory() as s:
-        result = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now())
+        result = apply_sale(s, product_id, qty=1.0, sold_at=datetime.now(timezone.utc))
         sale_id = result.sale_id
 
     # Stock dropped

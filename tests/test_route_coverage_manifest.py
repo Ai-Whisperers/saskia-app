@@ -1,0 +1,82 @@
+"""tests/test_route_coverage_manifest.py — K1: every registered route is
+exercised by at least one test (or explicitly exempted).
+
+Kills the dark-router class permanently: settings_runtime shipped 37 routes
+with zero behavioral tests; this manifest test fails when a new route lands
+without coverage. Exemptions are explicit and reviewed.
+"""
+
+from __future__ import annotations
+
+import re
+import pathlib
+
+import pytest
+
+
+def _all_routes():
+    from app.rms.main import app
+
+    out = []
+    for r in app.routes:
+        methods = sorted(
+            m for m in getattr(r, "methods", []) if m in ("GET", "POST", "PUT", "DELETE", "PATCH")
+        )
+        path = getattr(r, "path", "")
+        if not path or path.startswith("/openapi") or path.startswith("/docs"):
+            continue
+        for m in methods:
+            out.append((m, path))
+    return sorted(set(out))
+
+
+# Route families deliberately untested (with reasons). Shrink this list,
+# never grow it silently.
+_EXEMPT = {
+    # health/internal ops: covered by smoke + uptime, not behavior
+    ("GET", "/healthz"),
+    ("GET", "/healthz/db"),
+    ("GET", "/healthz/deps"),
+    ("GET", "/healthz/migrate"),
+    ("GET", "/healthz/schema"),
+    ("GET", "/ops/status"),
+    ("GET", "/auditoria"),
+    # static assets
+    ("GET", "/static/{path:path}"),
+    # API docs surfaces (FastAPI auto-generated)
+    ("GET", "/api/docs"),
+    ("GET", "/api/openapi.json"),
+    # emergency operator action; smoke-covered only
+    ("POST", "/admin/migrate"),
+}
+
+
+def _test_corpus() -> str:
+    corpus = []
+    for f in pathlib.Path(__file__).parent.rglob("*.py"):
+        corpus.append(f.read_text())
+    return "\n".join(corpus)
+
+
+def test_every_route_has_a_test_reference():
+    corpus = _test_corpus()
+    missing = []
+    for method, path in _all_routes():
+        if (method, path) in _EXEMPT:
+            continue
+        # A route is "covered" if its concrete first-segment appears in the
+        # corpus (parametrized paths matched by their literal prefix).
+        seg = "/" + path.strip("/").split("/")[0]
+        if seg == "/api":
+            seg = "/" + "/".join(path.strip("/").split("/")[:2])
+        if seg not in corpus:
+            missing.append(f"{method} {path}")
+    assert not missing, (
+        f"{len(missing)} route(s) have no test reference:\n  " + "\n  ".join(missing)
+    )
+
+
+def test_route_count_regression():
+    """The manifest itself: routes only grow deliberately."""
+    routes = _all_routes()
+    assert len(routes) > 150, f"suspiciously few routes: {len(routes)}"

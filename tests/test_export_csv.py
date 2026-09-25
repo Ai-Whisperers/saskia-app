@@ -16,7 +16,7 @@ Tests cover:
 from __future__ import annotations
 
 import csv
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -37,7 +37,7 @@ def sample_session(session_factory):
 
     session = session_factory()
     # Use a unique name per test to avoid UNIQUE collisions
-    suffix = datetime.now().strftime("%H%M%S%f")
+    suffix = datetime.now(timezone.utc).strftime("%H%M%S%f")
 
     ingredient = Ingredient(
         name=f"Harina-{suffix}",

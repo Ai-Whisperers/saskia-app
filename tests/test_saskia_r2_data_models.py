@@ -463,7 +463,7 @@ class TestForkWeek:
 
     def test_fork_endpoint_returns_empty_when_no_overrides(self, client):
         """Empty week → 303 with fork=empty query param."""
-        from datetime import datetime as _dt
+        from datetime import datetime, timezone as _dt
         # Use a date that has no overrides (week of 2026-06-15, but at least
         # one Monday — use a known one far in the future to avoid noise).
         future_monday = date(2030, 1, 7)

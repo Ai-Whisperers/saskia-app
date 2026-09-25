@@ -12,7 +12,7 @@ This test guards against regressions:
 from __future__ import annotations
 
 import pytest
-from datetime import datetime, date
+from datetime import datetime, timezone, date
 from app.rms.models import Pedido
 
 
