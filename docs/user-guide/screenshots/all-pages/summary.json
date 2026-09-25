@@ -303,64 +303,32 @@
     "file": "export-ventas.csv",
     "status": "ok (518 bytes)"
   },
-  "/ventas/export.csv": {
-    "file": "guia-seccion.png",
-    "status": "ok (518 bytes)"
-  },
   "EXPORT /productos/export.csv": {
     "file": "export-productos.csv",
-    "status": "ok (168 bytes)"
-  },
-  "/productos/export.csv": {
-    "file": "guia-seccion.png",
     "status": "ok (168 bytes)"
   },
   "EXPORT /inventario/export.csv": {
     "file": "export-inventario.csv",
     "status": "ok (222 bytes)"
   },
-  "/inventario/export.csv": {
-    "file": "guia-seccion.png",
-    "status": "ok (222 bytes)"
-  },
   "EXPORT /pedidos/export-csv?status_filter=todos": {
     "file": "export-pedidos.csv",
-    "status": "ok (296 bytes)"
-  },
-  "/pedidos/export-csv?status_filter=todos": {
-    "file": "guia-seccion.png",
     "status": "ok (296 bytes)"
   },
   "EXPORT /reportes/precios/csv": {
     "file": "export-reportes-precios.csv",
     "status": "ok (54 bytes)"
   },
-  "/reportes/precios/csv": {
-    "file": "guia-seccion.png",
-    "status": "ok (54 bytes)"
-  },
   "EXPORT /excel/exportar": {
     "file": "export-excel.xlsx",
-    "status": "ok (9549 bytes)"
-  },
-  "/excel/exportar": {
-    "file": "guia-seccion.png",
-    "status": "ok (9549 bytes)"
+    "status": "ok (9550 bytes)"
   },
   "EXPORT /reportes/diario/pdf": {
     "file": "export-reportes-diario.pdf",
     "status": "ok (1953 bytes)"
   },
-  "/reportes/diario/pdf": {
-    "file": "guia-seccion.png",
-    "status": "ok (1953 bytes)"
-  },
   "EXPORT /reportes/iva/pdf": {
     "file": "export-reportes-iva.pdf",
-    "status": "ok (2193 bytes)"
-  },
-  "/reportes/iva/pdf": {
-    "file": "guia-seccion.png",
     "status": "ok (2193 bytes)"
   }
 }

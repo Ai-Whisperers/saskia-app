@@ -248,8 +248,6 @@ def main():
                 status = f"ERROR: {exc}"[:80]
             summary[f"EXPORT {path}"] = {"file": fname, "status": status}
             print(f"  {path:42s} {status}")
-            summary[path] = {"file": f"{name}.png", "status": status}
-            print(f"  {path:42s} {status}")
 
         ctx.close()
         browser.close()
