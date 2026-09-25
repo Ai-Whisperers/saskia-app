@@ -93,6 +93,9 @@ stats: ## Show LOC + test count summary.
 	@uv run pytest --collect-only -q 2>/dev/null | tail -1
 
 
+test-browser: ## Real-browser (Playwright/Chromium) front-end tests.
+	$(UV) run pytest tests/browser -m browser -q
+
 test-e2e: ## Run the E2E scenario suite only (tests/e2e/).
 	unset DATABASE_URL AIW_SASKIA_DB_PATH; \
 	$(UV) run pytest tests/e2e/ -q --no-header --no-cov

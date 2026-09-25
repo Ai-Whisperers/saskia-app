@@ -65,6 +65,7 @@ addopts = "-v --tb=short -p no:randomly"
 testpaths = ["tests"]
 pythonpath = ["."]
 markers = [
+    "browser: runs in a real headless browser via Playwright",
     "pg: real Postgres tests (testcontainers); skipped locally without Docker, run in CI",
     "smoke: end-to-end smoke tests (run on every commit)",
     "crud: CRUD roundtrip tests (run on every commit)",
