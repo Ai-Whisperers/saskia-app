@@ -172,7 +172,7 @@
     "status": "ok"
   },
   "/suppliers": {
-    "file": "suppliers.png",
+    "file": "suppliers-dup.png",
     "status": "ok"
   },
   "/proveedores": {
@@ -238,5 +238,129 @@
   "/login": {
     "file": "login.png",
     "status": "ok"
+  },
+  "/ventas/buscar": {
+    "file": "ventas-buscar.png",
+    "status": "ok"
+  },
+  "/ventas/6/recibo": {
+    "file": "venta-recibo.png",
+    "status": "ok"
+  },
+  "/inventario/1/editar": {
+    "file": "inventario-editar.png",
+    "status": "ok"
+  },
+  "/inventario/1/movimientos": {
+    "file": "inventario-movimientos.png",
+    "status": "ok"
+  },
+  "/inventario/1/variantes": {
+    "file": "inventario-variantes.png",
+    "status": "ok"
+  },
+  "/pedidos/1": {
+    "file": "pedido-detalle.png",
+    "status": "ok"
+  },
+  "/pedidos/1/stock-preview": {
+    "file": "pedido-stock-preview.png",
+    "status": "ok"
+  },
+  "/pedidos/1/duplicate": {
+    "file": "pedido-duplicate.png",
+    "status": "ok"
+  },
+  "/recetas/1/crear-producto": {
+    "file": "receta-crear-producto.png",
+    "status": "ok"
+  },
+  "/recetas/1/set-photo": {
+    "file": "receta-set-photo.png",
+    "status": "ok"
+  },
+  "/suppliers/nuevo": {
+    "file": "supplier-nuevo.png",
+    "status": "ok"
+  },
+  "/reportes/margenes/1": {
+    "file": "reportes-margenes-detalle.png",
+    "status": "ok"
+  },
+  "/reportes/price-impact/1?new_price=7000": {
+    "file": "reportes-price-impact.png",
+    "status": "ok"
+  },
+  "/vs-mercado/1/edit": {
+    "file": "vs-mercado-editar.png",
+    "status": "ok"
+  },
+  "/guia/ventas": {
+    "file": "guia-seccion.png",
+    "status": "ok"
+  },
+  "EXPORT /ventas/export.csv": {
+    "file": "export-ventas.csv",
+    "status": "ok (518 bytes)"
+  },
+  "/ventas/export.csv": {
+    "file": "guia-seccion.png",
+    "status": "ok (518 bytes)"
+  },
+  "EXPORT /productos/export.csv": {
+    "file": "export-productos.csv",
+    "status": "ok (168 bytes)"
+  },
+  "/productos/export.csv": {
+    "file": "guia-seccion.png",
+    "status": "ok (168 bytes)"
+  },
+  "EXPORT /inventario/export.csv": {
+    "file": "export-inventario.csv",
+    "status": "ok (222 bytes)"
+  },
+  "/inventario/export.csv": {
+    "file": "guia-seccion.png",
+    "status": "ok (222 bytes)"
+  },
+  "EXPORT /pedidos/export-csv?status_filter=todos": {
+    "file": "export-pedidos.csv",
+    "status": "ok (296 bytes)"
+  },
+  "/pedidos/export-csv?status_filter=todos": {
+    "file": "guia-seccion.png",
+    "status": "ok (296 bytes)"
+  },
+  "EXPORT /reportes/precios/csv": {
+    "file": "export-reportes-precios.csv",
+    "status": "ok (54 bytes)"
+  },
+  "/reportes/precios/csv": {
+    "file": "guia-seccion.png",
+    "status": "ok (54 bytes)"
+  },
+  "EXPORT /excel/exportar": {
+    "file": "export-excel.xlsx",
+    "status": "ok (9549 bytes)"
+  },
+  "/excel/exportar": {
+    "file": "guia-seccion.png",
+    "status": "ok (9549 bytes)"
+  },
+  "EXPORT /reportes/diario/pdf": {
+    "file": "export-reportes-diario.pdf",
+    "status": "ok (1953 bytes)"
+  },
+  "/reportes/diario/pdf": {
+    "file": "guia-seccion.png",
+    "status": "ok (1953 bytes)"
+  },
+  "EXPORT /reportes/iva/pdf": {
+    "file": "export-reportes-iva.pdf",
+    "status": "ok (2193 bytes)"
+  },
+  "/reportes/iva/pdf": {
+    "file": "guia-seccion.png",
+    "status": "ok (2193 bytes)"
   }
 }

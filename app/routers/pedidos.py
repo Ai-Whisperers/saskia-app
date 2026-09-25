@@ -412,6 +412,7 @@ def pedidos_board(
             "pedidos_hoy": hoy,
             "pedidos_manana": manana,
             "pedidos_semana": semana,
+            "today": today,
             "now": datetime.now(),
         },
     )
@@ -652,6 +653,140 @@ async def pedidos_create(
     safe_commit(session)
 
     return RedirectResponse(url=f"/pedidos/{pedido.id}", status_code=303)
+
+
+@router.get("/export-csv")
+def pedidos_export_csv(
+    request: Request,
+    status_filter: str = Query("todos", pattern="^(pendientes|terminados|todos)$"),
+    search: str = Query(""),
+    session: Session = Depends(get_session),
+) -> StreamingResponse:
+    """Export filtered pedidos as a CSV download.
+
+    Respects the same search and status_filter as the list view.
+    """
+    import csv
+    import io
+
+    today = date.today()
+    horizon = today + timedelta(days=365)  # full history
+
+    stmt = (
+        select(Pedido)
+        .options(selectinload(Pedido.lines), selectinload(Pedido.customer))
+        .where(Pedido.promised_date <= horizon)
+    )
+    if status_filter == "pendientes":
+        stmt = stmt.where(Pedido.status.in_(["pending", "confirmed", "ready"]))
+    elif status_filter == "terminados":
+        stmt = stmt.where(Pedido.status == "fulfilled")
+
+    if search := search.strip():
+        stmt = stmt.where(
+            (
+                Pedido.customer_name.ilike(f"%{search}%")
+                | Pedido.customer_phone.ilike(f"%{search}%")
+            )
+        )
+
+    stmt = stmt.order_by(Pedido.promised_date.asc())
+    pedidos = list(session.scalars(stmt))
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "ID", "Fecha prometida", "Hora prometida", "Cliente", "Teléfono",
+        "Canal", "Estado", "Líneas", "Total Gs.", "Notas",
+        "Razón cancelación", "Creado", "Cumplido",
+    ])
+    for p in pedidos:
+        decorated = _decorate_pedido(p, session)
+        writer.writerow([
+            p.id,
+            p.promised_date.strftime("%d/%m/%Y"),
+            p.promised_time or "",
+            p.customer_name,
+            p.customer_phone or "",
+            p.channel,
+            p.status,
+            len(p.lines),
+            _pedido_total_gs(p),
+            (p.notes or "").replace("\n", " "),
+            p.cancel_reason or "",
+            p.created_at.strftime("%d/%m/%Y %H:%M") if p.created_at else "",
+            p.fulfilled_at.strftime("%d/%m/%Y %H:%M") if p.fulfilled_at else "",
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode("utf-8")),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=pedidos_{date.today().isoformat()}.csv"
+        },
+    )
+
+
+# --- Public pickup-share endpoint (NO AUTH) ---------------------------------
+# Lives at root so the URL is short enough for WhatsApp messages:
+# https://saskia.app/p/AbCd1234
+
+
+@public_router.get("/p/{token}", response_class=HTMLResponse)
+def public_pedido(request: Request, token: str) -> HTMLResponse:
+    """Public, no-auth pickup-share page rendered for the customer.
+
+    Used as a WhatsApp-shareable confirmation link so the customer can see
+    "what they ordered + when to come" without logging in. The token is the
+    8-char public_token generated when the pedido was created; collision-
+    resistance comes from the random token + the bounded single-tenant
+    volume of pedidos.
+
+    Uses ``request.app.state.session_factory`` so the test engine
+    (injected by the ``client`` fixture's monkey-patch of
+    ``make_engine_dialect``) is honored — calling ``make_engine()`` here
+    would bypass the test engine and read the production DB, breaking
+    the round-trip test that posts a pedido in the test DB and reads it
+    back via this endpoint.
+    """
+    with request.app.state.session_factory() as session:
+        # Pedido.id is an Integer PK; look up by public_token instead
+        # so /p/{token} resolves to the pedido sharing that token.
+        # (Earlier this used session.get(Pedido, token), which queried
+        # by the int PK and silently returned None for valid string
+        # tokens — making the page 404 for every real customer.)
+        pedido = session.execute(
+            select(Pedido)
+            .where(Pedido.public_token == token)
+            .options(selectinload(Pedido.lines))
+        ).scalar_one_or_none()
+        if pedido is None:
+            raise HTTPException(
+                status_code=404, detail="Pedido no encontrado"
+            )
+        decorated = _decorate_pedido(pedido, session)
+        decorated["lines"] = [
+            {
+                "product_name": ln.product.name if ln.product else f"#{ln.product_id}",
+                "qty": ln.qty,
+                "unit_price_gs": ln.unit_price_gs,
+                "line_total_gs": to_int_gs(Decimal(str(ln.qty)) * Decimal(str(ln.unit_price_gs))),
+            }
+            for ln in pedido.lines
+        ]
+        return render(
+            request,
+            "pedido_publico.html",
+            {
+                "pedido": decorated,
+                "shop_name": "Saskia RMS",
+                "currency_label": "Gs.",
+            },
+        )
+
+
+__all__ = ["router", "public_router"]
 
 
 @router.get("/{pedido_id}", response_class=HTMLResponse)
@@ -1115,140 +1250,6 @@ def pedidos_duplicate(
 
 
 # --- CSV export --------------------------------------------------------------
-
-
-@router.get("/export-csv")
-def pedidos_export_csv(
-    request: Request,
-    status_filter: str = Query("todos", pattern="^(pendientes|terminados|todos)$"),
-    search: str = Query(""),
-    session: Session = Depends(get_session),
-) -> StreamingResponse:
-    """Export filtered pedidos as a CSV download.
-
-    Respects the same search and status_filter as the list view.
-    """
-    import csv
-    import io
-
-    today = date.today()
-    horizon = today + timedelta(days=365)  # full history
-
-    stmt = (
-        select(Pedido)
-        .options(selectinload(Pedido.lines), selectinload(Pedido.customer))
-        .where(Pedido.promised_date <= horizon)
-    )
-    if status_filter == "pendientes":
-        stmt = stmt.where(Pedido.status.in_(["pending", "confirmed", "ready"]))
-    elif status_filter == "terminados":
-        stmt = stmt.where(Pedido.status == "fulfilled")
-
-    if search := search.strip():
-        stmt = stmt.where(
-            (
-                Pedido.customer_name.ilike(f"%{search}%")
-                | Pedido.customer_phone.ilike(f"%{search}%")
-            )
-        )
-
-    stmt = stmt.order_by(Pedido.promised_date.asc())
-    pedidos = list(session.scalars(stmt))
-
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow([
-        "ID", "Fecha prometida", "Hora prometida", "Cliente", "Teléfono",
-        "Canal", "Estado", "Líneas", "Total Gs.", "Notas",
-        "Razón cancelación", "Creado", "Cumplido",
-    ])
-    for p in pedidos:
-        decorated = _decorate_pedido(p, session)
-        writer.writerow([
-            p.id,
-            p.promised_date.strftime("%d/%m/%Y"),
-            p.promised_time or "",
-            p.customer_name,
-            p.customer_phone or "",
-            p.channel,
-            p.status,
-            len(p.lines),
-            _pedido_total_gs(p),
-            (p.notes or "").replace("\n", " "),
-            p.cancel_reason or "",
-            p.created_at.strftime("%d/%m/%Y %H:%M") if p.created_at else "",
-            p.fulfilled_at.strftime("%d/%m/%Y %H:%M") if p.fulfilled_at else "",
-        ])
-
-    output.seek(0)
-    return StreamingResponse(
-        io.BytesIO(output.getvalue().encode("utf-8")),
-        media_type="text/csv",
-        headers={
-            "Content-Disposition": f"attachment; filename=pedidos_{date.today().isoformat()}.csv"
-        },
-    )
-
-
-# --- Public pickup-share endpoint (NO AUTH) ---------------------------------
-# Lives at root so the URL is short enough for WhatsApp messages:
-# https://saskia.app/p/AbCd1234
-
-
-@public_router.get("/p/{token}", response_class=HTMLResponse)
-def public_pedido(request: Request, token: str) -> HTMLResponse:
-    """Public, no-auth pickup-share page rendered for the customer.
-
-    Used as a WhatsApp-shareable confirmation link so the customer can see
-    "what they ordered + when to come" without logging in. The token is the
-    8-char public_token generated when the pedido was created; collision-
-    resistance comes from the random token + the bounded single-tenant
-    volume of pedidos.
-
-    Uses ``request.app.state.session_factory`` so the test engine
-    (injected by the ``client`` fixture's monkey-patch of
-    ``make_engine_dialect``) is honored — calling ``make_engine()`` here
-    would bypass the test engine and read the production DB, breaking
-    the round-trip test that posts a pedido in the test DB and reads it
-    back via this endpoint.
-    """
-    with request.app.state.session_factory() as session:
-        # Pedido.id is an Integer PK; look up by public_token instead
-        # so /p/{token} resolves to the pedido sharing that token.
-        # (Earlier this used session.get(Pedido, token), which queried
-        # by the int PK and silently returned None for valid string
-        # tokens — making the page 404 for every real customer.)
-        pedido = session.execute(
-            select(Pedido)
-            .where(Pedido.public_token == token)
-            .options(selectinload(Pedido.lines))
-        ).scalar_one_or_none()
-        if pedido is None:
-            raise HTTPException(
-                status_code=404, detail="Pedido no encontrado"
-            )
-        decorated = _decorate_pedido(pedido, session)
-        decorated["lines"] = [
-            {
-                "product_name": ln.product.name if ln.product else f"#{ln.product_id}",
-                "qty": ln.qty,
-                "unit_price_gs": ln.unit_price_gs,
-                "line_total_gs": to_int_gs(Decimal(str(ln.qty)) * Decimal(str(ln.unit_price_gs))),
-            }
-            for ln in pedido.lines
-        ]
-        return render(
-            request,
-            "pedido_publico.html",
-            {
-                "pedido": decorated,
-                "shop_name": "Saskia RMS",
-                "currency_label": "Gs.",
-            },
-        )
-
-
-__all__ = ["router", "public_router"]
 
 
 @router.post("/bulk-fulfill")

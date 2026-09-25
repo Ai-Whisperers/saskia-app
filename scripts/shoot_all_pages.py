@@ -59,14 +59,27 @@ def boot_app():
                                min_stock_qty=1.0, purchase_price_gs=18_000)
         make_product(s, name="Café con leche", sale_price_gs=7_000)
         make_recipe(s, name="Chipa guazú", lines=[ing_line(ing2, qty=0.05)])
+        from tests.factories import pedido_item
+
         c1 = make_customer(s, name="María López", notes="alergia: gluten")
         make_customer(s, name="Pedro Giménez")
         t0 = datetime.utcnow() - timedelta(days=3)
+        sale_ids = []
         for i in range(6):
-            make_sale(s, product=cat["product"], qty=2, at=t0 + timedelta(hours=i * 8))
+            sale = make_sale(s, product=cat["product"], qty=2, at=t0 + timedelta(hours=i * 8))
+            sale_ids.append(sale.id)
+        ped = make_pedido(s, customer=c1,
+                          items=[pedido_item(cat["product"])],
+                          promised_date=datetime.utcnow().date())
+        from app.rms.models import MarketBenchmark, Pedido
+
+        bench = MarketBenchmark(product_label="Chipa grande", our_retail_gs=5000,
+                                comp_min_gs=4500, comp_avg_gs=5500)
+        s.add(bench)
         s.commit()
         ids = {"product": cat["product"].id, "ingredient": cat["ingredient"].id,
-               "recipe": cat["recipe"].id, "customer": c1.id}
+               "recipe": cat["recipe"].id, "customer": c1.id,
+               "sale": sale_ids[-1], "pedido": ped.id, "bench": bench.id}
 
     from app.rms import db as db_module
     from app.rms import main as main_module
@@ -150,6 +163,23 @@ def routes_to_shoot(ids):
         ("/guia", "guia"),
         ("/riesgos", "riesgos"),
         ("/login", "login"),
+        # detail/secondary pages
+        ("/ventas/buscar", "ventas-buscar"),
+        (f"/ventas/{ids['sale']}/recibo", "venta-recibo"),
+        (f"/inventario/{ids['ingredient']}/editar", "inventario-editar"),
+        (f"/inventario/{ids['ingredient']}/movimientos", "inventario-movimientos"),
+        (f"/inventario/{ids['ingredient']}/variantes", "inventario-variantes"),
+        (f"/pedidos/{ids['pedido']}", "pedido-detalle"),
+        (f"/pedidos/{ids['pedido']}/stock-preview", "pedido-stock-preview"),
+        (f"/pedidos/{ids['pedido']}/duplicate", "pedido-duplicate"),
+        (f"/recetas/{ids['recipe']}/crear-producto", "receta-crear-producto"),
+        (f"/recetas/{ids['recipe']}/set-photo", "receta-set-photo"),
+        ("/suppliers/nuevo", "supplier-nuevo"),
+        (f"/suppliers/1/editar", "supplier-editar") if False else ("/suppliers", "suppliers-dup"),
+        (f"/reportes/margenes/{ids['product']}", "reportes-margenes-detalle"),
+        (f"/reportes/price-impact/{ids['ingredient']}?new_price=7000", "reportes-price-impact"),
+        (f"/vs-mercado/{ids['bench']}/edit", "vs-mercado-editar"),
+        ("/guia/ventas", "guia-seccion"),
     ]
 
 
@@ -172,7 +202,10 @@ def main():
         for path, name in routes_to_shoot(ids):
             try:
                 page.goto(base + path)
-                page.wait_for_load_state("networkidle")
+                try:
+                    page.wait_for_load_state("networkidle")
+                except Exception:  # noqa: BLE001 — slow assets shouldn't kill the shot
+                    pass
                 page.wait_for_timeout(250)
                 page.screenshot(path=str(OUT / f"{name}.png"), full_page=True)
                 status = "ok"
@@ -181,16 +214,53 @@ def main():
             summary[path] = {"file": f"{name}.png", "status": status}
             print(f"  {path:42s} {status}")
 
+        # ── exports: save the actual files + a screenshot of rendered CSV ──
+        exports = [
+            ("/ventas/export.csv", "export-ventas.csv"),
+            ("/productos/export.csv", "export-productos.csv"),
+            ("/inventario/export.csv", "export-inventario.csv"),
+            ("/pedidos/export-csv?status_filter=todos", "export-pedidos.csv"),
+            ("/reportes/precios/csv", "export-reportes-precios.csv"),
+            ("/excel/exportar", "export-excel.xlsx"),
+            ("/reportes/diario/pdf", "export-reportes-diario.pdf"),
+            ("/reportes/iva/pdf", "export-reportes-iva.pdf"),
+        ]
+        for path, fname in exports:
+            try:
+                resp = page.request.get(base + path)
+                if resp.ok:
+                    body = resp.body()
+                    (OUT / fname).write_bytes(body)
+                    # rendered preview: paint the text content in the browser
+                    # (never navigate to the download URL — it throws)
+                    if fname.endswith(".csv"):
+                        text = body.decode("utf-8", errors="replace")[:20000]
+                        page.goto("about:blank")
+                        page.set_content(
+                            f"<pre style='font:12px monospace;padding:16px'>"
+                            f"{text.replace('&','&amp;').replace('<','&lt;')}</pre>"
+                        )
+                        page.screenshot(path=str(OUT / f"{fname[:-4]}.png"), full_page=True)
+                    status = f"ok ({len(body)} bytes)"
+                else:
+                    status = f"HTTP {resp.status}"
+            except Exception as exc:  # noqa: BLE001
+                status = f"ERROR: {exc}"[:80]
+            summary[f"EXPORT {path}"] = {"file": fname, "status": status}
+            print(f"  {path:42s} {status}")
+            summary[path] = {"file": f"{name}.png", "status": status}
+            print(f"  {path:42s} {status}")
+
         ctx.close()
         browser.close()
 
     (OUT / "summary.json").write_text(json.dumps(summary, indent=2))
 
-    ok = sum(1 for v in summary.values() if v["status"] == "ok")
+    ok = sum(1 for v in summary.values() if v["status"].startswith("ok"))
     # contact sheet
     cards = "\n".join(
         f'<figure><img src="{v["file"]}" loading="lazy"><figcaption>{k}</figcaption></figure>'
-        for k, v in summary.items() if v["status"] == "ok"
+        for k, v in summary.items() if v["status"].startswith("ok")
     )
     (OUT / "index.html").write_text(
         f"<!doctype html><meta charset='utf-8'><title>Saskia pages</title>"

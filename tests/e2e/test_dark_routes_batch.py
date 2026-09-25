@@ -223,3 +223,12 @@ def test_recipe_set_photo_picker_and_save(client, session_factory):
         from app.rms.models import Recipe
 
         assert s.get(Recipe, rid).image_url == "/static/recipes/pan.jpg"
+
+
+def test_pedidos_export_csv_route_ordering(client):
+    """Bug #16: /pedidos/export-csv was declared AFTER /{pedido_id}, so the
+    path param route swallowed 'export-csv' → 400 'pedido_id debe ser un
+    número entero' for EVERY user. Static routes must precede param routes."""
+    r = client.get("/pedidos/export-csv?status_filter=todos")
+    assert r.status_code == 200, f"export-csv broken again: {r.status_code}"
+    assert "pedido_id" not in r.text[:200] or "text/csv" in r.headers.get("content-type", "")
