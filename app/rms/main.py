@@ -45,6 +45,7 @@ from app.rms.observability import RequestContextMiddleware
 from app.rms.security_headers import SecurityHeadersMiddleware
 from app.rms.session_lifecycle import SessionLifecycleMiddleware
 from app.routers import (
+    analisis,
     insights_derived,
     insights_stock,
     auditoria,
@@ -442,6 +443,7 @@ def _is_public(path: str) -> bool:
 app.include_router(auth.router)
 app.include_router(health.router)
 app.include_router(dashboard.router)
+app.include_router(analisis.router)
 app.include_router(inventory.router)
 app.include_router(recipes.router)
 app.include_router(suppliers.router)

@@ -45,19 +45,21 @@ class LoginPage(Page):
 
 class DashboardPage(Page):
     kpi_revenue = ".kpi-card:has-text('Ingresos')"
-    menu_btn = "#nav-menu-btn"
-    menu_panel = "#nav-menu-panel"
+    # 2026-09-25 shell redesign: persistent sidebar replaced the hamburger
+    # dropdown. Selectors point at the sidebar nav items directly.
+    menu_btn = ".sidebar"  # kept for compat; sidebar needs no opening click
+    menu_panel = ".sidebar"
     margin_alert = "text=Márgenes en riesgo"
 
     def open_menu(self):
-        self.p.click(self.menu_btn)
-        self.p.locator(self.menu_panel).wait_for(state="visible", timeout=3000)
+        # Sidebar is always visible ≥1024px — no toggle needed.
+        self.p.locator(self.menu_panel).wait_for(state="visible", timeout=5000)
         return self
 
     def menu_goto(self, label: str):
-        """Open the nav dropdown and click a section by its visible label."""
+        """Click a sidebar section by its visible label."""
         self.open_menu()
-        self.p.locator(f"{self.menu_panel} a:has-text('{label}')").first.click()
+        self.p.locator(f"{self.menu_panel} a.nav-item:has-text('{label}')").first.click()
         self.p.wait_for_load_state("networkidle")
         return self.p.url
 

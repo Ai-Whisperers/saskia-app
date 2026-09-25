@@ -3,6 +3,10 @@
     "file": "dashboard.png",
     "status": "ok"
   },
+  "/analisis": {
+    "file": "analisis.png",
+    "status": "ok"
+  },
   "/": {
     "file": "inicio.png",
     "status": "ok"
@@ -321,7 +325,7 @@
   },
   "EXPORT /excel/exportar": {
     "file": "export-excel.xlsx",
-    "status": "ok (9550 bytes)"
+    "status": "ok (9546 bytes)"
   },
   "EXPORT /reportes/diario/pdf": {
     "file": "export-reportes-diario.pdf",

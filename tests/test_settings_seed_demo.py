@@ -99,7 +99,7 @@ def test_seed_demo_dashboard_shows_data_after_seed(
 ):
     """After seeding, /inicio dashboard renders with the analytics sections."""
     authed_client.post("/settings/seed-demo", data={"overwrite": "0"}, follow_redirects=False)
-    r = authed_client.get("/")
+    r = authed_client.get("/analisis")
     assert r.status_code == 200
     # The new analytics section should now have content (not just the empty
     # empty-state placeholder)

@@ -5,7 +5,67 @@
 {% block title %}Inventario{% endblock %}
 
 {% block content %}
-<h1>Inventario</h1>
+<div class="hero-row">
+  <div>
+    <h1>Inventario de ingredientes</h1>
+    <p class="hero-meta">Gestión de stock, costos unitarios y control de alérgenos</p>
+  </div>
+  <div class="hero-actions">
+    <a href="/inventario/nuevo" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+      Nuevo ingrediente
+    </a>
+    <a href="/inventario/export.csv" class="btn">
+      <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+      Exportar CSV
+    </a>
+  </div>
+</div>
+
+{# ── KPI strip (redesign 2026-09-25) ──────────────────────────────── #}
+<div class="kpi-row mb-4">
+  <div class="metric-card">
+    <div class="metric-label">Total ingredientes</div>
+    <div class="metric-value">{{ kpi_total }}</div>
+    <div class="metric-sub">activos</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Stock crítico</div>
+    <div class="metric-value">{% if kpi_critical %}<span class="badge badge-danger">{{ kpi_critical }}</span>{% else %}0{% endif %}</div>
+    <div class="metric-sub">{% if kpi_critical %}<a href="?estado=bajo">requieren compra →</a>{% else %}todo cubierto{% endif %}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Valor de inventario</div>
+    <div class="metric-value">{{ m.gs_full(kpi_value_gs) }}</div>
+    <div class="metric-sub">a precio de compra</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Sin costo cargado</div>
+    <div class="metric-value">{{ kpi_no_cost }}</div>
+    <div class="metric-sub">{% if kpi_no_cost %}sin precio no hay margen{% else %}todo con precio ✓{% endif %}</div>
+  </div>
+</div>
+
+{# ── Filter toolbar ───────────────────────────────────────────────── #}
+<form method="get" class="inv-toolbar" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:var(--space-4);">
+  <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre…"
+         style="flex:1;min-width:180px;height:36px;" aria-label="Buscar por nombre">
+  <select name="categoria" aria-label="Filtrar por categoría" style="width:auto;height:36px;" data-saskia-combo>
+    <option value="">Categoría: Todas</option>
+    {% for c in categories %}
+    <option value="{{ c }}" {% if c == categoria %}selected{% endif %}>{{ c }}</option>
+    {% endfor %}
+  </select>
+  <select name="estado" aria-label="Filtrar por estado" style="width:auto;height:36px;" data-saskia-combo>
+    <option value="">Estado: Todos</option>
+    <option value="bajo" {% if estado == 'bajo' %}selected{% endif %}>Stock bajo</option>
+    <option value="ok" {% if estado == 'ok' %}selected{% endif %}>Stock OK</option>
+  </select>
+  <button type="submit" class="btn btn-primary" style="height:36px;">Filtrar</button>
+  {% if q or estado or categoria %}
+  <a href="{{ request.url.path }}" class="btn" style="height:36px;">Limpiar</a>
+  {% endif %}
+</form>
 
 {% set flash = request.query_params.get('flash', '') %}
 {% if flash == 'stock_adjusted' %}
@@ -17,17 +77,6 @@
   <em>Hacé click en Ajustar de nuevo para confirmar.</em>
 </div>
 {% endif %}
-
-<p>
-  <a href="/inventario/nuevo" class="btn btn-primary">
-    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
-    Nuevo ingrediente
-  </a>
-  <a href="/inventario/export.csv" class="btn btn-ghost">
-    <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
-    Exportar CSV
-  </a>
-</p>
 
 {% if ingredients %}
 <table class="table is-hoverable is-striped">
@@ -73,7 +122,15 @@
       </td>
       <td class="num">{{ i.min_stock_qty|round(2) }}</td>
       <td class="num">{% if i.purchase_price_gs is none %}<em class="muted">sin precio</em>{% else %}{{ m.gs_full(i.purchase_price_gs) }}{% endif %}{% if price_info.get(i.id) %}<div class="price-strip">90d: min {{ m.gs(price_info[i.id].stats.min) }} · max {{ m.gs(price_info[i.id].stats.max) }}{% if price_info[i.id].sparkline_svg %} {{ price_info[i.id].sparkline_svg | safe }}{% endif %}</div>{% endif %}{% if market_refs.get(i.id) %}<div class="price-strip" title="vs. mercado: {{ m.gs_full(market_refs[i.id].market_price_gs) }} Gs/{{ market_refs[i.id].market_unit }} — {{ market_refs[i.id].market_notes }}">{% set delta = market_refs[i.id].delta_pct %}<span class="badge {% if delta > 10 %}badge-danger{% elif delta < -10 %}badge-good{% else %}badge-neutral{% endif %}" style="margin-left:4px">vs mercado {% if delta >= 0 %}+{% endif %}{{ "%.0f"|format(delta) }}%</span></div>{% endif %}</td>
-      <td>{{ m.stock_badge(i.stock_qty, i.min_stock_qty) }}</td>
+      <td>
+        {{ m.stock_badge(i.stock_qty, i.min_stock_qty) }}
+        {% if i.min_stock_qty and i.min_stock_qty > 0 %}
+        {% set _pct = ((i.stock_qty / i.min_stock_qty) * 100) | round | int %}
+        <div class="stock-health" title="Stock actual: {{ i.stock_qty|round(2) }} {{ i.unit }} · Mínimo: {{ i.min_stock_qty|round(2) }} {{ i.unit }}">
+          <div class="stock-health__fill {% if _pct >= 100 %}is-ok{% elif _pct >= 50 %}is-warn{% else %}is-danger{% endif %}" style="width: {{ [_pct, 100] | min }}%;"></div>
+        </div>
+        {% endif %}
+      </td>
       <td class="actions">
         <button type="button" class="btn btn-sm btn-ghost" aria-label="Ajustar stock de {{ i.name }}"
                 onclick="openAdjustModal('{{ i.id }}', '{{ i.name }}', {{ i.stock_qty }}, '{{ i.unit }}')">
@@ -228,6 +285,16 @@ function validateAdjustment(form) {
 }
 .pagination-info { color: var(--color-text-muted); font-size: 0.875rem; }
 .pagination-links { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+/* Stock health micro-bar (redesign 2026-09-25) */
+.stock-health {
+  width: 90px; height: 6px; margin-top: 4px;
+  background: var(--color-surface-subtle);
+  border-radius: 3px; overflow: hidden;
+}
+.stock-health__fill { height: 100%; border-radius: 3px; }
+.stock-health__fill.is-ok { background: var(--color-success); }
+.stock-health__fill.is-warn { background: var(--color-warn); }
+.stock-health__fill.is-danger { background: var(--color-danger); }
 </style>
 
 {% endblock %}

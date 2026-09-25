@@ -184,25 +184,54 @@ def inventory_list(
     """List all ingredients with stock badge. Paginated at 50/page."""
     PER_PAGE = 50
 
-    stmt = select(Ingredient)
-    count_stmt = select(func.count()).select_from(Ingredient)
+    # ── KPI strip + filters (inventory redesign 2026-09-25) ───────────
+    from app.rms.inventory_intel import stock_value_gs
 
-    # Count total
-    total = session.scalar(count_stmt) or 0
+    all_ings = session.scalars(select(Ingredient)).all()
+    kpi_total = len(all_ings)
+    kpi_critical = sum(1 for i in all_ings if i.stock_qty <= (i.min_stock_qty or 0))
+    kpi_no_cost = sum(1 for i in all_ings if not i.purchase_price_gs)
+    try:
+        kpi_value_gs = stock_value_gs(session)
+    except Exception:  # noqa: BLE001 — KPI must never break the list
+        kpi_value_gs = sum((i.stock_qty or 0) * (i.purchase_price_gs or 0) for i in all_ings)
+
+    q = (request.query_params.get("q") or "").strip().lower()
+    estado = request.query_params.get("estado") or ""
+    categoria = request.query_params.get("categoria") or ""
+
+    def _match(i):
+        if q and q not in (i.name or "").lower():
+            return False
+        if estado == "bajo" and not (i.stock_qty <= (i.min_stock_qty or 0)):
+            return False
+        if estado == "ok" and (i.stock_qty <= (i.min_stock_qty or 0)):
+            return False
+        if categoria and (i.category or "") != categoria:
+            return False
+        return True
+
+    _filtered_all = [i for i in all_ings if _match(i)]
+    total = len(_filtered_all)
     total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
     page = min(page, total_pages)
 
-    # Sorting
-    if sort and sort in ("name", "stock_qty", "unit", "min_stock_qty", "purchase_price_gs"):
-        col = getattr(Ingredient, sort)
-        stmt = stmt.order_by(col.desc() if dir == "desc" else col.asc())
-    else:
-        stmt = stmt.order_by(Ingredient.name)
+    categories = sorted({(i.category or "").strip() for i in all_ings if (i.category or "").strip()})
 
-    # Pagination
-    offset = (page - 1) * PER_PAGE
-    stmt = stmt.offset(offset).limit(PER_PAGE)
-    ingredients = session.scalars(stmt).all()
+    # Sorting applied to the filtered set (in-Python; catalog sizes are small)
+    _sort_map = {
+        "name": lambda i: (i.name or "").lower(),
+        "stock_qty": lambda i: i.stock_qty or 0,
+        "min_stock_qty": lambda i: i.min_stock_qty or 0,
+        "purchase_price_gs": lambda i: i.purchase_price_gs or 0,
+        "unit": lambda i: i.unit or "",
+    }
+    if sort and sort in _sort_map:
+        _filtered_all.sort(key=_sort_map[sort], reverse=(dir == "desc"))
+    else:
+        _filtered_all.sort(key=lambda i: (i.name or "").lower())
+
+    ingredients = _filtered_all[(page - 1) * PER_PAGE : page * PER_PAGE]
 
     # Phase D — Q1 surface: price-history enrichment per ingredient.
     # Ingredients with >=2 events in the last 90d get a muted min/max line
@@ -269,6 +298,15 @@ def inventory_list(
             "per_page": PER_PAGE,
             "page_start": (page - 1) * PER_PAGE + 1,
             "page_end": min(page * PER_PAGE, total),
+            # redesign 2026-09-25
+            "kpi_total": kpi_total,
+            "kpi_critical": kpi_critical,
+            "kpi_value_gs": kpi_value_gs,
+            "kpi_no_cost": kpi_no_cost,
+            "q": q,
+            "estado": estado,
+            "categoria": categoria,
+            "categories": categories,
         },
     )
 

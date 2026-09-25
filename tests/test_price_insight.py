@@ -62,12 +62,12 @@ def test_empty_db_no_card_no_error(session_factory):
 
 def test_dashboard_shows_card_only_when_crossing(client, session_factory):
     """Dashboard surfaces the insight card via the existing mechanism."""
-    r = client.get("/")
+    r = client.get("/analisis")
     assert r.status_code == 200
     assert "Precios en alza" not in r.text
 
     _seed(session_factory, "Harina dashboard", [5000, 5000, 5000, 7000])
-    r2 = client.get("/")
+    r2 = client.get("/analisis")
     assert r2.status_code == 200
     assert "Precios en alza" in r2.text
     assert "Harina dashboard" in r2.text

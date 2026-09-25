@@ -133,6 +133,19 @@ templates.env.globals["asset_version"] = _asset_version
 templates.env.globals["m"] = _make_money_helper()
 
 
+def _now_str() -> str:
+    """Human date+time for the topbar (Asunción tz, es-PY style)."""
+    try:
+        from app.rms.config import ASUNCION_TZ
+
+        return datetime.now(ASUNCION_TZ).strftime("%A %d %b %Y · %H:%M")
+    except Exception:  # noqa: BLE001 — topbar date must never break a page
+        return datetime.now().strftime("%d/%m/%Y %H:%M")
+
+
+templates.env.globals["now_str"] = _now_str
+
+
 def _csrf_token_for_request(request: Request | None) -> str:
     """Return the current CSRF token for the active request, or empty
     string outside an active request context (template previews, tests).

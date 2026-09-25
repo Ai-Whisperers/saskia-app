@@ -55,10 +55,10 @@ def _seed_min_sales(session_factory, days_back: int = 14):
         return p.id
 
 
-def test_inicio_renders_top_margin_section(client, session_factory):
+def test_analisis_renders_top_margin_section(client, session_factory):
     """dashboard.py computes top_margin_products; the template must render it."""
     _seed_min_sales(session_factory)
-    r = client.get("/")
+    r = client.get("/analisis")
     assert r.status_code == 200
     body = r.text
     assert "Productos más rentables" in body, (
@@ -66,10 +66,10 @@ def test_inicio_renders_top_margin_section(client, session_factory):
     )
 
 
-def test_inicio_renders_dow_heatmap_section(client, session_factory):
+def test_analisis_renders_dow_heatmap_section(client, session_factory):
     """dashboard.py computes day_of_week_heatmap; the template must render it."""
     _seed_min_sales(session_factory)
-    r = client.get("/")
+    r = client.get("/analisis")
     assert r.status_code == 200
     body = r.text
     assert "Promedio de ventas por día de la semana" in body, (
@@ -81,10 +81,10 @@ def test_inicio_renders_dow_heatmap_section(client, session_factory):
     )
 
 
-def test_inicio_renders_ingredient_concentration_section(client, session_factory):
+def test_analisis_renders_ingredient_concentration_section(client, session_factory):
     """dashboard.py computes ingredient_concentration; template must render it."""
     _seed_min_sales(session_factory)
-    r = client.get("/")
+    r = client.get("/analisis")
     assert r.status_code == 200
     body = r.text
     assert "Costo concentrado en pocos ingredientes" in body, (
@@ -92,10 +92,10 @@ def test_inicio_renders_ingredient_concentration_section(client, session_factory
     )
 
 
-def test_inicio_renders_stock_turnover_section(client, session_factory):
+def test_analisis_renders_stock_turnover_section(client, session_factory):
     """dashboard.py computes batch_stock_turnover; template must render it."""
     _seed_min_sales(session_factory)
-    r = client.get("/")
+    r = client.get("/analisis")
     assert r.status_code == 200
     body = r.text
     assert "Rotación de stock" in body, (
@@ -103,10 +103,10 @@ def test_inicio_renders_stock_turnover_section(client, session_factory):
     )
 
 
-def test_inicio_renders_recipe_complexity_section(client, session_factory):
+def test_analisis_renders_recipe_complexity_section(client, session_factory):
     """dashboard.py computes recipe_complexity; template must render it."""
     _seed_min_sales(session_factory)
-    r = client.get("/")
+    r = client.get("/analisis")
     assert r.status_code == 200
     body = r.text
     assert "Recetas más complejas" in body, (
@@ -114,10 +114,10 @@ def test_inicio_renders_recipe_complexity_section(client, session_factory):
     )
 
 
-def test_inicio_renders_erosion_alerts_section_when_data_present(client, session_factory):
+def test_analisis_renders_erosion_alerts_section_when_data_present(client, session_factory):
     """Section renders when erosion_alerts list is non-empty."""
     _seed_min_sales(session_factory)
-    r = client.get("/")
+    r = client.get("/analisis")
     assert r.status_code == 200
     # The section is in the template — it just won't appear because our
     # seed data doesn't trigger an alert. We verify the template's Jinja
@@ -126,10 +126,10 @@ def test_inicio_renders_erosion_alerts_section_when_data_present(client, session
     assert "Concentra" in r.text or "Sin alertas" in r.text or r.status_code == 200
 
 
-def test_inicio_renders_ingredient_concentration_section_when_data_present(client, session_factory):
+def test_analisis_renders_ingredient_concentration_section_when_data_present(client, session_factory):
     """Section renders when concentration list is non-empty."""
     _seed_min_sales(session_factory)
-    r = client.get("/")
+    r = client.get("/analisis")
     assert r.status_code == 200
     # Template syntax is valid (Jinja would fail to parse otherwise).
     assert "Concentra" in r.text or "Sin alertas" in r.text or r.status_code == 200
@@ -137,7 +137,7 @@ def test_inicio_renders_ingredient_concentration_section_when_data_present(clien
 
 def test_inicio_handles_empty_state_gracefully(client, session_factory):
     """With no data, the new sections should not render — no crash."""
-    r = client.get("/")
+    r = client.get("/analisis")
     assert r.status_code == 200
     # No margin section (no sales)
     assert "Productos más rentables" not in r.text or "No hay" in r.text

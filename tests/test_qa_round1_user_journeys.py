@@ -80,7 +80,7 @@ def test_restock_chain_price_event_to_insight_card(client, session_factory):
     ing_id = _seed_low_ingredient(session_factory)
 
     # --- Before any restock: no card, no strip (baseline) ---
-    r = client.get("/")
+    r = client.get("/analisis")
     assert r.status_code == 200
     assert "Precios en alza" not in r.text
 
@@ -121,7 +121,7 @@ def test_restock_chain_price_event_to_insight_card(client, session_factory):
     # --- Restock 4: crosses the 20% threshold ---
     assert _restock(client, ing_id, "1", "7500").status_code == 303
 
-    r_final = client.get("/")
+    r_final = client.get("/analisis")
     assert r_final.status_code == 200
     assert "Precios en alza" in r_final.text
     assert "Harina journeys" in r_final.text

@@ -362,6 +362,102 @@ async def dashboard(
     }
     prior_label = period_labels.get(period, "período anterior")
 
+    # ── Acciones del día (mockup plan 2026-09-25) ──────────────────────
+    from app.rms.models import Pedido, WasteLog  # local import: avoid cycles
+    from app.rms.eod_completions import completions_for_date as _eod_for_date
+    from app.rms.demand_freshness import freshness_flags as _freshness_flags
+
+    today_d = datetime.now(ASUNCION_TZ).date()
+    tomorrow_d = today_d + timedelta(days=1)
+    yesterday_d = today_d - timedelta(days=1)
+
+    _ped_counts = {"hoy": 0, "manana": 0}
+    for p_row in session.execute(
+        select(Pedido.promised_date, Pedido.status).where(
+            Pedido.status.in_(["pending", "confirmed", "ready"])
+        )
+    ).all():
+        if p_row.promised_date == today_d:
+            _ped_counts["hoy"] += 1
+        elif p_row.promised_date == tomorrow_d:
+            _ped_counts["manana"] += 1
+
+    # Ops + ticket for TODAY regardless of the scrubber (the HOY band is
+    # always "hoy"; scrubber-scoped numbers stay in the Ranking section).
+    _today_start = datetime.now(ASUNCION_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
+    _today_sales = [s for s in sales if s.sold_at and s.sold_at >= _today_start] if period != "today" else sales
+    ops_today = len(_today_sales)
+    ticket_promedio_gs = (
+        int(sum(int(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in _today_sales) / len(_today_sales))
+        if _today_sales
+        else 0
+    )
+    _prior_same_weekday = _today_start - timedelta(days=7)
+    _prior_end = _prior_same_weekday + timedelta(days=1)
+
+    def _is_naive(dt):
+        return dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
+
+    _prev_ops = 0
+    for s in session.scalars(select(Sale).where(Sale.voided_at.is_(None))).all():
+        sold = s.sold_at
+        if sold is None:
+            continue
+        if _is_naive(sold) != _is_naive(_prior_same_weekday):
+            # normalize to naive UTC-ish comparison (dates only matter here)
+            if _is_naive(sold):
+                from datetime import timezone as _tz
+
+                sold = sold.replace(tzinfo=_tz.utc)
+                _prior_cmp, _prior_end_cmp = _prior_same_weekday, _prior_end
+            else:
+                from datetime import timezone as _tz
+
+                _prior_cmp = _prior_same_weekday.replace(tzinfo=None)
+                _prior_end_cmp = _prior_end.replace(tzinfo=None)
+        else:
+            _prior_cmp, _prior_end_cmp = _prior_same_weekday, _prior_end
+        if _prior_cmp <= sold < _prior_end_cmp:
+            _prev_ops += 1
+    if ops_today and _prev_ops:
+        ops_delta_label = f"▲ {ops_today - _prev_ops:+d} vs. semana pasada".replace("+", "")
+        ops_delta_label = f"{'▲' if ops_today >= _prev_ops else '▼'} {abs(ops_today - _prev_ops)} vs. semana pasada"
+    else:
+        ops_delta_label = None
+    ticket_delta_label = None
+
+    # Cierre de ayer
+    cierre_ayer_pendiente = False
+    try:
+        _y = _eod_for_date(session, yesterday_d)
+        cierre_ayer_pendiente = not _y
+    except Exception:  # noqa: BLE001 — new DBs may lack the table yet
+        cierre_ayer_pendiente = False
+
+    # Merma hoy
+    merma_hoy = bool(
+        session.execute(
+            select(WasteLog.id).limit(1)
+        ).first()
+    )
+
+    # Por vencer 48 h (freshness proxy without the full report)
+    vencer_48h_count = 0
+    vencer_48h_gs = 0
+    try:
+        for f in _freshness_flags(session):
+            if f.urgency in ("expired", "critical"):
+                vencer_48h_count += 1
+                vencer_48h_gs += int(f.value_at_risk_gs or 0)
+    except Exception:  # noqa: BLE001
+        pass
+
+    # Costs completeness for the "provisional" pill
+    _recipes_with_cost = len(all_recipes) - len(recipes_no_cost)
+    costs_incomplete = None
+    if all_recipes and len(recipes_no_cost):
+        costs_incomplete = f"{int(_recipes_with_cost / len(all_recipes) * 100)}% cargados"
+
     return render(
         request,
         "inicio.html",
@@ -460,6 +556,18 @@ async def dashboard(
                 ).scalars().all()
             ),
             "data_freshness": datetime.now(ASUNCION_TZ).strftime("%H:%M:%S"),
+            # ── HOY band + Acciones del día (mockup plan 2026-09-25) ──
+            "ops_today": ops_today,
+            "ops_delta_label": ops_delta_label,
+            "ticket_promedio_gs": ticket_promedio_gs,
+            "ticket_delta_label": ticket_delta_label,
+            "costs_incomplete": costs_incomplete,
+            "pedido_hoy": _ped_counts["hoy"],
+            "pedido_manana": _ped_counts["manana"],
+            "cierre_ayer_pendiente": cierre_ayer_pendiente,
+            "merma_hoy": merma_hoy,
+            "vencer_48h_count": vencer_48h_count,
+            "vencer_48h_gs": vencer_48h_gs,
         },
     )
 

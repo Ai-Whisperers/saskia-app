@@ -17,12 +17,12 @@ class TestWave1NavReorg:
         from pathlib import Path
         base = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/base.html")
         content = base.read_text()
+        # 2026-09-25 shell redesign: sidebar buckets are the new nav contract
         for bucket in [
-            "Día a día",
-            "Compras &amp; Stock",
-            "Cocina",
+            "Operación",
+            "Catálogo",
+            "Compras",
             "Finanzas",
-            "Análisis &amp; Control",
             "Sistema",
         ]:
             assert bucket in content, f"Missing bucket: {bucket}"

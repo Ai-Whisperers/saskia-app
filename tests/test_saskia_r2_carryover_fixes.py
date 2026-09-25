@@ -66,7 +66,7 @@ def test_dashboard_no_english_kpi_labels(authed_client):
 
 def test_inicio_no_english_food_cost_label(authed_client):
     """DATA-01: Inicio metric card 'Food cost % (30d)' should be Spanish."""
-    r = authed_client.get("/")
+    r = authed_client.get("/analisis")
     if r.status_code != 200:
         return
     body = r.text

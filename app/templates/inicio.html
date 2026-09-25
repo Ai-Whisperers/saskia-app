@@ -1,46 +1,6 @@
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
-
 {% block title %}Inicio{% endblock %}
-{# Wave 3: HEREBUS-folded KPIs — shopping list / wishlist / risk — at-a-glance on home #}
-<section class="card mt-4">
-  <div class="card-header">
-    <h2>
-      <svg class="icon" aria-hidden="true"><use href="#icon-ops"/></svg>
-      Operación (cola de tareas)
-    </h2>
-    <small class="text-muted">Lo que necesita tu atención hoy</small>
-  </div>
-  <div class="card-body">
-    <div class="grid grid-3 mb-4">
-      <div class="metric-card">
-        <div class="metric-label">🛒 Lista de compras abierta</div>
-        <div class="metric-value">{{ sl_open_count or 0 }} ítems</div>
-        <small class="text-muted">
-          {% if (sl_total_gs or 0) > 0 %}{{ m.gs(sl_total_gs) }} estimado{% else %}—{% endif %}
-          · <a href="/shopping-list">Ver lista</a>
-        </small>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">🏪 Equipamiento pendiente</div>
-        <div class="metric-value">{{ wishlist_count or 0 }} ítems</div>
-        <small class="text-muted">
-          {% if (wishlist_total_gs or 0) > 0 %}{{ m.gs(wishlist_total_gs) }} estimado{% else %}—{% endif %}
-          · <a href="/wishlist">Ver wishlist</a>
-        </small>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">⚠️ Riesgos activos</div>
-        <div class="metric-value">{{ risk_count or 0 }} ítems</div>
-        <small class="text-muted">
-          {% if (risk_severity_gs or 0) > 0 %}{{ m.gs(risk_severity_gs) }} severidad{% else %}—{% endif %}
-          · <a href="/riesgos">Ver riesgos</a>
-        </small>
-      </div>
-    </div>
-  </div>
-</section>
-
 
 {% block alerts %}
 {% if alerts %}
@@ -56,65 +16,218 @@
 {% endblock %}
 
 {% block content %}
-<h1>Inicio</h1>
-
-<div class="period-toggle flex gap-2 mb-4" role="group" aria-label="Seleccionar período">
-  <a href="?period=today" class="btn {% if period == 'today' %}btn-primary{% endif %}" aria-current="{% if period == 'today' %}true{% endif %}">Hoy<span class="sr-only">{% if period == 'today' %} (período activo){% endif %}</span></a>
-  <a href="?period=week"  class="btn {% if period == 'week'  %}btn-primary{% endif %}" aria-current="{% if period == 'week' %}true{% endif %}">Semana<span class="sr-only">{% if period == 'week' %} (período activo){% endif %}</span></a>
-  <a href="?period=month" class="btn {% if period == 'month' %}btn-primary{% endif %}" aria-current="{% if period == 'month' %}true{% endif %}">Mes<span class="sr-only">{% if period == 'month' %} (período activo){% endif %}</span></a>
-  <span class="divider-v" style="width:1px;height:24px;background:var(--color-border);display:inline-block;vertical-align:middle;margin:0 .25rem;"></span>
-  <form method="get" action="/" style="display:inline-flex;gap:.4rem;align-items:center;" novalidate>
-    <input type="date" name="start" value="{{ start_date_val }}" aria-label="Fecha inicio" style="padding:.3rem .5rem;border-radius:6px;border:1px solid var(--color-border);font-size:var(--text-sm);">
-    <span style="color:var(--color-text-muted);font-size:var(--text-sm);">→</span>
-    <input type="date" name="end" value="{{ end_date_val }}" aria-label="Fecha fin" style="padding:.3rem .5rem;border-radius:6px;border:1px solid var(--color-border);font-size:var(--text-sm);">
-    <input type="hidden" name="period" value="custom">
-    <button type="submit" class="btn btn-sm {% if period == 'custom' %}btn-primary{% endif %}">Aplicar</button>
-  </form>
-</div>
-
-<div class="grid grid-3 mb-4">
-  <div class="metric-card">
-    <div class="metric-label">Ventas <small class="text-muted">({% if period == 'today' %}hoy{% elif period == 'week' %}esta semana{% elif period == 'month' %}este mes{% else %}período custom{% endif %})</small></div>
-    <div class="metric-value">{% if ventas_gs %}{{ m.gs_full(ventas_gs) }}{% else %}<small class="text-muted">aún no hay ventas en este período</small>{% endif %}</div>
-    {{ m.delta_pill(delta_ventas, prior_label) }}
+{# ══ HERO: greeting + quick actions ════════════════════════════════ #}
+<div class="hero-row">
+  <div>
+    <h1>Buen día</h1>
+    <p class="hero-meta">{{ now_str() }} · Asunción</p>
   </div>
-  <div class="metric-card">
-    <div class="metric-label">Costo de lo vendido <small class="text-muted">({% if period == 'today' %}hoy{% elif period == 'week' %}esta semana{% elif period == 'month' %}este mes{% else %}período custom{% endif %})</small></div>
-    <div class="metric-value">{% if cogs_gs %}{{ m.gs_full(cogs_gs) }}{% else %}<small class="text-muted">—</small>{% endif %}</div>
-    {{ m.delta_pill(delta_cogs, prior_label) }}
-  </div>
-  <div class="metric-card">
-    <div class="metric-label">Margen <small class="text-muted">({% if period == 'today' %}hoy{% elif period == 'week' %}esta semana{% elif period == 'month' %}este mes{% else %}período custom{% endif %})</small></div>
-    <div class="metric-value">{% if margen_gs %}{{ m.gs_full(margen_gs) }}{% else %}<small class="text-muted">—</small>{% endif %}</div>
-    {{ m.delta_pill(delta_margen, prior_label) }}
-    <div class="metric-delta is-up">{{ margen_pct_fmt }}</div>
+  <div class="hero-actions">
+    <a href="/ventas" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
+      Registrar venta
+    </a>
+    <a href="/ventas/historial" class="btn">Ver historial</a>
   </div>
 </div>
 
+{# ══ HOY band: 4 KPI cards ═════════════════════════════════════════ #}
+<div class="band-label">Hoy</div>
+<div class="kpi-row mb-4">
+  <div class="metric-card">
+    <div class="metric-label">Ventas de hoy</div>
+    <div class="metric-value">{% if ventas_gs %}{{ m.gs_full(ventas_gs) }}{% else %}<small class="text-muted">aún no hay ventas hoy</small>{% endif %}</div>
+    <div class="metric-sub">{{ m.delta_pill(delta_ventas, prior_label) }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Operaciones</div>
+    <div class="metric-value">{% if ops_today %}{{ ops_today }}{% else %}<small class="text-muted">—</small>{% endif %}</div>
+    <div class="metric-sub">{% if ops_delta_label %}{{ ops_delta_label }}{% endif %}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Ticket promedio</div>
+    <div class="metric-value">{% if ticket_promedio_gs %}{{ m.gs_full(ticket_promedio_gs) }}{% else %}<small class="text-muted">—</small>{% endif %}</div>
+    <div class="metric-sub">{% if ticket_delta_label %}{{ ticket_delta_label }}{% endif %}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Margen estimado</div>
+    <div class="metric-value">
+      {% if margen_pct_fmt and margen_pct_fmt != '—' %}{{ margen_pct_fmt }}{% else %}<small class="text-muted">—</small>{% endif %}
+    </div>
+    <div class="metric-sub">
+      {% if costs_incomplete %}<span class="badge badge-neutral">provisional · {{ costs_incomplete }}</span>{% endif %}
+    </div>
+  </div>
+</div>
+
+{# ══ Middle band: Acciones · Plan de mañana · Alertas ══════════════ #}
+<div class="home-band-3 mb-4">
+
+  {# ── Acciones del día ──────────────────────────────────────────── #}
+  <section class="card" aria-label="Acciones del día">
+    <div class="card-header">
+      <h2 style="font-size:var(--text-md);">Acciones del día</h2>
+    </div>
+
+    {% if pedido_hoy or pedido_manana %}
+    <a class="accion-row" href="/pedidos">
+      <span class="accion-chip sev-warn"><svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg></span>
+      <span class="accion-main">
+        <span class="accion-title">Pedidos por confirmar</span>
+        <span class="accion-sub">{% if pedido_hoy %}{{ pedido_hoy }} para hoy{% endif %}{% if pedido_hoy and pedido_manana %} · {% endif %}{% if pedido_manana %}{{ pedido_manana }} para mañana{% endif %}</span>
+      </span>
+      <span class="accion-arrow">→</span>
+    </a>
+    {% endif %}
+
+    {% if stock_low %}
+    <a class="accion-row" href="/reorder">
+      <span class="accion-chip sev-danger"><svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg></span>
+      <span class="accion-main">
+        <span class="accion-title">Reposiciones urgentes</span>
+        <span class="accion-sub">{{ stock_low[0].name }} bajo mínimo{% if stock_low|length > 1 %} +{{ stock_low|length - 1 }} más{% endif %}</span>
+      </span>
+      <span class="accion-count">{{ stock_low|length }}</span>
+    </a>
+    {% endif %}
+
+    {% if vencer_48h_count %}
+    <a class="accion-row" href="/reportes/freshness">
+      <span class="accion-chip sev-warn"><svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg></span>
+      <span class="accion-main">
+        <span class="accion-title">Insumos por vencer (48 h)</span>
+        <span class="accion-sub">{{ m.gs(vencer_48h_gs) }} en riesgo</span>
+      </span>
+      <span class="accion-count">{{ vencer_48h_count }}</span>
+    </a>
+    {% endif %}
+
+    {% if cierre_ayer_pendiente %}
+    <a class="accion-row" href="/eod">
+      <span class="accion-chip sev-warn"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></span>
+      <span class="accion-main">
+        <span class="accion-title">Cierre de ayer</span>
+        <span class="accion-sub">pendiente</span>
+      </span>
+      <span class="accion-arrow">→</span>
+    </a>
+    {% endif %}
+
+    {% if merma_hoy %}
+    <div class="accion-row is-done">
+      <span class="accion-chip sev-ok"><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg></span>
+      <span class="accion-main">
+        <span class="accion-title">Merma del día</span>
+        <span class="accion-sub">registrada ✓</span>
+      </span>
+    </div>
+    {% endif %}
+
+    {% if not (pedido_hoy or pedido_manana or stock_low or vencer_48h_count or cierre_ayer_pendiente) %}
+    <div class="alert alert-success" role="status">
+      <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+      Todo en orden por hoy.
+    </div>
+    {% endif %}
+  </section>
+
+  {# ── Plan de mañana ────────────────────────────────────────────── #}
+  <section class="card" aria-label="Plan de mañana">
+    <div class="card-header">
+      <h2 style="font-size:var(--text-md);">Plan de mañana</h2>
+      <small class="text-muted">sugerido por ventas</small>
+    </div>
+    {% if insights.production_tomorrow %}
+      {% for p in insights.production_tomorrow[:5] %}
+      <div class="plan-row">
+        <span><strong>{{ p.product_name }}</strong></span>
+        <span class="text-muted">{{ p.batch_count }} tanda{{ 's' if p.batch_count > 1 }} · {{ p.target_qty }} u.</span>
+      </div>
+      {% endfor %}
+      <div class="plan-footer">
+        <span>Detalles y ajustes en <a href="/produccion">Producción →</a></span>
+      </div>
+    {% else %}
+      <div class="empty-state" style="padding:var(--space-6);">
+        <p>Sin plan todavía — se calcula con tus ventas.</p>
+        <a href="/produccion" class="btn">Ver Producción</a>
+      </div>
+    {% endif %}
+  </section>
+
+  {# ── Alertas (severity pills, capped) ──────────────────────────── #}
+  <section class="card" aria-label="Alertas">
+    <div class="card-header">
+      <h2 style="font-size:var(--text-md);">Alertas</h2>
+    </div>
+
+    {% set avisos_total = (stock_low|length) + (recipes_no_cost|length) + (sales_no_recipe|length) + (compliance_alerts|length) %}
+    {% if avisos_total == 0 %}
+    <div class="alert alert-success" role="status">
+      <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+      Todo en orden. No hay avisos por ahora.
+    </div>
+    {% else %}
+      {% for s in stock_low[:3] %}
+      <div class="alerta-row">
+        <span class="sev-pill critico">Crítico</span>
+        <span class="alerta-text">{{ s.name }}: quedan {{ "%.2f"|format(s.stock_qty) }} {{ s.unit }} (mín. {{ "%.2f"|format(s.min_stock_qty) }})</span>
+        <a class="alerta-link" href="/reorder">Reponer →</a>
+      </div>
+      {% endfor %}
+      {% for a in compliance_alerts[:2] %}
+      <div class="alerta-row">
+        <span class="sev-pill aviso">Aviso</span>
+        <span class="alerta-text">{{ a.message }}</span>
+        <a class="alerta-link" href="/settings">Renovar →</a>
+      </div>
+      {% endfor %}
+      {% for r in recipes_no_cost[:1] %}
+      <div class="alerta-row">
+        <span class="sev-pill aviso">Aviso</span>
+        <span class="alerta-text">Receta sin precio: {{ r.name }}</span>
+        <a class="alerta-link" href="/recetas/{{ r.id }}/editar">Completar →</a>
+      </div>
+      {% endfor %}
+      {% if avisos_total > 6 %}
+      <p class="text-muted" style="font-size:var(--text-xs);margin-top:var(--space-2);">
+        <a href="#avisos-todos">Ver todos los avisos ({{ avisos_total }}) →</a>
+      </p>
+      {% endif %}
+    {% endif %}
+  </section>
+</div>
+
+{# ══ Charts row ════════════════════════════════════════════════════ #}
 <div class="dashboard-grid mb-4">
   {{ m.chart_card("Ventas por hora del día", chart_hourly, data_freshness) }}
   {{ m.chart_card("Tendencia — últimos 30 días", chart_30day, data_freshness) }}
   {{ m.chart_card("Distribución de pagos", chart_payment_methods | safe, None) }}
   {{ m.top_list_card("Top productos por ventas", top_products_revenue, "Gs. ", "icon-arrow-up") }}
-  {{ m.alert_list_card("Alertas de stock bajo", low_stock_alerts_with_severity, "icon-warn") }}
 </div>
 
-{# Phase 1.A — Compliance alerts (INAN R.E., Habilitación, Timbrado, R.S.P.A.) #}
-{% if compliance_alerts %}
-<section class="mb-4" aria-label="Alertas regulatorias">
-  <h2 style="margin-top: var(--space-4);">Cumplimiento regulatorio</h2>
-  {% for a in compliance_alerts %}
-  <div class="alert alert-{{ a.severity }}" role="alert" aria-live="polite"
-       style="margin-bottom: var(--space-2);">
-    <strong style="margin-right: 4px;">{{ a.icon }}</strong>
-    {{ a.message }}
-    <a href="/settings" style="margin-left: 8px;">Ir a Configuración →</a>
-  </div>
-  {% endfor %}
-</section>
-{% endif %}
+{# ══ ANÁLISIS teaser band ══════════════════════════════════════════ #}
+<div class="band-label">Análisis · últimos 30 días</div>
+<div class="analisis-teaser mb-4">
+  <a class="teaser-card" href="/analisis">
+    <span class="teaser-num">{% if insights.stars or insights.dogs %}{{ (insights.stars|length) + (insights.dogs|length) }}{% else %}—{% endif %}</span>
+    <span class="teaser-label">Clasificación de productos</span>
+    <span class="teaser-sub">Stars y Dogs por margen y volumen →</span>
+  </a>
+  <a class="teaser-card" href="/analisis">
+    <span class="teaser-num">{% if erosion_alerts %}{{ erosion_alerts|length }}{% else %}0{% endif %}</span>
+    <span class="teaser-label">Márgenes a la baja</span>
+    <span class="teaser-sub">Productos perdiendo margen por costos →</span>
+  </a>
+  <a class="teaser-card" href="/reportes">
+    <span class="teaser-num">→</span>
+    <span class="teaser-label">Reportes completos</span>
+    <span class="teaser-sub">Fiscales, ventas, costos e inventario →</span>
+  </a>
+</div>
 
-<h2>Ranking de productos <small class="text-muted">· período seleccionado arriba</small></h2>
+{# ══ Ranking del período ═══════════════════════════════════════════ #}
+<h2>Ranking de productos <small class="text-muted">· período seleccionado</small></h2>
 {% if ranking %}
 <table class="table is-hoverable is-striped">
   <thead>
@@ -147,21 +260,70 @@
 </div>
 {% endif %}
 
+{# ══ Operación (cola de tareas) ════════════════════════════════════ #}
+<section class="card mt-4">
+  <div class="card-header">
+    <h2><svg class="icon" aria-hidden="true"><use href="#icon-ops"/></svg> Operación (cola de tareas)</h2>
+    <small class="text-muted">Lo que necesita tu atención</small>
+  </div>
+  <div class="card-body">
+    <div class="grid grid-3 mb-4">
+      <div class="metric-card">
+        <div class="metric-label">Lista de compras abierta</div>
+        <div class="metric-value">{{ sl_open_count or 0 }} ítems</div>
+        <small class="text-muted">
+          {% if (sl_total_gs or 0) > 0 %}{{ m.gs(sl_total_gs) }} estimado{% else %}—{% endif %}
+          · <a href="/shopping-list">Ver lista</a>
+        </small>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Equipamiento pendiente</div>
+        <div class="metric-value">{{ wishlist_count or 0 }} ítems</div>
+        <small class="text-muted">
+          {% if (wishlist_total_gs or 0) > 0 %}{{ m.gs(wishlist_total_gs) }} estimado{% else %}—{% endif %}
+          · <a href="/wishlist">Ver wishlist</a>
+        </small>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Riesgos activos</div>
+        <div class="metric-value">{{ risk_count or 0 }} ítems</div>
+        <small class="text-muted">
+          {% if (risk_severity_gs or 0) > 0 %}{{ m.gs(risk_severity_gs) }} severidad{% else %}—{% endif %}
+          · <a href="/riesgos">Ver riesgos</a>
+        </small>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ══ Compliance ════════════════════════════════════════════════════ #}
+{% if compliance_alerts %}
+<section class="mb-4" aria-label="Alertas regulatorias">
+  <h2 style="margin-top: var(--space-4);">Cumplimiento regulatorio</h2>
+  {% for a in compliance_alerts %}
+  <div class="alert alert-{{ a.severity }}" role="alert" aria-live="polite" style="margin-bottom: var(--space-2);">
+    <strong style="margin-right: 4px;">{{ a.icon }}</strong>
+    {{ a.message }}
+    <a href="/settings" style="margin-left: 8px;">Ir a Configuración →</a>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{# ══ Avisos completos (anchor target for "ver todos") ═══════════════ #}
+<section id="avisos-todos" aria-label="Todos los avisos">
 <h2>Avisos</h2>
-{% set avisos_total = (stock_low|length) + (recipes_no_cost|length) + (sales_no_recipe|length) %}
-{% if avisos_total == 0 %}
+{% set avisos_todos = (stock_low|length) + (recipes_no_cost|length) + (sales_no_recipe|length) %}
+{% if avisos_todos == 0 %}
 <div class="alert alert-success" role="status">
   <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
   Todo en orden. No hay avisos por ahora.
 </div>
 {% else %}
-{# Grouped + capped: top 5 per type with severity order and an overflow
-   link — the unbounded wall pushed everything below the fold (Inicio-v2
-   critique 3.5). Every line is now actionable. #}
 <ul class="avisos">
   {% for s in stock_low[:5] %}
   <li class="aviso-stock">
-    <span style="white-space:nowrap">⚠️ Stock bajo: <strong>{{ s.name }}</strong> ({{ "%.2f"|format(s.stock_qty) }} {{ s.unit }}, mínimo {{ "%.2f"|format(s.min_stock_qty) }} {{ s.unit }})</span>
+    <span style="white-space:nowrap">Stock bajo: <strong>{{ s.name }}</strong> ({{ "%.2f"|format(s.stock_qty) }} {{ s.unit }}, mínimo {{ "%.2f"|format(s.min_stock_qty) }} {{ s.unit }})</span>
     — <a href="/reorder">reponer →</a>
   </li>
   {% endfor %}
@@ -186,314 +348,6 @@
   {% endif %}
 </ul>
 {% endif %}
-
-<h2>Inteligencia <small class="text-muted">· últimos 30 días</small></h2>
-<div class="grid grid-4 mb-4">
-  <div class="metric-card">
-    <div class="metric-label">Capital en inventario</div>
-    <div class="metric-value">{{ m.gs_full(insights.inventory_capital_gs) }}</div>
-  </div>
-  <div class="metric-card">
-    <div class="metric-label">Hora pico de ventas</div>
-    <div class="metric-value">
-      {% if insights.sales_peak_hour is not none and insights.sales_peak_hour >= 0 %}{{ "%02d"|format(insights.sales_peak_hour|int) }}:00{% else %}—{% endif %}
-    </div>
-  </div>
-  <div class="metric-card">
-    <div class="metric-label">Día pico de ventas</div>
-    <div class="metric-value">
-      {% set dow_names = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'] %}
-      {% if insights.sales_peak_dow is not none and insights.sales_peak_dow >= 0 %}{{ dow_names[insights.sales_peak_dow|int] }}{% else %}—{% endif %}
-    </div>
-  </div>
-  <div class="metric-card">
-    <div class="metric-label">Costo de materia prima % (30d)</div>
-    <div class="metric-value">
-      {# Sanity clamp: a ratio >100% means broken/missing cost or revenue
-         data — never headline an impossible number (2184.5% bug). #}
-      {% set mp_pct = insights.food_cost.theoretical_food_cost_pct %}
-      {% if mp_pct is none or insights.food_cost.sales_revenue_gs <= 0 %}
-        <small class="text-muted">sin ventas para comparar</small>
-      {% elif mp_pct > 100 %}
-        <small class="text-muted">revisar datos de costo</small>
-      {% else %}
-        {{ "%.1f"|format(mp_pct) }}%
-      {% endif %}
-    </div>
-  </div>
-</div>
-
-{% if insights.stars %}
-  {% set stars_items = [] %}
-  {% for s in insights.stars %}{% set _ = stars_items.append({"title": s.product_name, "body": "margen " ~ m.gs(s.margin_gs) ~ ", volumen " ~ s.volume}) %}{% endfor %}
-  {{ m.insight_card("Stars (alto margen + alto volumen)", stars_items, severity="ok", icon="icon-arrow-up") }}
-{% endif %}
-
-{% if insights.dogs %}
-  {% set dogs_items = [] %}
-  {% for d in insights.dogs %}{% set _ = dogs_items.append({"title": d.product_name, "body": "margen " ~ m.gs(d.margin_gs) ~ ", volumen " ~ d.volume}) %}{% endfor %}
-  {{ m.insight_card("Dogs (bajo margen + bajo volumen)", dogs_items, severity="warn", icon="icon-arrow-down") }}
-{% endif %}
-
-{% if insights.low_stock_alerts %}
-  {% set low_items = [] %}
-  {% for a in insights.low_stock_alerts %}{% set _ = low_items.append({"title": a.ingredient_name, "body": "quedan " ~ ("%.2f"|format(a.stock_qty)) ~ ", días: " ~ (("%.1f"|format(a.days_of_stock)) if a.days_of_stock is not none else "—")}) %}{% endfor %}
-  {{ m.insight_card("Reposición urgente", low_items, severity="warn", icon="icon-warn") }}
-{% endif %}
-
-{% if insights.rising_products %}
-  {% set rising_items = [] %}
-  {% for r in insights.rising_products %}{% set _ = rising_items.append({"title": r.product_name, "body": "reciente " ~ r.recent_sales ~ ", previo " ~ r.prior_sales ~ " (" ~ ("%.0f"|format((r.change_pct or 0)*100)) ~ "%)"}) %}{% endfor %}
-  {{ m.insight_card("En alza", rising_items, severity="ok", icon="icon-arrow-up") }}
-{% endif %}
-
-{% if insights.price_fluctuation %}
-  {% set price_items = [] %}
-  {% for p_ in insights.price_fluctuation %}{% set _ = price_items.append({"title": p_.name, "body": "+" ~ ("%.0f"|format(p_.pct_above_avg)) ~ "% vs. 30d promedio"}) %}{% endfor %}
-  {{ m.insight_card("Precios en alza", price_items, severity="warn", icon="icon-arrow-up") }}
-{% endif %}
-
-{% if insights.churning_products %}
-  {% set churning_items = [] %}
-  {% for c in insights.churning_products %}{% set _ = churning_items.append({"title": c.product_name, "body": "reciente " ~ c.recent_sales ~ ", previo " ~ c.prior_sales ~ " (" ~ ("%.0f"|format((c.change_pct or 0)*100)) ~ "%)"}) %}{% endfor %}
-  {{ m.insight_card("En baja", churning_items, severity="danger", icon="icon-arrow-down") }}
-{% endif %}
-
-{% if insights.production_tomorrow %}
-<h3>
-  <svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>
-  Producción de mañana
-</h3>
-<table class="table is-hoverable">
-  <thead><tr><th>Producto</th><th class="num">Cantidad</th><th class="num">Batches</th><th>Motivo</th></tr></thead>
-  <tbody>
-    {% for p in insights.production_tomorrow %}
-    <tr>
-      <td><strong>{{ p.product_name }}</strong></td>
-      <td class="num">{{ p.target_qty }}</td>
-      <td class="num">{{ p.batch_count }}</td>
-      <td>{{ p.reason }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% endif %}
-
-{# Top 5 products by margin (computed by dashboard.py:top_margin_products) #}
-{% if top_margin %}
-<section class="card mt-4">
-  <div class="card-header">
-    <h2>
-      <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
-      Productos más rentables (últimos 30 días)
-    </h2>
-    <small class="text-muted">Ordenados por ganancia absoluta</small>
-  </div>
-  <table class="table is-hoverable is-striped">
-    <thead>
-      <tr>
-        <th>Producto</th>
-        <th class="num">Cantidad vendida</th>
-        <th class="num">Ventas (Gs.)</th>
-        <th class="num">Margen (Gs.)</th>
-        <th class="num">Margen %</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for p in top_margin %}
-      <tr>
-        <td><a href="/productos/{{ p.product_id }}/editar">{{ p.product_name }}</a></td>
-        <td class="num">{{ "%.1f"|format(p.qty) }}</td>
-        <td class="num">{{ m.gs(p.ventas_gs) }}</td>
-        <td class="num"><strong>{{ m.gs(p.margin_gs) }}</strong></td>
-        <td class="num">
-          {% set pct = p.margin_pct * 100 %}
-          <span class="badge {% if pct >= 50 %}badge-ok{% elif pct >= 25 %}badge-warn{% else %}badge-danger{% endif %}">
-            {{ "%.0f"|format(pct) }}%
-          </span>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
 </section>
-{% endif %}
-
-{# Margin erosion alerts (dashboard.py:margin_erosion_alerts) #}
-{% if erosion_alerts %}
-<section class="card mt-4">
-  <div class="card-header">
-    <h2>
-      <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
-      Alerta: margen cayendo
-    </h2>
-    <small class="text-muted">Productos cuyo margen cayó por suba de precio de ingredientes</small>
-  </div>
-  <table class="table is-hoverable">
-    <thead>
-      <tr><th>Producto</th><th>Ingrediente</th><th class="num">Precio viejo</th><th class="num">Precio nuevo</th><th class="num">Δ Margen</th></tr>
-    </thead>
-    <tbody>
-      {% for a in erosion_alerts %}
-      <tr>
-        <td><a href="/productos/{{ a.product_id }}/editar">{{ a.product_name }}</a></td>
-        <td>{{ a.ingredient_name }}</td>
-        <td class="num">
-          {% if a.old_price_gs %}{{ m.gs(a.old_price_gs) }}{% else %}—{% endif %}
-        </td>
-        <td class="num">
-          {% if a.new_price_gs %}{{ m.gs(a.new_price_gs) }}{% else %}—{% endif %}
-        </td>
-        <td class="num">
-          {% if a.margin_delta_pct %}
-            <span class="badge badge-danger">↓ {{ "%.0f"|format(a.margin_delta_pct) }}%</span>
-          {% else %}—{% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</section>
-{% endif %}
-
-{# Ingredient concentration (dashboard.py:ingredient_concentration)
-   - "X% of your food cost goes to these ingredients" #}
-{% if concentration %}
-<section class="card mt-4">
-  <div class="card-header">
-    <h2>
-      <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
-      Costo concentrado en pocos ingredientes
-    </h2>
-    <small class="text-muted">Últimos 90 días · donde se va tu plata</small>
-  </div>
-  <div class="card-body">
-    {% set top_share = concentration[0].share_pct if concentration else 0 %}
-    <p>
-      {% if concentration %}
-        Los <strong>5 ingredientes más usados</strong> representan
-        <strong>{{ "%.0f"|format(top_share * 100) }}%</strong> del costo total
-        (90 días). Si alguno sube de precio, no tenés dónde compensar.
-      {% endif %}
-    </p>
-    <table class="table is-striped">
-      <thead><tr><th>Ingrediente</th><th class="num">Costo anualizado (Gs.)</th><th class="num">% del total</th></tr></thead>
-      <tbody>
-        {% for c in concentration %}
-        <tr>
-          <td>{{ c.ingredient_name }}</td>
-          <td class="num">{{ m.gs(c.annual_cost_gs) }}</td>
-          <td class="num">{{ "%.1f"|format(c.share_pct * 100) }}%</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
-{% endif %}
-
-{# Day-of-week heatmap (dashboard.py:day_of_week_heatmap)
-   - Avg sales per weekday, 90 days, helps staffing + production planning #}
-{% if dow_buckets %}
-<section class="card mt-4">
-  <div class="card-header">
-    <h2>
-      <svg class="icon" aria-hidden="true"><use href="#icon-chart"/></svg>
-      Promedio de ventas por día de la semana
-    </h2>
-    <small class="text-muted">Últimos 90 días · para planificar producción</small>
-  </div>
-  <table class="table">
-    <thead><tr><th>Día</th><th class="num">Ventas promedio (Gs.)</th><th class="num">Pedidos</th></tr></thead>
-    <tbody>
-      {% for d in dow_buckets %}
-      <tr>
-        <td>
-          {% if d.weekday == 0 %}Lunes
-          {% elif d.weekday == 1 %}Martes
-          {% elif d.weekday == 2 %}Miércoles
-          {% elif d.weekday == 3 %}Jueves
-          {% elif d.weekday == 4 %}Viernes
-          {% elif d.weekday == 5 %}Sábado
-          {% else %}Domingo
-          {% endif %}
-        </td>
-        <td class="num">{{ m.gs(d.avg_sales_gs|int) }}</td>
-        <td class="num">{{ d.sale_count }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</section>
-{% endif %}
-
-{# Stock turnover for top-8 ingredients (dashboard.py:batch_stock_turnover) #}
-{% if turnover %}
-<section class="card mt-4">
-  <div class="card-header">
-    <h2>
-      <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
-      Rotación de stock (últimos 30 días)
-    </h2>
-    <small class="text-muted">Cuántas veces se renovó el stock de los ingredientes más activos</small>
-  </div>
-  <table class="table is-striped">
-    <thead><tr><th>Ingrediente</th><th class="num">Consumido</th><th class="num">Rotación</th><th class="num">Días de stock</th></tr></thead>
-    <tbody>
-      {% for t in turnover %}
-      <tr>
-        <td>
-          {% if t.ingredient_name %}
-            <a href="/inventario/{{ t.ingredient_id }}/editar">{{ t.ingredient_name }}</a>
-          {% else %}
-            Ing #{{ t.ingredient_id }}
-          {% endif %}
-        </td>
-        <td class="num">{{ "%.1f"|format(t.consumed_qty) }} {{ t.unit }}</td>
-        <td class="num">{{ "%.1f"|format(t.turnover_ratio) }}×</td>
-        <td class="num">
-          {% if t.days_of_stock is not none %}
-            {% if t.days_of_stock <= 3 %}
-              <span class="badge badge-danger">{{ "%.0f"|format(t.days_of_stock) }} días</span>
-            {% elif t.days_of_stock <= 7 %}
-              <span class="badge badge-warn">{{ "%.0f"|format(t.days_of_stock) }} días</span>
-            {% else %}
-              {{ "%.0f"|format(t.days_of_stock) }} días
-            {% endif %}
-          {% else %}—{% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</section>
-{% endif %}
-
-{# Recipe complexity (dashboard.py:recipe_complexity)
-   - Recipes ranked by line count + cost / prep_minute (for efficiency) #}
-{% if complexity %}
-<section class="card mt-4">
-  <div class="card-header">
-    <h2>
-      <svg class="icon" aria-hidden="true"><use href="#icon-recipe"/></svg>
-      Recetas más complejas
-    </h2>
-    <small class="text-muted">Más ingredientes y más tiempo de preparación</small>
-  </div>
-  <table class="table">
-    <thead><tr><th>Receta</th><th class="num">Ingredientes</th><th class="num">Costo/porción (Gs.)</th><th class="num">Prep (min)</th></tr></thead>
-    <tbody>
-      {% for r in complexity[:5] %}
-      <tr>
-        <td><a href="/recetas/{{ r.recipe_id }}/editar">{{ r.recipe_name }}</a></td>
-        <td class="num">{{ r.line_count }}</td>
-        <td class="num">{{ m.gs(r.cost_per_portion_gs) }}</td>
-        <td class="num">{{ r.prep_minutes if r.prep_minutes else '—' }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</section>
-{% endif %}
 
 {% endblock %}

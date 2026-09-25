@@ -104,6 +104,7 @@ def routes_to_shoot(ids):
     """(path, filename) for every renderable page; param routes use seeded ids."""
     return [
         ("/dashboard", "dashboard"),
+        ("/analisis", "analisis"),
         ("/", "inicio"),
         ("/ventas", "ventas"),
         ("/ventas/historial", "ventas-historial"),

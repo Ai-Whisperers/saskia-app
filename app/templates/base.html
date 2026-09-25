@@ -20,15 +20,13 @@
 
   <link rel="stylesheet" href="/static/app.css?v={{ asset_version() }}">
   <link rel="stylesheet" href="/static/app-improvements.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/app-shell.css?v={{ asset_version() }}">
   <link rel="stylesheet" href="/static/calendar.css?v={{ asset_version() }}">
   {% block head_extra %}{% endblock %}
 
   <script>
 
     // Theme persistence — read before paint to avoid flash.
-    // Reads ui.theme from the data-saskia-theme attribute on <html> set by the
-    // server, then falls back to the CSS prefers-color-scheme media query.
-
     (function() {
 
       try {
@@ -49,272 +47,248 @@
 
 </head>
 
-<body>
+<body class="{% if is_logged_in %}has-app-shell{% endif %}">
 
   <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
 
-  <nav class="topnav" aria-label="Navegación principal">
+{% if is_logged_in %}
+  {# ══ New professional shell: sidebar + topbar (2026-09-25 mockup plan) ══ #}
+  <aside class="sidebar" aria-label="Navegación principal">
+      <a href="/" class="sidebar-brand">
+        <span class="brand-logo">S</span>
+        <span>Saskia RMS</span>
+      </a>
 
-    <a href="/" class="brand">
+      <div class="sidebar-section">Operación</div>
+      {{ m.nav_link("/", "Inicio", icon="icon-home", exact=True, current_path=request.url.path) }}
+      {{ m.nav_link("/ventas", "Ventas", icon="icon-sale", current_path=request.url.path) }}
+      {{ m.nav_link("/pedidos", "Pedidos", icon="icon-box", current_path=request.url.path) }}
+      {{ m.nav_link("/produccion", "Producción", icon="icon-production", current_path=request.url.path) }}
+      {{ m.nav_link("/eod", "Cierre del día", icon="icon-close", current_path=request.url.path) }}
 
-      <svg class="icon" aria-hidden="true"><use href="#icon-heart"/></svg>
+      <div class="sidebar-section">Catálogo</div>
+      {{ m.nav_link("/productos", "Productos", icon="icon-box", current_path=request.url.path) }}
+      {{ m.nav_link("/recetas", "Recetas", icon="icon-recipe", current_path=request.url.path) }}
+      {{ m.nav_link("/inventario", "Inventario", icon="icon-inventory", current_path=request.url.path) }}
+      {{ m.nav_link("/merma", "Merma", icon="icon-waste", current_path=request.url.path) }}
 
-      <span>Saskia RMS</span>
+      <div class="sidebar-section">Compras</div>
+      {{ m.nav_link("/reorder", "Reponer", icon="icon-reorder", current_path=request.url.path) }}
+      {{ m.nav_link("/suppliers", "Proveedores", icon="icon-supplier", current_path=request.url.path) }}
+      {{ m.nav_link("/clientes", "Clientes", icon="icon-customer", current_path=request.url.path) }}
 
-    </a>
+      <div class="sidebar-section">Finanzas</div>
+      {{ m.nav_link("/reportes", "Reportes", icon="icon-report", current_path=request.url.path) }}
+      {{ m.nav_link("/analisis", "Análisis", icon="icon-chart", current_path=request.url.path) }}
 
-    {% if is_logged_in %}
-    <div class="nav-menu" id="nav-menu">
-      <button type="button" class="menu-btn" id="nav-menu-btn"
-              aria-haspopup="true" aria-expanded="false" aria-controls="nav-menu-panel">
+      <div class="sidebar-section">Sistema</div>
+      {{ m.nav_link("/excel", "Excel", icon="icon-excel", current_path=request.url.path) }}
+      {{ m.nav_link("/settings", "Configuración", icon="icon-config", current_path=request.url.path) }}
+      <a href="/guia" class="nav-item" aria-label="Guía de uso"><svg class="icon" aria-hidden="true"><use href="#icon-help"/></svg>Guía</a>
+      {{ m.nav_link("/dashboard", "KPIs", icon="icon-report", current_path=request.url.path, icon_css_class="sub") if false else "" }}
+      <a href="/dashboard" class="nav-item sub" data-label="KPIs">KPIs (mensual)</a>
+      <a href="/wishlist" class="nav-item sub" data-label="Equipamiento">Equipamiento</a>
+      <a href="/pricing" class="nav-item sub">"Precios por canal"</a>
+      <a href="/vs-mercado" class="nav-item sub" data-label="Precios vs mercado">Precios vs mercado</a>
+      <a href="/bank" class="nav-item sub">Bancos</a>
+      <a href="/shopping-list" class="nav-item sub">Lista de compras</a>
+      <a href="/riesgos" class="nav-item sub">Riesgos</a>
+      <!-- nav_link("/settings#zonas-delivery", "Zonas delivery") -->
+      <a href="/settings#zonas-delivery" class="nav-item sub" data-label="Zonas delivery">Zonas delivery</a>
+      <a href="/settings/catalog" class="nav-item sub">Catálogos</a>
+      <a href="/auditoria" class="nav-item sub">Auditoría</a>
+      <a href="/ops/status" class="nav-item sub" aria-label="Estado del servidor">Estado operativo</a>
+      <a href="/healthz" class="nav-item sub" aria-label="Estado del servidor">Salud</a>
+
+      <div class="sidebar-footer">
+        <span class="avatar">A</span>
+        <span>admin</span>
+        <a href="/logout" title="Cerrar sesión" aria-label="Cerrar sesión" style="margin-left:auto;color:var(--color-text-muted);">
+          <svg class="icon" aria-hidden="true"><use href="#icon-logout"/></svg>
+        </a>
+      </div>
+    </aside>
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+    <nav class="topbar" aria-label="Barra superior">
+      <button type="button" class="btn btn-ghost btn-icon sidebar-toggle" id="sidebar-toggle"
+              aria-label="Abrir menú" aria-controls="app-shell">
         <svg class="icon" aria-hidden="true"><use href="#icon-menu"/></svg>
-        <span>Menú</span>
-        <svg class="icon chev" aria-hidden="true"><use href="#icon-chevron-down"/></svg>
-      </button>
-                  <div class="menu-panel" id="nav-menu-panel" role="menu" aria-label="Secciones">
-        <div class="menu-section">Día a día</div>
-        {{ m.nav_link("/", "Inicio", icon="icon-home", exact=True, current_path=request.url.path) }}
-        {{ m.nav_link("/ventas", "Ventas", icon="icon-sale", current_path=request.url.path) }}
-        {{ m.nav_link("/pedidos", "Pedidos", icon="icon-box", current_path=request.url.path) }}
-        {{ m.nav_link("/produccion", "Producción", icon="icon-production", current_path=request.url.path) }}
-        {{ m.nav_link("/eod", "Cierre del día", icon="icon-close", current_path=request.url.path) }}
-
-        <div class="menu-section">Compras &amp; Stock</div>
-        {{ m.nav_link("/inventario", "Inventario", icon="icon-inventory", current_path=request.url.path) }}
-        {{ m.nav_link("/reorder", "Reponer stock", icon="icon-reorder", current_path=request.url.path) }}
-        {{ m.nav_link("/shopping-list", "Lista de compras", icon="icon-reorder", current_path=request.url.path) }}
-        {{ m.nav_link("/suppliers", "Proveedores", icon="icon-supplier", current_path=request.url.path) }}
-        {{ m.nav_link("/wishlist", "Equipamiento", icon="icon-tag", current_path=request.url.path) }}
-
-        <div class="menu-section">Cocina</div>
-        {{ m.nav_link("/productos", "Productos", icon="icon-box", current_path=request.url.path) }}
-        {{ m.nav_link("/recetas", "Recetas", icon="icon-recipe", current_path=request.url.path) }}
-        {{ m.nav_link("/merma", "Merma", icon="icon-waste", current_path=request.url.path) }}
-
-        <div class="menu-section">Finanzas</div>
-        {{ m.nav_link("/reportes", "Reportes", icon="icon-report", current_path=request.url.path) }}
-        {{ m.nav_link("/pricing", "Precios por canal", icon="icon-tag", current_path=request.url.path) }}
-        {{ m.nav_link("/vs-mercado", "Precios vs mercado", icon="icon-report", current_path=request.url.path) }}
-        {{ m.nav_link("/bank", "Bancos", icon="icon-config", current_path=request.url.path) }}
-        {{ m.nav_link("/clientes", "Clientes", icon="icon-customer", current_path=request.url.path) }}
-
-        <div class="menu-section">Análisis &amp; Control</div>
-        {{ m.nav_link("/dashboard", "KPIs", icon="icon-report", current_path=request.url.path) }}
-        {{ m.nav_link("/riesgos", "Riesgos", icon="icon-warn", current_path=request.url.path) }}
-        {{ m.nav_link("/settings#zonas-delivery", "Zonas delivery", icon="icon-inventory", current_path=request.url.path) }}
-
-        <div class="menu-section">Sistema</div>
-        {{ m.nav_link("/excel", "Excel", icon="icon-excel", current_path=request.url.path) }}
-        {{ m.nav_link("/settings", "Configuración", icon="icon-config", current_path=request.url.path) }}
-        {{ m.nav_link("/settings/catalog", "Catálogos", icon="icon-config", current_path=request.url.path) }}
-      </div><div class="nav-right">
-
-      <button type="button" class="search-btn btn-ghost btn-icon" id="global-search-btn"
-              aria-label="Buscar (Cmd+K)" title="Buscar (⌘K)">
-        <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
       </button>
 
-      <div class="notif-center" id="notif-center">
-        <button type="button" class="notif-btn btn-ghost btn-icon" id="notif-btn"
-                aria-label="Notificaciones" aria-haspopup="true" aria-expanded="false">
-          <svg class="icon" aria-hidden="true"><use href="#icon-bell"/></svg>
-          <span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+      <span class="topbar-date">{{ now_str() if now_str is defined else '' }}</span>
+
+      <div class="topbar-search">
+        <button type="button" class="btn" id="global-search-btn" aria-label="Buscar (Cmd+K)">
+          <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+          Buscar producto, cliente, pedido…
+          <button id="open-shortcuts" class="btn btn-ghost" type="button" aria-label="Atajos de teclado" title="Atajos de teclado">?</button>
+          <kbd style="margin-left:auto;">⌘K</kbd>
         </button>
-        <div class="notif-dropdown" id="notif-dropdown" role="menu" aria-label="Notificaciones">
-          <div class="notif-header">
-            <span>Notificaciones</span>
-            <button type="button" class="btn-ghost btn-sm" id="notif-clear" style="font-size:var(--text-xs);">Limpiar</button>
-          </div>
-          <div class="notif-list" id="notif-list">
-            <p class="notif-empty">Sin notificaciones</p>
-          </div>
-        </div>
       </div>
 
-      <button type="button" class="theme-toggle btn-ghost btn-icon" id="theme-toggle"
+      <div class="topbar-actions">
+        <div class="nuevo-wrap" id="nuevo-wrap">
+          <button type="button" class="btn btn-primary" id="nuevo-btn" aria-haspopup="true" aria-expanded="false" aria-controls="nuevo-menu">
+            <svg class="icon" aria-hidden="true"><use href="#icon-menu"/></svg>
+            Nuevo
+          </button>
+          <div class="nuevo-menu" id="nuevo-menu" role="menu" aria-label="Crear nuevo">
+            <a href="/ventas" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg> Venta</a>
+            <a href="/pedidos/nuevo" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg> Pedido</a>
+            <a href="/productos/nuevo" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg> Producto</a>
+            <a href="/inventario/nuevo" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg> Ingrediente</a>
+            <a href="/recetas/nueva" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-recipe"/></svg> Receta</a>
+            <a href="/clientes" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-customer"/></svg> Cliente</a>
+          </div>
+        </div>
 
-              aria-label="Cambiar tema claro/oscuro" title="Cambiar tema">
+        <div class="notif-center" id="notif-center">
+          <button type="button" class="notif-btn btn-ghost btn-icon" id="notif-btn"
+                  aria-label="Notificaciones" aria-haspopup="true" aria-expanded="false">
+            <svg class="icon" aria-hidden="true"><use href="#icon-bell"/></svg>
+            <span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+          </button>
+          <div class="notif-dropdown" id="notif-dropdown" role="menu" aria-label="Notificaciones">
+            <div class="notif-header">
+              <span>Notificaciones</span>
+              <button type="button" class="btn-ghost btn-sm" id="notif-clear" style="font-size:var(--text-xs);">Limpiar</button>
+            </div>
+            <div class="notif-list" id="notif-list">
+              <p class="notif-empty">Sin notificaciones</p>
+            </div>
+          </div>
+        </div>
 
-        <svg class="icon" aria-hidden="true"><use href="#icon-moon"/></svg>
+        <button type="button" class="theme-toggle btn-ghost btn-icon" id="theme-toggle"
+                aria-label="Cambiar tema claro/oscuro" title="Cambiar tema">
+          <svg class="icon" aria-hidden="true"><use href="#icon-moon"/></svg>
+        </button>
+      </div>
+    </nav>
 
-      </button>
+    <main class="app-main container" id="main-content" tabindex="-1">
 
-      <button type="button" class="shortcut-help-btn btn-ghost btn-icon" id="open-shortcuts"
-
-              aria-label="Mostrar atajos de teclado" title="Atajos de teclado (?)">
-
-        <svg class="icon" aria-hidden="true"><use href="#icon-help"/></svg>
-
-      </button>
-
-      <a href="/guia" class="help-link btn-ghost btn-icon" target="_blank" rel="noopener"
-
-         title="Guía de uso" aria-label="Guía de uso">
-
-        <svg class="icon" aria-hidden="true"><use href="#icon-help"/></svg>
-
-      </a>
-
-      <a href="/healthz" class="health-link btn-ghost btn-icon" title="Estado del servidor" aria-label="Estado del servidor">
-
-        <svg class="icon" aria-hidden="true"><use href="#icon-ops"/></svg>
-
-      </a>
-
-      <a href="/logout" class="logout-link btn-ghost btn-icon" title="Cerrar sesión" aria-label="Cerrar sesión">
-
-        <svg class="icon" aria-hidden="true"><use href="#icon-logout"/></svg>
-
-      </a>
-
-    </div>
-
-  {% endif %}
-  </nav>
-
-
-
-  <div class="alerts-region" aria-live="polite" aria-atomic="true">
-
-    {% block alerts %}{% endblock %}
-
-  </div>
-
-
-
-
-
-  <main class="container" id="main-content" tabindex="-1">
-
-    {% block breadcrumb %}
-<nav aria-label="Breadcrumb" style="margin-bottom:.5rem;font-size:var(--text-sm);color:var(--color-text-muted);">
-  <ol style="list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:.25rem;align-items:center;">
-    <li><a href="/" style="color:var(--color-text-link);">Inicio</a></li>
-    {% if self._TemplateReference__context.name != 'inicio.html' %}
-    <li aria-hidden="true" style="color:var(--color-text-subtle);">›</li>
-    <li>
-      {% set page_name = self._TemplateReference__context.name|replace('.html','')|replace('_',' ') %}
-      <span style="color:var(--color-text-muted);">{{ page_name|capitalize }}</span>
-    </li>
-    {% endif %}
-  </ol>
-</nav>
-{% endblock %}
+      {% block breadcrumb %}
+      <nav aria-label="Breadcrumb" style="margin-bottom:.5rem;font-size:var(--text-sm);color:var(--color-text-muted);">
+        <ol style="list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:.25rem;align-items:center;">
+          <li><a href="/" style="color:var(--color-text-link);">Inicio</a></li>
+          {% if self._TemplateReference__context.name != 'inicio.html' %}
+          <li aria-hidden="true" style="color:var(--color-text-subtle);">›</li>
+          <li>
+            {% set page_name = self._TemplateReference__context.name|replace('.html','')|replace('_',' ') %}
+            <span style="color:var(--color-text-muted);">{{ page_name|capitalize }}</span>
+          </li>
+          {% endif %}
+        </ol>
+      </nav>
+      {% endblock %}
 
     {% block content %}{% endblock %}
 
   </main>
 
-
-
-  <footer class="footer">
-
-    <small>{{ branding.business_name }} v1.0 · {{ branding.footer }} · {{ now_year() }}</small>
-
+  <footer class="app-footer">
+    <span class="status-pill"><span class="dot"></span> {{ branding.business_name }} v1.0</span>
+    <span class="status-pill">{{ branding.footer }}</span>
+    <span style="margin-left:auto;">· {{ now_year() }}</span>
   </footer>
 
-
-
-<script>
-    // Nav dropdown menu (Saskia round-1 visual pass).
+  <script>
+    // Sidebar toggle (mobile) + Nuevo dropdown + close-on-outside-click.
     (function() {
-      var wrap = document.getElementById('nav-menu');
-      var btn = document.getElementById('nav-menu-btn');
-      if (!wrap || !btn) return;
-      function setOpen(open) {
-        wrap.classList.toggle('is-open', open);
-        btn.setAttribute('aria-expanded', String(open));
+      var shell = document.getElementById('app-shell');
+      var stoggle = document.getElementById('sidebar-toggle');
+      var backdrop = document.getElementById('sidebar-backdrop');
+      function closeSidebar() { shell.classList.remove('sidebar-open'); }
+      if (stoggle) stoggle.addEventListener('click', function(e) {
+        e.stopPropagation(); shell.classList.toggle('sidebar-open');
+      });
+      if (backdrop) backdrop.addEventListener('click', closeSidebar);
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') { closeSidebar(); closeNuevo(); }
+      });
+
+      var nwrap = document.getElementById('nuevo-wrap');
+      var nbtn = document.getElementById('nuevo-btn');
+      function closeNuevo() {
+        if (!nwrap) return;
+        nwrap.classList.remove('is-open');
+        if (nbtn) nbtn.setAttribute('aria-expanded', 'false');
       }
-      btn.addEventListener('click', function(e) {
+      if (nbtn) nbtn.addEventListener('click', function(e) {
         e.stopPropagation();
-        setOpen(!wrap.classList.contains('is-open'));
+        var open = nwrap.classList.toggle('is-open');
+        nbtn.setAttribute('aria-expanded', String(open));
       });
       document.addEventListener('click', function(e) {
-        if (!wrap.contains(e.target)) setOpen(false);
-      });
-      document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') setOpen(false);
+        if (nwrap && !nwrap.contains(e.target)) closeNuevo();
       });
     })();
   </script>
+{% else %}
+  {# ══ Logged out: minimal chrome (login + public pages) ══ #}
+  <nav class="topnav" aria-label="Navegación">
+    <a href="/" class="brand">
+      <svg class="icon" aria-hidden="true"><use href="#icon-heart"/></svg>
+      <span>Saskia RMS</span>
+    </a>
+  </nav>
+
+  <main class="container" id="main-content" tabindex="-1">
+    {{ self.content() }}
+  </main>
+
+  <footer class="footer">
+    <small>{{ branding.business_name }} v1.0 · {{ branding.footer }} · {{ now_year() }}</small>
+  </footer>
+{% endif %}
+
+  <div class="alerts-region" aria-live="polite" aria-atomic="true">
+    {% block alerts %}{% endblock %}
+  </div>
 
   <script>
-
-    // Dark mode toggle (per stack audit 2026-09-02).
-    // Cycles light → dark → system. Persists the last manual choice to
-    // localStorage so the system choice can still respect a prior dark pick.
-
+    // Dark mode toggle (cycles light → dark → system).
     (function() {
-
       var btn = document.getElementById('theme-toggle');
-
       if (!btn) return;
-
-      function paint(isDark, isSystem) {
-
+      function paint(isDark) {
         var useEl = btn.querySelector('use');
-
-        if (useEl) {
-
-          // Show moon in light mode, sun in dark/system mode.
-          var icon = isDark ? '#icon-sun' : '#icon-moon';
-          useEl.setAttribute('href', icon);
-
-        }
-
+        if (useEl) useEl.setAttribute('href', isDark ? '#icon-sun' : '#icon-moon');
         btn.setAttribute('aria-pressed', String(isDark));
-
       }
-
       function resolve() {
-        var attr   = document.documentElement.getAttribute('data-saskia-theme') || 'system';
+        var attr = document.documentElement.getAttribute('data-saskia-theme') || 'system';
         var stored = null;
         try { stored = localStorage.getItem('saskia-theme'); } catch (e) {}
-
-        if (attr === 'dark')    return { isDark: true,  isSystem: false };
-        if (attr === 'light')   return { isDark: false, isSystem: false };
-        // attr === 'system'
-        return { isDark: stored === 'dark', isSystem: true };
+        if (attr === 'dark')  return true;
+        if (attr === 'light') return false;
+        return stored === 'dark';
       }
-
-      var state = resolve();
-      paint(state.isDark, state.isSystem);
-
+      paint(resolve());
       btn.addEventListener('click', function() {
-
-        var attr   = document.documentElement.getAttribute('data-saskia-theme') || 'system';
+        var attr = document.documentElement.getAttribute('data-saskia-theme') || 'system';
         var stored = null;
         try { stored = localStorage.getItem('saskia-theme'); } catch (e) {}
-
         if (attr === 'light') {
-
           document.documentElement.setAttribute('data-theme', 'dark');
           document.documentElement.setAttribute('data-saskia-theme', 'dark');
           try { localStorage.setItem('saskia-theme', 'dark'); } catch (e) {}
-          paint(true, false);
-
+          paint(true);
         } else if (attr === 'dark') {
-
           document.documentElement.removeAttribute('data-theme');
           document.documentElement.setAttribute('data-saskia-theme', 'system');
-          // Remember last manual pick so the system mode can honour it
           try { localStorage.setItem('saskia-theme', stored || 'dark'); } catch (e) {}
-          paint(stored === 'dark', true);
-
+          paint(stored === 'dark');
         } else {
-
-          // system — drop to light
           document.documentElement.removeAttribute('data-theme');
           document.documentElement.setAttribute('data-saskia-theme', 'light');
           try { localStorage.setItem('saskia-theme', 'light'); } catch (e) {}
-          paint(false, false);
-
+          paint(false);
         }
-
       });
-
     })();
-
   </script>
 
   {# ── Global Search Modal ── #}
@@ -335,11 +309,10 @@
 
   {% include "_components/confirm_modal.html" %}
 
-  {# ── Global JS: search modal, notification center, copy-to-clipboard, Cmd+K ── #}
+  {# ── Global JS: search modal, notification center, Cmd+K ── #}
   <link rel="stylesheet" href="/static/combobox.css?v={{ asset_version() }}">
   <link rel="preload" href="/static/combo.js" as="script" crossorigin="anonymous">
   <link rel="preload" href="/static/combo-rows.js" as="script" crossorigin="anonymous">
-  <link rel="stylesheet" href="/static/combobox.css">
   <script src="/static/shortcuts.js" defer></script>
   <script src="/static/combo.js?v={{ asset_version() }}" defer></script>
   <script src="/static/combo-rows.js?v={{ asset_version() }}" defer></script>
@@ -348,4 +321,3 @@
 </body>
 
 </html>
-

@@ -31,10 +31,10 @@ def _setup(session):
 def test_dashboard_route_renders_insights_panel(client):
     """GET / → 200, contains insights panel HTML markers."""
     with client:
-        resp = client.get("/")
+        resp = client.get("/analisis")
     assert resp.status_code == 200
     body = resp.text
-    assert "Inteligencia" in body
+    assert "Panorama" in body  # 2026-09-25: heading renamed when analytics moved to /analisis
     assert "Capital en inventario" in body
     assert "Hora pico" in body
     assert "Día pico" in body
@@ -49,7 +49,7 @@ def test_dashboard_insights_with_seed(client):
         _setup(s)
 
     with client:
-        resp = client.get("/")
+        resp = client.get("/analisis")
     assert resp.status_code == 200
     # Capital in inventory should be 5kg × 1000 Gs/kg = 5000.
     assert "5.000" in resp.text or "5000" in resp.text
@@ -58,14 +58,14 @@ def test_dashboard_insights_with_seed(client):
 def test_dashboard_insights_empty_db_does_not_500(client):
     """Without seed, dashboard renders with em-dash for empty metrics."""
     with client:
-        resp = client.get("/")
+        resp = client.get("/analisis")
     assert resp.status_code == 200
 
 
 def test_build_insights_dashboard_integration(client):
     """End-to-end: client request triggers build_insights via dashboard route."""
     with client:
-        resp = client.get("/")
+        resp = client.get("/analisis")
     assert resp.status_code == 200
     # build_insights must not raise even with empty DB.
     assert "—:" not in resp.text or "—:" in resp.text  # either way no error
@@ -74,7 +74,7 @@ def test_build_insights_dashboard_integration(client):
 def test_dashboard_panel_contains_quadrant_names(client):
     """Quadrant legend (star/dog) appears in HTML."""
     with client:
-        resp = client.get("/")
+        resp = client.get("/analisis")
     # With empty DB, panels render but lists are hidden.
     # Check at minimum that the page renders without error.
     assert resp.status_code == 200
@@ -87,5 +87,5 @@ def test_dashboard_insights_food_cost_in_html(client):
     with sf() as s:
         _setup(s)
     with client:
-        resp = client.get("/")
+        resp = client.get("/analisis")
     assert "%" in resp.text
