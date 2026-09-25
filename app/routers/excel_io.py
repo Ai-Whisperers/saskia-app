@@ -20,7 +20,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy.exc import IntegrityError
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Form
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from loguru import logger
 from sqlalchemy import select
@@ -142,7 +143,7 @@ async def excel_mode_guidance(request: Request) -> HTMLResponse:
 async def excel_validate(
     request: Request,
     session: Session = Depends(get_session),
-    mode: str = Query(default="PATCH"),
+    mode: str = Form(default="PATCH"),
 ) -> HTMLResponse:
     """Dry-run: validate an uploaded .xlsx without writing to DB.
 
@@ -194,7 +195,7 @@ async def excel_validate(
 async def excel_import(
     request: Request,
     session: Session = Depends(get_session),
-    mode: str = Query(default="PATCH"),
+    mode: str = Form(default="PATCH"),
 ) -> RedirectResponse:
     """Import an uploaded .xlsx file.
 
@@ -231,6 +232,13 @@ async def excel_import(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except IntegrityError as exc:
+            session.rollback()
+            raise HTTPException(
+                status_code=400,
+                detail="El archivo tiene filas que ya existen (nombres duplicados). "
+                       "Usá modo PATCH para actualizar, o revisá los nombres.",
+            ) from exc
 
     # Record import in audit log
     try:

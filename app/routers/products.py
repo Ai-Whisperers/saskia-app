@@ -501,16 +501,21 @@ async def product_upload_image(
     allowed_types = {"image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"}
     if file.content_type not in allowed_types:
         raise HTTPException(
-            status_code=400,
+            status_code=415,
             detail=f"Tipo de archivo no permitido: {file.content_type}. Usa PNG, JPG, WebP o GIF.",
         )
 
     # Read content (max 5 MB)
     content_bytes = await file.read()
+    if not content_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="Archivo vacío.",
+        )
     max_size = 5 * 1024 * 1024
     if len(content_bytes) > max_size:
         raise HTTPException(
-            status_code=400,
+            status_code=413,
             detail=f"Imagen muy grande ({len(content_bytes) // 1024} KB). Máximo 5 MB.",
         )
 
@@ -525,8 +530,11 @@ async def product_upload_image(
     ext = ext_map[file.content_type]
     name = f"{datetime.now(timezone.utc).strftime('%Y%m%d')}-{pysecrets.token_hex(8)}{ext}"
 
-    # Save to app/static/uploads/
-    uploads_dir = FPath("/opt/hermes/static/uploads")
+    # Save to app/static/uploads/ (portable: resolved from the package,
+    # never a hardcoded absolute host path)
+    from app.rms.static_paths import app_root
+
+    uploads_dir = app_root() / "static" / "uploads"
     uploads_dir.mkdir(parents=True, exist_ok=True)
     target = uploads_dir / name
     target.write_bytes(content_bytes)

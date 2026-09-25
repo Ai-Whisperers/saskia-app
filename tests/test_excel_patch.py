@@ -608,7 +608,8 @@ def test_import_endpoint_with_invalid_mode_returns_422(client):
     wb.save(buf)
     buf.seek(0)
     r = client.post(
-        "/excel/importar?mode=GARBAGE",
+        "/excel/importar",
+        data={"mode": "GARBAGE"},
         files={
             "file": (
                 "test.xlsx",

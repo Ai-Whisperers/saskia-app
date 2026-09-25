@@ -343,7 +343,10 @@ async def recipe_set_photo(
 ):
     """Show a picker of all photos in /static/recipes/."""
     from pathlib import Path
-    photo_dir = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/recipes")
+
+    from app.rms import static_paths
+
+    photo_dir = static_paths.recipes_dir()
     photos = sorted([p.name for p in photo_dir.glob("*.jpg")]) if photo_dir.is_dir() else []
     recipe = session.get(Recipe, r_id)
     return render(

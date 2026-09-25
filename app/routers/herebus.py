@@ -170,15 +170,27 @@ async def wishlist_send_to_shopping_list(
         )
         session.add(eq_ing)
         session.flush()
-    sl = ShoppingListItem(
-        ingredient_id=eq_ing.id,
-        production_plan_id=None,
-        qty_to_buy=item.quantity,
-        unit="und",
-        purpose_text=f"Wishlist #{item.id} — {item.buy_location or 'TBD'}",
-    )
-    session.add(sl)
-    session.commit()
+    # Idempotency: an open (not-yet-purchased) row for this wishlist item
+    # must not be duplicated on re-send.
+    from app.rms.models import ShoppingListItem as _SLI
+
+    existing = session.execute(
+        select(_SLI).where(
+            _SLI.ingredient_id == eq_ing.id,
+            _SLI.purpose_text.like(f"Wishlist #{item.id}%"),
+            _SLI.purchased_at.is_(None) if hasattr(_SLI, "purchased_at") else True,
+        )
+    ).scalars().first()
+    if existing is None:
+        sl = ShoppingListItem(
+            ingredient_id=eq_ing.id,
+            production_plan_id=None,
+            qty_to_buy=item.quantity,
+            unit="und",
+            purpose_text=f"Wishlist #{item.id} — {item.buy_location or 'TBD'}",
+        )
+        session.add(sl)
+        session.commit()
     return RedirectResponse(
         url=f"/shopping-list?from_wishlist={item.id}&n_added=1",
         status_code=303,
