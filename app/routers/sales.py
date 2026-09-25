@@ -792,6 +792,22 @@ async def sale_void(
         void_sale(session, sale_id, reason=reason_clean, voided_by=user_id)
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
+    # Forensic completeness: the void must leave an audit-log row, not just
+    # the sale's own void_* columns (found by the tests/e2e audit-sweep —
+    # every other mutation writes one, voids silently didn't).
+    try:
+        from app.rms.observability import record_audit
+
+        record_audit(
+            request, session=session,
+            action="write.sale.void", target_type="sale", target_id=sale_id,
+            detail={"reason": reason_clean, "voided_by": user_id},
+        )
+        session.commit()  # void_sale already committed; the audit row needs its own
+    except Exception as exc:  # best-effort: never block the void
+        from loguru import logger as _logger
+
+        _logger.warning("audit for void sale {} failed: {}", sale_id, exc)
     return RedirectResponse(url="/ventas/historial?flash=sale_void_ok", status_code=303)
 
 

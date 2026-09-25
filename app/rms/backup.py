@@ -176,7 +176,13 @@ def load_archive(path: Path | str) -> tuple[BackupManifest, dict[str, list[dict]
     """Load an archive + return (manifest, tables-dict)."""
     p = Path(path)
     raw = p.read_bytes()
-    if p.suffix == ".gz":
+    # Decompress BOTH .gz and .backup archives — backups written with
+    # compress=True (the default) into a `.backup` destination are gzipped
+    # too; only the extension check here distinguished them, so every
+    # `.backup` restore failed with UnicodeDecodeError (found by the
+    # tests/e2e restore drill 2026-09-25). Also sniff the gzip magic bytes
+    # as a fallback for extensionless archives.
+    if p.suffix == ".gz" or p.suffix == ".backup" or raw[:2] == b"\x1f\x8b":
         raw = gzip.decompress(raw)
     payload = json.loads(raw.decode("utf-8"))
     manifest = BackupManifest(**payload["manifest"])
