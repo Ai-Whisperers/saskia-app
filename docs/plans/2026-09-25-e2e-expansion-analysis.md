@@ -10,7 +10,7 @@ Method: route-by-route diff (registered routes vs E2E mentions), then thin-area 
 
 | Route | Risk | Why it matters |
 |---|---|---|
-| `POST /produccion-planner/compute` | HIGH | Production planning is a core Gaby workflow; 0 tests of any kind |
+| `POST /produccion-planner/compute` | HIGH | Production planning is a core Saskia workflow; 0 tests of any kind |
 | `POST /vs-mercado/{bench_id}/save` | MED | Competitive benchmarking save |
 | `POST /wishlist/{item_id}/send-to-shopping-list` | MED | Cross-module handoff (wishlist → shopping) |
 | `POST /productos/upload-image` | MED | File upload on prod — size/type-bomb guards untested |
