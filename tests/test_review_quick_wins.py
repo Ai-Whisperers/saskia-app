@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from decimal import Decimal
 
 # NAV-02: production mode means internal routes are NOT mounted. The conftest
@@ -34,32 +35,40 @@ def _restore_test_mode():
     for mod in list(sys.modules):
         if mod.startswith("app."):
             del sys.modules[mod]
+    # Re-prime the full app package so every later test (any file that
+    # imported app.rms.models at collection time OR at runtime) shares one
+    # coherent Base/registry. Without this, module purge leaves half-loaded
+    # mapper state that breaks unrelated tests (KeyError: 'SaleStockMove').
+    import app.rms.models  # noqa: F401
+    import app.rms.main  # noqa: F401
+
+
+def _run_prod_mode_check(path: str) -> int:
+    """Run a production-mode route check in a SUBPROCESS.
+
+    The old in-process approach purged sys.modules of all app.* modules,
+    which left every other test file holding stale SQLAlchemy class
+    references (KeyError 'SaleStockMove' mappers) — any test running
+    after this file failed. A subprocess isolates the purge completely.
+    """
+    import sys
+    from pathlib import Path
+    runner = Path(__file__).parent / "_prod_mode_check.py"
+    out = subprocess.run([sys.executable, str(runner), path],
+                         capture_output=True, text=True, cwd=os.getcwd())
+    if out.returncode != 0:
+        raise AssertionError(f"prod-mode runner failed: {out.stderr[-400:]}")
+    return int(out.stdout.strip().splitlines()[-1])
 
 
 def test_nav_02_auditoria_returns_404_in_production_mode():
     """NAV-02: GET /auditoria must 404 in production (no env var set)."""
-    _force_production_mode()
-    try:
-        from app.rms.main import app
-        from fastapi.testclient import TestClient
-        with TestClient(app) as c:
-            r = c.get("/auditoria")
-            assert r.status_code == 404, f"Expected 404, got {r.status_code}"
-    finally:
-        _restore_test_mode()
+    assert _run_prod_mode_check("/auditoria") == 404
 
 
 def test_nav_02_ops_returns_404_in_production_mode():
     """NAV-02: GET /ops/status must 404 in production."""
-    _force_production_mode()
-    try:
-        from app.rms.main import app
-        from fastapi.testclient import TestClient
-        with TestClient(app) as c:
-            r = c.get("/ops/status")
-            assert r.status_code == 404, f"Expected 404, got {r.status_code}"
-    finally:
-        _restore_test_mode()
+    assert _run_prod_mode_check("/ops/status") == 404
 
 
 def test_nav_02_internal_routes_mounted_in_test_mode(client):

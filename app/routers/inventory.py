@@ -453,8 +453,18 @@ def inventory_detail(
             "recipes": recipes,
             "variants_rollup": rollup,
             "forecast": forecast,
+            # Price history stats for the detail strip (price_history.py).
+            "price_stats": _price_stats_safe(session, ing_id),
         },
     )
+
+
+def _price_stats_safe(session, ing_id: int):
+    try:
+        from app.rms.price_history import price_stats
+        return price_stats(session, ing_id, days=90)
+    except Exception:
+        return None
 
 
 @router.get("/{ing_id}/editar", response_class=HTMLResponse)
@@ -488,6 +498,11 @@ def inventory_update(
     opening_stock_qty: str = Form(""),
     opening_stock_date: str = Form(""),
     reorder_point: str = Form(""),
+    shelf_life_days: str = Form(""),
+    allergens: str = Form("__unset__"),
+    dietary_tags: str = Form("__unset__"),
+    may_contain_gluten: str = Form(""),
+    lead_time_days: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Update an existing ingredient.
@@ -515,6 +530,26 @@ def inventory_update(
     ing.min_stock_qty = min_stock
     ing.purchase_price_gs = price
     ing.notes = optional_text(notes, max_len=2000)
+
+    # Operator-editable classification (detail page exposes them; form
+    # overrides auto-inference). "__unset__" = field not submitted (older
+    # form posts) → keep current value.
+    if shelf_life_days.strip():
+        try:
+            ing.shelf_life_days = int(float(shelf_life_days)) or None
+        except ValueError:
+            pass
+    if allergens != "__unset__":
+        # Empty string = explicitly cleared to "sin declarar" (None).
+        ing.allergens = allergens.strip() or None
+    if dietary_tags != "__unset__":
+        ing.dietary_tags = dietary_tags.strip() or None
+    ing.may_contain_gluten = may_contain_gluten == "1"
+    if lead_time_days.strip():
+        try:
+            ing.lead_time_days = int(lead_time_days) or None
+        except ValueError:
+            pass
 
     # Wave 2 — auto-fill inference on update too.
     # Operator can override category via the form; if they leave it blank,

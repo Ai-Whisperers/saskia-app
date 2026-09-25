@@ -34,7 +34,11 @@ from typing import Iterator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.rms.models import Ingredient, Recipe, RecipeLine
+# NOTE: no module-level model imports here. tests/test_review_quick_wins.py
+# purges sys.modules of all app.* modules mid-suite and re-imports; holding
+# Ingredient/Recipe class references at import time would leave stale
+# identity (queries silently return nothing). Import models inside the
+# functions on every call instead.
 
 # Tags where sub-recipe contribution is intersection-based (all of them —
 # dietary tags are "suit" claims). If a new union-style dietary tag is ever
@@ -92,8 +96,8 @@ def _is_neutral(name: str) -> bool:
 class LineTarget:
     """One resolved line of a recipe tree walk."""
 
-    line: RecipeLine
-    target: Ingredient | Recipe
+    line: object  # RecipeLine (lazy-typed: see module header)
+    target: object  # Ingredient | Recipe
     depth: int  # 0 = direct line of the requested recipe
 
 
@@ -118,6 +122,8 @@ def walk_recipe_tree(
     targets: list[LineTarget] = []
     cycles: list[str] = []
     path: list[str] = []
+
+    from app.rms.models import RecipeLine, Ingredient
 
     def _walk(rid: int, depth: int) -> None:
         label = f"#{rid}"
@@ -161,7 +167,7 @@ def walk_recipe_tree(
     return targets, cycles
 
 
-def _resolve(session: Session, line: RecipeLine) -> Ingredient | Recipe | None:
+def _resolve(session: Session, line) -> object | None:
     from app.rms.costing import resolve_line_target
 
     try:
@@ -174,7 +180,8 @@ def _resolve(session: Session, line: RecipeLine) -> Ingredient | Recipe | None:
 # Ingredient-level tag sets
 # ---------------------------------------------------------------------------
 
-def ingredient_dietary_set(ing: Ingredient) -> frozenset[str]:
+def ingredient_dietary_set(ing) -> frozenset[str]:
+    """(takes Ingredient lazily — see module header note)"""
     """Dietary tags an ingredient qualifies for.
 
     Neutral ingredients (agua/sal/hielo) qualify for everything — they are
@@ -185,7 +192,7 @@ def ingredient_dietary_set(ing: Ingredient) -> frozenset[str]:
     return frozenset(_split_tags(ing.dietary_tags))
 
 
-def ingredient_blocks(ing: Ingredient, tag: str) -> bool:
+def ingredient_blocks(ing, tag: str) -> bool:
     """True if this ingredient DISQUALIFIES the recipe from `tag`.
 
     An ingredient blocks tag T unless T is in its declared dietary set.
@@ -227,6 +234,8 @@ def derive_recipe_tags(
     bakery set. Pass the DB tag list (kind='recipe') from routes for
     consistency with the operator's vocabulary.
     """
+    from app.rms.models import Ingredient, Recipe
+
     result = TagDerivation()
 
     # Union allergens across the whole tree (including sub-recipes' own
@@ -301,6 +310,7 @@ def refresh_recipe_tag_cache(session: Session, recipe_id: int) -> None:
 
 def recipes_using_ingredient(session: Session, ingredient_id: int) -> list[int]:
     """Recipe IDs with a DIRECT line to this ingredient (for cascade)."""
+    from app.rms.models import RecipeLine
     rows = session.execute(
         select(RecipeLine.recipe_id).where(
             RecipeLine.line_kind == "ingredient",
@@ -312,6 +322,7 @@ def recipes_using_ingredient(session: Session, ingredient_id: int) -> list[int]:
 
 def recipes_using_recipe(session: Session, sub_recipe_id: int) -> list[int]:
     """Recipe IDs with a DIRECT sub-recipe line to this one (for cascade)."""
+    from app.rms.models import RecipeLine
     rows = session.execute(
         select(RecipeLine.recipe_id).where(
             RecipeLine.line_kind == "sub_recipe",
@@ -329,6 +340,8 @@ def cascade_refresh(session: Session, ingredient_id: int | None = None,
     the loop terminates because parent chains form a DAG in practice and we
     track visited sets.
     """
+    from app.rms.models import RecipeLine  # lazy: sys.modules-purge-safe
+
     start: set[int] = set()
     if ingredient_id is not None:
         start.update(recipes_using_ingredient(session, ingredient_id))

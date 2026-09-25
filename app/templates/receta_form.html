@@ -165,6 +165,10 @@
           {% endfor %}
         </tbody>
       </table>
+      <div id="tag-preview" class="card" hidden
+           style="padding: var(--space-3); margin: var(--space-2) 0; font-size: 0.9rem;">
+      </div>
+
 
       <button type="button" class="btn btn-secondary mt-4" id="add-line">
         <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
@@ -759,7 +763,9 @@
         name: {{ ing.name | tojson }},
         unit: {{ ing.unit | tojson }},
         purchase_price_gs: {{ ing.purchase_price_gs or 0 }},
-        stock_qty: {{ ing.stock_qty or 0 }}
+        stock_qty: {{ ing.stock_qty or 0 }},
+        allergens: {{ (ing.allergens or '') | tojson }},
+        dietary: {{ (ing.dietary_tags or '') | tojson }}
       }{% if not loop.last %},{% endif %}
     {%- endfor -%}
   };
@@ -1098,6 +1104,75 @@
     ta.addEventListener('input', autoSize);
     ta.form && ta.form.addEventListener('reset', function() { setTimeout(autoSize, 0); });
   });
+  // ---------- Live tag derivation preview (tag algebra, client-side) ----------
+  // Mirrors app/rms/tag_algebra.py: allergens union, dietary intersection.
+  // Neutral ingredients never block; sub-recipes not previewed (server-side only).
+  var NEUTRAL = ['agua', 'sal', 'sal fina', 'sal gruesa', 'hielo'];
+  var CANONICAL = ['sin gluten', 'sin tacc', 'sin lactosa', 'sin huevo',
+                   'sin frutos secos', 'vegano', 'vegetariano', 'sin azúcar'];
+
+  function splitTags(raw) {
+    return (raw || '').split(',').map(function(t) { return t.trim().toLowerCase(); })
+      .filter(function(t) { return t.length > 0; });
+  }
+
+  function updateTagPreview() {
+    var box = document.getElementById('tag-preview');
+    if (!box) return;
+    var allergens = {};
+    var blockers = {};  // tag -> [names]
+    var rows = document.querySelectorAll('#lines .line-row');
+    var anyLine = false;
+    rows.forEach(function(row) {
+      var idInput = row.querySelector('input[name="line_target_id"]');
+      var kindInput = row.querySelector('input[name="line_kind"]');
+      if (!idInput || !kindInput || kindInput.value !== 'ingredient') return;
+      var id = idInput.value;
+      if (!id || !ingredientPrices[id]) return;
+      var ing = ingredientPrices[id];
+      anyLine = true;
+      splitTags(ing.allergens).forEach(function(a) { allergens[a] = true; });
+      var isNeutral = NEUTRAL.some(function(n) {
+        return ing.name.toLowerCase() === n || ing.name.toLowerCase().startsWith(n + ' ');
+      });
+      if (isNeutral) return;
+      var declared = splitTags(ing.dietary);
+      CANONICAL.forEach(function(tag) {
+        if (declared.indexOf(tag) === -1) {
+          (blockers[tag] = blockers[tag] || []).push(ing.name);
+        }
+      });
+    });
+    if (!anyLine) { box.hidden = true; return; }
+    box.hidden = false;
+    var kept = CANONICAL.filter(function(t) { return !blockers[t]; });
+    var html = '<div style="margin-bottom:4px;">';
+    html += kept.length
+      ? '✅ ' + kept.map(function(t) { return '<span class="tag-pill">' + t + '</span>'; }).join(' ')
+      : '<span class="text-muted">Ninguna etiqueta dietética se cumple en todas las líneas.</span>';
+    html += '</div>';
+    var allg = Object.keys(allergens);
+    if (allg.length) {
+      html += '<div>⚠️ Contiene: ' + allg.join(', ') + '</div>';
+    }
+    var blockedTags = Object.keys(blockers);
+    if (blockedTags.length) {
+      html += '<details style="margin-top:4px;"><summary style="cursor:pointer;">❌ Canceladas (' + blockedTags.length + ')</summary><ul style="padding-left:1.2rem;margin:4px 0;">';
+      blockedTags.forEach(function(t) {
+        html += '<li><strong>' + t + '</strong> — ' + blockers[t].join(', ') + '</li>';
+      });
+      html += '</ul></details>';
+    }
+    box.innerHTML = html;
+  }
+
+  // Re-derive whenever a line changes (delegated: covers add/remove/edit)
+  document.getElementById('lines').addEventListener('change', updateTagPreview);
+  document.getElementById('add-line').addEventListener('click', function() {
+    setTimeout(updateTagPreview, 50);
+  });
+  updateTagPreview();
+
   // ---------- Initial compute on page load ----------
   computeCosts();
 })();

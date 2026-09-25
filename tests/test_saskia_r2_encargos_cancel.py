@@ -38,6 +38,12 @@ from app.rms.models import (
 # =========================================================================
 
 
+def _asuncion_today() -> date:
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+    return datetime.now(timezone.utc).astimezone(ZoneInfo("America/Asuncion")).date()
+
+
 def _seed_pedido(
     session_factory,
     *,
@@ -61,7 +67,10 @@ def _seed_pedido(
             customer_id=c.id,
             customer_name=customer_name,
             customer_phone="0981112222",
-            promised_date=promised_date or date.today(),
+            # Seed in ASUNCIÓN local date — the /produccion route filters by
+            # Asunción today (_asuncion_today). Using date.today() (host
+            # local/UTC) diverges near midnight and flakes the suite.
+            promised_date=promised_date or _asuncion_today(),
             promised_time=promised_time,
             channel="whatsapp",
             status=status,

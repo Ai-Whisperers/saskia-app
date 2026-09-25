@@ -48,6 +48,58 @@
   </section>
 
   <section class="detail-card">
+    <h2>Clasificación y etiquetas</h2>
+    <dl>
+      {% if ingredient.subcategory %}<dt>Subcategoría</dt><dd>{{ ingredient.subcategory }}</dd>{% endif %}
+      {% if ingredient.role %}<dt>Rol</dt><dd>{{ ingredient.role }}</dd>{% endif %}
+      <dt>Alérgenos</dt>
+      <dd>
+        {% if ingredient.allergens %}{{ ingredient.allergens }}
+        {% elif ingredient.allergens is none %}<span class="text-muted">sin declarar</span>
+        {% else %}—{% endif %}
+      </dd>
+      <dt>Dietéticas</dt>
+      <dd>{{ ingredient.dietary_tags or '—' }}</dd>
+      {% if ingredient.may_contain_gluten %}
+      <dt>Cruz gluten</dt><dd><span class="badge badge-warn">posible contaminación (bloquea sin TACC)</span></dd>
+      {% endif %}
+    </dl>
+  </section>
+
+  <section class="detail-card">
+    <h2>Conservación (HACCP)</h2>
+    <dl>
+      <dt>Almacenamiento</dt><dd>{{ ingredient.storage or '—' }}</dd>
+      <dt>Vida útil</dt>
+      <dd>{% if ingredient.shelf_life_days %}{{ ingredient.shelf_life_days }} días{% else %}—{% endif %}</dd>
+      {% if ingredient.temp_min_c is not none or ingredient.temp_max_c is not none %}
+      <dt>Temperatura</dt>
+      <dd>{{ ingredient.temp_min_c if ingredient.temp_min_c is not none else '—' }} a
+          {{ ingredient.temp_max_c if ingredient.temp_max_c is not none else '—' }} °C</dd>
+      {% endif %}
+      {% if ingredient.humidity_max_pct is not none %}
+      <dt>Humedad máx</dt><dd>{{ ingredient.humidity_max_pct }}%</dd>
+      {% endif %}
+      {% if ingredient.lead_time_days %}
+      <dt>Lead time</dt><dd>{{ ingredient.lead_time_days }} días</dd>
+      {% endif %}
+      <dt>Lote obligatorio</dt>
+      <dd>{{ 'Sí' if ingredient.lot_required else 'No' }}</dd>
+    </dl>
+  </section>
+
+  {% if price_stats and price_stats.count > 1 %}
+  <section class="detail-card">
+    <h2>Historial de precios ({{ price_stats.count }} registros)</h2>
+    <dl>
+      <dt>Mín / Actual / Máx</dt>
+      <dd>{{ m.gs_full(price_stats.min) }} / {{ m.gs_full(price_stats.current) }} / {{ m.gs_full(price_stats.max) }}</dd>
+      <dt>Promedio</dt><dd>{{ m.gs_full(price_stats.avg) }}</dd>
+    </dl>
+  </section>
+  {% endif %}
+
+  <section class="detail-card">
     <h2>Precio</h2>
     <dl>
       <dt>Precio de compra</dt>

@@ -282,7 +282,16 @@ def recipe_batch_cost_gs(session: Session, recipe_id: int) -> CostResult:
 
 
 def recipe_unit_cost_gs(session: Session, recipe_id: int) -> CostResult:
-    """Compute per-portion cost (Gs.) for a recipe. batch_cost / yield_qty."""
+    """Per-portion cost (Gs.) with yield-loss + labor (2026-09-24 costing fix).
+
+    unit = (batch_cost + labor_cost) / (yield_qty × yield_percentage)
+
+    - yield_percentage (Phase 1.D): 1.0 = no loss; 0.85 = 15% baking/trim
+      loss. NULL → 1.0. A bakery that ignores yield loss understates cost
+      by exactly the loss fraction.
+    - direct_labor_minutes × ComplianceInfo.labor_cost_per_hour_gs
+      (Phase 1.D). NULL rate or minutes → no labor component.
+    """
     batch = recipe_batch_cost_gs(session, recipe_id)
     if batch.batch_cost_gs is None:
         return batch
@@ -293,7 +302,33 @@ def recipe_unit_cost_gs(session: Session, recipe_id: int) -> CostResult:
             missing_ingredient_names=["yield_qty missing"],
             cycle_detected=False,
         )
-    unit = Decimal(str(batch.batch_cost_gs)) / Decimal(str(recipe.yield_qty))
+    batch_dec = Decimal(str(batch.batch_cost_gs))
+
+    # Yield loss: effective output = yield_qty × yield_percentage
+    yld = recipe.yield_percentage if recipe.yield_percentage else None
+    if yld is not None and not (Decimal("0.3") <= Decimal(str(yld)) <= Decimal("1.0")):
+        # Out-of-range yield % is data noise, not a 400% batch. Clamp to no-loss
+        # and keep costing sane; the form validates on input.
+        yld = None
+    eff_yield = Decimal(str(recipe.yield_qty)) * (Decimal(str(yld)) if yld else Decimal("1"))
+
+    # Labor: minutes × hourly rate from compliance costing config
+    labor_gs = Decimal("0")
+    if recipe.direct_labor_minutes:
+        try:
+            from app.rms.models import ComplianceInfo
+            ci = session.get(ComplianceInfo, 1)
+            rate = getattr(ci, "labor_cost_per_hour_gs", None) if ci else None
+            if rate:
+                labor_gs = (
+                    Decimal(str(recipe.direct_labor_minutes))
+                    * Decimal(str(rate))
+                    / Decimal("60")
+                )
+        except Exception:
+            labor_gs = Decimal("0")  # costing must never crash on config gaps
+
+    unit = (batch_dec + labor_gs) / eff_yield
     return CostResult(
         batch_cost_gs=to_int_gs(unit), missing_ingredient_names=batch.missing_ingredient_names
     )

@@ -108,6 +108,46 @@
     <textarea id="notes" name="notes" rows="2">{{ ingredient.notes if ingredient and ingredient.notes else '' }}</textarea>
   </div>
 
+  <fieldset style="border:1px solid var(--color-border);border-radius:8px;padding:var(--space-3);margin:var(--space-3) 0;">
+    <legend style="padding:0 6px;font-weight:600;">Clasificación y conservación</legend>
+    <p class="muted" style="font-size:0.85rem;">Se recalculan automáticamente al cambiar el nombre, pero podés corregirlas acá.</p>
+
+    <div class="form-row">
+      <label for="shelf_life_days">Vida útil (días)</label>
+      <input type="number" id="shelf_life_days" name="shelf_life_days" min="0" max="3650"
+             value="{{ ingredient.shelf_life_days if ingredient and ingredient.shelf_life_days else '' }}">
+    </div>
+
+    <div class="form-row">
+      <label for="allergens">Alérgenos (separados por coma)</label>
+      <input type="text" id="allergens" name="allergens" maxlength="200"
+             value="{{ ingredient.allergens if ingredient and ingredient.allergens else '' }}"
+             placeholder="gluten, dairy, eggs">
+      <small>Dejar VACÍO = sin declarar. "—" = ninguno declarado aún.</small>
+    </div>
+
+    <div class="form-row">
+      <label for="dietary_tags">Etiquetas dietéticas (coma)</label>
+      <input type="text" id="dietary_tags" name="dietary_tags" maxlength="200"
+             value="{{ ingredient.dietary_tags if ingredient and ingredient.dietary_tags else '' }}"
+             placeholder="sin gluten, vegano">
+    </div>
+
+    <div class="form-row">
+      <label class="checkbox" style="display:flex;gap:8px;align-items:center;font-weight:400;">
+        <input type="checkbox" name="may_contain_gluten" value="1"
+               {% if ingredient and ingredient.may_contain_gluten %}checked{% endif %}>
+        Posible contaminación cruzada con trigo (bloquea "sin TACC")
+      </label>
+    </div>
+
+    <div class="form-row">
+      <label for="lead_time_days">Lead time proveedor (días)</label>
+      <input type="number" id="lead_time_days" name="lead_time_days" min="0" max="90"
+             value="{{ ingredient.lead_time_days if ingredient and ingredient.lead_time_days else '' }}">
+    </div>
+  </fieldset>
+
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">Guardá</button>
     <a href="/inventario" class="btn">Cancelar</a>
