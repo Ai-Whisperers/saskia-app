@@ -101,6 +101,12 @@ def format_gs(value: int | None) -> str:
     """
     if value is None:
         return "—"
+    # Tolerate Jinja Undefined / strings from drifted schemas (2026-09-26
+    # /pricing 500: one prod row lacks a channel column).
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        return "—"
     sign = "-" if value < 0 else ""
     abs_val = abs(value)
     # Format with Python's comma, then swap to period (Paraguayan)
