@@ -118,13 +118,15 @@
 
       <span class="topbar-date">{{ now_str() if now_str is defined else '' }}</span>
 
-      <div class="topbar-search">
-        <button type="button" class="btn" id="global-search-btn" aria-label="Buscar (Cmd+K)">
+      <div class="topbar-search" style="position:relative;">
+        <button type="button" class="btn" id="global-search-btn" aria-label="Buscar (Cmd+K)" style="width:100%;justify-content:flex-start;padding-right:110px;">
           <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
-          Buscar producto, cliente, pedido…
-          <button id="open-shortcuts" class="btn btn-ghost" type="button" aria-label="Atajos de teclado" title="Atajos de teclado">?</button>
-          <kbd style="margin-left:auto;">⌘K</kbd>
+          <span class="search-label">Buscar producto, cliente, pedido…</span>
         </button>
+        <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:.25rem;">
+          <span id="open-shortcuts" class="btn btn-ghost" role="button" tabindex="0" aria-label="Atajos de teclado" title="Atajos de teclado" style="padding:0 .4rem;height:22px;font-size:var(--text-xs);">?</span>
+          <kbd>⌘K</kbd>
+        </span>
       </div>
 
       <div class="topbar-actions">
@@ -191,7 +193,7 @@
   <footer class="app-footer">
     <span class="status-pill"><span class="dot"></span> {{ branding.business_name }} v1.0</span>
     <span class="status-pill">{{ branding.footer }}</span>
-    <span style="margin-left:auto;">· {{ now_year() }}</span>
+    <span style="margin-left:auto;">© {{ now_year() }} {{ branding.business_name or "Saskia RMS" }}</span>
   </footer>
 
   <script>

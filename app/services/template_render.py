@@ -138,7 +138,10 @@ def _now_str() -> str:
     try:
         from app.rms.config import ASUNCION_TZ
 
-        return datetime.now(ASUNCION_TZ).strftime("%A %d %b %Y · %H:%M")
+        _DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+        _MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+        _n = datetime.now(ASUNCION_TZ)
+        return f"{_DIAS[_n.weekday()]} {_n.day} {_MESES[_n.month-1]} {_n.year} · {_n.strftime('%H:%M')}"  # locale set below
     except Exception:  # noqa: BLE001 — topbar date must never break a page
         return datetime.now().strftime("%d/%m/%Y %H:%M")
 

@@ -325,11 +325,11 @@
   },
   "EXPORT /excel/exportar": {
     "file": "export-excel.xlsx",
-    "status": "ok (9546 bytes)"
+    "status": "ok (9544 bytes)"
   },
   "EXPORT /reportes/diario/pdf": {
     "file": "export-reportes-diario.pdf",
-    "status": "ok (1953 bytes)"
+    "status": "ok (1952 bytes)"
   },
   "EXPORT /reportes/iva/pdf": {
     "file": "export-reportes-iva.pdf",

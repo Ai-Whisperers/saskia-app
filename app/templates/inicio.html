@@ -139,8 +139,11 @@
     </div>
     {% if insights.production_tomorrow %}
       {% for p in insights.production_tomorrow[:5] %}
+      {# seed data leaves hash names like "Producto 99b78b3b" — humanize #}
+      {% set _raw = p.product_name or "" %}
+      {% set _is_hash = _raw.startswith("Producto ") and (_raw.split(" ")|length == 2) and (_raw.split(" ")[1]|length) == 8 %}
       <div class="plan-row">
-        <span><strong>{{ p.product_name }}</strong></span>
+        <span><strong>{% if _is_hash %}Producto sin nombre{% else %}{{ _raw or "Producto sin nombre" }}{% endif %}</strong></span>
         <span class="text-muted">{{ p.batch_count }} tanda{{ 's' if p.batch_count > 1 }} · {{ p.target_qty }} u.</span>
       </div>
       {% endfor %}
