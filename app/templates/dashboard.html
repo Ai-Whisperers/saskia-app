@@ -7,14 +7,14 @@
 </div>
 
 <div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
-  <div class="kpi-card"><div class="kpi-label">Ingresos ₲</div><div class="kpi-value">{{ m.gs(revenue_gs) }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Ingresos Gs.</div><div class="kpi-value">{{ m.gs(revenue_gs) }}</div></div>
   <div class="kpi-card"><div class="kpi-label">Porciones vendidas</div><div class="kpi-value">{{ portions }}</div></div>
-  <div class="kpi-card {% if food_cost_pct < 35 %}good{% else %}warn{% endif %}">
-    <div class="kpi-label">Costo de materia prima %</div><div class="kpi-value">{{ "%.1f"|format(food_cost_pct) }}%</div>
+  <div class="kpi-card {% if food_cost_pct is not none and food_cost_pct < 35 %}good{% elif food_cost_pct is none %}{% else %}warn{% endif %}">
+    <div class="kpi-label">Costo de materia prima %</div><div class="kpi-value">{% if food_cost_pct is none %}sin escandallo{% else %}{{ "%.1f"|format(food_cost_pct) }}%{% endif %}</div>
     <div class="kpi-target">objetivo: 35%</div>
   </div>
-  <div class="kpi-card {% if gross_margin_pct > 60 %}good{% else %}warn{% endif %}">
-    <div class="kpi-label">Margen bruto %</div><div class="kpi-value">{{ "%.1f"|format(gross_margin_pct) }}%</div>
+  <div class="kpi-card {% if gross_margin_pct is not none and gross_margin_pct > 60 %}good{% elif gross_margin_pct is none %}{% else %}warn{% endif %}">
+    <div class="kpi-label">Margen bruto %</div><div class="kpi-value">{% if gross_margin_pct is none %}sin escandallo{% else %}{{ "%.1f"|format(gross_margin_pct) }}%{% endif %}</div>
     <div class="kpi-target">objetivo: 60%</div>
   </div>
   <div class="kpi-card"><div class="kpi-label">Clientes únicos</div><div class="kpi-value">{{ unique_customers }}</div></div>
@@ -22,8 +22,8 @@
     <div class="kpi-label">Recurrencia %</div><div class="kpi-value">{{ repeat_pct }}%</div>
     <div class="kpi-target">objetivo: 30%</div>
   </div>
-  <div class="kpi-card"><div class="kpi-label">Ticket promedio ₲</div><div class="kpi-value">{{ m.gs(avg_order_gs) }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Merma ₲</div><div class="kpi-value">{{ m.gs(waste_gs) }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Ticket promedio Gs.</div><div class="kpi-value">{{ m.gs(avg_order_gs) }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Merma Gs.</div><div class="kpi-value">{{ m.gs(waste_gs) }}</div></div>
   <div class="kpi-card {% if waste_pct < 5 %}good{% else %}warn{% endif %}">
     <div class="kpi-label">Merma %</div><div class="kpi-value">{{ "%.1f"|format(waste_pct) }}%</div>
     <div class="kpi-target">objetivo: 5%</div>
@@ -65,7 +65,7 @@
 <h2>💼 Por canal de venta</h2>
 {% if by_channel %}
 <table class="table is-striped">
-  <thead><tr><th>Canal</th><th class="num">Ingresos ₲</th></tr></thead>
+  <thead><tr><th>Canal</th><th class="num">Ingresos Gs.</th></tr></thead>
   <tbody>
     {% for ch, rev in by_channel.items() %}
     <tr>

@@ -23,13 +23,13 @@
   <thead>
     <tr>
       <th>Receta</th>
-      <th class="num">Cost total ₲</th>
-      <th class="num">Cost/unit ₲</th>
-      <th class="num">Wholesale ₲<br><small>+{{ "{:.0%}".format(channels_margins.get('mayorista', 0.4)) }}</small></th>
-      <th class="num">Private Label ₲<br><small>+{{ "{:.0%}".format(channels_margins.get('private_label', 0.25)) }}</small></th>
-      <th class="num">Distribuidor ₲<br><small>+{{ "{:.0%}".format(channels_margins.get('distribuidor', 0.22)) }}</small></th>
-      <th class="num">Retail ₲<br><small>+{{ "{:.0%}".format(channels_margins.get('minorista', 0.5)) }}</small></th>
-      <th class="num">Comisión ₲<br><small>+{{ "{:.0%}".format(channels_margins.get('broker_commission', 0.05)) }}</small></th>
+      <th class="num">Cost total Gs.</th>
+      <th class="num">Cost/unit Gs.</th>
+      <th class="num">Wholesale Gs.<br><small>+{{ "{:.0%}".format(channels_margins.get('mayorista', 0.4)) }}</small></th>
+      <th class="num">Private Label Gs.<br><small>+{{ "{:.0%}".format(channels_margins.get('private_label', 0.25)) }}</small></th>
+      <th class="num">Distribuidor Gs.<br><small>+{{ "{:.0%}".format(channels_margins.get('distribuidor', 0.22)) }}</small></th>
+      <th class="num">Retail Gs.<br><small>+{{ "{:.0%}".format(channels_margins.get('minorista', 0.5)) }}</small></th>
+      <th class="num">Comisión Gs.<br><small>+{{ "{:.0%}".format(channels_margins.get('broker_commission', 0.05)) }}</small></th>
     </tr>
   </thead>
   <tbody>
@@ -50,6 +50,6 @@
 
 <p class="muted">
   💡 Fuente: HEREBUS COSTOS sheet (7 recetas × 5 canales = 35 precios).
-  Labor: ₲25,000/h, Packaging: ₲1,500/unit (configurable).
+  Labor: Gs.25,000/h, Packaging: Gs.1,500/unit (configurable).
 </p>
 {% endblock %}

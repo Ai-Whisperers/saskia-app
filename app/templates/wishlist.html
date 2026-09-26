@@ -11,7 +11,7 @@
   <div class="kpi-card"><div class="kpi-label">Pendientes</div><div class="kpi-value">{{ pending_count }}</div></div>
   <div class="kpi-card"><div class="kpi-label">Comprados</div><div class="kpi-value">{{ purchased_count }}</div></div>
   <div class="kpi-card"><div class="kpi-label">Inversión total</div><div class="kpi-value">{{ m.gs(total_all_gs) }}</div></div>
-  <div class="kpi-card highlight"><div class="kpi-label">Pendiente ₲</div><div class="kpi-value">{{ m.gs(total_pending_gs) }}</div></div>
+  <div class="kpi-card highlight"><div class="kpi-label">Pendiente Gs.</div><div class="kpi-value">{{ m.gs(total_pending_gs) }}</div></div>
 </div>
 
 {% for prio in ['must_have', 'nice_to_have', 'optional'] %}
@@ -25,7 +25,7 @@
     <table class="table is-hoverable">
       <thead>
         <tr>
-          <th>ID</th><th>Item</th><th>Qty</th><th class="num">Unit ₲</th><th class="num">Total ₲</th>
+          <th>ID</th><th>Item</th><th>Qty</th><th class="num">Unit Gs.</th><th class="num">Total Gs.</th>
           <th>Categoría</th><th>Dónde comprar</th><th>Status</th><th></th>
         </tr>
       </thead>
@@ -64,6 +64,6 @@
 {% endfor %}
 
 <p class="muted" style="margin-top:2rem;">
-  💡 Fuente: HEREBUS_Lista de deseos sheet (28 items). Total ₲ 61M de inversión planificada.
+  💡 Fuente: HEREBUS_Lista de deseos sheet (28 items). Total Gs. 61M de inversión planificada.
 </p>
 {% endblock %}

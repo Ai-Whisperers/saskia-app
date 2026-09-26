@@ -550,8 +550,13 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
         if pricing:
             total_food_cost_gs += int(pricing.cost_per_unit_gs * s.qty)
 
-    food_cost_pct = (total_food_cost_gs / revenue_gs * 100) if revenue_gs > 0 else 0
-    gross_margin_pct = 100 - food_cost_pct if revenue_gs > 0 else 0
+    if revenue_gs > 0 and total_food_cost_gs > 0:
+        food_cost_pct = total_food_cost_gs / revenue_gs * 100
+        gross_margin_pct = 100 - food_cost_pct
+    else:
+        # No recipe costing data → reporting a margin would be fiction (e.g. 100%)
+        food_cost_pct = None
+        gross_margin_pct = None
 
     # Waste this month
     waste_gs = session.execute(
@@ -644,8 +649,8 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
                 if unique_customers > 0
                 else 0
             ),
-            "food_cost_pct": round(food_cost_pct, 1),
-            "gross_margin_pct": round(gross_margin_pct, 1),
+            "food_cost_pct": round(food_cost_pct, 1) if food_cost_pct is not None else None,
+            "gross_margin_pct": round(gross_margin_pct, 1) if gross_margin_pct is not None else None,
             "waste_gs": waste_total_gs,
             "waste_pct": round(waste_pct, 1),
             "recipe_count": len(recipe_count),

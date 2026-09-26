@@ -1,7 +1,28 @@
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
 
-{% block title %}Pedidos{% endblock %}
+{% block title %}Pedidos
+<script>
+(function () {
+  var tabs = document.querySelectorAll('.pedidos-tab');
+  if (!tabs.length) return;
+  var groups = document.querySelectorAll('.pedidos-group');
+  // hide all but the first group on load
+  var first = true;
+  groups.forEach(function (g) { g.style.display = first ? '' : 'none'; first = false; });
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () {
+      tabs.forEach(function (o) { o.classList.remove('btn-primary'); o.setAttribute('aria-selected', 'false'); });
+      t.classList.add('btn-primary'); t.setAttribute('aria-selected', 'true');
+      groups.forEach(function (g) {
+        g.style.display = (g.dataset.group === t.dataset.tab) ? '' : 'none';
+      });
+    });
+  });
+})();
+</script>
+
+{% endblock %}
 
 {% block content %}
 <h1>
@@ -62,8 +83,20 @@
   ("pendientes_viejos", "Pendientes viejos", "warn"),
 ] %}
 
+{% set total_pedidos = groups["hoy_manana"]|length + groups["esta_semana"]|length + groups["pendientes_viejos"]|length %}
+{% if total_pedidos %}
+<div class="pedidos-tabs" role="tablist" style="display:flex;gap:.5rem;margin-bottom:var(--space-4);flex-wrap:wrap;">
+  {% for key, label, severity in groups_ordered %}
+  <button type="button" role="tab" data-tab="{{ key }}" aria-selected="{{ 'true' if loop.first else 'false' }}"
+          class="btn pedidos-tab {{ 'btn-primary' if loop.first else '' }}"
+          style="border-radius:var(--radius-pill);">
+    {{ label }} <span class="badge badge-{{ severity }}">{{ groups[key]|length }}</span>
+  </button>
+  {% endfor %}
+</div>
+{% endif %}
 {% for key, label, severity in groups_ordered %}
-<section class="card mb-4" aria-label="{{ label }}">
+<section class="card mb-4 pedidos-group" id="grupo-{{ key }}" data-group="{{ key }}" aria-label="{{ label }}">
   <h2 style="display: flex; align-items: center; gap: var(--space-2);">
     <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
     {{ label }}
@@ -233,6 +266,27 @@
     });
   }
   updateBulk();
+})();
+</script>
+
+
+<script>
+(function () {
+  var tabs = document.querySelectorAll('.pedidos-tab');
+  if (!tabs.length) return;
+  var groups = document.querySelectorAll('.pedidos-group');
+  // hide all but the first group on load
+  var first = true;
+  groups.forEach(function (g) { g.style.display = first ? '' : 'none'; first = false; });
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () {
+      tabs.forEach(function (o) { o.classList.remove('btn-primary'); o.setAttribute('aria-selected', 'false'); });
+      t.classList.add('btn-primary'); t.setAttribute('aria-selected', 'true');
+      groups.forEach(function (g) {
+        g.style.display = (g.dataset.group === t.dataset.tab) ? '' : 'none';
+      });
+    });
+  });
 })();
 </script>
 

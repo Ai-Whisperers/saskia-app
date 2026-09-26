@@ -59,7 +59,7 @@
         <th class="num">Necesario</th>
         <th class="num">En stock</th>
         <th class="num">Faltante</th>
-        <th class="num">Unit ₲</th>
+        <th class="num">Unit Gs.</th>
         <th class="num">Costo faltante</th>
         <th>Status</th>
       </tr>
@@ -99,7 +99,7 @@
     {% for r in results %}
       {% if r.sufficient == false %}{% set open_count = open_count + 1 %}{% endif %}
     {% endfor %}
-    ({{ results|length }} líneas · {{ m.gs(total_shortage_gs) }} ₲ total).
+    ({{ results|length }} líneas · {{ m.gs(total_shortage_gs) }} Gs. total).
     <a href="/produccion-planner" class="btn btn-ghost">Otro plan</a>
   </div>
   {% elif total_shortage_gs > 0 %}

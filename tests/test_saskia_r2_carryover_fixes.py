@@ -35,8 +35,8 @@ def test_produccion_ver_receta_link_targets_detail(authed_client):
 def test_dashboard_no_english_kpi_labels(authed_client):
     """MER-03 / DATA-01: Dashboard KPI labels must be Spanish.
 
-    Before fix: 'Food cost %', 'Gross margin %', 'Revenue ₲', 'target: 60%'.
-    After fix: 'Costo de materia prima %', 'Margen bruto %', 'Ingresos ₲',
+    Before fix: 'Food cost %', 'Gross margin %', 'Revenue Gs.', 'target: 60%'.
+    After fix: 'Costo de materia prima %', 'Margen bruto %', 'Ingresos Gs.',
     'objetivo: 60%'.
     """
     r = authed_client.get("/dashboard")
@@ -51,7 +51,7 @@ def test_dashboard_no_english_kpi_labels(authed_client):
     assert ">Gross margin %<" not in body, (
         "MER-03 regression: 'Gross margin %' still on /dashboard"
     )
-    assert ">Revenue ₲<" not in body, (
+    assert ">Revenue Gs.<" not in body, (
         "MER-03 regression: 'Revenue' label still on /dashboard"
     )
     assert "target: 60%" not in body, (
@@ -60,7 +60,7 @@ def test_dashboard_no_english_kpi_labels(authed_client):
     # Spanish replacements should be present
     assert "Costo de materia prima %" in body
     assert "Margen bruto %" in body
-    assert "Ingresos ₲" in body
+    assert "Ingresos Gs." in body
     assert "objetivo: 60%" in body
 
 

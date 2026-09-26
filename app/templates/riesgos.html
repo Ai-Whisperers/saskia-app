@@ -10,7 +10,7 @@
   <div class="kpi-card"><div class="kpi-label">Activos</div><div class="kpi-value">{{ active_count }}</div></div>
   <div class="kpi-card"><div class="kpi-label">Mitigados</div><div class="kpi-value">{{ mitigated_count }}</div></div>
   <div class="kpi-card"><div class="kpi-label">Cerrados</div><div class="kpi-value">{{ closed_count }}</div></div>
-  <div class="kpi-card highlight"><div class="kpi-label">Severidad total ₲</div><div class="kpi-value">{{ m.gs(severity_total_gs) }}</div></div>
+  <div class="kpi-card highlight"><div class="kpi-label">Severidad total Gs.</div><div class="kpi-value">{{ m.gs(severity_total_gs) }}</div></div>
 </div>
 
 {% for cat, items in by_category.items() %}
@@ -18,8 +18,8 @@
 <table class="table is-hoverable">
   <thead>
     <tr>
-      <th>ID</th><th>Riesgo</th><th class="num">Prob.</th><th class="num">Impact ₲</th>
-      <th class="num">Sev ₲</th><th>Mitigación</th><th>Status</th><th>Owner</th>
+      <th>ID</th><th>Riesgo</th><th class="num">Prob.</th><th class="num">Impact Gs.</th>
+      <th class="num">Sev Gs.</th><th>Mitigación</th><th>Status</th><th>Owner</th>
     </tr>
   </thead>
   <tbody>

@@ -142,51 +142,6 @@
     {% endif %}
   </div>
 
-  {# Line-level cost breakdown #}
-  {% if resolved_lines and batch_cost.batch_cost_gs %}
-  <h3>Ingredientes y sub-recetas</h3>
-  <table class="table is-hoverable">
-    <thead>
-      <tr>
-        <th>Tipo</th>
-        <th>Nombre</th>
-        <th class="num">Cantidad</th>
-        <th class="num">Costo (Gs.)</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in resolved_lines %}
-      {% if item.is_ingredient and item.target %}
-      {% set ing = item.target %}
-      {% set line_qty = item.line.qty %}
-      {% set unit_price = ing.purchase_price_gs if ing.purchase_price_gs else 0 %}
-      {% set line_cost = (line_qty * unit_price)|round|int %}
-      <tr>
-        <td><span class="badge badge-neutral">Ingrediente</span></td>
-        <td>{{ item.target_name }}</td>
-        <td class="num">{{ "%.2f"|format(item.line.qty) }} {{ item.line.line_unit or ing.unit }}</td>
-        <td class="num">{{ m.gs(line_cost) }}</td>
-      </tr>
-      {% elif not item.is_ingredient %}
-      <tr>
-        <td><span class="badge badge-warn">Sub-receta</span></td>
-        <td><a href="/recetas/{{ item.line.line_ref_id }}">{{ item.target_name }}</a></td>
-        <td class="num">{{ "%.2f"|format(item.line.qty) }}</td>
-        <td class="num">—</td>
-      </tr>
-      {% else %}
-      <tr>
-        <td><span class="badge badge-neutral">Ingrediente</span></td>
-        <td><em class="muted">{{ item.target_name }} (no encontrado)</em></td>
-        <td class="num">{{ "%.2f"|format(item.line.qty) }}</td>
-        <td class="num">—</td>
-      </tr>
-      {% endif %}
-      {% endfor %}
-    </tbody>
-  </table>
-  {% endif %}
-
   {# Missing ingredients alert #}
   {% if batch_cost.missing_ingredient_names %}
   <div class="alerts-warn" style="margin-top:var(--space-3);">
