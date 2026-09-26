@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="/static/app.css?v={{ asset_version() }}">
   <link rel="stylesheet" href="/static/app-improvements.css?v={{ asset_version() }}">
   <link rel="stylesheet" href="/static/app-shell.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/app-components.css?v={{ asset_version() }}">
   <link rel="stylesheet" href="/static/calendar.css?v={{ asset_version() }}">
   {% block head_extra %}{% endblock %}
 
@@ -54,59 +55,21 @@
 {% if is_logged_in %}
   {# ══ New professional shell: sidebar + topbar (2026-09-25 mockup plan) ══ #}
   <aside class="sidebar" aria-label="Navegación principal">
-      <a href="/" class="sidebar-brand">
-        <span class="brand-logo">S</span>
-        <span>Saskia RMS</span>
+      <a class="brand" href="/">
+        <span class="brand-mark">S</span>
+        <span class="brand-name">{{ branding.business_name or "Saskia RMS" }}</span>
       </a>
-
-      <div class="sidebar-section">Operación</div>
-      {{ m.nav_link("/", "Inicio", icon="icon-home", exact=True, current_path=request.url.path) }}
-      {{ m.nav_link("/ventas", "Ventas", icon="icon-sale", current_path=request.url.path) }}
-      {{ m.nav_link("/pedidos", "Pedidos", icon="icon-box", current_path=request.url.path) }}
-      {{ m.nav_link("/produccion", "Producción", icon="icon-production", current_path=request.url.path) }}
-      {{ m.nav_link("/eod", "Cierre del día", icon="icon-close", current_path=request.url.path) }}
-
-      <div class="sidebar-section">Catálogo</div>
-      {{ m.nav_link("/productos", "Productos", icon="icon-box", current_path=request.url.path) }}
-      {{ m.nav_link("/recetas", "Recetas", icon="icon-recipe", current_path=request.url.path) }}
-      {{ m.nav_link("/inventario", "Inventario", icon="icon-inventory", current_path=request.url.path) }}
-      {{ m.nav_link("/merma", "Merma", icon="icon-waste", current_path=request.url.path) }}
-
-      <div class="sidebar-section">Compras</div>
-      {{ m.nav_link("/reorder", "Reponer", icon="icon-reorder", current_path=request.url.path) }}
-      {{ m.nav_link("/suppliers", "Proveedores", icon="icon-supplier", current_path=request.url.path) }}
-      {{ m.nav_link("/clientes", "Clientes", icon="icon-customer", current_path=request.url.path) }}
-
-      <div class="sidebar-section">Finanzas</div>
-      {{ m.nav_link("/reportes", "Reportes", icon="icon-report", current_path=request.url.path) }}
-      {{ m.nav_link("/analisis", "Análisis", icon="icon-chart", current_path=request.url.path) }}
-
-      <div class="sidebar-section">Sistema</div>
-      {{ m.nav_link("/excel", "Excel", icon="icon-excel", current_path=request.url.path) }}
-      {{ m.nav_link("/settings", "Configuración", icon="icon-config", current_path=request.url.path) }}
-      <a href="/guia" class="nav-item" aria-label="Guía de uso"><svg class="icon" aria-hidden="true"><use href="#icon-help"/></svg>Guía</a>
-      {{ m.nav_link("/dashboard", "KPIs", icon="icon-report", current_path=request.url.path, icon_css_class="sub") if false else "" }}
-      <a href="/dashboard" class="nav-item sub" data-label="KPIs">KPIs (mensual)</a>
-      <a href="/wishlist" class="nav-item sub" data-label="Equipamiento">Equipamiento</a>
-      <a href="/pricing" class="nav-item sub">"Precios por canal"</a>
-      <a href="/vs-mercado" class="nav-item sub" data-label="Precios vs mercado">Precios vs mercado</a>
-      <a href="/bank" class="nav-item sub">Bancos</a>
-      <a href="/shopping-list" class="nav-item sub">Lista de compras</a>
-      <a href="/riesgos" class="nav-item sub">Riesgos</a>
-      <!-- nav_link("/settings#zonas-delivery", "Zonas delivery") -->
-      <a href="/settings#zonas-delivery" class="nav-item sub" data-label="Zonas delivery">Zonas delivery</a>
-      <a href="/settings/catalog" class="nav-item sub">Catálogos</a>
-      <a href="/auditoria" class="nav-item sub">Auditoría</a>
-      <a href="/ops/status" class="nav-item sub" aria-label="Estado del servidor">Estado operativo</a>
-      <a href="/healthz" class="nav-item sub" aria-label="Estado del servidor">Salud</a>
-
-      <div class="sidebar-footer">
-        <span class="avatar">A</span>
-        <span>admin</span>
-        <a href="/logout" title="Cerrar sesión" aria-label="Cerrar sesión" style="margin-left:auto;color:var(--color-text-muted);">
-          <svg class="icon" aria-hidden="true"><use href="#icon-logout"/></svg>
-        </a>
-      </div>
+      {% for group, items in nav_groups %}
+      <div class="sidebar-section">{{ group }}</div>
+      {% for item in items %}
+        {% if item.sub %}
+        <a href="{{ item.route }}" class="nav-item nav-item--sub" {% if item.route == request.url.path or (not item.exact and request.url.path.startswith(item.route)) %}aria-current="page"{% endif %}>
+          <svg class="icon" aria-hidden="true"><use href="#{{ item.icon }}"/></svg>{{ item.label }}</a>
+        {% else %}
+        {{ m.nav_link(item.route, item.label, exact=item.exact or false, current_path=request.url.path, icon=item.icon) }}
+        {% endif %}
+      {% endfor %}
+      {% endfor %}
     </aside>
     <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
@@ -166,24 +129,25 @@
                 aria-label="Cambiar tema claro/oscuro" title="Cambiar tema">
           <svg class="icon" aria-hidden="true"><use href="#icon-moon"/></svg>
         </button>
+        <a href="/logout" class="btn-ghost btn-icon" aria-label="Cerrar sesión" title="Cerrar sesión" style="display:inline-flex;align-items:center;justify-content:center;">
+          <svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg>
+        </a>
       </div>
     </nav>
 
     <main class="app-main container" id="main-content" tabindex="-1">
 
       {% block breadcrumb %}
-      <nav aria-label="Breadcrumb" style="margin-bottom:.5rem;font-size:var(--text-sm);color:var(--color-text-muted);">
-        <ol style="list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:.25rem;align-items:center;">
-          <li><a href="/" style="color:var(--color-text-link);">Inicio</a></li>
-          {% if self._TemplateReference__context.name != 'inicio.html' %}
-          <li aria-hidden="true" style="color:var(--color-text-subtle);">›</li>
-          <li>
-            {% set page_name = self._TemplateReference__context.name|replace('.html','')|replace('_',' ') %}
-            <span style="color:var(--color-text-muted);">{{ page_name|capitalize }}</span>
-          </li>
-          {% endif %}
-        </ol>
+      {% set _crumbs = fmt.crumbs_for(request.url.path) %}
+      {% if _crumbs|length > 1 %}
+      <nav class="breadcrumb" aria-label="Ruta" style="margin-bottom:.5rem;">
+        {% for label, href in _crumbs %}
+          {% if href and not loop.last %}<a href="{{ href }}">{{ label }}</a><span class="crumb-sep">›</span>
+          {% elif not loop.last %}<span>{{ label }}</span><span class="crumb-sep">›</span>
+          {% else %}<span aria-current="page">{{ label }}</span>{% endif %}
+        {% endfor %}
       </nav>
+      {% endif %}
       {% endblock %}
 
     {% block content %}{% endblock %}
@@ -193,7 +157,11 @@
   <footer class="app-footer">
     <span class="status-pill"><span class="dot"></span> {{ branding.business_name }} v1.0</span>
     <span class="status-pill">{{ branding.footer }}</span>
-    <span style="margin-left:auto;">© {{ now_year() }} {{ branding.business_name or "Saskia RMS" }}</span>
+    <span style="margin-left:auto;display:flex;gap:var(--space-3);align-items:center;">
+          <a href="/healthz" aria-label="Estado del servidor" style="color:var(--color-text-muted);text-decoration:none;">· estado</a>
+          <a href="/guia" aria-label="Guía de uso" style="color:var(--color-text-muted);text-decoration:none;">guía</a>
+          <span>© {{ now_year() }} {{ branding.business_name or "Saskia RMS" }}</span>
+        </span>
   </footer>
 
   <script>
@@ -319,6 +287,7 @@
   <script src="/static/combo.js?v={{ asset_version() }}" defer></script>
   <script src="/static/combo-rows.js?v={{ asset_version() }}" defer></script>
   <script src="/static/app.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/app-components.js?v={{ asset_version() }}" defer></script>
   {% block page_scripts %}{% endblock %}
 </body>
 

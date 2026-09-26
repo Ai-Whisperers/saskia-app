@@ -132,6 +132,20 @@ templates.env.globals["now_year"] = _now_year
 templates.env.globals["asset_version"] = _asset_version
 templates.env.globals["m"] = _make_money_helper()
 
+# F-track formatters (redesign base layer — 02-REUSE-ABSTRACTION.md §2)
+from app.rms import display as _display  # noqa: E402
+from app.rms.nav import crumbs_for as _crumbs_for, status_es as _status_es  # noqa: E402
+templates.env.globals["fmt"] = SimpleNamespace(
+    money=_display.fmt_money,
+    qty=_display.fmt_qty,
+    pct=_display.fmt_pct,
+    date=_display.fmt_date,
+    delta=_display.delta,
+    entity_name=_display.entity_name,
+    status_es=_status_es,
+    crumbs_for=_crumbs_for,
+)
+
 
 def _now_str() -> str:
     """Human date+time for the topbar (Asunción tz, es-PY style)."""
@@ -198,6 +212,14 @@ def render(
         ctx.setdefault("is_logged_in", get_current_user(request) is not None)
     except Exception:  # noqa: BLE001 — chrome must never break a page
         ctx.setdefault("is_logged_in", True)
+
+    # SS-1: sidebar/nav renders from the nav table (app/rms/nav.py)
+    if "nav_groups" not in ctx:
+        try:
+            from app.rms.nav import NAV_GROUPS
+            ctx["nav_groups"] = NAV_GROUPS
+        except Exception:  # noqa: BLE001 — nav must never break a page
+            ctx["nav_groups"] = []
 
     if "branding" not in ctx:
         try:

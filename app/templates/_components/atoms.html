@@ -1,0 +1,158 @@
+{# app/templates/_components/atoms.html — A-track atoms (02-REUSE-ABSTRACTION.md §3).
+   Composition layer for ALL redesigned pages. Pages render data + call these.
+
+   DEPENDENCY RULE: atoms may use fmt.* globals + CSS classes only.
+   No inline styles, no page-specific logic here. #}
+
+{# ── A-6 page_header: H1 + desc + crumbs + right actions ───────────── #}
+{% macro page_header(title, desc=None, crumbs=None, actions=None) -%}
+<header class="page-header">
+  {% if crumbs %}
+  <nav class="breadcrumb" aria-label="Ruta">
+    {% for label, href in crumbs %}
+      {% if href and not loop.last %}<a href="{{ href }}">{{ label }}</a><span class="crumb-sep">›</span>
+      {% elif not loop.last %}<span>{{ label }}</span><span class="crumb-sep">›</span>
+      {% else %}<span aria-current="page">{{ label }}</span>{% endif %}
+    {% endfor %}
+  </nav>
+  {% endif %}
+  <div class="page-header-row">
+    <div>
+      <h1 class="page-title">{{ title }}</h1>
+      {% if desc %}<p class="page-desc">{{ desc }}</p>{% endif %}
+    </div>
+    {% if actions %}<div class="page-actions">{{ actions }}</div>{% endif %}
+  </div>
+</header>
+{%- endmacro %}
+
+{# ── A-1 metric_card: one KPI card ─────────────────────────────────── #}
+{% macro metric_card(label, value, sub=None, delta=None, delta_prior=None, target=None, target_label=None, compact=False, tooltip=None) -%}
+<div class="metric-card{% if compact %} metric-card--compact{% endif %}"{% if tooltip %} title="{{ tooltip }}"{% endif %}>
+  <div class="metric-card__label">{{ label }}</div>
+  <div class="metric-card__value">{{ value }}</div>
+  {% if target is not none %}
+  <div class="metric-card__target" aria-hidden="true">
+    <div class="metric-card__target-fill {{ 'is-ok' if target >= 100 else 'is-warn' if target >= 60 else 'is-danger' }}" style="width: {{ [target, 100]|min }}%"></div>
+  </div>
+  {% if target_label %}<div class="metric-card__target-label">{{ target_label }}</div>{% endif %}
+  {% elif delta is not none %}
+  {{ delta }}
+  {% endif %}
+  {% if sub %}<div class="metric-card__sub">{{ sub }}</div>{% endif %}
+</div>
+{%- endmacro %}
+
+{# ── A-2 kpi_strip: responsive row of metric_cards ─────────────────── #}
+{% macro kpi_strip(cards) -%}
+<div class="kpi-strip">
+  {% for c in cards %}{{ metric_card(**c) }}{% endfor %}
+</div>
+{%- endmacro %}
+
+{# ── A-3 status_pill: unified severity pill ────────────────────────── #}
+{% macro status_pill(text, sev='neutral') -%}
+<span class="status-pill status-pill--{{ sev }}">{{ text }}</span>
+{%- endmacro %}
+
+{# ── A-3b status_pill_for: enum → pill via SS-3 ────────────────────── #}
+{% macro status_pill_for(value) -%}
+{% set s = fmt.status_es(value) %}{{ status_pill(s[0], s[1]) }}
+{%- endmacro %}
+
+{# ── A-4 empty_state ───────────────────────────────────────────────── #}
+{% macro empty_state(title, icon='icon-search', hint=None, cta_href=None, cta_label=None, compact=False) -%}
+<div class="empty-state{% if compact %} empty-state--compact{% endif %}">
+  <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
+  <p class="empty-state__title">{{ title }}</p>
+  {% if hint %}<p class="empty-state__hint">{{ hint }}</p>{% endif %}
+  {% if cta_href %}<a class="btn btn-primary" href="{{ cta_href }}">{{ cta_label or 'Empezar' }}</a>{% endif %}
+</div>
+{%- endmacro %}
+
+{# ── A-5 entity_link: hash-guarded linked name ─────────────────────── #}
+{% macro entity_link(obj, href=None, attr='name') -%}
+{%- set _name = fmt.entity_name(obj if obj is string else (obj[attr] if obj is mapping and attr in obj else (obj.name if obj is not string and obj is not none else obj))) -%}
+{%- if href -%}<a href="{{ href }}">{{ _name }}</a>{%- else -%}<span>{{ _name }}</span>{%- endif -%}
+{%- endmacro %}
+
+{# ── A-8 filter_toolbar ────────────────────────────────────────────── #}
+{# items: list of dicts {type: 'search'|'select'|'date', name, label, value,
+   options: [(value, label, selected?)]} — renders a GET form row. #}
+{% macro filter_toolbar(items, action=None, applied=None) -%}
+<form method="get" {% if action %}action="{{ action }}"{% endif %} class="filter-toolbar" role="search">
+  {% for f in items %}
+    {% if f.type == 'search' %}
+    <input type="search" class="filter-toolbar__search" name="{{ f.name }}" value="{{ f.value or '' }}"
+           placeholder="{{ f.placeholder or f.label or 'Buscar…' }}" aria-label="{{ f.label or 'Buscar' }}">
+    {% elif f.type == 'select' %}
+    <select name="{{ f.name }}" class="filter-toolbar__select" data-saskia-combo aria-label="{{ f.label }}">
+      {% for v, l in f.options %}
+      <option value="{{ v }}" {% if v == (f.value or '') %}selected{% endif %}>{{ l }}</option>
+      {% endfor %}
+    </select>
+    {% elif f.type == 'date' %}
+    <input type="date" class="filter-toolbar__date" name="{{ f.name }}" value="{{ f.value or '' }}" aria-label="{{ f.label }}">
+    {% endif %}
+  {% endfor %}
+  <button type="submit" class="btn btn-primary">Filtrar</button>
+  {% if applied %}<a class="filter-toolbar__clear" href="{{ action or request.url.path }}">Limpiar</a>{% endif %}
+</form>
+{%- endmacro %}
+
+{# ── A-9 data_table wrapper: sticky head + density + numeric contract ─ #}
+{% macro data_table(caption=None, density='comfortable', sticky=True) -%}
+<div class="data-table{% if sticky %} is-sticky{% endif %} data-table--{{ density }}">
+{% if caption %}<div class="data-table__caption">{{ caption }}</div>{% endif %}
+<table class="table is-hoverable is-striped">
+{{ caller() }}
+</table>
+</div>
+{%- endmacro %}
+
+{# ── A-10 row_actions: ≤2 visible + overflow menu ──────────────────── #}
+{# actions: [{label, href|onclick, icon?, sev?, confirm?}] #}
+{% macro row_actions(actions) -%}
+<div class="row-actions">
+  {% for a in actions[:2] %}
+    <a class="btn btn-sm {% if a.sev == 'danger' %}btn-danger-ghost{% else %}btn-ghost{% endif %}"
+       {% if a.href %}href="{{ a.href }}"{% elif a.onclick %}onclick="{{ a.onclick }}"{% endif %}
+       {% if a.confirm %}data-confirm="{{ a.confirm }}"{% endif %}>
+      {% if a.icon %}<svg class="icon" aria-hidden="true"><use href="#{{ a.icon }}"/></svg>{% endif %}{{ a.label }}
+    </a>
+  {% endfor %}
+  {% if actions|length > 2 %}
+  <details class="row-actions__more">
+    <summary aria-label="Más acciones">⋮</summary>
+    <div class="row-actions__menu">
+      {% for a in actions[2:] %}
+      <a {% if a.href %}href="{{ a.href }}"{% elif a.onclick %}onclick="{{ a.onclick }}"{% endif %}>{{ a.label }}</a>
+      {% endfor %}
+    </div>
+  </details>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{# ── A-14 alert_row: one severity row inside alert_rail ────────────── #}
+{% macro alert_row(sev, text, action_href=None, action_label=None) -%}
+<div class="alert-row">
+  <span class="status-pill status-pill--{{ sev }}">{{ {'danger':'Crítico','warn':'Aviso','info':'Info','ok':'OK','neutral':'—'}[sev] }}</span>
+  <span class="alert-row__text">{{ text }}</span>
+  {% if action_href %}<a class="alert-row__link" href="{{ action_href }}">{{ action_label or 'Ver' }} →</a>{% endif %}
+</div>
+{%- endmacro %}
+
+{# ── A-13 stepper ──────────────────────────────────────────────────── #}
+{% macro stepper(steps, current=0) -%}
+<ol class="stepper">
+  {% for s in steps %}
+  <li class="stepper__step {{ 'is-done' if loop.index0 < current else 'is-current' if loop.index0 == current else '' }}">
+    <span class="stepper__num">{{ loop.index }}</span><span>{{ s }}</span>
+  </li>
+  {% endfor %}
+</ol>
+{%- endmacro %}
+
+{# ── A-12 tooltip helper attr ──────────────────────────────────────── #}
+{% macro tooltip(text) -%}title="{{ text }}" data-tip="{{ text }}"{%- endmacro %}
