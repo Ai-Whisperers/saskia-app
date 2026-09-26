@@ -51,7 +51,7 @@ def users_list(
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """User management page (admin only)."""
-    admin_user = _require_admin(request)
+    admin_user = _require_admin(request, session)
     User = get_user_model()
     users = session.query(User).order_by(User.id).all()
     
@@ -75,7 +75,7 @@ def users_create(
     """Create a new user (admin only)."""
     from app.rms.validation import require_text, optional_text
 
-    admin_user = _require_admin(request)
+    admin_user = _require_admin(request, session)
 
     clean_username = require_text(username, field="nombre de usuario", max_len=120)
     clean_password = require_text(password, field="contraseña", max_len=200)
@@ -131,7 +131,7 @@ def users_edit(
     """Edit an existing user (admin only)."""
     from app.rms.validation import require_text, optional_text
 
-    admin_user = _require_admin(request)
+    admin_user = _require_admin(request, session)
 
     clean_username = require_text(username, field="nombre de usuario", max_len=120)
 
@@ -191,7 +191,7 @@ def users_delete(
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Delete a user (admin only). Cannot delete yourself."""
-    admin_user = _require_admin(request)
+    admin_user = _require_admin(request, session)
     
     User = get_user_model()
     user = session.get(User, user_id)

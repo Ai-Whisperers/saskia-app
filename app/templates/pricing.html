@@ -38,10 +38,10 @@
       <td><strong>{{ r.recipe.name }}</strong></td>
       <td class="num">{{ m.gs(r.cost_total_gs) }}</td>
       <td class="num">{{ m.gs(r.cost_per_unit_gs) }}</td>
-      <td class="num">{{ m.gs(r.mayorista_gs) }}</td>
+      <td class="num">{{ m.gs(r.wholesale_gs) }}</td>
       <td class="num">{{ m.gs(r.private_label_gs) }}</td>
       <td class="num">{{ m.gs(r.distribuidor_gs) }}</td>
-      <td class="num"><strong>{{ m.gs(r.minorista_gs) }}</strong></td>
+      <td class="num"><strong>{{ m.gs(r.retail_gs) }}</strong></td>
       <td class="num">{{ m.gs(r.broker_commission_gs) }}</td>
     </tr>
     {% endfor %}
