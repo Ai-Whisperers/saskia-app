@@ -6,12 +6,12 @@ Asunción local TZ.
 
 {# Money display — uses format_gs from money.py #}
 {% macro gs(amount) -%}
-{%- if amount is none -%}—{%- else -%}{{ "{:,.0f}".format(amount).replace(",", ".") }}{%- endif -%}
+{%- if amount is none or amount is not number -%}—{%- else -%}{{ "{:,.0f}".format(amount).replace(",", ".") }}{%- endif -%}
 {%- endmacro %}
 
 {# Money display with Gs. prefix #}
 {% macro gs_full(amount) -%}
-{%- if amount is none -%}—{%- else -%}Gs. {{ "{:,.0f}".format(amount).replace(",", ".") }}{%- endif -%}
+{%- if amount is none or amount is not number -%}—{%- else -%}Gs. {{ "{:,.0f}".format(amount).replace(",", ".") }}{%- endif -%}
 {%- endmacro %}
 
 {# Stock severity badge #}
