@@ -299,24 +299,12 @@
   </div>
 </section>
 
-{# ══ Compliance ════════════════════════════════════════════════════ #}
-{% if compliance_alerts %}
-<section class="mb-4" aria-label="Alertas regulatorias">
-  <h2 style="margin-top: var(--space-4);">Cumplimiento regulatorio</h2>
-  {% for a in compliance_alerts %}
-  <div class="alert alert-{{ a.severity }}" role="alert" aria-live="polite" style="margin-bottom: var(--space-2);">
-    <strong style="margin-right: 4px;">{{ a.icon }}</strong>
-    {{ a.message }}
-    <a href="/settings" style="margin-left: 8px;">Ir a Configuración →</a>
-  </div>
-  {% endfor %}
-</section>
-{% endif %}
-
 {# ══ Avisos completos (anchor target for "ver todos") ═══════════════ #}
 <section id="avisos-todos" aria-label="Todos los avisos">
 <h2>Avisos</h2>
-{% set avisos_todos = (stock_low|length) + (recipes_no_cost|length) + (sales_no_recipe|length) %}
+{# 2026-09-26 dedup: stock-bajo ya vive en la tarjeta Alertas (arriba, con acciones);
+   acá solo lo que NO está cubierto arriba. #}
+{% set avisos_todos = (recipes_no_cost|length) + (sales_no_recipe|length) %}
 {% if avisos_todos == 0 %}
 <div class="alert alert-success" role="status">
   <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
@@ -324,15 +312,7 @@
 </div>
 {% else %}
 <ul class="avisos">
-  {% for s in stock_low[:5] %}
-  <li class="aviso-stock">
-    <span style="white-space:nowrap">Stock bajo: <strong>{{ s.name }}</strong> ({{ "%.2f"|format(s.stock_qty) }} {{ s.unit }}, mínimo {{ "%.2f"|format(s.min_stock_qty) }} {{ s.unit }})</span>
-    — <a href="/reorder">reponer →</a>
-  </li>
-  {% endfor %}
-  {% if stock_low|length > 5 %}
-  <li class="text-muted">… y {{ stock_low|length - 5 }} ingredientes más con stock bajo — <a href="/reorder">ver todos en Reponer</a></li>
-  {% endif %}
+
   {% for r in recipes_no_cost[:5] %}
   <li class="aviso-recipe">
     Receta sin precio de ingrediente: <strong>{{ r.name }}</strong>. Cargá los precios para ver el costo — <a href="/recetas/{{ r.id }}/editar">editar receta →</a>

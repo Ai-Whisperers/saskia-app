@@ -266,6 +266,6 @@ def test_data_01_low_stock_line_no_wrap(client):
     assert r.status_code == 200
     body = r.text
     assert "leche entera test" in body
-    assert 'white-space:nowrap' in body, (
-        "Low-stock alert line should use white-space:nowrap to keep unit attached"
-    )
+    # 2026-09-26: the low-stock line moved into the Alertas card severity row
+    # (compact by design, no wrapping issue). Old white-space:nowrap span removed.
+    assert "sev-pill critico" in body, "Low-stock must render in the Alertas severity row"
