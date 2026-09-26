@@ -834,34 +834,15 @@ def ingredient_variants(
     request: Request,
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    """List all variants of an Ingredient.
+    """Variants live on the ingredient detail page (#variants anchor).
 
-    Renders the same fragment added to ingrediente_detalle.html — kept as
-    a separate URL for power-users who want a clean view of variants only.
+    2026-09-26: the standalone ingrediente_variantes.html template never
+    existed (prod 500). Redirect to the detail view instead.
     """
-    from app.rms.variants import rollup_ingredient_stock
-
     ing = session.get(Ingredient, ing_id)
     if ing is None:
         raise NotFound("Ingredient", id=ing_id)
-    rollup = rollup_ingredient_stock(session, ing_id)
-    variants = session.scalars(
-        select(IngredientVariant)
-        .where(IngredientVariant.ingredient_id == ing_id)
-        .order_by(IngredientVariant.preferred.desc(), IngredientVariant.package_size)
-    ).all()
-    suppliers = session.scalars(select(Supplier).order_by(Supplier.name)).all() if "Supplier" in dir() else []
-    return render(
-        request,
-        "ingrediente_variantes.html",
-        {
-            "ingredient": ing,
-            "variants": variants,
-            "rollup": rollup,
-            "suppliers": suppliers,
-        },
-    )
-
+    return RedirectResponse(url=f"/inventario/{ing_id}#variants", status_code=303)
 
 @router.post("/{ing_id}/variantes/nuevo")
 def ingredient_variant_create(

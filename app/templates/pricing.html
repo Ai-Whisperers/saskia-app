@@ -9,13 +9,13 @@
 <div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
   <div class="kpi-card"><div class="kpi-label">Recetas con pricing</div><div class="kpi-value">{{ rows|length }}</div></div>
   <div class="kpi-card"><div class="kpi-label">Costo total (batch)</div><div class="kpi-value">{{ m.gs(total_cost_gs) }}</div></div>
-  <div class="kpi-card highlight"><div class="kpi-label">Valor minorista</div><div class="kpi-value">{{ m.gs(total_minorista_gs) }}</div></div>
+  <div class="kpi-card highlight"><div class="kpi-label">Valor minorista</div><div class="kpi-value">{{ m.gs(total_retail_gs) }}</div></div>
 </div>
 
 <div class="muted" style="margin:1rem 0;">
   Channels & márgenes (MAESTRA):
   {% for ch, m in channels_margins.items() %}
-    <span class="badge">{{ ch }} {{ "{:+.0%}".format(m) }}</span>
+    <span class="badge">{{ ch }} {{ "%+.0f%%"|format((m if m is number else 0) * 100) }}</span>
   {% endfor %}
 </div>
 

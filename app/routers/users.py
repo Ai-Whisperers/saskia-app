@@ -37,9 +37,9 @@ def _is_admin(user) -> bool:
     return getattr(user, "role", "admin") == "admin"
 
 
-def _require_admin(request: Request):
+def _require_admin(request: Request, session: Session = Depends(get_session)):
     """Dependency: require admin role, else 403."""
-    user = get_current_user(request)
+    user = get_current_user(request, session)
     if not _is_admin(user):
         raise HTTPException(status_code=403, detail="Acceso denegado: se requiere rol admin")
     return user
