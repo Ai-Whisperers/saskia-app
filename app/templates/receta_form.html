@@ -216,13 +216,13 @@
           <input type="number" id="yield_qty" name="yield_qty" step="0.01" min="0"
                  class="yield-qty-input"
                  value="{{ "%.2f"|format(recipe.yield_qty) if recipe and recipe.yield_qty is not none else '12' }}">
-          <div class="saskia-combo" data-source="/recetas/api/units" data-display="display" data-value="value"
-               data-min-chars="0" data-row-builder="genericRowLabel">
-            <input type="text" id="yield_unit_combo" class="combo-input" name="yield_unit_display" maxlength="10"
-                   value="{{ recipe.yield_unit if recipe and recipe.yield_unit else 'und' }}" placeholder="und">
-            <input type="hidden" name="yield_unit" value="{{ recipe.yield_unit if recipe and recipe.yield_unit else 'und' }}">
-            <div class="combo-results" role="listbox" hidden></div>
-          </div>
+          {{ ui.combo_field(
+            name='yield_unit',
+            placeholder='und',
+            endpoint='/recetas/api/units?q=',
+            value_field='value',
+            label_field='display',
+          ) }}
         </div>
       </div>
 

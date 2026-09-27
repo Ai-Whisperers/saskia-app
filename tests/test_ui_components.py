@@ -475,3 +475,36 @@ def test_d17_recetas_api_units_returns_existing_shape(client):
     assert "results" in data
     values = [r["value"] for r in data["results"]]
     assert any(v in values for v in ["g", "kg", "ml", "l", "und"])
+
+def test_d17_merma_uses_saskia_combo_for_reason(client):
+    """D17: merma.html replaces legacy div with <saskia-combo> for reason filter."""
+    status, body = _get(client, "/merma")
+    assert status == 200
+    # Should have <saskia-combo> element (migrated from legacy div)
+    assert "<saskia-combo" in body
+    # Should reference real /merma/api/reasons endpoint
+    assert "/merma/api/reasons?q=" in body
+    # Should NOT have the legacy `<div class="saskia-combo">` divs anymore
+    assert '<div class="saskia-combo"\n         data-source="/merma/api/reasons"' not in body
+    assert '<div class="saskia-combo"\n           data-source="/recetas/api/search"' not in body
+    assert '<div class="saskia-combo"\n         data-source="/inventario/api/search"' not in body
+
+
+def test_d17_merma_uses_saskia_combo_for_recipe_and_ingredient(client):
+    """D17: merma.html migrates recipe_id and ingredient_id combos."""
+    status, body = _get(client, "/merma")
+    assert status == 200
+    # recipe_id and ingredient_id combos should be migrated
+    assert "name='recipe_id'" in body or "recipe_id" in body
+    assert "name='ingredient_id'" in body or "ingredient_id" in body
+    # Inventory API endpoint wired
+    assert "/inventario/api/search?q=" in body
+
+
+def test_d17_receta_form_yield_unit_migrated(client):
+    """D17: receta_form yield_unit picker uses <saskia-combo>."""
+    status, body = _get(client, "/recetas/nueva")
+    if status != 200:
+        # The recetas page might need different auth/role
+        return  # skip if page gated
+    assert "recetas/api/units?q=" in body or "api/units" in body

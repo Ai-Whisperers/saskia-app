@@ -15,23 +15,13 @@
       <div style="display:flex;gap:1rem;align-items:end;">
         <div class="form-group" style="flex:1;">
           <label for="recipe_id_combo">Receta</label>
-          <div class="saskia-combo"
-               data-source="/recetas/api/search"
-               data-display="name"
-               data-value="id"
-               data-min-chars="0"
-               data-row-builder="genericRowLabel">
-            <input type="text"
-                   id="recipe_id_combo"
-                   class="combo-input"
-                   name="recipe_name_display"
-                   placeholder="Buscar receta…">
-            <input type="hidden"
-                   id="recipe_id"
-                   name="recipe_id"
-                   value="{{ recipe.id if recipe else '' }}">
-            <div class="combo-results" role="listbox" hidden></div>
-          </div>
+          {{ ui.combo_field(
+            name='recipe_id',
+            placeholder='Buscar receta…',
+            endpoint='/recetas/api/search?q=',
+            value_field='id',
+            label_field='name',
+          ) }}
         </div>
         <div class="form-group" style="width:120px;">
           <label for="batches">Tandas</label>

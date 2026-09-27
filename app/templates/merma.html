@@ -20,23 +20,13 @@
     <label for="until">Hasta:</label>
     <saskia-date id="until" name="until" value="{{ until }}"></saskia-date>
     <label for="reason_filter_combo">Motivo:</label>
-    <div class="saskia-combo"
-         data-source="/merma/api/reasons"
-         data-display="display"
-         data-value="value"
-         data-min-chars="0"
-         data-row-builder="genericRowLabel">
-      <input type="text"
-             id="reason_filter_combo"
-             class="combo-input"
-             name="reason_display"
-             maxlength="40"
-             style="min-width:120px;"
-             value=""
-             placeholder="Todos">
-      <input type="hidden" name="reason" value="">
-      <div class="combo-results" role="listbox" hidden></div>
-    </div>
+    {{ ui.combo_field(
+      name='reason',
+      placeholder='Todos',
+      endpoint='/merma/api/reasons?q=',
+      value_field='value',
+      label_field='display',
+    ) }}
     <button type="submit" class="btn btn-sm">Aplicar</button>
   </form>
 </div>
@@ -59,20 +49,13 @@
   <form method="post" action="/merma/receta" class="form">
     <div class="form-row">
       <label for="recipe_id">Receta</label>
-      <div class="saskia-combo"
-           data-source="/recetas/api/search"
-           data-display="name"
-           data-value="id"
-           data-min-chars="1"
-           data-row-builder="recipeSearchRowLabel">
-        <input type="text"
-               id="recipe_id"
-               class="combo-input"
-               placeholder="Escribí la receta"
-               autocomplete="off">
-        <input type="hidden" name="recipe_id" value="">
-        <div class="combo-results combo-results-below" role="listbox" hidden></div>
-      </div>
+      {{ ui.combo_field(
+        name='recipe_id',
+        placeholder='Escribí la receta',
+        endpoint='/recetas/api/search?q=',
+        value_field='id',
+        label_field='name',
+      ) }}
       <small class="hint">
         Seleccioná la receta para desperdicio.
       </small>
@@ -84,19 +67,13 @@
     </div>
     <div class="form-row">
       <label for="recipe_reason">Motivo</label>
-      <div class="saskia-combo"
-           data-source="/merma/api/reasons"
-           data-display="value"
-           data-value="value"
-           data-min-chars="0">
-        <input type="text"
-               id="recipe_reason"
-               class="combo-input"
-               placeholder="Seleccioná motivo"
-               autocomplete="off">
-        <input type="hidden" name="reason" value="">
-        <div class="combo-results combo-results-below" role="listbox" hidden></div>
-      </div>
+      {{ ui.combo_field(
+        name='reason',
+        placeholder='Seleccioná motivo',
+        endpoint='/merma/api/reasons?q=',
+        value_field='value',
+        label_field='value',
+      ) }}
     </div>
     <div class="form-row">
       <label for="recipe_notes">Notas</label>
@@ -127,20 +104,13 @@
       {# Combobox replaces the 30+-item native <select>. Picks set
          the hidden ingredient_id; typing without picking is rejected
          (operator must select — we don't auto-create ingredients). #}
-      <div class="saskia-combo"
-           data-source="/inventario/api/search"
-           data-display="name"
-           data-value="id"
-           data-min-chars="1"
-           data-row-builder="ingredientRowLabel">
-        <input type="text"
-               id="ingredient_combo"
-               class="combo-input"
-               placeholder="Escribí el ingrediente (harina, aceite…)"
-               autocomplete="off">
-        <input type="hidden" name="ingredient_id" value="">
-        <div class="combo-results combo-results-below" role="listbox" hidden></div>
-      </div>
+      {{ ui.combo_field(
+        name='ingredient_id',
+        placeholder='Escribí el ingrediente (harina, aceite…)',
+        endpoint='/inventario/api/search?q=',
+        value_field='id',
+        label_field='name',
+      ) }}
       <small class="hint">
         Si no encontrás el ingrediente, creá uno primero en
         <a href="/inventario/nuevo">Inventario</a>.
@@ -149,35 +119,23 @@
     <div class="form-row">
       <label for="qty">Cantidad</label>
       <input type="number" id="qty" name="qty" required step="0.01" min="0.01" max="9999" value="1">
-      <div class="saskia-combo"
-           data-source="/recetas/api/units"
-           data-display="display"
-           data-value="value"
-           data-min-chars="0">
-        <input type="text"
-               id="qty_unit"
-               class="combo-input"
-               placeholder="Seleccioná unidad"
-               autocomplete="off">
-        <input type="hidden" name="qty_unit" value="">
-        <div class="combo-results combo-results-below" role="listbox" hidden></div>
-      </div>
+      {{ ui.combo_field(
+        name='qty_unit',
+        placeholder='Seleccioná unidad',
+        endpoint='/recetas/api/units?q=',
+        value_field='value',
+        label_field='display',
+      ) }}
     </div>
     <div class="form-row">
       <label for="reason">Motivo</label>
-      <div class="saskia-combo"
-           data-source="/merma/api/reasons"
-           data-display="value"
-           data-value="value"
-           data-min-chars="0">
-        <input type="text"
-               id="reason"
-               class="combo-input"
-               placeholder="Seleccioná motivo"
-               autocomplete="off">
-        <input type="hidden" name="reason" value="">
-        <div class="combo-results combo-results-below" role="listbox" hidden></div>
-      </div>
+      {{ ui.combo_field(
+        name='reason',
+        placeholder='Seleccioná motivo',
+        endpoint='/merma/api/reasons?q=',
+        value_field='value',
+        label_field='value',
+      ) }}
     </div>
     <div class="form-row">
       <label for="notes">Notas</label>
