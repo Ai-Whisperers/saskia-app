@@ -207,5 +207,26 @@
       <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
       <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
     </symbol>
+    <symbol id="icon-filter" viewBox="0 0 24 24">
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+    </symbol>
+    <symbol id="icon-tag" viewBox="0 0 24 24">
+      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+      <line x1="7" y1="7" x2="7.01" y2="7"/>
+    </symbol>
+    <symbol id="icon-qr" viewBox="0 0 24 24">
+      <rect x="3" y="3" width="7" height="7"/>
+      <rect x="14" y="3" width="7" height="7"/>
+      <rect x="3" y="14" width="7" height="7"/>
+      <rect x="14" y="14" width="3" height="3"/>
+      <rect x="18" y="14" width="3" height="3"/>
+      <rect x="14" y="18" width="3" height="3"/>
+      <rect x="18" y="18" width="3" height="3"/>
+    </symbol>
+    <symbol id="icon-printer" viewBox="0 0 24 24">
+      <polyline points="6 9 6 2 18 2 18 9"/>
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+      <rect x="6" y="14" width="12" height="8"/>
+    </symbol>
   </defs>
 </svg>

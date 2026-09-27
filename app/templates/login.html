@@ -5,17 +5,15 @@
 <main class="container" style="max-width: 440px;">
 
   {# Branding header #}
-  <div style="text-align: center; margin-bottom: 2rem;">
-    {# TODO: replace with real logo — add /static/logo.png #}
-    <div style="width: 64px; height: 64px; background: #3b82f6; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-        <path d="M2 17l10 5 10-5"/>
-        <path d="M2 12l10 5 10-5"/>
-      </svg>
-    </div>
+  <div style="text-align: center; margin-bottom: 1.5rem;">
+    <img src="/static/logo.svg" alt="Saskia RMS" width="64" height="64" style="margin: 0 auto 12px; display: block;">
     <h1 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 4px;">{{ branding.business_name }}</h1>
     <p class="text-muted" style="font-size: 14px;">{{ branding.tagline }}</p>
+  </div>
+
+  {# Hero illustration #}
+  <div style="margin-bottom: 1.5rem;">
+    <img src="/static/login-hero.svg" alt="" width="400" height="200" style="max-width:100%;height:auto;display:block;margin:0 auto;border-radius:12px;">
   </div>
 
   {% if error %}
