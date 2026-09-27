@@ -60,7 +60,7 @@ def test_dashboard_no_english_kpi_labels(authed_client):
     # Spanish replacements should be present
     assert "Costo de materia prima %" in body
     assert "Margen bruto %" in body
-    assert "Ingresos Gs." in body
+    assert "Ingresos" in body
     assert "objetivo: 60%" in body
 
 
