@@ -24,6 +24,11 @@
     if (m && m.close) m.close();
   }
 
+  // Expose close helpers for inline onclick="closeModal()" etc. in users.html
+  window.closeModal = closeModal;
+  window.closeEditModal = closeEditModal;
+  window.closeDeleteModal = closeDeleteModal;
+
   // Exposed to inline onclick="editUser(...)" / onclick="deleteUser(...)" handlers in the table.
   window.editUser = function (id, username, role, isActive) {
     $('edit-user-id').value = id;

@@ -1,33 +1,33 @@
-/* Users page — role badges, modal form styling, danger button variants.
+/* Users page — role badges, modal form styling, action button variants.
    Loaded by users.html via <link rel="stylesheet" href="/static/users.css?v={{ asset_version() }}">. */
 
-/* Role badge colors */
+/* Role badge colors — use semantic vars so dark mode inverts correctly */
 .badge-role-admin {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--color-danger-soft);
+  color: var(--color-danger-fg);
 }
 
 .badge-role-manager {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--color-warn-soft);
+  color: var(--color-warn-fg);
 }
 
 .badge-role-cashier {
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--color-info-soft);
+  color: var(--color-info-fg);
 }
 
 .badge-info {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: var(--color-info-soft);
+  color: var(--color-info-fg);
 }
 
 .badge-muted {
-  background: var(--color-surface-raised);
+  background: var(--color-surface-subtle);
   color: var(--color-text-muted);
 }
 
-/* Form styling in modal */
+/* Form styling in modal dialogs */
 #nuevo-usuario-modal form,
 #editar-usuario-modal form,
 #eliminar-usuario-modal form {
@@ -54,14 +54,18 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   font-size: 1rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+  background: var(--input-bg);
+  color: var(--color-text);
+  font-family: inherit;
+  height: var(--input-height);
 }
 
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
 }
 
 .form-group small {
@@ -71,11 +75,11 @@
   font-size: 0.875rem;
 }
 
-/* Action buttons */
+/* Action buttons — use design-system vars */
 .btn-danger {
   background: var(--color-danger);
-  color: white;
-  border: none;
+  color: var(--color-text-inverse);
+  border: 1px solid var(--color-danger);
   padding: 0.75rem 1.5rem;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -83,10 +87,15 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  text-decoration: none;
 }
 
 .btn-danger:hover {
-  opacity: 0.9;
+  background: var(--color-danger-hover);
+  border-color: var(--color-danger-hover);
+  text-decoration: none;
 }
 
 .btn-danger-ghost {
@@ -99,10 +108,13 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all 0.2s;
+  transition: all var(--duration-fast);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  text-decoration: none;
 }
 
 .btn-danger-ghost:hover {
-  background: var(--color-danger);
-  color: white;
+  background: var(--color-danger-soft);
+  text-decoration: none;
 }
