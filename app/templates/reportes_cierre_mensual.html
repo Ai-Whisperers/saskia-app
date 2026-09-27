@@ -21,7 +21,8 @@
 </nav>
 
 {# KPI cards #}
-<div class="grid grid-4 mb-4">
+{{ ui.skeleton_section(id="cierre-kpis", variant="kpi", count=4, label="Cargando cierre mensual") }}
+<div class="grid grid-4 mb-4" data-loaded-section="cierre-kpis">
   <div class="metric-card">
     <div class="metric-label">Ventas totales</div>
     <div class="metric-value">{{ m.gs(close.total_ventas_gs) }}</div>
@@ -46,6 +47,7 @@
     </div>
   </div>
 </div>
+</div>
 
 {% if close.top_product %}
 <div class="alert alert-success mb-4" role="status">
@@ -55,6 +57,8 @@
 
 {# Detail table #}
 <h2>Detalle por línea</h2>
+{{ ui.skeleton_section(id="cierre-detail", variant="line", count=8, label="Cargando detalle") }}
+<div data-loaded-section="cierre-detail">
 <table class="table is-striped is-hoverable">
   <thead>
     <tr>
@@ -110,6 +114,7 @@
     </tr>
   </tfoot>
 </table>
+</div>
 
 <div style="margin-top: var(--space-6); padding: var(--space-3); background: var(--color-surface-subtle); border-radius: var(--radius); font-size: var(--text-sm); color: var(--color-text-muted);">
   <strong>Notas:</strong>

@@ -1,0 +1,17 @@
+{
+  "name": "Saskia RMS",
+  "short_name": "Saskia",
+  "description": "Sistema de gestión para panadería y cafetería — Asunción, Paraguay",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff7ed",
+  "theme_color": "#f97316",
+  "icons": [
+    {
+      "src": "/static/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

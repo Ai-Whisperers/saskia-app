@@ -42,7 +42,8 @@
 </form>
 
 {% if comparison %}
-<div class="grid grid-2 mb-4">
+{{ ui.skeleton_section(id="comparacion-kpis", variant="kpi", count=4, label="Cargando comparación") }}
+<div class="grid grid-2 mb-4" data-loaded-section="comparacion-kpis">
   <div class="metric-card">
     <div class="metric-label">Período 1 — Ingresos</div>
     <div class="metric-value">{{ m.gs(comparison.period1.revenue_gs) }}</div>
@@ -54,9 +55,12 @@
     <div class="metric-label">Ventas: {{ comparison.period2.n_sales }}</div>
   </div>
 </div>
+</div>
 
 {% if comparison.revenue_change_pct is not none %}
 <h3>Cambios</h3>
+{{ ui.skeleton_section(id="comparacion-changes", variant="line", count=6, label="Cargando cambios") }}
+<div data-loaded-section="comparacion-changes">
 <table class="table is-hoverable">
   <thead>
     <tr>
@@ -93,6 +97,7 @@
     </tr>
   </tbody>
 </table>
+</div>
 {% endif %}
 {% endif %}
 

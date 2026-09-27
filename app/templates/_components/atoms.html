@@ -85,6 +85,40 @@
 </footer>
 {%- endmacro %}
 
+{# ── A-17 loading_state: shimmer placeholder for slow data sections ──────── #}
+{# Closes P0-D2 (loading skeletons). Wraps a data-bound region that loads
+   asynchronously. The saskia-skeleton.js auto-hides all [data-loading-state]
+   wrappers 120ms after DOMContentLoaded (longer if data-loading-delay="X").
+
+   Pattern:
+     {{ ui.loading_state(id="kpi-strip-dashboard", variant="kpi", count=8) }}
+     <div data-loaded-section="kpi-strip-dashboard">
+       ... actual content ...
+     </div>
+
+   Variants match the saskia-skeleton Web Component:
+     - "line"  : single shimmer bar (use for table rows)
+     - "card"  : card-sized box (~180px tall)
+     - "kpi"   : KPI tile size (88px tall, for metric strips)
+#}
+{% macro loading_state(id, variant='line', count=5, label='Cargando datos', delay=120) -%}
+<div id="loading-{{ id }}" class="loading-state" role="presentation" aria-hidden="true" data-loading-state data-loading-delay="{{ delay }}">
+  <saskia-skeleton-stack count="{{ count }}" variant="{{ variant }}" gap="1rem"></saskia-skeleton-stack>
+  <p class="loading-state__label muted" style="margin-top:.5rem;font-size:var(--text-sm);">
+    {{ label }}…
+  </p>
+</div>
+{%- endmacro %}
+
+{# Convenience macro: skeleton + matching data wrapper, side-by-side.
+   Usage:
+     {{ ui.skeleton_section(id="dashboard-kpis", variant="kpi", count=4) }}
+     ... <div data-loaded-section="dashboard-kpis"> actual data </div> ...
+   The skeleton auto-hides. The data section just needs `data-loaded-section="X"`. #}
+{% macro skeleton_section(id, variant='line', count=5, label='Cargando datos', delay=120) -%}
+{{ loading_state(id=id, variant=variant, count=count, label=label, delay=delay) }}
+{%- endmacro %}
+
 {# ── A-5 entity_link: hash-guarded linked name ─────────────────────── #}
 {% macro entity_link(obj, href=None, attr='name') -%}
 {%- set _name = fmt.entity_name(obj if obj is string else (obj[attr] if obj is mapping and attr in obj else (obj.name if obj is not string and obj is not none else obj))) -%}

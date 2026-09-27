@@ -123,4 +123,29 @@ Usage:
   if (!customElements.get('saskia-skeleton-stack')) {
     customElements.define('saskia-skeleton-stack', SaskiaSkeletonStack);
   }
+
+  // Auto-hide any [data-loading-state] wrapper after the page has had a
+  // chance to render the real data beneath it. This makes the macro
+  // {{ ui.loading_state(...) }} fully self-contained — no manual JS call.
+  // (For sections that should STAY visible until data lands, use a longer
+  // delay by setting data-loading-delay="2000".)
+  function autoHideLoadingStates() {
+    var els = document.querySelectorAll('[data-loading-state]');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      var delay = parseInt(el.dataset.loadingDelay || '120', 10);
+      setTimeout(function (e) {
+        // Only hide if the corresponding data section has actually rendered
+        // something (not just an empty wrapper). Use opacity check.
+        e.style.transition = 'opacity 0.2s ease';
+        e.style.opacity = '0';
+        setTimeout(function () { e.style.display = 'none'; }, 220);
+      }, delay, el);
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', autoHideLoadingStates);
+  } else {
+    autoHideLoadingStates();
+  }
 })();

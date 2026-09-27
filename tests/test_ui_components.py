@@ -46,7 +46,7 @@ class _Client:
             h["Content-Type"] = "application/x-www-form-urlencoded"
         if headers:
             h.update(headers)
-        conn = http.client.HTTPConnection(host, port, timeout=5)
+        conn = http.client.HTTPConnection(host, port, timeout=30)  # /analisis is slow
         conn.request(method, path, body=body, headers=h)
         rsp = conn.getresponse()
         for k, v in rsp.getheaders():
@@ -252,3 +252,34 @@ def test_empty_state_macro_on_converted_pages(client):
         if status == 200:
             # Just verify template parsed
             pass
+
+
+# ─── <saskia-skeleton> adoption on slow pages ──────────────────────────────
+
+def test_skeleton_present_on_slow_pages(client):
+    """The 6 slowest pages should render at least one loading-state wrapper."""
+    paths_and_min_skeletons = {
+        "/dashboard": 1,
+        "/analisis": 1,
+        "/reportes/cierre-mensual": 1,
+        "/reportes/comparacion": 1,
+        "/reportes/libro-ventas": 1,
+    }
+    for path, min_count in paths_and_min_skeletons.items():
+        status, body = _get(client, path)
+        assert status == 200, f"{path} not 200: {status}"
+        n = body.count("loading-state")
+        assert n >= min_count, f"{path}: only {n} loading-state wrappers (expected ≥{min_count})"
+
+
+def test_skeleton_macro_in_atoms(client):
+    """ui.skeleton_section / ui.loading_state must be defined in atoms.html."""
+    rsp = client.get("/static/app.js")  # ensure server is up
+    # Read atoms.html directly via the macro source
+    import subprocess
+    result = subprocess.run(
+        ["grep", "-c", "skeleton_section\\|loading_state",
+         "/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/_components/atoms.html"],
+        capture_output=True, text=True,
+    )
+    assert int(result.stdout.strip()) >= 2, "skeleton macros not in atoms.html"

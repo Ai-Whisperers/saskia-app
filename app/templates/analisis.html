@@ -8,7 +8,8 @@
 
 {# ── Inteligencia KPIs ─────────────────────────────────────────── #}
 <div class="band-label">Panorama</div>
-<div class="grid grid-4 mb-4">
+{{ ui.skeleton_section(id="analisis-panorama", variant="kpi", count=4, label="Cargando panorama") }}
+<div class="grid grid-4 mb-4" data-loaded-section="analisis-panorama">
   <div class="metric-card">
     <div class="metric-label">Capital en inventario</div>
     <div class="metric-value">{{ m.gs_full(insights.inventory_capital_gs) }}</div>
@@ -39,6 +40,7 @@
       {% endif %}
     </div>
   </div>
+</div>
 </div>
 
 {# ── Stars / Dogs / Rising / Churning / Price fluctuation ──────── #}
@@ -79,6 +81,8 @@
     <h2><svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg> Alerta: margen cayendo</h2>
     <small class="text-muted">Productos cuyo margen cayó por suba de precio de ingredientes</small>
   </div>
+  {{ ui.skeleton_section(id="analisis-erosion", variant="line", count=4, label="Cargando alertas de margen") }}
+  <div data-loaded-section="analisis-erosion">
   <table class="table is-hoverable">
     <thead><tr><th>Producto</th><th>Ingrediente</th><th class="num">Precio viejo</th><th class="num">Precio nuevo</th><th class="num">Δ Margen</th></tr></thead>
     <tbody>
@@ -95,6 +99,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </section>
 {% endif %}
 
@@ -105,6 +110,8 @@
     <h2><svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg> Productos más rentables (últimos 30 días)</h2>
     <small class="text-muted">Ordenados por ganancia absoluta</small>
   </div>
+  {{ ui.skeleton_section(id="analisis-top-margin", variant="line", count=5, label="Cargando top rentables") }}
+  <div data-loaded-section="analisis-top-margin">
   <table class="table is-hoverable is-striped">
     <thead><tr><th>Producto</th><th class="num">Cantidad vendida</th><th class="num">Ventas (Gs.)</th><th class="num">Margen (Gs.)</th><th class="num">Margen %</th></tr></thead>
     <tbody>
@@ -122,6 +129,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </section>
 {% endif %}
 
@@ -132,6 +140,8 @@
     <h2><svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg> Costo concentrado en pocos ingredientes</h2>
     <small class="text-muted">Últimos 90 días · donde se va tu plata</small>
   </div>
+  {{ ui.skeleton_section(id="analisis-concentration", variant="line", count=3, label="Cargando concentración de costo") }}
+  <div data-loaded-section="analisis-concentration">
   <div class="card-body">
     {% set top_share = concentration[0].share_pct if concentration else 0 %}
     <p>Los <strong>5 ingredientes más usados</strong> representan <strong>{{ "%.0f"|format(top_share * 100) }}%</strong> del costo total (90 días).</p>
@@ -158,6 +168,8 @@
     <h2><svg class="icon" aria-hidden="true"><use href="#icon-chart"/></svg> Promedio de ventas por día de la semana</h2>
     <small class="text-muted">Últimos 90 días · para planificar producción</small>
   </div>
+  {{ ui.skeleton_section(id="analisis-dow", variant="line", count=4, label="Cargando ventas por día") }}
+  <div data-loaded-section="analisis-dow">
   <table class="table">
     <thead><tr><th>Día</th><th class="num">Ventas promedio (Gs.)</th><th class="num">Pedidos</th></tr></thead>
     <tbody>
@@ -171,9 +183,10 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
-</section>
-{% endif %}
+    </table>
+    </div>
+    </section>
+    {% endif %}
 
 {# ── Turnover ────────────────────────────────────────────────────── #}
 {% if turnover %}
@@ -182,6 +195,8 @@
     <h2><svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg> Rotación de stock (últimos 30 días)</h2>
     <small class="text-muted">Cuántas veces se renovó el stock de los ingredientes más activos</small>
   </div>
+  {{ ui.skeleton_section(id="analisis-turnover", variant="line", count=5, label="Cargando rotación de stock") }}
+  <div data-loaded-section="analisis-turnover">
   <table class="table is-striped">
     <thead><tr><th>Ingrediente</th><th class="num">Consumido</th><th class="num">Rotación</th><th class="num">Días de stock</th></tr></thead>
     <tbody>
@@ -203,9 +218,10 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
-</section>
-{% endif %}
+    </table>
+    </div>
+    </section>
+    {% endif %}
 
 {# ── Recipe complexity ───────────────────────────────────────────── #}
 {% if complexity %}
@@ -214,6 +230,8 @@
     <h2><svg class="icon" aria-hidden="true"><use href="#icon-recipe"/></svg> Recetas más complejas</h2>
     <small class="text-muted">Más ingredientes y más tiempo de preparación</small>
   </div>
+  {{ ui.skeleton_section(id="analisis-complex", variant="line", count=4, label="Cargando recetas complejas") }}
+  <div data-loaded-section="analisis-complex">
   <table class="table">
     <thead><tr><th>Receta</th><th class="num">Ingredientes</th><th class="num">Costo/porción (Gs.)</th><th class="num">Prep (min)</th></tr></thead>
     <tbody>
@@ -226,8 +244,9 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
-</section>
-{% endif %}
+    </table>
+    </div>
+    </section>
+    {% endif %}
 
 {% endblock %}
