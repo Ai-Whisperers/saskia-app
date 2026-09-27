@@ -76,7 +76,7 @@
       <dt>Dietéticas</dt>
       <dd>{% if ingredient.dietary_tags %}{{ t.tag_pills(ingredient.dietary_tags) }}{% else %}—{% endif %}</dd>
       {% if ingredient.may_contain_gluten %}
-      <dt>Cruz gluten</dt><dd><span class="badge badge-warn">posible contaminación (bloquea sin TACC)</span></dd>
+      <dt>Cruz gluten</dt><dd>{{ ui.status_pill("posible contaminación (bloquea sin TACC)", sev="warn") }}</dd>
       {% endif %}
     </dl>
   </section>
@@ -310,13 +310,13 @@
     <dt>Estado</dt>
     <dd>
       {% if forecast.status == 'short' %}
-        <span class="badge badge-danger">CORTO — reordená ya</span>
+        {{ ui.status_pill("CORTO — reordená ya", sev="error") }}
       {% elif forecast.status == 'watch' %}
-        <span class="badge badge-warning">ATENCIÓN</span>
+        {{ ui.status_pill("ATENCIÓN", sev="warn") }}
       {% elif forecast.status == 'dead' %}
         <span class="badge" style="background:var(--color-text-muted);color:#fff;">SIN CONSUMO</span>
       {% else %}
-        <span class="badge badge-success">OK</span>
+        {{ ui.status_pill("OK", sev="ok") }}
       {% endif %}
     </dd>
   </dl>

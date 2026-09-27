@@ -82,9 +82,9 @@
         <td class="num">{% if r.line_shortage_gs > 0 %}{{ m.gs(r.line_shortage_gs) }}{% else %}—{% endif %}</td>
         <td>
           {% if r.sufficient %}
-            <span class="badge badge-success">OK</span>
+            {{ ui.status_pill("OK", sev="ok") }}
           {% else %}
-            <span class="badge badge-error">Falta</span>
+            {{ ui.status_pill("Falta", sev="error") }}
           {% endif %}
         </td>
       </tr>

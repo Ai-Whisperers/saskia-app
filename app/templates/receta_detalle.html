@@ -203,9 +203,9 @@
       <tr>
         <td>
           {% if item.is_ingredient %}
-          <span class="badge badge-neutral">Ingrediente</span>
+          {{ ui.status_pill("Ingrediente", sev="neutral") }}
           {% else %}
-          <span class="badge badge-warn">Sub-receta</span>
+          {{ ui.status_pill("Sub-receta", sev="warn") }}
           {% endif %}
         </td>
         <td>

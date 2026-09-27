@@ -85,7 +85,7 @@
         {% if item.purchased %}
           <span class="badge badge-success">✓ Comprado</span>
         {% else %}
-          <span class="badge badge-warning">Pendiente</span>
+          {{ ui.status_pill("Pendiente", sev="warn") }}
         {% endif %}
       </td>
       <td>

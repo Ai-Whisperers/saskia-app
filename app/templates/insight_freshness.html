@@ -24,11 +24,11 @@
     <tr>
       <td>{{ f.name }}</td>
       <td>
-        {% if f.urgency == 'expired' %}<span class="badge badge-danger">VENCIDO</span>
-        {% elif f.urgency == 'critical' %}<span class="badge badge-warn">CRÍTICO</span>
+        {% if f.urgency == 'expired' %}{{ ui.status_pill("VENCIDO", sev="error") }}
+        {% elif f.urgency == 'critical' %}{{ ui.status_pill("CRÍTICO", sev="warn") }}
         {% elif f.urgency == 'soon' %}<span class="badge">PRONTO</span>
         {% elif f.urgency == 'unknown' %}<span class="text-muted">sin datos</span>
-        {% else %}<span class="badge badge-ok">OK</span>{% endif %}
+        {% else %}{{ ui.status_pill("OK", sev="ok") }}{% endif %}
       </td>
       <td class="num">{{ f.days_until_expiry if f.days_until_expiry is not none else '—' }}</td>
       <td class="num">{{ m.gs(f.value_at_risk_gs) }}</td>

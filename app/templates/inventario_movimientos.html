@@ -42,15 +42,15 @@
       <td><small>{{ m.recorded_at.strftime("%d/%m/%Y %H:%M") if m.recorded_at else "—" }}</small></td>
       <td>
         {% if m.movement_type == 'sale' %}
-          <span class="badge badge-neutral">venta</span>
+          {{ ui.status_pill("venta", sev="neutral") }}
         {% elif m.movement_type == 'adjustment' %}
-          <span class="badge badge-warn">ajuste</span>
+          {{ ui.status_pill("ajuste", sev="warn") }}
         {% elif m.movement_type == 'merma' %}
-          <span class="badge badge-danger">merma</span>
+          {{ ui.status_pill("merma", sev="error") }}
         {% elif m.movement_type == 'reorder' %}
-          <span class="badge badge-ok">reorden</span>
+          {{ ui.status_pill("reorden", sev="ok") }}
         {% elif m.movement_type == 'initial' %}
-          <span class="badge badge-neutral">stock inicial</span>
+          {{ ui.status_pill("stock inicial", sev="neutral") }}
         {% else %}
           <span class="badge badge-neutral">{{ m.movement_type }}</span>
         {% endif %}

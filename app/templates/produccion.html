@@ -165,9 +165,9 @@
         {% if _delta < 0 %}
         <span class="badge badge-danger">¡Falta {{ "%.2f"|format(-_delta) }} {{ l.unit }}!</span>
         {% elif _delta < l.qty_required * 0.2 %}
-        <span class="badge badge-warn">Justo</span>
+        {{ ui.status_pill("Justo", sev="warn") }}
         {% else %}
-        <span class="badge badge-ok">Suficiente</span>
+        {{ ui.status_pill("Suficiente", sev="ok") }}
         {% endif %}
       </td>
       <td class="num">{{ "%.2f"|format(l.qty_required) }} {{ l.unit }}</td>
@@ -280,9 +280,9 @@
         {% if _delta < 0 %}
         <span class="badge badge-danger">¡Falta {{ "%.2f"|format(-_delta) }} {{ l.unit }}!</span>
         {% elif _delta < l.qty_required * 0.2 %}
-        <span class="badge badge-warn">Justo</span>
+        {{ ui.status_pill("Justo", sev="warn") }}
         {% else %}
-        <span class="badge badge-ok">Suficiente</span>
+        {{ ui.status_pill("Suficiente", sev="ok") }}
         {% endif %}
       </td>
       <td class="num">{{ "%.2f"|format(l.qty_required) }} {{ l.unit }}</td>
@@ -386,9 +386,9 @@
         {% if _delta < 0 %}
         <span class="badge badge-danger">¡Falta {{ "%.2f"|format(-_delta) }} {{ l.unit }}!</span>
         {% elif _delta < l.qty_required * 0.2 %}
-        <span class="badge badge-warn">Justo</span>
+        {{ ui.status_pill("Justo", sev="warn") }}
         {% else %}
-        <span class="badge badge-ok">Suficiente</span>
+        {{ ui.status_pill("Suficiente", sev="ok") }}
         {% endif %}
       </td>
       <td class="num">{{ "%.2f"|format(l.qty_required) }} {{ l.unit }}</td>

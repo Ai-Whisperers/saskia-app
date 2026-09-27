@@ -106,7 +106,7 @@
       <td><strong>{{ s.product_name or "(eliminado)" }}</strong></td>
       <td class="num">{{ "%.2f"|format(s.qty) }}</td>
       <td class="num">{{ m.gs(s.qty * s.unit_price_gs) }}</td>
-      <td>{% if s.voided_at %}<span class="badge badge-neutral">Anulada</span>{% else %}<span class="badge badge-ok">Activa</span>{% endif %}</td>
+      <td>{% if s.voided_at %}{{ ui.status_pill("Anulada", sev="neutral") }}{% else %}{{ ui.status_pill("Activa", sev="ok") }}{% endif %}</td>
     </tr>
     {% endfor %}
   </tbody>

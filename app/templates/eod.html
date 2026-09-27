@@ -14,7 +14,7 @@
       <strong>{{ progress.done }} / {{ progress.total }}</strong>
       ({{ "%.0f"|format(progress.pct) }}%)
       {% if progress.all_done %}
-      <span class="badge badge-ok">Listo para cerrar</span>
+      {{ ui.status_pill("Listo para cerrar", sev="ok") }}
       {% endif %}
     </div>
   </div>

@@ -14,11 +14,11 @@
   </div>
 </div>
 
-<div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
-  <div class="kpi-card"><div class="kpi-label">Activos</div><div class="kpi-value">{{ active_count }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Mitigados</div><div class="kpi-value">{{ mitigated_count }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Cerrados</div><div class="kpi-value">{{ closed_count }}</div></div>
-  <div class="kpi-card highlight"><div class="kpi-label">Severidad total Gs.</div><div class="kpi-value">{{ m.gs(severity_total_gs) }}</div></div>
+<div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
+  {{ ui.metric_card(label="Activos", value=active_count) }}
+  {{ ui.metric_card(label="Mitigados", value=mitigated_count) }}
+  {{ ui.metric_card(label="Cerrados", value=closed_count) }}
+  {{ ui.metric_card(label="Severidad total Gs.", value=m.gs(severity_total_gs), compact=True) }}
 </div>
 
 {% if not by_category %}

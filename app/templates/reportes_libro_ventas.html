@@ -76,7 +76,7 @@
           <span class="badge badge-info">{{ r.invoice_type }}</span>
           <small>#{{ r.invoice_number }}</small>
         {% else %}
-          <span class="badge badge-neutral">sin comprobante</span>
+          {{ ui.status_pill("sin comprobante", sev="neutral") }}
         {% endif %}
       </td>
       <td><small>{{ r.invoice_customer_ruc or "—" }}</small></td>

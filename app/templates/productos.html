@@ -109,7 +109,7 @@
       <td class="col-name">
         {%- if p.image_url %}<img class="row-thumb" src="{{ p.image_url }}" alt="" loading="lazy" width="36" height="36">{% endif -%}
         <strong>{{ p.name }}</strong>
-        {% if p.is_dead %}<span class="badge badge-warn" title="Este producto nunca fue vendido">Sin ventas</span>{% endif %}
+        {% if p.is_dead %}{{ ui.status_pill("Sin ventas", sev="warn") }}{% endif %}
         {% if p.category %}{{ t.category_pill(p.category) }}{% endif %}
         {% if p.tags %}
           <div class="tag-pill-row">
@@ -144,7 +144,7 @@
       </td>
       <td class="col-available">
         {% if p.is_available %}
-          <span class="badge badge-ok">Sí</span>
+          {{ ui.status_pill("Sí", sev="ok") }}
         {% else %}
           <span class="badge badge-muted">No</span>
         {% endif %}

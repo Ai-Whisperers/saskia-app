@@ -72,11 +72,11 @@ function updateBulkBtn() {
       <td class="num"><strong>{{ item.suggested_qty|round(2) }} {{ item.unit }}</strong></td>
       <td class="num">
         {% if item.urgency_label == 'sin stock' %}
-          <span class="badge badge-danger">Sin stock</span>
+          {{ ui.status_pill("Sin stock", sev="error") }}
         {% elif item.urgency_label == 'bajo mínimo' %}
-          <span class="badge badge-warn">Bajo mínimo</span>
+          {{ ui.status_pill("Bajo mínimo", sev="warn") }}
         {% else %}
-          <span class="badge badge-ok">OK</span>
+          {{ ui.status_pill("OK", sev="ok") }}
         {% endif %}
       </td>
       <td class="num">

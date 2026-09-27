@@ -167,15 +167,15 @@
         <td class="num">Gs. {{ m.gs(p.total_gs) }}</td>
         <td>
           {% if p.status == "pending" %}
-            <span class="badge badge-warn">Pendiente</span>
+            {{ ui.status_pill("Pendiente", sev="warn") }}
           {% elif p.status == "confirmed" %}
-            <span class="badge badge-info">Confirmado</span>
+            {{ ui.status_pill("Confirmado", sev="info") }}
           {% elif p.status == "ready" %}
-            <span class="badge badge-ok">Listo</span>
+            {{ ui.status_pill("Listo", sev="ok") }}
           {% elif p.status == "fulfilled" %}
             <span class="badge badge-good">Entregado</span>
           {% elif p.status == "cancelled" %}
-            <span class="badge badge-neutral">Cancelado</span>
+            {{ ui.status_pill("Cancelado", sev="neutral") }}
           {% endif %}
         </td>
         <td>

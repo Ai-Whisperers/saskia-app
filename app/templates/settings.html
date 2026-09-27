@@ -396,9 +396,9 @@
           <td class="num">{% if z.min_order_gs %}{{ m.gs(z.min_order_gs) }}{% else %}—{% endif %}</td>
           <td>
             {% if z.is_active %}
-            <span class="badge badge-ok">Activa</span>
+            {{ ui.status_pill("Activa", sev="ok") }}
             {% else %}
-            <span class="badge badge-warn">Inactiva</span>
+            {{ ui.status_pill("Inactiva", sev="warn") }}
             {% endif %}
           </td>
         </tr>

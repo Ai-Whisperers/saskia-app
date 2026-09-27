@@ -8,11 +8,11 @@
 <h1>
   <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
   Pedido #{{ pedido.id }}
-  {% if pedido.status == "pending" %}<span class="badge badge-warn">Pendiente</span>
-  {% elif pedido.status == "confirmed" %}<span class="badge badge-info">Confirmado</span>
-  {% elif pedido.status == "ready" %}<span class="badge badge-ok">Listo</span>
+  {% if pedido.status == "pending" %}{{ ui.status_pill("Pendiente", sev="warn") }}
+  {% elif pedido.status == "confirmed" %}{{ ui.status_pill("Confirmado", sev="info") }}
+  {% elif pedido.status == "ready" %}{{ ui.status_pill("Listo", sev="ok") }}
   {% elif pedido.status == "fulfilled" %}<span class="badge badge-good">Entregado</span>
-  {% elif pedido.status == "cancelled" %}<span class="badge badge-neutral">Cancelado</span>
+  {% elif pedido.status == "cancelled" %}{{ ui.status_pill("Cancelado", sev="neutral") }}
   {% endif %}
 </h1>
 
@@ -65,7 +65,7 @@
           {% if ln.fulfilled_qty and ln.fulfilled_qty > 0 %}
             <span class="badge badge-good">{{ "%.2f"|format(ln.fulfilled_qty) }}</span>
           {% else %}
-            <span class="badge badge-neutral">—</span>
+            {{ ui.status_pill("—", sev="neutral") }}
           {% endif %}
         </td>
       </tr>
