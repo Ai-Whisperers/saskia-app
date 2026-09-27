@@ -15,6 +15,12 @@
 | ux-audit-2026-09-27.md | 34 KB | Cross-cutting pattern audit (12 patterns, 6 defects) |
 | audit-batch2-prod.md | 78 KB | Inventario, producción, pedidos, recetas family (14 pages, 5-hat each) |
 | audit-batch3-reports.md | 69 KB | Compras, reportes, admin, bank, riesgos, auditoría (14 pages, 5-hat each) |
+| **critique-batch-FINANZAS.md** | 12 KB | 8 pages — bank, cierre-mensual, margenes, margenes-detalle, retencion, afinidades*, comparacion, food-cost-variance* |
+| **critique-batch-CATALOGO.md** | 27 KB | 8 pages — clientes family (3), inventario/variantes, recetas family (4) |
+| **critique-batch-OPERACIONES.md** | 25 KB | 8 pages — merma, shopping-list, reorder, analisis, auditoria, ops/status, pricing, reportes |
+| **critique-batch-REPORTES.md** | 27 KB | 8 pages — diario, stock-intel, ventas-hora, precios, price-impact, freshness, demand, metodos-pago |
+| **critique-batch-ADMIN.md** | 13 KB | 8 pages — suppliers (4), users, delivery-zones, riesgos, wishlist |
+| **critique-batch-PEDIDOSYCOMERCIO.md** | 32 KB | 8 pages — pedidos/board, stock-preview, duplicate, vs-mercado (2), ventas/recibo, buscar, historial |
 | subagent-outputs/cross-page-wishlist-consolidation.md | 37 KB | Top 30 reusable UX patterns + Top 10 architectural macros |
 | subagent-outputs/qol-touches-catalog.md | 41 KB | Quality-of-life touches catalog (16 categories × 8+ items = 219 items) |
 | subagent-outputs/cross-cutting-consistency-audit.md | 38 KB | App-wide consistency audit (12 dimensions, 46 pages) |
