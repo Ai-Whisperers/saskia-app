@@ -2,10 +2,8 @@
 {% import "_components/atoms.html" as ui %}
 {% block title %}Pricing · Saskia RMS{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1>💰 Precios por receta</h1>
-  <p class="muted">Costos y precios por canal (mayorista, minorista, distribuidor, etc.)</p>
-</div>
+{{ ui.page_header("💰 Precios por receta", desc="Costos y precios por canal (mayorista, minorista, distribuidor, etc.)")
+}}
 
 <div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
   <div class="kpi-card"><div class="kpi-label">Recetas con pricing</div><div class="kpi-value">{{ rows|length }}</div></div>

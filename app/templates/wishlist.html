@@ -2,10 +2,8 @@
 {% import "_components/atoms.html" as ui %}
 {% block title %}Lista de deseos · Saskia RMS{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1>🏪 Lista de deseos — equipamiento</h1>
-  <p class="muted">Lista priorizada para arrancar y escalar la panadería</p>
-</div>
+{{ ui.page_header("🏪 Lista de deseos — equipamiento", desc="Lista priorizada para arrancar y escalar la panadería")
+}}
 
 <div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
   <div class="kpi-card"><div class="kpi-label">Artículos totales</div><div class="kpi-value">{{ pending_count + purchased_count }}</div></div>

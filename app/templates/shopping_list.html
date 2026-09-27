@@ -2,10 +2,8 @@
 {% import "_components/atoms.html" as ui %}
 {% block title %}Lista de Compras · Saskia RMS{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1>🛒 Lista de Compras</h1>
-  <p class="muted">Lo que necesito comprar para la operación</p>
-</div>
+{{ ui.page_header("🛒 Lista de Compras", desc="Lo que necesito comprar para la operación")
+}}
 
 {% if request.query_params.get('from_plan') %}
 <div class="card mb-3" style="background: #d1fae5; border-color: #10b981;">

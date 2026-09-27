@@ -97,13 +97,9 @@
 .tmpl-body { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.8em; }
 </style>
 
-<div class="page-header">
-  <h1>Catálogos y configuración</h1>
-  <p class="muted">
-    Gestioná categorías, canales de venta, formas de pago, plantillas de mensajes y más.
-    Todos los cambios se aplican de inmediato — se aplica al instante.
-  </p>
-</div>
+{{ ui.page_header("Catálogos y configuración", desc="Gestioná categorías, canales de venta, formas de pago, plantillas de mensajes y más.
+    Todos los cambios se aplican de inmediato — se aplica al instante.")
+}}
 
 <nav class="catalog-tabs" aria-label="Secciones de configuración">
   <button type="button" class="tab is-active" data-tab="categories-product">Categorías producto</button>

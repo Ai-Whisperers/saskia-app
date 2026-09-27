@@ -2,10 +2,8 @@
 {% import "_components/atoms.html" as ui %}
 {% block title %}Bank · Saskia RMS{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1>🏦 Movimientos bancarios</h1>
-  <p class="muted">Dutch EUR (JGHM VAN DER POL) + PY Guaraní (SASKIA WEISS VANDER)</p>
-</div>
+{{ ui.page_header("🏦 Movimientos bancarios", desc="Dutch EUR (JGHM VAN DER POL) + PY Guaraní (SASKIA WEISS VANDER)")
+}}
 
 <div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
   <div class="kpi-card"><div class="kpi-label">EUR income</div><div class="kpi-value">€{{ "{:,.2f}".format(eur_income) }}</div></div>

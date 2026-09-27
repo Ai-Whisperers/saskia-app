@@ -2,10 +2,7 @@
 {% import "_components/atoms.html" as ui %}
 {% block title %}Benchmark {{ b.product_label }} · Saskia RMS{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1>📊 Benchmark — {{ b.product_label }}</h1>
-  <p class="muted">Compará tu pricing vs competencia</p>
-</div>
+{{ ui.page_header("📊 Benchmark — " ~ (b.product_label or ""), desc="Compará tu pricing vs competencia") }}
 
 {% if saved %}
 <div class="card mb-3" style="background:#d1fae5;border-color:#10b981;">
