@@ -106,6 +106,7 @@
     <tr data-id="{{ p.id }}" class="{% if p.is_dead %}row-dead{% endif %}">
       <td class="col-checkbox"><input type="checkbox" name="selected" value="{{ p.id }}" aria-label="Seleccionar {{ p.name }}"></td>
       <td class="col-name">
+        {%- if p.image_url %}<img class="row-thumb" src="{{ p.image_url }}" alt="" loading="lazy" width="36" height="36">{% endif -%}
         <strong>{{ p.name }}</strong>
         {% if p.is_dead %}<span class="badge badge-warn" title="Este producto nunca fue vendido">Sin ventas</span>{% endif %}
         {% if p.category %}{{ t.category_pill(p.category) }}{% endif %}

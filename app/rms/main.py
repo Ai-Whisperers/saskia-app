@@ -56,6 +56,7 @@ from app.routers import (
     excel_io,
     health,
     help,
+    credits,
     herebus,
     inventory,
     merma,
@@ -497,6 +498,7 @@ def proveedores_alias():
 app.include_router(users.router)
 app.include_router(reorder.router)
 app.include_router(help.router)
+app.include_router(credits.router)
 app.include_router(pedidos.public_router)
 app.include_router(pedidos.router)
 

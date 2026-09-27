@@ -204,6 +204,7 @@ def _build_sales_context(
                 "revenue_gs": int(rev or 0),
                 "is_available": p.is_available,
                 "stock_qty": getattr(p, "stock_qty", None),
+                "image_url": getattr(p, "image_url", None) or "",
             })
 
     return {

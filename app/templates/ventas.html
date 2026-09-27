@@ -207,6 +207,7 @@
     <input type="hidden" name="product_id" value="{{ q.product_id }}">
     <input type="hidden" name="qty" value="1">
     <button type="submit" class="btn btn-large{% if not q.is_available %} is-disabled{% endif %}"{% if not q.is_available %} disabled aria-disabled="true"{% endif %} aria-label="Registrar venta de {{ q.name }} por {{ m.gs(q.sale_price_gs) }}">
+      {%- if q.image_url %}<img class="qs-thumb" src="{{ q.image_url }}" alt="" loading="lazy" width="44" height="44"><br>{% endif -%}
       <strong>{{ q.name }}</strong><br>
       <span class="gs">{{ m.gs(q.sale_price_gs) }}</span>
       {% if not q.is_available %}
