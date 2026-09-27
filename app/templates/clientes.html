@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
+{% import "_components/atoms.html" as a %}
 {% block title %}Clientes{% endblock %}
 {% block content %}
 <h1>
@@ -97,7 +98,7 @@
       <td class="num">{{ m.gs(c.lifetime_spend_gs) }}</td>
       <td class="num">{{ c.points }}</td>
       <td>
-        <span class="badge badge-tier-{{ c.tier }}">{{ c.tier_label }}</span>
+        {{ a.status_pill(c.tier_label, c.tier_sev) }}
       </td>
       <td><small>{{ c.created_at.strftime("%d/%m/%Y") if c.created_at else "—" }}</small></td>
       <td class="actions">

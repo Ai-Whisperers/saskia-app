@@ -24,6 +24,7 @@ from app.rms.customers import (
     search_customers,
 )
 from app.rms.dependencies import get_session
+from app.rms.nav import status_es
 from app.rms.models import Customer
 from app.services.template_render import render
 
@@ -75,7 +76,8 @@ def clientes_list(
                     "n_sales": stats.n_sales,
                     "last_sale_at": stats.last_sale_at,
                     "tier": stats.tier.value,
-                    "tier_label": stats.tier.value.capitalize(),
+                    "tier_label": status_es(stats.tier.value)[0],
+                "tier_sev": status_es(stats.tier.value)[1],
                     "points": c.loyalty_points,
                     "created_at": c.created_at,
                 })
@@ -103,7 +105,8 @@ def clientes_list(
                 "n_sales": stats.n_sales,
                 "last_sale_at": stats.last_sale_at,
                 "tier": stats.tier.value,
-                "tier_label": stats.tier.value.capitalize(),
+                "tier_label": status_es(stats.tier.value)[0],
+                "tier_sev": status_es(stats.tier.value)[1],
                 "points": c.loyalty_points,
                 "created_at": c.created_at,
             })

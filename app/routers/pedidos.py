@@ -405,6 +405,17 @@ def pedidos_board(
     manana = [p for p in pedidos if p.promised_date == today + timedelta(days=1)]
     semana = [p for p in pedidos if p.promised_date > today + timedelta(days=1)]
 
+    # Kanban columns (redesign F5): group active pedidos by status
+    def _kanban(col):
+        return [
+            {"id": p.id, "label": f"#{p.id}", "status": p.status,
+             "customer": p.customer.name if p.customer else None,
+             "promised": f"{p.promised_date} {p.promised_time or ''}".strip(),
+             "lines": [f"{l.qty:g} × {(l.product.name if l.product else '#' + str(l.product_id))}" for l in (p.lines or [])][:6],
+             "created_at": p.created_at}
+            for p in pedidos if p.status == col
+        ]
+
     return render(
         request,
         "pedido_board.html",
@@ -412,6 +423,9 @@ def pedidos_board(
             "pedidos_hoy": hoy,
             "pedidos_manana": manana,
             "pedidos_semana": semana,
+            "kanban_pending": _kanban("pending"),
+            "kanban_confirmed": _kanban("confirmed"),
+            "kanban_ready": _kanban("ready"),
             "today": today,
             "now": datetime.now(),
         },

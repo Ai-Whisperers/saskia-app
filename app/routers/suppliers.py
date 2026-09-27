@@ -17,6 +17,8 @@ router = APIRouter(prefix="/suppliers", dependencies=[Depends(require_login)])
 
 
 
+
+
 @router.get("", response_class=HTMLResponse)
 def suppliers_list(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     """List all suppliers."""
@@ -185,3 +187,4 @@ def supplier_orders(
 
 
 __all__ = ["router"]
+

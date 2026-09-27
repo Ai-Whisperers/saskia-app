@@ -78,7 +78,7 @@
   <button onclick="testSound()" style="background:none;border:1px solid #555;color:#aaa;padding:.2rem .5rem;border-radius:4px;cursor:pointer;font-size:.8rem;">🔊 Probar sonido</button>
 </div>
 
-<h1>🍳 Kitchen Board</h1>
+<h1>🍳 Cocina — pedidos del día</h1>
 
 {# Sound notification for new orders — plays a chime on page load #}
 <audio id="new-order-chime" preload="auto">
@@ -157,6 +157,43 @@ function testSound() {
 </div>
 {% endif %}
 {% endmacro %}
+
+{# ── Kanban por estado (redesign F5) ─────────────────────────────── #}
+{% set cols = [
+  ("Pendientes", kanban_pending, "warn"),
+  ("En preparación", kanban_confirmed, "info"),
+  ("Listos para retiro", kanban_ready, "ok"),
+] %}
+<div class="kds-kanban" style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-4);margin-bottom:var(--space-6);" aria-label="Pedidos por estado">
+  {% for label, col, sev in cols %}
+  <section class="card" style="margin:0;">
+    <h2 style="font-size:var(--text-md);display:flex;align-items:center;gap:var(--space-2);">
+      {{ label }} <span class="count-badge">{{ col|length }}</span>
+    </h2>
+    {% for k in col %}
+    <div class="kds-card" style="border:1px solid var(--color-border);border-radius:var(--radius);padding:var(--space-3);margin-bottom:var(--space-2);">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <strong>{{ k.label }}</strong>
+        {% import "_components/atoms.html" as a %}
+        {{ a.status_pill_for(k.status) }}
+      </div>
+      {% if k.customer %}<div class="text-muted" style="font-size:var(--text-sm);">{{ k.customer }}</div>{% endif %}
+      <div class="text-muted" style="font-size:var(--text-xs);">para {{ k.promised }}</div>
+      {% if k.lines %}
+      <ul style="margin:var(--space-2) 0 0;padding-left:1.1rem;font-size:var(--text-sm);">
+        {% for ln in k.lines %}<li>{{ ln }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+      <div class="row-actions" style="margin-top:var(--space-2);display:flex;gap:var(--space-2);">
+        <a class="btn btn-sm" href="/pedidos/{{ k.id }}">Abrir</a>
+      </div>
+    </div>
+    {% else %}
+    <p class="text-muted" style="font-size:var(--text-sm);padding:var(--space-3);">Sin pedidos en este estado.</p>
+    {% endfor %}
+  </section>
+  {% endfor %}
+</div>
 
 {{ render_group("Hoy", pedidos_hoy, now) }}
 {{ render_group("Mañana", pedidos_manana, now) }}

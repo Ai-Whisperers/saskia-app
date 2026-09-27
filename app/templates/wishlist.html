@@ -7,10 +7,10 @@
 </div>
 
 <div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
-  <div class="kpi-card"><div class="kpi-label">Items totales</div><div class="kpi-value">{{ pending_count + purchased_count }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Artículos totales</div><div class="kpi-value">{{ pending_count + purchased_count }}</div></div>
   <div class="kpi-card"><div class="kpi-label">Pendientes</div><div class="kpi-value">{{ pending_count }}</div></div>
   <div class="kpi-card"><div class="kpi-label">Comprados</div><div class="kpi-value">{{ purchased_count }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Inversión total</div><div class="kpi-value">{{ m.gs(total_all_gs) }}</div></div>
+  <div class="kpi-card"><div class="kpi-label">Inversión total (Gs.)</div><div class="kpi-value">{{ m.gs(total_all_gs) }}</div></div>
   <div class="kpi-card highlight"><div class="kpi-label">Pendiente Gs.</div><div class="kpi-value">{{ m.gs(total_pending_gs) }}</div></div>
 </div>
 
@@ -64,6 +64,6 @@
 {% endfor %}
 
 <p class="muted" style="margin-top:2rem;">
-  💡 Fuente: HEREBUS_Lista de deseos sheet (28 items). Total Gs. 61M de inversión planificada.
+  💡 Cargá o sincronizá artículos para planificar inversiones de equipamiento.
 </p>
 {% endblock %}

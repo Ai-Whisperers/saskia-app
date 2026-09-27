@@ -157,16 +157,24 @@
   </thead>
   <tbody>
     {% for l in plan.lines %}
-    <tr {% if l.stock_on_hand < l.qty_required %}style="background-color:var(--color-danger-bg);" title="Stock insuficiente"{% endif %}>
+    {% set _delta = l.stock_on_hand - l.qty_required %}
+    <tr {% if _delta < 0 %}style="background-color:var(--color-danger-bg);" title="Stock insuficiente"{% endif %}>
       <td>
         <strong>{{ l.ingredient_name }}</strong>
-        {% if l.stock_on_hand < l.qty_required %}
-        <span class="badge badge-danger">¡Falta!</span>
+        {% if _delta < 0 %}
+        <span class="badge badge-danger">¡Falta {{ "%.2f"|format(-_delta) }} {{ l.unit }}!</span>
+        {% elif _delta < l.qty_required * 0.2 %}
+        <span class="badge badge-warn">Justo</span>
+        {% else %}
+        <span class="badge badge-ok">Suficiente</span>
         {% endif %}
       </td>
       <td class="num">{{ "%.2f"|format(l.qty_required) }} {{ l.unit }}</td>
       <td class="num">{{ "%.2f"|format(l.stock_on_hand) }} {{ l.unit }}</td>
-      <td class="num"><strong>{{ "%.2f"|format(l.qty_to_buy) }}</strong> {{ l.unit }}</td>
+      <td class="num">
+        {% if _delta < 0 %}<strong>{{ "%.2f"|format(l.qty_to_buy) }} {{ l.unit }}</strong> <a href="/reorder" style="font-size:var(--text-xs);">reponer →</a>
+        {% else %}—{% endif %}
+      </td>
     </tr>
     {% endfor %}
   </tbody>
@@ -264,11 +272,16 @@
   </thead>
   <tbody>
     {% for l in week_ingredients %}
-    <tr {% if l.stock_on_hand < l.qty_required %}style="background-color:var(--color-danger-bg);" title="Stock insuficiente"{% endif %}>
+    {% set _delta = l.stock_on_hand - l.qty_required %}
+    <tr {% if _delta < 0 %}style="background-color:var(--color-danger-bg);" title="Stock insuficiente"{% endif %}>
       <td>
         <strong>{{ l.ingredient_name }}</strong>
-        {% if l.stock_on_hand < l.qty_required %}
-        <span class="badge badge-danger">¡Falta!</span>
+        {% if _delta < 0 %}
+        <span class="badge badge-danger">¡Falta {{ "%.2f"|format(-_delta) }} {{ l.unit }}!</span>
+        {% elif _delta < l.qty_required * 0.2 %}
+        <span class="badge badge-warn">Justo</span>
+        {% else %}
+        <span class="badge badge-ok">Suficiente</span>
         {% endif %}
       </td>
       <td class="num">{{ "%.2f"|format(l.qty_required) }} {{ l.unit }}</td>
@@ -365,11 +378,16 @@
   </thead>
   <tbody>
     {% for l in month_ingredients %}
-    <tr {% if l.stock_on_hand < l.qty_required %}style="background-color:var(--color-danger-bg);" title="Stock insuficiente"{% endif %}>
+    {% set _delta = l.stock_on_hand - l.qty_required %}
+    <tr {% if _delta < 0 %}style="background-color:var(--color-danger-bg);" title="Stock insuficiente"{% endif %}>
       <td>
         <strong>{{ l.ingredient_name }}</strong>
-        {% if l.stock_on_hand < l.qty_required %}
-        <span class="badge badge-danger">¡Falta!</span>
+        {% if _delta < 0 %}
+        <span class="badge badge-danger">¡Falta {{ "%.2f"|format(-_delta) }} {{ l.unit }}!</span>
+        {% elif _delta < l.qty_required * 0.2 %}
+        <span class="badge badge-warn">Justo</span>
+        {% else %}
+        <span class="badge badge-ok">Suficiente</span>
         {% endif %}
       </td>
       <td class="num">{{ "%.2f"|format(l.qty_required) }} {{ l.unit }}</td>
