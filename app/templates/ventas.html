@@ -20,10 +20,10 @@
 {% endif %}
 
 {% if quick_sell %}
-<h2>Quick-sell</h2>
+<h2>Venta rápida</h2>
 <p class="hint">Top 5 productos por ingreso (últimos 14 días). One-tap registra una venta rápida.</p>
 <div class="quick-sell-search-row">
-  <input type="search" id="quick-sell-search" placeholder="Buscar producto en quick-sell…" aria-label="Buscar producto en quick-sell" autocomplete="off">
+  <input type="search" id="quick-sell-search" placeholder="Buscar producto en venta rápida…" aria-label="Buscar producto en venta rápida" autocomplete="off">
 </div>
 <div class="quick-sell-grid" id="quick-sell-grid" role="grid" aria-label="Productos para venta rápida" tabindex="0">
   {% for q in quick_sell %}
@@ -59,8 +59,7 @@
            placeholder="Escaneá o tipeá el código de barras…"
            pattern="[A-Za-z0-9\-_]+"
            title="Códigos alfanuméricos, guiones y guiones bajos">
-    <small>Si completás SKU, el producto se autocompleta desde
-      <code>/ventas/buscar?sku=...</code>.</small>
+    <small>Si completás el SKU, el producto se completa solo.</small>
   </div>
 
   <div class="form-row">

@@ -52,7 +52,7 @@
              class="combo-input"
              maxlength="10"
              value="{{ ingredient.unit_display if ingredient else '' }}"
-             placeholder="Seleccionar unidad">
+             placeholder="Seleccioná unidad">
       {# Hidden input carries the actual submit value; visible text has no
          name= so we don't double-submit. Same pattern as the category combo above. #}
       <input type="hidden" name="unit" value="{{ ingredient.unit if ingredient else '' }}">
