@@ -17,7 +17,7 @@ from app.services.template_render import render
 
 router = APIRouter(tags=["credits"])
 
-_CREDITS_FILE = Path(__file__).resolve().parents[2] / "static" / "credits.json"
+_CREDITS_FILE = Path(__file__).resolve().parents[1] / "static" / "credits.json"
 
 
 @router.get("/creditos", response_class=HTMLResponse)
