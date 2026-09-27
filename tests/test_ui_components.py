@@ -662,7 +662,8 @@ def test_pedido_board_no_autoplay():
     src = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/pedido_board.html").read_text()
     # No top-level audio.play() call outside the IIFE
     # The toggle handler does call play() but only inside the toggle function (user-initiated)
-    assert "localStorage.getItem('saskia:board-sound-enabled')" in src
+    assert "STORAGE_KEY = 'saskia:board-sound-enabled'" in src
+    assert "localStorage.getItem(STORAGE_KEY)" in src
     assert 'id="sound-toggle"' in src
     assert "🔕 Sonido desactivado" in src or "🔔 Sonido activado" in src
     # Verify the autoplay line was removed
