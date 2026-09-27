@@ -3,8 +3,10 @@
 Tests:
 - saskia-toast: script loads + is included on every page
 - saskia-skeleton: script loads + skeleton component is defined
+- saskia-month: script loads + closes-mensual page uses it for month navigation
 - flash_toast macro: renders the SaskiaToast.show() call when ?flash=… is set
 - js-confirm-form shim: app.js includes initConfirmForms + shopping-list uses the class
+- /inicio fix: merma breadcrumb no longer links to /inicio (404)
 
 Uses the live FastAPI server. Skipped if no server.
 """
@@ -283,3 +285,34 @@ def test_skeleton_macro_in_atoms(client):
         capture_output=True, text=True,
     )
     assert int(result.stdout.strip()) >= 2, "skeleton macros not in atoms.html"
+
+
+def test_saskia_month_script_loads(client):
+    """saskia-month.js must be served and reachable."""
+    rsp = client.get("/static/saskia-month.js")
+    assert rsp.status == 200, "saskia-month.js not served"
+    body = rsp.read().decode("utf-8", errors="replace")
+    assert "SaskiaMonth" in body, "saskia-month.js missing class definition"
+    assert "customElements.define('saskia-month'" in body, "saskia-month custom element not registered"
+
+
+def test_cierre_mensual_uses_saskia_month(client):
+    """cierre-mensual page renders <saskia-month> for the month picker."""
+    rsp = client.get("/reportes/cierre-mensual")
+    assert rsp.status == 200, "cierre-mensual page failed"
+    body = rsp.read().decode("utf-8", errors="replace")
+    assert "<saskia-month" in body, "cierre-mensual missing <saskia-month> element"
+    assert "name=\"year-month\"" in body, "cierre-mensual picker missing name attr"
+    # Verify it has a sensible value attribute (current month)
+    import re
+    m = re.search(r'<saskia-month[^>]*value="(\d{4}-\d{2})"', body)
+    assert m, "cierre-mensual <saskia-month> missing value attribute"
+
+
+def test_merma_breadcrumb_not_inicio(client):
+    """Closes P0-D2 sidebar bug: merma breadcrumb must not link to /inicio (404)."""
+    rsp = client.get("/merma")
+    assert rsp.status == 200, "merma page failed"
+    body = rsp.read().decode("utf-8", errors="replace")
+    assert 'href="/inicio"' not in body, "merma still links to /inicio (which 404s)"
+    assert 'href="/dashboard"' in body, "merma breadcrumb missing /dashboard fallback"
