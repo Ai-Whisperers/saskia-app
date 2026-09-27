@@ -198,25 +198,42 @@ def inventory_list(
 
     q = (request.query_params.get("q") or "").strip().lower()
     estado = request.query_params.get("estado") or ""
-    categoria = request.query_params.get("categoria") or ""
+    categorias = [c for c in request.query_params.getlist("categoria") if c]
+    alergenos = [a for a in request.query_params.getlist("alergeno") if a]
+    almacen = request.query_params.get("almacen") or ""
+
+    def _has_allergen(i, code):
+        return code in (i.allergens or "").lower()
 
     def _match(i):
         if q and q not in (i.name or "").lower():
             return False
         if estado == "bajo" and not (i.stock_qty <= (i.min_stock_qty or 0)):
             return False
+        if estado == "critico" and not (i.stock_qty <= 0 or (i.min_stock_qty and i.stock_qty < i.min_stock_qty * 0.5)):
+            return False
+        if estado == "negativo" and not (i.stock_qty < 0):
+            return False
+        if estado == "sinprecio" and i.purchase_price_gs is not None:
+            return False
         if estado == "ok" and (i.stock_qty <= (i.min_stock_qty or 0)):
             return False
-        if categoria and (i.category or "") != categoria:
+        if categorias and (i.category or "") not in categorias:
+            return False
+        if alergenos and not all(_has_allergen(i, a) for a in alergenos):
+            return False
+        if almacen and (i.storage or "") != almacen:
             return False
         return True
 
     _filtered_all = [i for i in all_ings if _match(i)]
     total = len(_filtered_all)
+    total_all = len(all_ings)
     total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
     page = min(page, total_pages)
 
     categories = sorted({(i.category or "").strip() for i in all_ings if (i.category or "").strip()})
+    storages = sorted({(i.storage or "").strip() for i in all_ings if (i.storage or "").strip()})
 
     # Sorting applied to the filtered set (in-Python; catalog sizes are small)
     _sort_map = {
@@ -305,8 +322,18 @@ def inventory_list(
             "kpi_no_cost": kpi_no_cost,
             "q": q,
             "estado": estado,
-            "categoria": categoria,
+            "categorias": categorias,
+            "alergenos_sel": alergenos,
+            "almacen": almacen,
             "categories": categories,
+            "storages": storages,
+            "allergen_codes": [
+                ("gluten", "Gluten"), ("dairy", "Lácteos"), ("eggs", "Huevos"),
+                ("nuts", "Frutos secos"), ("soy", "Soja"), ("sesame", "Sésamo"),
+                ("sulfites", "Sulfitos"),
+            ],
+            "total_filtered": total,
+            "total_all": total_all,
         },
     )
 

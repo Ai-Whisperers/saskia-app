@@ -135,9 +135,20 @@ def test_charts_use_semantic_tokens():
 
 # ---- Dashboard route tests --------------------------------------------------
 
+def _seed_one_sale(session_factory):
+    """Charts row now collapses to an empty-state when ventas_gs == 0;
+    seed a sale so chart tests exercise the chart branch."""
+    from datetime import datetime, timezone
+    from tests.factories import make_catalog, make_sale
+    with session_factory() as s:
+        cat = make_catalog(s, price_gs=10000)
+        make_sale(s, product=cat["product"], qty=1, at=datetime.now(timezone.utc))
+        s.commit()
 
-def test_dashboard_includes_charts(client):
+
+def test_dashboard_includes_charts(client, session_factory):
     """The dashboard HTML contains the chart cards."""
+    _seed_one_sale(session_factory)
     resp = client.get("/", headers={"Accept": "text/html"})
     assert resp.status_code == 200
     body = resp.text
@@ -154,7 +165,7 @@ def test_dashboard_includes_charts(client):
     assert "<svg" in body
 
 
-def test_dashboard_charts_have_aria(client):
+def test_dashboard_charts_have_aria(client, session_factory):
     """Dashboard charts include ARIA labels for screen readers.
 
     Note: when there are no sales, the dashboard shows empty-state
@@ -162,6 +173,7 @@ def test_dashboard_charts_have_aria(client):
     (role=img in templates that DO render charts) by asserting the
     chart-card class is present and the template machinery works.
     """
+    _seed_one_sale(session_factory)
     resp = client.get("/", headers={"Accept": "text/html"})
     assert resp.status_code == 200
     body = resp.text
@@ -193,10 +205,11 @@ def test_charts_have_aria_when_rendered():
     assert 'aria-label="Pagos"' in svg
 
 
-def test_dashboard_data_freshness_changes(client):
+def test_dashboard_data_freshness_changes(client, session_factory):
     """Data freshness timestamp updates on page reload."""
     import time
 
+    _seed_one_sale(session_factory)
     r1 = client.get("/", headers={"Accept": "text/html"})
     time.sleep(2)  # ensure timestamp would differ if computed live
     r2 = client.get("/", headers={"Accept": "text/html"})

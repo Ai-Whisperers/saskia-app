@@ -48,7 +48,24 @@
     });
   });
 
-  // ── A-13 stepper: no JS needed (server-rendered state) ────────────
+  // ── multi-filter popovers (inventario toolbar) ─────────────────────
+function uncheckOthers(el) { /* radio "Todos" — native radios already exclusive */ }
+document.addEventListener('click', function (e) {
+  var pop = e.target.closest('.mf-pop');
+  document.querySelectorAll('.mf-pop').forEach(function (p) {
+    if (p !== pop) { var pn = p.querySelector('.mf-panel'); if (pn) pn.hidden = true; p.querySelector('.mf-btn').setAttribute('aria-expanded','false'); }
+  });
+  if (pop && e.target.closest('.mf-btn')) {
+    var panel = pop.querySelector('.mf-panel');
+    panel.hidden = !panel.hidden;
+    pop.querySelector('.mf-btn').setAttribute('aria-expanded', String(!panel.hidden));
+  }
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') document.querySelectorAll('.mf-panel').forEach(function (p) { p.hidden = true; });
+});
+
+// ── A-13 stepper: no JS needed (server-rendered state) ────────────
 
   // ── A-16 timer chips: auto-tick from data-start ───────────────────
   function tickTimers() {

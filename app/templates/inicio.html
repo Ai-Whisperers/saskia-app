@@ -201,13 +201,22 @@
   </section>
 </div>
 
-{# ══ Charts row ════════════════════════════════════════════════════ #}
+{# ══ Charts row — collapsed when no sales (empty-state paralysis fix) ══ #}
+{% if ventas_gs %}
 <div class="dashboard-grid mb-4">
   {{ m.chart_card("Ventas por hora del día", chart_hourly, data_freshness) }}
   {{ m.chart_card("Tendencia — últimos 30 días", chart_30day, data_freshness) }}
   {{ m.chart_card("Distribución de pagos", chart_payment_methods | safe, None) }}
   {{ m.top_list_card("Top productos por ventas", top_products_revenue, "Gs. ", "icon-arrow-up") }}
 </div>
+{% else %}
+<div class="empty-state mb-4" style="border:1px dashed var(--color-border);border-radius:var(--radius-lg);padding:var(--space-8);">
+  <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
+  <h3>Los gráficos aparecen con tu primera venta</h3>
+  <p>Ventas por hora, tendencia de 30 días y formas de pago se dibujan solos.</p>
+  <a href="/ventas" class="btn btn-primary">Registrar venta</a>
+</div>
+{% endif %}
 
 {# ══ ANÁLISIS teaser band ══════════════════════════════════════════ #}
 <div class="band-label">Análisis · últimos 30 días</div>

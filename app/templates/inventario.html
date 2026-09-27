@@ -47,25 +47,56 @@
 </div>
 
 {# ── Filter toolbar ───────────────────────────────────────────────── #}
-<form method="get" class="inv-toolbar" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:var(--space-4);">
+<form method="get" class="inv-toolbar" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:var(--space-3);">
   <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre…"
          style="flex:1;min-width:180px;height:36px;" aria-label="Buscar por nombre">
-  <select name="categoria" aria-label="Filtrar por categoría" style="width:auto;height:36px;" data-saskia-combo>
-    <option value="">Categoría: Todas</option>
-    {% for c in categories %}
-    <option value="{{ c }}" {% if c == categoria %}selected{% endif %}>{{ c }}</option>
-    {% endfor %}
-  </select>
-  <select name="estado" aria-label="Filtrar por estado" style="width:auto;height:36px;" data-saskia-combo>
-    <option value="">Estado: Todos</option>
-    <option value="bajo" {% if estado == 'bajo' %}selected{% endif %}>Stock bajo</option>
-    <option value="ok" {% if estado == 'ok' %}selected{% endif %}>Stock OK</option>
-  </select>
+  {# ── Categorías: multi-select popover (checkboxes, no native select) ── #}
+  <div class="mf-pop" data-mf="categoria">
+    <button type="button" class="mf-btn" aria-expanded="false">Categoría{% if categorias %} <span class="mf-count">{{ categorias|length }}</span>{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      {% for c in categories %}
+      <label class="mf-option"><input type="checkbox" name="categoria" value="{{ c }}" {% if c in categorias %}checked{% endif %}> {{ c }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  {# ── Estado: single-select popover ── #}
+  <div class="mf-pop" data-mf="estado">
+    <button type="button" class="mf-btn" aria-expanded="false">{% if estado == 'bajo' %}Stock bajo{% elif estado == 'critico' %}Crítico{% elif estado == 'negativo' %}Negativo{% elif estado == 'sinprecio' %}Sin precio{% elif estado == 'ok' %}Stock OK{% else %}Estado{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      {% for val, lbl in [('', 'Todos'), ('bajo', 'Stock bajo'), ('critico', 'Crítico'), ('negativo', 'Negativo'), ('sinprecio', 'Sin precio'), ('ok', 'Stock OK')] %}
+      <label class="mf-option"><input type="radio" name="estado" value="{{ val }}" {% if estado == val %}checked{% endif %}{% if not val %} onclick="uncheckOthers(this)"{% endif %}> {{ lbl }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  {# ── Alérgenos: multi-select popover (food-safety query) ── #}
+  <div class="mf-pop" data-mf="alergeno">
+    <button type="button" class="mf-btn" aria-expanded="false">Alérgenos{% if alergenos_sel %} <span class="mf-count">{{ alergenos_sel|length }}</span>{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      <p class="mf-hint">Mostrar los que contienen TODOS los marcados:</p>
+      {% for code, lbl in allergen_codes %}
+      <label class="mf-option"><input type="checkbox" name="alergeno" value="{{ code }}" {% if code in alergenos_sel %}checked{% endif %}> {{ lbl }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  {# ── Almacenamiento: single-select ── #}
+  {% if storages %}
+  <div class="mf-pop" data-mf="almacen">
+    <button type="button" class="mf-btn" aria-expanded="false">{% if almacen %}{{ almacen }}{% else %}Almacenamiento{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      {% for st in storages %}
+      <label class="mf-option"><input type="radio" name="almacen" value="{{ st }}" {% if st == almacen %}checked{% endif %}> {{ st }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
   <button type="submit" class="btn btn-primary" style="height:36px;">Filtrar</button>
-  {% if q or estado or categoria %}
-  <a href="{{ request.url.path }}" class="btn" style="height:36px;">Limpiar</a>
+  {% if q or estado or categorias or alergenos_sel or almacen %}
+  <a href="{{ request.url.path }}" class="btn" style="height:36px;">Limpiar todo</a>
   {% endif %}
 </form>
+<div class="inv-result-count" style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-3);">
+  {{ total_filtered }} de {{ total_all }} ingredientes{% if q %} · búsqueda “{{ q }}”{% endif %}
+</div>
 
 {% set flash = request.query_params.get('flash', '') %}
 {% if flash == 'stock_adjusted' %}
