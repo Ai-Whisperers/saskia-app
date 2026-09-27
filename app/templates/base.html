@@ -278,6 +278,7 @@
   </div>
 
   {% include "_components/confirm_modal.html" %}
+  <saskia-toast-stack></saskia-toast-stack>
 
   {# ── Global JS: search modal, notification center, Cmd+K ── #}
   <link rel="stylesheet" href="/static/combobox.css?v={{ asset_version() }}">
@@ -289,6 +290,7 @@
   <script src="/static/app.js?v={{ asset_version() }}" defer></script>
   <script src="/static/app-components.js?v={{ asset_version() }}" defer></script>
   <script src="/static/saskia-date.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/saskia-toast.js?v={{ asset_version() }}" defer></script>
   {% block page_scripts %}{% endblock %}
 </body>
 

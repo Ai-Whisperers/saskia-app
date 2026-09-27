@@ -10,12 +10,7 @@
   Configuración
 </h1>
 
-{% if request.query_params.get('flash') %}
-<div class="alert alert-success" role="alert" aria-live="polite">
-  <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-  {{ request.query_params.get('flash') }}
-</div>
-{% endif %}
+{{ ui.flash_toast(request) }}
 
 <div class="settings-tabs">
   <button type="button" class="tab-btn active" data-tab="business">Información de negocio</button>

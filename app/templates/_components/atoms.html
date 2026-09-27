@@ -156,3 +156,61 @@
 
 {# ── A-12 tooltip helper attr ──────────────────────────────────────── #}
 {% macro tooltip(text) -%}title="{{ text }}" data-tip="{{ text }}"{%- endmacro %}
+
+{# ── A-15 flash_toast: render flash messages as auto-dismissing toasts ── #}
+{# Reads the named query param (default 'flash') and renders a toast on page load.
+   Imported macros can't see request from ctx, so caller passes it in.
+   Usage: {{ ui.flash_toast(request) }} #}
+{% macro flash_toast(req, query_name='flash') -%}
+{% set flash = req.query_params.get(query_name) if req else None %}
+{% if flash %}
+    {% set messages = {
+      'sale_created': ('success', 'Venta registrada correctamente.'),
+      'sale_void_ok': ('success', 'Venta anulada y stock recuperado.'),
+      'pedido_created': ('success', 'Pedido creado.'),
+      'pedido_fulfilled': ('success', 'Pedido cumplido.'),
+      'pedido_cancelled': ('warn', 'Pedido cancelado.'),
+      'product_created': ('success', 'Producto creado.'),
+      'product_updated': ('success', 'Producto actualizado.'),
+      'product_deleted': ('success', 'Producto eliminado.'),
+      'recipe_created': ('success', 'Receta creada.'),
+      'recipe_updated': ('success', 'Receta actualizada.'),
+      'recipe_deleted': ('success', 'Receta eliminada.'),
+      'ingredient_created': ('success', 'Ingrediente creado.'),
+      'ingredient_updated': ('success', 'Ingrediente actualizado.'),
+      'customer_created': ('success', 'Cliente creado.'),
+      'customer_updated': ('success', 'Cliente actualizado.'),
+      'supplier_created': ('success', 'Proveedor creado.'),
+      'supplier_updated': ('success', 'Proveedor actualizado.'),
+      'waste_logged': ('success', 'Merma registrada.'),
+      'stock_adjusted': ('success', 'Stock ajustado correctamente.'),
+      'audit_pruned': ('success', 'Entradas antiguas eliminadas.'),
+      'settings_saved': ('success', 'Configuración guardada.'),
+      'saved': ('success', 'Guardado.'),
+      'created': ('success', 'Creado.'),
+      'updated': ('success', 'Actualizado.'),
+      'deleted': ('success', 'Eliminado.'),
+      'error': ('error', 'Hubo un error. Probá de nuevo.'),
+      'unauthorized': ('error', 'No tenés permiso para esta acción.'),
+      'invalid': ('error', 'Datos inválidos. Revisá el formulario.'),
+      'not_found': ('error', 'No se encontró el recurso.'),
+    } %}
+    {% set m = messages.get(flash) %}
+    {% if m %}
+<script>
+(function () {
+  function fire() {
+    if (window.SaskiaToast) {
+      SaskiaToast.show({ severity: '{{ m[0] }}', message: {{ m[1]|tojson }}, duration: 4000 });
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fire);
+  } else {
+    fire();
+  }
+})();
+</script>
+    {% endif %}
+  {% endif %}
+{%- endmacro %}

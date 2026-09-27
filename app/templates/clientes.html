@@ -1,19 +1,14 @@
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
-{% import "_components/atoms.html" as a %}
+{% import "_components/atoms.html" as ui %}
 {% block title %}Clientes{% endblock %}
 {% block content %}
-{{ a.page_header(
+{{ ui.page_header(
   title='Clientes',
   desc='Programa de puntos: 1 punto por cada 1.000 Gs. gastados. 1 punto = 100 Gs. de descuento.'
 ) }}
 
-{% if request.query_params.get('flash') %}
-<div class="alert alert-success" role="alert" aria-live="polite">
-  <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-  {{ request.query_params.get('flash') }}
-</div>
-{% endif %}
+{{ ui.flash_toast(request) }}
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
   <p class="text-muted" style="margin:0;">Programa de puntos: 1 punto por cada 1.000 Gs. gastados. 1 punto = 100 Gs. de descuento.</p>
@@ -96,7 +91,7 @@
       <td class="num">{{ m.gs(c.lifetime_spend_gs) }}</td>
       <td class="num">{{ c.points }}</td>
       <td>
-        {{ a.status_pill(c.tier_label, c.tier_sev) }}
+        {{ ui.status_pill(c.tier_label, c.tier_sev) }}
       </td>
       <td><small>{{ c.created_at.strftime("%d/%m/%Y") if c.created_at else "—" }}</small></td>
       <td class="actions">
@@ -130,7 +125,7 @@
 {% endif %}
 
 {% else %}
-{{ a.empty_state(
+{{ ui.empty_state(
   title='No hay clientes todavía',
   icon='icon-customer',
   hint='Se crean automáticamente al registrar una venta con un teléfono.',

@@ -8,17 +8,8 @@
 {{ ui.page_header("Ventas", desc="Registrá una venta al mostrador o consultá el historial del día") }}
 
 {# ── Flash messages ── #}
-{% if request.query_params.get('flash') == 'sale_created' %}
-<div class="alert alert-success" role="alert" aria-live="polite">
-  <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-  Venta registrada correctamente.
-</div>
-{% elif request.query_params.get('flash') == 'sale_void_ok' %}
-<div class="alert alert-success" role="alert" aria-live="polite">
-  <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-  Venta anulada y stock recuperado.
-</div>
-{% endif %}
+{# Auto-render flash message as toast (uses request.query_params.flash) #}
+{{ ui.flash_toast(request) }}
 
 
 <div class="pos-layout">

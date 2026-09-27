@@ -10,12 +10,7 @@
   Gestión de Usuarios
 </h1>
 
-{% if request.query_params.get('flash') %}
-<div class="alert {% if 'eliminado' in request.query_params.get('flash') or 'error' in request.query_params.get('flash') %}alert-error{% else %}alert-success{% endif %}" role="alert" aria-live="polite">
-  <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-  {{ request.query_params.get('flash') }}
-</div>
-{% endif %}
+{{ ui.flash_toast(request) }}
 
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
   <p class="text-muted" style="margin: 0;">

@@ -106,9 +106,7 @@
     </span>
   </h2>
 
-  {% if request.query_params.get('flash') %}
-  <div class="alert alert-success" role="alert">{{ request.query_params.get('flash') }}</div>
-  {% endif %}
+  {{ ui.flash_toast(request) }}
 
   {% if groups[key] %}
   {% set has_pending = groups[key] | selectattr('status', 'equalto', 'pending') | list %}
