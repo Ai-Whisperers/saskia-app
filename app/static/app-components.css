@@ -109,3 +109,14 @@
 .timer-chip.is-ok { background: var(--color-success-soft); color: var(--color-success-fg); }
 .timer-chip.is-warn { background: var(--color-warn-soft); color: var(--color-warn-fg); }
 .timer-chip.is-danger { background: var(--color-danger-soft); color: var(--color-danger-fg); }
+
+/* ── inventario sticky table ── */
+.table-sticky-wrap table thead th { position: sticky; top: 0; z-index: 2; background: var(--color-surface-subtle); box-shadow: 0 1px 0 var(--color-border-strong); }
+
+/* ── inventario row-density: condensed pills + meta disclosure ── */
+.tag-pill-row--compact { margin-top: 2px; }
+.tag-pill-row--compact .tag-pill { font-size: 0.65rem; padding: 1px 6px; }
+.row-meta-details { display: inline-block; position: relative; }
+.row-meta-details summary { list-style: none; cursor: pointer; font-size: 0.65rem; color: var(--color-text-muted); border: 1px dashed var(--color-border); padding: 1px 6px; border-radius: var(--radius-sm); }
+.row-meta-details summary::-webkit-details-marker { display: none; }
+.row-meta-pop { position: absolute; z-index: 10; background: var(--color-surface-raised); border: 1px solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: var(--space-2); display: flex; gap: 4px; flex-wrap: wrap; max-width: 320px; margin-top: 4px; }

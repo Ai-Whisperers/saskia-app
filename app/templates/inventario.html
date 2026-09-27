@@ -79,7 +79,8 @@
 {% endif %}
 
 {% if ingredients %}
-<table class="table is-hoverable is-striped">
+<div class="table-sticky-wrap" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);">
+<table class="table is-hoverable is-striped" style="margin-bottom:0;">
   <thead>
     <tr>
       <th>{% set ns = namespace(cur_sort=False) %}{% for k,v in request.query_params.multi_items() if k == 'sort' %}{% set ns.cur_sort = v %}{% endfor %}{% set cur_dir = request.query_params.get('dir', 'asc') %}<a href="{{ request.url.path }}?sort=name&dir={% if ns.cur_sort=='name' and cur_dir=='asc' %}desc{% else %}asc{% endif %}{% for k,v in request.query_params.multi_items() if k not in ('sort','dir') %}&{{ k }}={{ v }}{% endfor %}">Nombre {% if ns.cur_sort=='name' %}<small>{% if cur_dir=='asc' %}▲{% else %}▼{% endif %}</small>{% endif %}</a></th>
@@ -97,20 +98,23 @@
       <td>
         <strong data-copy="{{ i.id }}"><a href="/inventario/{{ i.id }}">{{ i.name }}</a></strong>
         {% if i.category %}{{ t.category_pill(i.category) }}{% endif %}
-        {% if i.subcategory %}<span class="tag-pill tag-pill--muted">{{ i.subcategory }}</span>{% endif %}
-        {% if i.role %}{{ t.role_pill(i.role) }}{% endif %}
         {% if i.allergens %}
-          <div class="tag-pill-row" aria-label="Alérgenos (INAN)">
+          <div class="tag-pill-row tag-pill-row--compact" aria-label="Alérgenos (INAN)">
             <span class="tag-pill-row__label">Contiene:</span>
             {{ t.tag_pills(i.allergens, variant="allergen") }}
           </div>
         {% endif %}
-        {% if i.dietary_tags %}
-          <div class="tag-pill-row" aria-label="Etiquetas dietéticas">
-            {{ t.tag_pills(i.dietary_tags) }}
+        {% if i.subcategory or i.role or i.dietary_tags or i.storage %}
+        <details class="row-meta-details">
+          <summary>Más info</summary>
+          <div class="row-meta-pop">
+            {% if i.subcategory %}<span class="tag-pill tag-pill--muted">{{ i.subcategory }}</span>{% endif %}
+            {% if i.role %}{{ t.role_pill(i.role) }}{% endif %}
+            {% if i.dietary_tags %}{{ t.tag_pills(i.dietary_tags) }}{% endif %}
+            {% if i.storage %}{{ t.storage_pill(i.storage) }}{% endif %}
           </div>
+        </details>
         {% endif %}
-        {% if i.storage %}{{ t.storage_pill(i.storage) }}{% endif %}
       </td>
       <td>{{ i.unit }}</td>
       <td class="num">
@@ -132,9 +136,13 @@
         {% endif %}
       </td>
       <td class="actions">
+        <a href="/inventario/{{ i.id }}" class="btn btn-sm btn-ghost" aria-label="Ver detalle de {{ i.name }}">
+          <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+          Ver
+        </a>
         <button type="button" class="btn btn-sm btn-ghost" aria-label="Ajustar stock de {{ i.name }}"
                 onclick="openAdjustModal('{{ i.id }}', '{{ i.name }}', {{ i.stock_qty }}, '{{ i.unit }}')">
-          <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+          <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
           Ajustar
         </button>
         <a href="/inventario/{{ i.id }}/editar" class="btn btn-sm btn-ghost">
@@ -150,6 +158,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 
 {# Pagination #}
 {% if total_pages > 1 %}
