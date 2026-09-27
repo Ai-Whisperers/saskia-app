@@ -165,3 +165,6 @@ dialog.modal .modal-footer { padding: var(--space-4) var(--space-6); }
 input[type="date"], input[type="datetime-local"] { color-scheme: light dark; }
 :root[data-theme="dark"] input[type="date"],
 :root[data-theme="dark"] input[type="datetime-local"] { color-scheme: dark; }
+
+/* ── receta detail 2-col ─────────────────────────────────────────── */
+@media (max-width: 900px) { .receta-2col { grid-template-columns: 1fr !important; } }

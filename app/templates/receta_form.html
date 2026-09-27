@@ -799,7 +799,16 @@
       if (kind === 'ingredient' && targetId && ingredientPrices[targetId]) {
         var ing = ingredientPrices[targetId];
         var pricePerUnit = ing.purchase_price_gs || 0;
-        lineCost = qty * pricePerUnit;
+        // Normalize line qty (line_unit) into the ingredient's own unit before
+        // pricing — mirrors app/rms/units.py for same-family metric units.
+        var _F = {g: 1, kg: 1000, ml: 1, l: 1000, und: 1, u: 1, porcion: 1};
+        var lineUnitEl = row.querySelector('input[name="line_unit"]');
+        var lineUnit = (lineUnitEl && lineUnitEl.value) || ing.unit;
+        var f = _F[lineUnit] || 1, fi = _F[ing.unit] || 1;
+        var compat = _F[lineUnit] !== undefined && _F[ing.unit] !== undefined &&
+                     ((lineUnit === 'und' || lineUnit === 'u' || lineUnit === 'porcion') === (ing.unit === 'und' || ing.unit === 'u' || ing.unit === 'porcion'));
+        var qtyNorm = compat ? qty * f / fi : qty;  // cross-family: leave as-is; backend flags it
+        lineCost = qtyNorm * pricePerUnit;
         if (pricePerUnit === 0) {
           warnings.push(ing.name);
         }

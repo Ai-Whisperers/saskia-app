@@ -5,6 +5,71 @@
 {% block title %}{{ recipe.name }} — Receta{% endblock %}
 
 {% block content %}
+<div class="receta-2col" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:var(--space-4);align-items:start;">
+<div class="receta-main" style="min-width:0;display:flex;flex-direction:column;gap:var(--space-4);">
+
+</div>
+<aside class="receta-side" style="display:flex;flex-direction:column;gap:var(--space-4);min-width:0;">
+{# Cost breakdown #}
+<div class="card mb-4">
+  <div class="card-header">
+    <h2>Desglose de costo</h2>
+  </div>
+  <div class="grid grid-2" style="gap:var(--space-3);margin-bottom:var(--space-3);">
+    <div class="metric-card">
+      <div class="metric-label">Costo del lote</div>
+      <div class="metric-value">
+        {% if batch_cost.batch_cost_gs is not none %}
+          {{ m.gs_full(batch_cost.batch_cost_gs) }}
+        {% else %}
+          <span class="text-muted">sin datos</span>
+        {% endif %}
+      </div>
+    </div>
+    {% if unit_cost.batch_cost_gs is not none and recipe.yield_qty %}
+    <div class="metric-card">
+      <div class="metric-label">Costo / porción</div>
+      <div class="metric-value">{{ m.gs_full(unit_cost.batch_cost_gs) }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {# Missing ingredients alert #}
+  {% if batch_cost.missing_ingredient_names %}
+  <div class="alerts-warn" style="margin-top:var(--space-3);">
+    <strong>Faltan datos de precio para:</strong>
+    <ul style="margin:var(--space-1) 0 0 var(--space-3);">
+      {% for name in batch_cost.missing_ingredient_names %}
+      <li>{{ name }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+
+{# Used by products #}
+{% if products_using %}
+<div class="card mb-4">
+  <div class="card-header">
+    <h2>Usada por productos</h2>
+  </div>
+  <ul>
+    {% for p in products_using %}
+    <li><a href="/productos/{{ p.id }}/editar">{{ p.name }}</a></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{# Notes #}
+{% if recipe.notes %}
+<div class="card mb-4">
+  <div class="card-header"><h2>Notas</h2></div>
+  <p>{{ recipe.notes }}</p>
+</div>
+{% endif %}
+</aside>
+</div>
 <div style="display:flex;align-items:baseline;gap:var(--space-3);margin-bottom:var(--space-4);">
   <h1>{{ recipe.name }}</h1>
   <a href="/recetas/{{ recipe.id }}/editar" class="btn btn-sm btn-ghost">
@@ -23,7 +88,7 @@
 {% if recipe.image_url %}
 <div class="mb-3">
   <img src="{{ recipe.image_url }}" alt="{{ recipe.name }}" loading="lazy"
-       style="max-width:300px;max-height:240px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;">
+       style="width:100%;max-width:420px;max-height:250px;object-fit:cover;border-radius:var(--radius-lg);border:1px solid var(--color-border);">
 </div>
 {% endif %}
 
@@ -117,65 +182,6 @@
   </div>
   {% endif %}
 </div>
-
-{# Cost breakdown #}
-<div class="card mb-4">
-  <div class="card-header">
-    <h2>Desglose de costo</h2>
-  </div>
-  <div class="grid grid-2" style="gap:var(--space-3);margin-bottom:var(--space-3);">
-    <div class="metric-card">
-      <div class="metric-label">Costo del lote</div>
-      <div class="metric-value">
-        {% if batch_cost.batch_cost_gs is not none %}
-          {{ m.gs_full(batch_cost.batch_cost_gs) }}
-        {% else %}
-          <span class="text-muted">sin datos</span>
-        {% endif %}
-      </div>
-    </div>
-    {% if unit_cost.batch_cost_gs is not none and recipe.yield_qty %}
-    <div class="metric-card">
-      <div class="metric-label">Costo / porción</div>
-      <div class="metric-value">{{ m.gs_full(unit_cost.batch_cost_gs) }}</div>
-    </div>
-    {% endif %}
-  </div>
-
-  {# Missing ingredients alert #}
-  {% if batch_cost.missing_ingredient_names %}
-  <div class="alerts-warn" style="margin-top:var(--space-3);">
-    <strong>Faltan datos de precio para:</strong>
-    <ul style="margin:var(--space-1) 0 0 var(--space-3);">
-      {% for name in batch_cost.missing_ingredient_names %}
-      <li>{{ name }}</li>
-      {% endfor %}
-    </ul>
-  </div>
-  {% endif %}
-</div>
-
-{# Used by products #}
-{% if products_using %}
-<div class="card mb-4">
-  <div class="card-header">
-    <h2>Usada por productos</h2>
-  </div>
-  <ul>
-    {% for p in products_using %}
-    <li><a href="/productos/{{ p.id }}/editar">{{ p.name }}</a></li>
-    {% endfor %}
-  </ul>
-</div>
-{% endif %}
-
-{# Notes #}
-{% if recipe.notes %}
-<div class="card mb-4">
-  <div class="card-header"><h2>Notas</h2></div>
-  <p>{{ recipe.notes }}</p>
-</div>
-{% endif %}
 
 {# Recipe lines table #}
 {% if resolved_lines %}

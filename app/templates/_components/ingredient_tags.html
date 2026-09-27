@@ -12,21 +12,22 @@
       {%- set tag = raw.strip() -%}
       {%- if tag -%}
         {%- set lower = tag.lower() -%}
+        {%- set _es_alg = {"gluten":"Gluten","dairy":"Lácteos","eggs":"Huevos","nuts":"Frutos secos","soy":"Soja","sesame":"Sésamo","sulfites":"Sulfitos"} -%}
+        {%- set _es_diet = {"vegan":"Vegano","vegano":"Vegano","vegetarian":"Vegetariano","vegetariano":"Vegetariano","gluten_free":"Libre de gluten","sin gluten":"Libre de gluten","sin-gluten":"Libre de gluten","sin tacc":"Libre de gluten","sin-tacc":"Libre de gluten","sugar_free":"Sin azúcar","sin azúcar":"Sin azúcar","sin-azucar":"Sin azúcar","keto_friendly":"Keto","keto":"Keto","high_protein":"Alto en proteína"} -%}
         {%- if variant == "allergen" -%}
-          {%- set _es = {"gluten":"Gluten","dairy":"Lácteos","eggs":"Huevos","nuts":"Frutos secos","soy":"Soja","sesame":"Sésamo","sulfites":"Sulfitos"} -%}
-          <span class="tag-pill tag-pill--allergen" title="Alérgeno obligatorio (INAN)">{{ _es.get(lower, tag) }}</span>
+          <span class="tag-pill tag-pill--allergen" title="Alérgeno obligatorio (INAN)">{{ _es_alg.get(lower, tag) }}</span>
         {%- elif lower in ["vegan", "vegano"] -%}
-          <span class="tag-pill tag-pill--green">{{ tag }}</span>
+          <span class="tag-pill tag-pill--green">{{ _es_diet.get(lower, tag) }}</span>
         {%- elif lower in ["vegetarian", "vegetariano"] -%}
-          <span class="tag-pill tag-pill--green-soft">{{ tag }}</span>
+          <span class="tag-pill tag-pill--green-soft">{{ _es_diet.get(lower, tag) }}</span>
         {%- elif lower in ["gluten_free", "sin gluten", "sin-gluten", "sin tacc", "sin-tacc"] -%}
-          <span class="tag-pill tag-pill--amber">{{ tag }}</span>
+          <span class="tag-pill tag-pill--amber">{{ _es_diet.get(lower, tag) }}</span>
         {%- elif lower in ["sugar_free", "sin azúcar", "sin-azucar"] -%}
-          <span class="tag-pill tag-pill--amber-soft">{{ tag }}</span>
+          <span class="tag-pill tag-pill--amber-soft">{{ _es_diet.get(lower, tag) }}</span>
         {%- elif lower in ["keto_friendly", "keto"] -%}
-          <span class="tag-pill tag-pill--purple">{{ tag }}</span>
+          <span class="tag-pill tag-pill--purple">{{ _es_diet.get(lower, tag) }}</span>
         {%- elif lower in ["high_protein"] -%}
-          <span class="tag-pill tag-pill--blue">{{ tag }}</span>
+          <span class="tag-pill tag-pill--blue">{{ _es_diet.get(lower, tag) }}</span>
         {%- else -%}
           <span class="tag-pill tag-pill--muted">{{ tag }}</span>
         {%- endif -%}

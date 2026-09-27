@@ -245,6 +245,14 @@ def inventory_list(
         for k, v in _by_norm.items() if len(v) > 1
     ]
 
+    # Data-quality: price per g/ml above Gs. 5.000 is almost certainly a per-kg/l
+    # price entered on a gram/milliliter row (carrot-cake 11M bug class).
+    suspicious_prices = [
+        {"id": i.id, "name": i.name, "unit": i.unit, "price": i.purchase_price_gs}
+        for i in all_ings
+        if i.unit in ("g", "ml") and (i.purchase_price_gs or 0) > 5000
+    ]
+
     # Sorting applied to the filtered set (in-Python; catalog sizes are small)
     _sort_map = {
         "name": lambda i: (i.name or "").lower(),
@@ -344,6 +352,7 @@ def inventory_list(
             ],
             "total_filtered": total,
             "duplicates": duplicates,
+            "suspicious_prices": suspicious_prices,
             "total_all": total_all,
         },
     )
