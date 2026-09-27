@@ -126,7 +126,8 @@ TODOs (for tomorrow's full implementation):
     }
 
     static get observedAttributes() {
-      return ['value', 'display', 'name', 'placeholder', 'endpoint', 'src', 'disabled'];
+      return ['value', 'display', 'name', 'placeholder', 'endpoint', 'src', 'disabled',
+              'value-field', 'label-field'];
     }
 
     connectedCallback() {
@@ -265,12 +266,24 @@ TODOs (for tomorrow's full implementation):
 
       let results = [];
       if (this._endpoint) {
-        // TODO: real fetch with debounce tomorrow
         try {
           const url = this._endpoint + encodeURIComponent(query || '');
           const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
           const data = await resp.json();
           results = Array.isArray(data) ? data : (data.results || []);
+          // Normalize response: map server fields (id/name) → combo fields (value/label)
+          // using value-field and label-field attributes (defaults: value, label)
+          const valueField = this.getAttribute('value-field') || 'value';
+          const labelField = this.getAttribute('label-field') || 'label';
+          // If items don't have value/label but have id/name, map them
+          if (results.length && !('value' in results[0]) && ('id' in results[0] || 'name' in results[0])) {
+            results = results.map(function (item) {
+              if ('value' in item && 'label' in item) return item;
+              const value = item[valueField] !== undefined ? item[valueField] : item.id;
+              const label = item[labelField] !== undefined ? item[labelField] : item.name;
+              return Object.assign({}, item, { value: value, label: label });
+            });
+          }
         } catch (err) {
           console.warn('saskia-combo: fetch failed', err);
           results = [];

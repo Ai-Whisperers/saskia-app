@@ -31,9 +31,9 @@
         name='product_id',
         value=selected_product,
         display=selected_product_display,
-        placeholder='Buscar producto…',
-        endpoint='/api/lookup/products?q=',
-        label='Producto (server-side)',
+        placeholder='Buscar producto (DB real)…',
+        endpoint='/productos/api/search?q=',
+        label='Producto (server-side, real DB)',
         label_for='product_id'
       ) }}
     </div>
