@@ -63,7 +63,7 @@
       <div class="sidebar-section">{{ group }}</div>
       {% for item in items %}
         {% if item.sub %}
-        <a href="{{ item.route }}" class="nav-item nav-item--sub" {% if item.route == request.url.path or (not item.exact and request.url.path.startswith(item.route)) %}aria-current="page"{% endif %}>
+        <a href="{{ item.route }}" class="nav-item nav-item--sub{% if item.route == request.url.path or (not item.exact and request.url.path.startswith(item.route)) %} active{% endif %}" {% if item.route == request.url.path or (not item.exact and request.url.path.startswith(item.route)) %}aria-current="page"{% endif %}>
           <svg class="icon" aria-hidden="true"><use href="#{{ item.icon }}"/></svg>{{ item.label }}</a>
         {% else %}
         {{ m.nav_link(item.route, item.label, exact=item.exact or false, current_path=request.url.path, icon=item.icon) }}

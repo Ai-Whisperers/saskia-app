@@ -75,7 +75,7 @@ def test_ventas_summary_excludes_voided(client, seeded_sales):
     assert resp.status_code == 200
     # 5 total rows (3+2 non-voided; 1 voided still shows in table)
     # Active count must be 4 (the voided sale is excluded from totals)
-    assert '"metric-value">4' in resp.text or "metric-value\">4" in resp.text
+    assert 'metric-card__value">4' in resp.text or 'metric-card__value">4<' in resp.text
 
 
 def test_ventas_filtered_totals(client, seeded_sales):

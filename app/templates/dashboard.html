@@ -47,7 +47,7 @@
 </div>
 {% endif %}
 
-<h2>📦 Recipes</h2>
+<h2>Recetas</h2>
 <div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
   <div class="kpi-card"><div class="kpi-label">Recetas en el sistema</div><div class="kpi-value">{{ recipe_count }}</div></div>
   <div class="kpi-card"><div class="kpi-label">Recetas cocinadas este mes</div><div class="kpi-value">{{ recipes_cooked }}</div></div>
@@ -87,7 +87,7 @@
     <div class="kpi-target" style="color:#dc2626;">{{ m.gs(sl_total_gs) }} estimados</div>
   </a>
   <a href="/wishlist" class="kpi-card" style="text-decoration:none;color:inherit;">
-    <div class="kpi-label">Wishlist pendiente</div>
+    <div class="kpi-label">Equipamiento pendiente</div>
     <div class="kpi-value">{{ wishlist_count }}</div>
     <div class="kpi-target" style="color:#b45309;">{{ m.gs(wishlist_total_gs) }} equipo</div>
   </a>
@@ -97,14 +97,14 @@
     <div class="kpi-target" style="color:#dc2626;">{{ m.gs(risk_severity_gs) }} severidad</div>
   </a>
   <a href="/benchmarks" class="kpi-card" style="text-decoration:none;color:inherit;">
-    <div class="kpi-label">Benchmarks</div>
+    <div class="kpi-label">Comparativas de mercado</div>
     <div class="kpi-value">17</div>
     <div class="kpi-target">vs competencia</div>
   </a>
 </div>
 
 <p class="muted" style="margin-top:2rem;">
-  💡 Datos locales. Targets preconfigurados.
+  💡 Datos locales. Objetivos preconfigurados.
   {{ tx_count_this_month }} transacciones este mes.
 </p>
 {% endblock %}

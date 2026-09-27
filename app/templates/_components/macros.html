@@ -50,7 +50,7 @@ Asunción local TZ.
    Pass `icon="icon-home"` to prepend an SVG icon from the sprite. #}
 {% macro nav_link(path, label, exact=False, current_path="", icon="") -%}
 {%- set active = (current_path == path) if exact else current_path.startswith(path) -%}
-<a href="{{ path }}" class="nav-item" role="menuitem"{% if active %} aria-current="page"{% endif %}>
+<a href="{{ path }}" class="nav-item{% if active %} active{% endif %}" role="menuitem"{% if active %} aria-current="page"{% endif%}>
 {%- if icon %}
   <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
 {%- endif %}

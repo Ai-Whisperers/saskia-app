@@ -506,7 +506,7 @@ def test_insight_card_used_for_stars_dogs():
     # moved with them. inicio keeps a teaser pointing there.
     with open("app/templates/analisis.html") as f:
         ana = f.read()
-    for label in ["Stars", "Dogs", "En alza", "En baja"]:
+    for label in ["Estrellas", "Para revisar", "En alza", "En baja"]:
         assert "insight_card" in ana and label in ana, (
             f"analisis.html must render {label!r} via insight_card macro"
         )

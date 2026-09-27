@@ -44,13 +44,13 @@
 {% if insights.stars %}
   {% set stars_items = [] %}
   {% for s in insights.stars %}{% set _ = stars_items.append({"title": s.product_name, "body": "margen " ~ m.gs(s.margin_gs) ~ ", volumen " ~ s.volume}) %}{% endfor %}
-  {{ m.insight_card("Stars (alto margen + alto volumen)", stars_items, severity="ok", icon="icon-arrow-up") }}
+  {{ m.insight_card("Estrellas (alto margen + alto volumen)", stars_items, severity="ok", icon="icon-arrow-up") }}
 {% endif %}
 
 {% if insights.dogs %}
   {% set dogs_items = [] %}
   {% for d in insights.dogs %}{% set _ = dogs_items.append({"title": d.product_name, "body": "margen " ~ m.gs(d.margin_gs) ~ ", volumen " ~ d.volume}) %}{% endfor %}
-  {{ m.insight_card("Dogs (bajo margen + bajo volumen)", dogs_items, severity="warn", icon="icon-arrow-down") }}
+  {{ m.insight_card("Para revisar (bajo margen + bajo volumen)", dogs_items, severity="warn", icon="icon-arrow-down") }}
 {% endif %}
 
 {% if insights.rising_products %}

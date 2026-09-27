@@ -67,7 +67,7 @@ body.has-app-shell > .app-footer { grid-area: footer; }
   font-weight: 600;
 }
 .sidebar a.nav-item .icon { font-size: var(--text-md); opacity: .85; }
-.sidebar a.nav-item.sub { padding-left: var(--space-8); font-size: var(--text-xs); }
+.sidebar a.nav-item.sub, .sidebar a.nav-item--sub { padding-left: var(--space-8); font-size: var(--text-xs); }
 .sidebar .sidebar-footer {
   margin-top: auto; padding: var(--space-3);
   border-top: 1px solid var(--color-border);

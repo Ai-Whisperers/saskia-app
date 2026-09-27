@@ -26,7 +26,9 @@
     border-color: #facc15;
     box-shadow: 0 0 12px rgba(250, 204, 21, 0.3);
   }
-  .card-header { display: flex; justify-content: space-between; align-items: center; }
+  .card-header { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); }
+  .card-id, .card-status { flex-shrink: 0; }
+  .card-header-note { min-width: 0; overflow-wrap: anywhere; }
   .card-id { font-size: 1.4rem; font-weight: 700; color: #fff; }
   .card-status {
     padding: .2em .6em;

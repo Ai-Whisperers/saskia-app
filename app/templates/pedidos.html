@@ -61,11 +61,11 @@
 <div class="card mb-4" style="display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap;">
   <form method="get" action="/pedidos" style="display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap;">
     <input type="hidden" name="status_filter" value="{{ status_filter }}">
-    <label for="search-pedidos" class="text-muted" style="font-size: var(--text-sm);">Buscar:</label>
     <input type="text" id="search-pedidos" name="search" value="{{ search }}"
-           placeholder="Nombre o teléfono del cliente…"
+           placeholder="Buscar por nombre o teléfono…"
+           aria-label="Buscar pedidos"
            style="padding: .3rem .6rem; border: 1px solid var(--color-border); border-radius: var(--radius); min-width: 200px;">
-    <button type="submit" class="btn btn-sm">🔍</button>
+    <button type="submit" class="btn btn-sm">Buscar</button>
     {% if search %}
     <a href="/pedidos?status_filter={{ status_filter }}" class="btn btn-sm btn-ghost">✕</a>
     {% endif %}

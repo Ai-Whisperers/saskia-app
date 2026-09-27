@@ -170,4 +170,4 @@ def test_dashboard_kpis_present():
     assert "sl_open_count" in content
     assert "wishlist_count" in content
     assert "risk_count" in content
-    assert "Benchmarks" in content  # the 4th KPI card
+    assert "Comparativas de mercado" in content  # the 4th KPI card

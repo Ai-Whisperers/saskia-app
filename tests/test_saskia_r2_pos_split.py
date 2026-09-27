@@ -184,7 +184,7 @@ def test_quick_sell_search_input_present(client, session_factory):
     resp = client.get("/ventas")
     assert resp.status_code == 200
     assert 'id="quick-sell-search"' in resp.text
-    assert 'aria-label="Buscar producto en quick-sell"' in resp.text
+    assert 'aria-label="Buscar producto en venta rápida"' in resp.text
 
 
 def test_quick_sell_buttons_carry_product_id_and_qty(client, session_factory):
