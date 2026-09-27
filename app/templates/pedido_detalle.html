@@ -182,8 +182,8 @@
     {% endif %}
   </div>
   <p class="text-muted mt-2" style="font-size: var(--text-xs);">
-    Transiciones permitidas: <strong>{{ pedido.status }}</strong> →
-    {% if transitions %}{{ transitions | join(", ") }}{% else %}(terminal){% endif %}
+    Transiciones permitidas: <strong>{{ fmt.status_es(pedido.status)[0] }}</strong> →
+    {% if transitions %}{% for t in transitions %}{{ fmt.status_es(t)[0] }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}(estado final){% endif %}
   </p>
 </div>
 
