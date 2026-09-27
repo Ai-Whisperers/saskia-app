@@ -78,7 +78,7 @@ done
 
 echo
 echo "▶ Container logs (last 50 lines)"
-ssh "$VPS_HOST" "docker service logs $STACK_NAME_web --tail 50" || true
+ssh "$VPS_HOST" "docker service logs ${STACK_NAME}_web --tail 50" || true
 
 echo
 echo "Done. Try: https://saskia-vps.paragu-ai.com/"
