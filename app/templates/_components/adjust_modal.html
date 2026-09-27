@@ -6,8 +6,8 @@
         <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
         Ajustar stock
       </h2>
-      <button type="button" class="btn btn-sm btn-ghost" onclick="this.closest('dialog').close()" aria-label="Cerrar">
-        <svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg>
+      <button type="button" class="btn btn-ghost modal-close-btn" onclick="this.closest('dialog').close()" aria-label="Cerrar">
+        <svg class="icon icon-md" aria-hidden="true"><use href="#icon-close"/></svg>
       </button>
     </div>
     <form method="post" id="stock-adjust-form" onsubmit="var amt=parseFloat(this.adjustment_abs.value)||0; var tipo=document.querySelector('input[name=\'mov_tipo\']:checked'); this.adjustment.value = (tipo && tipo.value===\'salida\') ? -Math.abs(amt) : Math.abs(amt); return validateAdjustment(this);"><input type="hidden" name="adjustment" value="">
@@ -18,9 +18,9 @@
           <span class="form-label-like">Tipo de movimiento</span>
           <div class="segmented-control" role="radiogroup" aria-label="Tipo de movimiento">
             <input type="radio" name="mov_tipo" value="entrada" id="mov-in" checked>
-            <label for="mov-in">+ Entrada (compra / hallazgo)</label>
+            <label for="mov-in" title="Compra o hallazgo">+ Entrada (compra)</label>
             <input type="radio" name="mov_tipo" value="salida" id="mov-out">
-            <label for="mov-out">− Salida (merma / ajuste)</label>
+            <label for="mov-out" title="Merma, ajuste o corrección">− Salida (merma)</label>
           </div>
         </div>
         <div class="form-row">

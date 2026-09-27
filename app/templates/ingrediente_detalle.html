@@ -19,7 +19,7 @@
     </h1>
   </div>
   <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;">
-    <button type="button" class="btn btn-secondary" onclick="openAdjustModal('{{ ingredient.id }}', '{{ ingredient.name }}', {{ ingredient.stock_qty }}, '{{ ingredient.unit }}')">
+    <button type="button" class="btn btn-secondary" onclick="openAdjustModal('{{ ingredient.id }}', '{{ ingredient.name }}', {{ ingredient.stock_qty }}, '{{ ingredient.unit }}', {{ ingredient.min_stock_qty or 0 }})">
       <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
       Ajustá stock
     </button>

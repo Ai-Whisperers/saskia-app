@@ -189,3 +189,7 @@ input[type="date"], input[type="datetime-local"] { color-scheme: light dark; }
 /* ── 4. dark-mode calendar picker indicator ── */
 :root[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
 :root[data-theme="dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(0.85); }
+
+/* ── stock-adjust modal polish ── */
+.modal-close-btn { width: 36px; height: 36px; padding: 0; justify-content: center; }
+.segmented-control label { white-space: nowrap; }
