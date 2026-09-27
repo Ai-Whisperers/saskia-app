@@ -22,7 +22,8 @@
 <h2>{{ detail.ingredient.name }}</h2>
 
 {% if detail.stats.count %}
-<div class="grid grid-4 mb-4">
+{{ ui.skeleton_section(id="precios-stats", variant="kpi", count=4, label="Cargando estadísticas") }}
+<div class="grid grid-4 mb-4" data-loaded-section="precios-stats">
   <div class="metric-card">
     <div class="metric-label">Actual</div>
     <div class="metric-value">{{ m.gs_full(detail.stats.current) }}</div>
@@ -40,10 +41,13 @@
     <div class="metric-value">{{ m.gs_full(detail.stats.avg | round | int) }}</div>
   </div>
 </div>
+</div>
 
 {{ detail.chart_svg | safe }}
 
 <h3>Eventos</h3>
+{{ ui.skeleton_section(id="precios-events", variant="line", count=10, label="Cargando eventos") }}
+<div data-loaded-section="precios-events">
 <table class="table is-hoverable is-striped">
   <thead>
     <tr>
@@ -62,6 +66,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% else %}
 <p class="empty">Sin eventos de precio en los últimos {{ days }} días.</p>
 {% endif %}
@@ -69,6 +74,8 @@
 {% else %}
 
 {% if rows %}
+{{ ui.skeleton_section(id="precios-list", variant="line", count=10, label="Cargando lista de precios") }}
+<div data-loaded-section="precios-list">
 <table class="table is-hoverable is-striped">
   <thead>
     <tr>
@@ -97,6 +104,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% else %}
 <p class="empty">Todavía no hay precios cargados. Registrá una reposición desde <a href="/reorder">Reponer stock</a> o editá un ingrediente en el <a href="/inventario">inventario</a>.</p>
 {% endif %}

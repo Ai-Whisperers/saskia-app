@@ -19,7 +19,8 @@
 </div>
 
 {% if ytd %}
-<div class="metric-card mb-4" style="max-width: 400px; background: #f0f4ff; border-left: 4px solid #3b82f6;">
+{{ ui.skeleton_section(id="iva-ytd", variant="card", count=1, label="Cargando acumulado") }}
+<div class="metric-card mb-4" style="max-width: 400px; background: #f0f4ff; border-left: 4px solid #3b82f6;" data-loaded-section="iva-ytd">
   <div class="metric-label">Acumulado del año (YTD)</div>
   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
     <div><span class="text-muted">Ventas:</span> {{ ytd.n_sales }}</div>
@@ -28,9 +29,12 @@
     <div><span class="text-muted">Total:</span> <strong>{{ m.gs(ytd.total_gross_gs) }}</strong></div>
   </div>
 </div>
+</div>
 {% endif %}
 
 {% if rows %}
+{{ ui.skeleton_section(id="iva-table", variant="line", count=12, label="Cargando libro IVA") }}
+<div data-loaded-section="iva-table">
 <table class="table is-hoverable">
   <thead>
     <tr>
@@ -53,6 +57,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% else %}
 {{ ui.empty_state(title="No hay ventas registradas", icon="icon-report", hint="Cuando registres ventas van a aparecer acá mes por mes.") }}
 {% endif %}

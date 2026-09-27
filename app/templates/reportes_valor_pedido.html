@@ -27,10 +27,12 @@
 </form>
 
 {% if aov > 0 %}
-<div class="metric-card mb-4" style="max-width: 400px;">
+{{ ui.skeleton_section(id="valor-pedido-aov", variant="card", count=1, label="Cargando AOV") }}
+<div class="metric-card mb-4" style="max-width: 400px;" data-loaded-section="valor-pedido-aov">
   <div class="metric-label">Valor promedio del pedido (AOV)</div>
   <div class="metric-value" style="font-size: 2rem;">{{ m.gs(aov | int) }}</div>
   <div class="text-muted">Gs. por venta en el período</div>
+</div>
 </div>
 {% else %}
 {{ ui.empty_state(title="No hay ventas registradas", icon="icon-report", hint="Cuando registres ventas va a aparecer el promedio.") }}

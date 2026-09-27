@@ -32,6 +32,8 @@
 </form>
 
 {% if rows %}
+{{ ui.skeleton_section(id="top-productos-table", variant="line", count=8, label="Cargando top productos") }}
+<div data-loaded-section="top-productos-table">
 <table class="table is-hoverable">
   <thead>
     <tr>
@@ -52,6 +54,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% else %}
 {{ ui.empty_state(title="No hay ventas registradas", icon="icon-report", hint="Cuando registres ventas van a aparecer acá.") }}
 {% endif %}

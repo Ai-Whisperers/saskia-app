@@ -8,7 +8,8 @@
   Resumen diario — {{ for_date }}
 </h1>
 
-<div class="grid grid-3 mb-4">
+{{ ui.skeleton_section(id="diario-kpis", variant="kpi", count=6, label="Cargando resumen diario") }}
+<div class="grid grid-3 mb-4" data-loaded-section="diario-kpis">
   <div class="metric-card">
     <div class="metric-label">Ingresos (Gs.)</div>
     <div class="metric-value">{{ m.gs(summary.revenue_gross_gs) }}</div>
@@ -39,6 +40,7 @@
     {% endif %}
     <div class="metric-delta {{ 'is-up' if margin_pct >= 40 else 'is-neutral' }}">{{ "%.1f"|format(margin_pct) }}%</div>
   </div>
+</div>
 </div>
 
 <div class="form-actions mb-4">

@@ -13,12 +13,43 @@
   {{ close.total_sales }} ventas registradas
 </p>
 
-{# Month navigation #}
-<nav class="pagination mb-4" aria-label="Navegación de mes">
+{# Month navigation + jump-to-month picker #}
+<form method="get" action="/reportes/cierre-mensual" class="pagination mb-4" aria-label="Navegación de mes">
   <a href="?year={{ prev_year }}&month={{ prev_month }}" class="btn btn-sm btn-ghost">← Mes anterior</a>
+  <saskia-month name="year-month" value="{{ year }}-{{ '%02d'|format(month) }}"
+                min="2024-01" max="2030-12"
+                style="margin: 0 var(--space-2);"></saskia-month>
+  <noscript><button type="submit" class="btn btn-sm btn-primary">Ir</button></noscript>
   <span style="padding: 0 var(--space-3); font-weight: 600;">{{ close.period_label }}</span>
   <a href="?year={{ next_year }}&month={{ next_month }}" class="btn btn-sm btn-ghost">Mes siguiente →</a>
-</nav>
+</form>
+<script>
+  // Wire the saskia-month picker so it auto-submits the form on change.
+  document.querySelectorAll('saskia-month[name="year-month"]').forEach(function (el) {
+    el.addEventListener('change', function () {
+      var form = el.closest('form');
+      if (!form) return;
+      // On submit, the hidden input handler rewrites the name to "year-month";
+      // we need to split it into year=YYYY and month=MM.
+      var v = el.getValue().split('-');
+      var yearInput = form.querySelector('input[name="year"]');
+      var monthInput = form.querySelector('input[name="month"]');
+      if (!yearInput) {
+        yearInput = document.createElement('input');
+        yearInput.type = 'hidden'; yearInput.name = 'year';
+        form.appendChild(yearInput);
+      }
+      if (!monthInput) {
+        monthInput = document.createElement('input');
+        monthInput.type = 'hidden'; monthInput.name = 'month';
+        form.appendChild(monthInput);
+      }
+      yearInput.value = v[0];
+      monthInput.value = v[1];
+      form.submit();
+    });
+  });
+</script>
 
 {# KPI cards #}
 {{ ui.skeleton_section(id="cierre-kpis", variant="kpi", count=4, label="Cargando cierre mensual") }}

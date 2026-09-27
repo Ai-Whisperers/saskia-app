@@ -28,11 +28,15 @@
 </form>
 
 {% if breakdown %}
-<div class="metric-card mb-4">
+{{ ui.skeleton_section(id="metodos-total", variant="kpi", count=1, label="Cargando total") }}
+<div class="metric-card mb-4" data-loaded-section="metodos-total">
   <div class="metric-label">Total general</div>
   <div class="metric-value">{{ m.gs(total_gs) }}</div>
 </div>
+</div>
 
+{{ ui.skeleton_section(id="metodos-table", variant="line", count=5, label="Cargando métodos de pago") }}
+<div data-loaded-section="metodos-table">
 <table class="table is-hoverable">
   <thead>
     <tr>
@@ -53,6 +57,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% else %}
 {{ ui.empty_state(title="No hay ventas registradas", icon="icon-report") }}
 {% endif %}

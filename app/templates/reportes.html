@@ -9,7 +9,8 @@
 
 <p class="text-muted">Reportes financieros y operativos. Cada reporte tiene un botón de exporte PDF y filtros por fecha.</p>
 
-<div class="grid grid-3">
+{{ ui.skeleton_section(id="reportes-index", variant="card", count=8, label="Cargando índice de reportes") }}
+<div class="grid grid-3" data-loaded-section="reportes-index">
   {% for r in reports %}
   <a href="{{ r.url }}" class="card is-interactive">
     <svg class="icon icon-lg" aria-hidden="true"><use href="{{ r.icon }}"/></svg>
@@ -23,6 +24,7 @@
     {% endif %}
   </a>
   {% endfor %}
+</div>
 </div>
 
 {% endblock %}
