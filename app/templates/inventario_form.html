@@ -44,25 +44,17 @@
     <small class="muted">Opcional. Para agrupar ingredientes en el inventario.</small>
   </div>
   <div class="form-row">
-    <label for="unit_combo">Unidad</label>
-    <div class="saskia-combo" data-saskia-combo="true"
-         data-source="/recetas/api/units"
-         data-display="display"
-         data-value="value"
-         data-min-chars="0"
-         data-row-builder="genericRowLabel">
-      <input type="text"
-             id="unit_combo"
-             class="combo-input"
-             maxlength="10"
-             value="{{ ingredient.unit_display if ingredient else '' }}"
-             placeholder="Seleccioná unidad">
-      {# Hidden input carries the actual submit value; visible text has no
-         name= so we don't double-submit. Same pattern as the category combo above. #}
-      <input type="hidden" name="unit" value="{{ ingredient.unit if ingredient else '' }}">
-      <div class="combo-results" role="listbox" hidden></div>
-    </div>
-    <small>g, kg, ml, l, und.</small>
+    <label for="unit">Unidad</label>
+    {# D17 migration: legacy saskia-combo div → <saskia-combo> Web Component via macro. #}
+    {{ ui.combo_field(
+      name='unit',
+      value=ingredient.unit_display if ingredient else '',
+      placeholder='Seleccioná unidad',
+      endpoint='/recetas/api/units?q=',
+      value_field='value',
+      label_field='display'
+    ) }}
+    <small class="muted">g, kg, ml, l, und…</small>
   </div>
   <div class="form-row">
     <label for="stock_qty">Stock actual</label>

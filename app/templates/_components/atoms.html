@@ -285,7 +285,10 @@
    for price-type combos (closes D15). #}
 {% macro combo_field(name, value=None, display=None, placeholder=None,
                      src=None, endpoint=None, required=False,
-                     label=None, label_for=None) -%}
+                     label=None, label_for=None,
+                     value_field='value', label_field='label') -%}
+  {% set _vf = value_field %}
+  {% set _lf = label_field %}
   {% if label -%}
     <label for="{{ label_for or name }}">{{ label }}{% if required %} *{% endif %}</label>
   {%- endif %}
@@ -302,15 +305,14 @@
                   {% if display %}display="{{ display }}"{% endif %}
                   {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
                   {% if required %}required{% endif %}
-                  endpoint="{{ endpoint }}"></saskia-combo>
+                  endpoint="{{ endpoint }}"
+                  {% if _vf != 'value' %}value-field="{{ _vf }}"{% endif %}
+                  {% if _lf != 'label' %}label-field="{{ _lf }}"{% endif %}></saskia-combo>
   {%- else -%}
-    {# Fallback to native select so the form still works without data #}
-    <select name="{{ name }}" id="{{ name }}"
+    {# Fallback to native text input so the form still works without data #}
+    <input type="text" name="{{ name }}" id="{{ name }}"
             {% if required %}required{% endif %}
-            {% if placeholder %}data-placeholder="{{ placeholder }}"{% endif %}>
-      {% if value is not none and display -%}
-        <option value="{{ value }}" selected>{{ display }}</option>
-      {%- endif %}
-    </select>
+            {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+            {% if value is not none %}value="{{ value }}"{% endif %}>
   {%- endif %}
 {%- endmacro %}
