@@ -751,6 +751,9 @@ def _delete_seeded_data(session: Session) -> None:
     # Wrap each deletion in try/except so a missing-table error (live DB
     # schema drift) doesn't abort the whole seed.
     for model in (
+        PedidoLine,
+        Pedido,
+        Customer,
         SaleStockMove,
         Sale,
         ImportBatch,

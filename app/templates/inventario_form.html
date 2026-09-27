@@ -77,9 +77,7 @@
   </div>
   <div class="form-row">
     <label for="opening_stock_date">Fecha de apertura</label>
-    <input type="date" id="opening_stock_date" name="opening_stock_date"
-           value="{{ ingredient.opening_stock_date if ingredient and ingredient.opening_stock_date else '' }}"
-           placeholder="YYYY-MM-DD">
+    <saskia-date id="opening_stock_date" name="opening_stock_date" value="{{ ingredient.opening_stock_date if ingredient and ingredient.opening_stock_date else '' }}"></saskia-date>
     <small>Fecha en que se registró el stock de apertura.</small>
   </div>
   <div class="form-row">

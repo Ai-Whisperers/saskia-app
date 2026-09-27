@@ -116,8 +116,7 @@
 
     <div class="form-group">
       <label for="timbrado_expiry">Vencimiento del timbrado</label>
-      <input type="date" id="timbrado_expiry" name="timbrado_expiry"
-             value="{{ compliance.timbrado_expiry or '' }}">
+      <saskia-date id="timbrado_expiry" name="timbrado_expiry" value="{{ compliance.timbrado_expiry or '' }}"></saskia-date>
     </div>
 
     <h3 style="margin-top: var(--space-5); border-top: 1px solid var(--border); padding-top: var(--space-4);">INAN — Registro de Establecimiento (R.E.)</h3>
@@ -131,8 +130,7 @@
 
     <div class="form-group">
       <label for="inan_re_expiry">Vencimiento R.E.</label>
-      <input type="date" id="inan_re_expiry" name="inan_re_expiry"
-             value="{{ compliance.inan_re_expiry or '' }}">
+      <saskia-date id="inan_re_expiry" name="inan_re_expiry" value="{{ compliance.inan_re_expiry or '' }}"></saskia-date>
       <small>Vigencia 5 años. Te avisamos 30 días antes.</small>
     </div>
 
@@ -159,8 +157,7 @@
 
     <div class="form-group">
       <label for="municipal_habilitacion_expiry">Vencimiento habilitación</label>
-      <input type="date" id="municipal_habilitacion_expiry" name="municipal_habilitacion_expiry"
-             value="{{ compliance.municipal_habilitacion_expiry or '' }}">
+      <saskia-date id="municipal_habilitacion_expiry" name="municipal_habilitacion_expiry" value="{{ compliance.municipal_habilitacion_expiry or '' }}"></saskia-date>
     </div>
 
     <h3 style="margin-top: var(--space-5); border-top: 1px solid var(--border); padding-top: var(--space-4);">Costeo (Fase 1.D)</h3>
