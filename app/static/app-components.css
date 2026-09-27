@@ -168,3 +168,10 @@ input[type="date"], input[type="datetime-local"] { color-scheme: light dark; }
 
 /* ── receta detail 2-col ─────────────────────────────────────────── */
 @media (max-width: 900px) { .receta-2col { grid-template-columns: 1fr !important; } }
+
+/* ── POS split-pane (ventas) ─────────────────────────────────────── */
+.pos-layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--space-6); align-items: start; }
+.pos-form { min-width: 0; }
+.pos-form .form-row-inline { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.pos-quick { position: sticky; top: calc(var(--topbar-height, 48px) + var(--space-4)); }
+@media (max-width: 900px) { .pos-layout { grid-template-columns: 1fr; } .pos-quick { position: static; } }

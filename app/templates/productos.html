@@ -120,12 +120,12 @@
       <td class="col-portion">{{ p.portion_label }}</td>
       <td class="num col-price">{{ m.gs_full(p.sale_price_gs) }}</td>
       <td class="col-recipe">{% if p.recipe_name %}{{ p.recipe_name }}{% else %}<em class="muted">sin receta</em>{% endif %}</td>
-      <td class="num col-cost">{% if p.cost_gs is none %}<em class="muted">falta precio</em>{% else %}{{ m.gs(p.cost_gs) }}{% endif %}</td>
-      <td class="num col-margin">{% if p.margin_gs is none %}<em class="muted">—</em>{% else %}{{ m.gs(p.margin_gs) }}{% endif %}</td>
-      <td class="num col-marginpct">{% if p.margin_ratio is none %}<em class="muted">—</em>{% else %}{{ m.margin_pct(p.margin_gs, p.sale_price_gs) }}{% endif %}</td>
+      <td class="num col-cost">{% if p.cost_gs is none %}<em class="muted">falta precio</em>{% else %}Gs. {{ m.gs(p.cost_gs) }}{% endif %}</td>
+      <td class="num col-margin">{% if p.margin_gs is none %}<em class="muted">—</em>{% else %}{% if p.margin_gs < 0 %}<span class="badge badge-danger">Gs. {{ m.gs(p.margin_gs) }}</span>{% else %}Gs. {{ m.gs(p.margin_gs) }}{% endif %}{% endif %}</td>
+      <td class="num col-marginpct">{% if p.margin_ratio is none %}<em class="muted">—</em>{% elif p.margin_gs is not none and p.margin_gs < 0 %}<span class="badge badge-danger" title="Vendés por debajo del costo">{{ m.margin_pct(p.margin_gs, p.sale_price_gs) }}</span>{% else %}{{ m.margin_pct(p.margin_gs, p.sale_price_gs) }}{% endif %}</td>
       {# Phase 1.D — Prime Cost: materials + labor + overhead (yield-corrected) #}
       <td class="num col-prime-cost" title="Prime cost = materiales + mano de obra + overhead (corregido por yield)">
-        {% if p.prime_cost_gs is none %}<em class="muted">falta datos</em>{% else %}{{ m.gs(p.prime_cost_gs) }}{% endif %}
+        {% if p.prime_cost_gs is none %}<em class="muted">falta datos</em>{% else %}Gs. {{ m.gs(p.prime_cost_gs) }}{% endif %}
       </td>
       <td class="num col-prime-pct">
         {% if p.prime_cost_pct is none %}<em class="muted">—</em>{% else %}
