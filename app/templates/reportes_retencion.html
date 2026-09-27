@@ -53,11 +53,7 @@
      Los nuevos son los que compraron por primera vez en este período.</p>
 </div>
 {% else %}
-<div class="empty-state">
-  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
-  <h3>No hay datos</h3>
-  <p>No hay clientes con ventas en este período.</p>
-</div>
+{{ ui.empty_state(title="No hay datos", icon="icon-report", hint="No hay clientes con ventas en este período.") }}
 {% endif %}
 
 {% endblock %}

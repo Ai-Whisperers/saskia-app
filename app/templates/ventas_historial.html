@@ -175,10 +175,6 @@
 {% endif %}
 
 {% else %}
-<div class="empty-state">
-  <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
-  <h3>Todavía no hay ventas en el historial</h3>
-  <p>Las ventas que registres aparecerán acá.</p>
-</div>
+{{ ui.empty_state(title="Todavía no hay ventas en el historial", icon="icon-sale", hint="Las ventas que registres aparecerán acá.") }}
 {% endif %}
 {% endblock %}

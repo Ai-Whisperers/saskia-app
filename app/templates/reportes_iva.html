@@ -53,11 +53,7 @@
   </tbody>
 </table>
 {% else %}
-<div class="empty-state">
-  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
-  <h3>No hay ventas registradas</h3>
-  <p>Cuando registres ventas van a aparecer acá mes por mes.</p>
-</div>
+{{ ui.empty_state(title="No hay ventas registradas", icon="icon-report", hint="Cuando registres ventas van a aparecer acá mes por mes.") }}
 {% endif %}
 
 {% endblock %}

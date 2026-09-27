@@ -152,12 +152,7 @@
   {% endif %}
 </nav>
 {% else %}
-<div class="empty-state">
-  <svg class="icon" aria-hidden="true"><use href="#icon-audit"/></svg>
-  <h3>No hay entradas de auditoría</h3>
-  <p>Cuando haya eventos registrados van a aparecer acá.</p>
-  <a href="/" class="btn btn-ghost">Ir al inicio</a>
-</div>
+{{ ui.empty_state(title="No hay entradas de auditoría", icon="icon-audit", hint="Cuando haya eventos registrados van a aparecer acá.", cta_href="/", cta_label="Ir al inicio") }}
 {% endif %}
 
 {% endblock %}

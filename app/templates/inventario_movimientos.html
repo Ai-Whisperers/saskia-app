@@ -76,12 +76,7 @@
   </tbody>
 </table>
 {% else %}
-<div class="empty-state">
-  <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
-  <h3>Sin movimientos registrados</h3>
-  <p>Cada entrada, salida, merma y ajuste queda asentado acá.</p>
-  <a href="/inventario" class="btn btn-primary">Registrá el primer ajuste</a>
-</div>
+{{ ui.empty_state(title="Sin movimientos registrados", icon="icon-inventory", hint="Cada entrada, salida, merma y ajuste queda asentado acá.", cta_href="/inventario", cta_label="Registrá el primer ajuste") }}
 {% endif %}
 
 {% endblock %}

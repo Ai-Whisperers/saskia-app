@@ -112,11 +112,7 @@
   </tbody>
 </table>
 {% else %}
-<div class="empty-state">
-  <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
-  <h3>Sin compras todavía</h3>
-  <p>Cuando el cliente compre algo va a aparecer acá.</p>
-</div>
+{{ ui.empty_state(title="Sin compras todavía", icon="icon-sale", hint="Cuando el cliente compre algo va a aparecer acá.") }}
 {% endif %}
 
 {% endblock %}

@@ -40,10 +40,7 @@
   </tbody>
 </table>
 {% else %}
-<div class="empty-state">
-  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
-  <h3>No hay ventas registradas</h3>
-</div>
+{{ ui.empty_state(title="No hay ventas registradas", icon="icon-report") }}
 {% endif %}
 
 {% endblock %}

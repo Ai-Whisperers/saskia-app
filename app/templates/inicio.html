@@ -265,12 +265,7 @@
   </tbody>
 </table>
 {% else %}
-<div class="empty-state">
-  <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
-  <h3>Sin ventas todavía — registrá tu primera venta</h3>
-  <p>Cuando registres ventas van a aparecer acá.</p>
-  <a href="/ventas" class="btn btn-primary">Registrar venta</a>
-</div>
+{{ ui.empty_state(title="Sin ventas todavía — registrá tu primera venta", icon="icon-sale", hint="Cuando registres ventas van a aparecer acá.", cta_href="/ventas", cta_label="Registrar venta") }}
 {% endif %}
 
 {# ══ Operación (cola de tareas) ════════════════════════════════════ #}

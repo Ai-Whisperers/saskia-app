@@ -85,11 +85,7 @@
   </tbody>
 </table>
 {% else %}
-<div class="empty-state">
-  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
-  <h3>No hay ventas en este período</h3>
-  <p>Probá con un rango de fechas más amplio.</p>
-</div>
+{{ ui.empty_state(title="No hay ventas en este período", icon="icon-report", hint="Probá con un rango de fechas más amplio.") }}
 {% endif %}
 
 {% endblock %}

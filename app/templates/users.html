@@ -84,11 +84,7 @@
 </div>
 {% endif %}
 {% else %}
-<div class="empty-state">
-  <svg class="icon" aria-hidden="true"><use href="#icon-users"/></svg>
-  <h3>No hay usuarios creados</h3>
-  <p>Crea tu primer usuario haciendo clic en "Nuevo usuario".</p>
-</div>
+{{ ui.empty_state(title="No hay usuarios creados", icon="icon-users", hint="Crea tu primer usuario haciendo clic en \"Nuevo usuario\".") }}
 {% endif %}
 
 <!-- New User Modal -->
