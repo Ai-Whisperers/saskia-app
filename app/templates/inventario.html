@@ -127,7 +127,7 @@
 
 {% set flash = request.query_params.get('flash', '') %}
 {% if flash == 'stock_adjusted' %}
-<div class="alert alert-success" role="alert">Stock ajustado correctamente.</div>
+{{ ui.alert_row(sev="success", text="Stock ajustado correctamente.") }}
 {% elif flash.startswith('no_confirm:') %}
 <div class="alert alert-danger" role="alert" aria-live="assertive">
   <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>

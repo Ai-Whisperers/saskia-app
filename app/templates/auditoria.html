@@ -77,12 +77,14 @@
   </div>
   <p class="text-muted mb-3">Las entradas de auditoría se eliminan automáticamente después de 1 año.
      Podés eliminar las entradas más antiguas manualmente.</p>
-  <form method="post" action="/auditoria/prune" onsubmit="return confirm('¿Eliminar entradas de hace más de 1 año? Esta acción no se puede deshacer.')">
-    <button type="submit" class="btn btn-danger">
-      <svg class="icon" aria-hidden="true"><use href="#icon-trash"/></svg>
-      Eliminar entradas de más de 1 año
-    </button>
+  <form method="post" action="/auditoria/prune" id="prune-form" style="display:none;">
+    <input type="hidden" name="idempotency_key" value="prune-{{ now|string|replace(' ', 'T')|replace(':', '') }}">
   </form>
+  <button type="button" class="btn btn-danger"
+          onclick="SaskiaConfirmModal.show({title:'¿Eliminar entradas de hace más de 1 año?',body:'Las entradas de auditoría más antiguas a 1 año se eliminarán permanentemente. Esta acción no se puede deshacer.',action:'/auditoria/prune',confirmLabel:'Sí, eliminar',danger:true})">
+    <svg class="icon" aria-hidden="true"><use href="#icon-trash"/></svg>
+    Eliminar entradas de más de 1 año
+  </button>
 </section>
 
 {% if formatted_rows %}
