@@ -49,6 +49,7 @@ from app.rms.models import (
     User,
 )
 from app.rms.models.channels import Channel
+from app.rms.models import MarketBenchmark
 from app.rms.tags import TagKind, ensure_starter_tags, ensure_tag, tag_target
 
 # Use UTC-naive datetime columns consistently with existing models.
@@ -314,7 +315,10 @@ def create_demo_pedido(session: Session) -> tuple[Pedido, PedidoLine] | None:
 
     # --- Idempotency: skip if this customer already has a pedido ---
     existing_pedido = session.execute(
-        select(Pedido).where(Pedido.customer_id == customer.id)
+        select(Pedido)
+        .where(Pedido.customer_id == customer.id)
+        .order_by(Pedido.id)
+        .limit(1)
     ).scalar_one_or_none()
     if existing_pedido is not None:
         existing_line = session.execute(
@@ -379,6 +383,61 @@ def create_demo_pedido(session: Session) -> tuple[Pedido, PedidoLine] | None:
         f"for {customer.name}, promised {promised.isoformat()}"
     )
     return pedido, line
+
+
+# Realistic Paraguayan bakery benchmarks (our_price vs market_avg)
+# (label, our_wholesale_gs, our_retail_gs, market_avg_gs, market_min_gs)
+BENCHMARKS: list[tuple[str, int, int, int, int]] = [
+    ("Chipa grande",         4500, 7000,  6500,  5000),
+    ("Muffin de vainilla",   5200, 8000,  9000,  7000),
+    ("Pan de queso",         4000, 6500,  6000,  4500),
+    ("Galleta de miel",      3500, 5500,  5000,  4000),
+    ("Hojaldre de jamón",   12000,18000, 18000, 15000),
+    ("Empanada de carne",    5500, 8500,  8000,  6000),
+    ("Croissant",            7000,11000, 12000,  9000),
+    ("Sopa paraguaya",       4000, 6500,  6000,  4500),
+    ("Chocotorta",          15000,22000, 23000, 18000),
+    ("Brownie",              6000, 9500,  9000,  7000),
+    ("Pão de queijo",        4500, 7000,  6500,  5000),
+    ("Torta de chocolate",  20000,30000, 30000, 25000),
+    ("Medialuna",            3500, 5500,  5500,  4000),
+    ("Rosca",               15000,22000, 20000, 16000),
+    ("Factura de crema",     4500, 7000,  7000,  5000),
+    ("Tostado",              8000,12500, 12000,  9500),
+    ("Budín de pan",        12000,18000, 17000, 14000),
+]
+
+
+def create_demo_benchmarks(session: Session) -> int:
+    """Seed MarketBenchmark rows so /vs-mercado shows real data.
+
+    Idempotent: skips LABELS that are already present (other benchmarks
+    from prior imports are left untouched).
+    Returns the number of rows inserted (positive) or skipped (0).
+    """
+    existing_labels = set(
+        label for (label,) in session.execute(
+            select(MarketBenchmark.product_label)
+        ).all()
+    )
+    n_new = 0
+    for label, wholesale, retail, avg, min_price in BENCHMARKS:
+        if label in existing_labels:
+            continue
+        session.add(
+            MarketBenchmark(
+                product_label=label,
+                our_wholesale_gs=wholesale,
+                our_retail_gs=retail,
+                market_avg_gs=avg,
+                comp_min_gs=min_price,
+            )
+        )
+        n_new += 1
+    if n_new:
+        session.flush()
+        logger.info(f"seed: created {n_new} additional MarketBenchmark rows")
+    return n_new
 
 
 def seed_demo_data(
@@ -529,6 +588,15 @@ def seed_demo_data(
     else:
         report.skipped_existing["pedido_demo_existing"] = (
             report.skipped_existing.get("pedido_demo_existing", 0) + 1
+        )
+
+    # --- Demo benchmarks (so /vs-mercado has rows to compare) ---
+    n_benchmarks = create_demo_benchmarks(session)
+    if n_benchmarks > 0:
+        report.skipped_existing["benchmarks_created"] = n_benchmarks
+    else:
+        report.skipped_existing["benchmarks_existing"] = (
+            report.skipped_existing.get("benchmarks_existing", 0) + 1
         )
 
     # --- Import batch example (so the import history is non-empty) ---
@@ -791,8 +859,10 @@ __all__ = [
     "INGREDIENTS",
     "RECIPES",
     "RECIPE_LINES",
+    "BENCHMARKS",
+    "create_demo_benchmarks",
+    "create_demo_pedido",
     "PRODUCTS",
     "SeedReport",
-    "create_demo_pedido",
     "seed_demo_data",
 ]
