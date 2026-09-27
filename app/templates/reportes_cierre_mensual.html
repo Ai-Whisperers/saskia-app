@@ -2,7 +2,8 @@
 {% import "_components/atoms.html" as ui %}
 {% import "_components/macros.html" as m %}
 
-{% block title %}Cierre mensual — {{ close.period_label }}{% endblock %}
+{% block title %}Cierre mensual — {{ close.period_label }}{{ ui.report_source_footer() }}
+{% endblock %}
 
 {% block content %}
 <h1>Cierre mensual — {{ close.period_label }}</h1>

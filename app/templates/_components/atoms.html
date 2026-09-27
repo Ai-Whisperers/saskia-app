@@ -61,13 +61,28 @@
 {%- endmacro %}
 
 {# ── A-4 empty_state ───────────────────────────────────────────────── #}
-{% macro empty_state(title, icon='icon-search', hint=None, cta_href=None, cta_label=None, compact=False) -%}
+{% macro empty_state(title, icon='icon-search', hint=None, cta_href=None, cta_label=None, compact=False, count_of=None, total_label=None) -%}
 <div class="empty-state{% if compact %} empty-state--compact{% endif %}">
   <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
   <p class="empty-state__title">{{ title }}</p>
+  {% if count_of is not none and count_of > 0 %}
+  <p class="empty-state__count muted">{{ count_of }} de {{ total_label or '0' }} cargados.</p>
+  {% endif %}
   {% if hint %}<p class="empty-state__hint">{{ hint }}</p>{% endif %}
   {% if cta_href %}<a class="btn btn-primary" href="{{ cta_href }}">{{ cta_label or 'Empezar' }}</a>{% endif %}
 </div>
+{%- endmacro %}
+
+{# ── A-16 report_source_footer: small footer with generation time + source tag ── #}
+{# Closes P1-4. Drops a consistent cite-footer on every report so the operator
+   can audit back to the data source. #}
+{% macro report_source_footer(source='Saskia RMS', period=None, note=None) -%}
+<footer class="report-source-footer muted" style="margin-top:2rem;padding-top:1rem;border-top:1px solid var(--color-border);font-size:var(--text-xs);">
+  <span>Generado <span title="{{ now_str() if now_str is defined else '' }}">por {{ source }}</span>.</span>
+  {% if period %}<span> · Período: {{ period }}</span>{% endif %}
+  {% if note %}<span> · {{ note }}</span>{% endif %}
+  <span style="float:right;">{{ now_str()[:16] if now_str is defined else '' }}</span>
+</footer>
 {%- endmacro %}
 
 {# ── A-5 entity_link: hash-guarded linked name ─────────────────────── #}

@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% import "_components/atoms.html" as ui %}
 {% import "_components/macros.html" as m %}
-{% block title %}Comparación de períodos{% endblock %}
+{% block title %}Comparación de períodos{{ ui.report_source_footer() }}
+{% endblock %}
 {% block content %}
 <h1>
   <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
