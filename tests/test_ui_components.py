@@ -508,3 +508,43 @@ def test_d17_receta_form_yield_unit_migrated(client):
         # The recetas page might need different auth/role
         return  # skip if page gated
     assert "recetas/api/units?q=" in body or "api/units" in body
+
+def test_d17_static_combo_currency_migrated(client):
+    """D17: bank.html currency picker uses <saskia-combo> with src= JSON."""
+    status, body = _get(client, "/bank")
+    assert status == 200
+    assert "<saskia-combo" in body
+    # Currency options present in src=
+    assert '\"EUR\"' in body and '\"PYG\"' in body and '\"USD\"' in body
+
+
+def test_d17_static_combo_tax_regime_migrated(client):
+    """D17: settings.html tax_regime uses <saskia-combo> with src= JSON."""
+    status, body = _get(client, "/settings")
+    assert status == 200
+    assert "<saskia-combo" in body
+    assert "tax_regime" in body
+    assert "\"resimple\"" in body and "\"general\"" in body
+
+
+def test_d17_static_combo_reorder_migrated(client):
+    """D17: reorder.html qty_unit renders as <saskia-combo> per item."""
+    status, body = _get(client, "/reorder")
+    assert status == 200
+    # Should have many saskia-combo elements (one per restock row)
+    assert body.count("<saskia-combo") >= 5
+
+
+def test_d17_static_combo_package_unit_migrated():
+    """D17: ingrediente_detalle.html source uses ui.combo_field() for package_unit."""
+    import pathlib
+    src = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/ingrediente_detalle.html").read_text()
+    assert "ui.combo_field(" in src
+    assert "package_unit" in src
+    assert '\"und\"' in src and '\"kg\"' in src
+    # Template compiles
+    from jinja2 import Environment, FileSystemLoader
+    env = Environment(loader=FileSystemLoader("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates"))
+    env.get_template("ingrediente_detalle.html")
+
+

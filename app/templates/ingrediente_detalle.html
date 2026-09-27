@@ -250,18 +250,13 @@
       </label>
       <label>
         Unidad del paquete
-        <div class="saskia-combo" data-source="static" data-display="name" data-value="value"
-             data-min-chars="0" data-row-builder="genericRowLabel">
-          <input type="text" class="combo-input" name="package_unit_display" maxlength="10" value="und" placeholder="und" required>
-          <input type="hidden" name="package_unit" value="und">
-          <div class="combo-results" role="listbox" hidden>
-            <div class="combo-static-option" data-value="und" data-display="und"></div>
-            <div class="combo-static-option" data-value="kg" data-display="kg"></div>
-            <div class="combo-static-option" data-value="g" data-display="g"></div>
-            <div class="combo-static-option" data-value="l" data-display="l"></div>
-            <div class="combo-static-option" data-value="ml" data-display="ml"></div>
-          </div>
-        </div>
+                {{ ui.combo_field(
+          name='package_unit',
+          value='und',
+          display='und',
+          placeholder='und',
+          src=[{"value": "und", "label": "und"}, {"value": "kg", "label": "kg"}, {"value": "g", "label": "g"}, {"value": "l", "label": "l"}, {"value": "ml", "label": "ml"}]
+        ) }}
       </label>
       <label>
         Precio (Gs.)

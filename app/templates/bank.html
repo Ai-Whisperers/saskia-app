@@ -26,25 +26,13 @@
       </div>
       <div class="form-group">
         <label for="currency_combo">Currency</label>
-        <div class="saskia-combo"
-             data-source="static"
-             data-display="name"
-             data-value="value"
-             data-min-chars="0"
-             data-row-builder="genericRowLabel">
-          <input type="text"
-                 id="currency_combo"
-                 class="combo-input"
-                 name="currency_display"
-                 value="EUR"
-                 placeholder="Currency">
-          <input type="hidden" id="currency" name="currency" value="EUR">
-          <div class="combo-results" role="listbox" hidden>
-            <div class="combo-static-option" data-value="EUR" data-display="EUR"></div>
-            <div class="combo-static-option" data-value="PYG" data-display="PYG"></div>
-            <div class="combo-static-option" data-value="USD" data-display="USD"></div>
-          </div>
-        </div>
+                {{ ui.combo_field(
+          name='currency',
+          value='EUR',
+          display='EUR',
+          placeholder='Currency',
+          src=[{"value": "EUR", "label": "EUR"}, {"value": "PYG", "label": "PYG"}, {"value": "USD", "label": "USD"}]
+        ) }}
       </div>
       <div class="form-group">
         <label for="amount">Importe (+/-)</label>
@@ -58,29 +46,13 @@
       </div>
       <div class="form-group">
         <label for="category_combo">Categoría</label>
-        <div class="saskia-combo"
-             data-source="static"
-             data-display="display"
-             data-value="value"
-             data-min-chars="0"
-             data-row-builder="genericRowLabel">
-          <input type="text"
-                 id="category_combo"
-                 class="combo-input"
-                 name="category_display"
-                 value="manual"
-                 placeholder="manual">
-          <input type="hidden" id="category" name="category" value="manual">
-          <div class="combo-results" role="listbox" hidden>
-            <div class="combo-static-option" data-value="manual" data-display="manual"></div>
-            <div class="combo-static-option" data-value="groceries" data-display="groceries"></div>
-            <div class="combo-static-option" data-value="transport" data-display="transport"></div>
-            <div class="combo-static-option" data-value="incoming_transfer" data-display="incoming_transfer"></div>
-            <div class="combo-static-option" data-value="supplier_purchase" data-display="supplier_purchase"></div>
-            <div class="combo-static-option" data-value="utilities" data-display="utilities"></div>
-            <div class="combo-static-option" data-value="other" data-display="other"></div>
-          </div>
-        </div>
+                {{ ui.combo_field(
+          name='category',
+          value='manual',
+          display='manual',
+          placeholder='manual',
+          src=[{"value": "manual", "label": "manual"}, {"value": "groceries", "label": "groceries"}, {"value": "transport", "label": "transport"}, {"value": "incoming_transfer", "label": "incoming_transfer"}, {"value": "supplier_purchase", "label": "supplier_purchase"}, {"value": "utilities", "label": "utilities"}, {"value": "other", "label": "other"}]
+        ) }}
       </div>
       <div class="form-group" style="grid-column:1/-1;">
         <label for="description">Descripción</label>
@@ -126,7 +98,7 @@
         hint="Usá el formulario de arriba para registrar un movimiento manual, o importá un archivo del banco.",
         count_of=0,
         total_label="movimientos"
-      ) }}
+      ) }}}
     </td></tr>
     {% endfor %}
   </tbody>
