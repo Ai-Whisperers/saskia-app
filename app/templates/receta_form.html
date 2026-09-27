@@ -38,28 +38,18 @@
 
         <div class="form-row">
           <label for="family_combo">Familia / Categoría</label>
-          <div class="saskia-combo"
-               data-source="static"
-               data-display="name"
-               data-value="value"
-               data-min-chars="0"
-               data-row-builder="categoryRowLabel"
-               data-allow-create="true">
-            <input type="text"
-                   id="family_combo"
-                   class="combo-input"
-                   name="family_display"
-                   maxlength="60"
-                   value="{{ recipe.family if recipe and recipe.family else '' }}"
-                   placeholder="Elegí o escribí una familia…"
-                   autocomplete="off">
-            <input type="hidden" name="family" value="{{ recipe.family if recipe and recipe.family else '' }}">
-            <div class="combo-results" role="listbox" hidden>
-              {% for fam in recipe_families %}
-                <div class="combo-static-option" data-value="{{ fmt.entity_name(fam) }}" data-display="{{ fmt.entity_name(fam) }}"></div>
-              {% endfor %}
-            </div>
-          </div>
+          {% set _family_src = [] %}
+          {% for fam in recipe_families %}
+            {% set _ = _family_src.append({'label': fmt.entity_name(fam), 'value': fmt.entity_name(fam)}) %}
+          {% endfor %}
+          {{ ui.combo_field(
+            name='family',
+            value=(recipe.family if recipe and recipe.family else ''),
+            display=(recipe.family if recipe and recipe.family else ''),
+            placeholder='Elegí o escribí una familia…',
+            src=_family_src,
+            allow_create=True
+          ) }}
         </div>
       </div>
     </section>
@@ -99,41 +89,36 @@
           <tr class="line-row" data-kind="{{ line.line_kind }}"
               data-line-id="{{ line.id if line.id else '' }}">
             <td class="line-col-type">
-              <div class="saskia-combo" data-source="static" data-display="name" data-value="value"
-                   data-min-chars="0" data-row-builder="genericRowLabel">
-                <input type="text" class="combo-input" name="line_kind_display" maxlength="15"
-                       value="{% if line.line_kind == 'sub_recipe' %}Sub-receta{% else %}Insumo{% endif %}" placeholder="Tipo">
-                <input type="hidden" name="line_kind" value="{{ line.line_kind }}">
-                <div class="combo-results" role="listbox" hidden>
-                  <div class="combo-static-option" data-value="ingredient" data-display="Insumo"></div>
-                  <div class="combo-static-option" data-value="sub_recipe" data-display="Sub-receta"></div>
-                </div>
-              </div>
+              {{ ui.combo_field(
+                name='line_kind',
+                value=line.line_kind,
+                display=('Sub-receta' if line.line_kind == 'sub_recipe' else 'Insumo'),
+                placeholder='Tipo',
+                src=[{'label': 'Insumo', 'value': 'ingredient'}, {'label': 'Sub-receta', 'value': 'sub_recipe'}]
+              ) }}
             </td>
             <td class="line-col-item">
-              <div class="saskia-combo line-target-combo"
-                   {% if line.line_kind == 'sub_recipe' %}
-                   data-source="/recetas/api/search"
-                   {% else %}
-                   data-source="/inventario/api/search"
-                   {% endif %}
-                   data-display="name"
-                   data-value="id"
-                   data-min-chars="0"
-                   data-row-builder="genericRowLabel"
-                   data-line-target="line_target_id"
-                   data-current-kind="{{ line.line_kind }}"
-                   {% if line.line_kind != 'sub_recipe' %}data-allow-create="true"{% endif %}>
-                <input type="text"
-                       class="combo-input line-target-input"
-                       name="line_target_display"
-                       maxlength="60"
-                       value="{{ line.target_name or '' }}"
-                       placeholder="{% if line.line_kind == 'sub_recipe' %}Buscar sub-receta…{% else %}Buscar ingrediente…{% endif %}"
-                       autocomplete="off">
-                <input type="hidden" name="line_target_id" value="{{ line.line_ref_id or '' }}">
-                <div class="combo-results" role="listbox" hidden></div>
-              </div>
+              {% if line.line_kind == 'sub_recipe' %}
+                {{ ui.combo_field(
+                  name='line_target_id',
+                  value=line.line_ref_id,
+                  display=line.target_name,
+                  placeholder='Buscar sub-receta…',
+                  endpoint='/recetas/api/search/',
+                  value_field='id',
+                  label_field='name'
+                ) }}
+              {% else %}
+                {{ ui.combo_field(
+                  name='line_target_id',
+                  value=line.line_ref_id,
+                  display=line.target_name,
+                  placeholder='Buscar ingrediente…',
+                  endpoint='/inventario/api/search/',
+                  value_field='id',
+                  label_field='name'
+                ) }}
+              {% endif %}
             </td>
             <td class="line-col-qty">
               <input type="number" step="0.001" min="0" name="line_qty"
@@ -141,17 +126,17 @@
                      value="{{ "%.3f"|format(line.qty or 0) }}" placeholder="0.000">
             </td>
             <td class="line-col-unit">
-              <div class="saskia-combo" data-source="static" data-display="name" data-value="value"
-                   data-min-chars="0" data-row-builder="genericRowLabel">
-                <input type="text" class="combo-input" name="line_unit_display" maxlength="10"
-                       value="{{ line.line_unit or line.unit or 'g' }}" placeholder="g">
-                <input type="hidden" name="line_unit" value="{{ line.line_unit or line.unit or 'g' }}">
-                <div class="combo-results" role="listbox" hidden>
-                  {% for u in ['g', 'kg', 'ml', 'l', 'und'] %}
-                    <div class="combo-static-option" data-value="{{ u }}" data-display="{{ u }}"></div>
-                  {% endfor %}
-                </div>
-              </div>
+              {% set _unit_src = [] %}
+              {% for u in ['g', 'kg', 'ml', 'l', 'und'] %}
+                {% set _ = _unit_src.append({'label': u, 'value': u}) %}
+              {% endfor %}
+              {{ ui.combo_field(
+                name='line_unit',
+                value=(line.line_unit or line.unit or 'g'),
+                display=(line.line_unit or line.unit or 'g'),
+                placeholder='g',
+                src=_unit_src
+              ) }}
             </td>
             <td class="line-col-cost">
               <span class="line-cost-display" data-cost-per-unit="0">Gs. 0</span>
@@ -229,31 +214,17 @@
       {% if mode == 'edit' and recipe and recipe.yield_qty %}
       <div class="form-row">
         <label for="scale_combo">Escalar rendimiento</label>
-        <script>
-        // Auto-submit the scale form when the combo picks a multiplier
-        document.addEventListener('DOMContentLoaded', function() {
-          var scaleCombo = document.getElementById('scale_combo');
-          if (scaleCombo) {
-            var combo = scaleCombo.closest('.saskia-combo');
-            if (combo && combo._saskiaCombo) {
-              combo._saskiaCombo.opts.onSelect = function() {
-                combo.closest("form").submit();
-              };
-            }
-          }
-        });
-        </script>
-        <div class="saskia-combo" data-source="static" data-display="name" data-value="value"
-             data-min-chars="0" data-row-builder="genericRowLabel" data-autosubmit="true">
-          <input type="text" id="scale_combo" class="combo-input" name="scale_display" maxlength="6"
-                 value="{{ scale_factor }}x" placeholder="1x">
-          <input type="hidden" name="scale" value="{{ scale_factor }}">
-          <div class="combo-results" role="listbox" hidden>
-            {% for mult in [0.25, 0.5, 1, 1.5, 2, 3, 4, 5] %}
-              <div class="combo-static-option" data-value="{{ mult }}" data-display="{{ mult }}x"></div>
-            {% endfor %}
-          </div>
-        </div>
+        <saskia-combo name="scale"
+                      value="{{ scale_factor }}"
+                      display="{{ scale_factor }}x"
+                      placeholder="1x"
+                      autosubmit
+                      {% set _scale_src = [] %}
+                      {% for m in [0.25, 0.5, 1, 1.5, 2, 3, 4, 5] %}
+                        {% set _ = _scale_src.append({'label': m|string + 'x', 'value': m|string}) %}
+                      {% endfor %}
+                      src='{{ _scale_src | tojson }}'
+                      data-id="scale_combo"></saskia-combo>
         <small class="muted">Rinde escalado: {{ "%.2f"|format(recipe.yield_qty * scale_factor) }} {{ recipe.yield_unit }}</small>
       </div>
       {% endif %}
@@ -860,174 +831,6 @@
     }
   }
 
-  // ---------- Line-kind → target-combo source switching ----------
-  // After the line_kind combo picks a new value, swap the item combo's
-  // source (ingredient vs sub-recipe API) so the right search runs.
-  function updateLineSource(row) {
-    var kindHidden = row.querySelector('input[name="line_kind"]');
-    var combo = row.querySelector('.line-target-combo');
-    if (!kindHidden || !combo) return;
-    var input = combo.querySelector('.combo-input');
-    var hidden = combo.querySelector('input[name="line_target_id"]');
-    var results = combo.querySelector('.combo-results');
-
-    var sourceUrl, ph, allowCreate;
-    if (kindHidden.value === 'sub_recipe') {
-      sourceUrl = '/recetas/api/search';
-      ph = 'Buscar sub-receta…';
-      allowCreate = false;
-      combo.removeAttribute('data-allow-create');
-    } else {
-      sourceUrl = '/inventario/api/search';
-      ph = 'Buscar ingrediente…';
-      allowCreate = true;
-      combo.setAttribute('data-allow-create', 'true');
-    }
-    combo.dataset.source = sourceUrl;
-    if (input) input.placeholder = ph;
-    // Clear stale selection when the kind changes
-    if (input) input.value = '';
-    if (hidden) hidden.value = '';
-    if (results) { results.innerHTML = ''; results.hidden = true; }
-
-    // Re-init the combo instance against the new source
-    if (window.SaskiaCombo) {
-      if (combo._saskiaCombo && combo._saskiaCombo.destroy) combo._saskiaCombo.destroy();
-      combo._saskiaCombo = new SaskiaCombo(combo, {
-        source: sourceUrl,
-        displayField: 'name',
-        valueField: 'id',
-        minChars: 0,
-        allowCreate: allowCreate,
-        buildRow: window.genericRowLabel,
-      });
-    }
-  }
-
-  // Wire the kind combo so selecting Insumo/Sub-receta triggers updateLineSource.
-  function wireLineKindHandlers(row) {
-    var combos = row.querySelectorAll('.saskia-combo');
-    var kindCombo = null;
-    for (var i = 0; i < combos.length; i++) {
-      if (combos[i].querySelector('input[name="line_kind"]')) { kindCombo = combos[i]; break; }
-    }
-    if (kindCombo && kindCombo._saskiaCombo) {
-      kindCombo._saskiaCombo.opts.onSelect = function () { updateLineSource(row); };
-    } else if (kindCombo) {
-      // Combo not yet initialized (dynamic row): catch value changes on the hidden input
-      var kindHidden = kindCombo.querySelector('input[name="line_kind"]');
-      if (kindHidden) kindHidden.addEventListener('change', function () { updateLineSource(row); });
-    }
-  }
-
-  // ---------- Row wiring (re-init on every row, including new ones) ----------
-  function initLineRow(row) {
-    var kindHidden = row.querySelector('input[name="line_kind"]');
-    if (!kindHidden) return;
-    var combo = row.querySelector('.line-target-combo');
-    var comboInput = row.querySelector('.line-target-input');
-    var comboHidden = row.querySelector('input[name="line_target_id"]');
-    var placeholder = row.querySelector('input[name="line_qty"]');
-    var removeBtn = row.querySelector('.line-remove');
-
-    function syncKindToCombo() {
-      var kind = kindHidden.value;
-      if (!combo) return;
-      // Toggle source
-      if (kind === 'sub_recipe') {
-        combo.dataset.source = '/recetas/api/search';
-        combo.removeAttribute('data-allow-create');
-        if (comboInput) comboInput.placeholder = 'Buscar sub-receta…';
-      } else {
-        combo.dataset.source = '/inventario/api/search';
-        combo.setAttribute('data-allow-create', 'true');
-        if (comboInput) comboInput.placeholder = 'Buscar ingrediente…';
-      }
-      // Re-init the combo (clear and rewire)
-      if (combo._saskiaCombo && combo._saskiaCombo.destroy) {
-        combo._saskiaCombo.destroy();
-      }
-      combo.innerHTML = combo.innerHTML.replace(/<div class="combo-results".*?<\/div>/s, '');
-      if (window.SaskiaCombo) {
-        combo._saskiaCombo = new SaskiaCombo(combo, {
-          source: combo.dataset.source,
-          displayField: 'name',
-          valueField: 'id',
-          minChars: 0,
-          allowCreate: combo.dataset.allowCreate === 'true',
-          buildRow: window.genericRowLabel,
-          onCreate: function(newName) {
-            if (kind === 'sub_recipe') {
-              alert('Para sub-recetas: guardá esta receta primero con el nombre, después la podés usar como sub-receta.');
-              return;
-            }
-            var body = new URLSearchParams();
-            body.set('name', newName);
-            body.set('unit', 'g');
-            body.set('min_stock_qty', '0');
-            body.set('purchase_price_gs', '0');
-            body.set('is_available', 'on');
-            body.set('notes', 'Creado desde receta');
-            fetch('/inventario/nuevo', { method: 'POST', body: body, credentials: 'same-origin' })
-              .then(function(r) {
-                if (r.redirected) {
-                  return fetch('/inventario/api/search?q=' + encodeURIComponent(newName))
-                    .then(function(rr) { return rr.json(); });
-                }
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-              })
-              .then(function(j) {
-                if (!j || !j.results) return;
-                var ing = j.results.find(function(x) { return x.name === newName; });
-                if (ing && comboHidden) {
-                  comboHidden.value = ing.id;
-                  if (comboInput) {
-                    comboInput.value = ing.name;
-                    comboInput.classList.add('is-selected');
-                  }
-                  // Also update ingredientPrices so cost calc has the new ingredient
-                  ingredientPrices[ing.id] = {
-                    name: ing.name, unit: ing.unit,
-                    purchase_price_gs: ing.purchase_price_gs || 0,
-                    stock_qty: ing.stock_qty || 0
-                  };
-                  computeCosts();
-                }
-              })
-              .catch(function(err) { alert('Error creando ingrediente: ' + err.message); });
-          }
-        });
-      }
-    }
-
-    // Kind combo select → re-sync source. Also re-fire when the hidden
-    // value changes (SaskiaCombo sets it on select).
-    wireLineKindHandlers(row);
-
-    // Re-compute cost on qty change
-    var qtyInput = row.querySelector('input[name="line_qty"]');
-    if (qtyInput) qtyInput.addEventListener('input', computeCosts);
-
-    // Recompute when target selected (combo onPick)
-    if (combo && combo._saskiaCombo) {
-      var origOnSelect = combo._saskiaCombo.opts.onSelect;
-      combo._saskiaCombo.opts.onSelect = function(item) {
-        if (origOnSelect) origOnSelect(item);
-        computeCosts();
-      };
-    }
-
-    if (removeBtn) {
-      removeBtn.addEventListener('click', function() {
-        row.remove();
-        computeCosts();
-      });
-    }
-  }
-
-  // Initialize all existing rows
-  document.querySelectorAll('#lines .line-row').forEach(initLineRow);
-
   // ---------- Add line button ----------
   var addBtn = document.getElementById('add-line');
   if (addBtn) {
@@ -1038,45 +841,21 @@
       row.dataset.kind = 'ingredient';
       row.innerHTML = `
         <td class="line-col-type">
-          <div class="saskia-combo" data-source="static" data-display="name" data-value="value"
-               data-min-chars="0" data-row-builder="genericRowLabel">
-            <input type="text" class="combo-input" name="line_kind_display" maxlength="15" value="Insumo" placeholder="Tipo">
-            <input type="hidden" name="line_kind" value="ingredient">
-            <div class="combo-results" role="listbox" hidden>
-              <div class="combo-static-option" data-value="ingredient" data-display="Insumo"></div>
-              <div class="combo-static-option" data-value="sub_recipe" data-display="Sub-receta"></div>
-            </div>
-          </div>
+          <saskia-combo name="line_kind" value="ingredient" display="Insumo" placeholder="Tipo"
+            src='[{"label":"Insumo","value":"ingredient"},{"label":"Sub-receta","value":"sub_recipe"}]'></saskia-combo>
         </td>
         <td class="line-col-item">
-          <div class="saskia-combo line-target-combo"
-               data-source="/inventario/api/search"
-               data-display="name" data-value="id"
-               data-min-chars="0"
-               data-row-builder="genericRowLabel"
-               data-line-target="line_target_id"
-               data-current-kind="ingredient"
-               data-allow-create="true">
-            <input type="text" class="combo-input line-target-input"
-                   name="line_target_display" maxlength="60" value=""
-                   placeholder="Buscar ingrediente…" autocomplete="off">
-            <input type="hidden" name="line_target_id" value="">
-            <div class="combo-results" role="listbox" hidden></div>
-          </div>
+          <saskia-combo name="line_target_id" placeholder="Buscar ingrediente…"
+            endpoint="/inventario/api/search/"
+            value-field="id" label-field="name"></saskia-combo>
         </td>
         <td class="line-col-qty">
           <input type="number" step="0.001" min="0" name="line_qty"
                  class="line-qty-input" value="" placeholder="0.000">
         </td>
         <td class="line-col-unit">
-          <div class="saskia-combo" data-source="static" data-display="name" data-value="value"
-               data-min-chars="0" data-row-builder="genericRowLabel">
-            <input type="text" class="combo-input" name="line_unit_display" maxlength="10" value="g" placeholder="g">
-            <input type="hidden" name="line_unit" value="g">
-            <div class="combo-results" role="listbox" hidden>
-              ${(window.SASKIA_UNITS || ["g","kg","ml","l","und"]).map(function(u){return '<div class="combo-static-option" data-value="'+u+'" data-display="'+u+'"></div>';}).join('')}
-            </div>
-          </div>
+          <saskia-combo name="line_unit" value="g" display="g" placeholder="g"
+            src='[{"label":"g","value":"g"},{"label":"kg","value":"kg"},{"label":"ml","value":"ml"},{"label":"l","value":"l"},{"label":"und","value":"und"}]'></saskia-combo>
         </td>
         <td class="line-col-cost">
           <span class="line-cost-display" data-cost-per-unit="0">Gs. 0</span>
@@ -1094,21 +873,11 @@
       `;
       tbody.appendChild(row);
       initLineRow(row);
-      // Re-init combo (SaskiaCombo was created in DOMContentLoaded for new combos
-      // in some templates; for dynamically appended ones we need to create here)
-      var combo = row.querySelector('.saskia-combo');
-      if (combo && !combo._saskiaCombo && window.SaskiaCombo) {
-        combo._saskiaCombo = new SaskiaCombo(combo, {
-          source: combo.dataset.source,
-          displayField: 'name',
-          valueField: 'id',
-          minChars: 0,
-          allowCreate: combo.dataset.allowCreate === 'true',
-          buildRow: window.genericRowLabel,
-        });
-        // Wire onSelect for cost calc
-        combo._saskiaCombo.opts.onSelect = function() { computeCosts(); };
-      }
+      // Web Components auto-init on connectedCallback; wire change handlers for cost calc
+      var combos = row.querySelectorAll('saskia-combo');
+      combos.forEach(function(c) {
+        c.addEventListener('change', function() { computeCosts(); });
+      });
     });
   }
 
@@ -1191,10 +960,47 @@
 
   // Re-derive whenever a line changes (delegated: covers add/remove/edit)
   document.getElementById('lines').addEventListener('change', updateTagPreview);
+  document.getElementById('lines').addEventListener('change', function(e) {
+    // Recompute costs on any combo or input change inside a line row
+    if (e.target.matches('saskia-combo, input, select, textarea')) {
+      computeCosts();
+    }
+  });
   document.getElementById('add-line').addEventListener('click', function() {
     setTimeout(updateTagPreview, 50);
   });
   updateTagPreview();
+
+  // ---------- Post-migration shim: saskia-combo Web Component bridge ----------
+  // After migrating from legacy .saskia-combo divs to <saskia-combo> elements,
+  // the Web Component dispatches 'change' on selection. Wire line-kind combos
+  // to swap target endpoint (sub_recipe ↔ ingrediente) via attribute.
+  function bridgeLineKindCombos() {
+    var rows = document.querySelectorAll('#lines .line-row');
+    rows.forEach(function(row) {
+      var kindCombo = row.querySelector('saskia-combo[name="line_kind"]');
+      var targetCombo = row.querySelector('saskia-combo[name="line_target_id"]');
+      if (!kindCombo || !targetCombo) return;
+      if (kindCombo._saskiaBridged) return;
+      kindCombo._saskiaBridged = true;
+      kindCombo.addEventListener('change', function() {
+        var kind = kindCombo.getValue();
+        if (kind === 'sub_recipe') {
+          targetCombo.setAttribute('endpoint', '/recetas/api/search/');
+          targetCombo.setAttribute('placeholder', 'Buscar sub-receta…');
+        } else {
+          targetCombo.setAttribute('endpoint', '/inventario/api/search/');
+          targetCombo.setAttribute('placeholder', 'Buscar ingrediente…');
+        }
+        targetCombo.clear();
+      });
+    });
+  }
+  bridgeLineKindCombos();
+  // Also bridge when new rows are added
+  document.getElementById('add-line').addEventListener('click', function() {
+    setTimeout(bridgeLineKindCombos, 10);
+  });
 
   // ---------- Initial compute on page load ----------
   computeCosts();

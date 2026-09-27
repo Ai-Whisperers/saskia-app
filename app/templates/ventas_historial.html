@@ -42,49 +42,26 @@
 <div class="form-row">
   <label for="sales-search" class="sr-only">Buscar producto, nota o teléfono</label>
   <input type="search" id="sales-search" name="q" value="{{ request.query_params.get('q','') }}" placeholder="Buscar producto, nota o teléfono" aria-label="Buscar producto, nota o teléfono">
-  <div class="saskia-combo"
-       data-source="data:application/json,[{'name': 'Todos los productos', 'id': ''}{% for p in products %},{'name': '{{ fmt.entity_name(p) }}', 'id': {{ p.id }}}{% if not loop.last %},{% endif %}{% endfor %}]"
-       data-display="name"
-       data-value="id"
-       data-min-chars="0"
-       data-allow-freeform="false">
-    <input type="text"
-           id="product-filter"
-           class="combo-input"
-           name="product_name"
-           placeholder="Filtrar por producto..."
-           autocomplete="off">
-    <input type="hidden" name="product_id" value="{{ request.query_params.get('product_id') }}">
-    <div class="combo-results" role="listbox" aria-label="Productos" hidden></div>
-  </div>
+  {% set _products_src = [{'label': 'Todos los productos', 'value': ''}] %}
+  {% for p in products %}
+    {% set _ = _products_src.append({'label': fmt.entity_name(p), 'value': p.id|string}) %}
+  {% endfor %}
+  {{ ui.combo_field(
+    name='product_id',
+    value=(request.query_params.get('product_id') or ''),
+    placeholder='Filtrar por producto...',
+    src=_products_src
+  ) }}
 
   <label for="days-filter" class="sr-only">Rango de días</label>
-  <div class="saskia-combo" data-source="static" data-display="name" data-value="value"
-       data-min-chars="0" data-row-builder="genericRowLabel" data-autosubmit="true">
-    <input type="text" id="days-filter" class="combo-input" name="days_display" maxlength="20" aria-label="Rango de días"
-           value="{% if days == 7 %}Últimos 7 días{% elif days == 30 %}Últimos 30 días{% elif days == 90 %}Últimos 90 días{% else %}Todos los días{% endif %}" placeholder="Rango">
-    <input type="hidden" name="days" value="{{ days or '' }}">
-    <div class="combo-results" role="listbox" hidden>
-      <div class="combo-static-option" data-value="" data-display="Todos los días"></div>
-      <div class="combo-static-option" data-value="7" data-display="Últimos 7 días"></div>
-      <div class="combo-static-option" data-value="30" data-display="Últimos 30 días"></div>
-      <div class="combo-static-option" data-value="90" data-display="Últimos 90 días"></div>
-    </div>
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      var el = document.getElementById('days-filter');
-      if (el) {
-        var combo = el.closest('.saskia-combo');
-        var wire = function() {
-          if (combo && combo._saskiaCombo) {
-            combo._saskiaCombo.opts.onSelect = function() { combo.closest("form").submit(); };
-          } else { setTimeout(wire, 50); }
-        };
-        wire();
-      }
-    });
-    </script>
-  </div>
+  {{ ui.combo_field(
+    name='days',
+    value=(days or ''),
+    display=({7: 'Últimos 7 días', 30: 'Últimos 30 días', 90: 'Últimos 90 días'}.get(days, 'Todos los días')),
+    placeholder='Rango',
+    src=[{'label': 'Todos los días', 'value': ''}, {'label': 'Últimos 7 días', 'value': '7'}, {'label': 'Últimos 30 días', 'value': '30'}, {'label': 'Últimos 90 días', 'value': '90'}],
+    autosubmit=True
+  ) }}
 
   <button type="submit" class="btn btn-primary">Filtrar</button>
   {% if q or product_id or days %}

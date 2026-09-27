@@ -9,14 +9,18 @@
    (they just produce empty option lists). This makes the migration
    safe — existing routes don't break, they just get empty dropdowns
    until the route is updated. #}
+{% import "_components/atoms.html" as ui %}
 
 
 {# ─── Catalog option renderers (loops over DB rows) ─────────────────── #}
 
 {% macro render_category_options(categories) %}
+  {# Return a list of {label, value} dicts for <saskia-combo> src= JSON. #}
+  {% set _options = [] %}
   {% for cat in categories %}
-    <div class="combo-static-option" data-value="{{ cat.name }}" data-display="{{ cat.name }}"></div>
+    {% set _ = _options.append({'label': cat.name, 'value': cat.name}) %}
   {% endfor %}
+  {{ _options }}
 {% endmacro %}
 
 {% macro render_tag_pills(tags) %}
@@ -51,31 +55,21 @@
 {# ─── Single-select category picker (uses saskia-combo) ────────────── #}
 
 {% macro category_picker(name, current_value, options_markup, allow_custom=True, label='', help='') %}
+  {# options_markup: list of {label, value} dicts (from render_category_options). #}
+  {% set _src = options_markup if options_markup is iterable and options_markup is not string else [] %}
+  {% if not current_value and _src %}
+    {% set _ = _src.insert(0, {'label': '— Sin categoría —', 'value': ''}) %}
+  {% endif %}
   <div class="form-row">
     {% if label %}<label for="{{ name }}_combo">{{ label }}</label>{% endif %}
-    <div class="saskia-combo"
-         data-source="static"
-         data-display="name"
-         data-value="value"
-         data-min-chars="0"
-         data-row-builder="categoryRowLabel"
-         {% if allow_custom %}data-allow-create="true"{% endif %}>
-      <input type="text"
-             id="{{ name }}_combo"
-             class="combo-input"
-             name="{{ name }}_display"
-             maxlength="60"
-             value="{{ current_value or '' }}"
-             placeholder="Elegí o escribí una categoría…"
-             autocomplete="off">
-      <input type="hidden" name="{{ name }}" value="{{ current_value or '' }}">
-      <div class="combo-results" role="listbox" hidden>
-        {% if not current_value %}
-          <div class="combo-static-option" data-value="" data-display="— Sin categoría —"></div>
-        {% endif %}
-        {{ options_markup }}
-      </div>
-    </div>
+    {{ ui.combo_field(
+      name=name,
+      value=(current_value or ''),
+      display=(current_value or ''),
+      placeholder='Elegí o escribí una categoría…',
+      src=_src,
+      allow_create=allow_custom
+    ) }}
     {% if help %}<small class="muted">{{ help }}</small>{% endif %}
   </div>
 {% endmacro %}

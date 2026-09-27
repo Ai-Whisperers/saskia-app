@@ -21,26 +21,13 @@
   <div class="form-row">
     <label for="category_combo">Categoría</label>
     {# Combo supports creating new categories. No API — just creates on submit. #}
-    <div class="saskia-combo" data-saskia-combo="true"
-         data-source=""
-         data-display="name"
-         data-value="value"
-         data-min-chars="1"
-         data-row-builder="categoryRowLabel"
-         data-allow-create="true">
-      <input type="text"
-             id="category_combo"
-             class="combo-input"
-             maxlength="32"
-             value="{{ ingredient.category if ingredient and ingredient.category else '' }}"
-             placeholder="Ej: Harinas, Lácteos, Aceites">
-      {# The hidden input is the only one that submits (the combo JS
-         writes the selected/created value here on change). Removing
-         `name=` from the visible text input prevents duplicate-name
-         form bugs where both values hit the router. #}
-      <input type="hidden" name="category" value="{{ ingredient.category if ingredient and ingredient.category else '' }}">
-      <div class="combo-results" role="listbox" hidden></div>
-    </div>
+    {{ ui.combo_field(
+      name='category',
+      value=(ingredient.category if ingredient and ingredient.category else ''),
+      display=(ingredient.category if ingredient and ingredient.category else ''),
+      placeholder='Ej: Harinas, Lácteos, Aceites',
+      allow_create=True
+    ) }}
     <small class="muted">Opcional. Para agrupar ingredientes en el inventario.</small>
   </div>
   <div class="form-row">

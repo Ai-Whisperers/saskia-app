@@ -123,27 +123,42 @@ TODOs (for tomorrow's full implementation):
       this._value = null;
       this._display = null;
       this._debounceTimer = null;
+      this._uid = 'saskia-combo-' + Math.random().toString(36).slice(2, 10);
     }
 
     static get observedAttributes() {
       return ['value', 'display', 'name', 'placeholder', 'endpoint', 'src', 'disabled',
-              'value-field', 'label-field'];
+              'value-field', 'label-field', 'allow-create'];
     }
 
     connectedCallback() {
       this._parseAttributes();
       this._render();
       this._attachListeners();
+      // Mirror initial value into hidden input (for native form serialization)
+      this._emitChange();
     }
 
     disconnectedCallback() {
       document.removeEventListener('click', this._onDocClick);
     }
 
-    attributeChangedCallback() {
+    attributeChangedCallback(name) {
       if (this.isConnected) {
         this._parseAttributes();
         this._updateTrigger();
+        // Re-fetch results when data source changes (endpoint, src, or field mapping)
+        if (name === 'endpoint' || name === 'src' ||
+            name === 'value-field' || name === 'label-field') {
+          // Clear stale value when source changes (different dataset)
+          if (name === 'endpoint' || name === 'src') {
+            this._value = null;
+            this._display = null;
+            this._updateTrigger();
+            this._emitChange();
+          }
+          this._filterAndRender('');
+        }
       }
     }
 
@@ -163,6 +178,7 @@ TODOs (for tomorrow's full implementation):
 
     getValue() { return this._value; }
     getDisplay() { return this._display; }
+    clear() { this.setValue(null, null); }
     setValue(value, display) {
       this._value = value;
       this._display = display || null;
@@ -352,9 +368,24 @@ TODOs (for tomorrow's full implementation):
       else if (e.key === 'ArrowUp') { e.preventDefault(); this._moveActive(-1); }
       else if (e.key === 'Enter') {
         e.preventDefault();
-        const items = this.shadowRoot.querySelectorAll('.item:not(.empty):not(.loading)');
+        const items = this.shadowRoot.querySelectorAll('.item:not(.empty):not(.loading):not(.create)');
         if (this._activeIdx >= 0 && items[this._activeIdx]) {
           this._selectItem(this._results[this._activeIdx]);
+          return;
+        }
+        // Allow-create: if Enter pressed with no selection and search text present,
+        // create a virtual item with the typed text as both value and label.
+        if (this.hasAttribute('allow-create')) {
+          const search = this.shadowRoot.querySelector('.search');
+          const typed = (search && search.value || '').trim();
+          if (typed) {
+            this.dispatchEvent(new CustomEvent('create-option', {
+              bubbles: true,
+              detail: { value: typed, label: typed, name: typed }
+            }));
+            this.setValue(typed, typed);
+            this._close();
+          }
         }
       } else if (e.key === 'Escape') {
         this._close();
@@ -364,9 +395,29 @@ TODOs (for tomorrow's full implementation):
     _selectItem(item) {
       this.setValue(item.value, item.label || item.value);
       this._close();
+      // Auto-submit: if attribute set, submit the closest form on selection.
+      // Used for scale selectors and similar "change → reload" patterns.
+      if (this.hasAttribute('autosubmit')) {
+        const form = this.closest('form');
+        if (form) form.submit();
+      }
+      // Fire DOM change event on the host element so legacy scripts that
+      // listen for `change` (or form serialize) keep working
+      this.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
     _emitChange() {
+      const name = this.getAttribute('name');
+      let mirror = name ? document.querySelector(`input[type="hidden"][data-saskia-combo-mirror="${name}"][data-saskia-combo-id="${this._uid}"]`) : null;
+      if (!mirror && name) {
+        mirror = document.createElement('input');
+        mirror.type = 'hidden';
+        mirror.name = name;
+        mirror.setAttribute('data-saskia-combo-mirror', name);
+        mirror.setAttribute('data-saskia-combo-id', this._uid);
+        this.parentNode.insertBefore(mirror, this.nextSibling);
+      }
+      if (mirror) mirror.value = this._value == null ? '' : this._value;
       this.dispatchEvent(new CustomEvent('change', {
         detail: { value: this._value, display: this._display }
       }));

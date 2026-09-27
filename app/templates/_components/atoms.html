@@ -286,7 +286,8 @@
 {% macro combo_field(name, value=None, display=None, placeholder=None,
                      src=None, endpoint=None, required=False,
                      label=None, label_for=None,
-                     value_field='value', label_field='label') -%}
+                     value_field='value', label_field='label',
+                     allow_create=False, autosubmit=False) -%}
   {% set _vf = value_field %}
   {% set _lf = label_field %}
   {% if label -%}
@@ -298,6 +299,8 @@
                   {% if display %}display="{{ display }}"{% endif %}
                   {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
                   {% if required %}required{% endif %}
+                  {% if allow_create %}allow-create{% endif %}
+                  {% if autosubmit %}autosubmit{% endif %}
                   src='{{ src | tojson }}'></saskia-combo>
   {%- elif endpoint -%}
     <saskia-combo name="{{ name }}"
@@ -305,6 +308,8 @@
                   {% if display %}display="{{ display }}"{% endif %}
                   {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
                   {% if required %}required{% endif %}
+                  {% if allow_create %}allow-create{% endif %}
+                  {% if autosubmit %}autosubmit{% endif %}
                   endpoint="{{ endpoint }}"
                   {% if _vf != 'value' %}value-field="{{ _vf }}"{% endif %}
                   {% if _lf != 'label' %}label-field="{{ _lf }}"{% endif %}></saskia-combo>

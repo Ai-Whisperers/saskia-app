@@ -32,21 +32,13 @@
 
   <div class="form-row">
     <label for="product_id">Producto</label>
-    <div class="saskia-combo" 
-         data-source="/productos/api/search"
-         data-display="name"
-         data-value="id"
-         data-min-chars="0"
-         data-row-builder="productRowLabel">
-      <input type="text"
-             id="product_id"
-             class="combo-input"
-             name="product_name"
-             placeholder="Buscá producto..."
-             autocomplete="off">
-      <input type="hidden" name="product_id" value="">
-      <div class="combo-results" role="listbox" aria-label="Productos" hidden></div>
-    </div>
+    {{ ui.combo_field(
+      name='product_id',
+      placeholder='Buscá producto...',
+      endpoint='/productos/api/search/',
+      value_field='id',
+      label_field='name'
+    ) }}
     <small>Escaneá SKU o tipeá el nombre del producto</small>
   </div>
 
@@ -66,41 +58,29 @@
 
   <div class="form-row">
     <label for="channel">Canal de venta</label>
-    <div class="saskia-combo" 
-         data-source="data:application/json,[{% for c in channels %}{'name': '{{ c }}'}{% if not loop.last %},{% endif %}{% endfor %}]"
-         data-display="name"
-         data-value="name"
-         data-min-chars="0"
-         data-allow-freeform="false">
-      <input type="text"
-             id="channel"
-             class="combo-input"
-             name="channel"
-             placeholder="Seleccioná canal..."
-             autocomplete="off">
-      <input type="hidden" name="channel" value="">
-      <div class="combo-results" role="listbox" aria-label="Canales de venta" hidden></div>
-    </div>
+    {% set _channels_src = [] %}
+    {% for c in channels %}
+      {% set _ = _channels_src.append({'label': c, 'value': c}) %}
+    {% endfor %}
+    {{ ui.combo_field(
+      name='channel',
+      placeholder='Seleccioná canal...',
+      src=_channels_src
+    ) }}
     <small>Mostrador = venta en el local; los otros son canales digitales o encargos.</small>
   </div>
 
   <div class="form-row">
     <label for="payment_method">Forma de pago</label>
-    <div class="saskia-combo" 
-         data-source="data:application/json,[{% for pm in payment_methods %}{'name': '{{ pm }}'}{% if not loop.last %},{% endif %}{% endfor %}]"
-         data-display="name"
-         data-value="name"
-         data-min-chars="0"
-         data-allow-freeform="false">
-      <input type="text"
-             id="payment_method"
-             class="combo-input"
-             name="payment_method"
-             placeholder="Seleccioná forma de pago..."
-             autocomplete="off">
-      <input type="hidden" name="payment_method" value="">
-      <div class="combo-results" role="listbox" aria-label="Formas de pago" hidden></div>
-    </div>
+    {% set _pms_src = [] %}
+    {% for pm in payment_methods %}
+      {% set _ = _pms_src.append({'label': pm, 'value': pm}) %}
+    {% endfor %}
+    {{ ui.combo_field(
+      name='payment_method',
+      placeholder='Seleccioná forma de pago...',
+      src=_pms_src
+    ) }}
     <small>Si pagaron por transferencia/QR, pegá el alias o ID de transacción en notas.</small>
   </div>
 
@@ -112,17 +92,13 @@
 
     <div class="form-row" style="margin-bottom: var(--space-2);">
       <label for="invoice_type">Tipo</label>
-      <div class="saskia-combo" data-source="static" data-display="name" data-value="value"
-             data-min-chars="0" data-row-builder="genericRowLabel">
-          <input type="text" id="invoice_type" class="combo-input" name="invoice_type_display" maxlength="40"
-                 value="{% if tax_regime == 'general' %}Factura (IVA General){% elif tax_regime == 'resimple' %}Boleta Resimple (IRE RESIMPLE){% else %}Boleta Resimple (IRE RESIMPLE){% endif %}" placeholder="Tipo">
-          <input type="hidden" name="invoice_type" value="{% if tax_regime == 'general' %}factura{% else %}boleta_resimple{% endif %}">
-          <div class="combo-results" role="listbox" hidden>
-            <div class="combo-static-option" data-value="boleta_resimple" data-display="Boleta Resimple (IRE RESIMPLE)"></div>
-            <div class="combo-static-option" data-value="factura" data-display="Factura (IVA General)"></div>
-            <div class="combo-static-option" data-value="none" data-display="Sin comprobante (interno)"></div>
-          </div>
-        </div>
+      {{ ui.combo_field(
+          name='invoice_type',
+          value=('factura' if tax_regime == 'general' else 'boleta_resimple'),
+          display=('Factura (IVA General)' if tax_regime == 'general' else 'Boleta Resimple (IRE RESIMPLE)'),
+          placeholder='Tipo',
+          src=[{'label': 'Boleta Resimple (IRE RESIMPLE)', 'value': 'boleta_resimple'}, {'label': 'Factura (IVA General)', 'value': 'factura'}, {'label': 'Sin comprobante (interno)', 'value': 'none'}]
+        ) }}
       <small>Cambiá solo si esta venta difiere de tu régimen habitual.</small>
     </div>
 

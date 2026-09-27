@@ -106,22 +106,14 @@
     
     <div class="form-group">
       <label for="role_combo">Rol</label>
-      <div class="saskia-combo"
-           data-source="/users/api/roles"
-           data-display="display"
-           data-value="value"
-           data-min-chars="0"
-           data-row-builder="genericRowLabel">
-        <input type="text"
-               id="role_combo"
-               class="combo-input"
-               name="role_display"
-               maxlength="20"
-               value=""
-               placeholder="Seleccioná rol">
-        <input type="hidden" name="role" value="">
-        <div class="combo-results" role="listbox" hidden></div>
-      </div>
+      {{ ui.combo_field(
+        name='role',
+        value='',
+        placeholder='Seleccioná rol',
+        endpoint='/users/api/roles/',
+        value_field='value',
+        label_field='display'
+      ) }}
       <small>Los administradores tienen acceso completo. Los cajeros solo pueden operar ventas.</small>
     </div>
     
@@ -159,22 +151,15 @@
     
     <div class="form-group">
       <label for="edit-role_combo">Rol</label>
-      <div class="saskia-combo"
-           data-source="/users/api/roles"
-           data-display="display"
-           data-value="value"
-           data-min-chars="0"
-           data-row-builder="genericRowLabel">
-        <input type="text"
-               id="edit-role_combo"
-               class="combo-input"
-               name="role_display"
-               maxlength="20"
-               value=""
-               placeholder="Seleccioná rol">
-        <input type="hidden" name="role" value="">
-        <div class="combo-results" role="listbox" hidden></div>
-      </div>
+      {{ ui.combo_field(
+        name='role',
+        value=user.role if user else '',
+        display=user.role_display if user else '',
+        placeholder='Seleccioná rol',
+        endpoint='/users/api/roles/',
+        value_field='value',
+        label_field='display'
+      ) }}
     </div>
     
     <div class="form-group">

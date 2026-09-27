@@ -49,24 +49,14 @@
   </div>
   {% endif %}
   <div class="form-row" style="margin-bottom:0;">
-    <div class="saskia-combo"
-         data-source="/inventario/api/search"
-         data-display="name"
-         data-value="id"
-         data-min-chars="0"
-         data-row-builder="genericRowLabel">
-      <input type="text"
-             id="ingredient_id_combo"
-             class="combo-input"
-             name="ingredient_name_display"
-             maxlength="60"
-             value=""
-             placeholder="Ingrediente…"
-             style="height:36px;width:200px;">
-      <input type="hidden" name="ingredient_id" value="{{ ingredient_id }}">
-      <input type="hidden" name="ingredient_ids" value="{{ ingredient_ids }}">
-      <div class="combo-results" role="listbox" hidden></div>
-    </div>
+    {{ ui.combo_field(
+      name='ingredient_id',
+      value=ingredient_id,
+      placeholder='Ingrediente…',
+      endpoint='/inventario/api/search/',
+      value_field='id',
+      label_field='name'
+    ) }}
   </div>
   <button type="submit" class="btn btn-primary" style="height:36px;">Filtrar</button>
   {% if q or familias_sel or dif_sel or diet_sel or ingredient_id %}

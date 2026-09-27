@@ -21,22 +21,13 @@
   #}
   <div class="form-row">
     <label for="customer_picker_input">Cliente</label>
-    <div class="saskia-combo saskia-customer-combo"
-         data-source="/customers/api/search"
-         data-display="name"
-         data-value="id"
-         data-min-chars="2"
-         data-row-builder="customerRowLabel">
-      <input type="text"
-             id="customer_picker_input"
-             class="combo-input"
-             name="customer_name"
-             placeholder="María González — escribí para buscar"
-             autocomplete="off">
-      <input type="hidden" id="customer_id" name="customer_id" value="">
-      <div class="combo-results" role="listbox"
-           aria-label="Coincidencias de clientes" hidden></div>
-    </div>
+    {{ ui.combo_field(
+      name='customer_id',
+      placeholder='María González — escribí para buscar',
+      endpoint='/customers/api/search/',
+      value_field='id',
+      label_field='name'
+    ) }}
     <small class="hint">
       Escribí 2+ letras para buscar clientes existentes. Si no aparece, simplemente seguí escribiendo — se crea al guardar.
     </small>
@@ -74,59 +65,40 @@
   <div class="grid grid-2">
     <div class="form-row">
       <label for="channel">Canal</label>
-      <div class="saskia-combo" 
-           data-source="data:application/json,[{% for ch in channels %}{'name': '{{ ch | capitalize }}'}{% if not loop.last %},{% endif %}{% endfor %}]"
-           data-display="name"
-           data-value="name"
-           data-min-chars="0"
-           data-allow-freeform="false">
-        <input type="text"
-               id="channel"
-               class="combo-input"
-               name="channel"
-               placeholder="Seleccioná canal..."
-               autocomplete="off">
-        <input type="hidden" name="channel" value="">
-        <div class="combo-results" role="listbox" aria-label="Canales" hidden></div>
-      </div>
+      {% set _channels_src = [] %}
+      {% for ch in channels %}
+        {% set _ = _channels_src.append({'label': ch|capitalize, 'value': ch}) %}
+      {% endfor %}
+      {{ ui.combo_field(
+        name='channel',
+        placeholder='Seleccioná canal...',
+        src=_channels_src
+      ) }}
     </div>
     <div class="form-row">
       <label for="payment_intent">Forma de pago esperada</label>
-      <div class="saskia-combo" 
-           data-source="data:application/json,[{% for pm in payment_methods %}{'name': '{{ pm | capitalize }}'}{% if not loop.last %},{% endif %}{% endfor %}]"
-           data-display="name"
-           data-value="name"
-           data-min-chars="0"
-           data-allow-freeform="false">
-        <input type="text"
-               id="payment_intent"
-               class="combo-input"
-               name="payment_intent"
-               placeholder="Seleccioná forma de pago..."
-               autocomplete="off">
-        <input type="hidden" name="payment_intent" value="">
-        <div class="combo-results" role="listbox" aria-label="Formas de pago" hidden></div>
-      </div>
+      {% set _pms_src = [] %}
+      {% for pm in payment_methods %}
+        {% set _ = _pms_src.append({'label': pm|capitalize, 'value': pm}) %}
+      {% endfor %}
+      {{ ui.combo_field(
+        name='payment_intent',
+        placeholder='Seleccioná forma de pago...',
+        src=_pms_src
+      ) }}
     </div>
   </div>
 
   {% if delivery_zones %}
   <div class="form-row mt-2">
     <label for="delivery_zone_combo">Zona de delivery</label>
-    <div class="saskia-combo"
-         data-source="/delivery-zones/api"
-         data-display="display"
-         data-value="id"
-         data-min-chars="0"
-         data-row-builder="genericRowLabel">
-      <input type="text"
-             id="delivery_zone_combo"
-             class="combo-input"
-             name="delivery_zone_name_display"
-             placeholder="Pickup (gratis) — seleccioná zona…">
-      <input type="hidden" id="delivery_zone_id" name="delivery_zone_id" value="">
-      <div class="combo-results" role="listbox" aria-label="Zonas" hidden></div>
-    </div>
+    {{ ui.combo_field(
+      name='delivery_zone_id',
+      placeholder='Pickup (gratis) — seleccioná zona…',
+      endpoint='/delivery-zones/api/',
+      value_field='id',
+      label_field='display'
+    ) }}
     <small class="muted">
       Cada zona tiene un costo de delivery y un pedido mínimo. Si
       elegís zona, el sistema valida automáticamente.
@@ -158,19 +130,13 @@
     <tbody id="lines-body">
       <tr class="line-row">
         <td>
-          <div class="saskia-combo saskia-product-combo"
-               data-source="/productos/api/search"
-               data-display="name"
-               data-value="id"
-               data-min-chars="1"
-               data-row-builder="productRowLabel">
-            <input type="text"
-                   class="combo-input"
-                   placeholder="Escribí para buscar (muffin, factura, pan…)"
-                   autocomplete="off">
-            <input type="hidden" name="line_product_id" value="">
-            <div class="combo-results" role="listbox" hidden></div>
-          </div>
+          {{ ui.combo_field(
+            name='line_product_id',
+            placeholder='Escribí para buscar (muffin, factura, pan…)',
+            endpoint='/productos/api/search/',
+            value_field='id',
+            label_field='name'
+          ) }}
         </td>
         <td class="num">
           <input type="number" name="line_qty" min="0.01" step="0.01" value="1" required>
@@ -204,19 +170,13 @@
 <template id="line-row-template">
   <tr class="line-row">
     <td>
-      <div class="saskia-combo saskia-product-combo"
-           data-source="/productos/api/search"
-           data-display="name"
-           data-value="id"
-           data-min-chars="1"
-           data-row-builder="productRowLabel">
-        <input type="text"
-               class="combo-input"
-               placeholder="Escribí para buscar…"
-               autocomplete="off">
-        <input type="hidden" name="line_product_id" value="">
-        <div class="combo-results" role="listbox" hidden></div>
-      </div>
+      {{ ui.combo_field(
+        name='line_product_id',
+        placeholder='Escribí para buscar…',
+        endpoint='/productos/api/search/',
+        value_field='id',
+        label_field='name'
+      ) }}
     </td>
     <td class="num">
       <input type="number" name="line_qty" min="0.01" step="0.01" value="1" required>
