@@ -1,0 +1,108 @@
+/* Users page — role badges, modal form styling, danger button variants.
+   Loaded by users.html via <link rel="stylesheet" href="/static/users.css?v={{ asset_version() }}">. */
+
+/* Role badge colors */
+.badge-role-admin {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.badge-role-manager {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge-role-cashier {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.badge-info {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.badge-muted {
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+}
+
+/* Form styling in modal */
+#nuevo-usuario-modal form,
+#editar-usuario-modal form,
+#eliminar-usuario-modal form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--color-text);
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-group small {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+/* Action buttons */
+.btn-danger {
+  background: var(--color-danger);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-danger:hover {
+  opacity: 0.9;
+}
+
+.btn-danger-ghost {
+  background: transparent;
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.btn-danger-ghost:hover {
+  background: var(--color-danger);
+  color: white;
+}

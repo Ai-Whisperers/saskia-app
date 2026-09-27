@@ -8,8 +8,8 @@
     <p class="muted">Riesgos operacionales, externos, comerciales, legales y personales</p>
   </div>
   <div style="display:flex;gap:.5rem;flex-shrink:0;">
-    {# TODO: wire to POST /riesgos when the add-risk endpoint lands. For now this points to a placeholder modal. #}
-    <button type="button" class="btn btn-primary" onclick="alert('Pronto: formulario para agregar un riesgo.\\n\\nMientras tanto, andate a /settings → Riesgos y cargalo a mano.')">+ Agregar riesgo</button>
+    {# TODO: wire to POST /riesgos/new when the add-risk endpoint lands. Meanwhile use /settings → Configuración general. #}
+    <button type="button" class="btn btn-primary" disabled aria-disabled="true" title="Próximo: formulario para agregar riesgos desde esta pantalla">+ Agregar riesgo</button>
     <a href="/settings#riesgos" class="btn btn-ghost">Configurar categorías</a>
   </div>
 </div>

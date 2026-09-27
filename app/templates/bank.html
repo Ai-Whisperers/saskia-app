@@ -83,7 +83,7 @@
     <tr>
       <td>{{ tx.posted_at.strftime('%Y-%m-%d') }}</td>
       <td><strong>{{ tx.currency }}</strong></td>
-      <td class="num" style="color: {{ 'green' if tx.amount > 0 else 'red' }};">
+      <td class="num tx-positive {% if tx.amount <= 0 %}tx-negative{% endif %}">
         {{ '+' if tx.amount > 0 else '' }}{{ "%.2f"|format(tx.amount) }}
       </td>
       <td><small class="muted">{{ tx.category or '—' }}</small></td>

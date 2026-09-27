@@ -25,9 +25,9 @@
       <td class="num">
         {% if b.position_label == '—' %}<span class="muted">—</span>
         {% elif b.pct > 0 %}
-          <span style="color:red;">{{ b.position_label }}</span>
+          <span class="is-up">↑ {{ b.position_label }}</span>
         {% elif b.pct < 0 %}
-          <span style="color:green;">{{ b.position_label }}</span>
+          <span class="is-down">↓ {{ b.position_label }}</span>
         {% else %}
           <span>{{ b.position_label }}</span>
         {% endif %}

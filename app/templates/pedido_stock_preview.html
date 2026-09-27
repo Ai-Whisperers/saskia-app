@@ -34,7 +34,7 @@
     </thead>
     <tbody>
       {% for row in consumed %}
-      <tr class="{% if row.warning %}alert-danger{% endif %}">
+      <tr style="{% if row.warning %}background:var(--color-danger-soft);color:var(--color-danger-fg);{% endif %}">
         <td>{{ row.ingredient }}</td>
         <td>{{ row.product }}</td>
         <td class="num">{{ row.current_stock }}</td>

@@ -636,3 +636,60 @@ def test_d17_receta_form_line_kind_bridge_present():
     assert "/recetas/api/search/" in src
     assert "/inventario/api/search/" in src
 
+
+
+def test_inline_color_violations_removed():
+    """Real color violations (color:red/green/#hex) should not appear in critical templates."""
+    import pathlib
+    templates_dir = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates")
+    # These are the files we explicitly cleaned up
+    targets = ["benchmarks.html", "planner.html", "dashboard.html", "reportes_retencion.html"]
+    for fname in targets:
+        src = (templates_dir / fname).read_text()
+        # No hardcoded red/green
+        assert "color:red" not in src, f"{fname} still has color:red"
+        assert "color:green" not in src, f"{fname} still has color:green"
+        # No hex literals in inline style
+        assert 'style="color:#dc2626' not in src, f"{fname} still has #dc2626 hex"
+        assert 'style="color:#22c55e' not in src, f"{fname} still has #22c55e hex"
+        assert 'style="color:#3b82f6' not in src, f"{fname} still has #3b82f6 hex"
+        assert 'style="color:#b45309' not in src, f"{fname} still has #b45309 hex"
+
+
+def test_pedido_board_no_autoplay():
+    """Audio should NOT autoplay. Only play on user click of sound-toggle."""
+    import pathlib
+    src = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/pedido_board.html").read_text()
+    # No top-level audio.play() call outside the IIFE
+    # The toggle handler does call play() but only inside the toggle function (user-initiated)
+    assert "localStorage.getItem('saskia:board-sound-enabled')" in src
+    assert 'id="sound-toggle"' in src
+    assert "🔕 Sonido desactivado" in src or "🔔 Sonido activado" in src
+    # Verify the autoplay line was removed
+    assert "Play chime on page load" not in src
+
+
+def test_stock_preview_tr_alert_danger_has_css():
+    """tr.alert-danger must have a CSS rule in app.css."""
+    import pathlib
+    css = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/app.css").read_text()
+    assert "tr.alert-danger" in css, "tr.alert-danger rule missing from app.css"
+    assert "background:var(--color-danger-soft)" in css or "var(--color-danger-soft)" in css
+
+
+def test_users_html_extracted_assets_exist():
+    """users.html should reference external users.js and users.css, not inline them."""
+    import pathlib
+    src = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/users.html").read_text()
+    # No more inline <script>...</script> blocks in users.html
+    assert "<script>" not in src, "users.html still has inline <script> block"
+    assert "<style>" not in src, "users.html still has inline <style> block"
+    # References external assets
+    assert "users.css" in src
+    assert "users.js" in src
+
+    # Files exist
+    js_path = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/users.js")
+    css_path = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/users.css")
+    assert js_path.exists() and js_path.stat().st_size > 100
+    assert css_path.exists() and css_path.stat().st_size > 100

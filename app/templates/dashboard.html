@@ -89,17 +89,17 @@
   <a href="/shopping-list" style="text-decoration:none;color:inherit;" class="metric-card metric-card--compact">
     <div class="metric-card__label">Lista de Compras abiertas</div>
     <div class="metric-card__value">{{ sl_open_count }}</div>
-    <div class="metric-card__sub" style="color:#dc2626;">{{ m.gs(sl_total_gs) }} estimados</div>
+    <div class="metric-card__sub text-danger">{{ m.gs(sl_total_gs) }} estimados</div>
   </a>
   <a href="/wishlist" style="text-decoration:none;color:inherit;" class="metric-card metric-card--compact">
     <div class="metric-card__label">Equipamiento pendiente</div>
     <div class="metric-card__value">{{ wishlist_count }}</div>
-    <div class="metric-card__sub" style="color:#b45309;">{{ m.gs(wishlist_total_gs) }} equipo</div>
+    <div class="metric-card__sub text-warn">{{ m.gs(wishlist_total_gs) }} equipo</div>
   </a>
   <a href="/riesgos" style="text-decoration:none;color:inherit;" class="metric-card metric-card--compact">
     <div class="metric-card__label">Riesgos activos</div>
     <div class="metric-card__value">{{ risk_count }}</div>
-    <div class="metric-card__sub" style="color:#dc2626;">{{ m.gs(risk_severity_gs) }} severidad</div>
+    <div class="metric-card__sub text-danger">{{ m.gs(risk_severity_gs) }} severidad</div>
   </a>
   <a href="/vs-mercado" style="text-decoration:none;color:inherit;" class="metric-card metric-card--compact">
     <div class="metric-card__label">Comparativas de mercado</div>

@@ -75,24 +75,24 @@
       <td>Ingresos</td>
       <td class="num">{{ m.gs(comparison.period1.revenue_gs) }}</td>
       <td class="num">{{ m.gs(comparison.period2.revenue_gs) }}</td>
-      <td class="num {{ 'is-up' if comparison.revenue_change_pct > 0 else 'is-down' if comparison.revenue_change_pct < 0 else '' }}">
-        {{ "%.1f"|format(comparison.revenue_change_pct) }}%
+      <td class="num {% if comparison.revenue_change_pct and comparison.revenue_change_pct > 0 %}is-up{% elif comparison.revenue_change_pct and comparison.revenue_change_pct < 0 %}is-down{% endif %}">
+        {% if comparison.revenue_change_pct is not none %}{{ "%.1f"|format(comparison.revenue_change_pct) }}%{% else %}—{% endif %}
       </td>
     </tr>
     <tr>
       <td>Cantidad de ventas</td>
       <td class="num">{{ comparison.period1.n_sales }}</td>
       <td class="num">{{ comparison.period2.n_sales }}</td>
-      <td class="num {{ 'is-up' if comparison.sales_count_change_pct and comparison.sales_count_change_pct > 0 else 'is-down' if comparison.sales_count_change_pct and comparison.sales_count_change_pct < 0 else '' }}">
-        {{ "%.1f"|format(comparison.sales_count_change_pct) }}%{% if comparison.sales_count_change_pct is none %}—{% endif %}
+      <td class="num {% if comparison.sales_count_change_pct and comparison.sales_count_change_pct > 0 %}is-up{% elif comparison.sales_count_change_pct and comparison.sales_count_change_pct < 0 %}is-down{% endif %}">
+        {% if comparison.sales_count_change_pct is not none %}{{ "%.1f"|format(comparison.sales_count_change_pct) }}%{% else %}—{% endif %}
       </td>
     </tr>
     <tr>
       <td>Margen bruto</td>
       <td class="num">{{ m.gs(comparison.period1.margin_gs) }}</td>
       <td class="num">{{ m.gs(comparison.period2.margin_gs) }}</td>
-      <td class="num {{ 'is-up' if comparison.margin_change_pct and comparison.margin_change_pct > 0 else 'is-down' if comparison.margin_change_pct and comparison.margin_change_pct < 0 else '' }}">
-        {{ "%.1f"|format(comparison.margin_change_pct) }}%{% if comparison.margin_change_pct is none %}—{% endif %}
+      <td class="num {% if comparison.margin_change_pct and comparison.margin_change_pct > 0 %}is-up{% elif comparison.margin_change_pct and comparison.margin_change_pct < 0 %}is-down{% endif %}">
+        {% if comparison.margin_change_pct is not none %}{{ "%.1f"|format(comparison.margin_change_pct) }}%{% else %}—{% endif %}
       </td>
     </tr>
   </tbody>

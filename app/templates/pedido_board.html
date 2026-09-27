@@ -77,8 +77,10 @@
 {% block content %}
 <div class="board-nav">
   <a href="/pedidos">← Volver a pedidos</a>
-  <span style="color:#555;font-size:.9rem;">Auto-refresh cada 30s · {{ now.strftime("%H:%M:%S") }}</span>
-  <button onclick="testSound()" style="background:none;border:1px solid #555;color:#aaa;padding:.2rem .5rem;border-radius:4px;cursor:pointer;font-size:.8rem;">🔊 Probar sonido</button>
+  <span class="text-muted">Auto-refresh cada 30s · {{ now.strftime("%H:%M:%S") }}</span>
+  <button type="button" id="sound-toggle" class="btn btn-sm btn-ghost" aria-pressed="false" aria-label="Activar sonido de nuevos pedidos">
+    🔕 Sonido desactivado
+  </button>
 </div>
 
 <h1><svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>  Cocina — pedidos del día</h1>
@@ -89,16 +91,39 @@
 </audio>
 
 <script>
-// Play chime on page load (new order notification)
-var audio = document.getElementById('new-order-chime');
-if (audio) {
-  try { audio.play().catch(function(){}); } catch(e) {}
-}
-// Manual test button
-function testSound() {
-  var a = document.getElementById('new-order-chime');
-  if (a) { try { a.currentTime = 0; a.play().catch(function(){}); } catch(e) {} }
-}
+// Sound notification — opt-in only, never autoplay.
+// State is stored in localStorage so the user's choice persists across page loads.
+(function() {
+  var audio = document.getElementById('new-order-chime');
+  var btn = document.getElementById('sound-toggle');
+  if (!audio || !btn) return;
+
+  var STORAGE_KEY = 'saskia:board-sound-enabled';
+  var enabled = localStorage.getItem(STORAGE_KEY) === '1';
+
+  function render() {
+    btn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+    btn.textContent = enabled ? '🔔 Sonido activado' : '🔕 Sonido desactivado';
+    btn.setAttribute('aria-label', enabled
+      ? 'Desactivar sonido de nuevos pedidos'
+      : 'Activar sonido de nuevos pedidos');
+  }
+
+  function toggle() {
+    enabled = !enabled;
+    try { localStorage.setItem(STORAGE_KEY, enabled ? '1' : '0'); } catch(e) {}
+    render();
+    if (enabled) {
+      // user-initiated click is allowed; brief beep to confirm
+      try { audio.currentTime = 0; audio.play().catch(function(){}); } catch(e) {}
+    }
+  }
+
+  btn.addEventListener('click', toggle);
+  render();
+  // Intentionally NO autoplay on page load — sound only plays if the user has opted in
+  // AND the auto-refresh detects a new order. (TODO: wire to refresh handler.)
+})();
 </script>
 
 {% macro render_group(label, pedidos, now) %}
@@ -205,7 +230,7 @@ function testSound() {
 {{ render_group("Esta semana", pedidos_semana, now) }}
 
 {% if not pedidos_hoy and not pedidos_manana and not pedidos_semana %}
-<p style="color:#555;margin-top:2rem;">No hay pedidos pendientes. 🍰</p>
+<p class="text-muted" style="margin-top:2rem;">No hay pedidos pendientes. 🍰</p>
 {% endif %}
 
 {% endblock %}

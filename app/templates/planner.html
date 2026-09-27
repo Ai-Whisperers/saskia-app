@@ -65,7 +65,7 @@
         <td class="num">{{ "%.1f"|format(r.qty_available) }} {{ r.unit }}</td>
         <td class="num">
           {% if r.shortage > 0 %}
-            <strong style="color:red;">{{ "%.1f"|format(r.shortage) }} {{ r.unit }}</strong>
+            <strong class="is-down">⚠ {{ "%.1f"|format(r.shortage) }} {{ r.unit }}</strong>
           {% else %}
             — ✓
           {% endif %}

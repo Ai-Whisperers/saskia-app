@@ -35,14 +35,14 @@
   </div>
   <div class="metric-card">
     <div class="metric-label">Nuevos</div>
-    <div class="metric-value" style="color: #22c55e;">{{ stats.new_customers }}</div>
+    <div class="metric-value text-up">{{ stats.new_customers }}</div>
     <div class="text-muted" style="font-size: 12px;">
       {{ "%.0f"|format((stats.new_customers / stats.total * 100) if stats.total > 0 else 0) }}% del total
     </div>
   </div>
   <div class="metric-card">
     <div class="metric-label">Recurrentes</div>
-    <div class="metric-value" style="color: #3b82f6;">{{ stats.returning_customers }}</div>
+    <div class="metric-value">{{ stats.returning_customers }}</div>
     <div class="text-muted" style="font-size: 12px;">
       {{ "%.0f"|format((stats.returning_customers / stats.total * 100) if stats.total > 0 else 0) }}% del total
     </div>
