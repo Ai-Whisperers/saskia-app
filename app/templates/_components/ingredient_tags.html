@@ -83,3 +83,9 @@
     <span class="tag-pill tag-pill--muted" title="Rol en la receta">{{ role }}</span>
   {%- endif -%}
 {%- endmacro %}
+
+{% macro tag_label(tag) -%}
+  {%- set lower = (tag or '')|lower -%}
+  {%- set _es = {"vegan":"Vegano","vegano":"Vegano","vegetarian":"Vegetariano","vegetariano":"Vegetariano","gluten_free":"Libre de gluten","sugar_free":"Sin azúcar","keto_friendly":"Keto","keto":"Keto","high_protein":"Alto en proteína"} -%}
+  {{ _es.get(lower, tag) }}
+{%- endmacro %}

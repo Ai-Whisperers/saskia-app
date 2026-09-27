@@ -30,30 +30,26 @@
   </div>
 </div>
 
-<form method="get" action="/clientes" class="form form-row">
-  <input type="search" name="q" value="{{ q }}" placeholder="Buscar nombre o teléfono…">
-  <span class="text-muted" style="font-size:var(--text-xs);">{{ total }} clientes</span>
-  <div class="saskia-combo" 
-       data-source="data:application/json,[{'name': 'Todos los niveles'}{% for t in tiers %},{'name': '{{ t | capitalize }}'}{% if not loop.last %},{% endif %}{% endfor %}]"
-       data-display="name"
-       data-value="name"
-       data-min-chars="0"
-       data-allow-freeform="false">
-    <input type="text"
-           id="tier-filter"
-           class="combo-input"
-           name="tier"
-           placeholder="Seleccioná nivel…"
-           autocomplete="off">
-    <input type="hidden" name="tier" value="{{ tier }}">
-    <div class="combo-results" role="listbox" aria-label="Niveles" hidden></div>
+<form method="get" action="/clientes" class="inv-toolbar" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:var(--space-3);">
+  <input type="search" name="q" value="{{ q }}" placeholder="Buscar nombre o teléfono…"
+         style="flex:1;min-width:180px;height:36px;" aria-label="Buscar cliente">
+  <div class="mf-pop" data-mf="tier">
+    <button type="button" class="mf-btn" aria-expanded="false">{% if tier %}Nivel: {{ tier|capitalize }}{% else %}Nivel{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      <label class="mf-option"><input type="radio" name="tier" value="" {% if not tier %}checked{% endif %}> Todos</label>
+      {% for t in tiers %}
+      <label class="mf-option"><input type="radio" name="tier" value="{{ t }}" {% if tier == t %}checked{% endif %}> {{ t|capitalize }}</label>
+      {% endfor %}
+    </div>
   </div>
-  <button type="submit" class="btn">
-    <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
-    Filtrar
-  </button>
-  <a href="/clientes" class="btn btn-ghost">Limpiar</a>
+  <button type="submit" class="btn btn-primary" style="height:36px;">Filtrar</button>
+  {% if q or tier %}
+  <a href="/clientes" class="btn" style="height:36px;">Limpiar todo</a>
+  {% endif %}
 </form>
+<div class="inv-result-count" style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-3);">
+  {{ total }} clientes{% if q %} · búsqueda “{{ q }}”{% endif %}
+</div>
 
 {% if customers %}
 <div id="bulk-actions-clients" class="bulk-actions">

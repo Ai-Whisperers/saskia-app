@@ -99,6 +99,8 @@ def products_list(
     request: Request,
     q: str | None = None,
     has_recipe: str | None = None,
+    margen: str | None = Query(None, description="Filter by margin state: negativo/bajo/ok/alto"),
+    disponibles: str | None = Query(None, description="Filter availability: si/no"),
     sort: str | None = Query(None, description="Sort column: name, sale_price_gs, cost_gs, margin_gs"),
     dir: str = Query("asc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
@@ -122,6 +124,17 @@ def products_list(
     elif has_recipe == "no":
         stmt = stmt.where(Product.recipe_id.is_(None))
         count_stmt = count_stmt.where(Product.recipe_id.is_(None))
+
+    # Margin/availability filters are post-costing (need unit costs first) —
+    # count after decoration below. Track them here.
+    margen_sel = (margen or "").strip()
+    disp_sel = (disponibles or "").strip()
+    if disp_sel == "si":
+        stmt = stmt.where(Product.is_available.is_(True))
+        count_stmt = count_stmt.where(Product.is_available.is_(True))
+    elif disp_sel == "no":
+        stmt = stmt.where(Product.is_available.is_(False))
+        count_stmt = count_stmt.where(Product.is_available.is_(False))
 
     # Count total
     total = session.scalar(count_stmt) or 0
@@ -175,6 +188,18 @@ def products_list(
             }
         )
 
+    # Margin state filter (post-costing, in-memory): negativo <0, bajo <30%, ok 30-70%, alto >70%
+    if margen_sel:
+        def _mstate(r):
+            if r["margin_ratio"] is None: return "sin-datos"
+            pct = r["margin_ratio"] * 100
+            if pct < 0: return "negativo"
+            if pct < 30: return "bajo"
+            if pct <= 70: return "ok"
+            return "alto"
+        decorated = [r for r in decorated if _mstate(r) == margen_sel]
+        total = len(decorated)
+
     # Apply in-memory sort
     if sort and sort in ("name", "sale_price_gs", "cost_gs", "margin_gs"):
         reverse = dir == "desc"
@@ -184,6 +209,9 @@ def products_list(
         "products": decorated,
         "q": q or "",
         "has_recipe": has_recipe or "",
+        "margen_sel": margen_sel,
+        "disp_sel": disp_sel,
+        "total_all": session.scalar(select(func.count()).select_from(Product)) or 0,
         "sort": sort or "",
         "dir": dir,
         "page": page,

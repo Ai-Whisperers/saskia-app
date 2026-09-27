@@ -14,14 +14,40 @@
   </a>
 </p>
 
-{# --- Filters + Search --- #}
-<form method="get" action="/recetas" class="filters-form" style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:end;margin-bottom:var(--space-4);">
-  <div class="form-row" style="margin-bottom:0;">
-    <label for="q">Buscar</label>
-    <input type="text" id="q" name="q" value="{{ q }}" placeholder="Nombre de receta…">
+{# --- Filter toolbar (mf-pop pattern, same as inventario) --- #}
+<form method="get" action="/recetas" class="inv-toolbar" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:var(--space-3);">
+  <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre…"
+         style="flex:1;min-width:180px;height:36px;" aria-label="Buscar por nombre">
+  {% if all_families %}
+  <div class="mf-pop" data-mf="familia">
+    <button type="button" class="mf-btn" aria-expanded="false">Familia{% if familias_sel %} <span class="mf-count">{{ familias_sel|length }}</span>{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      {% for f in all_families %}
+      <label class="mf-option"><input type="checkbox" name="familia" value="{{ f }}" {% if f in familias_sel %}checked{% endif %}> {{ f }}</label>
+      {% endfor %}
+    </div>
   </div>
+  {% endif %}
+  <div class="mf-pop" data-mf="dificultad">
+    <button type="button" class="mf-btn" aria-expanded="false">{% if dif_sel %}Dificultad {{ dif_sel }}{% else %}Dificultad{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      {% for val, lbl in [('', 'Todas'), ('1', '1 — Muy fácil'), ('2', '2 — Fácil'), ('3', '3 — Media'), ('4', '4 — Difícil'), ('5', '5 — Muy difícil')] %}
+      <label class="mf-option"><input type="radio" name="dificultad" value="{{ val }}" {% if dif_sel == val %}checked{% endif %}> {{ lbl }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  {% if all_recipe_tags %}
+  <div class="mf-pop" data-mf="dieteticas">
+    <button type="button" class="mf-btn" aria-expanded="false">Dietéticas{% if diet_sel %} <span class="mf-count">{{ diet_sel|length }}</span>{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      <p class="mf-hint">Coincidir con TODAS las marcadas:</p>
+      {% for tg in all_recipe_tags %}
+      <label class="mf-option"><input type="checkbox" name="dieteticas" value="{{ tg }}" {% if tg in diet_sel %}checked{% endif %}> {{ t.tag_label(tg) }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
   <div class="form-row" style="margin-bottom:0;">
-    <label for="ingredient_id_combo">Ingrediente</label>
     <div class="saskia-combo"
          data-source="/inventario/api/search"
          data-display="name"
@@ -34,22 +60,23 @@
              name="ingredient_name_display"
              maxlength="60"
              value=""
-             placeholder="Todos los ingredientes">
+             placeholder="Ingrediente…"
+             style="height:36px;width:200px;">
       <input type="hidden" name="ingredient_id" value="{{ ingredient_id }}">
-      {# US 3.2: carry the multi-select list forward across pagination/sort
-         links. The legacy single-id stays above for backward compat. #}
       <input type="hidden" name="ingredient_ids" value="{{ ingredient_ids }}">
       <div class="combo-results" role="listbox" hidden></div>
     </div>
   </div>
-  <button type="submit" class="btn btn-primary">Filtrar</button>
-  {% if q or ingredient_id %}
-  <a href="/recetas" class="btn btn-ghost">Limpiar</a>
+  <button type="submit" class="btn btn-primary" style="height:36px;">Filtrar</button>
+  {% if q or familias_sel or dif_sel or diet_sel or ingredient_id %}
+  <a href="/recetas" class="btn" style="height:36px;">Limpiar todo</a>
   {% endif %}
 </form>
+<div class="inv-result-count" style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-3);">
+  {{ total }} de {{ total_all }} recetas{% if q %} · búsqueda “{{ q }}”{% endif %}
+</div>
 
 {% if recipes %}
-<div class="table-sticky-wrap" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);">
 <table class="table is-hoverable is-striped" style="margin-bottom:0;">
   <thead>
     <tr>

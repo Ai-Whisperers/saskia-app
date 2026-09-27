@@ -25,35 +25,41 @@
   </a>
 </p>
 
-<form method="get" action="/productos" class="form form-row">
-  <input type="search" name="q" value="{{ q }}" placeholder="Buscar producto…">
-  <span class="text-muted" style="font-size:var(--text-xs);">{{ total }} productos</span>
-  <div class="saskia-combo"
-       data-source="static"
-       data-display="name"
-       data-value="value"
-       data-min-chars="0"
-       data-row-builder="genericRowLabel">
-    <input type="text"
-           id="has_recipe_combo"
-           class="combo-input"
-           name="has_recipe_display"
-           maxlength="20"
-           value=""
-           placeholder="— Todos —">
-    <input type="hidden" name="has_recipe" value="{{ has_recipe or '' }}">
-    <div class="combo-results" role="listbox" hidden>
-      <div class="combo-static-option" data-value="" data-display="— Todos —"></div>
-      <div class="combo-static-option" data-value="yes" data-display="Con receta"></div>
-      <div class="combo-static-option" data-value="no" data-display="Sin receta"></div>
+<form method="get" action="/productos" class="inv-toolbar" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:var(--space-3);">
+  <input type="search" name="q" value="{{ q }}" placeholder="Buscar producto…"
+         style="flex:1;min-width:180px;height:36px;" aria-label="Buscar producto">
+  <div class="mf-pop" data-mf="margen">
+    <button type="button" class="mf-btn" aria-expanded="false">{% if margen_sel == 'negativo' %}Margen negativo{% elif margen_sel == 'bajo' %}Margen bajo{% elif margen_sel == 'ok' %}Margen medio{% elif margen_sel == 'alto' %}Margen alto{% elif margen_sel == 'sin-datos' %}Sin datos de margen{% else %}Margen{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      {% for val, lbl in [('', 'Todos'), ('negativo', 'Negativo (< 0%)'), ('bajo', 'Bajo (< 30%)'), ('ok', 'Medio (30–70%)'), ('alto', 'Alto (> 70%)'), ('sin-datos', 'Sin datos')] %}
+      <label class="mf-option"><input type="radio" name="margen" value="{{ val }}" {% if margen_sel == val %}checked{% endif %}> {{ lbl }}</label>
+      {% endfor %}
     </div>
   </div>
-  <button type="submit" class="btn">
-    <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
-    Filtrar
-  </button>
-  <a href="/productos" class="btn btn-ghost">Limpiar</a>
+  <div class="mf-pop" data-mf="disponibles">
+    <button type="button" class="mf-btn" aria-expanded="false">{% if disp_sel == 'si' %}Disponibles{% elif disp_sel == 'no' %}No disponibles{% else %}Disponibilidad{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      {% for val, lbl in [('', 'Todos'), ('si', 'Disponibles'), ('no', 'No disponibles')] %}
+      <label class="mf-option"><input type="radio" name="disponibles" value="{{ val }}" {% if disp_sel == val %}checked{% endif %}> {{ lbl }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="mf-pop" data-mf="has_recipe">
+    <button type="button" class="mf-btn" aria-expanded="false">{% if has_recipe == 'yes' %}Con receta{% elif has_recipe == 'no' %}Sin receta{% else %}Receta{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      {% for val, lbl in [('', 'Todos'), ('yes', 'Con receta'), ('no', 'Sin receta')] %}
+      <label class="mf-option"><input type="radio" name="has_recipe" value="{{ val }}" {% if has_recipe == val %}checked{% endif %}> {{ lbl }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary" style="height:36px;">Filtrar</button>
+  {% if q or has_recipe or margen_sel or disp_sel %}
+  <a href="/productos" class="btn" style="height:36px;">Limpiar todo</a>
+  {% endif %}
 </form>
+<div class="inv-result-count" style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-3);">
+  {{ total }} de {{ total_all }} productos{% if q %} · búsqueda “{{ q }}”{% endif %}
+</div>
 
 <div class="table-controls">
   <button type="button" class="btn btn-sm btn-ghost" onclick="toggleColumnVisibility()">

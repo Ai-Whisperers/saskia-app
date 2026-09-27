@@ -106,15 +106,19 @@ def test_combo_supports_static_source():
 
 
 def test_productos_uses_static_combo():
-    """productos.html has_recipe filter uses a static combo."""
+    """productos.html has_recipe filter is a radio popover (mf-pop) — no native select.
+
+    2026-09-27: upgraded from static saskia-combo to the shared mf-pop filter
+    toolbar pattern (same as inventario). Still zero-native-select."""
     p = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/productos.html").read_text()
     # Old native select should be gone
     assert '<select name="has_recipe">' not in p
-    # New combo with static source + 3 inline options
-    assert 'data-source="static"' in p
-    assert "has_recipe_combo" in p
-    # Three options: Todos, Con receta, Sin receta
-    assert p.count("combo-static-option") == 3
+    assert '<select' not in p
+    # mf-pop radio popover with 3 options
+    assert 'data-mf="has_recipe"' in p
+    assert p.count('value="{{ val }}"') >= 1  # loop-generated radio options
+    # Count line + limpiar present
+    assert "Limpiar todo" in p
 
 
 def test_receta_form_scale_uses_static_combo():

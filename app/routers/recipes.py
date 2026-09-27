@@ -65,6 +65,9 @@ def _decorate(session: Session, r: Recipe, batch: CostResult, unit: CostResult |
 async def recipes_list(
     request: Request,
     q: str = Query("", description="Search by recipe name"),
+    familia: str = Query("", description="Filter by recipe family (comma-separated, OR semantics)"),
+    dificultad: str = Query("", description="Filter by difficulty 1-5 (exact)"),
+    dieteticas: str = Query("", description="Filter by dietary tags (comma-separated, AND semantics)"),
     ingredient_id: str = Query("", description="Filter by single ingredient ID (legacy)"),
     ingredient_ids: str = Query("", description="Filter by multiple ingredient IDs (comma-separated). US 3.2: AND semantics — recipe must use ALL selected."),
     sort: str = Query("name", pattern="^(name|yield_qty|batch_cost_gs)$"),
@@ -104,9 +107,23 @@ async def recipes_list(
                 ing_id_ints.append(val)
 
     # Base query — first count for pagination
+    familias_sel = [x.strip() for x in familia.split(",") if x.strip()]
+    dif_sel = dificultad.strip()
+    diet_sel = [x.strip() for x in dieteticas.split(",") if x.strip()]
+
     count_stmt = select(func.count(Recipe.id))
     if q:
         count_stmt = count_stmt.where(Recipe.name.ilike(f"%{q}%"))
+    if familias_sel:
+        count_stmt = count_stmt.where(Recipe.family.in_(familias_sel))
+    if dif_sel:
+        try:
+            count_stmt = count_stmt.where(Recipe.difficulty == int(dif_sel))
+        except ValueError:
+            pass
+    if diet_sel:
+        for tag in diet_sel:
+            count_stmt = count_stmt.where(Recipe.dietary_tags.ilike(f"%{tag}%"))
     if ing_id_ints:
         # AND semantics: recipe must use ALL of these ingredients.
         # Subquery: pick recipe_ids that have N distinct line_ref_id matches.
@@ -130,6 +147,16 @@ async def recipes_list(
     # Search filter
     if q:
         stmt = stmt.where(Recipe.name.ilike(f"%{q}%"))
+    if familias_sel:
+        stmt = stmt.where(Recipe.family.in_(familias_sel))
+    if dif_sel:
+        try:
+            stmt = stmt.where(Recipe.difficulty == int(dif_sel))
+        except ValueError:
+            pass
+    if diet_sel:
+        for tag in diet_sel:
+            stmt = stmt.where(Recipe.dietary_tags.ilike(f"%{tag}%"))
 
     # Ingredient filter: find recipes that use ALL of these ingredients
     if ing_id_ints:
@@ -175,9 +202,20 @@ async def recipes_list(
     # Ingredient list for filter dropdown
     all_ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
 
+    from app.rms.categories import list_categories
+    from app.rms.tags import list_tags_for_kind
+    all_families = sorted({f for f, in session.execute(select(Recipe.family).where(Recipe.family.is_not(None)).distinct()) if f})
+    all_tags = [t.name for t in list_tags_for_kind(session, "recipe")]
+    total_all = session.scalar(select(func.count(Recipe.id))) or 0
     return render(request, "recetas.html", {
         "recipes": decorated,
         "q": q,
+        "familias_sel": familias_sel,
+        "dif_sel": dif_sel,
+        "diet_sel": diet_sel,
+        "all_families": all_families,
+        "all_recipe_tags": all_tags,
+        "total_all": total_all,
         "ingredient_id": ing_id_ints[0] if ing_id_ints else "",
         "ingredient_ids": ",".join(str(i) for i in ing_id_ints),
         "sort": sort,
