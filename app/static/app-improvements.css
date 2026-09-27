@@ -275,3 +275,30 @@ saskia-date:focus-visible, saskia-combo:focus-visible,
   outline-offset: 0;
   box-shadow: 0 0 0 3px var(--accent-bg, rgba(37, 99, 235, 0.18));
 }
+
+/* app-improvements.css — confirm modal (P0-D12)
+ * Modal dialog used by SaskiaConfirmModal.show({title, body, danger, confirmLabel}).
+ * Returns a Promise<boolean>. ARIA alertdialog, focus-trap on OK button.
+ */
+.confirm-backdrop {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45);
+  opacity: 0; pointer-events: none; transition: opacity .18s ease;
+  z-index: 9999;
+}
+.confirm-backdrop.open { opacity: 1; pointer-events: auto; }
+.confirm-modal {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -45%);
+  background: var(--color-surface, #fff); border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.45);
+  padding: 1.5rem; min-width: 320px; max-width: 480px; width: calc(100% - 2rem);
+  opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease;
+  z-index: 10000;
+}
+.confirm-modal.open { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%); }
+.confirm-modal__header { display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; }
+.confirm-modal__icon { width: 24px; height: 24px; color: var(--color-warning, #d97706); flex: 0 0 24px; }
+.confirm-modal__title { margin: 0; font-size: 1.125rem; font-weight: 600; }
+.confirm-modal__body { color: var(--color-text-muted, #475569); margin-bottom: 1.25rem; line-height: 1.45; }
+.confirm-modal__footer { display: flex; gap: .5rem; justify-content: flex-end; }
+.btn-danger { background: var(--color-danger, #dc2626); color: #fff; border: 1px solid var(--color-danger, #dc2626); }
+.btn-danger:hover { background: var(--color-danger-dark, #b91c1c); border-color: var(--color-danger-dark, #b91c1c); }

@@ -183,15 +183,7 @@
 {% endif %}
 
 {% else %}
-<div class="empty-state">
-  <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
-  <h3>Todavía no cargaste productos</h3>
-  <p>Empezá por los productos más vendidos — los que más factura tu local.</p>
-  <a href="/productos/nuevo" class="btn btn-primary">
-    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
-    Agregá el primero
-  </a>
-</div>
+{{ ui.empty_state(title="Todavía no cargaste productos", icon="icon-box", hint="Empezá por los productos más vendidos — los que más factura tu local.", cta_href="/productos/nuevo", cta_label="Agregá el primero") }}
 {% endif %}
 
 {# Column visibility toggle #}

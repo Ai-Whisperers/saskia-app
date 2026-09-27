@@ -201,18 +201,12 @@
   </div>
   {% endif %}
 {% else %}
-  <div class="empty-state">
-    <p class="text-muted">
-      {% if key == "hoy_manana" %}
-      No hay pedidos para hoy ni mañana. Cargá uno cuando entre por WhatsApp.
-      {% elif key == "esta_semana" %}
-      Sin pedidos para los próximos 7 días.
-      {% else %}
-      Nada pendiente atrasado. ¡Bien!
-      {% endif %}
-    </p>
-  </div>
+  {% if key == "hoy_manana" %}{% set _msg = "No hay pedidos para hoy ni mañana. Cargá uno cuando entre por WhatsApp." %}
+  {% elif key == "esta_semana" %}{% set _msg = "Sin pedidos para los próximos 7 días." %}
+  {% else %}{% set _msg = "Nada pendiente atrasado. ¡Bien!" %}
   {% endif %}
+  {{ ui.empty_state(title="Sin pedidos en este segmento", icon="icon-pedido", hint=_msg) }}
+{% endif %}
 </section>
 {% endfor %}
 

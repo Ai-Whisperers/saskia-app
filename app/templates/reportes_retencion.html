@@ -48,10 +48,7 @@
   </div>
 </div>
 
-<div class="empty-state" style="padding: 2rem;">
-  <p class="text-muted">Los clientes recurrentes son los que ya habían comprado antes del período seleccionado.
-     Los nuevos son los que compraron por primera vez en este período.</p>
-</div>
+{{ ui.empty_state(title="Sin datos de retención", icon="icon-report", hint="No hay clientes con ventas en este período.") }}
 {% else %}
 {{ ui.empty_state(title="No hay datos", icon="icon-report", hint="No hay clientes con ventas en este período.") }}
 {% endif %}

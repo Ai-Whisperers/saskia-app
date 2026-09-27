@@ -168,15 +168,7 @@
 {% endif %}
 {% endif %}
 {% else %}
-<div class="empty-state">
-  <svg class="icon" aria-hidden="true"><use href="#icon-recipe"/></svg>
-  <h3>Todavía no cargaste recetas</h3>
-  <p>Las recetas calculan el costo real de cada producto y permiten ver el margen.</p>
-  <a href="/recetas/nueva" class="btn btn-primary">
-    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
-    Agregá la primera
-  </a>
-</div>
+{{ ui.empty_state(title="Todavía no cargaste recetas", icon="icon-recipe", hint="Las recetas calculan el costo real de cada producto y permiten ver el margen.", cta_href="/recetas/nueva", cta_label="Agregá la primera") }}
 {% endif %}
 
 {# --- Recipe photo modal (US 1.1: image behind button → modal) --- #}

@@ -245,15 +245,7 @@
 {% endif %}
 
 {% else %}
-<div class="empty-state">
-  <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
-  <h3>Empezá cargando tus ingredientes</h3>
-  <p>Harina, azúcar, aceite, queso — los básicos para producir.</p>
-  <a href="/inventario/nuevo" class="btn btn-primary">
-    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
-    Agregá el primero
-  </a>
-</div>
+{{ ui.empty_state(title="Empezá cargando tus ingredientes", icon="icon-inventory", hint="Harina, azúcar, aceite, queso — los básicos para producir.", cta_href="/inventario/nuevo", cta_label="Agregá el primero") }}
 {% endif %}
 
 {# ── Stock adjustment modal ── #}

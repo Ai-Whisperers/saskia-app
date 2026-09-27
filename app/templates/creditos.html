@@ -29,7 +29,7 @@
     </tbody>
   </table>
   {% else %}
-  <p class="empty-state">Todavía no hay imágenes con atribución registradas.</p>
+  {{ ui.empty_state(title="Sin imágenes registradas", icon="icon-image", hint="Todavía no hay imágenes con atribución registradas.") }}
   {% endif %}
 </div>
 {% endblock %}

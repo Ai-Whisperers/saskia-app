@@ -99,3 +99,65 @@ document.addEventListener('change', function (e) {
     document.getElementById('dietary_tags').value = dCodes.join(',');
   }
 });
+
+// ── SaskiaConfirmModal: Promise-based confirm() replacement ─────────────
+window.SaskiaConfirmModal = (function () {
+  var _ensureShell = function () {
+    if (document.getElementById('saskia-confirm')) return;
+    var bd = document.createElement('div');
+    bd.className = 'confirm-backdrop'; bd.id = 'saskia-confirm-backdrop';
+    var d = document.createElement('aside');
+    d.className = 'confirm-modal'; d.id = 'saskia-confirm'; d.setAttribute('role', 'alertdialog');
+    d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-labelledby', 'saskia-confirm-title');
+    d.setAttribute('aria-describedby', 'saskia-confirm-body');
+    d.innerHTML =
+      '<div class="confirm-modal__header">' +
+      '  <svg class="confirm-modal__icon" aria-hidden="true"><use href="#icon-warn"/></svg>' +
+      '  <h2 class="confirm-modal__title" id="saskia-confirm-title">Confirmar</h2>' +
+      '</div>' +
+      '<div class="confirm-modal__body" id="saskia-confirm-body"></div>' +
+      '<div class="confirm-modal__footer">' +
+      '  <button type="button" class="btn btn-ghost" data-confirm-cancel>Cancelar</button>' +
+      '  <button type="button" class="btn btn-danger" data-confirm-ok>Confirmar</button>' +
+      '</div>';
+    document.body.appendChild(bd); document.body.appendChild(d);
+    bd.addEventListener('click', function () { _close(false); });
+    d.addEventListener('click', function (e) {
+      if (e.target.closest('[data-confirm-cancel]')) _close(false);
+      if (e.target.closest('[data-confirm-ok]')) _close(true);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && document.getElementById('saskia-confirm').open) _close(false);
+      if (e.key === 'Enter' && document.getElementById('saskia-confirm').open) _close(true);
+    });
+  };
+  var _close = function (ok) {
+    var d = document.getElementById('saskia-confirm');
+    var bd = document.getElementById('saskia-confirm-backdrop');
+    if (!d) return;
+    d.classList.remove('open'); bd.classList.remove('open');
+    d.open = false;
+    var p = d._pending; d._pending = null;
+    if (p) p(ok);
+  };
+  return {
+    show: function (opts) {
+      _ensureShell();
+      opts = opts || {};
+      var d = document.getElementById('saskia-confirm');
+      var bd = document.getElementById('saskia-confirm-backdrop');
+      document.getElementById('saskia-confirm-title').textContent = opts.title || '¿Estás seguro?';
+      document.getElementById('saskia-confirm-body').textContent = opts.body || 'Esta acción no se puede deshacer.';
+      var okBtn = d.querySelector('[data-confirm-ok]');
+      okBtn.textContent = opts.confirmLabel || 'Confirmar';
+      okBtn.className = opts.danger === false ? 'btn btn-primary' : 'btn btn-danger';
+      d.classList.add('open'); bd.classList.add('open');
+      d.open = true;
+      setTimeout(function () { okBtn.focus(); }, 30);
+      return new Promise(function (resolve) {
+        d._pending = resolve;
+      });
+    },
+    close: function (ok) { _close(ok); }
+  };
+})();

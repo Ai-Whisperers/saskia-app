@@ -152,10 +152,7 @@
         <span>Detalles y ajustes en <a href="/produccion">Producción →</a></span>
       </div>
     {% else %}
-      <div class="empty-state" style="padding:var(--space-6);">
-        <p>Sin plan todavía — se calcula con tus ventas.</p>
-        <a href="/produccion" class="btn">Ver Producción</a>
-      </div>
+      {{ ui.empty_state(title="Sin plan todavía", icon="icon-plan", hint="Se calcula con tus ventas.", cta_href="/produccion", cta_label="Ver Producción") }}
     {% endif %}
   </section>
 
@@ -211,12 +208,7 @@
   {{ m.top_list_card("Top productos por ventas", top_products_revenue, "Gs. ", "icon-arrow-up") }}
 </div>
 {% else %}
-<div class="empty-state mb-4" style="border:1px dashed var(--color-border);border-radius:var(--radius-lg);padding:var(--space-8);">
-  <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
-  <h3>Los gráficos aparecen con tu primera venta</h3>
-  <p>Ventas por hora, tendencia de 30 días y formas de pago se dibujan solos.</p>
-  <a href="/ventas" class="btn btn-primary">Registrar venta</a>
-</div>
+{{ ui.empty_state(title="Los gráficos aparecen con tu primera venta", icon="icon-sale", hint="Ventas por hora, tendencia de 30 días y formas de pago se dibujan solos.", cta_href="/ventas", cta_label="Registrar venta") }}
 {% endif %}
 
 {# ══ ANÁLISIS teaser band ══════════════════════════════════════════ #}

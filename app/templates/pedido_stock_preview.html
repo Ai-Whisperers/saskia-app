@@ -49,9 +49,7 @@
   </table>
 </div>
 {% else %}
-<div class="empty-state">
-  <p class="text-muted">No hay productos con receta para este pedido.</p>
-</div>
+{{ ui.empty_state(title="Sin productos con receta", icon="icon-box", hint="No hay productos con receta para este pedido.") }}
 {% endif %}
 
 <div style="display: flex; gap: var(--space-2); margin-top: var(--space-4);">

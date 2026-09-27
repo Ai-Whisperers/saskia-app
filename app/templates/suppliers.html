@@ -66,15 +66,7 @@
 </div>
 {% endif %}
 {% else %}
-<div class="empty-state">
-  <svg class="icon" aria-hidden="true"><use href="#icon-supplier"/></svg>
-  <h3>No hay proveedores todavía</h3>
-  <p>Agregá proveedores para poder contactarlos desde la página de reorden.</p>
-  <a href="/suppliers/nuevo" class="btn btn-primary">
-    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
-    Agregar el primero
-  </a>
-</div>
+{{ ui.empty_state(title="No hay proveedores todavía", icon="icon-supplier", hint="Agregá proveedores para poder contactarlos desde la página de reorden.", cta_href="/suppliers/nuevo", cta_label="Agregar el primero") }}
 {% endif %}
 
 {% endblock %}

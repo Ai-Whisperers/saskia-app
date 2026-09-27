@@ -110,7 +110,7 @@
     </div>
   </form>
   {% else %}
-  <p class="empty-state text-muted">No hay recetas con rendimiento cargado todavía.</p>
+  {{ ui.empty_state(title="Sin rendimiento cargado", icon="icon-trend", hint="No hay recetas con rendimiento cargado todavía.") }}
   {% endif %}
 </section>
 
