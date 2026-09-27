@@ -9,6 +9,46 @@
   function $(sel, ctx) { return (ctx || document).querySelector(sel); }
   function $$(sel, ctx) { return Array.from((ctx || document).querySelectorAll(sel)); }
 
+  /* ─── js-confirm-form: intercept forms with class="js-confirm-form" and use
+     SaskiaConfirmModal instead of native confirm() ──────────────────────── */
+  var __nextConfirmId = 1;
+  function __wrapFormWithId(form) {
+    if (form.id) return form.id;
+    form.id = 'js-confirm-form-' + (__nextConfirmId++);
+    return form.id;
+  }
+  function initConfirmForms() {
+    var forms = document.querySelectorAll('form.js-confirm-form');
+    for (var i = 0; i < forms.length; i++) {
+      (function (form) {
+        if (form.__saskiaConfirmBound) return;
+        form.__saskiaConfirmBound = true;
+        var formId = __wrapFormWithId(form);
+        form.addEventListener('submit', function (e) {
+          if (form.__saskiaConfirmed) return; // already confirmed
+          e.preventDefault();
+          var title = form.dataset.confirmTitle || '¿Estás seguro?';
+          var body = form.dataset.confirmBody || 'Esta acción no se puede deshacer.';
+          var danger = form.dataset.confirmDanger === 'true';
+          if (window.SaskiaConfirmModal) {
+            SaskiaConfirmModal.show({
+              title: title,
+              body: body,
+              formId: formId,
+              confirmLabel: 'Confirmar',
+              danger: danger
+            });
+          } else {
+            // Fallback to native confirm
+            if (!window.confirm(title + '\n\n' + body)) return;
+            form.__saskiaConfirmed = true;
+            form.submit();
+          }
+        });
+      })(forms[i]);
+    }
+  }
+
   function relativeTime(dateStr) {
     if (!dateStr) return '';
     try {
@@ -392,12 +432,14 @@
     loadNotifications();
     initCopyToClipboard();
     initTagPickers();
+    initConfirmForms();
   });
 
   // Re-init after dynamic content (e.g. from HTMX or fetch)
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
     setTimeout(initCopyToClipboard, 100);
     setTimeout(initTagPickers, 100);
+  setTimeout(initConfirmForms, 100);
   }
 
 })();

@@ -27,11 +27,11 @@
 </div>
 {% endif %}
 
-<div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
-  <div class="kpi-card"><div class="kpi-label">Items abiertos</div><div class="kpi-value">{{ open_count }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Comprados</div><div class="kpi-value">{{ purchased_count }}</div></div>
-  <div class="kpi-card highlight"><div class="kpi-label">Total estimado Gs.</div><div class="kpi-value">{{ m.gs(total_gs) }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Ingredientes únicos</div><div class="kpi-value">{{ by_ingredient|length }}</div></div>
+<div class="kpi-strip">
+  {{ ui.metric_card(label="Items abiertos", value=open_count, compact=True) }}
+  {{ ui.metric_card(label="Comprados", value=purchased_count, compact=True) }}
+  {{ ui.metric_card(label="Total estimado", value=m.gs(total_gs), compact=True) }}
+  {{ ui.metric_card(label="Ingredientes únicos", value=by_ingredient|length, compact=True) }}
 </div>
 
 <div style="margin:1rem 0;">
@@ -99,7 +99,7 @@
           </form>
         {% endif %}
         <form method="post" action="/shopping-list/{{ item.id }}/delete" style="display:inline;"
-              onsubmit="return confirm('Eliminar {{ item.ingredient.name }} de la lista?')">
+                      class="js-confirm-form" data-confirm-title="¿Eliminar ítem?" data-confirm-body="Eliminar {{ item.ingredient.name }} de la lista?" data-confirm-danger="true">
           <button class="btn btn-sm btn-danger">×</button>
         </form>
       </td>

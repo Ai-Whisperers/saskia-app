@@ -5,11 +5,11 @@
 {{ ui.page_header("🏦 Movimientos bancarios", desc="Dutch EUR (JGHM VAN DER POL) + PY Guaraní (SASKIA WEISS VANDER)")
 }}
 
-<div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
-  <div class="kpi-card"><div class="kpi-label">EUR income</div><div class="kpi-value">€{{ "{:,.2f}".format(eur_income) }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">EUR spent</div><div class="kpi-value">€{{ "{:,.2f}".format(eur_spent) }}</div></div>
-  <div class="kpi-card highlight"><div class="kpi-label">EUR net</div><div class="kpi-value">€{{ "{:,.2f}".format(eur_net) }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">PYG balance</div><div class="kpi-value">{{ m.gs(pyg_balance_gs) }}</div></div>
+<div class="kpi-strip">
+  {{ ui.metric_card(label="EUR income", value='€{:,.2f}'.format(eur_income), compact=True) }}
+  {{ ui.metric_card(label="EUR spent", value='€{:,.2f}'.format(eur_spent), compact=True) }}
+  {{ ui.metric_card(label="EUR net", value='€{:,.2f}'.format(eur_net), compact=True) }}
+  {{ ui.metric_card(label="PYG balance", value=m.gs(pyg_balance_gs), compact=True) }}
 </div>
 
 {% if active_category %}

@@ -5,12 +5,12 @@
 {{ ui.page_header("🏪 Lista de deseos — equipamiento", desc="Lista priorizada para arrancar y escalar la panadería")
 }}
 
-<div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
-  <div class="kpi-card"><div class="kpi-label">Artículos totales</div><div class="kpi-value">{{ pending_count + purchased_count }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Pendientes</div><div class="kpi-value">{{ pending_count }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Comprados</div><div class="kpi-value">{{ purchased_count }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Inversión total (Gs.)</div><div class="kpi-value">{{ m.gs(total_all_gs) }}</div></div>
-  <div class="kpi-card highlight"><div class="kpi-label">Pendiente Gs.</div><div class="kpi-value">{{ m.gs(total_pending_gs) }}</div></div>
+<div class="kpi-strip">
+  {{ ui.metric_card(label="Artículos totales", value=pending_count + purchased_count, compact=True) }}
+  {{ ui.metric_card(label="Pendientes", value=pending_count, compact=True) }}
+  {{ ui.metric_card(label="Comprados", value=purchased_count, compact=True) }}
+  {{ ui.metric_card(label="Inversión total", value=m.gs(total_all_gs), compact=True) }}
+  {{ ui.metric_card(label="Pendiente", value=m.gs(total_pending_gs), compact=True) }}
 </div>
 
 {% for prio in ['must_have', 'nice_to_have', 'optional'] %}

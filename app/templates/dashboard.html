@@ -8,27 +8,24 @@
 </div>
 
 <div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
-  <div class="kpi-card"><div class="kpi-label">Ingresos Gs.</div><div class="kpi-value">{{ m.gs(revenue_gs) }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Porciones vendidas</div><div class="kpi-value">{{ portions }}</div></div>
-  <div class="kpi-card {% if food_cost_pct is not none and food_cost_pct < 35 %}good{% elif food_cost_pct is none %}{% else %}warn{% endif %}">
-    <div class="kpi-label">Costo de materia prima %</div><div class="kpi-value">{% if food_cost_pct is none %}sin escandallo{% else %}{{ "%.1f"|format(food_cost_pct) }}%{% endif %}</div>
-    <div class="kpi-target">objetivo: 35%</div>
-  </div>
-  <div class="kpi-card {% if gross_margin_pct is not none and gross_margin_pct > 60 %}good{% elif gross_margin_pct is none %}{% else %}warn{% endif %}">
-    <div class="kpi-label">Margen bruto %</div><div class="kpi-value">{% if gross_margin_pct is none %}sin escandallo{% else %}{{ "%.1f"|format(gross_margin_pct) }}%{% endif %}</div>
-    <div class="kpi-target">objetivo: 60%</div>
-  </div>
-  <div class="kpi-card"><div class="kpi-label">Clientes únicos</div><div class="kpi-value">{{ unique_customers }}</div></div>
-  <div class="kpi-card {% if repeat_pct > 30 %}good{% else %}warn{% endif %}">
-    <div class="kpi-label">Recurrencia %</div><div class="kpi-value">{{ repeat_pct }}%</div>
-    <div class="kpi-target">objetivo: 30%</div>
-  </div>
-  <div class="kpi-card"><div class="kpi-label">Ticket promedio Gs.</div><div class="kpi-value">{{ m.gs(avg_order_gs) }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Merma Gs.</div><div class="kpi-value">{{ m.gs(waste_gs) }}</div></div>
-  <div class="kpi-card {% if waste_pct < 5 %}good{% else %}warn{% endif %}">
-    <div class="kpi-label">Merma %</div><div class="kpi-value">{{ "%.1f"|format(waste_pct) }}%</div>
-    <div class="kpi-target">objetivo: 5%</div>
-  </div>
+  <div class="kpi-strip">
+  {{ ui.metric_card(label="Ingresos", value=m.gs(revenue_gs), compact=True) }}
+  {{ ui.metric_card(label="Porciones vendidas", value=portions, compact=True) }}
+  {{ ui.metric_card(
+       label="Costo de materia prima %",
+       value=('sin escandallo' if food_cost_pct is none else '%.1f%%'|format(food_cost_pct)),
+       sub='objetivo: 35%',
+       compact=True) }}
+  {{ ui.metric_card(
+       label="Margen bruto %",
+       value=('sin escandallo' if gross_margin_pct is none else '%.1f%%'|format(gross_margin_pct)),
+       sub='objetivo: 60%',
+       compact=True) }}
+  {{ ui.metric_card(label="Clientes únicos", value=unique_customers, compact=True) }}
+  {{ ui.metric_card(label="Recurrencia %", value='%d%%'|format(repeat_pct), sub='objetivo: 30%', compact=True) }}
+  {{ ui.metric_card(label="Ticket promedio", value=m.gs(avg_order_gs), compact=True) }}
+  {{ ui.metric_card(label="Merma", value=m.gs(waste_gs), compact=True) }}
+  {{ ui.metric_card(label="Merma %", value='%.1f%%'|format(waste_pct), sub='objetivo: 5%', compact=True) }}
 </div>
 
 {% if erosion_alerts %}
@@ -49,16 +46,16 @@
 {% endif %}
 
 <h2>Recetas</h2>
-<div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
-  <div class="kpi-card"><div class="kpi-label">Recetas en el sistema</div><div class="kpi-value">{{ recipe_count }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Recetas cocinadas este mes</div><div class="kpi-value">{{ recipes_cooked }}</div></div>
+<div class="kpi-strip">
+  {{ ui.metric_card(label="Recetas en el sistema", value=recipe_count, compact=True) }}
+  {{ ui.metric_card(label="Recetas cocinadas este mes", value=recipes_cooked, compact=True) }}
 </div>
 
 <h2><svg class="icon" aria-hidden="true"><use href="#icon-recipe"/></svg>  Receta más vendida</h2>
 {% if top_recipe_name != '—' %}
-<div class="kpi-card" style="display:inline-block; padding:1rem; min-width:300px;">
-  <div class="kpi-label">Receta más vendida</div>
-  <div class="kpi-value" style="font-size:1.5rem;">{{ top_recipe_name }}</div>
+<div style="display:inline-block; padding:1rem; min-width:300px;">
+  <div class="muted">Receta más vendida</div>
+  <div style="font-size:1.5rem; font-weight:600;">{{ top_recipe_name }}</div>
   <div class="muted">Ingresos: {{ m.gs(top_recipe_revenue_gs) }}</div>
 </div>
 {% endif %}
@@ -81,26 +78,26 @@
 {% endif %}
 
 <h2 style="margin-top:2rem;"><svg class="icon" aria-hidden="true"><use href="#icon-ops"/></svg>  Operación</h2>
-<div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
-  <a href="/shopping-list" class="kpi-card" style="text-decoration:none;color:inherit;">
-    <div class="kpi-label">Lista de Compras abiertas</div>
-    <div class="kpi-value">{{ sl_open_count }}</div>
-    <div class="kpi-target" style="color:#dc2626;">{{ m.gs(sl_total_gs) }} estimados</div>
+<div class="kpi-strip" style="flex-wrap:wrap;">
+  <a href="/shopping-list" style="text-decoration:none;color:inherit;" class="metric-card metric-card--compact">
+    <div class="metric-card__label">Lista de Compras abiertas</div>
+    <div class="metric-card__value">{{ sl_open_count }}</div>
+    <div class="metric-card__sub" style="color:#dc2626;">{{ m.gs(sl_total_gs) }} estimados</div>
   </a>
-  <a href="/wishlist" class="kpi-card" style="text-decoration:none;color:inherit;">
-    <div class="kpi-label">Equipamiento pendiente</div>
-    <div class="kpi-value">{{ wishlist_count }}</div>
-    <div class="kpi-target" style="color:#b45309;">{{ m.gs(wishlist_total_gs) }} equipo</div>
+  <a href="/wishlist" style="text-decoration:none;color:inherit;" class="metric-card metric-card--compact">
+    <div class="metric-card__label">Equipamiento pendiente</div>
+    <div class="metric-card__value">{{ wishlist_count }}</div>
+    <div class="metric-card__sub" style="color:#b45309;">{{ m.gs(wishlist_total_gs) }} equipo</div>
   </a>
-  <a href="/riesgos" class="kpi-card" style="text-decoration:none;color:inherit;">
-    <div class="kpi-label">Riesgos activos</div>
-    <div class="kpi-value">{{ risk_count }}</div>
-    <div class="kpi-target" style="color:#dc2626;">{{ m.gs(risk_severity_gs) }} severidad</div>
+  <a href="/riesgos" style="text-decoration:none;color:inherit;" class="metric-card metric-card--compact">
+    <div class="metric-card__label">Riesgos activos</div>
+    <div class="metric-card__value">{{ risk_count }}</div>
+    <div class="metric-card__sub" style="color:#dc2626;">{{ m.gs(risk_severity_gs) }} severidad</div>
   </a>
-  <a href="/benchmarks" class="kpi-card" style="text-decoration:none;color:inherit;">
-    <div class="kpi-label">Comparativas de mercado</div>
-    <div class="kpi-value">17</div>
-    <div class="kpi-target">vs competencia</div>
+  <a href="/benchmarks" style="text-decoration:none;color:inherit;" class="metric-card metric-card--compact">
+    <div class="metric-card__label">Comparativas de mercado</div>
+    <div class="metric-card__value">17</div>
+    <div class="metric-card__sub">vs competencia</div>
   </a>
 </div>
 

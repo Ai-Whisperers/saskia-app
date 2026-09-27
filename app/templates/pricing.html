@@ -5,10 +5,10 @@
 {{ ui.page_header("💰 Precios por receta", desc="Costos y precios por canal (mayorista, minorista, distribuidor, etc.)")
 }}
 
-<div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
-  <div class="kpi-card"><div class="kpi-label">Recetas con pricing</div><div class="kpi-value">{{ rows|length }}</div></div>
-  <div class="kpi-card"><div class="kpi-label">Costo total (batch)</div><div class="kpi-value">{{ m.gs(total_cost_gs) }}</div></div>
-  <div class="kpi-card highlight"><div class="kpi-label">Valor minorista</div><div class="kpi-value">{{ m.gs(total_retail_gs) }}</div></div>
+<div class="kpi-strip">
+  {{ ui.metric_card(label="Recetas con pricing", value=rows|length, compact=True) }}
+  {{ ui.metric_card(label="Costo total (batch)", value=m.gs(total_cost_gs), compact=True) }}
+  {{ ui.metric_card(label="Valor minorista", value=m.gs(total_retail_gs), compact=True) }}
 </div>
 
 <div class="muted" style="margin:1rem 0;">

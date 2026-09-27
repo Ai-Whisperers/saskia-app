@@ -228,7 +228,7 @@
             <button type="submit" class="btn btn-sm btn-ghost">Marcar preferida</button>
           </form>
           {% endif %}
-          <form method="post" action="/inventario/{{ ingredient.id }}/variantes/{{ v.variant_id }}/eliminar" style="display:inline;" onsubmit="return confirm('¿Eliminar esta variante?');">
+          <form method="post" action="/inventario/{{ ingredient.id }}/variantes/{{ v.variant_id }}/eliminar" style="display:inline;" class="js-confirm-form" data-confirm-title="¿Eliminar variante?" data-confirm-body="Esta acción no se puede deshacer.">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
           </form>

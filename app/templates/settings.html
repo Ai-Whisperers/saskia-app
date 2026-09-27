@@ -333,19 +333,23 @@
     </div>
   </div>
 
-  <form method="post" action="/settings/seed-demo" style="display: inline-block; margin-right: 0.5rem;">
+  <form method="post" action="/settings/seed-demo" style="display: inline-block; margin-right: 0.5rem;"
+        class="js-confirm-form"
+        data-confirm-title="¿Cargar datos de ejemplo?"
+        data-confirm-body="Esto agregará 29 ingredientes, 12 recetas, 12 productos y 90 días de ventas. No sobrescribirá lo que ya tenés.">
     <input type="hidden" name="overwrite" value="0">
-    <button type="submit" class="btn btn-primary"
-            onclick="return confirm('¿Cargar datos de ejemplo? Esto agregará 29 ingredientes, 12 recetas, 12 productos y 90 días de ventas. No sobrescribirá lo que ya tenés.')">
+    <button type="submit" class="btn btn-primary">
       <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
       Adicionar datos de ejemplo
     </button>
   </form>
 
-  <form method="post" action="/settings/seed-demo" style="display: inline-block;">
+  <form method="post" action="/settings/seed-demo" style="display: inline-block;"
+        class="js-confirm-form" data-confirm-danger="true"
+        data-confirm-title="⚠️ ATENCIÓN — Resetear y recargar"
+        data-confirm-body="Esto BORRARÁ todas las ventas, productos, ingredientes, recetas y pedidos existentes, y volverá a sembrar. Si tenés datos reales, exportalos a Excel primero. ¿Continuar?">
     <input type="hidden" name="overwrite" value="1">
-    <button type="submit" class="btn btn-ghost"
-            onclick="return confirm('⚠️ ATENCIÓN: esto BORRARÁ todas las ventas, productos, ingredientes, recetas y pedidos existentes, y volverá a sembrar. Si tenés datos reales, exportalos a Excel primero. ¿Continuar?')">
+    <button type="submit" class="btn btn-ghost">
       <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
       Resetear y recargar
     </button>
