@@ -502,6 +502,13 @@ app.include_router(credits.router)
 app.include_router(pedidos.public_router)
 app.include_router(pedidos.router)
 
+# Dev-only routes (gated by env var, never enabled in production)
+import os as _os
+if _os.getenv("DEV_COMBO_SMOKE"):
+    from app.routers import dev as _dev_router
+    app.include_router(_dev_router.router)
+    app.include_router(_dev_router.api_router)
+
 
 def _request_id() -> str:
     """Generate a short request id for log correlation."""

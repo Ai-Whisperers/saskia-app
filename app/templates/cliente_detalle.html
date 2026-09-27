@@ -25,7 +25,7 @@
   <dt>CI / RUC</dt>
   <dd>{{ customer.cedula or "—" }}</dd>
   <dt>Nivel</dt>
-  <dd><span class="badge badge-tier-{{ stats.tier.value }}">{{ stats.tier.value.capitalize() }}</span></dd>
+  <dd><span class="badge badge-tier-{{ stats.tier.value }}">{{ stats.tier_label }}</span></dd>
   <dt>Puntos acumulados</dt>
   <dd>{{ customer.loyalty_points }}</dd>
   <dt>Gasto total</dt>

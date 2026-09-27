@@ -263,3 +263,54 @@
     {% endif %}
   {% endif %}
 {%- endmacro %}
+
+{# ── A-18 combo_field: saskia-combo wrapped for forms ─────────────────── #}
+{# Closes P0-D17. Replaces a native <select> with a search-as-you-type
+   <saskia-combo> Web Component. Two modes:
+     - client-side: pass `src` as a list of {value, label} dicts
+     - server-side: pass `endpoint` URL (returns JSON {results: [...]})
+
+   Args:
+     name        — form field name (required)
+     value       — currently selected value
+     display     — currently selected display label
+     placeholder — placeholder text shown in the trigger
+     src         — list of {value, label} dicts (client mode)
+     endpoint    — URL like "/api/lookup/products?q=" (server mode)
+     required    — boolean
+     label       — associated <label> text (optional)
+     label_for   — id for the <label for="...">
+
+   TODO (tomorrow): wire into filter_toolbar macro; add currency formatter
+   for price-type combos (closes D15). #}
+{% macro combo_field(name, value=None, display=None, placeholder=None,
+                     src=None, endpoint=None, required=False,
+                     label=None, label_for=None) -%}
+  {% if label -%}
+    <label for="{{ label_for or name }}">{{ label }}{% if required %} *{% endif %}</label>
+  {%- endif %}
+  {% if src -%}
+    <saskia-combo name="{{ name }}"
+                  {% if value is not none %}value="{{ value }}"{% endif %}
+                  {% if display %}display="{{ display }}"{% endif %}
+                  {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+                  {% if required %}required{% endif %}
+                  src='{{ src | tojson }}'></saskia-combo>
+  {%- elif endpoint -%}
+    <saskia-combo name="{{ name }}"
+                  {% if value is not none %}value="{{ value }}"{% endif %}
+                  {% if display %}display="{{ display }}"{% endif %}
+                  {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+                  {% if required %}required{% endif %}
+                  endpoint="{{ endpoint }}"></saskia-combo>
+  {%- else -%}
+    {# Fallback to native select so the form still works without data #}
+    <select name="{{ name }}" id="{{ name }}"
+            {% if required %}required{% endif %}
+            {% if placeholder %}data-placeholder="{{ placeholder }}"{% endif %}>
+      {% if value is not none and display -%}
+        <option value="{{ value }}" selected>{{ display }}</option>
+      {%- endif %}
+    </select>
+  {%- endif %}
+{%- endmacro %}

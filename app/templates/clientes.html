@@ -29,11 +29,11 @@
   <input type="search" name="q" value="{{ q }}" placeholder="Buscar nombre o teléfono…"
          style="flex:1;min-width:180px;height:36px;" aria-label="Buscar cliente">
   <div class="mf-pop" data-mf="tier">
-    <button type="button" class="mf-btn" aria-expanded="false">{% if tier %}Nivel: {{ tier|capitalize }}{% else %}Nivel{% endif %} ▾</button>
+    <button type="button" class="mf-btn" aria-expanded="false">{% if tier %}Nivel: {{ fmt.status_es(tier)[0] }}{% else %}Nivel{% endif %} ▾</button>
     <div class="mf-panel" hidden>
       <label class="mf-option"><input type="radio" name="tier" value="" {% if not tier %}checked{% endif %}> Todos</label>
       {% for t in tiers %}
-      <label class="mf-option"><input type="radio" name="tier" value="{{ t }}" {% if tier == t %}checked{% endif %}> {{ t|capitalize }}</label>
+      <label class="mf-option"><input type="radio" name="tier" value="{{ t }}" {% if tier == t %}checked{% endif %}> {{ fmt.status_es(t)[0] }}</label>
       {% endfor %}
     </div>
   </div>

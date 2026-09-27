@@ -4,6 +4,7 @@ Tests:
 - saskia-toast: script loads + is included on every page
 - saskia-skeleton: script loads + skeleton component is defined
 - saskia-month: script loads + closes-mensual page uses it for month navigation
+- saskia-combo: script loads + macro defined + dev smoke page works
 - flash_toast macro: renders the SaskiaToast.show() call when ?flash=… is set
 - js-confirm-form shim: app.js includes initConfirmForms + shopping-list uses the class
 - /inicio fix: merma breadcrumb no longer links to /inicio (404)
@@ -11,6 +12,7 @@ Tests:
 Uses the live FastAPI server. Skipped if no server.
 """
 import http.client
+import json
 import os
 import urllib.parse
 import urllib.request
@@ -316,3 +318,78 @@ def test_merma_breadcrumb_not_inicio(client):
     body = rsp.read().decode("utf-8", errors="replace")
     assert 'href="/inicio"' not in body, "merma still links to /inicio (which 404s)"
     assert 'href="/dashboard"' in body, "merma breadcrumb missing /dashboard fallback"
+
+
+# ── saskia-combo scaffolding (D17) ───────────────────────────────────
+# These tests verify the SCAFFOLDING is in place — the real component work
+# happens tomorrow. They guard against accidental breakage of the macro
+# definition, the Web Component registration, and the dev smoke page.
+
+def test_saskia_combo_script_loads(client):
+    """saskia-combo.js must be served and reachable."""
+    rsp = client.get("/static/saskia-combo.js")
+    assert rsp.status == 200, "saskia-combo.js not served"
+    body = rsp.read().decode("utf-8", errors="replace")
+    assert "SaskiaCombo" in body, "saskia-combo.js missing class definition"
+    assert "customElements.define('saskia-combo'" in body, "saskia-combo custom element not registered"
+
+
+def test_saskia_combo_included_in_base(client):
+    """base.html must include saskia-combo.js alongside other saskia components."""
+    rsp = client.get("/dashboard")
+    assert rsp.status == 200, "dashboard not 200"
+    body = rsp.read().decode("utf-8", errors="replace")
+    assert "saskia-combo.js" in body, "saskia-combo.js not loaded in base.html"
+
+
+def test_combo_field_macro_defined(client):
+    """ui.combo_field macro must exist in atoms.html."""
+    import subprocess
+    result = subprocess.run(
+        ["grep", "-c", "macro combo_field",
+         "/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/_components/atoms.html"],
+        capture_output=True, text=True,
+    )
+    assert int(result.stdout.strip()) >= 1, "ui.combo_field macro missing from atoms.html"
+
+
+def test_dev_combo_smoke_page_renders(client):
+    """The dev smoke page renders the combo in client + server modes."""
+    rsp = client.get("/dev/combo-smoke")
+    assert rsp.status == 200, "dev combo smoke page failed"
+    body = rsp.read().decode("utf-8", errors="replace")
+    assert "<saskia-combo" in body, "smoke page missing saskia-combo element"
+    assert 'name="category"' in body, "client-side combo missing"
+    assert 'name="product_id"' in body, "server-side combo missing"
+    assert 'endpoint="/api/lookup/products?q="' in body, "server-side combo missing endpoint"
+    assert "src='" in body, "client-side combo missing src JSON"
+    # Mock categories must be present (accented chars use \u escapes after tojson)
+    assert "Reposter" in body, "mock category data missing"
+    assert '"reposteria"' in body, "category value not in src"
+    # Submit button present
+    assert "Ver selecci" in body, "submit button missing"
+
+
+def test_dev_lookup_endpoint(client):
+    """Mock lookup endpoint returns JSON results."""
+    rsp = client.get("/api/lookup/products?q=pan")
+    assert rsp.status == 200, "lookup endpoint failed"
+    body = rsp.read().decode("utf-8", errors="replace")
+    data = json.loads(body)
+    assert "results" in data, "response missing 'results' key"
+    assert isinstance(data["results"], list), "results must be a list"
+    # All returned items should match the query
+    for item in data["results"]:
+        assert "pan" in item["label"].lower() or "value" in item, (
+            f"item {item} doesn't match query 'pan'"
+        )
+
+
+def test_dev_combo_smoke_form_submission(client):
+    """Submitting the form should produce hidden inputs with the right values."""
+    rsp = client.get("/dev/combo-smoke?category=reposteria&product_id=2")
+    assert rsp.status == 200, "smoke page submission failed"
+    body = rsp.read().decode("utf-8", errors="replace")
+    # The 'submitted' block should appear
+    assert "Form submitted" in body, "submitted confirmation missing"
+    assert "reposteria" in body, "category value not echoed back"
