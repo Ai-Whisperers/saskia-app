@@ -245,7 +245,10 @@ def batch_products_cost_margin(
         if p.recipe_id is None:
             out[p.id] = no_recipe_result
             continue
-        cost = recipe_batch_cost_gs(session, p.recipe_id)
+        # UNIT cost (per-portion), not batch cost: sale prices are per-unit,
+        # so margin = sale_price - unit_cost. Batch cost here made every
+        # multi-portion recipe look money-losing (2026-09-27 audit).
+        cost = recipe_unit_cost_gs(session, p.recipe_id)
         if cost.batch_cost_gs is None:
             out[p.id] = (cost, (None, None))
             continue
