@@ -1,16 +1,23 @@
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
 {% import "_components/tags.html" as t %}
+{% import "_components/atoms.html" as ui %}
 
 {% block title %}Productos — {{ action }}{% endblock %}
 
 {% block content %}
-<h1>{{ action }} producto</h1>
+{{ ui.page_header(
+     title=action ~ ' producto',
+     desc='Datos básicos, receta vinculada, imagen y disponibilidad.',
+     crumbs=[('Productos', '/productos'), (action, None)]
+   ) }}
 
 {% if request.query_params.get('recipe_id') %}
-  <div class="alert alert-info" id="prefill-banner" style="margin-bottom: var(--space-4);">
-    <svg class="icon" aria-hidden="true"><use href="#icon-info"/></svg>
-    <span>Pre-llenado desde la receta. Ajustá los valores según necesites.</span>
+  <div id="prefill-banner" style="margin-bottom: var(--space-4);">
+    {{ ui.alert_row(
+         'info',
+         'Pre-llenado desde la receta. Ajustá los valores según necesites.'
+       ) }}
   </div>
 {% endif %}
 

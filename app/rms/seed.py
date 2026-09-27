@@ -25,8 +25,9 @@ from __future__ import annotations
 
 import math
 import random
+import secrets
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from loguru import logger
 from sqlalchemy import delete, select
@@ -35,8 +36,11 @@ from sqlalchemy.orm import Session
 from app.rms.audit import record as audit_record
 from app.rms.models import (
     AppMeta,
+    Customer,
     ImportBatch,
     Ingredient,
+    Pedido,
+    PedidoLine,
     Product,
     Recipe,
     RecipeLine,
@@ -44,6 +48,7 @@ from app.rms.models import (
     SaleStockMove,
     User,
 )
+from app.rms.models.channels import Channel
 from app.rms.tags import TagKind, ensure_starter_tags, ensure_tag, tag_target
 
 # Use UTC-naive datetime columns consistently with existing models.
@@ -250,6 +255,8 @@ class SeedReport:
     sales: int = 0
     stock_moves: int = 0
     users: int = 0
+    pedidos: int = 0
+    pedido_lines: int = 0
     import_batches: int = 0
     audit_log_rows: int = 0
     skipped_existing: dict[str, int] = field(default_factory=dict)
@@ -263,10 +270,115 @@ class SeedReport:
             "sales": self.sales,
             "stock_moves": self.stock_moves,
             "users": self.users,
+            "pedidos": self.pedidos,
+            "pedido_lines": self.pedido_lines,
             "import_batches": self.import_batches,
             "audit_log_rows": self.audit_log_rows,
             **self.skipped_existing,
         }
+
+
+def _demo_public_token() -> str:
+    """8-char URL-safe token for /p/{token} pickup-share links (matches
+    the generator in app/routers/pedidos.py:generate_public_token)."""
+    return secrets.token_urlsafe(8)[:8]
+
+
+def create_demo_pedido(session: Session) -> tuple[Pedido, PedidoLine] | None:
+    """Insert one demo Pedido so /pedidos/{id}/stock-preview is testable.
+
+    Idempotent: if a Pedido for the demo customer already exists with a
+    line item, this returns None and reports nothing is added. Otherwise
+    it creates:
+      - one Customer named 'Cliente demo' (get-or-create by email)
+      - one Pedido with channel='mostrador', promised_date=today+1,
+        status='confirmed', recent created_at, and a unique public_token
+      - one PedidoLine for the first available Product, qty=1
+
+    Returns the (pedido, line) pair so callers can log/report the IDs.
+    """
+    # --- Demo customer (get-or-create) ---
+    demo_email = "demo-cliente@herbus.local"
+    customer = session.execute(
+        select(Customer).where(Customer.email == demo_email)
+    ).scalar_one_or_none()
+    if customer is None:
+        customer = Customer(
+            name="Cliente demo",
+            email=demo_email,
+            phone="+595****4567",
+        )
+        session.add(customer)
+        session.flush()
+        logger.info(f"seed: created demo customer id={customer.id}")
+
+    # --- Idempotency: skip if this customer already has a pedido ---
+    existing_pedido = session.execute(
+        select(Pedido).where(Pedido.customer_id == customer.id)
+    ).scalar_one_or_none()
+    if existing_pedido is not None:
+        existing_line = session.execute(
+            select(PedidoLine).where(PedidoLine.pedido_id == existing_pedido.id)
+        ).scalar_one_or_none()
+        if existing_line is not None:
+            logger.info(
+                f"seed: demo pedido id={existing_pedido.id} already exists, skipping"
+            )
+            return None
+
+    # --- Pick the first available Product ---
+    product = session.execute(
+        select(Product).order_by(Product.id).limit(1)
+    ).scalar_one_or_none()
+    if product is None:
+        logger.warning("seed: no products available; cannot create demo pedido")
+        return None
+
+    # --- Build the Pedido with a recent created_at so it shows under
+    # "Hoy/Mañana" on /pedidos ---
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    promised = (now + timedelta(days=1)).date()
+
+    # Unique public_token (40-char column; pad/truncate the 8-char token).
+    token = _demo_public_token()
+    token = (token + "0" * 40)[:40]
+    while session.execute(
+        select(Pedido.id).where(Pedido.public_token == token)
+    ).first() is not None:
+        token = (secrets.token_urlsafe(8)[:8] + "0" * 40)[:40]
+
+    pedido = Pedido(
+        customer_id=customer.id,
+        customer_name=customer.name,
+        customer_phone=customer.phone,
+        promised_date=promised,
+        promised_time="10:00",
+        channel=Channel.MOSTRADOR,
+        status="confirmed",
+        payment_intent="efectivo",
+        notes="Pedido demo: probá /stock-preview antes de cumplir.",
+        public_token=token,
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(pedido)
+    session.flush()  # assigns pedido.id
+
+    line = PedidoLine(
+        pedido_id=pedido.id,
+        product_id=product.id,
+        qty=1.0,
+        unit_price_gs=int(product.sale_price_gs or 0),
+        fulfilled_qty=0.0,
+    )
+    session.add(line)
+    session.flush()
+
+    logger.info(
+        f"seed: created demo pedido id={pedido.id} with {product.name} "
+        f"for {customer.name}, promised {promised.isoformat()}"
+    )
+    return pedido, line
 
 
 def seed_demo_data(
@@ -407,6 +519,16 @@ def seed_demo_data(
     else:
         report.skipped_existing["users_existing"] = (
             report.skipped_existing.get("users_existing", 0) + 1
+        )
+
+    # --- Demo pedido (so /pedidos/{id}/stock-preview is testable) ---
+    pedido_result = create_demo_pedido(session)
+    if pedido_result is not None:
+        report.pedidos += 1
+        report.pedido_lines += len(pedido_result[0].lines)
+    else:
+        report.skipped_existing["pedido_demo_existing"] = (
+            report.skipped_existing.get("pedido_demo_existing", 0) + 1
         )
 
     # --- Import batch example (so the import history is non-empty) ---
@@ -668,5 +790,6 @@ __all__ = [
     "RECIPE_LINES",
     "PRODUCTS",
     "SeedReport",
+    "create_demo_pedido",
     "seed_demo_data",
 ]

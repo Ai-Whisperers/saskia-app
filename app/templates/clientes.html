@@ -3,10 +3,10 @@
 {% import "_components/atoms.html" as a %}
 {% block title %}Clientes{% endblock %}
 {% block content %}
-<h1>
-  <svg class="icon" aria-hidden="true"><use href="#icon-customer"/></svg>
-  Clientes
-</h1>
+{{ a.page_header(
+  title='Clientes',
+  desc='Programa de puntos: 1 punto por cada 1.000 Gs. gastados. 1 punto = 100 Gs. de descuento.'
+) }}
 
 {% if request.query_params.get('flash') %}
 <div class="alert alert-success" role="alert" aria-live="polite">
@@ -130,12 +130,13 @@
 {% endif %}
 
 {% else %}
-<div class="empty-state">
-  <svg class="icon" aria-hidden="true"><use href="#icon-customer"/></svg>
-  <h3>No hay clientes todavía</h3>
-  <p>Se crean automáticamente al registrar una venta con un teléfono.</p>
-  <a href="/ventas" class="btn btn-primary">Registrar venta</a>
-</div>
+{{ a.empty_state(
+  title='No hay clientes todavía',
+  icon='icon-customer',
+  hint='Se crean automáticamente al registrar una venta con un teléfono.',
+  cta_href='/ventas',
+  cta_label='Registrar venta'
+) }}
 {% endif %}
 
 {# Hidden include — loads the modal markup + customer-picker.js without showing anything #}

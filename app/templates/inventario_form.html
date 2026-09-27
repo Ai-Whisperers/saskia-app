@@ -1,9 +1,14 @@
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 
 {% block title %}Inventario — {{ action }}{% endblock %}
 
 {% block content %}
-<h1>{{ action }} ingrediente</h1>
+{{ ui.page_header(
+     title=action ~ ' ingrediente',
+     desc='Datos básicos, stock, operación y clasificación.',
+     crumbs=[('Inventario', '/inventario'), (action, None)]
+   ) }}
 
 <form method="post" action="/inventario{{ '/nuevo' if mode == 'new' else '/' ~ ingredient.id ~ '/editar' }}">
 <div class="form-grid-2col inv-form-wrap">

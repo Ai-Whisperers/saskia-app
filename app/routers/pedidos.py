@@ -35,7 +35,11 @@ from app.rms.config import ASUNCION_TZ
 from app.rms.costing import apply_sale
 from app.rms.db import safe_commit
 from app.rms.dependencies import get_session
-from app.rms.models import Customer, Pedido, PedidoLine, Product, Sale
+from app.rms.models import Customer, Pedido, PedidoLine, Product, Recipe, Sale
+try:
+    from app.rms.models import Ingredient
+except ImportError:
+    Ingredient = None
 from app.rms.schemas import ALLOWED_PAYMENT_METHODS
 from app.services.template_render import render
 from app.rms.money import to_int_gs
@@ -1145,12 +1149,6 @@ def pedidos_stock_preview(
     if pedido is None:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
 
-    Ingredient = None
-    try:
-        from app.rms.models import Ingredient
-    except ImportError:
-        pass
-
     warnings: list[dict] = []
     consumed: list[dict] = []
 
@@ -1160,7 +1158,7 @@ def pedidos_stock_preview(
         product = ln.product
         if product is None or product.recipe_id is None:
             continue
-        recipe = session.get("Recipe", product.recipe_id)  # type: ignore
+        recipe = session.get(Recipe, product.recipe_id)
         if recipe is None:
             continue
         try:
@@ -1169,7 +1167,7 @@ def pedidos_stock_preview(
             logger.warning(f"pedidos.stock_preview: _compute_stock_moves failed for product {product.id}: {exc!r}")
             continue
         for affected_recipe_id, ingredient_id, qty_delta in moves:
-            ing = session.get("Ingredient", ingredient_id) if Ingredient else None  # type: ignore
+            ing = session.get(Ingredient, ingredient_id) if Ingredient else None
             ing_name = ing.name if ing else f"# {ingredient_id}"
             current = ing.stock_qty if ing else 0
             after = current - abs(qty_delta)

@@ -115,6 +115,11 @@
       <td>{{ tx.counterparty_name or '—' }}</td>
       <td><small>{{ (tx.description or '')[:80] }}{% if (tx.description or '')|length > 80 %}…{% endif %}</small></td>
     </tr>
+    {% else %}
+    <tr><td colspan="6" style="padding:1.5rem;text-align:center;color:var(--color-text-muted, #666);">
+      <strong>Sin movimientos bancarios cargados.</strong><br>
+      <small>Usá el formulario de arriba para registrar un movimiento manual, o importá un archivo del banco.</small>
+    </td></tr>
     {% endfor %}
   </tbody>
 </table>

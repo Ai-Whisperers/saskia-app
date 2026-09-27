@@ -1,9 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Riesgos · Saskia RMS{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1>⚠️ Registro de riesgos</h1>
-  <p class="muted">Riesgos operacionales, externos, comerciales, legales y personales</p>
+{% import "_components/atoms.html" as ui %}
+<div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
+  <div>
+    <h1>⚠️ Registro de riesgos</h1>
+    <p class="muted">Riesgos operacionales, externos, comerciales, legales y personales</p>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-shrink:0;">
+    {# TODO: wire to POST /riesgos when the add-risk endpoint lands. For now this points to a placeholder modal. #}
+    <button type="button" class="btn btn-primary" onclick="alert('Pronto: formulario para agregar un riesgo.\\n\\nMientras tanto, andate a /settings → Riesgos y cargalo a mano.')">+ Agregar riesgo</button>
+    <a href="/settings#riesgos" class="btn btn-ghost">Configurar categorías</a>
+  </div>
 </div>
 
 <div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;">
@@ -12,6 +20,16 @@
   <div class="kpi-card"><div class="kpi-label">Cerrados</div><div class="kpi-value">{{ closed_count }}</div></div>
   <div class="kpi-card highlight"><div class="kpi-label">Severidad total Gs.</div><div class="kpi-value">{{ m.gs(severity_total_gs) }}</div></div>
 </div>
+
+{% if not by_category %}
+  {{ ui.empty_state(
+       title="Sin riesgos registrados",
+       icon="icon-warn",
+       hint="Arrancá cargando los riesgos más importantes de tu operación (ej: 'corte de luz', 'suba de harina', 'baja de demanda').",
+       cta_href="/settings#riesgos",
+       cta_label="Configurar riesgos"
+     ) }}
+{% endif %}
 
 {% for cat, items in by_category.items() %}
 <h2 style="margin-top:1.5rem;">{{ cat }}</h2>

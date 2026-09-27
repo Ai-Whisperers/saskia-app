@@ -1,11 +1,16 @@
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
 {% import "_components/tags.html" as t %}
+{% import "_components/atoms.html" as ui %}
 
 {% block title %}Receta — {{ action }}{% endblock %}
 
 {% block content %}
-<h1>{{ action }} receta</h1>
+{{ ui.page_header(
+     title=action ~ ' receta',
+     desc='Identificación, ingredientes, rinde, tiempos, costo y etiquetas.',
+     crumbs=[('Recetas', '/recetas'), (action, None)]
+   ) }}
 
 <form method="post" action="/recetas{{ '/nueva' if mode == 'new' else '/' ~ recipe.id ~ '/editar' }}"
       id="recipe-form"

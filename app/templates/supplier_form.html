@@ -1,7 +1,12 @@
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 {% block title %}{{ 'Editar' if mode == 'edit' else 'Nuevo' }} proveedor{% endblock %}
 {% block content %}
-<h1>{{ 'Editar' if mode == 'edit' else 'Nuevo' }} proveedor</h1>
+{{ ui.page_header(
+     title=('Editar' if mode == 'edit' else 'Nuevo') ~ ' proveedor',
+     desc='Datos de contacto y notas del proveedor.',
+     crumbs=[('Proveedores', '/suppliers'), ('Editar' if mode == 'edit' else 'Nuevo', None)]
+   ) }}
 
 <form method="post" action="{{ '/suppliers/nuevo' if mode == 'new' else '/suppliers/' ~ supplier.id ~ '/editar' }}">
   <div class="form-row">

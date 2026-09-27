@@ -1,13 +1,15 @@
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
+{% import "_components/atoms.html" as ui %}
 
 {% block title %}Nuevo pedido{% endblock %}
 
 {% block content %}
-<h1>
-  <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
-  Nuevo pedido
-</h1>
+{{ ui.page_header(
+     title='Nuevo pedido',
+     desc='Creá un pedido nuevo. Empezá tipeando el nombre del cliente.',
+     crumbs=[('Pedidos', '/pedidos'), ('Nuevo', None)]
+   ) }}
 
 <form method="post" action="/pedidos/nuevo" id="pedido-form" novalidate>
   {# ── Cliente (combobox) ─────────────────────────────────────────
