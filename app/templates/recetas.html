@@ -78,6 +78,8 @@
 </div>
 
 {% if recipes %}
+{{ ui.skeleton_section(id="recipes-table", variant="line", count=10, label="Cargando recetas") }}
+<div data-loaded-section="recipes-table">
 <table class="table is-hoverable is-striped" style="margin-bottom:0;">
   <thead>
     <tr>
@@ -147,6 +149,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 </div>
 {% if pagination and pagination.total_count > 0 %}
 <div class="table-info">

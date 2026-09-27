@@ -54,7 +54,8 @@
     Eliminar seleccionados
   </button>
 </div>
-<div class="table-sticky-wrap" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);">
+{{ ui.skeleton_section(id="clients-table", variant="line", count=12, label="Cargando clientes") }}
+<div class="table-sticky-wrap" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);" data-loaded-section="clients-table">
 <table class="table is-hoverable is-striped" style="margin-bottom:0;">
   <thead>
     <tr>
@@ -101,6 +102,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 </div>
 
 {% if total > 0 %}

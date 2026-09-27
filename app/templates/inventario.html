@@ -24,7 +24,8 @@
 </div>
 
 {# ── KPI strip (redesign 2026-09-25) ──────────────────────────────── #}
-<div class="kpi-row mb-4">
+{{ ui.skeleton_section(id="inventario-kpis", variant="kpi", count=4, label="Cargando inventario") }}
+<div class="kpi-row mb-4" data-loaded-section="inventario-kpis">
   <div class="metric-card">
     <div class="metric-label">Total ingredientes</div>
     <div class="metric-value">{{ kpi_total }}</div>
@@ -45,6 +46,7 @@
     <div class="metric-value">{{ kpi_no_cost }}</div>
     <div class="metric-sub">{% if kpi_no_cost %}sin precio no hay margen{% else %}todo con precio ✓{% endif %}</div>
   </div>
+</div>
 </div>
 
 {# ── Filter toolbar ───────────────────────────────────────────────── #}
