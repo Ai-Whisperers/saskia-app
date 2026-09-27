@@ -1193,6 +1193,7 @@ def pedidos_stock_preview(
             "pedido_id": pedido_id,
             "consumed": consumed,
             "warnings": warnings,
+            "idempotency_key": secrets.token_urlsafe(16),
         },
     )
 

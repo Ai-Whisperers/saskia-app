@@ -32,7 +32,7 @@
       </thead>
       <tbody>
         {% for item in by_priority[prio] %}
-        <tr {% if item.purchased %}style="opacity:0.5;"{% endif %}>
+        <tr {% if item.purchased %}class="is-purchased"{% endif %}>
           <td><code>{{ item.code or '' }}</code></td>
           <td><strong>{{ fmt.entity_name(item) }}</strong><br><small class="muted">{{ item.notes or '' }}</small></td>
           <td>{{ item.quantity }}</td>

@@ -55,6 +55,8 @@
 <div style="display: flex; gap: var(--space-2); margin-top: var(--space-4);">
   <a href="/pedidos/{{ pedido_id }}" class="btn btn-ghost">← Volver</a>
   <form method="post" action="/pedidos/{{ pedido_id }}/fulfill" style="display: inline;">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">
     <button type="submit" class="btn btn-primary"
             onclick="SaskiaConfirmModal.show({title:'¿Cumplir pedido?',body:'Se crearán las ventas y se descontará stock.',action:'/pedidos/{{ pedido_id }}/fulfill',confirmLabel:'Sí, cumplir',danger:true})">
       <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>

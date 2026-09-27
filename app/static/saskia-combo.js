@@ -53,12 +53,12 @@ TODOs (for tomorrow's full implementation):
         box-shadow: 0 0 0 2px var(--color-accent, #2563eb); border-color: var(--color-accent, #2563eb); }
       .trigger .label { flex: 1; text-align: left; overflow: hidden;
         text-overflow: ellipsis; white-space: nowrap; }
-      .trigger .placeholder { color: var(--color-muted, #6b7280); }
+      .trigger .placeholder { color: var(--color-text-muted, #6b7280); }
       .trigger .icon { width: 14px; height: 14px; transition: transform .15s; flex-shrink: 0; }
       .trigger[aria-expanded="true"] .icon { transform: rotate(180deg); }
       .trigger .clear {
         display: none; background: transparent; border: none;
-        cursor: pointer; padding: 0 .25rem; color: var(--color-muted, #6b7280);
+        cursor: pointer; padding: 0 .25rem; color: var(--color-text-muted, #6b7280);
         font-size: 1.2em; line-height: 1;
       }
       .trigger.has-value .clear { display: block; }
@@ -89,7 +89,7 @@ TODOs (for tomorrow's full implementation):
       .item:hover, .item.active { background: var(--color-surface-subtle, #f3f4f6); }
       .item.selected { font-weight: 600; color: var(--color-accent, #2563eb); }
       .item.empty, .item.loading {
-        color: var(--color-muted, #6b7280);
+        color: var(--color-text-muted, #6b7280);
         font-style: italic;
         cursor: default;
       }
