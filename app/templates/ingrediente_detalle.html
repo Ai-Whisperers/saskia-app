@@ -3,7 +3,7 @@
 {% import "_components/macros.html" as m %}
 {% import "_components/ingredient_tags.html" as t %}
 
-{% block title %}{{ ingredient.name }}{% endblock %}
+{% block title %}{{ fmt.entity_name(ingredient) }}{% endblock %}
 
 {% block content %}
 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap;margin-bottom:var(--space-4);">
@@ -16,11 +16,11 @@
     </p>
     <h1 style="margin:0;">
       <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
-      {{ ingredient.name }}
+      {{ fmt.entity_name(ingredient) }}
     </h1>
   </div>
   <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;">
-    <button type="button" class="btn btn-secondary" onclick="openAdjustModal('{{ ingredient.id }}', '{{ ingredient.name }}', {{ ingredient.stock_qty }}, '{{ ingredient.unit }}', {{ ingredient.min_stock_qty or 0 }})">
+    <button type="button" class="btn btn-secondary" onclick="openAdjustModal('{{ ingredient.id }}', '{{ fmt.entity_name(ingredient) }}', {{ ingredient.stock_qty }}, '{{ ingredient.unit }}', {{ ingredient.min_stock_qty or 0 }})">
       <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
       Ajustá stock
     </button>
@@ -152,7 +152,7 @@
       <tbody>
         {% for r in recipes %}
         <tr>
-          <td><strong>{{ r.name }}</strong></td>
+          <td><strong>{{ fmt.entity_name(r) }}</strong></td>
           <td class="num">{{ "%.2f"|format(r.qty) }} {{ r.line_unit or ingredient.unit }}</td>
           <td class="actions">
             <a href="/recetas/{{ r.id }}/editar" class="btn btn-sm btn-ghost">Ver receta</a>

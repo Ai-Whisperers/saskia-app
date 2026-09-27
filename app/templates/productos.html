@@ -105,10 +105,10 @@
   <tbody>
     {% for p in products %}
     <tr data-id="{{ p.id }}" class="{% if p.is_dead %}row-dead{% endif %}">
-      <td class="col-checkbox"><input type="checkbox" name="selected" value="{{ p.id }}" aria-label="Seleccionar {{ p.name }}"></td>
+      <td class="col-checkbox"><input type="checkbox" name="selected" value="{{ p.id }}" aria-label="Seleccionar {{ fmt.entity_name(p) }}"></td>
       <td class="col-name">
         {%- if p.image_url %}<img class="row-thumb" src="{{ p.image_url }}" alt="" loading="lazy" width="36" height="36">{% endif -%}
-        <strong>{{ p.name }}</strong>
+        <strong>{{ fmt.entity_name(p) }}</strong>
         {% if p.is_dead %}{{ ui.status_pill("Sin ventas", sev="warn") }}{% endif %}
         {% if p.category %}{{ t.category_pill(p.category) }}{% endif %}
         {% if p.tags %}

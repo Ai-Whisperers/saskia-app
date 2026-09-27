@@ -390,7 +390,7 @@
         <tr>
           <td>{{ z.position }}</td>
           <td>{{ z.code or '—' }}</td>
-          <td><strong>{{ z.name }}</strong></td>
+          <td><strong>{{ fmt.entity_name(z) }}</strong></td>
           <td>{{ z.coverage_text or '—' }}</td>
           <td class="num">{% if z.delivery_cost_gs %}{{ m.gs(z.delivery_cost_gs) }}{% else %}—{% endif %}</td>
           <td class="num">{% if z.min_order_gs %}{{ m.gs(z.min_order_gs) }}{% else %}—{% endif %}</td>

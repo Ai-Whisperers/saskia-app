@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% import "_components/atoms.html" as ui %}
 {% import "_components/macros.html" as m %}
-{% block title %}{{ product.name }} — historial de precios{% endblock %}
+{% block title %}{{ fmt.entity_name(product) }} — historial de precios{% endblock %}
 {% block content %}
-<h1>{{ product.name }} — historial de precios</h1>
+<h1>{{ fmt.entity_name(product) }} — historial de precios</h1>
 <p class="text-muted">Precio de venta observado por día (última venta del día), últimos {{ days }} días.</p>
 
 {% if history %}

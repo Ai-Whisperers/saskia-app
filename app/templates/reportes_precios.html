@@ -83,7 +83,7 @@
   <tbody>
     {% for r in rows %}
     <tr>
-      <td><strong>{{ r.name }}</strong></td>
+      <td><strong>{{ fmt.entity_name(r) }}</strong></td>
       <td class="num">{{ m.gs(r.current) }}</td>
       <td class="num">{{ m.gs(r.min) }}</td>
       <td class="num">{{ m.gs(r.max) }}</td>

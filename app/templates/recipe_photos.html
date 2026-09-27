@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% import "_components/atoms.html" as ui %}
-{% block title %}Foto de {{ recipe.name }} · Saskia RMS{% endblock %}
+{% block title %}Foto de {{ fmt.entity_name(recipe) }} · Saskia RMS{% endblock %}
 {% block content %}
 {{ ui.page_header("📷 Foto de " ~ (recipe.name or ""), desc="Elegí la mejor foto del cookbook") }}
 

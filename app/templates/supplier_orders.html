@@ -2,11 +2,11 @@
 {% import "_components/atoms.html" as ui %}
 {% import "_components/macros.html" as m %}
 
-{% block title %}Pedido a {{ supplier.name }}{% endblock %}
+{% block title %}Pedido a {{ fmt.entity_name(supplier) }}{% endblock %}
 
 {% block content %}
 <div style="display:flex;align-items:baseline;gap:var(--space-3);margin-bottom:var(--space-4);">
-  <h1>Pedido a {{ supplier.name }}</h1>
+  <h1>Pedido a {{ fmt.entity_name(supplier) }}</h1>
   <a href="/suppliers/{{ supplier.id }}/editar" class="btn btn-sm btn-ghost">
     <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
     Editar proveedor
@@ -62,7 +62,7 @@
     <tbody>
       {% for item in items %}
       <tr>
-        <td><strong data-copy="{{ item.ingredient_id }}">{{ item.name }}</strong></td>
+        <td><strong data-copy="{{ item.ingredient_id }}">{{ fmt.entity_name(item) }}</strong></td>
         <td class="num">{{ "%.2f"|format(item.current_stock) }} {{ item.unit }}</td>
         <td class="num">{{ "%.2f"|format(item.min_stock) }} {{ item.unit }}</td>
         <td class="num"><strong>{{ "%.2f"|format(item.suggested_qty) }} {{ item.unit }}</strong></td>

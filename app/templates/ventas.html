@@ -202,14 +202,14 @@
 </div>
 <div class="quick-sell-grid" id="quick-sell-grid" role="grid" aria-label="Productos para venta rápida" tabindex="0">
   {% for q in quick_sell %}
-  <form method="post" action="/ventas/nueva" class="quick-sell-btn{% if not q.is_available %} is-out-of-stock{% endif %}" aria-label="Venta rápida: {{ q.name }}"
-        data-name="{{ q.name|lower }}" data-product-id="{{ q.product_id }}"
+  <form method="post" action="/ventas/nueva" class="quick-sell-btn{% if not q.is_available %} is-out-of-stock{% endif %}" aria-label="Venta rápida: {{ fmt.entity_name(q) }}"
+        data-name="{{ fmt.entity_name(q)|lower  }}" data-product-id="{{ q.product_id }}"
         onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='…';">
     <input type="hidden" name="product_id" value="{{ q.product_id }}">
     <input type="hidden" name="qty" value="1">
-    <button type="submit" class="btn btn-large{% if not q.is_available %} is-disabled{% endif %}"{% if not q.is_available %} disabled aria-disabled="true"{% endif %} aria-label="Registrar venta de {{ q.name }} por {{ m.gs(q.sale_price_gs) }}">
+    <button type="submit" class="btn btn-large{% if not q.is_available %} is-disabled{% endif %}"{% if not q.is_available %} disabled aria-disabled="true"{% endif %} aria-label="Registrar venta de {{ fmt.entity_name(q) }} por {{ m.gs(q.sale_price_gs) }}">
       {%- if q.image_url %}<img class="qs-thumb" src="{{ q.image_url }}" alt="" loading="lazy" width="44" height="44"><br>{% endif -%}
-      <strong>{{ q.name }}</strong><br>
+      <strong>{{ fmt.entity_name(q) }}</strong><br>
       <span class="gs">{{ m.gs(q.sale_price_gs) }}</span>
       {% if not q.is_available %}
         <br><small class="text-danger">Sin stock</small>

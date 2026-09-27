@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% import "_components/atoms.html" as ui %}
 {% import "_components/macros.html" as m %}
-{% block title %}{{ customer.name }} — Cliente{% endblock %}
+{% block title %}{{ fmt.entity_name(customer) }} — Cliente{% endblock %}
 {% block content %}
 <nav class="breadcrumbs">
   <a href="/clientes">Clientes</a> &rsaquo; {{ customer.name or customer.phone }}

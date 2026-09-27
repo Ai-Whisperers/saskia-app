@@ -101,7 +101,7 @@
   <div>
     <strong>Precios sospechosos ({{ suspicious_prices|length }}):</strong>
     {% for sp in suspicious_prices[:4] %}
-    “{{ sp.name }}” cuesta Gs. {{ m.gs(sp.price) }} <em>por {{ sp.unit }}</em> — ¿no debería ser por kg/l?{{ ", " if not loop.last }}
+    “{{ fmt.entity_name(sp) }}” cuesta Gs. {{ m.gs(sp.price) }} <em>por {{ sp.unit }}</em> — ¿no debería ser por kg/l?{{ ", " if not loop.last }}
     {% endfor %}
     {% if suspicious_prices|length > 4 %} y {{ suspicious_prices|length - 4 }} más{% endif %}.
     Precios por gramo/ml altos distorsionan todos los escandallos.
@@ -114,7 +114,7 @@
   <div>
     <strong>Ingredientes duplicados ({{ duplicates|length }}):</strong>
     {% for d in duplicates[:4] %}
-    “{{ d.name }}” ×{{ d.count }} ({{ d.units|join(" / ") }}){{ ", " if not loop.last }}
+    “{{ fmt.entity_name(d) }}” ×{{ d.count }} ({{ d.units|join(" / ") }}){{ ", " if not loop.last }}
     {% endfor %}
     {% if duplicates|length > 4 %} y {{ duplicates|length - 4 }} más{% endif %}.
     <a href="/inventario?q={{ duplicates[0].name }}">Ver el primero →</a>
@@ -154,7 +154,7 @@
     {% for i in ingredients %}
     <tr class="{% if i.stock_qty < 0 %}row-negative{% endif %}">
       <td>
-        <strong data-copy="{{ i.id }}"><a href="/inventario/{{ i.id }}">{{ i.name }}</a></strong>
+        <strong data-copy="{{ i.id }}"><a href="/inventario/{{ i.id }}">{{ fmt.entity_name(i) }}</a></strong>
         {% if i.category %}{{ t.category_pill(i.category) }}{% endif %}
         {% if i.allergens %}
           <div class="tag-pill-row tag-pill-row--compact" aria-label="Alérgenos (INAN)">
@@ -194,12 +194,12 @@
         {% endif %}
       </td>
       <td class="actions">
-        <a href="/inventario/{{ i.id }}" class="btn btn-sm btn-ghost" aria-label="Ver detalle de {{ i.name }}">
+        <a href="/inventario/{{ i.id }}" class="btn btn-sm btn-ghost" aria-label="Ver detalle de {{ fmt.entity_name(i) }}">
           <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
           Ver
         </a>
-        <button type="button" class="btn btn-sm btn-ghost" aria-label="Ajustar stock de {{ i.name }}"
-                onclick="openAdjustModal('{{ i.id }}', '{{ i.name }}', {{ i.stock_qty }}, '{{ i.unit }}', {{ i.min_stock_qty or 0 }})">
+        <button type="button" class="btn btn-sm btn-ghost" aria-label="Ajustar stock de {{ fmt.entity_name(i) }}"
+                onclick="openAdjustModal('{{ i.id }}', '{{ fmt.entity_name(i) }}', {{ i.stock_qty }}, '{{ i.unit }}', {{ i.min_stock_qty or 0 }})">
           <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
           Ajustar
         </button>

@@ -111,15 +111,15 @@
       <td>
         {% if r.image_url %}
           <button type="button" class="btn btn-ghost btn-icon" data-recipe-photo
-                  data-src="{{ r.image_url }}" data-name="{{ r.name }}"
-                  aria-label="Ver foto de {{ r.name }}">
+                  data-src="{{ r.image_url }}" data-name="{{ fmt.entity_name(r) }}"
+                  aria-label="Ver foto de {{ fmt.entity_name(r) }}">
             <svg class="icon" aria-hidden="true"><use href="#icon-image"/></svg>
           </button>
         {% else %}
           <span class="muted" aria-label="Sin foto">—</span>
         {% endif %}
       </td>
-      <td><strong data-copy="{{ r.id }}"><a href="/recetas/{{ r.id }}">{{ r.name }}</a></strong>
+      <td><strong data-copy="{{ r.id }}"><a href="/recetas/{{ r.id }}">{{ fmt.entity_name(r) }}</a></strong>
         {% if r.family %}<span class="badge badge-neutral">{{ r.family }}</span>{% endif %}
         {% if r.dietary_tags %}
           <div class="tag-pill-row">

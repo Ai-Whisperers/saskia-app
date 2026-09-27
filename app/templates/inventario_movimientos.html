@@ -2,7 +2,7 @@
 {% import "_components/atoms.html" as ui %}
 {% import "_components/macros.html" as m %}
 
-{% block title %}Movimientos — {{ ingredient.name }}{% endblock %}
+{% block title %}Movimientos — {{ fmt.entity_name(ingredient) }}{% endblock %}
 
 {% block content %}
 <p>
@@ -18,7 +18,7 @@
 </h1>
 
 <p>
-  <strong>{{ ingredient.name }}</strong> —
+  <strong>{{ fmt.entity_name(ingredient) }}</strong> —
   Stock actual: <span class="badge badge-ok">{{ "%.2f"|format(current_stock) }} {{ ingredient.unit }}</span>
 </p>
 

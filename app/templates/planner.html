@@ -46,7 +46,7 @@
 {% if results is not none and recipe %}
 <div class="card">
   <div class="card-header">
-    <h2>{{ batches }}× {{ recipe.name }}</h2>
+    <h2>{{ batches }}× {{ fmt.entity_name(recipe) }}</h2>
     {% if total_shortage_gs > 0 %}
       <span class="badge badge-error">Falta {{ m.gs(total_shortage_gs) }} de ingredientes</span>
     {% else %}

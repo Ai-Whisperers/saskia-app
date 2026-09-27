@@ -90,7 +90,7 @@
     <tbody>
       {% for it in reorder_items %}
       <tr>
-        <td>{{ it.name }}</td>
+        <td>{{ fmt.entity_name(it) }}</td>
         <td class="num">{{ "%.2f"|format(it.suggested_qty) }} {{ it.unit }}</td>
         <td class="num">
           {% if it.has_price %}{{ m.gs(it.estimated_cost_gs) }}{% else %}<span class="text-muted">sin precio</span>{% endif %}

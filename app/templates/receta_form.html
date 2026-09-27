@@ -56,7 +56,7 @@
             <input type="hidden" name="family" value="{{ recipe.family if recipe and recipe.family else '' }}">
             <div class="combo-results" role="listbox" hidden>
               {% for fam in recipe_families %}
-                <div class="combo-static-option" data-value="{{ fam.name }}" data-display="{{ fam.name }}"></div>
+                <div class="combo-static-option" data-value="{{ fmt.entity_name(fam) }}" data-display="{{ fmt.entity_name(fam) }}"></div>
               {% endfor %}
             </div>
           </div>
@@ -774,7 +774,7 @@
   var ingredientPrices = {
     {%- for ing in (ingredients or []) -%}
       "{{ ing.id }}": {
-        name: {{ ing.name | tojson }},
+        name: {{ fmt.entity_name(ing) | tojson  }},
         unit: {{ ing.unit | tojson }},
         purchase_price_gs: {{ ing.purchase_price_gs or 0 }},
         stock_qty: {{ ing.stock_qty or 0 }},

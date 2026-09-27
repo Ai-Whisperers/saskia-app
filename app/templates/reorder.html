@@ -63,9 +63,9 @@ function updateBulkBtn() {
     {% set supplier_info = supplier_map.get(item.ingredient_id, (None, '')) %}
     <tr>
       <td>
-        <input type="checkbox" class="item-checkbox" value="{{ item.ingredient_id }}" aria-label="Seleccionar {{ item.name }}">
+        <input type="checkbox" class="item-checkbox" value="{{ item.ingredient_id }}" aria-label="Seleccionar {{ fmt.entity_name(item) }}">
       </td>
-      <td><strong data-copy="{{ item.ingredient_id }}">{{ item.name }}</strong></td>
+      <td><strong data-copy="{{ item.ingredient_id }}">{{ fmt.entity_name(item) }}</strong></td>
       <td class="num">{{ item.current_stock|round(2) }} {{ item.unit }}</td>
       <td class="num">{{ item.min_stock|round(2) }} {{ item.unit }}</td>
       <td class="num">{{ item.max_stock|round(2) }} {{ item.unit }}</td>
@@ -130,10 +130,10 @@ function updateBulkBtn() {
         <form method="post" action="/reorder/registrar" class="restock-form">
           <input type="hidden" name="ingredient_id" value="{{ item.ingredient_id }}">
           <input type="hidden" name="notes" value="">
-          <label class="sr-only" for="rq-{{ item.ingredient_id }}">Cantidad {{ item.name }}</label>
+          <label class="sr-only" for="rq-{{ item.ingredient_id }}">Cantidad {{ fmt.entity_name(item) }}</label>
           <input type="number" id="rq-{{ item.ingredient_id }}" name="qty" step="0.5" min="0" size="4"
                  value="{{ item.suggested_qty|round(2) }}"
-                 aria-label="Cantidad a reponer: {{ item.name }}">
+                 aria-label="Cantidad a reponer: {{ fmt.entity_name(item) }}">
           <div class="saskia-combo"
                data-source="static"
                data-display="name"
@@ -145,7 +145,7 @@ function updateBulkBtn() {
                    name="qty_unit_display"
                    maxlength="6"
                    value="{{ item.unit }}"
-                   aria-label="Unidad de la cantidad para {{ item.name }}"
+                   aria-label="Unidad de la cantidad para {{ fmt.entity_name(item) }}"
                    style="width: 5em;">
             <input type="hidden"
                    name="qty_unit"
@@ -162,10 +162,10 @@ function updateBulkBtn() {
               {% endif %}
             </div>
           </div>
-          <label class="sr-only" for="rp-{{ item.ingredient_id }}">Precio {{ item.name }}</label>
+          <label class="sr-only" for="rp-{{ item.ingredient_id }}">Precio {{ fmt.entity_name(item) }}</label>
           <input type="number" id="rp-{{ item.ingredient_id }}" name="price_gs" step="100" min="0" size="6"
                  value="{{ item.purchase_price_gs if item.purchase_price_gs is not none else '' }}"
-                 aria-label="Precio pagado por {{ item.unit }} de {{ item.name }}">
+                 aria-label="Precio pagado por {{ item.unit }} de {{ fmt.entity_name(item) }}">
           <button type="submit" class="btn btn-sm btn-primary">Reponer</button>
         </form>
       </td>

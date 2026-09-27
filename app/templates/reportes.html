@@ -13,7 +13,7 @@
   {% for r in reports %}
   <a href="{{ r.url }}" class="card is-interactive">
     <svg class="icon icon-lg" aria-hidden="true"><use href="{{ r.icon }}"/></svg>
-    <h3>{{ r.name }}</h3>
+    <h3>{{ fmt.entity_name(r) }}</h3>
     <p class="text-muted">{{ r.desc }}</p>
     {% if r.help %}
     <p class="text-muted" style="font-size: 12px; margin-top: 4px;">

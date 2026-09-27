@@ -23,7 +23,7 @@
           <input type="hidden" name="recipe_id" id="produccion-plan-recipe-id" value="">
           <datalist id="produccion-recipes">
             {% for r in (recipes or []) %}
-            <option value="{{ r.name }}" data-id="{{ r.id }}"></option>
+            <option value="{{ fmt.entity_name(r) }}" data-id="{{ r.id }}"></option>
             {% endfor %}
           </datalist>
         </div>

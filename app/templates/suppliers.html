@@ -27,14 +27,14 @@
   <tbody>
     {% for s in suppliers %}
     <tr>
-      <td><strong data-copy="{{ s.id }}">{{ s.name }}</strong></td>
+      <td><strong data-copy="{{ s.id }}">{{ fmt.entity_name(s) }}</strong></td>
       <td>{{ s.contact_name or "—" }}</td>
       <td>{{ s.phone or "—" }}</td>
       <td>{{ s.email or "—" }}</td>
       <td>
         {% if s.ingredients %}
           <span class="badge badge-neutral">{{ s.ingredients|length }}</span>
-          {% for ing in s.ingredients[:3] %}{{ ing.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+          {% for ing in s.ingredients[:3] %}{{ fmt.entity_name(ing) }}{% if not loop.last %}, {% endif %}{% endfor %}
           {% if s.ingredients|length > 3 %}…{% endif %}
         {% else %}
           <em class="muted">ninguno</em>
@@ -51,7 +51,7 @@
         </a>
         {% if not s.ingredients %}
         <form method="post" action="/suppliers/{{ s.id }}/eliminar" style="display:inline;"
-              onsubmit="return confirm('¿Eliminar {{ s.name }}?');">
+              onsubmit="return confirm('¿Eliminar {{ fmt.entity_name(s) }}?');">
           <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
         </form>
         {% endif %}

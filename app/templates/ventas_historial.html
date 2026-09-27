@@ -42,7 +42,7 @@
   <label for="sales-search" class="sr-only">Buscar producto, nota o teléfono</label>
   <input type="search" id="sales-search" name="q" value="{{ request.query_params.get('q','') }}" placeholder="Buscar producto, nota o teléfono" aria-label="Buscar producto, nota o teléfono">
   <div class="saskia-combo"
-       data-source="data:application/json,[{'name': 'Todos los productos', 'id': ''}{% for p in products %},{'name': '{{ p.name }}', 'id': {{ p.id }}}{% if not loop.last %},{% endif %}{% endfor %}]"
+       data-source="data:application/json,[{'name': 'Todos los productos', 'id': ''}{% for p in products %},{'name': '{{ fmt.entity_name(p) }}', 'id': {{ p.id }}}{% if not loop.last %},{% endif %}{% endfor %}]"
        data-display="name"
        data-value="id"
        data-min-chars="0"

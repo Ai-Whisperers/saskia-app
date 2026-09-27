@@ -20,7 +20,7 @@
   <tbody>
     {% for z in zones %}
     <tr>
-      <td><strong>{{ z.name }}</strong> <code>{{ z.code }}</code></td>
+      <td><strong>{{ fmt.entity_name(z) }}</strong> <code>{{ z.code }}</code></td>
       <td>{{ z.coverage_text or '—' }}</td>
       <td>{{ z.radius_km or '—' }} km</td>
       <td class="num">{% if z.delivery_cost_gs > 0 %}{{ m.gs(z.delivery_cost_gs) }}{% else %}<span class="muted">gratis</span>{% endif %}</td>

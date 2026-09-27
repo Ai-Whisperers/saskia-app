@@ -32,7 +32,7 @@
         {% for item in by_priority[prio] %}
         <tr {% if item.purchased %}style="opacity:0.5;"{% endif %}>
           <td><code>{{ item.code or '' }}</code></td>
-          <td><strong>{{ item.name }}</strong><br><small class="muted">{{ item.notes or '' }}</small></td>
+          <td><strong>{{ fmt.entity_name(item) }}</strong><br><small class="muted">{{ item.notes or '' }}</small></td>
           <td>{{ item.quantity }}</td>
           <td class="num">{{ m.gs(item.unit_price_gs) }}</td>
           <td class="num"><strong>{{ m.gs(item.unit_price_gs * item.quantity) }}</strong></td>

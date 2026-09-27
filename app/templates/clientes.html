@@ -89,8 +89,8 @@
   <tbody>
     {% for c in customers %}
     <tr data-id="{{ c.id }}">
-      <td><input type="checkbox" name="selected_clients" value="{{ c.id }}" aria-label="Seleccionar {{ c.name }}"></td>
-      <td><strong data-copy="{{ c.id }}" title="Click to copy ID">{{ c.name }}</strong></td>
+      <td><input type="checkbox" name="selected_clients" value="{{ c.id }}" aria-label="Seleccionar {{ fmt.entity_name(c) }}"></td>
+      <td><strong data-copy="{{ c.id }}" title="Click to copy ID">{{ fmt.entity_name(c) }}</strong></td>
       <td>{{ c.phone }}</td>
       <td class="num">{{ c.n_sales }}</td>
       <td class="num">{{ m.gs(c.lifetime_spend_gs) }}</td>

@@ -25,7 +25,7 @@
   <thead><tr><th>Producto</th><th class="num">Cant. vendida</th><th class="num">Costo teórico</th></tr></thead>
   <tbody>
     {% for row in v.by_product %}
-    <tr><td>{{ row.name }}</td><td class="num">{{ row.qty }}</td><td class="num">{{ m.gs(row.theoretical_gs) }}</td></tr>
+    <tr><td>{{ fmt.entity_name(row) }}</td><td class="num">{{ row.qty }}</td><td class="num">{{ m.gs(row.theoretical_gs) }}</td></tr>
     {% endfor %}
   </tbody>
 </table>
