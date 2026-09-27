@@ -32,6 +32,7 @@
 
 <form method="get" action="/clientes" class="form form-row">
   <input type="search" name="q" value="{{ q }}" placeholder="Buscar nombre o teléfono…">
+  <span class="text-muted" style="font-size:var(--text-xs);">{{ total }} clientes</span>
   <div class="saskia-combo" 
        data-source="data:application/json,[{'name': 'Todos los niveles'}{% for t in tiers %},{'name': '{{ t | capitalize }}'}{% if not loop.last %},{% endif %}{% endfor %}]"
        data-display="name"
@@ -62,7 +63,8 @@
     Eliminar seleccionados
   </button>
 </div>
-<table class="table is-hoverable is-striped">
+<div class="table-sticky-wrap" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);">
+<table class="table is-hoverable is-striped" style="margin-bottom:0;">
   <thead>
     <tr>
       <th><input type="checkbox" id="select-all-clients" aria-label="Seleccionar todos"></th>
@@ -108,6 +110,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 
 {% if total > 0 %}
 <div class="table-info">

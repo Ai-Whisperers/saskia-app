@@ -97,7 +97,8 @@
   {% endif %}
 </nav>
 
-<table class="table is-striped">
+<div class="table-sticky-wrap" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);">
+<table class="table is-striped" style="margin-bottom:0;">
   <thead>
     <tr>
       <th>Fecha</th>
@@ -138,6 +139,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 
 <nav class="pagination mt-3" aria-label="paginación de auditoría">
   {% if page > 1 %}

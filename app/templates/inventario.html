@@ -94,6 +94,19 @@
   <a href="{{ request.url.path }}" class="btn" style="height:36px;">Limpiar todo</a>
   {% endif %}
 </form>
+{% if duplicates %}
+<div class="alert alert-warn" role="alert" style="margin-bottom:var(--space-3);">
+  <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+  <div>
+    <strong>Ingredientes duplicados ({{ duplicates|length }}):</strong>
+    {% for d in duplicates[:4] %}
+    “{{ d.name }}” ×{{ d.count }} ({{ d.units|join(" / ") }}){{ ", " if not loop.last }}
+    {% endfor %}
+    {% if duplicates|length > 4 %} y {{ duplicates|length - 4 }} más{% endif %}.
+    <a href="/inventario?q={{ duplicates[0].name }}">Ver el primero →</a>
+  </div>
+</div>
+{% endif %}
 <div class="inv-result-count" style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-3);">
   {{ total_filtered }} de {{ total_all }} ingredientes{% if q %} · búsqueda “{{ q }}”{% endif %}
 </div>

@@ -13,7 +13,8 @@
       {%- if tag -%}
         {%- set lower = tag.lower() -%}
         {%- if variant == "allergen" -%}
-          <span class="tag-pill tag-pill--allergen" title="Alérgeno obligatorio (INAN)">{{ tag }}</span>
+          {%- set _es = {"gluten":"Gluten","dairy":"Lácteos","eggs":"Huevos","nuts":"Frutos secos","soy":"Soja","sesame":"Sésamo","sulfites":"Sulfitos"} -%}
+          <span class="tag-pill tag-pill--allergen" title="Alérgeno obligatorio (INAN)">{{ _es.get(lower, tag) }}</span>
         {%- elif lower in ["vegan", "vegano"] -%}
           <span class="tag-pill tag-pill--green">{{ tag }}</span>
         {%- elif lower in ["vegetarian", "vegetariano"] -%}

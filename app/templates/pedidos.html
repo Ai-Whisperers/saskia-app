@@ -125,7 +125,8 @@
   </div>
   {% endif %}
 
-  <table class="table is-hoverable is-striped">
+  <div class="table-sticky-wrap" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);">
+<table class="table is-hoverable is-striped" style="margin-bottom:0;">
     <thead>
       <tr>
         {% if has_pending %}
@@ -194,6 +195,7 @@
       {% endfor %}
     </tbody>
   </table>
+</div>
   {% if pagination.total_count > 0 %}
   <div class="table-info">
     <span>Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ pagination.total_count }}</strong> pedidos</span>

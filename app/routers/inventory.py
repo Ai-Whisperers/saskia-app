@@ -235,6 +235,16 @@ def inventory_list(
     categories = sorted({(i.category or "").strip() for i in all_ings if (i.category or "").strip()})
     storages = sorted({(i.storage or "").strip() for i in all_ings if (i.storage or "").strip()})
 
+    # Data-quality: duplicate ingredients (same name, case-insensitive)
+    _by_norm: dict[str, list] = {}
+    for i in all_ings:
+        _by_norm.setdefault((i.name or "").strip().lower(), []).append(i)
+    duplicates = [
+        {"name": k, "count": len(v), "units": sorted({x.unit or "" for x in v}),
+         "ids": [x.id for x in v]}
+        for k, v in _by_norm.items() if len(v) > 1
+    ]
+
     # Sorting applied to the filtered set (in-Python; catalog sizes are small)
     _sort_map = {
         "name": lambda i: (i.name or "").lower(),
@@ -333,6 +343,7 @@ def inventory_list(
                 ("sulfites", "Sulfitos"),
             ],
             "total_filtered": total,
+            "duplicates": duplicates,
             "total_all": total_all,
         },
     )
