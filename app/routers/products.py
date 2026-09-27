@@ -170,6 +170,7 @@ def products_list(
                 "id": p.id,
                 "name": p.name,
                 "sku": p.sku,
+                "image_url": p.image_url,
                 "is_available": p.is_available,
                 "portion_label": p.portion_label,
                 "sale_price_gs": p.sale_price_gs,
