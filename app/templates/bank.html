@@ -48,7 +48,9 @@
       </div>
       <div class="form-group">
         <label for="amount">Importe (+/-)</label>
-        <input type="number" id="amount" name="amount" step="0.01" required class="form-control">
+        <div class="currency-input-wrap">
+          <input type="number" id="amount" name="amount" step="0.01" required class="form-control currency-input" inputmode="numeric">
+        </div>
       </div>
       <div class="form-group">
         <label for="counterparty_name">Counterparty</label>
@@ -117,9 +119,14 @@
       <td><small>{{ (tx.description or '')[:80] }}{% if (tx.description or '')|length > 80 %}…{% endif %}</small></td>
     </tr>
     {% else %}
-    <tr><td colspan="6" style="padding:1.5rem;text-align:center;color:var(--color-text-muted, #666);">
-      <strong>Sin movimientos bancarios cargados.</strong><br>
-      <small>Usá el formulario de arriba para registrar un movimiento manual, o importá un archivo del banco.</small>
+    <tr><td colspan="6" style="padding:0;">
+      {{ ui.empty_state(
+        title="Sin movimientos bancarios cargados",
+        icon="icon-bank",
+        hint="Usá el formulario de arriba para registrar un movimiento manual, o importá un archivo del banco.",
+        count_of=0,
+        total_label="movimientos"
+      ) }}
     </td></tr>
     {% endfor %}
   </tbody>

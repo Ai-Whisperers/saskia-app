@@ -320,3 +320,33 @@ saskia-date:focus-visible, saskia-combo:focus-visible,
 [data-loaded-section] {
   transition: opacity 0.18s ease;
 }
+
+/* app-improvements.css — currency input (P0-D15 closure)
+ *
+ * Adds a "Gs." prefix to any input with .currency-input class.
+ * Inputs accept raw numbers (or empty); the prefix is decorative.
+ * Use with inputmode="numeric" or inputmode="decimal" for mobile.
+ *
+ * TODO (D15 deeper work): wire this into m.gs() on form submit so
+ * the submitted value is the integer Gs. amount, not the formatted string.
+ */
+.currency-input-wrap {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+.currency-input-wrap::before {
+  content: "Gs. ";
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted, #6b7280);
+  font-weight: 500;
+  pointer-events: none;
+}
+.currency-input-wrap .currency-input {
+  padding-left: 2.75rem;
+  width: 100%;
+  box-sizing: border-box;
+}

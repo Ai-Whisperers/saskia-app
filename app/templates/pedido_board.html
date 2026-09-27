@@ -147,7 +147,7 @@ function testSound() {
       {% for line in p.lines %}
       <li>
         <span class="item-qty">{{ "%.0f"|format(line.qty) }}×</span>
-        <span class="item-name">{{ line.product.name if line.product else '#' + line.product_id|string }}</span>
+        <span class="item-name">{{ fmt.entity_name(line.product) if line.product else '#' ~ line.product_id }}</span>
         {% if line.notes %}<div class="item-note">📝 {{ line.notes }}</div>{% endif %}
       </li>
       {% endfor %}

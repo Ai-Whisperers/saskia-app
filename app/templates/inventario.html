@@ -103,7 +103,7 @@
   <div>
     <strong>Precios sospechosos ({{ suspicious_prices|length }}):</strong>
     {% for sp in suspicious_prices[:4] %}
-    “{{ fmt.entity_name(sp) }}” cuesta Gs. {{ m.gs(sp.price) }} <em>por {{ sp.unit }}</em> — ¿no debería ser por kg/l?{{ ", " if not loop.last }}
+    “{{ fmt.entity_name(sp) }}” cuesta {{ m.gs(sp.price) }} <em>por {{ sp.unit }}</em> — ¿no debería ser por kg/l?{{ ", " if not loop.last }}
     {% endfor %}
     {% if suspicious_prices|length > 4 %} y {{ suspicious_prices|length - 4 }} más{% endif %}.
     Precios por gramo/ml altos distorsionan todos los escandallos.

@@ -265,7 +265,9 @@
       </label>
       <label>
         Precio (Gs.)
-        <input type="number" name="purchase_price_gs" min="0" step="100">
+        <div class="currency-input-wrap">
+          <input type="number" name="purchase_price_gs" min="0" step="100" inputmode="numeric" class="currency-input">
+        </div>
       </label>
       <label>
         Stock inicial (en und. del paquete)

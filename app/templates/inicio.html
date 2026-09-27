@@ -272,7 +272,7 @@
         <div class="metric-label">Lista de compras abierta</div>
         <div class="metric-value">{{ sl_open_count or 0 }} ítems</div>
         <small class="text-muted">
-          {% if (sl_total_gs or 0) > 0 %}Gs. {{ m.gs(sl_total_gs) }} est.{% else %}—{% endif %}
+          {% if (sl_total_gs or 0) > 0 %}{{ m.gs(sl_total_gs) }} est.{% else %}—{% endif %}
           · <a href="/shopping-list">Ver lista</a>
         </small>
       </div>
@@ -280,7 +280,7 @@
         <div class="metric-label">Equipamiento pendiente</div>
         <div class="metric-value">{{ wishlist_count or 0 }} ítems</div>
         <small class="text-muted">
-          {% if (wishlist_total_gs or 0) > 0 %}Gs. {{ m.gs(wishlist_total_gs) }} est.{% else %}—{% endif %}
+          {% if (wishlist_total_gs or 0) > 0 %}{{ m.gs(wishlist_total_gs) }} est.{% else %}—{% endif %}
           · <a href="/wishlist">Ver lista</a>
         </small>
       </div>
@@ -288,7 +288,7 @@
         <div class="metric-label">Riesgos activos</div>
         <div class="metric-value">{{ risk_count or 0 }} ítems</div>
         <small class="text-muted">
-          {% if (risk_severity_gs or 0) > 0 %}Gs. {{ m.gs(risk_severity_gs) }} est.{% else %}—{% endif %}
+          {% if (risk_severity_gs or 0) > 0 %}{{ m.gs(risk_severity_gs) }} est.{% else %}—{% endif %}
           · <a href="/riesgos">Ver riesgos</a>
         </small>
       </div>

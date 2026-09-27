@@ -23,7 +23,7 @@
       <strong>{{ pedido.customer_name }}</strong>
       {% if pedido.customer_phone %}<br><small class="text-muted">{{ pedido.customer_phone }}</small>{% endif %}
       {% if pedido.spend_30d_gs and pedido.spend_30d_gs > 0 %}
-      <br><small class="text-muted" title="Compras últimos 30 días">Últ. 30d: Gs. {{ m.gs(pedido.spend_30d_gs) }}</small>
+      <br><small class="text-muted" title="Compras últimos 30 días">Últ. 30d: {{ m.gs(pedido.spend_30d_gs) }}</small>
       {% endif %}
     </p>
   </div>
@@ -59,8 +59,8 @@
       <tr>
         <td>{{ ln.product_name }}</td>
         <td class="num">{{ "%.2f"|format(ln.qty) }}</td>
-        <td class="num">Gs. {{ m.gs(ln.unit_price_gs) }}</td>
-        <td class="num">Gs. {{ m.gs(ln.line_total_gs) }}</td>
+        <td class="num">{{ m.gs(ln.unit_price_gs) }}</td>
+        <td class="num">{{ m.gs(ln.line_total_gs) }}</td>
         <td class="num">
           {% if ln.fulfilled_qty and ln.fulfilled_qty > 0 %}
             <span class="badge badge-good">{{ "%.2f"|format(ln.fulfilled_qty) }}</span>
@@ -72,7 +72,7 @@
       {% endfor %}
       <tr>
         <td colspan="3"><strong>Total</strong></td>
-        <td class="num"><strong>Gs. {{ m.gs(pedido.total_gs) }}</strong></td>
+        <td class="num"><strong>{{ m.gs(pedido.total_gs) }}</strong></td>
         <td></td>
       </tr>
     </tbody>

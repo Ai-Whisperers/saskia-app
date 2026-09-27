@@ -16,7 +16,8 @@
       <input type="checkbox" id="select-all" aria-label="Seleccionar todos">
       <span>Seleccionar todos</span>
     </label>
-    <button type="submit" class="btn btn-primary" id="generate-po-btn" disabled>
+    <button type="submit" class="btn btn-primary" id="generate-po-btn" disabled
+            title="Marcá ingredientes arriba para generar el pedido">
       <svg class="icon" aria-hidden="true"><use href="#icon-whatsapp"/></svg>
       Generar pedido por WhatsApp
     </button>
@@ -165,7 +166,9 @@ function updateBulkBtn() {
             </div>
           </div>
           <label class="sr-only" for="rp-{{ item.ingredient_id }}">Precio {{ fmt.entity_name(item) }}</label>
-          <input type="number" id="rp-{{ item.ingredient_id }}" name="price_gs" step="100" min="0" size="6"
+          <div class="currency-input-wrap">
+            <input type="number" id="rp-{{ item.ingredient_id }}" name="price_gs" step="100" min="0" size="6" inputmode="numeric" class="currency-input">
+          </div>
                  value="{{ item.purchase_price_gs if item.purchase_price_gs is not none else '' }}"
                  aria-label="Precio pagado por {{ item.unit }} de {{ fmt.entity_name(item) }}">
           <button type="submit" class="btn btn-sm btn-primary">Reponer</button>

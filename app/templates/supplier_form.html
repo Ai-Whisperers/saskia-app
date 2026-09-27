@@ -32,6 +32,10 @@
     <textarea id="address" name="address" rows="2" maxlength="200">{{ supplier.address if supplier and supplier.address else '' }}</textarea>
   </div>
   <div class="form-row">
+    <label for="ruc">RUC / Cédula</label>
+    <input type="text" id="ruc" name="ruc" maxlength="20" value="{{ supplier.ruc if supplier and supplier.ruc else '' }}" placeholder="Ej: 12345678-9">
+  </div>
+  <div class="form-row">
     <label for="notes">Notas</label>
     <textarea id="notes" name="notes" rows="2" maxlength="2000">{{ supplier.notes if supplier and supplier.notes else '' }}</textarea>
   </div>

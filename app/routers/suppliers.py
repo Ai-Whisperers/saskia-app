@@ -45,6 +45,7 @@ def supplier_create(
     phone: str = Form(""),
     email: str = Form(""),
     address: str = Form(""),
+    ruc: str = Form(""),
     notes: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
@@ -65,6 +66,7 @@ def supplier_create(
     phone_clean = validate_phone(phone)
     email_clean = validate_email(email)
     address_clean = optional_text(address, max_len=200)
+    ruc_clean = optional_text(ruc, max_len=20)
     notes_clean = optional_text(notes, max_len=2000)
 
     supplier = Supplier(
@@ -73,6 +75,7 @@ def supplier_create(
         phone=phone_clean,
         email=email_clean,
         address=address_clean,
+        ruc=ruc_clean,
         notes=notes_clean,
     )
     session.add(supplier)
@@ -98,6 +101,7 @@ def supplier_update(
     phone: str = Form(""),
     email: str = Form(""),
     address: str = Form(""),
+    ruc: str = Form(""),
     notes: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
@@ -115,6 +119,7 @@ def supplier_update(
     supplier.phone = validate_phone(phone)
     supplier.email = validate_email(email)
     supplier.address = optional_text(address, max_len=200)
+    supplier.ruc = optional_text(ruc, max_len=20)
     supplier.notes = optional_text(notes, max_len=2000)
     session.commit()
     return RedirectResponse(url="/suppliers", status_code=303)

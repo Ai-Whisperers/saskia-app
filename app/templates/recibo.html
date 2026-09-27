@@ -9,6 +9,31 @@
 {% block title %}Recibo #{{ sale.id }}{% endblock %}
 
 {% block content %}
+<style>
+@media print {
+  /* Hide everything except the receipt container */
+  nav, .sidebar, .topbar, .btn, a[href], footer, .no-print { display: none !important; }
+
+  /* Constrain to 80mm thermal width (~300px at 96dpi) */
+  .container { max-width: 300px !important; margin: 0 auto !important; }
+
+  /* Remove card shadows/padding to save space */
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    padding: 8px 4px !important;
+    page-break-inside: avoid;
+  }
+  .card + .card { margin-top: 4px; }
+
+  /* Collapse spacing */
+  [style*="margin-bottom"] { margin-bottom: 4px !important; }
+  hr { margin: 4px 0 !important; }
+
+  /* Voided banner must print */
+  .voided-banner { display: flex !important; page-break-before: avoid; }
+}
+</style>
 <div class="container" style="max-width: 360px;">
 
   {% if sale.voided_at %}
@@ -43,15 +68,15 @@
     <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-3);">
       <div>
         <strong>{{ sale.product_name }}</strong><br>
-        <small class="text-muted">{{ "%.2f"|format(sale.qty) }} × Gs. {{ m.gs(sale.unit_price_gs) }}</small>
+        <small class="text-muted">{{ "%.2f"|format(sale.qty) }} × {{ m.gs(sale.unit_price_gs) }}</small>
       </div>
-      <strong style="font-size: var(--text-lg);">Gs. {{ m.gs(sale.total_gs) }}</strong>
+      <strong style="font-size: var(--text-lg);">{{ m.gs(sale.total_gs) }}</strong>
     </div>
 
     {% if sale.discount_gs and sale.discount_gs > 0 %}
     <div style="display: flex; justify-content: space-between; color: var(--color-danger); margin-bottom: var(--space-2);">
       <span>Descuento</span>
-      <span>− Gs. {{ m.gs(sale.discount_gs) }}</span>
+      <span>− {{ m.gs(sale.discount_gs) }}</span>
     </div>
     {% endif %}
 

@@ -2310,6 +2310,22 @@ def _migration_054_tag_algebra(conn: Any) -> None:
     _bump_schema_version(conn, 54)
 
 
+def _migration_055_supplier_ruc(conn: Any) -> None:
+    """Add supplier.ruc field (Paraguay RUC/ID for legal suppliers).
+
+    RUC (Registro Único del Contribuyente) is required for legal invoices
+    (factura legal) and supplier identification in Paraguay.
+    """
+    def _add_column(table: str, col: str, ddl: str) -> None:
+        try:
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
+        except Exception:
+            pass  # column already exists
+
+    _add_column("supplier", "ruc", "VARCHAR(20)")
+    _bump_schema_version(conn, 55)
+
+
 def _migration_005_customer(conn: Any) -> None:
     """Add Customer table + Sale.customer_id FK (E13).
 
@@ -2375,6 +2391,7 @@ MIGRATIONS = {
     52: _migration_052_ingredient_forecast_horizon,
     53: _migration_053_sale_packaging,
     54: _migration_054_tag_algebra,
+    55: _migration_055_supplier_ruc,
 }
 
 

@@ -22,6 +22,7 @@
       <th>Contacto</th>
       <th>Teléfono</th>
       <th>Email</th>
+      <th>RUC</th>
       <th>Ingredientes</th>
       <th class="actions"></th>
     </tr>
@@ -33,6 +34,7 @@
       <td>{{ s.contact_name or "—" }}</td>
       <td>{{ s.phone or "—" }}</td>
       <td>{{ s.email or "—" }}</td>
+      <td>{{ s.ruc or "—" }}</td>
       <td>
         {% if s.ingredients %}
           <span class="badge badge-neutral">{{ s.ingredients|length }}</span>
