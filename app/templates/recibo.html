@@ -4,6 +4,7 @@
    to print or save as PDF; the print stylesheet in app.css hides the nav.
 #}
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 {% import "_components/macros.html" as m %}
 {% block title %}Recibo #{{ sale.id }}{% endblock %}
 

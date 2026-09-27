@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
+{% import "_components/atoms.html" as ui %}
 
 {% block title %}Ventas{% endblock %}
 
 {% block content %}
-<h1>Ventas</h1>
+{{ ui.page_header("Ventas", desc="Registrá una venta al mostrador o consultá el historial del día") }}
 
 {# ── Flash messages ── #}
 {% if request.query_params.get('flash') == 'sale_created' %}
