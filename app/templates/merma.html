@@ -16,7 +16,7 @@
   <a href="{{ preset_url_90 }}" class="btn btn-sm {% if days == 90 %}btn-primary{% else %}btn-ghost{% endif %}">90 días</a>
   <form method="get" action="/merma" style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;">
     <label for="since">Desde:</label>
-    <input type="date" id="since" name="since" value="{{ since }}">
+    <saskia-date id="since" name="since" value="{{ since }}"></saskia-date>
     <label for="until">Hasta:</label>
     <input type="date" id="until" name="until" value="{{ until }}">
     <label for="reason_filter_combo">Motivo:</label>
