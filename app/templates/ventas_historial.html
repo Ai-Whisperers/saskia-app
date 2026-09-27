@@ -104,7 +104,7 @@
       <th>Pago</th>
       <th>Canal</th>
       <th>Notas</th>
-      <th class="actions"></th>
+      <th class="actions">Acciones</th>
     </tr>
   </thead>
   <tbody>
@@ -136,7 +136,7 @@
       <td>{{ s.payment_method or "—" }}</td>
       <td>{{ s.channel or '—' }}</td>
       <td>{{ s.notes or '' }}</td>
-      <td class="actions">
+      <td class="actions" style="white-space:nowrap;">
         <a href="/ventas/{{ s.id }}/recibo" class="btn btn-sm btn-ghost">
           <svg class="icon" aria-hidden="true"><use href="#icon-print"/></svg>
           Recibo

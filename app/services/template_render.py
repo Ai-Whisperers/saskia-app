@@ -163,6 +163,23 @@ def _now_str() -> str:
 templates.env.globals["now_str"] = _now_str
 
 
+def _greeting() -> str:
+    """Time-aware Spanish greeting (Asunción tz)."""
+    try:
+        from app.rms.config import ASUNCION_TZ
+        h = datetime.now(ASUNCION_TZ).hour
+    except Exception:  # noqa: BLE001
+        h = datetime.now().hour
+    if 12 <= h < 19:
+        return "Buenas tardes"
+    if h >= 19 or h < 4:
+        return "Buenas noches"
+    return "Buen día"
+
+
+templates.env.globals["greeting"] = _greeting
+
+
 def _csrf_token_for_request(request: Request | None) -> str:
     """Return the current CSRF token for the active request, or empty
     string outside an active request context (template previews, tests).

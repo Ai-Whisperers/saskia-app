@@ -427,7 +427,7 @@ def pedidos_board(
             "kanban_confirmed": _kanban("confirmed"),
             "kanban_ready": _kanban("ready"),
             "today": today,
-            "now": datetime.now(),
+            "now": datetime.now(ASUNCION_TZ),
         },
     )
 

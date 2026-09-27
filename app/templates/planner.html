@@ -3,7 +3,7 @@
 {% block title %}Production Planner · Saskia RMS{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h1>🧁 Plan manual de producción</h1>
+  <h1><svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>  Plan manual de producción</h1>
   <p class="muted">Elegí receta + cantidad de tandas y calculamos cuánto necesitás cocinar — y qué ingredientes faltan</p>
   <p><a href="/produccion">← Volver a Producción</a></p>
 </div>
@@ -107,7 +107,7 @@
     <form method="post" action="/produccion-planner/compute" style="display:inline;">
       <input type="hidden" name="recipe_id" value="{{ recipe.id }}">
       <input type="hidden" name="batches" value="{{ batches }}">
-      <button type="submit" class="btn btn-warning">🛒 Generar shopping list con faltantes</button>
+      <button type="submit" class="btn btn-warning">Generar lista de compras con faltantes</button>
     </form>
   </div>
   {% endif %}

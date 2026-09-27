@@ -2,7 +2,7 @@
 {% block title %}Dashboard · Saskia RMS{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h1>📈 Dashboard — {{ month_label }}</h1>
+  <h1><svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>  Dashboard — {{ month_label }}</h1>
   <p class="muted">KPIs en vivo · datos del local</p>
 </div>
 
@@ -53,7 +53,7 @@
   <div class="kpi-card"><div class="kpi-label">Recetas cocinadas este mes</div><div class="kpi-value">{{ recipes_cooked }}</div></div>
 </div>
 
-<h2>🏆 Top recipe</h2>
+<h2><svg class="icon" aria-hidden="true"><use href="#icon-recipe"/></svg>  Receta más vendida</h2>
 {% if top_recipe_name != '—' %}
 <div class="kpi-card" style="display:inline-block; padding:1rem; min-width:300px;">
   <div class="kpi-label">Receta más vendida</div>
@@ -62,7 +62,7 @@
 </div>
 {% endif %}
 
-<h2>💼 Por canal de venta</h2>
+<h2><svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>  Por canal de venta</h2>
 {% if by_channel %}
 <table class="table is-striped">
   <thead><tr><th>Canal</th><th class="num">Ingresos Gs.</th></tr></thead>
@@ -79,7 +79,7 @@
 <p class="muted">Sin ventas este mes aún.</p>
 {% endif %}
 
-<h2 style="margin-top:2rem;">🛒 Operación</h2>
+<h2 style="margin-top:2rem;"><svg class="icon" aria-hidden="true"><use href="#icon-ops"/></svg>  Operación</h2>
 <div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
   <a href="/shopping-list" class="kpi-card" style="text-decoration:none;color:inherit;">
     <div class="kpi-label">Lista de Compras abiertas</div>
@@ -104,7 +104,7 @@
 </div>
 
 <p class="muted" style="margin-top:2rem;">
-  💡 Datos locales. Objetivos preconfigurados.
+  Datos locales. Objetivos preconfigurados.
   {{ tx_count_this_month }} transacciones este mes.
 </p>
 {% endblock %}
