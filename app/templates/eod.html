@@ -27,6 +27,8 @@
 </div>
 
 <form method="post" action="/eod/check">
+  {{ ui.skeleton_section(id="eod-table", variant="line", count=8, label="Cargando cierre diario") }}
+  <div data-loaded-section="eod-table">
   <table class="table is-hoverable">
     <thead>
       <tr>
@@ -45,6 +47,7 @@
       </tr>
       {% endfor %}
     </tbody>
+  </div>
   </table>
   <p class="text-muted">El cierre se guarda cuando hacés click en "Marcar cierre del día".</p>
   <div class="form-row">

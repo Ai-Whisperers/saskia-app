@@ -8,6 +8,8 @@
 
 <h2 style="font-size:1.05rem;margin-top:var(--space-4);">💀 Stock muerto</h2>
 {% if dead %}
+{{ ui.skeleton_section(id="insight-stock-table", variant="line", count=6, label="Cargando stock") }}
+<div data-loaded-section="insight-stock-table">
 <table class="table">
   <thead><tr><th>Insumo</th><th class="num">Stock</th><th class="num">Días sin consumo</th><th>Último consumo</th></tr></thead>
   <tbody>
@@ -20,6 +22,7 @@
     </tr>
     {% endfor %}
   </tbody>
+</div>
 </table>
 {% else %}
 <p class="text-muted">Sin stock muerto en los últimos {{ dead_days }} días. 🎉</p>

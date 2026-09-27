@@ -112,6 +112,8 @@
 
 {% if plan.rows %}
 <h3>Productos a producir</h3>
+{{ ui.skeleton_section(id="produccion-table", variant="line", count=10, label="Cargando producción") }}
+<div data-loaded-section="produccion-table">
 <table class="table is-hoverable is-striped">
   <thead>
     <tr>
@@ -140,6 +142,7 @@
     </tr>
     {% endfor %}
   </tbody>
+</div>
 </table>
 {% else %}
 <p class="empty">No hay producción planificada. Verificá que haya ventas registradas en los últimos 14 días.</p>

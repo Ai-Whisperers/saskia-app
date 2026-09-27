@@ -21,6 +21,8 @@
       {% else %}⚪ Opcional{% endif %}
       <small class="muted">({{ by_priority[prio]|length }})</small>
     </h2>
+    {{ ui.skeleton_section(id="wishlist-table", variant="line", count=6, label="Cargando lista de deseos") }}
+    <div data-loaded-section="wishlist-table">
     <table class="table is-hoverable">
       <thead>
         <tr>
@@ -58,6 +60,7 @@
         </tr>
         {% endfor %}
       </tbody>
+    </div>
     </table>
   {% endif %}
 {% endfor %}

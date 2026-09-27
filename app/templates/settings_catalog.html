@@ -131,9 +131,12 @@
       <button class="btn" data-toggle-form="add-cat-product">Cancelar</button>
     </div>
   </div>
+  {{ ui.skeleton_section(id="settings-catalog", variant="line", count=12, label="Cargando catálogo") }}
+  <div data-loaded-section="settings-catalog">
   <table class="data-table" id="table-cat-product">
     <thead><tr><th>Nombre</th><th>Orden</th><th>Activo</th><th></th></tr></thead>
     <tbody></tbody>
+  </div>
   </table>
 </section>
 

@@ -7,6 +7,8 @@
 <p class="text-muted">Promedio 56d × factor del día × tendencia 14d. Batches = unidades ÷ rinde de receta.</p>
 
 {% if forecasts %}
+{{ ui.skeleton_section(id="insight-demand-table", variant="line", count=6, label="Cargando demanda") }}
+<div data-loaded-section="insight-demand-table">
 <table class="table">
   <thead><tr><th>Producto</th><th class="num">Prom/día</th><th class="num">Factor día</th><th class="num">Tendencia</th><th class="num">Previsto</th><th class="num">Batches</th></tr></thead>
   <tbody>
@@ -21,6 +23,7 @@
     </tr>
     {% endfor %}
   </tbody>
+</div>
 </table>
 {% else %}
 <p>Sin historial suficiente (mínimo 3 ventas por producto en 56 días).</p>

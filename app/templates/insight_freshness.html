@@ -17,6 +17,8 @@
 </div>
 {% endif %}
 
+{{ ui.skeleton_section(id="insight-freshness-table", variant="line", count=6, label="Cargando frescura") }}
+<div data-loaded-section="insight-freshness-table">
 <table class="table">
   <thead><tr><th>Insumo</th><th>Estado</th><th class="num">Días</th><th class="num">Valor en riesgo</th></tr></thead>
   <tbody>
@@ -35,5 +37,6 @@
     </tr>
     {% endfor %}
   </tbody>
+</div>
 </table>
 {% endblock %}

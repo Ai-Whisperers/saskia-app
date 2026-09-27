@@ -8,6 +8,8 @@
 
 <h2>Recetas afectadas ({{ impact.affected_recipes|length }})</h2>
 {% if impact.affected_recipes %}
+{{ ui.skeleton_section(id="insight-price-impact-table", variant="line", count=6, label="Cargando impacto de precios") }}
+<div data-loaded-section="insight-price-impact-table">
 <table class="table">
   <thead><tr><th>Receta</th><th class="num">Δ costo por unidad</th></tr></thead>
   <tbody>
@@ -17,6 +19,7 @@
           {{ "+" if r.delta_unit_cost_gs > 0 else "" }}{{ m.gs(r.delta_unit_cost_gs) }}</td></tr>
     {% endfor %}
   </tbody>
+</div>
 </table>
 {% else %}
 <p>Ninguna receta cambia de forma significativa.</p>

@@ -50,6 +50,8 @@
 </div>
 
 {% if items %}
+{{ ui.skeleton_section(id="shopping-list", variant="line", count=10, label="Cargando lista de compras") }}
+<div data-loaded-section="shopping-list">
 <table class="table is-hoverable">
   <thead>
     <tr>
@@ -106,6 +108,7 @@
     </tr>
   {% endfor %}
   </tbody>
+</div>
 </table>
 {% else %}
 <div class="card"><div class="card-body muted text-center">

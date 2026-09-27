@@ -41,6 +41,8 @@ function updateBulkBtn() {
 }
 </script>
 
+{{ ui.skeleton_section(id="reorder-table", variant="line", count=10, label="Cargando reposiciones") }}
+<div data-loaded-section="reorder-table">
 <table class="table is-hoverable is-striped">
   <thead>
     <tr>
@@ -180,6 +182,7 @@ function updateBulkBtn() {
       <td></td>
     </tr>
   </tfoot>
+</div>
 </table>
 
 <div class="table-info">

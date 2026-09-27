@@ -21,6 +21,8 @@
   <button class="btn btn-primary" type="submit">Recalcular</button>
 </form>
 
+{{ ui.skeleton_section(id="food-cost-table", variant="line", count=10, label="Cargando varianza") }}
+<div data-loaded-section="food-cost-table">
 <table class="table">
   <thead><tr><th>Producto</th><th class="num">Cant. vendida</th><th class="num">Costo teórico</th></tr></thead>
   <tbody>
@@ -29,4 +31,5 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% endblock %}

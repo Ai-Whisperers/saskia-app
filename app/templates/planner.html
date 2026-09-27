@@ -53,6 +53,8 @@
       <span class="badge badge-success">✓ Stock suficiente</span>
     {% endif %}
   </div>
+  {{ ui.skeleton_section(id="planner-table", variant="line", count=6, label="Cargando plan") }}
+  <div data-loaded-section="planner-table">
   <table class="table is-hoverable">
     <thead>
       <tr>
@@ -90,6 +92,7 @@
       </tr>
     {% endfor %}
     </tbody>
+  </div>
   </table>
 
   {% if plan_id %}
