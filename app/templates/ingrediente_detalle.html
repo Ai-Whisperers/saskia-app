@@ -1,20 +1,34 @@
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
+{% import "_components/ingredient_tags.html" as t %}
 
 {% block title %}{{ ingredient.name }}{% endblock %}
 
 {% block content %}
-<p>
-  <a href="/inventario" class="btn btn-sm btn-ghost">
-    <svg class="icon" aria-hidden="true"><use href="#icon-arrow-left"/></svg>
-    Volver al inventario
-  </a>
-</p>
-
-<h1>
-  <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
-  {{ ingredient.name }}
-</h1>
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap;margin-bottom:var(--space-4);">
+  <div>
+    <p style="margin:0 0 var(--space-2);">
+      <a href="/inventario" class="btn btn-sm btn-ghost">
+        <svg class="icon" aria-hidden="true"><use href="#icon-arrow-left"/></svg>
+        Volver al inventario
+      </a>
+    </p>
+    <h1 style="margin:0;">
+      <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
+      {{ ingredient.name }}
+    </h1>
+  </div>
+  <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;">
+    <button type="button" class="btn btn-secondary" onclick="openAdjustModal('{{ ingredient.id }}', '{{ ingredient.name }}', {{ ingredient.stock_qty }}, '{{ ingredient.unit }}')">
+      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+      Ajustá stock
+    </button>
+    <a href="/inventario/{{ ingredient.id }}/editar" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+      Editá ingrediente
+    </a>
+  </div>
+</div>
 
 <div class="detail-grid">
   <section class="detail-card">
@@ -54,12 +68,12 @@
       {% if ingredient.role %}<dt>Rol</dt><dd>{{ ingredient.role }}</dd>{% endif %}
       <dt>Alérgenos</dt>
       <dd>
-        {% if ingredient.allergens %}{{ ingredient.allergens }}
+        {% if ingredient.allergens %}{{ t.tag_pills(ingredient.allergens, variant="allergen") }}
         {% elif ingredient.allergens is none %}<span class="text-muted">sin declarar</span>
         {% else %}—{% endif %}
       </dd>
       <dt>Dietéticas</dt>
-      <dd>{{ ingredient.dietary_tags or '—' }}</dd>
+      <dd>{% if ingredient.dietary_tags %}{{ t.tag_pills(ingredient.dietary_tags) }}{% else %}—{% endif %}</dd>
       {% if ingredient.may_contain_gluten %}
       <dt>Cruz gluten</dt><dd><span class="badge badge-warn">posible contaminación (bloquea sin TACC)</span></dd>
       {% endif %}
@@ -163,10 +177,6 @@
 </div>
 
 <div class="form-actions" style="margin-top:1rem;">
-  <a href="/inventario/{{ ingredient.id }}/editar" class="btn btn-primary">
-    <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
-    Editar ingrediente
-  </a>
   <a href="/inventario/{{ ingredient.id }}/movimientos" class="btn btn-ghost">
     <svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg>
     Ver movimientos de stock

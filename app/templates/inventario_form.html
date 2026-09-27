@@ -118,18 +118,28 @@
     </div>
 
     <div class="form-row">
-      <label for="allergens">Alérgenos (separados por coma)</label>
-      <input type="text" id="allergens" name="allergens" maxlength="200"
-             value="{{ ingredient.allergens if ingredient and ingredient.allergens else '' }}"
-             placeholder="gluten, dairy, eggs">
-      <small>Dejar VACÍO = sin declarar. "—" = ninguno declarado aún.</small>
+      <span class="form-label-like">Alérgenos (tocá para marcar)</span>
+      <div class="chip-toggle-group" role="group" aria-label="Alérgenos">
+        {%- set _cur = (ingredient.allergens if ingredient and ingredient.allergens else '')|lower -%}
+        {%- set _codes = [("gluten","Gluten"),("dairy","Lácteos"),("eggs","Huevos"),("nuts","Frutos secos"),("soy","Soja"),("sesame","Sésamo"),("sulfites","Sulfitos")] -%}
+        {%- for code, lbl in _codes -%}
+        <label class="chip-toggle"><input type="checkbox" data-allergen="{{ code }}" {% if code in _cur %}checked{% endif %}> {{ lbl }}</label>
+        {%- endfor -%}
+      </div>
+      <input type="hidden" name="allergens" id="allergens" value="{{ ingredient.allergens if ingredient and ingredient.allergens else '' }}">
+      <small>Si no marcás ninguno queda sin declarar.</small>
     </div>
 
     <div class="form-row">
-      <label for="dietary_tags">Etiquetas dietéticas (coma)</label>
-      <input type="text" id="dietary_tags" name="dietary_tags" maxlength="200"
-             value="{{ ingredient.dietary_tags if ingredient and ingredient.dietary_tags else '' }}"
-             placeholder="sin gluten, vegano">
+      <span class="form-label-like">Etiquetas dietéticas</span>
+      <div class="chip-toggle-group" role="group" aria-label="Etiquetas dietéticas">
+        {%- set _curd = (ingredient.dietary_tags if ingredient and ingredient.dietary_tags else '')|lower -%}
+        {%- set _dtags = [("vegan","Vegano"),("vegetarian","Vegetariano"),("gluten_free","Sin gluten"),("sugar_free","Sin azúcar"),("keto_friendly","Keto"),("high_protein","Alto en proteína")] -%}
+        {%- for code, lbl in _dtags -%}
+        <label class="chip-toggle"><input type="checkbox" data-dietary="{{ code }}" {% if code in _curd %}checked{% endif %}> {{ lbl }}</label>
+        {%- endfor -%}
+      </div>
+      <input type="hidden" name="dietary_tags" id="dietary_tags" value="{{ ingredient.dietary_tags if ingredient and ingredient.dietary_tags else '' }}">
     </div>
 
     <div class="form-row">

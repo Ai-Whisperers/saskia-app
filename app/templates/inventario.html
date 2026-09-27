@@ -254,15 +254,24 @@
         <svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg>
       </button>
     </div>
-    <form method="post" id="stock-adjust-form" onsubmit="return validateAdjustment(this)">
+    <form method="post" id="stock-adjust-form" onsubmit="var amt=parseFloat(this.adjustment_abs.value)||0; var tipo=document.querySelector('input[name=\'mov_tipo\']:checked'); this.adjustment.value = (tipo && tipo.value===\'salida\') ? -Math.abs(amt) : Math.abs(amt); return validateAdjustment(this);"><input type="hidden" name="adjustment" value="">
       <div class="modal-body">
         <p><strong id="adj-ing-name"></strong> — Stock actual: <span id="adj-ing-current"></span></p>
         <input type="hidden" name="ing_id" id="adj-ing-id" value="">
         <div class="form-row">
-          <label for="adj-amount">Cantidad a ajustar</label>
-          <input type="number" step="0.01" id="adj-amount" name="adjustment" required
-                 placeholder="Positivo = agregar stock. Negativo = quitar.">
-          <small>Ejemplos: <code>+5</code> (encontraste 5 más en almacén) · <code>-2</code> (rotura de envase)</small>
+          <span class="form-label-like">Tipo de movimiento</span>
+          <div class="segmented-control" role="radiogroup" aria-label="Tipo de movimiento">
+            <input type="radio" name="mov_tipo" value="entrada" id="mov-in" checked>
+            <label for="mov-in">+ Entrada (compra / hallazgo)</label>
+            <input type="radio" name="mov_tipo" value="salida" id="mov-out">
+            <label for="mov-out">− Salida (merma / ajuste)</label>
+          </div>
+        </div>
+        <div class="form-row">
+          <label for="adj-amount">Cantidad (solo número positivo)</label>
+          <input type="number" step="0.01" min="0.01" id="adj-amount" name="adjustment_abs" required
+                 placeholder="Ej: 5">
+          <small>Stock resultante: <strong id="adj-preview">—</strong></small>
         </div>
         <div class="form-row">
           <label for="adj-reason">Motivo (opcional)</label>
@@ -287,6 +296,22 @@
 var _currentStock = 0;
 var _currentUnit = '';
 
+function _adjUpdatePreview() {
+  var amt = parseFloat(document.getElementById('adj-amount').value);
+  var tipo = document.querySelector('input[name="mov_tipo"]:checked');
+  var el = document.getElementById('adj-preview');
+  if (isNaN(amt) || !_currentStock) { el.textContent = '—'; return; }
+  var res = tipo && tipo.value === 'salida' ? _currentStock - amt : _currentStock + amt;
+  el.textContent = _currentStock.toFixed(2) + ' → ' + res.toFixed(2) + ' ' + _currentUnit;
+  el.style.color = res < 0 ? 'var(--color-danger)' : 'var(--color-success)';
+}
+document.addEventListener('input', function (e) {
+  if (e.target && e.target.id === 'adj-amount') _adjUpdatePreview();
+});
+document.addEventListener('change', function (e) {
+  if (e.target && e.target.name === 'mov_tipo') _adjUpdatePreview();
+});
+
 function openAdjustModal(ingId, ingName, currentStock, unit) {
   var m = document.getElementById('stock-adjust-modal');
   m.querySelector('form').action = '/inventario/' + ingId + '/ajustar';
@@ -294,6 +319,8 @@ function openAdjustModal(ingId, ingName, currentStock, unit) {
   document.getElementById('adj-ing-name').textContent = ingName;
   document.getElementById('adj-ing-current').textContent = currentStock.toFixed(2) + ' ' + unit;
   document.getElementById('adj-amount').value = '';
+  document.getElementById('adj-preview').textContent = '—';
+  var _in = document.getElementById('mov-in'); if (_in) _in.checked = true;
   document.getElementById('adj-reason').value = '';
   document.getElementById('confirm-negative').value = '';
   document.getElementById('negative-warning').style.display = 'none';

@@ -82,3 +82,20 @@ document.addEventListener('keydown', function (e) {
     tickTimers(); setInterval(tickTimers, 30000);
   }
 })();
+
+// ── chip-toggle groups → hidden comma-joined field ──────────────────
+document.addEventListener('change', function (e) {
+  var t = e.target;
+  if (t && t.dataset.allergen !== undefined) {
+    var codes = Array.prototype.map.call(
+      document.querySelectorAll('[data-allergen]:checked'),
+      function (c) { return c.dataset.allergen; });
+    document.getElementById('allergens').value = codes.join(',');
+  }
+  if (t && t.dataset.dietary !== undefined) {
+    var dCodes = Array.prototype.map.call(
+      document.querySelectorAll('[data-dietary]:checked'),
+      function (c) { return c.dataset.dietary; });
+    document.getElementById('dietary_tags').value = dCodes.join(',');
+  }
+});

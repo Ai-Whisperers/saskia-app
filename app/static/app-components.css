@@ -130,3 +130,17 @@
 .mf-option { display:flex; align-items:center; gap:var(--space-2); padding:var(--space-1) var(--space-2); border-radius:var(--radius-sm); font-size:var(--text-sm); cursor:pointer; }
 .mf-option:hover { background:var(--color-surface-subtle); }
 .mf-hint { font-size:var(--text-xs); color:var(--color-text-muted); margin:2px var(--space-2) var(--space-1); }
+
+/* ── segmented control (adjust modal) ─────────────────────────────── */
+.segmented-control { display: flex; border: 1px solid var(--color-border); border-radius: var(--radius); overflow: hidden; }
+.segmented-control input { position: absolute; opacity: 0; pointer-events: none; }
+.segmented-control label { flex: 1; text-align: center; padding: var(--space-2) var(--space-3); font-size: var(--text-sm); cursor: pointer; background: var(--color-surface); margin: 0; }
+.segmented-control input:checked + label { background: var(--color-accent-soft); color: var(--color-accent); font-weight: 600; }
+.segmented-control label + input + label { border-left: 1px solid var(--color-border); }
+.form-label-like { font-size: var(--text-sm); font-weight: 500; color: var(--color-text); }
+
+/* ── chip toggles (inventario form) ───────────────────────────────── */
+.chip-toggle-group { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.chip-toggle { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--color-border); border-radius: var(--radius-pill); padding: var(--space-1) var(--space-3); font-size: var(--text-sm); cursor: pointer; background: var(--color-surface); }
+.chip-toggle input { accent-color: var(--color-accent); margin: 0; }
+.chip-toggle:has(input:checked) { background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-accent); font-weight: 600; }
