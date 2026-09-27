@@ -13,21 +13,14 @@
   </a>
 </p>
 
-<div class="card mb-4" aria-label="Resumen del historial">
+{% import "_components/atoms.html" as a %}
+<div class="kpi-row mb-4" aria-label="Resumen del historial" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--space-4);">
+  {{ a.metric_card("Ventas activas", totals.count, sub="en el período filtrado") }}
+  {{ a.metric_card("Total recaudado", m.gs_full(totals.total_gs)) }}
+  {{ a.metric_card("Ticket promedio", m.gs_full(totals.avg_ticket_gs)) }}
+</div>
+<div class="card mb-4" aria-label="Filtros del historial">
   <div class="grid grid-3">
-    <div>
-      <div class="metric-label">Ventas activas</div>
-      <div class="metric-value">{{ totals.count }}</div>
-    </div>
-    <div>
-      <div class="metric-label">Total recaudado</div>
-      <div class="metric-value">Gs. {{ m.gs(totals.total_gs) }}</div>
-    </div>
-    <div>
-      <div class="metric-label">Ticket promedio</div>
-      <div class="metric-value">Gs. {{ m.gs(totals.avg_ticket_gs) }}</div>
-    </div>
-  </div>
   <p class="text-muted mt-2" style="font-size:var(--text-xs);">
     Filtro actual: {{ totals.filters }}
     <span class="badge badge-info" style="margin-left:var(--space-3);">
@@ -42,6 +35,7 @@
       Exportar CSV
     </a>
   </p>
+  </div>
 </div>
 
 <div class="form-row">
