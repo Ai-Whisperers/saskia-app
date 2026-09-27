@@ -6,11 +6,13 @@
 <h1>{{ action }} ingrediente</h1>
 
 <form method="post" action="/inventario{{ '/nuevo' if mode == 'new' else '/' ~ ingredient.id ~ '/editar' }}">
+<div class="form-grid-2col inv-form-wrap">
+  <div class="form-col">
+    <h2 style="font-size:var(--text-md);margin:0;">Datos básicos</h2>
   <div class="form-row">
     <label for="name">Nombre</label>
     <input type="text" id="name" name="name" required maxlength="120" value="{{ ingredient.name if ingredient else '' }}" placeholder="Ej: Harina de trigo">
   </div>
-
   <div class="form-row">
     <label for="category_combo">Categoría</label>
     {# Combo supports creating new categories. No API — just creates on submit. #}
@@ -36,7 +38,6 @@
     </div>
     <small class="muted">Opcional. Para agrupar ingredientes en el inventario.</small>
   </div>
-
   <div class="form-row">
     <label for="unit">Unidad</label>
       <div class="form-row">
@@ -60,13 +61,10 @@
     </div>
     <small>g, kg, ml, l, und.</small>
   </div>
-  </div>
-
   <div class="form-row">
     <label for="stock_qty">Stock actual</label>
     <input type="number" id="stock_qty" name="stock_qty" required step="0.01" min="0" value="{{ "%.2f"|format(ingredient.stock_qty) if ingredient else '0' }}">
   </div>
-
   <div class="form-row">
     <label for="opening_stock_qty">Stock de apertura</label>
     <input type="number" id="opening_stock_qty" name="opening_stock_qty" step="0.01" min="0"
@@ -74,7 +72,6 @@
            placeholder="Stock inicial cuando se empezó a usar el sistema">
     <small>El stock inicial cuando se cargó este ingrediente por primera vez.</small>
   </div>
-
   <div class="form-row">
     <label for="opening_stock_date">Fecha de apertura</label>
     <input type="date" id="opening_stock_date" name="opening_stock_date"
@@ -82,12 +79,16 @@
            placeholder="YYYY-MM-DD">
     <small>Fecha en que se registró el stock de apertura.</small>
   </div>
-
+  <div class="form-row">
+    <label for="notes">Notas</label>
+    <textarea id="notes" name="notes" rows="2">{{ ingredient.notes if ingredient and ingredient.notes else '' }}</textarea>
+  </div>  </div>
+  <div class="form-col">
+    <h2 style="font-size:var(--text-md);margin:0;">Operación y cumplimiento</h2>
   <div class="form-row">
     <label for="min_stock_qty">Stock mínimo (para alertas)</label>
     <input type="number" id="min_stock_qty" name="min_stock_qty" required step="0.01" min="0" value="{{ "%.2f"|format(ingredient.min_stock_qty) if ingredient else '0' }}">
   </div>
-
   <div class="form-row">
     <label for="reorder_point">Punto de reorden (override)</label>
     <input type="number" id="reorder_point" name="reorder_point" step="0.01" min="0"
@@ -95,19 +96,12 @@
            placeholder="Si dejás vacío, se usa el stock mínimo">
     <small>Si lo configurás, el sistema usa este valor en lugar del stock mínimo para las sugerencias de reorden.</small>
   </div>
-
   <div class="form-row">
     <label for="purchase_price_gs">Precio de compra (Gs., por unidad)</label>
     <input type="number" id="purchase_price_gs" name="purchase_price_gs" step="1" min="0" value="{{ ingredient.purchase_price_gs if ingredient and ingredient.purchase_price_gs is not none else '' }}" placeholder="Dejalo vacío si no sabés todavía">
     <small>Entero Gs. Sin decimales. Si no sabés el precio todavía, dejalo vacío: el sistema te avisa en Inicio.</small>
   </div>
-
-  <div class="form-row">
-    <label for="notes">Notas</label>
-    <textarea id="notes" name="notes" rows="2">{{ ingredient.notes if ingredient and ingredient.notes else '' }}</textarea>
-  </div>
-
-  <fieldset style="border:1px solid var(--color-border);border-radius:8px;padding:var(--space-3);margin:var(--space-3) 0;">
+<fieldset style="border:1px solid var(--color-border);border-radius:8px;padding:var(--space-3);margin:var(--space-3) 0;">
     <legend style="padding:0 6px;font-weight:600;">Clasificación y conservación</legend>
     <p class="muted" style="font-size:0.85rem;">Se recalculan automáticamente al cambiar el nombre, pero podés corregirlas acá.</p>
 
@@ -155,7 +149,9 @@
       <input type="number" id="lead_time_days" name="lead_time_days" min="0" max="90"
              value="{{ ingredient.lead_time_days if ingredient and ingredient.lead_time_days else '' }}">
     </div>
-  </fieldset>
+  </fieldset>  </div>
+</div>
+
 
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">Guardá</button>

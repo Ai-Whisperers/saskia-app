@@ -144,3 +144,24 @@
 .chip-toggle { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--color-border); border-radius: var(--radius-pill); padding: var(--space-1) var(--space-3); font-size: var(--text-sm); cursor: pointer; background: var(--color-surface); }
 .chip-toggle input { accent-color: var(--color-accent); margin: 0; }
 .chip-toggle:has(input:checked) { background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-accent); font-weight: 600; }
+
+/* ── modal breathing room + preview states ─────────────────────────── */
+dialog.modal .modal-body { padding: var(--space-6); }
+dialog.modal .modal-footer { padding: var(--space-4) var(--space-6); }
+#adj-preview { font-size: var(--text-base); }
+#adj-preview[style*="--color-success"], #adj-preview { transition: color var(--duration-fast) var(--ease-out); }
+
+/* ── detail cards: subdued labels, bold values ────────────────────── */
+.detail-card dt { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: var(--tracking-wide); color: var(--color-text-muted); font-weight: 600; margin-bottom: 2px; }
+.detail-card dd { font-size: var(--text-lg); font-weight: 700; margin: 0 0 var(--space-3) 0; font-variant-numeric: tabular-nums; }
+
+/* ── edit form: two-column grid + max width ───────────────────────── */
+.form-grid-2col { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: var(--space-6); max-width: 1280px; align-items: start; }
+.form-grid-2col .form-col { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+@media (max-width: 900px) { .form-grid-2col { grid-template-columns: 1fr; } }
+.inv-form-wrap { max-width: 1280px; }
+
+/* ── dark-mode-safe native inputs (date/time pickers) ─────────────── */
+input[type="date"], input[type="datetime-local"] { color-scheme: light dark; }
+:root[data-theme="dark"] input[type="date"],
+:root[data-theme="dark"] input[type="datetime-local"] { color-scheme: dark; }

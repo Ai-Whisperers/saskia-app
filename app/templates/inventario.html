@@ -185,7 +185,7 @@
           Ver
         </a>
         <button type="button" class="btn btn-sm btn-ghost" aria-label="Ajustar stock de {{ i.name }}"
-                onclick="openAdjustModal('{{ i.id }}', '{{ i.name }}', {{ i.stock_qty }}, '{{ i.unit }}')">
+                onclick="openAdjustModal('{{ i.id }}', '{{ i.name }}', {{ i.stock_qty }}, '{{ i.unit }}', {{ i.min_stock_qty or 0 }})">
           <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
           Ajustar
         </button>
@@ -295,6 +295,7 @@
 <script>
 var _currentStock = 0;
 var _currentUnit = '';
+var _minStock = 0;
 
 function _adjUpdatePreview() {
   var amt = parseFloat(document.getElementById('adj-amount').value);
@@ -303,7 +304,9 @@ function _adjUpdatePreview() {
   if (isNaN(amt) || !_currentStock) { el.textContent = '—'; return; }
   var res = tipo && tipo.value === 'salida' ? _currentStock - amt : _currentStock + amt;
   el.textContent = _currentStock.toFixed(2) + ' → ' + res.toFixed(2) + ' ' + _currentUnit;
-  el.style.color = res < 0 ? 'var(--color-danger)' : 'var(--color-success)';
+  if (res < 0) { el.style.color = 'var(--color-danger)'; }
+  else if (res < _minStock) { el.style.color = 'var(--color-warn)'; }
+  else { el.style.color = 'var(--color-success)'; }
 }
 document.addEventListener('input', function (e) {
   if (e.target && e.target.id === 'adj-amount') _adjUpdatePreview();
@@ -312,7 +315,7 @@ document.addEventListener('change', function (e) {
   if (e.target && e.target.name === 'mov_tipo') _adjUpdatePreview();
 });
 
-function openAdjustModal(ingId, ingName, currentStock, unit) {
+function openAdjustModal(ingId, ingName, currentStock, unit, minStock) {
   var m = document.getElementById('stock-adjust-modal');
   m.querySelector('form').action = '/inventario/' + ingId + '/ajustar';
   document.getElementById('adj-ing-id').value = ingId;
@@ -326,6 +329,7 @@ function openAdjustModal(ingId, ingName, currentStock, unit) {
   document.getElementById('negative-warning').style.display = 'none';
   document.getElementById('adjust-submit-btn').textContent = 'Guardar ajuste';
   _currentStock = currentStock;
+  _minStock = minStock || 0;
   _currentUnit = unit;
   m.showModal();
 }
