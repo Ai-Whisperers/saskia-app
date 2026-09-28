@@ -27,13 +27,30 @@
 {%- endmacro %}
 
 {# ── A-1 metric_card: one KPI card ─────────────────────────────────── #}
-{% macro metric_card(label, value, sub=None, delta=None, delta_prior=None, target=None, target_label=None, compact=False, tooltip=None) -%}
+{% macro metric_card(label, value, sub=None, delta=None, delta_prior=None, target=None, target_label=None, target_direction='high', compact=False, tooltip=None) -%}
+{# target: ratio (NOT percentage). 1.0 means "at target". 0 means "zero data".
+   target_direction: 'high' (higher actual is better — e.g. margin %, recurrence %),
+     or 'low' (lower actual is better — e.g. food cost %, waste %).
+   Color rules for direction='high':
+     ratio >= 1.0 → is-ok (at or above target)
+     ratio >= 0.5 → is-warn (between half and target)
+     ratio < 0.5  → is-danger (well below target)
+   Color rules for direction='low':
+     ratio <= 1.0 → is-ok (at or below target)
+     ratio <= 1.5 → is-warn (up to 50% over target)
+     ratio > 1.5  → is-danger (well over target) #}
 <div class="metric-card{% if compact %} metric-card--compact{% endif %}"{% if tooltip %} title="{{ tooltip }}"{% endif %}>
   <div class="metric-card__label">{{ label }}</div>
   <div class="metric-card__value">{{ value }}</div>
   {% if target is not none %}
+    {% set target_pct = ([(target or 0) * 100, 100]|min)|int %}
+    {% if target_direction == 'high' %}
+      {% set sev = 'is-ok' if target >= 1.0 else 'is-warn' if target >= 0.5 else 'is-danger' %}
+    {% else %}
+      {% set sev = 'is-ok' if target <= 1.0 else 'is-warn' if target <= 1.5 else 'is-danger' %}
+    {% endif %}
   <div class="metric-card__target" aria-hidden="true">
-    <div class="metric-card__target-fill {{ 'is-ok' if target >= 100 else 'is-warn' if target >= 60 else 'is-danger' }}" style="width: {{ [target, 100]|min }}%"></div>
+    <div class="metric-card__target-fill {{ sev }}" style="width: {{ target_pct }}%"></div>
   </div>
   {% if target_label %}<div class="metric-card__target-label">{{ target_label }}</div>{% endif %}
   {% elif delta is not none %}
