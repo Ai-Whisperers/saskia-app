@@ -5,6 +5,7 @@ Per dev plan §9 Task 5.
 
 from __future__ import annotations
 
+import math
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -906,6 +907,10 @@ async def sale_create_multi(
                     ),
                 )
 
+            # Fetch product price for discount calculation
+            product = session.get(Product, item.product_id)
+            unit_price = product.sale_price_gs if product else 0
+
             # All items in the cart share the same metadata (customer, payment, channel)
             result = apply_sale(
                 session,
@@ -915,7 +920,7 @@ async def sale_create_multi(
                 notes_clean,
                 customer_id=customer_id,
                 payment_method=payment_method_clean,
-                discount_gs=math.ceil(item.qty * (item.unit_price_gs or 0) * (item.discount_pct or 0) / 100),
+                discount_gs=math.ceil(item.qty * unit_price * (item.discount_pct or 0) / 100),
                 channel=channel_clean,
             )
             if first_product_id is None:
