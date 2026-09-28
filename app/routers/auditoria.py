@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
@@ -144,6 +144,74 @@ def auditoria_index(
         "page_start": (page - 1) * 50 + 1,
         "page_end": min(page * 50, total_count),
     })
+
+
+@router.get("/export.csv")
+def auditoria_export_csv(
+    action_filter: str | None = Query(None),
+    start_date: str | None = Query(None, description="ISO date YYYY-MM-DD"),
+    end_date: str | None = Query(None, description="ISO date YYYY-MM-DD"),
+    ip_filter: str | None = Query(None),
+    user_filter: str | None = Query(None),
+    target_type: str | None = Query(None),
+    target_id: str | None = Query(None),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Export audit log rows matching the current filters as a CSV download.
+
+    Adds the missing endpoint that /auditoria.html already linked to. Columns:
+    id, timestamp, user_id, action, target_type, target_id, ip, user_agent.
+    """
+    import csv
+    import io as _io
+
+    # Build the same row set as the index view, but bypass pagination — CSV
+    # exports the entire matching set (up to a safety cap).
+    if target_type and target_id:
+        rows = list(search_by_target(session, target_type, target_id, limit=10_000))
+    else:
+        rows = list(list_recent(session, limit=10_000, action_filter=action_filter, user_filter=user_filter))
+
+    # Apply date + IP filters in Python (matches the index view).
+    sd = _parse_date(start_date)
+    ed = _parse_date(end_date)
+    if ed is not None:
+        ed = ed + timedelta(days=1)
+    filtered = []
+    for r in rows:
+        if sd is not None and r.timestamp < sd:
+            continue
+        if ed is not None and r.timestamp >= ed:
+            continue
+        if ip_filter and (r.ip or "") != ip_filter:
+            continue
+        filtered.append(r)
+
+    buf = _io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(
+        ["id", "timestamp", "user_id", "action", "target_type", "target_id", "ip", "user_agent_short"]
+    )
+    for r in filtered:
+        writer.writerow(
+            [
+                r.id,
+                r.timestamp.isoformat() if r.timestamp else "",
+                r.user_id or "",
+                r.action or "",
+                r.target_type or "",
+                r.target_id or "",
+                r.ip or "",
+                (r.user_agent or "")[:80],
+            ]
+        )
+
+    filename = f"auditoria_{datetime.utcnow().date().isoformat()}.csv"
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/prune")

@@ -134,7 +134,7 @@
         <form method="post" action="/ventas/{{ s.id }}/anular" style="display: inline;">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
           <button type="button" class="btn btn-sm btn-danger-ghost"
-                  onclick="SaskiaConfirmModal.show({title:'¿Anular venta #{{ s.id }}?',body:'Esta acción devuelve el stock y queda registrada en auditoría.',confirmLabel:'Sí, anular',danger:true,reasonField:true})">Anular</button>
+                  onclick="var btn=this;SaskiaConfirmModal.show({title:'¿Anular venta #{{ s.id }}?',body:'Esta acción devuelve el stock y queda registrada en auditoría.',confirmLabel:'Sí, anular',danger:true}).then(function(ok){ if (ok) btn.closest('form').submit(); })">Anular</button>
         </form>
         {% endif %}
       </td>

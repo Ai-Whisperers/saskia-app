@@ -42,8 +42,11 @@
   var closeBtn  = document.getElementById('confirm-modal-cancel-btn');
 
   var pendingForm = null; // { action, method }
+  var resolveConfirm = null; // settle the returned promise
 
   modal.showModal = function(opts) {
+    return new Promise(function(resolve) {
+      resolveConfirm = resolve;
     titleEl.textContent = opts.title || '';
     bodyEl.textContent  = '';
     confirmBtn.textContent = opts.confirmLabel || 'Confirmar';
