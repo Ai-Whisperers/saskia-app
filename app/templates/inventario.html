@@ -22,7 +22,7 @@
     </a>
     <a href="/inventario/export.csv" class="btn">
       <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
-      Exportar CSV
+      Exportá CSV
     </a>
   </div>
 </div>
@@ -91,7 +91,7 @@
     <button type="button" class="mf-btn" aria-expanded="false">{% if almacen %}{{ almacen }}{% else %}Almacenamiento{% endif %} ▾</button>
     <div class="mf-panel" hidden>
       {% for st in storages %}
-      <label class="mf-option"><input type="radio" name="almacen" value="{{ st }}" {% if st == almacen %}checked{% endif %}> {{ st }}</label>
+      <label class="mf-option"><input type="radio" name="almacen" value="{{ st }}" {% if st == almacen %}checked{% endif %}> {{ {"ambient": "Ambiente", "refrigerated": "Refrigerado", "frozen": "Congelado"}.get(st, st) }}</label>
       {% endfor %}
     </div>
   </div>
@@ -192,30 +192,20 @@
       <td class="num">{% if i.purchase_price_gs is none %}<em class="muted">sin precio</em>{% else %}{{ m.gs_full(i.purchase_price_gs) }}{% endif %}{% if price_info.get(i.id) %}<div class="price-strip">90d: min {{ m.gs(price_info[i.id].stats.min) }} · max {{ m.gs(price_info[i.id].stats.max) }}{% if price_info[i.id].sparkline_svg %} {{ price_info[i.id].sparkline_svg | safe }}{% endif %}</div>{% endif %}{% if market_refs.get(i.id) %}<div class="price-strip" title="vs. mercado: {{ m.gs_full(market_refs[i.id].market_price_gs) }} Gs/{{ market_refs[i.id].market_unit }} — {{ market_refs[i.id].market_notes }}">{% set delta = market_refs[i.id].delta_pct %}<span class="badge {% if delta > 10 %}badge-danger{% elif delta < -10 %}badge-good{% else %}badge-neutral{% endif %}" style="margin-left:4px">vs mercado {% if delta >= 0 %}+{% endif %}{{ "%.0f"|format(delta) }}%</span></div>{% endif %}</td>
       <td>
         {{ m.stock_badge(i.stock_qty, i.min_stock_qty) }}
-        {% if i.min_stock_qty and i.min_stock_qty > 0 %}
-        {% set _pct = ((i.stock_qty / i.min_stock_qty) * 100) | round | int %}
-        <div class="stock-health" title="Stock actual: {{ i.stock_qty|round(2) }} {{ i.unit }} · Mínimo: {{ i.min_stock_qty|round(2) }} {{ i.unit }}">
-          <div class="stock-health__fill {% if _pct >= 100 %}is-ok{% elif _pct >= 50 %}is-warn{% else %}is-danger{% endif %}" style="width: {{ [_pct, 100] | min }}%;"></div>
-        </div>
-        {% endif %}
       </td>
       <td class="actions">
         <a href="/inventario/{{ i.id }}" class="btn btn-sm btn-ghost" aria-label="Ver detalle de {{ fmt.entity_name(i) }}">
           <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
-          Ver
         </a>
         <button type="button" class="btn btn-sm btn-ghost" aria-label="Ajustar stock de {{ fmt.entity_name(i) }}"
                 onclick="openAdjustModal('{{ i.id }}', '{{ fmt.entity_name(i) }}', {{ i.stock_qty }}, '{{ i.unit }}', {{ i.min_stock_qty or 0 }})">
-          <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
-          Ajustar
-        </button>
-        <a href="/inventario/{{ i.id }}/editar" class="btn btn-sm btn-ghost">
           <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
-          Editar
+        </button>
+        <a href="/inventario/{{ i.id }}/editar" class="btn btn-sm btn-ghost" aria-label="Editá {{ fmt.entity_name(i) }}">
+          <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
         </a>
-        <a href="/inventario/{{ i.id }}/movimientos" class="btn btn-sm btn-ghost">
+        <a href="/inventario/{{ i.id }}/movimientos" class="btn btn-sm btn-ghost" aria-label="Movimientos de {{ fmt.entity_name(i) }}">
           <svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg>
-          Movimientos
         </a>
       </td>
     </tr>

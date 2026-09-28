@@ -154,9 +154,13 @@ dialog.modal .modal-footer { padding: var(--space-4) var(--space-6); }
 /* ── detail cards: subdued labels, bold values ────────────────────── */
 .detail-card dt { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: var(--tracking-wide); color: var(--color-text-muted); font-weight: 600; margin-bottom: 2px; }
 .detail-card dd { font-size: var(--text-lg); font-weight: 700; margin: 0 0 var(--space-3) 0; font-variant-numeric: tabular-nums; }
+.detail-card-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-3); }
+.detail-card-header h2 { margin: 0; }
 
 /* ── edit form: two-column grid + max width ───────────────────────── */
 .form-grid-2col { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: var(--space-6); max-width: 1280px; align-items: start; }
+.form-grid-3col { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
+.form-grid-3col label[style*="grid-column: 1 / -1"] { grid-column: 1 / -1; }
 .form-grid-2col .form-col { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
 @media (max-width: 900px) { .form-grid-2col { grid-template-columns: 1fr; } }
 .inv-form-wrap { max-width: 1280px; }
