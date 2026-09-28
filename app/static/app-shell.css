@@ -216,6 +216,10 @@ body.has-app-shell > .app-footer { grid-area: footer; }
 .sev-pill.critico { background: var(--color-danger-soft); color: var(--color-danger-fg); }
 .sev-pill.urgente { background: var(--color-warn-soft); color: var(--color-warn-fg); }
 .sev-pill.aviso   { background: var(--color-info-soft); color: var(--color-info-fg); }
+
+/* Stock-preview warning row (moved from inline style on pedido_stock_preview.html) */
+.row-warning { background: var(--color-danger-soft); color: var(--color-danger-fg); }
+.row-warning td { color: inherit; }
 .alerta-row {
   display: flex; align-items: center; gap: var(--space-3);
   padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border);
@@ -288,6 +292,9 @@ body.has-app-shell > .app-footer { grid-area: footer; }
   .sidebar, .topbar, .sidebar-backdrop, .sidebar-toggle, .app-footer { display: none !important; }
   .app-shell { display: block; }
   .app-main { padding: 0; }
+  .no-print, .no-print * { display: none !important; }
+  .card { box-shadow: none !important; border: 1px solid #ccc !important; }
+  body { font-size: 12px; }
 }
 
 .is-purchased td { color: var(--color-text-subtle); text-decoration: line-through; }

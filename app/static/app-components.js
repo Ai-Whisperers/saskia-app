@@ -161,3 +161,25 @@ window.SaskiaConfirmModal = (function () {
     close: function (ok) { _close(ok); }
   };
 })();
+
+// ── SaskiaSortTable: client-side table sorting ────────────────────────────
+// Sort a table by the numeric content of a single column (descending).
+// Usage: window.SaskiaSortTable.sortByCell(colIndex, tableId)
+// tableId defaults to 'stock-table' for the pedido_stock_preview screen.
+window.SaskiaSortTable = {
+  sortByCell: function (colIndex, tableId) {
+    tableId = tableId || 'stock-table';
+    var tbl = document.getElementById(tableId);
+    if (!tbl) return;
+    var tbody = tbl.querySelector('tbody');
+    if (!tbody) return;
+    var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+    var _num = function (cell) {
+      return parseFloat(cell.textContent.replace(/[^0-9.\-]/g, '')) || 0;
+    };
+    rows.sort(function (a, b) {
+      return _num(b.cells[colIndex]) - _num(a.cells[colIndex]);
+    });
+    rows.forEach(function (r) { tbody.appendChild(r); });
+  }
+};

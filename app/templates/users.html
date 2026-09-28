@@ -12,13 +12,13 @@
 
 {{ ui.flash_toast(request) }}
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-  <div style="display:flex;gap:0.5rem;">
+<div class="users-toolbar">
+  <div class="users-toolbar__filters">
     <a href="?filter=active" class="btn btn-sm {% if filter_param=='active' %}btn-primary{% else %}btn-ghost{% endif %}">Solo activos</a>
     <a href="?filter=inactive" class="btn btn-sm {% if filter_param=='inactive' %}btn-primary{% else %}btn-ghost{% endif %}">Solo inactivos</a>
     {% if filter_param %}<a href="/users" class="btn btn-sm btn-ghost">Ver todos</a>{% endif %}
   </div>
-  <p class="text-muted" style="margin:0;font-size:var(--text-sm);">
+  <p class="text-muted users-toolbar__hint">
     Solo los administradores pueden gestionar usuarios.
   </p>
   <button type="button" class="btn btn-primary" id="nuevo-usuario-btn">
@@ -43,7 +43,7 @@
     {% for u in users %}
     <tr data-id="{{ u.id }}">
       <td>
-        <span class="user-avatar" style="background:{{ ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'][u.username | length % 6] }};">{{ u.username[0] | upper }}</span>
+        <span class="user-avatar is-palette-{{ (u.username | length) % 6 + 1 }}">{{ u.username[0] | upper }}</span>
         <strong data-copy="{{ u.id }}">{{ u.username }}</strong>
         {% if u.id == current_user_id %}
         {{ ui.status_pill("Tú", sev="info") }}
@@ -89,27 +89,27 @@
 {% endif %}
 
 <!-- New User Modal -->
-<dialog id="nuevo-usuario-modal" style="border: none; border-radius: var(--card-radius); padding: 2rem; width: 400px; max-width: 90vw;">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-    <h2 style="margin: 0;" id="modal-title">Nuevo Usuario</h2>
-    <button type="button" onclick="closeModal()" style="background: none; border: none; cursor: pointer; padding: 0.5rem;" aria-label="Cerrar">
-      <svg class="icon" aria-hidden="true" style="width: 24px; height: 24px;"><use href="#icon-x"/></svg>
+<dialog id="nuevo-usuario-modal" class="modal">
+  <div class="dialog-header">
+    <h2 id="modal-title">Nuevo Usuario</h2>
+    <button type="button" onclick="closeModal()" class="dialog-close" aria-label="Cerrar">
+      <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
     </button>
   </div>
-  
+
   <form id="user-form" method="post" action="/users/crear">
     <div class="form-group">
       <label for="username">Nombre de usuario</label>
       <input type="text" id="username" name="username" required minlength="2" maxlength="120"
              autocomplete="username" placeholder="ej: maria_caja">
     </div>
-    
+
     <div class="form-group">
       <label for="password">Contraseña</label>
       <input type="password" id="password" name="password" required minlength="6"
              autocomplete="new-password" placeholder="Mínimo 6 caracteres">
     </div>
-    
+
     <div class="form-group">
       <label for="role_combo">Rol</label>
       {{ ui.combo_field(
@@ -122,8 +122,8 @@
       ) }}
       <small>Los administradores tienen acceso completo. Los cajeros solo pueden operar ventas.</small>
     </div>
-    
-    <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+
+    <div class="dialog-actions">
       <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
       <button type="submit" class="btn btn-primary">Crear usuario</button>
     </div>
@@ -131,30 +131,30 @@
 </dialog>
 
 <!-- Edit User Modal -->
-<dialog id="editar-usuario-modal" style="border: none; border-radius: var(--card-radius); padding: 2rem; width: 400px; max-width: 90vw;">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-    <h2 style="margin: 0;">Editar Usuario</h2>
-    <button type="button" onclick="closeEditModal()" style="background: none; border: none; cursor: pointer; padding: 0.5rem;" aria-label="Cerrar">
-      <svg class="icon" aria-hidden="true" style="width: 24px; height: 24px;"><use href="#icon-x"/></svg>
+<dialog id="editar-usuario-modal" class="modal">
+  <div class="dialog-header">
+    <h2>Editar Usuario</h2>
+    <button type="button" onclick="closeEditModal()" class="dialog-close" aria-label="Cerrar">
+      <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
     </button>
   </div>
-  
+
   <form id="edit-user-form" method="post">
     <input type="hidden" id="edit-user-id" name="user_id">
-    
+
     <div class="form-group">
       <label for="edit-username">Nombre de usuario</label>
       <input type="text" id="edit-username" name="username" required minlength="2" maxlength="120"
              autocomplete="username">
     </div>
-    
+
     <div class="form-group">
       <label for="edit-password">Nueva contraseña</label>
       <input type="password" id="edit-password" name="new_password" minlength="6"
              autocomplete="new-password" placeholder="Dejar en blanco para no cambiar">
       <small>Solo llena este campo si deseas cambiar la contraseña</small>
     </div>
-    
+
     <div class="form-group">
       <label for="edit-role_combo">Rol</label>
       {{ ui.combo_field(
@@ -167,15 +167,15 @@
         label_field='display'
       ) }}
     </div>
-    
+
     <div class="form-group">
       <label style="display: flex; align-items: center; gap: 0.5rem;">
         <input type="checkbox" id="edit-is-active" name="is_active" value="true">
         Usuario activo
       </label>
     </div>
-    
-    <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+
+    <div class="dialog-actions">
       <button type="button" class="btn btn-ghost" onclick="closeEditModal()">Cancelar</button>
       <button type="submit" class="btn btn-primary">Guardar cambios</button>
     </div>
@@ -183,20 +183,20 @@
 </dialog>
 
 <!-- Delete Confirmation Modal -->
-<dialog id="eliminar-usuario-modal" style="border: none; border-radius: var(--card-radius); padding: 2rem; width: 400px; max-width: 90vw;">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-    <h2 class="text-danger" style="margin: 0;">¿Eliminar usuario?</h2>
-    <button type="button" onclick="closeDeleteModal()" style="background: none; border: none; cursor: pointer; padding: 0.5rem;" aria-label="Cerrar">
-      <svg class="icon" aria-hidden="true" style="width: 24px; height: 24px;"><use href="#icon-x"/></svg>
+<dialog id="eliminar-usuario-modal" class="modal">
+  <div class="dialog-header">
+    <h2 class="text-danger">¿Eliminar usuario?</h2>
+    <button type="button" onclick="closeDeleteModal()" class="dialog-close" aria-label="Cerrar">
+      <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
     </button>
   </div>
-  
+
   <p id="delete-user-message">¿Estás seguro de que deseas eliminar este usuario?</p>
-  
+
   <form id="delete-user-form" method="post">
     <input type="hidden" id="delete-user-id" name="user_id">
-    
-    <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+
+    <div class="dialog-actions">
       <button type="button" class="btn btn-ghost" onclick="closeDeleteModal()">Cancelar</button>
       <button type="submit" class="btn btn-danger">Sí, eliminar</button>
     </div>
@@ -208,20 +208,4 @@
 {% block page_scripts %}
 <link rel="stylesheet" href="/static/users.css?v={{ asset_version() }}">
 <script src="/static/users.js?v={{ asset_version() }}" defer></script>
-<style>
-.user-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  margin-right: 8px;
-  vertical-align: middle;
-  flex-shrink: 0;
-}
-</style>
 {% endblock %}

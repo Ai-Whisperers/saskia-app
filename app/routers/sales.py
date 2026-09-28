@@ -299,7 +299,7 @@ async def sales_history(
         days=days,
         offset=computed_offset,
     )
-    # Derive pagination metadata from context
+    # Derive pagination metadata and add to existing ctx (do NOT reassign ctx)
     total = ctx.get("total_count", 0)
     page_sz = PAGE_SIZE
     current_offset = computed_offset or 0
@@ -310,6 +310,10 @@ async def sales_history(
         "total_pages": total_pages,
         "total_count": total,
     }
+    # Clean filter values for pagination links: drop None/empty string
+    ctx["_q_val"] = q if q else None
+    ctx["_product_id_val"] = product_id if product_id else None
+    ctx["_days_val"] = days if days else None
     return render(request, "ventas_historial.html", ctx)
 
 

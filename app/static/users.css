@@ -75,6 +75,65 @@
   font-size: 0.875rem;
 }
 
+/* Modal dialog (used by /users/:new, /users/:edit, /users/:delete) */
+dialog.modal {
+  border: none;
+  border-radius: var(--card-radius, 12px);
+  padding: 2rem;
+  width: 400px;
+  max-width: 90vw;
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+dialog.modal::backdrop { background: rgba(0, 0, 0, 0.45); }
+.dialog-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 1.5rem;
+}
+.dialog-header h2 { margin: 0; }
+.dialog-close {
+  background: none; border: none; cursor: pointer; padding: 0.5rem;
+  color: inherit;
+}
+.dialog-close .icon { width: 24px; height: 24px; }
+.dialog-actions {
+  display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;
+}
+
+/* Page-level toolbar (filter chips + admin hint + primary action) */
+.users-toolbar {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;
+  gap: 1rem; flex-wrap: wrap;
+}
+.users-toolbar__filters { display: flex; gap: 0.5rem; }
+.users-toolbar__hint    { margin: 0; font-size: var(--text-sm); flex: 1; text-align: right; }
+
+/* User avatar circle (inline initial + accent color) */
+.user-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  margin-right: 8px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* Avatar accent palette — the same 6 hardcoded hues used to live inline on the
+   <span> tag. Keep the BEM-safe names so changing the palette later is one
+   place. The dark theme can override bg-1..6 below. */
+.user-avatar.is-palette-1 { background: var(--color-accent); }
+.user-avatar.is-palette-2 { background: var(--color-success); }
+.user-avatar.is-palette-3 { background: var(--color-warn); }
+.user-avatar.is-palette-4 { background: var(--color-danger); }
+.user-avatar.is-palette-5 { background: #8b5cf6; } /* purple — close to brand-tone */
+.user-avatar.is-palette-6 { background: #ec4899; } /* pink   — close to brand-tone */
+
 /* Action buttons — use design-system vars */
 .btn-danger {
   background: var(--color-danger);

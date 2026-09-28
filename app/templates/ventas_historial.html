@@ -67,7 +67,7 @@
   {% if q or product_id or days %}
   <a href="/ventas/historial" class="btn btn-ghost">Limpiar</a>
   {% endif %}
-  <label style="display:inline-flex;align-items:center;gap:.3em;font-size:var(--text-sm);color:var(--color-muted);">
+  <label class="text-muted" style="display:inline-flex;align-items:center;gap:.3em;font-size:var(--text-sm);">
     <input type="checkbox" id="include-voided" name="include_voided" value="1"
            {{ 'checked' if include_voided else '' }}
            onchange="this.form.submit()">
@@ -142,7 +142,7 @@
     {% endfor %}
   </tbody>
   <tfoot>
-    <tr style="background:var(--color-muted-soft);font-weight:700;">
+    <tr style="background:var(--color-surface-subtle);font-weight:700;">
       <td>Total ({{ sales|length }} ventas)</td>
       <td></td>
       <td class="num">{{ sales|sum(attribute='qty') }}</td>
@@ -164,10 +164,10 @@
 {% if pagination.total_pages > 1 %}
 <nav class="pagination" aria-label="Paginación de ventas">
   {% if pagination.page > 1 %}
-  <a href="?page={{ pagination.page - 1 }}&amp;q={{ q }}&amp;product_id={{ product_id }}&amp;days={{ days }}" class="btn btn-ghost">← Anterior</a>
+  <a href="?page={{ pagination.page - 1 }}{% if _q_val %}&amp;q={{ _q_val }}{% endif %}{% if _product_id_val %}&amp;product_id={{ _product_id_val }}{% endif %}{% if _days_val %}&amp;days={{ _days_val }}{% endif %}" class="btn btn-ghost">← Anterior</a>
   {% endif %}
   {% if pagination.page < pagination.total_pages %}
-  <a href="?page={{ pagination.page + 1 }}&amp;q={{ q }}&amp;product_id={{ product_id }}&amp;days={{ days }}" class="btn btn-ghost">Siguiente →</a>
+  <a href="?page={{ pagination.page + 1 }}{% if _q_val %}&amp;q={{ _q_val }}{% endif %}{% if _product_id_val %}&amp;product_id={{ _product_id_val }}{% endif %}{% if _days_val %}&amp;days={{ _days_val }}{% endif %}" class="btn btn-ghost">Siguiente →</a>
   {% endif %}
 </nav>
 {% endif %}

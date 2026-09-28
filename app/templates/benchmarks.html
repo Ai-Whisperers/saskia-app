@@ -11,7 +11,7 @@
 }}
 
 <div style="margin-bottom:var(--space-3);display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
-  <span style="font-size:var(--text-sm);color:var(--color-muted);">Ordenar por:</span>
+  <span class="text-muted" style="font-size:var(--text-sm);">Ordenar por:</span>
   <button type="button" class="btn btn-sm" onclick="sortBenchmarks('gap')">Mayor diferencia Gs. ↓</button>
   {% set csv_q = dict(request.query_params.multi_items()) %}
   {% set _ = csv_q.update({'format':'csv'}) %}
