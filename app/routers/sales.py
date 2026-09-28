@@ -72,6 +72,7 @@ def _generate_idem_key() -> str:
     return uuid.uuid4().hex[:12]
 
 
+PAGE_SIZE = 20
 
 
 def _get_tax_regime(session) -> str:
@@ -97,7 +98,6 @@ def _build_sales_context(
     template (ventas.html for the POS, ventas_historial.html for history)
     so the filter logic stays in sync — US 4.3 split.
     """
-    PAGE_SIZE = 20
     products = session.scalars(select(Product).order_by(Product.name)).all()
     sales_q = (
         select(Sale)
@@ -273,6 +273,7 @@ async def sales_history(
     q: str | None = None,
     product_id: int | None = None,
     days: int | None = None,
+    page: int | None = Query(None),
     offset: int | None = None,
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
@@ -283,14 +284,32 @@ async def sales_history(
     shows the summary card, filter form, table of past sales, and the
     per-row Anular button.
     """
+    # Accept page=1-based OR offset=0-based; page takes priority
+    computed_offset: int | None
+    if page is not None and page > 0:
+        computed_offset = (page - 1) * PAGE_SIZE
+    else:
+        computed_offset = offset
+
     ctx = _build_sales_context(
         request=request,
         session=session,
         q=q,
         product_id=product_id,
         days=days,
-        offset=offset,
+        offset=computed_offset,
     )
+    # Derive pagination metadata from context
+    total = ctx.get("total_count", 0)
+    page_sz = PAGE_SIZE
+    current_offset = computed_offset or 0
+    current_page = (current_offset // page_sz) + 1 if page_sz > 0 else 1
+    total_pages = (total + page_sz - 1) // page_sz if page_sz > 0 else 1
+    ctx["pagination"] = {
+        "page": current_page,
+        "total_pages": total_pages,
+        "total_count": total,
+    }
     return render(request, "ventas_historial.html", ctx)
 
 
