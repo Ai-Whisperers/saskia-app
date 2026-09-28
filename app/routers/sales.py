@@ -905,17 +905,17 @@ async def sale_create_multi(
                     ),
                 )
 
-            # First item carries all metadata; rest are bare
+            # All items in the cart share the same metadata (customer, payment, channel, discount)
             result = apply_sale(
                 session,
                 item.product_id,
                 item.qty,
                 sold_at_dt,
-                notes_clean if idx == 0 else None,
-                customer_id=customer_id if idx == 0 else None,
-                payment_method=payment_method_clean if idx == 0 else None,
-                discount_gs=discount_gs if idx == 0 else 0,
-                channel=channel_clean if idx == 0 else None,
+                notes_clean,
+                customer_id=customer_id,
+                payment_method=payment_method_clean,
+                discount_gs=discount_gs,
+                channel=channel_clean,
             )
             sale_ids.append(result.sale_id)
             if first_product_id is None:
