@@ -38,7 +38,11 @@
     </tr>
   </thead>
   <tbody>
-    {% for d in drift | sort(attribute='margin_change_pct', reverse=true) %}
+    {# P-26: sort by margin_change_pct but exclude items with None pct (would crash
+       Python sort with '<' not supported between float and NoneType). Items with
+       None pct are listed at the bottom because we can't determine their ordering. #}
+    {% set drift_sorted = (drift | selectattr('margin_change_pct', 'defined') | selectattr('margin_change_pct', 'ne', none) | list | sort(attribute='margin_change_pct', reverse=true)) + (drift | rejectattr('margin_change_pct', 'defined') | list) + (drift | selectattr('margin_change_pct', 'defined') | selectattr('margin_change_pct', 'eq', none) | list) %}
+    {% for d in drift_sorted %}
     <tr>
       <td><a href="/reportes/margenes/{{ d.product_id }}">{{ d.product_name }}</a></td>
       <td class="num">{{ m.gs(d.first_price_gs) }}</td>
