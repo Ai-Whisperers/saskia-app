@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% import "_components/atoms.html" as ui %}
 {% import "_components/macros.html" as m %}
-{% block title %}Valor promedio del pedido{% endblock %}
+{% block title %}Valor promedio del pedido — {{ ui.report_source_footer() }}{% endblock %}
 {% block content %}
 <h1>
   <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>

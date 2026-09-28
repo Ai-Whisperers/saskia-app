@@ -14,7 +14,7 @@
   <tbody>
     {% for h in history %}
     <tr>
-      <td>{{ h.sold_at.strftime('%d-%m-%Y') }}</td>
+      <td>{{ h.sold_at.strftime('%d/%m/%Y') }}</td>
       <td class="num">{{ m.gs(h.unit_price_gs) }}</td>
     </tr>
     {% endfor %}

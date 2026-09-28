@@ -18,8 +18,17 @@
 </div>
 
 <dl class="customer-meta">
+  {% if customer.phone %}
   <dt>Teléfono</dt>
-  <dd>{{ customer.phone or "—" }}</dd>
+  <dd>
+    <a href="tel:{{ customer.phone }}" class="btn btn-sm btn-ghost" style="gap:0.25rem;">
+      📞 {{ customer.phone }}
+    </a>
+    <a href="https://wa.me/595{{ customer.phone|lstrip('0') }}" target="_blank" rel="noopener" class="btn btn-sm btn-ghost" style="gap:0.25rem;">
+      💬 WhatsApp
+    </a>
+  </dd>
+  {% endif %}
   <dt>Email</dt>
   <dd>{{ customer.email or "—" }}</dd>
   <dt>CI / RUC</dt>

@@ -177,7 +177,6 @@
       </li>
       {% endfor %}
     </ul>
-    {% if p.notes %}<div class="card-footer">📋 {{ p.notes }}</div>{% endif %}
     <div class="card-elapsed{% if elapsed_minutes > 60 %} long{% endif %}">
       ⏱ {{ elapsed_minutes }} min
     </div>
