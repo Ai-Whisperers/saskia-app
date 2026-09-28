@@ -324,9 +324,8 @@
   // ── Add from form (combo + qty input) ──────────────────────────────────
   window.addToCart = function() {
     var comboEl = document.querySelector('[name="product_id"]');
-    var displayEl = comboEl ? comboEl.closest('saskia-combo') : null;
-    var instance = displayEl && displayEl.__comboInstance;
-    var selectedData = instance ? instance.getSelectedData() : null;
+    // The saskia-combo element IS the SaskiaCombo class instance
+    var selectedData = comboEl ? comboEl.getSelectedData() : null;
 
     if (!selectedData || !selectedData.value) {
       alert('Elegí un producto del listado.');
