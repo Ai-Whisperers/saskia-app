@@ -280,6 +280,23 @@ def produccion_worksheet(
             "line_items": line_items,
         })
 
+    # P-14: template produccion.html:102 references daily_target but the day
+    # view never passed it, raising Jinja UndefinedError. Compute target
+    # (sum of plan rows) and actual (sum of non-voided Sale.qty for the day).
+    daily_target = sum(
+        r.qty_to_produce for r in plan.rows if r.qty_to_produce > 0
+    )
+    from datetime import datetime as _dt_cls, timezone as _tz_cls
+    target_start = datetime.combine(target_date, _dt_cls.min.time()).replace(tzinfo=_tz_cls.utc)
+    target_end = datetime.combine(target_date, _dt_cls.max.time()).replace(tzinfo=_tz_cls.utc)
+    daily_actual = session.execute(
+        select(func.sum(Sale.qty)).where(
+            Sale.sold_at >= target_start,
+            Sale.sold_at <= target_end,
+            Sale.voided_at.is_(None),
+        )
+    ).scalar() or 0
+
     return render(request, "produccion.html", {
         "plan": plan,
         "for_date": plan.for_date.isoformat() if plan.for_date else "",
@@ -291,6 +308,8 @@ def produccion_worksheet(
             select(Recipe).order_by(Recipe.name)
         ).scalars().all(),
         "pending_pedidos": pending_pedidos,
+        "daily_target": daily_target,
+        "daily_actual": float(daily_actual),
     })
 
 

@@ -137,19 +137,24 @@ function updateBulkBtn() {
           <input type="number" id="rq-{{ item.ingredient_id }}" name="qty" step="0.5" min="0" size="4"
                  value="{{ item.suggested_qty|round(2) }}"
                  aria-label="Cantidad a reponer: {{ fmt.entity_name(item) }}">
-                    {{ ui.combo_field(
-            name='qty_unit',
-            value='{{ item.unit }}',
-            display='{{ item.unit }}',
-            
-            src=[{"value": "g", "label": "g"}, {"value": "kg", "label": "kg"}, {"value": "ml", "label": "ml"}, {"value": "l", "label": "l"}, {"value": "{{ item.unit }}", "label": "{{ item.unit }}"}]
+          {{ ui.combo_field(
+              name='qty_unit',
+              value=item.unit,
+              display=item.unit,
+              src=[
+                {"value": "g", "label": "g"},
+                {"value": "kg", "label": "kg"},
+                {"value": "ml", "label": "ml"},
+                {"value": "l", "label": "l"},
+                {"value": "und", "label": "und"},
+              ] + ([{"value": item.unit, "label": item.unit}] if item.unit not in ("g", "kg", "ml", "l", "und") else [])
           ) }}
           <label class="sr-only" for="rp-{{ item.ingredient_id }}">Precio {{ fmt.entity_name(item) }}</label>
           <div class="currency-input-wrap">
-            <input type="number" id="rp-{{ item.ingredient_id }}" name="price_gs" step="100" min="0" size="6" inputmode="numeric" class="currency-input">
+            <input type="number" id="rp-{{ item.ingredient_id }}" name="price_gs" step="100" min="0" size="6" inputmode="numeric" class="currency-input"
+                   value="{{ item.purchase_price_gs if item.purchase_price_gs is not none else '' }}"
+                   aria-label="Precio pagado por {{ item.unit }} de {{ fmt.entity_name(item) }}">
           </div>
-                 value="{{ item.purchase_price_gs if item.purchase_price_gs is not none else '' }}"
-                 aria-label="Precio pagado por {{ item.unit }} de {{ fmt.entity_name(item) }}">
           <button type="submit" class="btn btn-sm btn-primary">Reponer</button>
         </form>
       </td>

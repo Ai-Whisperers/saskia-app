@@ -240,9 +240,9 @@
         <span class="price-gs qs-price">Gs. {{ m.gs(q.sale_price_gs) }}</span>
         {%- if not q.is_available -%}
           <small class="text-danger">Sin stock</small>
-        {%- elif q.stock_qty is not none -%}
+        {%- else %}{%- if q.stock_qty is not none -%}
           <small class="text-muted">{{ "%.0f"|format(q.stock_qty) }}u</small>
-        {%- endif -%}
+        {%- endif %}{%- endif -%}
       </button>
       {% endfor %}
     </div>

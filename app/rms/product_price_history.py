@@ -40,6 +40,7 @@ class MarginDrift:
     first_margin_gs: int | None
     last_margin_gs: int | None
     margin_change_gs: int | None  # last − first (negative = margin eroded)
+    margin_change_pct: float | None  # relative (last_margin − first) / first
 
 
 def product_price_history(
@@ -144,6 +145,11 @@ def margin_drift_all(
             margin_change_gs=(
                 int(last_margin) - int(first_margin)
                 if first_margin is not None and last_margin is not None
+                else None
+            ),
+            margin_change_pct=(
+                (int(last_margin) - int(first_margin)) / int(first_margin)
+                if first_margin is not None and int(first_margin) > 0
                 else None
             ),
         ))
