@@ -122,6 +122,7 @@ TODOs (for tomorrow's full implementation):
       this._src = [];
       this._value = null;
       this._display = null;
+      this._selectedItem = null;  // full item data (incl. sale_price_gs) for getSelectedData()
       this._debounceTimer = null;
       this._uid = 'saskia-combo-' + Math.random().toString(36).slice(2, 10);
     }
@@ -178,6 +179,15 @@ TODOs (for tomorrow's full implementation):
 
     getValue() { return this._value; }
     getDisplay() { return this._display; }
+    /** Returns the full selected item object (value, display, plus any extra
+     *  fields like sale_price_gs that were stored via setOptionsData). */
+    getSelectedData() {
+      if (!this._value || !this._selectedItem) return null;
+      return Object.assign({}, this._selectedItem, {
+        value: this._value,
+        display: this._display,
+      });
+    }
     clear() { this.setValue(null, null); }
     setValue(value, display) {
       this._value = value;
@@ -278,6 +288,11 @@ TODOs (for tomorrow's full implementation):
 
     async _filterAndRender(query) {
       const resultsList = this.shadowRoot.querySelector('.results');
+      // Shadow DOM may be torn down between `attributeChangedCallback` (which
+      // re-fires this method) and a `_close()` call. Guard against null so
+      // we no-op instead of throwing "Cannot set properties of null" on
+      // every page that uses <saskia-combo> (18+ page errors per load).
+      if (!resultsList) return;
       resultsList.innerHTML = '<li class="item loading" role="presentation">Buscando…</li>';
 
       let results = [];
@@ -393,6 +408,7 @@ TODOs (for tomorrow's full implementation):
     }
 
     _selectItem(item) {
+      this._selectedItem = item;  // store full item for getSelectedData()
       this.setValue(item.value, item.label || item.value);
       this._close();
       // Auto-submit: if attribute set, submit the closest form on selection.
