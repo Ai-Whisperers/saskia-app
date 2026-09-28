@@ -291,12 +291,28 @@ class StaticCacheMiddleware(BaseHTTPMiddleware):
     both browser and CDN with the immutable directive, which suppresses
     all conditional revalidation (If-Modified-Since, ETag) for maximum
     perf.
+
+    Exception: /static/app.js is NEVER served with `immutable`. It is the
+    one asset whose behavior depends on bindings registered at deploy
+    time (initConfirmLinks, initSidebar, etc.), and a tab that loaded
+    /static/app.js?v=<old> before a deploy will keep using the stale JS
+    for a year under immutable — leaving confirm-modals silently dead.
+    For app.js we send `no-cache` instead, which forces a revalidation
+    (If-Modified-Since) on every navigation: ~one round trip, then 304
+    until the next deploy. The CDN still gets the benefit of validation.
     """
+
+    # Paths under /static/ that must NOT use the immutable cache header.
+    # Keep this set tiny — every entry costs a revalidation per visit.
+    _REVALIDATE_PATHS = frozenset({"/static/app.js"})
 
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
         if request.url.path.startswith("/static/"):
-            response.headers["Cache-Control"] = "max-age=31536000, immutable"
+            if request.url.path in self._REVALIDATE_PATHS:
+                response.headers["Cache-Control"] = "no-cache"
+            else:
+                response.headers["Cache-Control"] = "max-age=31536000, immutable"
         return response
 
 
