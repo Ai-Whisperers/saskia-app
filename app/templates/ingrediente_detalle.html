@@ -195,6 +195,12 @@
     <strong>{{ "%.2f"|format(variants_rollup.base_qty) }} {{ variants_rollup.base_unit }}</strong>
     en {{ variants_rollup.variant_count }} variante{{ '' if variants_rollup.variant_count == 1 else 's' }}.
   </p>
+  <div style="margin-bottom:var(--space-2);">
+    <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:var(--text-sm);">
+      <input type="checkbox" id="toggle-exhausted" checked onchange="toggleExhaustedVariants(this.checked)">
+      Mostrar agotados
+    </label>
+  </div>
   <table class="data-table">
     <thead>
       <tr>
@@ -209,7 +215,7 @@
     </thead>
     <tbody>
       {% for v in variants_rollup.variants %}
-      <tr{% if v.preferred %} style="background: var(--color-success-bg, #e6f4ea);"{% endif %}>
+      <tr class="variant-row{% if v.stock_qty <= 0 %} variant-exhausted{% endif %}"{% if v.preferred %} style="background: var(--color-success-bg, #e6f4ea);"{% endif %}>
         <td>
           {{ v.package_size }} {{ v.package_unit }}
           {% if v.preferred %}<strong>(preferida)</strong>{% endif %}
@@ -365,7 +371,18 @@
 .detail-card dl { display: grid; grid-template-columns: auto 1fr; gap: 0.4rem 1rem; }
 .detail-card dt { color: var(--color-text-muted); font-size: 0.875rem; }
 .detail-card dd { font-weight: 500; }
+/* Variants: inactive / exhausted style */
+.variant-exhausted td { opacity: 0.45; }
+.variant-exhausted td:first-child { text-decoration: line-through; }
 </style>
+
+<script>
+function toggleExhaustedVariants(show) {
+  document.querySelectorAll('.variant-exhausted').forEach(function(row) {
+    row.style.display = show ? '' : 'none';
+  });
+}
+</script>
 
 {% include "_components/adjust_modal.html" %}
 {% endblock %}

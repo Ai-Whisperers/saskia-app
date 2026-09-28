@@ -12,8 +12,13 @@
 
 {{ ui.flash_toast(request) }}
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-  <p class="text-muted" style="margin: 0;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+  <div style="display:flex;gap:0.5rem;">
+    <a href="?filter=active" class="btn btn-sm {% if filter_param=='active' %}btn-primary{% else %}btn-ghost{% endif %}">Solo activos</a>
+    <a href="?filter=inactive" class="btn btn-sm {% if filter_param=='inactive' %}btn-primary{% else %}btn-ghost{% endif %}">Solo inactivos</a>
+    {% if filter_param %}<a href="/users" class="btn btn-sm btn-ghost">Ver todos</a>{% endif %}
+  </div>
+  <p class="text-muted" style="margin:0;font-size:var(--text-sm);">
     Solo los administradores pueden gestionar usuarios.
   </p>
   <button type="button" class="btn btn-primary" id="nuevo-usuario-btn">
@@ -38,6 +43,7 @@
     {% for u in users %}
     <tr data-id="{{ u.id }}">
       <td>
+        <span class="user-avatar" style="background:{{ ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'][u.username | length % 6] }};">{{ u.username[0] | upper }}</span>
         <strong data-copy="{{ u.id }}">{{ u.username }}</strong>
         {% if u.id == current_user_id %}
         {{ ui.status_pill("Tú", sev="info") }}
@@ -202,4 +208,20 @@
 {% block page_scripts %}
 <link rel="stylesheet" href="/static/users.css?v={{ asset_version() }}">
 <script src="/static/users.js?v={{ asset_version() }}" defer></script>
+<style>
+.user-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  margin-right: 8px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+</style>
 {% endblock %}

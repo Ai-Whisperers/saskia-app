@@ -66,6 +66,10 @@
         <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
         Filtrar
       </button>
+      <a href="/auditoria/export.csv?start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}" class="btn btn-ghost" download>
+        <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+        Exportar CSV
+      </a>
       <a href="/auditoria" class="btn btn-ghost">Limpiar</a>
     </div>
   </form>

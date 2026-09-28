@@ -10,7 +10,18 @@
 {{ ui.flash_toast(request) }}
 
 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem;">
-  <h1 style="margin-bottom:0;">{{ customer.name or "(sin nombre)" }}</h1>
+  <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;">
+    <h1 style="margin-bottom:0;">{{ customer.name or "(sin nombre)" }}</h1>
+    {# Customer tier badge #}
+    {% set last_days = stats.last_sale_days if stats.last_sale_days is not none else 999 %}
+    {% if last_days > 90 %}
+      <span class="badge" style="background:var(--color-text-muted);color:#fff;">Inactivo</span>
+    {% elif last_days > 30 %}
+      <span class="badge" style="background:var(--color-warn);color:#fff;">Frecuente</span>
+    {% else %}
+      <span class="badge" style="background:var(--color-success);color:#fff;">Nuevo</span>
+    {% endif %}
+  </div>
   <a href="/clientes/{{ customer.id }}/editar" class="btn btn-sm btn-secondary">
     <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
     Editar

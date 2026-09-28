@@ -12,11 +12,18 @@
 
 {{ ui.flash_toast(request) }}
 
+<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;">
+  <input type="search" id="settings-search" placeholder="Buscar configuración..." style="max-width:300px;padding:0.5rem;border:1px solid var(--color-border);border-radius:var(--radius);">
+  <span class="text-muted" id="settings-search-count" style="font-size:var(--text-sm);"></span>
+</div>
+
 <div class="settings-tabs">
   <button type="button" class="tab-btn active" data-tab="business">Información de negocio</button>
-  <button type="button" class="tab-btn" data-tab="fiscal">Configuración fiscal</button>
-  <button type="button" class="tab-btn" data-tab="theme">Tema y apariencia</button>
-  <button type="button" class="tab-btn" data-tab="demo">Datos de ejemplo</button>
+  <button type="button" class="tab-btn" data-tab="payments">Pagos y delivery</button>
+  <button type="button" class="tab-btn" data-tab="notifications">Notificaciones</button>
+  <button type="button" class="tab-btn" data-tab="fiscal">Fiscal</button>
+  <button type="button" class="tab-btn" data-tab="theme">Tema</button>
+  <button type="button" class="tab-btn" data-tab="demo">Datos demo</button>
 </div>
 
 <!-- Business Info Tab -->
@@ -171,6 +178,59 @@
       Guardar información de negocio
     </button>
   </form>
+</div>
+
+<!-- Payments & Delivery Tab -->
+<div id="payments-tab" class="tab-content" style="display: none;">
+  <h2>Pagos y Delivery</h2>
+  <p class="text-muted">Formas de pago y zonas de envío configuradas.</p>
+
+  <h3 style="margin-top: var(--space-4); border-top: 1px solid var(--color-border); padding-top: var(--space-3);">Formas de pago</h3>
+  <p class="text-muted" style="font-size:var(--text-sm);">Editá las formas de pago en <a href="/settings/catalog#payments">Catálogos → Formas de pago</a>.</p>
+
+  <h3 style="margin-top: var(--space-4); border-top: 1px solid var(--color-border); padding-top: var(--space-3);">Zonas de delivery</h3>
+  {% if delivery_zones %}
+  <table class="table is-striped is-hoverable" style="margin-bottom:1rem;">
+    <thead>
+      <tr>
+        <th>Orden</th><th>Código</th><th>Nombre</th><th>Cobertura</th>
+        <th class="num">Costo envío</th><th class="num">Pedido mínimo</th><th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for z in delivery_zones %}
+      <tr>
+        <td>{{ z.position }}</td>
+        <td>{{ z.code or '—' }}</td>
+        <td><strong>{{ fmt.entity_name(z) }}</strong></td>
+        <td>{{ z.coverage_text or '—' }}</td>
+        <td class="num">{% if z.delivery_cost_gs %}{{ m.gs(z.delivery_cost_gs) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if z.min_order_gs %}{{ m.gs(z.min_order_gs) }}{% else %}—{% endif %}</td>
+        <td>
+          {% if z.is_active %}
+          {{ ui.status_pill("Activa", sev="ok") }}
+          {% else %}
+          {{ ui.status_pill("Inactiva", sev="warn") }}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-muted">No hay zonas de delivery configuradas.</p>
+  {% endif %}
+  <p class="text-muted" style="font-size:var(--text-xs);">Para crear o editar zonas, usá la tabla <code>delivery_zone</code> directamente. UI CRUD pendiente.</p>
+</div>
+
+<!-- Notifications Tab -->
+<div id="notifications-tab" class="tab-content" style="display: none;">
+  <h2>Notificaciones</h2>
+  <p class="text-muted">Configurá cómo y cuándo recibir alertas del sistema.</p>
+  <div class="alert alert-info">
+    <svg class="icon" aria-hidden="true"><use href="#icon-info"/></svg>
+    La configuración de notificaciones está en desarrollo. Estas opciones se habilitarán pronto.
+  </div>
 </div>
 
 <!-- Fiscal Config Tab -->
@@ -422,13 +482,6 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.tab-content').forEach(content => {
       content.style.display = content.id === tabName + '-tab' ? 'block' : 'none';
     });
-    
-    // Show/hide theme preview based on theme tab
-    if (tabName === 'theme') {
-      const theme = document.querySelector('input[name="theme"]:checked').value;
-      document.querySelector('.theme-preview.light').style.display = theme === 'light' ? 'block' : 'none';
-      document.querySelector('.theme-preview.dark').style.display = theme === 'dark' ? 'block' : 'none';
-    }
   });
 });
 
@@ -451,6 +504,43 @@ document.querySelectorAll('input[name="theme"]').forEach(radio => {
     }
   });
 });
+</script>
+<script>
+// Settings search — filters form groups by label keyword
+(function() {
+  var searchInput = document.getElementById('settings-search');
+  var countLabel = document.getElementById('settings-search-count');
+  var allTabContents = document.querySelectorAll('.tab-content');
+
+  searchInput.addEventListener('input', function() {
+    var q = this.value.trim().toLowerCase();
+    var visible = 0;
+    var total = 0;
+    allTabContents.forEach(function(tab) {
+      var groups = tab.querySelectorAll('.form-group');
+      groups.forEach(function(g) {
+        var label = g.querySelector('label');
+        var text = label ? label.textContent.toLowerCase() : '';
+        var id = label ? (label.getAttribute('for') || '') : '';
+        var match = q === '' || text.includes(q) || id.includes(q);
+        g.style.display = match ? '' : 'none';
+        if (match) { visible++; }
+        total++;
+      });
+      // Also filter h3 section headers
+      var headings = tab.querySelectorAll('h3');
+      headings.forEach(function(h) {
+        var match = q === '' || h.textContent.toLowerCase().includes(q);
+        h.style.display = match ? '' : 'none';
+      });
+    });
+    if (q) {
+      countLabel.textContent = 'Mostrando ' + visible + ' de ' + total + ' campos';
+    } else {
+      countLabel.textContent = '';
+    }
+  });
+})();
 </script>
 
 <style>

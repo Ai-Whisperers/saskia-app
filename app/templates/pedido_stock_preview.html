@@ -20,9 +20,18 @@
 {% endif %}
 
 {% if consumed %}
+{% set total_cost = consumed|sum(attribute='qty_needed') %}
 <div class="card mb-4">
-  <h2>Ingredientes a consumir</h2>
-  <table class="table">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);">
+    <h2>Ingredientes a consumir</h2>
+    <span class="no-print" style="font-size:var(--text-sm);color:var(--color-muted);">📋 Ordenar:
+      <button type="button" class="btn btn-sm btn-ghost" onclick="sortTable(1)">Por faltante ↓</button>
+    </span>
+  </div>
+  <p class="hint no-print" style="margin-bottom:var(--space-3);">
+    Valor total a consumir: <strong>Gs. {{ consumed|sum(attribute='qty_needed')|default(0)|int }}</strong>
+  </p>
+  <table class="table" id="stock-table" data-sort="none">
     <thead>
       <tr>
         <th>Ingrediente</th>
@@ -63,5 +72,28 @@
     </button>
   </form>
 </div>
+
+<style>
+@media print {
+  .no-print, .no-print * { display: none !important; }
+  .card { box-shadow: none !important; border: 1px solid #ccc !important; }
+  body { font-size: 12px; }
+}
+</style>
+
+<script>
+function sortTable(colIndex) {
+  var tbl = document.getElementById('stock-table');
+  if (!tbl) return;
+  var tbody = tbl.querySelector('tbody');
+  var rows = Array.from(tbody.querySelectorAll('tr'));
+  var sorted = rows.sort(function(a, b) {
+    var aVal = parseFloat(a.cells[colIndex].textContent.replace(/[^0-9.-]/g, '')) || 0;
+    var bVal = parseFloat(b.cells[colIndex].textContent.replace(/[^0-9.-]/g, '')) || 0;
+    return bVal - aVal; // descending
+  });
+  sorted.forEach(function(r) { tbody.appendChild(r); });
+}
+</script>
 
 {% endblock %}

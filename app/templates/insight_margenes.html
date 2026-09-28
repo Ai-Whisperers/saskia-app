@@ -23,7 +23,7 @@
 <table class="table">
   <thead><tr><th>Producto</th><th class="num">Precio inicial</th><th class="num">Precio actual</th><th class="num">Δ Precio</th><th class="num">Margen inicial</th><th class="num">Margen actual</th><th class="num">Δ Margen</th></tr></thead>
   <tbody>
-    {% for d in drift %}
+    {% for d in drift | sort(attribute='margin_change_gs', reverse=True, default=999999999) %}
     <tr>
       <td><a href="/reportes/margenes/{{ d.product_id }}">{{ d.product_name }}</a></td>
       <td class="num">{{ m.gs(d.first_price_gs) }}</td>

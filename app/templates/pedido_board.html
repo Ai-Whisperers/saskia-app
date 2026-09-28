@@ -71,19 +71,58 @@
   .board-nav { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
   .board-nav a { color: #60a5fa; font-size: .9rem; }
   .count-badge { background: #333; color: #fff; border-radius: 50%; width: 1.5em; height: 1.5em; display: inline-flex; align-items: center; justify-content: center; font-size: .8rem; margin-left: .3em; }
+
+  /* Category color stripes — left border per product category */
+  .category-stripe { border-left: 4px solid #666; }
+  .category-stripe--bakery { border-left-color: #f59e0b; }
+  .category-stripe--coffee { border-left-color: #78350f; }
+  .category-stripe--pastry { border-left-color: #ec4899; }
+  .category-stripe--drink { border-left-color: #06b6d4; }
+  .category-stripe--snack { border-left-color: #84cc16; }
+  .category-stripe--dessert { border-left-color: #a855f7; }
+  .category-stripe--bread { border-left-color: #eab308; }
+  .category-stripe--default { border-left-color: #6b7280; }
+
+  /* Board filter controls */
+  .board-filters { display: flex; align-items: center; gap: .5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .board-filters .filter-btn { background: #1a1a1a; color: #9ca3af; border: 1px solid #333; border-radius: 6px; padding: .3em .8em; font-size: .85rem; cursor: pointer; }
+  .board-filters .filter-btn.active { background: #333; color: #fff; border-color: #60a5fa; }
+  .board-filters .filter-btn:hover { border-color: #60a5fa; }
+
+  /* Revenue summary bar */
+  .board-revenue { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: .5rem 1rem; font-size: .9rem; color: #9ca3af; margin-bottom: 1rem; display: inline-flex; gap: 1.5rem; }
+  .board-revenue strong { color: #fff; }
+
+  /* Mispriced row highlight for vs-mercado */
+  .mispriced-row { background: rgba(239, 68, 68, 0.08) !important; }
+
+  /* JS clock blink on update */
+  .clock-live { font-variant-numeric: tabular-nums; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="board-nav">
   <a href="/pedidos">← Volver a pedidos</a>
-  <span class="text-muted">Auto-refresh cada 30s · {{ now.strftime("%H:%M:%S") }}</span>
+  <span class="text-muted">Auto-refresh cada 30s · Actualizado: <span id="clock-live" class="clock-live">{{ now.strftime("%H:%M") }}</span></span>
   <button type="button" id="sound-toggle" class="btn btn-sm btn-ghost" aria-pressed="false" aria-label="Activar sonido de nuevos pedidos">
     🔕 Sonido desactivado
   </button>
+  <a href="?sound=0" class="btn btn-sm btn-ghost" style="color:#9ca3af;" title="Desactivar audio">🔇 Sin audio</a>
 </div>
 
 <h1><svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>  Cocina — pedidos del día</h1>
+
+<div class="board-filters" role="group" aria-label="Filtrar pedidos">
+  <button type="button" class="filter-btn active" data-filter="all">Todos</button>
+  <button type="button" class="filter-btn" data-filter="on-time">A tiempo</button>
+  <button type="button" class="filter-btn" data-filter="overdue">Atrasados</button>
+</div>
+
+<div class="board-revenue" aria-live="polite" id="board-revenue">
+  <span><span id="rev-count">0</span> pedidos</span>
+  <span>Gs. <strong id="rev-total">0</strong> total</span>
+</div>
 
 {# Sound notification for new orders — plays a chime on page load #}
 <audio id="new-order-chime" preload="auto">
@@ -124,6 +163,20 @@
   // Intentionally NO autoplay on page load — sound only plays if the user has opted in
   // AND the auto-refresh detects a new order. (TODO: wire to refresh handler.)
 })();
+
+// Live clock — keeps "Actualizado:" time current across auto-refreshes
+(function() {
+  var el = document.getElementById('clock-live');
+  if (!el) return;
+  function update() {
+    var now = new Date();
+    el.textContent =
+      String(now.getHours()).padStart(2,'0') + ':' +
+      String(now.getMinutes()).padStart(2,'0');
+  }
+  setInterval(update, 30000); // sync every 30s with the meta-refresh
+  update();
+})();
 </script>
 
 {% macro render_group(label, pedidos, now) %}
@@ -149,7 +202,14 @@
   {% endif %}
   {# elapsed since created #}
   {% set elapsed_minutes = ((now.timestamp() - p.created_at.timestamp()) / 60)|int if p.created_at and now else 0 %}
-  <div class="order-card is-{{ p.status }}{% if p.promised_date < today and p.status == 'pending' %} overdue{% endif %}{% if is_approaching %} approaching{% endif %}">
+  {# Determine overdue / approaching status for filter logic #}
+  {% set card_is_overdue = p.promised_date < today and p.status == 'pending' %}
+  {% set card_is_on_time = not card_is_overdue and p.status != 'pending' %}
+  <div class="order-card is-{{ p.status }}{% if card_is_overdue %} overdue{% endif %}{% if is_approaching %} approaching{% endif %}"
+       data-status="{{ p.status }}"
+       data-overdue="{{ '1' if card_is_overdue else '0' }}"
+       data-today="{{ '1' if p.promised_date == today else '0' }}"
+       data-total-gs="{{ p.total_gs|default(0) }}">
     <div class="card-header">
       <span class="card-id">#{{ p.id }}</span>
       <span class="card-status status-{{ p.status }}">
@@ -231,5 +291,45 @@
 {% if not pedidos_hoy and not pedidos_manana and not pedidos_semana %}
 <p class="text-muted" style="margin-top:2rem;">No hay pedidos pendientes. 🍰</p>
 {% endif %}
+
+<script>
+// Board filter + revenue aggregate
+(function() {
+  var filterBtns = document.querySelectorAll('.board-filters .filter-btn');
+  var revCount = document.getElementById('rev-count');
+  var revTotal = document.getElementById('rev-total');
+
+  function applyFilter(mode) {
+    var cards = document.querySelectorAll('.order-card');
+    var visible = 0;
+    var totalGs = 0;
+    cards.forEach(function(card) {
+      var overdue = card.dataset.overdue === '1';
+      var status = card.dataset.status;
+      var show = false;
+      if (mode === 'all') show = true;
+      else if (mode === 'overdue') show = overdue;
+      else if (mode === 'on-time') show = !overdue;
+      card.style.display = show ? '' : 'none';
+      if (show) {
+        visible++;
+        totalGs += parseInt(card.dataset.totalGs || '0', 10);
+      }
+    });
+    if (revCount) revCount.textContent = visible;
+    if (revTotal) revTotal.textContent = totalGs.toLocaleString('es-PY');
+    filterBtns.forEach(function(b) {
+      b.classList.toggle('active', b.dataset.filter === mode);
+    });
+  }
+
+  filterBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() { applyFilter(btn.dataset.filter); });
+  });
+
+  // Initial aggregate
+  applyFilter('all');
+})();
+</script>
 
 {% endblock %}
