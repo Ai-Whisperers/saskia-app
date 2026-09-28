@@ -94,8 +94,8 @@
     <div class="card-body">
       {% if peak_dow %}
         {% set days = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'] %}
-        <div class="metric-value">{{ days[peak_dow.0 - 1] }}</div>
-        <div class="text-muted">{{ peak_dow.1 }} ventas</div>
+        <div class="metric-value">{{ days[peak_dow - 1] }}</div>
+        <div class="text-muted">Sin conteo específico</div>
       {% else %}
         <p class="text-muted">Sin datos</p>
       {% endif %}
