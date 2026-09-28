@@ -27,7 +27,6 @@
            placeholder="Escaneá o tipeá el código de barras…"
            pattern="[A-Za-z0-9\-_]+"
            title="Códigos alfanuméricos, guiones y guiones bajos">
-    <small>Si completás el SKU, el producto se completa solo.</small>
   </div>
 
   <div class="form-row">
@@ -39,7 +38,7 @@
       value_field='id',
       label_field='name'
     ) }}
-    <small>Escaneá SKU o tipeá el nombre del producto</small>
+    <small class="hint">Escaneá SKU o tipeá el nombre del producto</small>
   </div>
 
   <div class="form-row">
@@ -67,7 +66,7 @@
       placeholder='Seleccioná canal...',
       src=_channels_src
     ) }}
-    <small>Mostrador = venta en el local; los otros son canales digitales o encargos.</small>
+    <small class="hint">Mostrador = local; otros = canales digitales o encargos.</small>
   </div>
 
   <div class="form-row">
@@ -81,7 +80,7 @@
       placeholder='Seleccioná forma de pago...',
       src=_pms_src
     ) }}
-    <small>Si pagaron por transferencia/QR, pegá el alias o ID de transacción en notas.</small>
+    <small class="hint">Pegá el alias o ID de tx en notas si pagaron por transferencia/QR.</small>
   </div>
 
   {# Phase 1.B — Fiscal invoice type. Determines whether to emit a
@@ -139,7 +138,6 @@
   <div class="form-row">
     <label for="discount_gs">Descuento (Gs.)</label>
     <input type="number" id="discount_gs" name="discount_gs" min="0" max="1000000" value="0" step="100">
-    <small>Descuento aplicado al total (opcional).</small>
   </div>
 
   <div class="form-row">
@@ -177,7 +175,7 @@
     <button type="submit" class="btn btn-large{% if not q.is_available %} is-disabled{% endif %}"{% if not q.is_available %} disabled aria-disabled="true"{% endif %} aria-label="Registrar venta de {{ fmt.entity_name(q) }} por {{ m.gs(q.sale_price_gs) }}">
       {%- if q.image_url %}<img class="qs-thumb" src="{{ q.image_url }}" alt="" loading="lazy" width="44" height="44"><br>{% endif -%}
       <strong>{{ fmt.entity_name(q) }}</strong><br>
-      <span class="gs">{{ m.gs(q.sale_price_gs) }}</span>
+      <span class="price-gs">Gs. {{ m.gs(q.sale_price_gs) }}</span>
       {% if not q.is_available %}
         <br><small class="text-danger">Sin stock</small>
       {% elif q.stock_qty is not none %}

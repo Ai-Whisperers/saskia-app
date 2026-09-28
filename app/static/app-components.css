@@ -193,3 +193,84 @@ input[type="date"], input[type="datetime-local"] { color-scheme: light dark; }
 /* ── stock-adjust modal polish ── */
 .modal-close-btn { width: 36px; height: 36px; padding: 0; justify-content: center; }
 .segmented-control label { white-space: nowrap; }
+
+/* ── reusable hint / helper text ────────────────────────────────────── */
+small.hint,
+.hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  display: block;
+  margin-top: var(--space-1);
+}
+
+/* ── Quick-sale card layout ─────────────────────────────────────────── */
+/* Wraps each quick-sale form as a card: image top, button bottom */
+.quick-sell-btn {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: box-shadow var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+}
+.quick-sell-btn:hover {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-elevated);
+}
+.quick-sell-btn .qs-thumb {
+  width: 100%;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 0;
+  margin-bottom: 0;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  display: block;
+}
+.quick-sell-btn .btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  width: 100%;
+  height: auto;
+  min-height: 90px;
+  padding: var(--space-2) var(--space-2);
+  border: none;
+  border-radius: 0;
+  gap: 2px;
+  word-break: break-word;
+  hyphens: auto;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.quick-sell-btn .btn strong {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+.quick-sell-btn .price-gs {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-accent);
+  font-variant-numeric: tabular-nums;
+}
+.quick-sell-btn.is-out-of-stock {
+  opacity: 0.5;
+}
+.quick-sell-btn.is-out-of-stock .btn {
+  cursor: not-allowed;
+}
+.quick-sell-grid .btn:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+}
