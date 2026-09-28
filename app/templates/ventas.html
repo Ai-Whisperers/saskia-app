@@ -175,7 +175,8 @@
             <tr>
               <th style="width:44px"></th>
               <th>Producto</th>
-              <th style="text-align:right;width:80px">Cant.</th>
+              <th style="text-align:right;width:72px">Cant.</th>
+              <th style="text-align:right;width:100px">Unit. (Gs.)</th>
               <th style="text-align:right;width:110px">Subtotal</th>
               <th style="width:36px"></th>
             </tr>
@@ -229,7 +230,7 @@
               data-product-id="{{ q.product_id }}"
               data-price="{{ q.sale_price_gs }}"
               data-product-name="{{ fmt.entity_name(q) }}"
-              onclick="quickAddToCart({{ q.product_id }}, '{{ fmt.entity_name(q)|e }}', {{ q.sale_price_gs }})"
+              onclick="quickAddToCart({{ q.product_id }}, '{{ fmt.entity_name(q)|e }}')"
               {% if not q.is_available %}disabled aria-disabled="true"{% endif %}
               aria-label="{{ fmt.entity_name(q) }} — {{ m.gs(q.sale_price_gs) }}">
         {%- if q.image_url -%}
@@ -264,19 +265,84 @@
 })();
 </script>
 
-{# ── Quick-sell filter ── #}
+{# ── Quick-sell filter (fetches from API as user types) ── #}
 <script>
 (function() {
-  var qsSearch = document.getElementById("quick-sell-search");
-  if (qsSearch) {
-    qsSearch.addEventListener("input", function() {
-      var query = (this.value || "").toLowerCase().trim();
-      document.querySelectorAll(".quick-sell-btn").forEach(function(btn) {
-        var name = btn.getAttribute("data-name") || "";
-        btn.style.display = (query === "" || name.indexOf(query) >= 0) ? "" : "none";
+  var qsSearch  = document.getElementById("quick-sell-search");
+  var qsGrid   = document.getElementById("quick-sell-grid");
+  var cache    = {};       // "query" → [{product_id, name, sale_price_gs}]
+  var debounce = null;
+
+  if (!qsSearch || !qsGrid) return;
+
+  qsSearch.addEventListener("input", function() {
+    var q = (this.value || "").trim();
+
+    clearTimeout(debounce);
+    if (q.length < 2) {
+      // Restore original 5 buttons; hide API results container
+      document.querySelectorAll(".quick-sell-api-row").forEach(function(r){ r.remove(); });
+      document.querySelectorAll(".quick-sell-btn").forEach(function(b){ b.style.display = ""; });
+      return;
+    }
+
+    debounce = setTimeout(function() {
+      var key = q.toLowerCase();
+      if (cache[key]) {
+        renderApiResults(cache[key]);
+      } else {
+        fetch('/productos/api/search?q=' + encodeURIComponent(q), {
+          headers: { 'Accept': 'application/json' }
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+          var results = (data.results || data || []).slice(0, 20);
+          cache[key] = results;
+          renderApiResults(results);
+        })
+        .catch(function(){ renderApiResults([]); });
+      }
+    }, 250);
+  });
+
+  function renderApiResults(products) {
+    // Remove previous API rows
+    document.querySelectorAll(".quick-sell-api-row").forEach(function(r){ r.remove(); });
+    // Hide original static buttons during search
+    document.querySelectorAll(".quick-sell-btn").forEach(function(b){ b.style.display = "none"; });
+
+    if (!products.length) {
+      var msg = document.createElement("div");
+      msg.className = "quick-sell-api-row";
+      msg.style.cssText = "padding:12px;color:var(--muted-foreground);font-size:0.875rem";
+      msg.textContent = "Sin resultados para esa búsqueda.";
+      qsGrid.insertBefore(msg, qsGrid.firstChild);
+      return;
+    }
+
+    products.forEach(function(p) {
+      var pid  = p.id || p.value || p.product_id;
+      var name = p.label || p.name || p.display || ("Producto " + pid);
+      var price = p.sale_price_gs || p.price_gs || 0;
+      var row = document.createElement("div");
+      row.className = "quick-sell-api-row";
+      row.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:0.875rem";
+      row.innerHTML =
+        '<span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(name) + '</span>' +
+        '<span class="price-gs" style="margin:0 12px;white-space:nowrap">' + fmtGs(price) + '</span>' +
+        '<button type="button" class="btn btn-primary btn-sm" onclick="quickAddToCart(' + pid + ',\'' + escJs(name) + '\')">+</button>';
+      row.addEventListener("click", function(e){
+        if (e.target.tagName !== "BUTTON") {
+          quickAddToCart(pid, name);
+        }
       });
+      qsGrid.insertBefore(row, qsGrid.firstChild);
     });
   }
+
+  function escJs(s) { return String(s).replace(/'/g, "\\'").replace(/\n/g, " "); }
+  function escHtml(s) { return document.createElement("span").appendChild(document.createTextNode(String(s||""))).parentNode.innerHTML; }
+  function fmtGs(n) { return 'Gs. ' + Number(n||0).toLocaleString('es-PY'); }
 })();
 </script>
 
@@ -296,29 +362,46 @@
   // ── Add from form (combo + qty input) ──────────────────────────────────
   window.addToCart = function() {
     var comboEl = document.querySelector('[name="product_id"]');
-    var displayEl = comboEl ? comboEl.closest('.saskia-combo') : null;
+    var displayEl = comboEl ? comboEl.closest('saskia-combo') : null;
     var instance = displayEl && displayEl.__comboInstance;
-    var selected = instance ? instance.getSelected() : null;
+    var selectedData = instance ? instance.getSelectedData() : null;
 
-    if (!selected || !selected.value) {
+    if (!selectedData || !selectedData.value) {
       alert('Elegí un producto del listado.');
       return;
     }
-    var productId = parseInt(selected.value, 10);
-    var productName = selected.label || selected.text || '';
+    var productId = parseInt(selectedData.value, 10);
+    var productName = selectedData.label || selectedData.display || '';
+    var unitPriceGs = parseInt(selectedData.sale_price_gs || 0, 10);
     var qtyEl = document.getElementById('qty');
     var qty = parseFloat(qtyEl && qtyEl.value ? qtyEl.value : 1);
 
     if (!productId || isNaN(productId)) { alert('Elegí un producto.'); return; }
     if (!qty || isNaN(qty) || qty <= 0) { alert('Cantidad debe ser > 0.'); return; }
 
-    addItem(productId, productName, qty, 0);
+    addItem(productId, productName, qty, unitPriceGs);
     if (qtyEl) qtyEl.value = 1;
   };
 
-  // ── Add from quick-sale button ───────────────────────────────────────────
-  window.quickAddToCart = function(productId, productName, unitPriceGs) {
-    addItem(parseInt(productId, 10), productName, 1, parseInt(unitPriceGs, 10));
+  // ── Add from quick-sale button (async — fetches real price) ───────────────
+  window.quickAddToCart = function(productId, productName) {
+    // Fetch the product's current price from the API
+    fetch('/productos/api/search?q=' + encodeURIComponent(productName || ''), {
+      headers: { 'Accept': 'application/json' }
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      var results = (data.results || data) || [];
+      var found = results.find(function(p) {
+        return String(p.id || p.value || p.product_id) === String(productId);
+      });
+      var priceGs = found ? (found.sale_price_gs || found.price_gs || 0) : 0;
+      addItem(parseInt(productId, 10), productName || 'Producto', 1, parseInt(priceGs, 10));
+    })
+    .catch(function() {
+      // Fallback: add without price, will show Gs. 0
+      addItem(parseInt(productId, 10), productName || 'Producto', 1, 0);
+    });
   };
 
   // ── Core add (increment qty if duplicate product) ─────────────────────────
@@ -344,13 +427,30 @@
     renderCart();
   };
 
-  // ── Inline qty adjust ───────────────────────────────────────────────────
+  // ── Inline qty adjust (step buttons) ────────────────────────────────────
   window.setQty = function(idx, delta) {
     var item = POS_CART[idx];
     if (!item) return;
     var newQty = parseFloat(item.qty) + delta;
     if (newQty <= 0) { removeItem(idx); }
     else { item.qty = newQty; renderCart(); }
+  };
+
+  // ── Direct qty input (cart table) ─────────────────────────────────────────
+  window.setQtyDirect = function(idx, val) {
+    var item = POS_CART[idx];
+    if (!item) return;
+    var qty = parseFloat(val);
+    if (!qty || qty <= 0) { removeItem(idx); }
+    else { item.qty = qty; renderCart(); }
+  };
+
+  // ── Direct price input (cart table) ───────────────────────────────────────
+  window.setPriceDirect = function(idx, val) {
+    var item = POS_CART[idx];
+    if (!item) return;
+    var price = parseInt(val, 10);
+    if (price >= 0) { item.unit_price_gs = price; renderCart(); }
   };
 
   // ── Render cart ─────────────────────────────────────────────────────────
@@ -390,11 +490,14 @@
           '<td></td>' +
           '<td class="cart-product-name">' + escHtml(item.product_name) + '</td>' +
           '<td class="cart-qty-cell">' +
-            '<button type="button" class="cart-qty-btn" onclick="setQty(' + idx + ',-1)">−</button>' +
-            '<span>' + item.qty + '</span>' +
-            '<button type="button" class="cart-qty-btn" onclick="setQty(' + idx + ',1)">+</button>' +
+            '<input type="number" class="cart-qty-input" min="0.25" step="0.25" value="' + item.qty + '" ' +
+            'onchange="setQtyDirect(' + idx + ', this.value)" aria-label="Cantidad"> ' +
           '</td>' +
-          '<td class="cart-subtotal" style="text-align:right">' + fmtGs(subtotal) + '</td>' +
+          '<td style="text-align:right">' +
+            '<input type="number" class="cart-price-input" min="0" step="100" value="' + item.unit_price_gs + '" ' +
+            'onchange="setPriceDirect(' + idx + ', this.value)" aria-label="Precio unitario Gs."> ' +
+          '</td>' +
+          '<td class="cart-subtotal" style="text-align:right;font-variant-numeric:tabular-nums">' + fmtGs(subtotal) + '</td>' +
           '<td><button type="button" class="cart-remove-btn" onclick="removeItem(' + idx + ')" aria-label="Quitar">×</button></td>';
         cartTbody.appendChild(tr);
       });
@@ -426,7 +529,9 @@
 
     var fd = new FormData(form);
     var payload = {
-      items:  POS_CART.map(function(i) { return { product_id: i.product_id, qty: i.qty }; }),
+      items:  POS_CART.map(function(i) {
+        return { product_id: i.product_id, qty: i.qty, unit_price_gs: i.unit_price_gs || 0 };
+      }),
       customer_id:            fd.get('customer_id') || null,
       payment_method:         fd.get('payment_method') || '',
       channel:                fd.get('channel') || 'mostrador',

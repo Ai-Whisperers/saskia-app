@@ -408,6 +408,7 @@ def apply_sale(
     channel: str | None = None,
     packaging_item_id: int | None = None,
     packaging_qty: float | None = None,
+    unit_price_gs_override: int | None = None,
 ) -> ApplySaleResult:
     """Record a sale. Atomic. Drops theoretical stock.
 
@@ -458,7 +459,7 @@ def apply_sale(
         raise ValueError(f"Product {product_id} not found")
 
     # Snapshot price at sale time
-    unit_price_gs = product.sale_price_gs
+    unit_price_gs = unit_price_gs_override if unit_price_gs_override is not None else product.sale_price_gs
     total_price_gs = to_int_gs(Decimal(str(qty)) * Decimal(str(unit_price_gs)))
 
     # Create sale row

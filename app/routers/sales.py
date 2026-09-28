@@ -778,6 +778,7 @@ async def sale_create_multi(
     class _Item(BaseModel):
         product_id: int = Field(..., gt=0)
         qty: float = Field(..., gt=0)
+        unit_price_gs: int | None = Field(None, ge=0)  # optional override; None = use product price
 
     class _Body(BaseModel):
         items: list[_Item] = Field(..., min_length=1)
@@ -916,6 +917,7 @@ async def sale_create_multi(
                 payment_method=payment_method_clean,
                 discount_gs=discount_gs,
                 channel=channel_clean,
+                unit_price_gs_override=item.unit_price_gs if item.unit_price_gs else None,
             )
             sale_ids.append(result.sale_id)
             if first_product_id is None:
