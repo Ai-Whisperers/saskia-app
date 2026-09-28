@@ -79,7 +79,7 @@
         <div class="form-grid-2col">
           <div class="form-row">
             <label for="sold_at">Fecha y hora</label>
-            <input type="datetime-local" id="sold_at" name="sold_at" value="{{ now_local }}">
+            <input type="datetime-local" id="sold_at" name="sold_at" value="{{ now_local }}" style="color-scheme: dark;">
           </div>
           <div class="form-row">
             {% include "_components/_customer_picker.html" %}
@@ -202,7 +202,7 @@
       </a>
       <button type="submit" form="sale-form" class="btn btn-primary" id="sale-submit-btn" disabled>
         <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-        <span id="submit-label">Registrar venta</span>
+        <span id="submit-label">Registrá venta</span>
         <span id="submit-count" style="display:none"></span>
       </button>
     </div>
@@ -221,12 +221,22 @@
              aria-label="Buscar producto en venta rápida" autocomplete="off">
     </div>
 
+    {# Category filter pills #}
+    <div class="quick-sell-filters" id="quick-sell-filters" role="group" aria-label="Filtrar por categoría">
+      <button type="button" class="quick-sell-filter is-active" data-filter="all">Todos</button>
+      <button type="button" class="quick-sell-filter" data-filter="favorito">Favoritos</button>
+      <button type="button" class="quick-sell-filter" data-filter="panaderia">Panadería</button>
+      <button type="button" class="quick-sell-filter" data-filter="pasteleria">Pastelería</button>
+      <button type="button" class="quick-sell-filter" data-filter="bebida">Bebidas</button>
+    </div>
+
     <div class="quick-sell-grid" id="quick-sell-grid" role="grid"
          aria-label="Productos para venta rápida" tabindex="0">
       {% for q in products %}
       <button type="button"
               class="quick-sell-btn{% if not q.is_available %} is-out-of-stock{% endif %}"
               data-name="{{ fmt.entity_name(q)|lower }}"
+              data-category="{{ q.category or 'otro' }}"
               data-product-id="{{ q.id }}"
               data-price="{{ q.sale_price_gs }}"
               data-product-name="{{ fmt.entity_name(q) }}"
@@ -414,7 +424,7 @@
       cartEmpty.style.display  = '';
       cartCount.style.display  = 'none';
       if (submitBtn)   submitBtn.disabled = true;
-      if (submitLabel) submitLabel.textContent = 'Registrar venta';
+      if (submitLabel) submitLabel.textContent = 'Registrá venta';
       if (submitCount) submitCount.style.display = 'none';
       if (stickyFooter) stickyFooter.classList.remove('has-items');
     } else {
@@ -466,7 +476,7 @@
 
       cartTotalEl.textContent = fmtGs(total);
       if (submitBtn)   submitBtn.disabled = false;
-      if (submitLabel) submitLabel.textContent = 'Registrar venta';
+      if (submitLabel) submitLabel.textContent = 'Registrá venta';
       if (submitCount) { submitCount.textContent = ' (' + n + ' ítem' + (n !== 1 ? 's' : '') + ')'; submitCount.style.display = ''; }
       if (stickyFooter) stickyFooter.classList.add('has-items');
     }
@@ -521,11 +531,47 @@
       return res.json().then(function(err) { throw err; });
     })
     .catch(function(err) {
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg> Registrar venta'; }
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg> Registrá venta'; }
       alert('Error: ' + (err && err.detail ? err.detail : 'No se pudo registrar la venta.'));
     });
     return false;
   };
+
+  // ── Category filter pills ────────────────────────────────────────────────
+  var filterBtns = document.querySelectorAll(".quick-sell-filter");
+  filterBtns.forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      var filter = this.getAttribute("data-filter");
+      filterBtns.forEach(function(b) { b.classList.remove("is-active"); });
+      this.classList.add("is-active");
+      var q = (qsSearch && qsSearch.value || "").toLowerCase().trim();
+      var btns = qsGrid.querySelectorAll(".quick-sell-btn");
+      var count = 0;
+      btns.forEach(function(card) {
+        var cat = card.getAttribute("data-category") || "all";
+        var name = card.getAttribute("data-name") || "";
+        var matchFilter = filter === "all" || cat === filter;
+        var matchQ = q === "" || name.indexOf(q) >= 0;
+        var show = matchFilter && matchQ;
+        card.style.display = show ? "" : "none";
+        if (show) count++;
+      });
+      // no-results handling (reuse same element)
+      var noResults = document.getElementById("quick-sell-no-results");
+      if (count === 0) {
+        if (!noResults) {
+          noResults = document.createElement("div");
+          noResults.id = "quick-sell-no-results";
+          noResults.style.cssText = "padding:16px;text-align:center;color:var(--muted-foreground);font-size:0.875rem";
+          noResults.textContent = "Ningún producto coincide con esa búsqueda.";
+          qsGrid.parentNode.insertBefore(noResults, qsGrid.nextSibling);
+        }
+        noResults.style.display = "";
+      } else {
+        if (noResults) noResults.style.display = "none";
+      }
+    });
+  });
 
   // ── Utility ─────────────────────────────────────────────────────────────
   function escHtml(s) {
