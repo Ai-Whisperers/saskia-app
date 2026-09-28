@@ -385,14 +385,41 @@ def libro_ventas_set_pdf(
 def reportes_diario(
     request: Request,
     for_date: str | None = Query(None),
+    format: str | None = Query(None),
     session: Session = Depends(get_session),
-) -> HTMLResponse:
-    """Daily summary (revenue, IVA, COGS, expenses, margin)."""
+) -> Response | HTMLResponse:
+    """Daily summary (revenue, IVA, COGS, expenses, margin).
+
+    Supports ?format=csv for CSV export.
+    """
     if for_date:
         d = datetime.fromisoformat(for_date)
     else:
         d = datetime.now(timezone.utc)
     summary = daily_summary(session, day=d)
+
+    # CSV export
+    if format == "csv":
+        rows = [["Fecha", "Ventas", "Ingresos brutos (Gs.)", "Base IVA (Gs.)", "IVA (Gs.)", "COGS (Gs.)", "Margen bruto (Gs.)"]]
+        rows.append([
+            d.strftime("%Y-%m-%d"),
+            str(summary.n_sales),
+            str(summary.revenue_gross_gs),
+            str(summary.revenue_base_gs),
+            str(summary.iva_gs),
+            str(summary.cogs_gs),
+            str(summary.margin_gs),
+        ])
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerows(rows)
+        from fastapi.responses import Response
+        return Response(
+            content=buf.getvalue(),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="resumen-diario-{d.date()}.csv"'},
+        )
+
     return render(request, "reportes_diario.html", {
         "summary": summary,
         "for_date": d.date().isoformat(),
@@ -459,17 +486,41 @@ def reportes_top_productos(
 # ─── Retención ─────────────────────────────────────────────────────────────
 
 
-@router.get("/retencion", response_class=HTMLResponse)
+@router.get("/retencion")
 def reportes_retencion(
     request: Request,
     start: str | None = Query(None),
     end: str | None = Query(None),
+    format: str | None = Query(None),
     session: Session = Depends(get_session),
-) -> HTMLResponse:
-    """Customer retention report (new vs returning)."""
+) -> Response | HTMLResponse:
+    """Customer retention report (new vs returning).
+
+    Supports ?format=csv.
+    """
     start_date = datetime.fromisoformat(start) if start else None
     end_date = datetime.fromisoformat(end) if end else None
     stats = customer_retention(session, start_date=start_date, end_date=end_date)
+
+    if format == "csv":
+        rows = [
+            ["Métrica", "Valor"],
+            ["Total clientes", str(stats.get("total", 0))],
+            ["Clientes nuevos", str(stats.get("new_customers", 0))],
+            ["Clientes recurrentes", str(stats.get("returning_customers", 0))],
+            ["% Nuevos", f"{stats.get('new_customers', 0) / stats.get('total', 1) * 100:.1f}" if stats.get("total", 0) else "0"],
+            ["% Recurrentes", f"{stats.get('returning_customers', 0) / stats.get('total', 1) * 100:.1f}" if stats.get("total", 0) else "0"],
+        ]
+        buf = io.StringIO()
+        csv.writer(buf).writerows(rows)
+        return Response(
+            content=buf.getvalue(),
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": f"attachment; filename=\"retencion-{start_date.date() if start_date else 'range'}-{end_date.date() if end_date else 'range'}.csv"
+            },
+        )
+
     return render(request, "reportes_retencion.html", {
         "stats": stats,
         "start_date": start_date.date().isoformat() if start_date else "",
