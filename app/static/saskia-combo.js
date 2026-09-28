@@ -409,7 +409,8 @@ TODOs (for tomorrow's full implementation):
 
     _selectItem(item) {
       this._selectedItem = item;  // store full item for getSelectedData()
-      this.setValue(item.value, item.label || item.value);
+      var val = item.value !== undefined ? item.value : item.id;
+      this.setValue(val, item.label || item.name || val);
       this._close();
       // Auto-submit: if attribute set, submit the closest form on selection.
       // Used for scale selectors and similar "change → reload" patterns.
