@@ -245,7 +245,7 @@ select:focus-visible,
 .tag-pill--muted{background:#ececec;color:#444;border-color:#bbb}
 .tag-pill--allergen{background:#fce4ec;color:#9c0d3d;border-color:#d96d8e;font-weight:700}
 .tag-pill-row{margin:3px 0 0;display:flex;flex-wrap:wrap;gap:1px;align-items:center}
-.tag-pill-row .tag-pill-row__label{font-size:10px;color:var(--muted-foreground,#666);text-transform:uppercase;letter-spacing:.04em;margin-right:4px}
+.tag-pill-row .tag-pill-row__label{font-size:10px;color:var(--color-text-muted,#666);text-transform:uppercase;letter-spacing:.04em;margin-right:4px}
 
 
 /* app-improvements.css — focus-visible support (P1-11)

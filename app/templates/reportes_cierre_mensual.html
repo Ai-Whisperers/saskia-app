@@ -71,7 +71,7 @@
     <div class="metric-value">
       {{ m.gs(close.total_margen_neto_gs) }}
       {% if close.total_margen_pct %}
-      <small style="font-size: var(--text-sm); color: {% if close.total_margen_pct > 30 %}var(--color-success){% elif close.total_margen_pct > 15 %}var(--color-warn){% else %}var(--color-danger){% endif %};">
+      <small style="font-size: var(--text-sm); color: {% if close.total_margen_pct > 30 %}var(--color-success-fg){% elif close.total_margen_pct > 15 %}var(--color-warn-fg){% else %}var(--color-danger-fg){% endif %};">
         ({{ "%.1f"|format(close.total_margen_pct) }}%)
       </small>
       {% endif %}

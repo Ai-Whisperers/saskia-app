@@ -447,6 +447,7 @@ small.hint,
   text-align: center;
   padding: var(--space-3) var(--space-2);
   background: var(--color-surface-raised);
+  color: var(--color-text);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   cursor: pointer;
