@@ -39,7 +39,11 @@
   </div>
 
   <div class="form-actions">
-    <a href="/clientes/{{ customer.id }}" class="btn btn-ghost" onclick="return confirm('¿Descartar cambios no guardados?')">Descartar cambios</a>
+    <a href="/clientes/{{ customer.id }}" class="btn btn-ghost"
+       data-confirm-title="¿Descartar cambios no guardados?"
+       data-confirm-body="Los cambios sin guardar se perderán."
+       data-confirm-ok="Descartar"
+       data-confirm-danger="false">Descartar cambios</a>
     <a href="/clientes/{{ customer.id }}" class="btn btn-ghost">Cancelar</a>
     <button type="submit" class="btn btn-primary">
       <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>

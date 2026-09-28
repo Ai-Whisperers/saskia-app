@@ -49,6 +49,45 @@
     }
   }
 
+  /* ─── js-confirm-link: intercept links/buttons with data-confirm-* attrs
+     and route through SaskiaConfirmModal before navigation. ───────────── */
+  function initConfirmLinks() {
+    var links = document.querySelectorAll('[data-confirm-title][data-confirm-href], [data-confirm-title][href]');
+    for (var i = 0; i < links.length; i++) {
+      (function (el) {
+        if (el.__saskiaConfirmLinkBound) return;
+        el.__saskiaConfirmLinkBound = true;
+        // Anchors with data-* attributes should NOT navigate on Enter/Space
+        // until the modal confirms — capture click only.
+        var target = function () {
+          return el.dataset.confirmHref || el.getAttribute('href');
+        };
+        el.addEventListener('click', function (e) {
+          // Allow modifier-clicks (open in new tab) to bypass confirm
+          if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0) return;
+          e.preventDefault();
+          var title = el.dataset.confirmTitle;
+          var body = el.dataset.confirmBody || '';
+          var danger = el.dataset.confirmDanger === 'true';
+          var ok = el.dataset.confirmOk || 'Confirmar';
+          var cancel = el.dataset.confirmCancel || 'Cancelar';
+          var done = function (confirmed) {
+            if (!confirmed) return;
+            var href = target();
+            if (!href) return;
+            // Use navigate so that future data-confirm-target="_blank" can extend
+            window.location.href = href;
+          };
+          if (window.SaskiaConfirmModal) {
+            SaskiaConfirmModal.show({ title: title, body: body, danger: danger, confirmLabel: ok, cancelLabel: cancel }).then(done);
+          } else {
+            done(window.confirm((body ? title + '\n\n' + body : title)));
+          }
+        });
+      })(links[i]);
+    }
+  }
+
   function relativeTime(dateStr) {
     if (!dateStr) return '';
     try {
@@ -433,6 +472,7 @@
     initCopyToClipboard();
     initTagPickers();
     initConfirmForms();
+    initConfirmLinks();
   });
 
   // Re-init after dynamic content (e.g. from HTMX or fetch)
@@ -440,6 +480,7 @@
     setTimeout(initCopyToClipboard, 100);
     setTimeout(initTagPickers, 100);
   setTimeout(initConfirmForms, 100);
+  setTimeout(initConfirmLinks, 100);
   }
 
 })();
