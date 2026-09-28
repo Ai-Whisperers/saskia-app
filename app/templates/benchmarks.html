@@ -32,6 +32,7 @@
     </tr>
   </thead>
   <tbody>
+    {% if benchmarks %}
     {% for b in benchmarks %}
     {% set delta_gs = (b.our_retail_gs - b.market_avg_gs)|int if (b.our_retail_gs and b.market_avg_gs) else none %}
     {% set is_mispriced = b.pct is not none and b.pct|abs > 20 %}
@@ -66,13 +67,24 @@
       </td>
     </tr>
     {% endfor %}
+    {% else %}
+    <tr><td colspan="7" style="padding:0;">
+      <div class="empty-state">
+        <p class="empty-state__title">Sin datos de mercado cargados</p>
+        <p class="empty-state__hint">Importá <code>HEREBUS_Benchmarks_Market</code> o agregá el primer benchmark con el botón de abajo.</p>
+        <a href="/vs-mercado/nuevo" class="btn btn-primary" style="margin-top:var(--space-2);">+ Agregar primer benchmark</a>
+      </div>
+    </td></tr>
+    {% endif %}
   </tbody>
 </table>
 
+{% if benchmarks %}
 <p class="muted">
   💡 Source: HEREBUS_Benchmarks_Market (17 productos a comparar vs Competidor A/B/Avg).
   Editá cada fila con el botón correspondiente.
 </p>
+{% endif %}
 
 <script>
 function sortBenchmarks(mode) {
