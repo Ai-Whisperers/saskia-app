@@ -912,6 +912,7 @@ def pedidos_fulfill(
     pedido_id: int = Path(...),
     request: Request = ...,  # type: ignore[assignment]
     idempotency_key: str = Form(""),
+    force: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Fulfill a pedido: create one Sale per PedidoLine + decrement stock.
@@ -925,7 +926,17 @@ def pedidos_fulfill(
     Idempotency: an `idempotency_key` form field prevents double-fulfillment
     on a double-click. Without one, a fast click could create duplicate
     Sales + double stock decrement for the same pedido.
+
+    Negative-stock guard (P1): BEFORE apply_sale() we replay the preview's
+    stock-move calculation against the current pedido + ingredient state.
+    If any ingredient would go below zero and the operator has NOT sent
+    ``force=true`` (form field or query param), we redirect back to the
+    preview page without consuming the idempotency key, so the operator
+    can buy the ingredient, refresh the preview, and retry. With
+    ``force=true`` the fulfill proceeds, a warning is logged, and the
+    audit record carries the shortfalls so ops can audit the override.
     """
+    force_flag = str(force or "").strip().lower() in ("true", "1", "yes", "on")
     # Idempotency: reserve the AppMeta row BEFORE running apply_sale for
     # each line. AppMeta.key is the primary key; a duplicate INSERT raises
     # IntegrityError which we catch and redirect to the original fulfill.
@@ -970,6 +981,78 @@ def pedidos_fulfill(
             ),
         )
 
+    # Negative-stock guard (P1): reuse the preview's stock-move calc. If any
+    # ingredient would go below zero and the operator has not passed
+    # ``force=true``, redirect back to the preview page WITHOUT consuming
+    # the idempotency key (we never call apply_sale / safe_commit here).
+    # Mirrors the calculation in pedidos_stock_preview() at line ~1155;
+    # if you change the rules there, change them here too.
+    shortfalls: list[dict] = []
+    try:
+        from app.rms.costing import _compute_stock_moves
+
+        for ln in pedido.lines:
+            if ln.qty <= 0:
+                continue
+            # Need the product to know which recipe to walk; refresh via
+            # the loaded line if available, else fall back to a fresh read.
+            line_product = ln.product if hasattr(ln, "product") and ln.product is not None else None
+            if line_product is None:
+                line_product = session.get(Product, ln.product_id)
+            if line_product is None or line_product.recipe_id is None:
+                continue
+            recipe = session.get(Recipe, line_product.recipe_id)
+            if recipe is None:
+                continue
+            try:
+                moves = _compute_stock_moves(session, recipe, float(ln.qty), set())
+            except Exception as exc:
+                logger.warning(
+                    f"pedidos.fulfill: _compute_stock_moves failed for product "
+                    f"{line_product.id}: {exc!r}"
+                )
+                continue
+            for _affected_recipe_id, ingredient_id, qty_delta in moves:
+                ing = session.get(Ingredient, ingredient_id) if Ingredient else None
+                current = ing.stock_qty if ing else 0
+                after = current - abs(qty_delta)
+                if after < 0:
+                    shortfalls.append({
+                        "ingredient": ing.name if ing else f"# {ingredient_id}",
+                        "shortfall": round(abs(after), 3),
+                        "product": line_product.name,
+                    })
+    except Exception as exc:
+        # Defensive: if the calc itself blows up, do not block the fulfill;
+        # log loudly so ops sees it, but proceed (matches pre-fix behavior).
+        logger.warning(
+            f"pedidos.fulfill: stock-preview calc failed for pedido "
+            f"{pedido.id}: {exc!r}"
+        )
+        shortfalls = []
+
+    if shortfalls and not force_flag:
+        user_id = current_user_id(request) or "operator"
+        logger.warning(
+            f"pedidos.fulfill: blocked pedido={pedido.id} user={user_id} "
+            f"shortfall_count={len(shortfalls)} (operator must set force=true to override)"
+        )
+        # Roll back any pending flushes from the idempotency AppMeta reservation
+        # so the operator can retry without a duplicate-key error.
+        session.rollback()
+        flash_msg = f"Stock+insuficiente+para+{len(shortfalls)}+ingredientes"
+        return RedirectResponse(
+            url=f"/pedidos/{pedido_id}/stock-preview?flash={flash_msg}",
+            status_code=303,
+        )
+
+    if shortfalls and force_flag:
+        user_id = current_user_id(request) or "operator"
+        logger.warning(
+            f"pedidos.fulfill: FORCE-FULFILL pedido={pedido.id} user={user_id} "
+            f"shortfall_count={len(shortfalls)} (stock will go negative)"
+        )
+
     # Snapshot sold_at to now in Asunción TZ so /reportes groups by the
     # day the customer picked up, not when the order was placed.
     sold_at = datetime.now(ASUNCION_TZ)
@@ -1009,6 +1092,7 @@ def pedidos_fulfill(
             "n_sales": n_sales,
             "first_sale_id": first_sale_id,
             "total_gs": _pedido_total_gs(pedido),
+            **({"force_fulfilled_over_shortfall": shortfalls} if (shortfalls and force_flag) else {}),
         },
         request=request,
     )
