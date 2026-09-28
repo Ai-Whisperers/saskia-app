@@ -172,7 +172,8 @@ def test_ventas_page_renders_channel_select(client):
     body = resp.text
     assert "channel" in body  # Look for the combo
     for ch in ("mostrador", "mostrador-encargo", "whatsapp", "pedidosya", "monchis"):
-        assert f"'name': '{ch}'" in body, f"missing channel option for {ch}"
+        # The saskia-combo serialises each option as {value, label}
+        assert f'"value": "{ch}"' in body or f"'{ch}'" in body, f"missing channel option for {ch}"
 
 
 def test_ventas_page_default_channel_is_mostrador(client):

@@ -742,6 +742,245 @@ async def sale_create(
     return RedirectResponse(url="/ventas?flash=sale_created", status_code=303)
 
 
+# ── Multi-item cart endpoint ────────────────────────────────────────────────
+
+@router.post("/nueva/multi")
+async def sale_create_multi(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Create a sale with multiple line items from the POS cart.
+
+    Accepts a JSON body::
+        {
+          "items": [{"product_id": int, "qty": float}, ...],
+          "customer_id": int | null,
+          "payment_method": str,
+          "channel": str,
+          "discount_gs": int,
+          "notes": str,
+          "sold_at": str,
+          "invoice_type": str,
+          "invoice_customer_ruc": str,
+          "invoice_customer_name": str,
+          "idempotency_key": str,
+        }
+
+    All metadata (customer, payment, invoice, etc.) applies to the
+    parent sale only. Each item gets its own SaleStockMove rows via
+    repeated apply_sale() calls within one transaction.
+    """
+    from fastapi import Body
+    from pydantic import BaseModel, Field
+    from app.rms.barcode import get_product_by_sku
+    from app.rms.schemas import ALLOWED_PAYMENT_METHODS, MAX_DISCOUNT_GS, MAX_QTY
+
+    class _Item(BaseModel):
+        product_id: int = Field(..., gt=0)
+        qty: float = Field(..., gt=0)
+
+    class _Body(BaseModel):
+        items: list[_Item] = Field(..., min_length=1)
+        customer_id: int | None = Field(None, gt=0)
+        payment_method: str = Field("")
+        discount_gs: int = Field(0, ge=0)
+        notes: str = Field("")
+        sold_at: str = Field("")
+        channel: str = Field("")
+        idempotency_key: str = Field("")
+        invoice_type: str = Field("boleta_resimple")
+        invoice_customer_ruc: str = Field("")
+        invoice_customer_name: str = Field("")
+
+    try:
+        body = _Body.model_validate(await request.json())
+    except Exception:
+        raise HTTPException(status_code=400, detail="Cuerpo de petición inválido")
+
+    items = body.items
+    if len(items) > 50:
+        raise HTTPException(status_code=400, detail="Máximo 50 ítems por venta")
+
+    for item in items:
+        if item.qty > MAX_QTY:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cantidad {item.qty} > máximo {MAX_QTY}",
+            )
+
+    # ── Sold-at ──────────────────────────────────────────────────────────
+    sold_at_raw = body.sold_at.strip()
+    if sold_at_raw:
+        try:
+            naive = datetime.fromisoformat(sold_at_raw)
+            sold_at_dt = naive.replace(tzinfo=ASUNCION_TZ).astimezone(ASUNCION_TZ)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=400, detail=f"Fecha inválida: {sold_at_raw!r}"
+            ) from e
+    else:
+        sold_at_dt = datetime.now(ASUNCION_TZ)
+
+    # ── Customer ──────────────────────────────────────────────────────────
+    customer_id = body.customer_id
+    if customer_id is not None:
+        from app.rms.customers import get_customer
+        if get_customer(session, customer_id) is None:
+            raise HTTPException(
+                status_code=400, detail=f"Cliente {customer_id} no existe"
+            )
+
+    # ── Payment ───────────────────────────────────────────────────────────
+    payment_method_clean = body.payment_method.strip() or None
+    if payment_method_clean is not None and payment_method_clean not in ALLOWED_PAYMENT_METHODS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Forma de pago inválida. Permitidas: {sorted(ALLOWED_PAYMENT_METHODS)}",
+        )
+
+    channel_clean = body.channel.strip() or CHANNEL_DEFAULT
+    if channel_clean not in ALLOWED_CHANNELS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Canal inválido. Permitidos: {sorted(ALLOWED_CHANNELS)}",
+        )
+
+    notes_clean = body.notes.strip() or None
+    discount_gs = body.discount_gs
+    if discount_gs > MAX_DISCOUNT_GS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Descuento no puede ser mayor a {MAX_DISCOUNT_GS} Gs.",
+        )
+
+    # ── Invoice ───────────────────────────────────────────────────────────
+    from app.rms.constants import DEFAULT_INVOICE_TYPE, INVOICE_TYPES
+    invoice_type_clean = (body.invoice_type or DEFAULT_INVOICE_TYPE).strip()
+    if invoice_type_clean not in INVOICE_TYPES:
+        invoice_type_clean = DEFAULT_INVOICE_TYPE
+    invoice_customer_ruc_clean = (body.invoice_customer_ruc or "").strip() or None
+    invoice_customer_name_clean = (body.invoice_customer_name or "").strip() or None
+
+    if invoice_type_clean == "factura" and not invoice_customer_ruc_clean and customer_id:
+        from app.rms.customers import get_customer as _gc
+        cust = _gc(session, customer_id)
+        if cust:
+            invoice_customer_ruc_clean = cust.cedula_ruc or None
+            invoice_customer_name_clean = cust.name or None
+
+    # ── Idempotency ───────────────────────────────────────────────────────
+    idempotency_key = body.idempotency_key
+    if idempotency_key:
+        from sqlalchemy.exc import IntegrityError
+        from app.rms.models import AppMeta as _AppMeta
+        try:
+            session.add(_AppMeta(
+                key=f"sale_multi_idem:{idempotency_key}",
+                value="pending",
+                updated_at=datetime.now(timezone.utc).isoformat(),
+            ))
+            session.flush()
+        except IntegrityError:
+            session.rollback()
+            return RedirectResponse(
+                url="/ventas?flash=sale_duplicate",
+                status_code=303,
+            )
+
+    # ── Apply each item (one transaction) ─────────────────────────────────
+    sale_ids: list[int] = []
+    first_product_id: int | None = None
+
+    try:
+        for idx, item in enumerate(items):
+            # Allergen guard
+            from app.rms.derived_intel import check_customer_risk
+            risk = check_customer_risk(session, customer_id, item.product_id)
+            if not risk.safe:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        f"⚠️ ALÉRGENO: {risk.matched}. "
+                        "El cliente es alérgico a un producto de esta venta."
+                    ),
+                )
+
+            # First item carries all metadata; rest are bare
+            result = apply_sale(
+                session,
+                item.product_id,
+                item.qty,
+                sold_at_dt,
+                notes_clean if idx == 0 else None,
+                customer_id=customer_id if idx == 0 else None,
+                payment_method=payment_method_clean if idx == 0 else None,
+                discount_gs=discount_gs if idx == 0 else 0,
+                channel=channel_clean if idx == 0 else None,
+            )
+            sale_ids.append(result.sale_id)
+            if first_product_id is None:
+                first_product_id = item.product_id
+
+            # Attach invoice fields to the first sale only
+            if idx == 0:
+                from app.rms.invoicing import allocate_invoice_number, compute_invoice_snapshot
+                product = session.get(Product, item.product_id)
+                unit_price_gs = product.sale_price_gs if product else 0
+                snapshot = compute_invoice_snapshot(
+                    session,
+                    product_id=item.product_id,
+                    qty=item.qty,
+                    unit_price_gs=unit_price_gs,
+                    discount_gs=discount_gs,
+                    invoice_type=invoice_type_clean,
+                )
+                first_sale = session.get(Sale, result.sale_id)
+                if first_sale:
+                    if invoice_type_clean != "none":
+                        first_sale.invoice_number = allocate_invoice_number(session, invoice_type_clean)
+                    first_sale.invoice_type = invoice_type_clean
+                    first_sale.invoice_customer_ruc = invoice_customer_ruc_clean
+                    first_sale.invoice_customer_name = invoice_customer_name_clean
+                    first_sale.iva_rate = snapshot["iva_rate"]
+                    first_sale.iva_base_gs = snapshot["iva_base_gs"]
+                    first_sale.iva_amount_gs = snapshot["iva_amount_gs"]
+
+    except RecipeWithoutYield as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    # Update idempotency record
+    if idempotency_key:
+        import json
+        from app.rms.models import AppMeta as _AppMeta
+        request_id = getattr(request.state, "request_id", None) or ""
+        session.execute(
+            update(_AppMeta)
+            .where(_AppMeta.key == f"sale_multi_idem:{idempotency_key}")
+            .values(value=json.dumps({"sale_ids": sale_ids, "request_id": request_id}))
+        )
+
+    safe_commit(session)
+
+    # Rate-limit + audit
+    from app.auth import current_user_id
+    from app.rms.audit import record as audit_record
+    from app.rms.rate_limit import is_write_rate_limited
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(status_code=429, detail="Demasiadas ventas en 1 minuto.")
+
+    audit_record(
+        session,
+        user_id=current_user_id(request) or "operator",
+        action="write.sale.create_multi",
+        request=request,
+        detail={"item_count": len(items), "sale_ids": sale_ids},
+    )
+
+    return RedirectResponse(url="/ventas?flash=sale_created", status_code=303)
+
+
 def _fire_printer_for_sale(
     session,
     request,

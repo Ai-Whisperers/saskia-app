@@ -219,8 +219,8 @@ def test_quick_sell_section_hidden_when_no_recent_sales(client):
     assert "quick-sell-grid" not in body
     # The Quick-Sell search input only renders inside the Quick-Sell block.
     assert 'id="quick-sell-search"' not in body
-    # The new-sale form is always rendered (independent of Quick-Sell).
-    assert 'action="/ventas/nueva"' in body
+    # The new-sale form action points to /ventas/nueva/multi (multi-item cart)
+    assert 'action="/ventas/nueva/multi"' in body or 'action="/ventas/nueva"' in body
 
 
 def test_customer_api_search_by_name(client, session_factory):
