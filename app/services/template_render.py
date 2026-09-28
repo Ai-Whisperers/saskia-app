@@ -266,9 +266,14 @@ def render(
     # Fail CLOSED: if we can't determine auth state, hide the chrome
     # rather than leak the entire app nav structure to anonymous users.
     try:
-        from app.auth import get_current_user
+        from app.auth import is_auth_disabled, get_current_user
 
-        ctx.setdefault("is_logged_in", get_current_user(request) is not None)
+        if is_auth_disabled():
+            # Test/dev bypass: auth is disabled, user is always logged in
+            ctx.setdefault("is_logged_in", True)
+        else:
+            # Production: call get_current_user (may raise if no session)
+            ctx.setdefault("is_logged_in", get_current_user(request) is not None)
     except Exception:  # noqa: BLE001 — chrome must never break a page
         ctx.setdefault("is_logged_in", False)
 
