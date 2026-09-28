@@ -47,7 +47,7 @@
         <td>{{ row.ingredient }}</td>
         <td>{{ row.product }}</td>
         <td class="num">{{ row.current_stock }}</td>
-        <td class="num" style="color: var(--color-danger);">−{{ row.qty_needed }}</td>
+        <td class="num" class="text-danger">−{{ row.qty_needed }}</td>
         <td class="num {% if row.warning %}text-danger{% endif %}">
           {{ row.after_stock }}
           {% if row.warning %}⚠️{% endif %}

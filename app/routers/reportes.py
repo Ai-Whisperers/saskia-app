@@ -381,7 +381,7 @@ def libro_ventas_set_pdf(
 # ─── Diario ────────────────────────────────────────────────────────────────
 
 
-@router.get("/diario", response_class=HTMLResponse)
+@router.get("/diario", response_model=None)
 def reportes_diario(
     request: Request,
     for_date: str | None = Query(None),
@@ -486,7 +486,7 @@ def reportes_top_productos(
 # ─── Retención ─────────────────────────────────────────────────────────────
 
 
-@router.get("/retencion")
+@router.get("/retencion", response_model=None)
 def reportes_retencion(
     request: Request,
     start: str | None = Query(None),

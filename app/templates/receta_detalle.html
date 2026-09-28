@@ -39,11 +39,11 @@
 <div style="border-top:1px solid var(--color-border);padding-top:var(--space-3);margin-top:var(--space-2);">
   <p class="text-muted" style="font-size:var(--text-xs);margin-bottom:var(--space-2);">Desglose estimado (sin datos de receta viva):</p>
   <dl style="display:grid;grid-template-columns:auto 1fr;gap:.25rem .75rem;font-size:var(--text-sm);">
-    <dt style="color:var(--color-text-muted);">Insumos:</dt>
+    <dt class="text-muted">Insumos:</dt>
     <dd>{{ m.gs_full((batch_cost.batch_cost_gs * 0.70)|round|int) }}</dd>
-    <dt style="color:var(--color-text-muted);">Mano de obra:</dt>
+    <dt class="text-muted">Mano de obra:</dt>
     <dd>{{ m.gs_full((batch_cost.batch_cost_gs * 0.20)|round|int) }}</dd>
-    <dt style="color:var(--color-text-muted);">Gastos generales:</dt>
+    <dt class="text-muted">Gastos generales:</dt>
     <dd>{{ m.gs_full((batch_cost.batch_cost_gs * 0.10)|round|int) }}</dd>
   </dl>
 </div>

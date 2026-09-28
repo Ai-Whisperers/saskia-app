@@ -79,9 +79,9 @@
           {% set count = sales_by_hour.get(hour, 0) %}
           {% set max_count = sales_by_hour.values()|max if sales_by_hour else 1 %}
           <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:2px;font-size:var(--text-xs);">
-            <span style="width:3rem;text-align:right;color:var(--color-text-muted);">{{ "%02d:00"|format(hour) }}</span>
+            <span class="text-muted" style="width:3rem;text-align:right">{{ "%02d:00"|format(hour) }}</span>
             <div style="flex:1;background:var(--color-accent);height:12px;width:{% if max_count > 0 %}{{ (count / max_count * 100)|int }}%{% else %}0{% endif %}%;border-radius:2px;"></div>
-            <span style="width:2rem;color:var(--color-text-muted);">{{ count }}</span>
+            <span class="text-muted" style="width:2rem">{{ count }}</span>
           </div>
         {% endfor %}
       </div>
@@ -106,9 +106,9 @@
           {% set max_count = sales_by_dow.values()|max %}
           <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:2px;font-size:var(--text-xs);">
             {% set days = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'] %}
-            <span style="width:3rem;text-align:right;color:var(--color-text-muted);">{{ days[dow - 1] }}</span>
+            <span class="text-muted" style="width:3rem;text-align:right">{{ days[dow - 1] }}</span>
             <div style="flex:1;background:var(--color-accent);height:12px;width:{% if max_count > 0 %}{{ (count / max_count * 100)|int }}%{% else %}0{% endif %}%;border-radius:2px;"></div>
-            <span style="width:2rem;color:var(--color-text-muted);">{{ count }}</span>
+            <span class="text-muted" style="width:2rem">{{ count }}</span>
           </div>
         {% endfor %}
       </div>

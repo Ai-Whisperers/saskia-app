@@ -85,7 +85,7 @@
     </div>
 
     {% if sale.discount_gs and sale.discount_gs > 0 %}
-    <div style="display: flex; justify-content: space-between; color: var(--color-danger); margin-bottom: var(--space-2);">
+    <div class="text-danger" style="display: flex; justify-content: space-between;  margin-bottom: var(--space-2)">
       <span>Descuento</span>
       <span>− {{ m.gs(sale.discount_gs) }}</span>
     </div>

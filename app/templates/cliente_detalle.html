@@ -64,7 +64,7 @@
   <ul class="timeline" style="list-style:none;padding:0;margin:0;">
     <li class="timeline-item">
       <span class="timeline-marker" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-success);margin-right:.5rem;flex-shrink:0;"></span>
-      <span style="color:var(--color-text-muted);font-size:var(--text-xs);">
+      <span class="text-muted" style="font-size:var(--text-xs)">
         {{ customer.created_at.strftime("%d/%m/%Y %H:%M") if customer.created_at else "—" }}
       </span>
       <span>Cliente registrado</span>
@@ -72,7 +72,7 @@
     {% if stats.last_sale_at %}
     <li class="timeline-item">
       <span class="timeline-marker" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-accent);margin-right:.5rem;flex-shrink:0;"></span>
-      <span style="color:var(--color-text-muted);font-size:var(--text-xs);">
+      <span class="text-muted" style="font-size:var(--text-xs)">
         {{ stats.last_sale_at.strftime("%d/%m/%Y %H:%M") }}
       </span>
       <span>Última compra — {{ m.gs_full(stats.lifetime_spend_gs) }} total lifetime</span>
@@ -81,7 +81,7 @@
     {% if customer.updated_at and customer.updated_at != customer.created_at %}
     <li class="timeline-item">
       <span class="timeline-marker" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-info);margin-right:.5rem;flex-shrink:0;"></span>
-      <span style="color:var(--color-text-muted);font-size:var(--text-xs);">
+      <span class="text-muted" style="font-size:var(--text-xs)">
         {{ customer.updated_at.strftime("%d/%m/%Y %H:%M") }}
       </span>
       <span>Última actualización</span>
@@ -98,7 +98,7 @@
     <p style="margin:0;white-space:pre-wrap;">{{ customer.notes }}</p>
   </div>
   {% else %}
-  <p style="color:var(--color-text-muted);font-size:var(--text-sm);">Sin notas.</p>
+  <p class="text-muted" style="font-size:var(--text-sm)">Sin notas.</p>
   {% endif %}
 </section>
 

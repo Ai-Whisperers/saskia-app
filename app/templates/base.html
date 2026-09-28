@@ -172,8 +172,8 @@
     <span class="status-pill"><span class="dot"></span> {{ branding.business_name }} v1.0</span>
     <span class="status-pill">{{ branding.footer }}</span>
     <span style="margin-left:auto;display:flex;gap:var(--space-3);align-items:center;">
-          <a href="/healthz" aria-label="Estado del servidor" style="color:var(--color-text-muted);text-decoration:none;">· estado</a>
-          <a href="/guia" aria-label="Guía de uso" style="color:var(--color-text-muted);text-decoration:none;">guía</a>
+          <a href="/healthz" aria-label="Estado del servidor" class="text-muted" style="text-decoration:none;">· estado</a>
+          <a href="/guia" aria-label="Guía de uso" class="text-muted" style="text-decoration:none;">guía</a>
           <span>© {{ now_year() }} {{ branding.business_name or "Saskia RMS" }}</span>
         </span>
   </footer>

@@ -42,7 +42,7 @@
   <a href="/clientes" class="btn" style="height:36px;">Limpiar todo</a>
   {% endif %}
 </form>
-<div class="inv-result-count" style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-3);">
+<div  class="inv-result-count text-muted" style="font-size:var(--text-xs); margin-bottom:var(--space-3)">
   {{ total }} clientes{% if q %} · búsqueda “{{ q }}”{% endif %}
 </div>
 
@@ -117,7 +117,7 @@
   {% if page > 1 %}
   <a href="?page={{ page - 1 }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}{% if tier %}&amp;tier={{ tier }}{% endif %}{% if sort %}&amp;sort={{ sort }}{% endif %}{% if dir %}&amp;dir={{ dir }}{% endif %}" class="btn btn-sm">← Anterior</a>
   {% endif %}
-  <span style="color:var(--color-text-muted);font-size:var(--text-sm);">
+  <span class="text-muted" style="font-size:var(--text-sm)">
     Página {{ page }} de {{ total_pages }}
   </span>
   {% if page < total_pages %}
