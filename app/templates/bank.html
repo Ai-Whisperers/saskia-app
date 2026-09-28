@@ -13,7 +13,7 @@
 </div>
 
 {% if active_category %}
-  <p class="muted">Filter: <code>{{ active_category }}</code> · <a href="/bank">clear</a></p>
+  <p class="text-muted">Filter: <code>{{ active_category }}</code> · <a href="/bank">clear</a></p>
 {% endif %}
 
 <details class="card mb-3">
@@ -86,7 +86,7 @@
       <td class="num tx-positive {% if tx.amount <= 0 %}tx-negative{% endif %}">
         {{ '+' if tx.amount > 0 else '' }}{{ "%.2f"|format(tx.amount) }}
       </td>
-      <td><small class="muted">{{ tx.category or '—' }}</small></td>
+      <td><small class="text-muted">{{ tx.category or '—' }}</small></td>
       <td>{{ tx.counterparty_name or '—' }}</td>
       <td><small>{{ (tx.description or '')[:80] }}{% if (tx.description or '')|length > 80 %}…{% endif %}</small></td>
     </tr>
@@ -105,7 +105,7 @@
 </table>
 </div>
 
-<p class="muted">
+<p class="text-muted">
   💡 Source: TXT260711013722.TAB (Dutch EUR bank, Sep'25→Jun'26, 307 txns).
   Categorización manual desde la propia transacción.
 </p>
