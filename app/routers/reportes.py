@@ -531,13 +531,13 @@ def reportes_retencion(
 # ─── Métricas operativas ────────────────────────────────────────────────────
 
 
-@router.get("/metricas", response_class=HTMLResponse)
+@router.get("/metricas", response_model=None)
 def reportes_metricas(
     request: Request,
     start: str | None = Query(None),
     end: str | None = Query(None),
     session: Session = Depends(get_session),
-) -> HTMLResponse:
+) -> Response | HTMLResponse:
     """Operational KPIs: sales volume, revenue, customers, average ticket.
 
     Dates default to last 30 days.
