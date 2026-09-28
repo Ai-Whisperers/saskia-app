@@ -40,8 +40,8 @@
 </div>
 
 <div class="form-row">
-  <label for="sales-search" class="sr-only">Buscar producto, nota o teléfono</label>
-  <input type="search" id="sales-search" name="q" value="{{ request.query_params.get('q','') }}" placeholder="Buscar producto, nota o teléfono" aria-label="Buscar producto, nota o teléfono">
+  <label for="sales-search">Buscar:</label>
+  <input type="search" id="sales-search" name="q" value="{{ request.query_params.get('q','') }}" placeholder="Producto, nota o teléfono" aria-label="Buscar producto, nota o teléfono">
   {% set _products_src = [{'label': 'Todos los productos', 'value': ''}] %}
   {% for p in products %}
     {% set _ = _products_src.append({'label': fmt.entity_name(p), 'value': p.id|string}) %}
@@ -67,6 +67,13 @@
   {% if q or product_id or days %}
   <a href="/ventas/historial" class="btn btn-ghost">Limpiar</a>
   {% endif %}
+  <label style="display:inline-flex;align-items:center;gap:.3em;font-size:var(--text-sm);color:var(--color-muted);">
+    <input type="checkbox" id="include-voided" name="include_voided" value="1"
+           {{ 'checked' if include_voided else '' }}
+           onchange="this.form.submit()">
+    Ver anuladas
+  </label>
+  <button type="button" class="btn btn-sm no-print" onclick="window.print()">🖨 Imprimir reporte</button>
 </div>
 
 {% if sales %}
@@ -83,6 +90,7 @@
       <th>Cliente</th>
       <th>Pago</th>
       <th>Canal</th>
+      <th>Atendido por</th>
       <th>Notas</th>
       <th class="actions">Acciones</th>
     </tr>
@@ -115,6 +123,7 @@
       </td>
       <td>{{ s.payment_method or "—" }}</td>
       <td>{{ s.channel or '—' }}</td>
+      <td>{{ s.fulfilled_by or '—' }}</td>
       <td>{{ s.notes or '' }}</td>
       <td class="actions" style="white-space:nowrap;">
         <a href="/ventas/{{ s.id }}/recibo" class="btn btn-sm btn-ghost">
@@ -132,6 +141,16 @@
     </tr>
     {% endfor %}
   </tbody>
+  <tfoot>
+    <tr style="background:var(--color-muted-soft);font-weight:700;">
+      <td>Total ({{ sales|length }} ventas)</td>
+      <td></td>
+      <td class="num">{{ sales|sum(attribute='qty') }}</td>
+      <td></td>
+      <td class="num">{{ m.gs(sales|sum(attribute='total_gs')|int) }}</td>
+      <td colspan="5"></td>
+    </tr>
+  </tfoot>
 </table>
 </div>
 </div>

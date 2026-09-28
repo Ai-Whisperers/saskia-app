@@ -146,6 +146,12 @@
 </table>
 </div>
 
+{% set csv_q = dict(request.query_params.multi_items()) %}{% set _ = csv_q.update({'format': 'csv'}) %}
+<a href="{{ request.url.path }}?{{ csv_q|urlencode }}" class="btn btn-secondary" download="cierre_mensual.csv" style="margin-top:var(--space-4);">
+  <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+  Exportar CSV
+</a>
+
 <details style="margin-top: var(--space-6); padding: var(--space-3); background: var(--color-surface-subtle); border-radius: var(--radius); font-size: var(--text-sm); color: var(--color-text-muted);">
   <summary style="cursor:pointer;font-weight:600;">📋 Notas del cierre</summary>
   <ul style="margin: var(--space-2) 0 0 var(--space-4); padding: 0;">

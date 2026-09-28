@@ -168,8 +168,9 @@
     {% endfor %}
 
     {# Duplicate button — POST to avoid the GET-mutates-state antipattern #}
-    <form method="post" action="/pedidos/{{ pedido.id }}/duplicate" style="display:inline;">
-      <button type="submit" class="btn btn-ghost">
+    <form method="post" action="/pedidos/{{ pedido.id }}/duplicate" style="display:inline;" id="dup-form">
+      <button type="button" class="btn btn-ghost"
+              onclick="SaskiaConfirmModal.show({title:'¿Duplicar pedido #{{ pedido.id }}?',body:'Se creará una copia de este pedido con estado pendiente.',confirmLabel:'Sí, duplicar',action:'/pedidos/{{ pedido.id }}/duplicate',danger:false})">
         <svg class="icon" aria-hidden="true"><use href="#icon-copy"/></svg>
         Duplicar
       </button>

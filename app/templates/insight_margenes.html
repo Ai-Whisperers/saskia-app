@@ -17,13 +17,28 @@
   <noscript><button type="submit" class="btn btn-primary">Filtrar</button></noscript>
 </form>
 
+<div class="form-actions mb-3">
+  <span class="text-muted" style="font-size:var(--text-sm);">Ordenado: peor margen primero</span>
+</div>
+
 {% if drift %}
 {{ ui.skeleton_section(id="insight-margenes-table", variant="line", count=6, label="Cargando márgenes") }}
 <div data-loaded-section="insight-margenes-table">
 <table class="table">
-  <thead><tr><th>Producto</th><th class="num">Precio inicial</th><th class="num">Precio actual</th><th class="num">Δ Precio</th><th class="num">Margen inicial</th><th class="num">Margen actual</th><th class="num">Δ Margen</th></tr></thead>
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th class="num">Precio inicial</th>
+      <th class="num">Precio actual</th>
+      <th class="num">Δ Precio</th>
+      <th class="num">Margen inicial</th>
+      <th class="num">Margen actual</th>
+      <th class="num">Δ Margen Gs.</th>
+      <th class="num">Δ Margen %</th>
+    </tr>
+  </thead>
   <tbody>
-    {% for d in drift | sort(attribute='margin_change_gs', reverse=True, default=999999999) %}
+    {% for d in drift | sort(attribute='margin_change_pct', reverse=true) %}
     <tr>
       <td><a href="/reportes/margenes/{{ d.product_id }}">{{ d.product_name }}</a></td>
       <td class="num">{{ m.gs(d.first_price_gs) }}</td>
@@ -32,11 +47,12 @@
       <td class="num">{% if d.first_margin_gs is not none %}{{ m.gs(d.first_margin_gs) }}{% else %}—{% endif %}</td>
       <td class="num">{% if d.last_margin_gs is not none %}{{ m.gs(d.last_margin_gs) }}{% else %}—{% endif %}</td>
       <td class="num">{% if d.margin_change_gs is not none %}{% if d.margin_change_gs < 0 %}<span class="badge badge-danger">{{ m.gs(d.margin_change_gs) }}</span>{% elif d.margin_change_gs > 0 %}<span class="badge badge-ok">+{{ m.gs(d.margin_change_gs) }}</span>{% else %}0{% endif %}{% else %}—{% endif %}</td>
+      <td class="num">{% if d.margin_change_pct is not none %}{{ '%+.1f'|format(d.margin_change_pct * 100) }}%{% else %}—{% endif %}</td>
     </tr>
     {% endfor %}
   </tbody>
-</div>
 </table>
+</div>
 {% else %}
 <p class="text-muted">Sin ventas suficientes en los últimos {{ days }} días.</p>
 {% endif %}

@@ -25,6 +25,11 @@
     <button type="submit" class="btn btn-primary">Ver</button>
   </div>
 </form>
+{% set csv_q = dict(request.query_params.multi_items()) %}{% set _ = csv_q.update({'format': 'csv'}) %}
+<a href="{{ request.url.path }}?{{ csv_q|urlencode }}" class="btn btn-secondary" download="valor_pedido.csv">
+  <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+  Exportar CSV
+</a>
 
 {% if aov > 0 %}
 {{ ui.skeleton_section(id="valor-pedido-aov", variant="card", count=1, label="Cargando AOV") }}

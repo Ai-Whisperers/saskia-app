@@ -58,5 +58,10 @@
     Ver
   </button>
 </form>
+{% set csv_q = dict(request.query_params.multi_items()) %}{% set _ = csv_q.update({'format': 'csv'}) %}
+<a href="{{ request.url.path }}?{{ csv_q|urlencode }}" class="btn btn-secondary" download="diario.csv">
+  <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+  Exportar CSV
+</a>
 
 {% endblock %}
