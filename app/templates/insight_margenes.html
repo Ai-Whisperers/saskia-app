@@ -6,6 +6,17 @@
 <h1>Deriva de márgenes</h1>
 <p class="text-muted">Precio de venta observado (primera vs última venta del período) contra el costo de receta actual. Márgenes que bajan = costo subiendo más rápido que el precio.</p>
 
+<form method="get" action="/reportes/margenes" style="display:flex;gap:.5rem;align-items:center;margin-bottom:var(--space-3);">
+  <label for="days-select" class="sr-only">Período</label>
+  <select name="days" id="days-select" class="filter-toolbar__select" style="height:36px;max-width:180px;" onchange="this.form.submit()">
+    <option value="7" {% if days == 7 %}selected{% endif %}>Últimos 7 días</option>
+    <option value="30" {% if days == 30 %}selected{% endif %}>Últimos 30 días</option>
+    <option value="90" {% if days == 90 %}selected{% endif %}>Últimos 90 días</option>
+    <option value="180" {% if days == 180 %}selected{% endif %}>Últimos 180 días</option>
+  </select>
+  <noscript><button type="submit" class="btn btn-primary">Filtrar</button></noscript>
+</form>
+
 {% if drift %}
 {{ ui.skeleton_section(id="insight-margenes-table", variant="line", count=6, label="Cargando márgenes") }}
 <div data-loaded-section="insight-margenes-table">

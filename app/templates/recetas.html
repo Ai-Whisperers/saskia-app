@@ -94,6 +94,7 @@
         </a>
       </th>
       <th class="num">Costo / porción (Gs.)</th>
+      <th class="num">Costo total (Gs.)</th>
       <th class="actions"></th>
     </tr>
   </thead>
@@ -129,6 +130,7 @@
       <td>{{ r.line_count }}</td>
       <td class="num">{% if r.batch_cost_gs is none %}<em class="muted">falta precio</em>{% else %}{{ m.gs(r.batch_cost_gs) }}{% endif %}</td>
       <td class="num">{% if r.unit_cost_gs is none %}<em class="muted">—</em>{% else %}{{ m.gs(r.unit_cost_gs) }}{% endif %}</td>
+      <td class="num">{% if r.batch_cost_gs is none %}<span class="badge badge-warn">⚠️ sin costo</span>{% else %}{{ m.gs(r.batch_cost_gs) }}{% endif %}</td>
       <td class="actions">
         <a href="/recetas/{{ r.id }}/editar" class="btn btn-sm btn-ghost">
           <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>

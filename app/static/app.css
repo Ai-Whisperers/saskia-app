@@ -11,6 +11,10 @@
 :root[data-theme="dark"] .is-up { color: var(--green-400); }
 :root[data-theme="dark"] .is-down { color: var(--red-400); }
 :root[data-theme="dark"] [data-tab] { color: var(--color-text-muted); }
+
+:root[data-theme="dark"] button.btn-primary[data-tab],
+:root[data-theme="dark"] button[data-tab].is-active,
+:root[data-theme="dark"] button[data-tab][aria-selected="true"] { color: var(--color-accent-fg); }
 :root[data-theme="dark"] .text-warn { color: var(--amber-300); }
 :root[data-theme="dark"] .text-success { color: var(--green-300); }
 :root[data-theme="dark"] .text-danger { color: var(--red-300); }
@@ -24,4 +28,4 @@
 /* .tab class used in settings_catalog — uses [data-tab] for state, .is-active for selection */
 .tab { display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4); background: transparent; color: var(--color-text-muted); border: 1px solid transparent; border-bottom: 2px solid transparent; border-radius: 0; font-family: inherit; font-size: var(--text-sm); cursor: pointer; transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
 .tab:hover { color: var(--color-text); border-bottom-color: var(--color-border-strong); }
-.tab.is-active { color: var(--color-accent); border-bottom-color: var(--color-accent); font-weight: 600; }
+button.tab.is-active { color: var(--color-accent); border-bottom-color: var(--color-accent); font-weight: 600; }

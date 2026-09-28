@@ -68,7 +68,7 @@
     <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-3);">
       <div>
         <strong>{{ sale.product_name }}</strong><br>
-        <small class="text-muted">{{ "%.2f"|format(sale.qty) }} × {{ m.gs(sale.unit_price_gs) }}</small>
+        <small class="text-muted">{{ "%.0f"|format(sale.qty) if sale.qty == sale.qty|int else "%.2f"|format(sale.qty) }} × {{ m.gs(sale.unit_price_gs) }}</small>
       </div>
       <strong style="font-size: var(--text-lg);">{{ m.gs(sale.total_gs) }}</strong>
     </div>

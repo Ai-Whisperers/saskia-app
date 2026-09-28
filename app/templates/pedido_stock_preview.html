@@ -5,7 +5,7 @@
 {% block title %}Stock preview — Pedido #{{ pedido_id }}{% endblock %}
 
 {% block content %}
-<a href="/pedidos/{{ pedido_id }}" class="btn btn-ghost mb-4">← Volver al pedido</a>
+<a href="/pedidos/{{ pedido_id }}" class="btn btn-ghost mb-4 no-print">← Volver al pedido</a>
 
 <h1>
   <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
@@ -53,7 +53,6 @@
 {% endif %}
 
 <div style="display: flex; gap: var(--space-2); margin-top: var(--space-4);">
-  <a href="/pedidos/{{ pedido_id }}" class="btn btn-ghost">← Volver</a>
   <form method="post" action="/pedidos/{{ pedido_id }}/fulfill" style="display: inline;">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">

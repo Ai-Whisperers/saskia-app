@@ -8,6 +8,7 @@
 <div class="card mb-3" style="background:#d1fae5;border-color:#10b981;">
   <div class="card-body">
     ✅ <strong>Guardado.</strong> Ve a <a href="/vs-mercado">benchmarks</a>.
+    {% if b.updated_at %}<span style="margin-left:var(--space-3);font-size:var(--text-sm);opacity:0.8;">Actualizado el {{ b.updated_at.strftime("%d/%m/%Y %H:%M") }}</span>{% endif %}
   </div>
 </div>
 {% endif %}
