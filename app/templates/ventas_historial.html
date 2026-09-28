@@ -131,10 +131,11 @@
           Recibo
         </a>
         {% if not s.voided_at %}
-        <form method="post" action="/ventas/{{ s.id }}/anular" style="display: inline;">
+        <form method="post" action="/ventas/{{ s.id }}/anular" id="void-form-{{ s.id }}" style="display: inline;">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="reason" id="anular-reason-{{ s.id }}">
           <button type="button" class="btn btn-sm btn-danger-ghost"
-                  onclick="SaskiaConfirmModal.show({title:'¿Anular venta #{{ s.id }}?',body:'Esta acción devuelve el stock y queda registrada en auditoría.',confirmLabel:'Sí, anular',danger:true,reasonField:true})">Anular</button>
+                  onclick="SaskiaConfirmModal.show({title:'¿Anular venta #{{ s.id }}?',body:'Esta acción devuelve el stock y queda registrada en auditoría.',confirmLabel:'Sí, anular',danger:true,formId:'void-form-{{ s.id }}',reasonInputId:'anular-reason-{{ s.id }}',reasonField:true})">Anular</button>
         </form>
         {% endif %}
       </td>

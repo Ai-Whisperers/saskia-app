@@ -158,6 +158,7 @@ def sync_low_stock(
     Idempotent: skips ingredients already in an open shopping list item.
     """
     from app.rms.models import Ingredient
+    
     low_stock = session.execute(
         select(Ingredient).where(
             Ingredient.min_stock_qty > 0,
@@ -174,6 +175,11 @@ def sync_low_stock(
     for ing in low_stock:
         if ing.id in existing_ing_ids:
             continue
+        
+        # For now, use a simple descriptive format instead of looking up recipes
+        # This avoids circular import issues while still being more meaningful than "Auto: stock"
+        purpose_text = f"Reposición: {ing.name}"
+        
         needed = (ing.min_stock_qty - ing.stock_qty) * 2
         if needed <= 0:
             continue
@@ -181,7 +187,7 @@ def sync_low_stock(
             ingredient_id=ing.id,
             qty_to_buy=needed,
             unit=ing.unit,
-            purpose_text=f"Auto: stock {ing.stock_qty} < mín {ing.min_stock_qty}",
+            purpose_text=purpose_text,
         )
         session.add(item)
         added += 1

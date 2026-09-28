@@ -501,6 +501,13 @@ def reportes_retencion(
     start_date = datetime.fromisoformat(start) if start else None
     end_date = datetime.fromisoformat(end) if end else None
     stats = customer_retention(session, start_date=start_date, end_date=end_date)
+    # 'Total clientes' is the DB-wide customer count, NOT just the window's
+    # buyers — so the page doesn't show 0 when customers exist but had no
+    # sales in the chosen window. Use it as the denominator for %s.
+    from sqlalchemy import func as _sa_func
+    from app.rms.models import Customer as _Customer
+    total_in_db = session.execute(_sa_func.count(_Customer.id)).scalar_one()
+    stats["total"] = int(total_in_db or 0)
 
     if format == "csv":
         rows = [

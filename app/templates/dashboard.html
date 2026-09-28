@@ -12,21 +12,58 @@
   <div class="kpi-strip" data-loaded-section="dashboard-kpis">
   {{ ui.metric_card(label="Ingresos", value=m.gs(revenue_gs), compact=True) }}
   {{ ui.metric_card(label="Porciones vendidas", value=portions, compact=True) }}
-  {{ ui.metric_card(
-       label="Costo de materia prima %",
-       value=('sin escandallo' if food_cost_pct is none else '%.1f%%'|format(food_cost_pct)),
-       sub='objetivo: 35%',
-       compact=True) }}
-  {{ ui.metric_card(
-       label="Margen bruto %",
-       value=('sin escandallo' if gross_margin_pct is none else '%.1f%%'|format(gross_margin_pct)),
-       sub='objetivo: 60%',
-       compact=True) }}
+  {# P-22 / audit #7: target visual feedback on KPIs with objectives.
+     target = actual / goal ratio (1.0 = at target). direction='low' means
+     lower actual is better (cost/waste); 'high' means higher actual is
+     better (margin/recurrence). Only set target when we have actual data
+     (food_cost_pct/gross_margin_pct are None when no recipe costing). #}
+  {% if food_cost_pct is not none %}
+    {{ ui.metric_card(
+         label="Costo de materia prima %",
+         value='%.1f%%'|format(food_cost_pct),
+         target=(food_cost_pct / 35)|round(2),
+         target_direction='low',
+         target_label='objetivo: ≤35%',
+         compact=True) }}
+  {% else %}
+    {{ ui.metric_card(
+         label="Costo de materia prima %",
+         value='sin escandallo',
+         sub='objetivo: 35%',
+         compact=True) }}
+  {% endif %}
+  {% if gross_margin_pct is not none %}
+    {{ ui.metric_card(
+         label="Margen bruto %",
+         value='%.1f%%'|format(gross_margin_pct),
+         target=(gross_margin_pct / 60)|round(2),
+         target_direction='high',
+         target_label='objetivo: ≥60%',
+         compact=True) }}
+  {% else %}
+    {{ ui.metric_card(
+         label="Margen bruto %",
+         value='sin escandallo',
+         sub='objetivo: 60%',
+         compact=True) }}
+  {% endif %}
   {{ ui.metric_card(label="Clientes únicos", value=unique_customers, compact=True) }}
-  {{ ui.metric_card(label="Recurrencia %", value='%d%%'|format(repeat_pct), sub='objetivo: 30%', compact=True) }}
+  {{ ui.metric_card(
+       label="Recurrencia %",
+       value='%d%%'|format(repeat_pct),
+       target=(repeat_pct / 30)|round(2),
+       target_direction='high',
+       target_label='objetivo: ≥30%',
+       compact=True) }}
   {{ ui.metric_card(label="Ticket promedio", value=m.gs(avg_order_gs), compact=True) }}
   {{ ui.metric_card(label="Merma", value=m.gs(waste_gs), compact=True) }}
-  {{ ui.metric_card(label="Merma %", value='%.1f%%'|format(waste_pct), sub='objetivo: 5%', compact=True) }}
+  {{ ui.metric_card(
+       label="Merma %",
+       value='%.1f%%'|format(waste_pct),
+       target=(waste_pct / 5)|round(2),
+       target_direction='low',
+       target_label='objetivo: ≤5%',
+       compact=True) }}
   </div>
 </div>
 

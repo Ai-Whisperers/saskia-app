@@ -238,6 +238,7 @@
               data-name="{{ fmt.entity_name(q)|lower }}"
               data-category="{{ q.category or 'otro' }}"
               data-product-id="{{ q.id }}"
+              data-is-favorite="{{ 'true' if q.is_favorite else 'false' }}"
               data-price="{{ q.sale_price_gs }}"
               data-product-name="{{ fmt.entity_name(q) }}"
               onclick="quickAddToCart({{ q.id }}, '{{ fmt.entity_name(q)|e }}', {{ q.sale_price_gs }})"
@@ -280,23 +281,74 @@
   var qsGrid   = document.getElementById("quick-sell-grid");
   if (!qsSearch || !qsGrid) return;
 
+  // ── Category filter ──────────────────────────────────────────────────────
+  var activeFilter = "all";
+  var filterBtns = document.querySelectorAll(".quick-sell-filter");
+
+  function applyFilter() {
+    var btns = qsGrid.querySelectorAll(".quick-sell-btn");
+    var count = 0;
+    btns.forEach(function(btn) {
+      var cat = btn.getAttribute("data-category") || "otro";
+      var fav = btn.getAttribute("data-is-favorite") === "true";
+      var show = (
+        activeFilter === "all" ||
+        (activeFilter === "favorito" && fav) ||
+        cat === activeFilter
+      );
+      btn.style.display = show ? "" : "none";
+      if (show) count++;
+    });
+    // Show "no results" message
+    var noResults = document.getElementById("quick-sell-no-results");
+    if (count === 0) {
+      if (!noResults) {
+        noResults = document.createElement("div");
+        noResults.id = "quick-sell-no-results";
+        noResults.style.cssText = "padding:16px;text-align:center;color:var(--muted-foreground);font-size:0.875rem;grid-column:1/-1";
+        noResults.textContent = "Ningún producto en esta categoría.";
+        qsGrid.insertBefore(noResults, qsGrid.firstChild);
+      }
+      noResults.style.display = "";
+    } else if (noResults) {
+      noResults.style.display = "none";
+    }
+  }
+
+  filterBtns.forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      activeFilter = btn.getAttribute("data-filter") || "all";
+      filterBtns.forEach(function(b) { b.classList.remove("is-active"); });
+      btn.classList.add("is-active");
+      applyFilter();
+    });
+  });
+
+  // ── Search input ─────────────────────────────────────────────────────────
   qsSearch.addEventListener("input", function() {
     var q = (this.value || "").toLowerCase().trim();
     var btns = qsGrid.querySelectorAll(".quick-sell-btn");
     var count = 0;
     btns.forEach(function(btn) {
       var name = btn.getAttribute("data-name") || "";
-      var show = q === "" || name.indexOf(q) >= 0;
+      var cat = btn.getAttribute("data-category") || "otro";
+      var fav = btn.getAttribute("data-is-favorite") === "true";
+      var matchesSearch = q === "" || name.indexOf(q) >= 0;
+      var matchesFilter = (
+        activeFilter === "all" ||
+        (activeFilter === "favorito" && fav) ||
+        cat === activeFilter
+      );
+      var show = matchesSearch && matchesFilter;
       btn.style.display = show ? "" : "none";
       if (show) count++;
     });
-    // Show "no results" message
     var noResults = document.getElementById("quick-sell-no-results");
     if (count === 0 && q !== "") {
       if (!noResults) {
         noResults = document.createElement("div");
         noResults.id = "quick-sell-no-results";
-        noResults.style.cssText = "padding:16px;text-align:center;color:var(--muted-foreground);font-size:0.875rem";
+        noResults.style.cssText = "padding:16px;text-align:center;color:var(--muted-foreground);font-size:0.875rem;grid-column:1/-1";
         noResults.textContent = "Ningún producto coincide con esa búsqueda.";
         qsGrid.insertBefore(noResults, qsGrid.firstChild);
       }
