@@ -20,6 +20,37 @@ def _now_year() -> int:
     return datetime.now().year
 
 
+def _now():
+    """Jinja global `now()` — current Asuncion-local time, **naive**.
+
+    Returns a NEW datetime on each call so templates using `{{ now }}`
+    always see the freshest value, even if the render loop runs twice
+    in the same request.
+
+    Pedidos and other tz-aware routes used to pass `now` in via the
+    context. The /clientes/{id} detail page had been crashing for months
+    with 'now' is undefined because the route handler forgot it.
+
+    Naive (no tzinfo) on purpose: SQLAlchemy in this codebase stores
+    DateTime columns as naive (DB has no tz awareness). If `now` were
+    tz-aware, `now - db_column_xxx` would crash with
+    "can't subtract offset-naive and offset-aware" — proven by the
+    /clientes/{id} 500 we just fixed. Routes that need tz-aware
+    arithmetic should still pass their own `now` from context.
+
+    The Asuncion wall-clock value isn't lost: when the system's local
+    tz is set to America/Asuncion (server runtime tz), `datetime.now()`
+    returns the Asuncion local time without tzinfo.
+    """
+    return datetime.now()
+
+
+def _now_local():
+    """Jinja global `now_local()` — current local-time formatted for
+    `<input type="datetime-local">` (`YYYY-MM-DDTHH:MM`)."""
+    return _now().strftime("%Y-%m-%dT%H:%M")
+
+
 def _asset_version() -> str:
     """Cache-busting suffix for static assets.
 
@@ -198,6 +229,11 @@ def _csrf_token_for_request(request: Request | None) -> str:
 
 
 templates.env.globals["csrf_token"] = _csrf_token_for_request
+# Note: `now` and `now_local` are NOT registered as env.globals because
+# globals are evaluated once at import time (stale until process restart).
+# Instead they're injected per-request via render() with setdefault(), so
+# tz-aware Asuncion time is current on every render and route-level
+# overrides still win.
 
 
 def render(
@@ -219,6 +255,10 @@ def render(
     ctx.setdefault("request", request)
 
     ctx["csrf_token"] = _csrf_token_for_request(request)
+    # Inject Asuncion-local time + tz-aware datetime on every render.
+    # Existing routes that pass their own `now`/`now_local` win (setdefault).
+    ctx.setdefault("now_local", _now_local())
+    ctx.setdefault("now", _now())
 
     # Phase 5 — load branding once per request. Lazy import keeps
     # template_render import-light.

@@ -13,7 +13,7 @@
   <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;">
     <h1 style="margin-bottom:0;">{{ customer.name or "(sin nombre)" }}</h1>
     {# Customer tier badge #}
-    {% set last_days = ((now() - stats.last_sale_at).days if stats.last_sale_at else 999) %}
+    {% set last_days = ((now - stats.last_sale_at).days if stats.last_sale_at else 999) %}
     {% if last_days > 90 %}
       <span class="badge" style="background:var(--color-text-muted);color:#fff;">Inactivo</span>
     {% elif last_days > 30 %}
@@ -35,7 +35,11 @@
     <a href="tel:{{ customer.phone }}" class="btn btn-sm btn-ghost" style="gap:0.25rem;">
       📞 {{ customer.phone }}
     </a>
-    <a href="https://wa.me/595{{ customer.phone|lstrip('0') }}" target="_blank" rel="noopener" class="btn btn-sm btn-ghost" style="gap:0.25rem;">
+    {# Strip a single leading "0" so Paraguay phones become 595XXXXXXXXX.
+       Replaces a 1-arg lstrip() filter that doesn't exist in Jinja. #}
+    {% set _wa_phone = customer.phone|replace(' ', '')|replace('+', '')|replace('-', '') %}
+    {% if _wa_phone|length > 0 and _wa_phone[0] == '0' %}{% set _wa_phone = _wa_phone[1:] %}{% endif %}
+    <a href="https://wa.me/595{{ _wa_phone }}" target="_blank" rel="noopener" class="btn btn-sm btn-ghost" style="gap:0.25rem;">
       💬 WhatsApp
     </a>
   </dd>
