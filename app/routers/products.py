@@ -70,6 +70,7 @@ def products_api_search(
             "portion_label": p.portion_label or "",
             "sale_price_gs": p.sale_price_gs,
             "sku": p.sku or "",
+            "image_url": p.image_url or "",
         }
         for p in rows
     ]
