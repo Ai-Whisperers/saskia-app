@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as a %}
+{% import "_components/macros.html" as m %}
+{% block title %}Métricas operativas — {{ start_date }} al {{ end_date }}{{ ui.report_source_footer() }}{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Métricas operativas
+</h1>
+
+<form method="get" action="/reportes/metricas" class="form mb-4">
+  <div class="grid grid-2">
+    <div class="form-row">
+      <label for="start">Desde</label>
+      <saskia-date id="start" name="start" value="{{ start_date }}"></saskia-date>
+    </div>
+    <div class="form-row">
+      <label for="end">Hasta</label>
+      <saskia-date id="end" name="end" value="{{ end_date }}"></saskia-date>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Ver métricas</button>
+    <a href="/reportes/metricas" class="btn btn-ghost">Últimos 30 días</a>
+  </div>
+</form>
+
+{# KPI row #}
+<div class="kpi-row mb-4" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--space-4);">
+  {{ a.metric_card("Ventas", n_sales, sub="período " ~ start_date ~ " – " ~ end_date) }}
+  {{ a.metric_card("Ingresos totales", m.gs(total_revenue), sub="recaudado") }}
+  {{ a.metric_card("Ticket promedio", m.gs(avg_ticket), sub="por venta") }}
+  {{ a.metric_card("Clientes únicos", n_customers, sub="que compraron") }}
+</div>
+
+{# Payment methods #}
+{% if by_payment %}
+<div class="card mb-4">
+  <div class="card-header">
+    <h2>Métodos de pago</h2>
+  </div>
+  <div class="card-body">
+    <table class="table">
+      <thead><tr><th>Método</th><th class="num">Ventas</th><th class="num">Total (Gs.)</th><th class="num">%</th></tr></thead>
+      <tbody>
+        {% set total_payments = namespace(value=0) %}
+        {% for row in by_payment %}
+          {% set total_payments.value = total_payments.value + (row.total_gs or 0) %}
+        {% endfor %}
+        {% for row in by_payment %}
+          <tr>
+            <td>{{ row.payment_method or "Sin especificar" }}</td>
+            <td class="num">{{ row.n_sales }}</td>
+            <td class="num">{{ m.gs(row.total_gs or 0) }}</td>
+            <td class="num">{% if total_payments.value > 0 %}{{ "%.1f"|format((row.total_gs or 0) / total_payments.value * 100) }}%{% else %}—{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{# Peak hours #}
+<div class="grid grid-2 mb-4" style="gap:var(--space-4);">
+  <div class="card">
+    <div class="card-header"><h2>Hora pico</h2></div>
+    <div class="card-body">
+      {% if peak_hour %}
+        <div class="metric-value">{{ peak_hour.0 }}:00</div>
+        <div class="text-muted">{{ peak_hour.1 }} ventas en el período</div>
+      {% else %}
+        <p class="text-muted">Sin datos</p>
+      {% endif %}
+
+      {% if sales_by_hour %}
+      <div style="margin-top:var(--space-3);">
+        {% for hour in range(6, 23) %}
+          {% set count = sales_by_hour.get(hour, 0) %}
+          {% set max_count = sales_by_hour.values()|max if sales_by_hour else 1 %}
+          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:2px;font-size:var(--text-xs);">
+            <span style="width:3rem;text-align:right;color:var(--color-text-muted);">{{ "%02d:00"|format(hour) }}</span>
+            <div style="flex:1;background:var(--color-accent);height:12px;width:{% if max_count > 0 %}{{ (count / max_count * 100)|int }}%{% else %}0{% endif %}%;border-radius:2px;"></div>
+            <span style="width:2rem;color:var(--color-text-muted);">{{ count }}</span>
+          </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>Día pico</h2></div>
+    <div class="card-body">
+      {% if peak_dow %}
+        {% set days = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'] %}
+        <div class="metric-value">{{ days[peak_dow.0 - 1] }}</div>
+        <div class="text-muted">{{ peak_dow.1 }} ventas</div>
+      {% else %}
+        <p class="text-muted">Sin datos</p>
+      {% endif %}
+
+      {% if sales_by_dow %}
+      <div style="margin-top:var(--space-3);">
+        {% for dow, count in sales_by_dow.items() %}
+          {% set max_count = sales_by_dow.values()|max %}
+          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:2px;font-size:var(--text-xs);">
+            {% set days = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'] %}
+            <span style="width:3rem;text-align:right;color:var(--color-text-muted);">{{ days[dow - 1] }}</span>
+            <div style="flex:1;background:var(--color-accent);height:12px;width:{% if max_count > 0 %}{{ (count / max_count * 100)|int }}%{% else %}0{% endif %}%;border-radius:2px;"></div>
+            <span style="width:2rem;color:var(--color-text-muted);">{{ count }}</span>
+          </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# Retention snapshot #}
+{% if retention %}
+<div class="card mb-4">
+  <div class="card-header"><h2>Retención de clientes</h2></div>
+  <div class="card-body">
+    <div class="grid grid-3" style="gap:var(--space-4);">
+      <div class="metric-card">
+        <div class="metric-label">Total</div>
+        <div class="metric-value">{{ retention.total }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Nuevos</div>
+        <div class="metric-value text-up">{{ retention.new_customers }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Recurrentes</div>
+        <div class="metric-value">{{ retention.returning_customers }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -528,6 +528,78 @@ def reportes_retencion(
     })
 
 
+# ─── Métricas operativas ────────────────────────────────────────────────────
+
+
+@router.get("/metricas", response_class=HTMLResponse)
+def reportes_metricas(
+    request: Request,
+    start: str | None = Query(None),
+    end: str | None = Query(None),
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Operational KPIs: sales volume, revenue, customers, average ticket.
+
+    Dates default to last 30 days.
+    """
+    end_dt = datetime.fromisoformat(end) if end else datetime.now(timezone.utc)
+    start_dt = (
+        datetime.fromisoformat(start)
+        if start
+        else end_dt - timedelta(days=30)
+    )
+
+    # Revenue & sales in window
+    from app.rms.accounting import sales_in_window
+    from app.rms.models import Sale
+    from sqlalchemy import func
+
+    sales = list(sales_in_window(session, start=start_dt, end=end_dt))
+    n_sales = len(sales)
+    total_revenue = sum(
+        int(s.qty) * int(s.unit_price_gs) for s in sales
+    )
+    avg_ticket = total_revenue / n_sales if n_sales > 0 else 0
+
+    # Unique customers
+    n_customers = session.execute(
+        select(func.count(func.distinct(Sale.customer_id)))
+        .where(
+            Sale.sold_at >= start_dt,
+            Sale.sold_at <= end_dt,
+            Sale.voided_at.is_(None),
+            Sale.customer_id.isnot(None),
+        )
+    ).scalar() or 0
+
+    # Sales by payment method
+    from app.rms.accounting import sales_by_payment_method
+    by_payment = sales_by_payment_method(session, start_date=start_dt, end_date=end_dt)
+
+    # Retention snapshot
+    from app.rms.sales_intel import customer_retention
+    retention = customer_retention(session, start_date=start_dt, end_date=end_dt)
+
+    # Sales by hour
+    from app.rms.sales_intel import sales_summary
+    summary = sales_summary(session)
+
+    return render(request, "reportes_metricas.html", {
+        "start_date": start_dt.date().isoformat(),
+        "end_date": end_dt.date().isoformat(),
+        "n_sales": n_sales,
+        "total_revenue": total_revenue,
+        "avg_ticket": int(avg_ticket),
+        "n_customers": n_customers,
+        "by_payment": by_payment,
+        "retention": retention,
+        "sales_by_hour": summary.get("by_hour", {}),
+        "peak_hour": summary.get("peak_hour"),
+        "sales_by_dow": summary.get("by_dow", {}),
+        "peak_dow": summary.get("peak_dow"),
+    })
+
+
 # ─── Valor promedio ────────────────────────────────────────────────────────
 
 
