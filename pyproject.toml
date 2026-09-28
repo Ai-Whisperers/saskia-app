@@ -21,7 +21,7 @@ license = {text = "MIT"}
 dependencies = [
     "fastapi>=0.115,<0.142",         # Pinned to a known-good major.minor
     "uvicorn[standard]>=0.32,<0.54",  # [standard] = httptools + uvloop + websockets + watchfiles
-    "sqlalchemy>=2.0,<2.1",          # Sync mode (NOT async; documented in app/rms/db.py)
+    "sqlalchemy>=2.0,<2.2",          # Sync mode (NOT async; documented in app/rms/db.py)
     "openpyxl>=3.1,<4",              # 3.x stable; 4.x may have breaking changes
     "jinja2>=3.1,<4",                # Templating for server-rendered HTML
     "python-multipart>=0.0.20",      # FastAPI form parsing (for HTML forms)
