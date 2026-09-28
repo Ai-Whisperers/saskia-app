@@ -176,7 +176,7 @@
               <th style="width:44px"></th>
               <th>Producto</th>
               <th style="text-align:right;width:72px">Cant.</th>
-              <th style="text-align:right;width:100px">Unit. (Gs.)</th>
+              <th style="text-align:center;width:80px">Dto. %</th>
               <th style="text-align:right;width:110px">Subtotal</th>
               <th style="width:36px"></th>
             </tr>
@@ -322,18 +322,25 @@
 
     products.forEach(function(p) {
       var pid  = p.id || p.value || p.product_id;
-      var name = p.label || p.name || p.display || ("Producto " + pid);
+      var name = p.name || p.label || p.display || ("Producto " + pid);
       var price = p.sale_price_gs || p.price_gs || 0;
+      var imgUrl = p.image_url || '';
       var row = document.createElement("div");
       row.className = "quick-sell-api-row";
-      row.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:0.875rem";
+      row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--border);cursor:pointer";
+      var imgHtml = imgUrl
+        ? '<img src="' + imgUrl + '" width="36" height="36" style="border-radius:4px;object-fit:cover;flex-shrink:0" alt="">'
+        : '<div style="width:36px;height:36px;background:var(--card);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg style="width:18px;height:18px;opacity:0.4" aria-hidden="true"><use href="#icon-box"/></svg></div>';
       row.innerHTML =
-        '<span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(name) + '</span>' +
-        '<span class="price-gs" style="margin:0 12px;white-space:nowrap">' + fmtGs(price) + '</span>' +
-        '<button type="button" class="btn btn-primary btn-sm" onclick="quickAddToCart(' + pid + ',\'' + escJs(name) + '\')">+</button>';
+        imgHtml +
+        '<div style="flex:1;min-width:0;overflow:hidden">' +
+          '<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:0.875rem;font-weight:500;color:var(--foreground)">' + escHtml(name) + '</div>' +
+          '<div class="price-gs" style="font-size:0.75rem;color:var(--accent)">Gs. ' + Number(price||0).toLocaleString('es-PY') + '</div>' +
+        '</div>' +
+        '<button type="button" class="btn btn-primary btn-sm" style="flex-shrink:0" onclick="quickAddToCart(' + pid + ',\'' + escJs(name) + '\',\'' + price + '\')">+</button>';
       row.addEventListener("click", function(e){
         if (e.target.tagName !== "BUTTON") {
-          quickAddToCart(pid, name);
+          quickAddToCart(pid, name, price);
         }
       });
       qsGrid.insertBefore(row, qsGrid.firstChild);
@@ -352,7 +359,7 @@
   "use strict";
 
   // ── State ──────────────────────────────────────────────────────────────
-  var POS_CART = [];  // [{product_id, product_name, qty, unit_price_gs}]
+  var POS_CART = [];  // [{product_id, product_name, qty, unit_price_gs, discount_pct}]
 
   // ── Formatters ──────────────────────────────────────────────────────────
   function fmtGs(n) {
@@ -371,7 +378,7 @@
       return;
     }
     var productId = parseInt(selectedData.value, 10);
-    var productName = selectedData.label || selectedData.display || '';
+    var productName = selectedData.name || selectedData.label || selectedData.display || '';
     var unitPriceGs = parseInt(selectedData.sale_price_gs || 0, 10);
     var qtyEl = document.getElementById('qty');
     var qty = parseFloat(qtyEl && qtyEl.value ? qtyEl.value : 1);
@@ -383,29 +390,14 @@
     if (qtyEl) qtyEl.value = 1;
   };
 
-  // ── Add from quick-sale button (async — fetches real price) ───────────────
-  window.quickAddToCart = function(productId, productName) {
-    // Fetch the product's current price from the API
-    fetch('/productos/api/search?q=' + encodeURIComponent(productName || ''), {
-      headers: { 'Accept': 'application/json' }
-    })
-    .then(function(res) { return res.json(); })
-    .then(function(data) {
-      var results = (data.results || data) || [];
-      var found = results.find(function(p) {
-        return String(p.id || p.value || p.product_id) === String(productId);
-      });
-      var priceGs = found ? (found.sale_price_gs || found.price_gs || 0) : 0;
-      addItem(parseInt(productId, 10), productName || 'Producto', 1, parseInt(priceGs, 10));
-    })
-    .catch(function() {
-      // Fallback: add without price, will show Gs. 0
-      addItem(parseInt(productId, 10), productName || 'Producto', 1, 0);
-    });
+  // ── Add from quick-sale button (price passed directly) ────────────────────
+  window.quickAddToCart = function(productId, productName, unitPriceGs) {
+    addItem(parseInt(productId, 10), productName || 'Producto', 1, parseInt(unitPriceGs || 0, 10));
   };
 
   // ── Core add (increment qty if duplicate product) ─────────────────────────
-  function addItem(productId, productName, qty, unitPriceGs) {
+  function addItem(productId, productName, qty, unitPriceGs, discountPct) {
+    var discount = parseFloat(discountPct) || 0;
     var existing = POS_CART.find(function(i) { return i.product_id === productId; });
     if (existing) {
       existing.qty = parseFloat(existing.qty) + parseFloat(qty);
@@ -415,7 +407,8 @@
         product_id: productId,
         product_name: productName || ('Producto #' + productId),
         qty: parseFloat(qty),
-        unit_price_gs: unitPriceGs
+        unit_price_gs: unitPriceGs,
+        discount_pct: discount,
       });
     }
     renderCart();
@@ -445,12 +438,15 @@
     else { item.qty = qty; renderCart(); }
   };
 
-  // ── Direct price input (cart table) ───────────────────────────────────────
-  window.setPriceDirect = function(idx, val) {
+  // ── Discount % per item (cart table) ─────────────────────────────────────
+  window.setDiscountPct = function(idx, val) {
     var item = POS_CART[idx];
     if (!item) return;
-    var price = parseInt(val, 10);
-    if (price >= 0) { item.unit_price_gs = price; renderCart(); }
+    var pct = parseFloat(val);
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+    item.discount_pct = pct;
+    renderCart();
   };
 
   // ── Render cart ─────────────────────────────────────────────────────────
@@ -483,8 +479,11 @@
       cartCount.textContent = n;
       cartTbody.innerHTML = '';
       POS_CART.forEach(function(item, idx) {
+        var pct = parseFloat(item.discount_pct) || 0;
         var subtotal = item.qty * item.unit_price_gs;
-        total += subtotal;
+        var discountGs = Math.round(subtotal * pct / 100);
+        var afterDiscount = subtotal - discountGs;
+        total += afterDiscount;
         var tr = document.createElement('tr');
         tr.innerHTML =
           '<td></td>' +
@@ -493,14 +492,33 @@
             '<input type="number" class="cart-qty-input" min="0.25" step="0.25" value="' + item.qty + '" ' +
             'onchange="setQtyDirect(' + idx + ', this.value)" aria-label="Cantidad"> ' +
           '</td>' +
-          '<td style="text-align:right">' +
-            '<input type="number" class="cart-price-input" min="0" step="100" value="' + item.unit_price_gs + '" ' +
-            'onchange="setPriceDirect(' + idx + ', this.value)" aria-label="Precio unitario Gs."> ' +
+          '<td style="text-align:center">' +
+            '<input type="number" class="cart-discount-input" min="0" max="100" step="1" value="' + pct + '" ' +
+            'onchange="setDiscountPct(' + idx + ', this.value)" aria-label="Descuento %">% ' +
           '</td>' +
-          '<td class="cart-subtotal" style="text-align:right;font-variant-numeric:tabular-nums">' + fmtGs(subtotal) + '</td>' +
+          '<td style="text-align:right">' +
+            '<div style="font-variant-numeric:tabular-nums">' + fmtGs(afterDiscount) + '</div>' +
+            (discountGs > 0 ? '<div style="font-size:0.7rem;color:var(--destructive)">-' + fmtGs(discountGs) + '</div>' : '') +
+          '</td>' +
           '<td><button type="button" class="cart-remove-btn" onclick="removeItem(' + idx + ')" aria-label="Quitar">×</button></td>';
         cartTbody.appendChild(tr);
       });
+
+      var totalDiscountGs = POS_CART.reduce(function(acc, item) {
+        var pct = parseFloat(item.discount_pct) || 0;
+        return acc + Math.round((item.qty * item.unit_price_gs) * pct / 100);
+      }, 0);
+
+      // Add or update total+discount row
+      var existingDiscountRow = document.getElementById('cart-discount-row');
+      if (existingDiscountRow) existingDiscountRow.remove();
+
+      var discRow = document.createElement('div');
+      discRow.id = 'cart-discount-row';
+      discRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:0.875rem;color:var(--destructive)';
+      discRow.innerHTML = '<span>Descuento total</span><span id="cart-total-discount">-' + fmtGs(totalDiscountGs) + '</span>';
+      cartTotalEl.parentNode.insertBefore(discRow, cartTotalEl);
+
       cartTotalEl.textContent = fmtGs(total);
       if (submitBtn)   submitBtn.disabled = false;
       if (submitLabel) submitLabel.textContent = 'Registrar venta';
@@ -530,7 +548,7 @@
     var fd = new FormData(form);
     var payload = {
       items:  POS_CART.map(function(i) {
-        return { product_id: i.product_id, qty: i.qty, unit_price_gs: i.unit_price_gs || 0 };
+        return { product_id: i.product_id, qty: i.qty, discount_pct: i.discount_pct || 0 };
       }),
       customer_id:            fd.get('customer_id') || null,
       payment_method:         fd.get('payment_method') || '',

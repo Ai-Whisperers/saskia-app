@@ -778,7 +778,7 @@ async def sale_create_multi(
     class _Item(BaseModel):
         product_id: int = Field(..., gt=0)
         qty: float = Field(..., gt=0)
-        unit_price_gs: int | None = Field(None, ge=0)  # optional override; None = use product price
+        discount_pct: float = Field(0, ge=0, le=100)  # per-item % discount
 
     class _Body(BaseModel):
         items: list[_Item] = Field(..., min_length=1)
@@ -906,7 +906,7 @@ async def sale_create_multi(
                     ),
                 )
 
-            # All items in the cart share the same metadata (customer, payment, channel, discount)
+            # All items in the cart share the same metadata (customer, payment, channel)
             result = apply_sale(
                 session,
                 item.product_id,
@@ -915,11 +915,9 @@ async def sale_create_multi(
                 notes_clean,
                 customer_id=customer_id,
                 payment_method=payment_method_clean,
-                discount_gs=discount_gs,
+                discount_gs=math.ceil(item.qty * (item.unit_price_gs or 0) * (item.discount_pct or 0) / 100),
                 channel=channel_clean,
-                unit_price_gs_override=item.unit_price_gs if item.unit_price_gs else None,
             )
-            sale_ids.append(result.sale_id)
             if first_product_id is None:
                 first_product_id = item.product_id
 
