@@ -262,13 +262,15 @@ def render(
 
     # Phase 5 — load branding once per request. Lazy import keeps
     # template_render import-light.
-    # auth state for chrome (hide nav/search on the login screen)
+    # auth state for chrome (hide nav/search on the login screen).
+    # Fail CLOSED: if we can't determine auth state, hide the chrome
+    # rather than leak the entire app nav structure to anonymous users.
     try:
         from app.auth import get_current_user
 
         ctx.setdefault("is_logged_in", get_current_user(request) is not None)
     except Exception:  # noqa: BLE001 — chrome must never break a page
-        ctx.setdefault("is_logged_in", True)
+        ctx.setdefault("is_logged_in", False)
 
     # SS-1: sidebar/nav renders from the nav table (app/rms/nav.py)
     if "nav_groups" not in ctx:
