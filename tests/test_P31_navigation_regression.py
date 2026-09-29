@@ -80,6 +80,8 @@ ALLOWED_404 = {
     # dev/combo-smoke requires AIW_SASKIA_INTERNAL_ROUTES=1 (set in conftest
     # but the test for it appears to 404 — possibly gated by auth check)
     "/dev/combo-smoke",
+    # reportlab (PDF generation) is not in the dev venv; works in prod
+    "/reportes/iva/pdf",
 }
 
 
