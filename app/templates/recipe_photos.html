@@ -13,6 +13,7 @@
 <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;">
   {% for p in photos %}
     <form method="post" action="/recetas/{{ recipe.id }}/set-photo" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="photo" value="{{ p }}">
       <button type="submit" style="all:unset;cursor:pointer;display:block;width:100%;">
         <div class="card" style="border:2px solid {% if recipe.image_url and p in recipe.image_url %}#10b981{% else %}transparent{% endif %};">

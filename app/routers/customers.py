@@ -30,6 +30,7 @@ from app.rms.customers import (
 )
 from app.rms.dependencies import get_session
 from app.rms.models import Customer
+from app.rms.observability import record_audit
 from app.rms.nav import status_es
 from app.services.template_render import render
 
@@ -396,6 +397,11 @@ async def customer_create_api(
 
     from app.rms.customers import ensure_customer
 
+    # Detect create vs update: if id is already populated after ensure_customer,
+    # check whether the row existed before by comparing created_at vs now.
+    # Simpler: ensure_customer returns the row. We capture an `existed`
+    # flag by snapshotting IDs before, since ensure_customer may create.
+    pre_ids = {c.id for c in session.scalars(select(Customer.id)).all()}
     customer = ensure_customer(
         session,
         name=name,
@@ -406,6 +412,17 @@ async def customer_create_api(
     )
     session.commit()
     session.refresh(customer)
+    was_created = customer.id not in pre_ids
+    if was_created:
+        record_audit(
+            request,
+            session=session,
+            action="write.customer.create",
+            target_type="customer",
+            target_id=customer.id,
+            detail={"name": name},
+        )
+        session.commit()
     return JSONResponse(
         {
             "id": customer.id,
@@ -489,7 +506,6 @@ def cliente_update(
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Update an existing customer's fields."""
-    from app.rms.audit import record
     from app.rms.validation import (
         optional_text,
         require_text,
@@ -507,15 +523,15 @@ def cliente_update(
     customer.cedula = validate_cedula(cedula)
     customer.notes = optional_text(notes, max_len=2000)
     session.commit()
-    record(
-        session,
-        user_id=None,
-        action="customer.updated",
+    record_audit(
+        request,
+        session=session,
+        action="write.customer.update",
         target_type="customer",
-        target_id=str(customer_id),
+        target_id=customer_id,
         detail={"name": customer.name},
-        request=request,
     )
+    session.commit()
     return RedirectResponse(
         url=f"/clientes/{customer_id}?flash=Cliente+actualizado", status_code=303
     )
@@ -528,8 +544,6 @@ def clientes_bulk_delete(
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Delete multiple customers at once. Skips any with sales."""
-    from app.rms.audit import record
-
     deleted = 0
     skipped = 0
     for cid in ids.split(","):
@@ -550,14 +564,13 @@ def clientes_bulk_delete(
             skipped += 1
             continue
         # Log deletion before deleting
-        record(
-            session,
-            user_id=None,  # session-based auth; user_id not yet available
-            action="customer.deleted",
+        record_audit(
+            request,
+            session=session,
+            action="write.customer.delete",
             target_type="customer",
             target_id=c.id,
             detail={"name": c.name, "phone": c.phone},
-            request=request,
         )
         session.delete(c)
         deleted += 1

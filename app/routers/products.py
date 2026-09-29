@@ -30,6 +30,7 @@ from app.auth import require_login_or_disabled as require_login
 from app.rms.costing import batch_products_cost_margin, product_margin, product_unit_cost_gs
 from app.rms.dependencies import get_session
 from app.rms.models import Product, Recipe, Sale
+from app.rms.observability import record_audit
 from app.services.template_render import render
 
 router = APIRouter(prefix="/productos", dependencies=[Depends(require_login)])
@@ -440,6 +441,15 @@ def product_create(
         raise HTTPException(
             status_code=409, detail=f"Ya existe un producto con nombre {clean_name!r}"
         ) from None
+    record_audit(
+        request,
+        session=session,
+        action="write.product.create",
+        target_type="product",
+        target_id=product.id,
+        detail={"name": clean_name, "price_gs": price},
+    )
+    session.commit()
     return RedirectResponse(url="/productos", status_code=303)
 
 
@@ -555,6 +565,15 @@ def product_update(
         raise HTTPException(
             status_code=409, detail=f"Ya existe otro producto con nombre {clean_name!r}"
         ) from None
+    record_audit(
+        request,
+        session=session,
+        action="write.product.update",
+        target_type="product",
+        target_id=p.id,
+        detail={"name": clean_name, "price_gs": price},
+    )
+    session.commit()
     return RedirectResponse(url="/productos", status_code=303)
 
 
@@ -576,7 +595,16 @@ def product_delete(
             detail="No se puede eliminar: hay ventas registradas. Anulá las ventas primero.",
         )
 
+    deleted_name = p.name
     session.delete(p)
+    record_audit(
+        request,
+        session=session,
+        action="write.product.delete",
+        target_type="product",
+        target_id=p_id,
+        detail={"name": deleted_name},
+    )
     session.commit()
     return RedirectResponse(url="/productos", status_code=303)
 

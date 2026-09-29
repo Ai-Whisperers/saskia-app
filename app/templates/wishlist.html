@@ -50,9 +50,11 @@
           <td>
             {% if not item.purchased %}
               <form method="post" action="/wishlist/{{ item.id }}/mark-purchased" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="btn btn-sm btn-primary">Marcar comprado</button>
               </form>
               <form method="post" action="/wishlist/{{ item.id }}/send-to-shopping-list" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="btn btn-sm btn-secondary" title="Enviar a la lista de compras">🛒</button>
               </form>
             {% endif %}

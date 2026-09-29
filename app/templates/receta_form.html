@@ -35,7 +35,7 @@
 <form method="post" action="/recetas{{ '/nueva' if mode == 'new' else '/' ~ recipe.id ~ '/editar' }}"
       id="recipe-form"
       class="recipe-form-layout recipe-form-page">
-  <input type="hidden" name="_csrf_token" value="{{ csrf_token or '' }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
   {# ═══════════════════════════════════════════════════════════════ #}
   {# LEFT COLUMN (70%) — identification + ingredients + notes     #}

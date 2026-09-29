@@ -9,6 +9,7 @@
    ) }}
 
 <form method="post" action="{{ '/suppliers/nuevo' if mode == 'new' else '/suppliers/' ~ supplier.id ~ '/editar' }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <div class="form-row">
     <label for="name">Nombre del proveedor *</label>
     <input type="text" id="name" name="name" required maxlength="120" value="{{ supplier.name if supplier else '' }}" placeholder="Ej: Harinas del Paraguay S.A.">

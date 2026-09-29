@@ -29,6 +29,7 @@
 <!-- Business Info Tab -->
 <div id="business-tab" class="tab-content">
   <form method="post" action="/settings/business" class="form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <h2>Información de Negocio</h2>
     <p class="text-muted">Estos datos aparecen en recibos y documentos comerciales.</p>
     
@@ -236,6 +237,7 @@
 <!-- Fiscal Config Tab -->
 <div id="fiscal-tab" class="tab-content" style="display: none;">
   <form method="post" action="/settings/fiscal" class="form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <h2>Configuración Fiscal</h2>
     <p class="text-muted">Datos para facturación electrónica de Paraguay (SET).</p>
     
@@ -274,6 +276,7 @@
 <!-- Theme Tab -->
 <div id="theme-tab" class="tab-content" style="display: none;">
   <form method="post" action="/settings/theme" class="form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <h2>Tema y apariencia</h2>
     <p class="text-muted">Personalice la apariencia de la aplicación.</p>
     
@@ -391,6 +394,7 @@
         class="js-confirm-form"
         data-confirm-title="¿Cargar datos de ejemplo?"
         data-confirm-body="Esto agregará 29 ingredientes, 12 recetas, 12 productos y 90 días de ventas. No sobrescribirá lo que ya tenés.">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="overwrite" value="0">
     <button type="submit" class="btn btn-primary">
       <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
@@ -402,6 +406,7 @@
         class="js-confirm-form" data-confirm-danger="true"
         data-confirm-title="⚠️ ATENCIÓN — Resetear y recargar"
         data-confirm-body="Esto BORRARÁ todas las ventas, productos, ingredientes, recetas y pedidos existentes, y volverá a sembrar. Si tenés datos reales, exportalos a Excel primero. ¿Continuar?">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="overwrite" value="1">
     <button type="submit" class="btn btn-ghost">
       <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>

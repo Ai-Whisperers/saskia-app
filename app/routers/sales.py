@@ -1112,9 +1112,20 @@ async def sale_void(
         reason_clean = (reason or "").strip() or None
         void_sale(session, sale_id, reason=reason_clean, voided_by=user_id)
     except ValueError as e:
+        # P0 cerrar-puertas: dedicated message for void-after-EOD-close.
+        # The domain layer raises `void_after_eod_close:<iso_date>` when the
+        # sale belongs to a day whose EOD has been completed. Operators see
+        # the clean Spanish message; the audit log retains the original.
+        err = str(e)
+        if err.startswith("void_after_eod_close:"):
+            sale_date_iso = err.split(":", 1)[1]
+            raise Conflict(
+                f"No se puede anular esta venta: el día {sale_date_iso} ya fue cerrado.",
+                context={"sale_id": str(sale_id), "sale_date": sale_date_iso, "eod_status": "closed"},
+            ) from e
         raise Conflict(
             "No se puede anular la venta.",
-            context={"sale_id": str(sale_id), "original_error": str(e)},
+            context={"sale_id": str(sale_id), "original_error": err},
         ) from e
     # Forensic completeness: the void must leave an audit-log row, not just
     # the sale's own void_* columns (found by the tests/e2e audit-sweep —

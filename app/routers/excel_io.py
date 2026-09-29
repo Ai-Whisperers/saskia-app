@@ -27,10 +27,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
-from app.rms.audit import record
 from app.rms.dependencies import get_session
 from app.rms.errors import BadRequest
 from app.rms.models import ImportBatch
+from app.rms.observability import record_audit
 from app.services.template_render import render
 
 router = APIRouter(prefix="/excel", dependencies=[Depends(require_login)])
@@ -253,25 +253,26 @@ async def excel_import(
             ) from exc
 
     # Record import in audit log
-    try:
-        record(
-            session,
-            user_id=request.state.user_id if hasattr(request.state, "user_id") else None,
-            action="excel.import",
-            target_type="import_batch",
-            target_id=str(row_counts.get("batch_id", "")),
-            detail={
-                "filename": filename,
-                "mode": resolved_mode,
-                **row_counts,
-            },
-            request=request,
-        )
-        session.commit()
-    except Exception as exc:  # noqa: BLE001 — defensive default
-        session.rollback()
-        logger.warning(f"excel_io: audit.record for excel.import failed (non-fatal): {exc!r}")
-
+    batch_id = row_counts.get("batch_id", 0)
+    rows_imported = sum(
+        v for k, v in row_counts.items()
+        if k in {"ingredients", "recipes", "lines", "products", "customers", "sales"}
+    )
+    warnings_count = len(row_counts.get("warnings", []))
+    record_audit(
+        request,
+        session=session,
+        action="write.excel.import",
+        target_type="excel",
+        target_id=batch_id,
+        detail={
+            "filename": filename,
+            "mode": resolved_mode,
+            "rows_imported": int(rows_imported),
+            "rows_failed": warnings_count,
+        },
+    )
+    session.commit()
     return RedirectResponse(url="/excel", status_code=303)
 
 

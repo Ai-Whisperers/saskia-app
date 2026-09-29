@@ -31,6 +31,7 @@ from app.rms.messages import (
     RECIPE_NAME_REQUIRED,
 )
 from app.rms.models import Ingredient, Product, Recipe, RecipeLine
+from app.rms.observability import record_audit
 from app.rms.recipe_intel import (
     estimate_cook_minutes,
     estimate_prep_minutes,
@@ -424,6 +425,16 @@ async def recipe_create(
         logger.warning("tag cascade failed for recipe %s: %s", recipe.id, exc)
         session.rollback()
 
+    record_audit(
+        request,
+        session=session,
+        action="write.recipe.create",
+        target_type="recipe",
+        target_id=recipe.id,
+        detail={"name": name},
+    )
+    session.commit()
+
     if also_create:
         return RedirectResponse(url=f"/recetas/{recipe.id}/crear-producto", status_code=303)
     return RedirectResponse(url="/recetas", status_code=303)
@@ -460,6 +471,14 @@ async def recipe_save_photo(
     recipe = session.get(Recipe, r_id)
     if recipe:
         recipe.image_url = f"/static/recipes/{photo}"
+        record_audit(
+            request,
+            session=session,
+            action="write.recipe.photo.upload",
+            target_type="recipe",
+            target_id=r_id,
+            detail={"filename": photo},
+        )
         session.commit()
     return RedirectResponse(
         url=f"/recetas/{r_id}/set-photo?saved=1",
@@ -805,6 +824,17 @@ async def recipe_update(
         logger.warning("tag cascade failed for recipe %s: %s", r.id, exc)
         session.rollback()
 
+    line_count = session.scalar(
+        select(func.count(RecipeLine.id)).where(RecipeLine.recipe_id == r.id)
+    ) or 0
+    record_audit(
+        request,
+        session=session,
+        action="write.recipe.update",
+        target_type="recipe",
+        target_id=r.id,
+        detail={"name": name, "lines_count": int(line_count)},
+    )
     session.commit()
     return RedirectResponse(url="/recetas", status_code=303)
 

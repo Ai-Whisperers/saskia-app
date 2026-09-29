@@ -114,10 +114,13 @@
   <div id="bulk-pedidos-actions-{{ key }}" style="display:none;margin-bottom:.5rem;padding:.5rem .75rem;background:var(--color-surface-raised);border-radius:var(--card-radius);border:1px solid var(--color-border);display:flex;gap:var(--space-3);align-items:center;flex-wrap:wrap;">
     <span style="font-size:var(--text-sm);"><span id="selected-count-{{ key }}">0</span> seleccionado(s)</span>
     <form method="post" action="/pedidos/bulk-fulfill" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="ids" id="bulk-ids-{{ key }}">
       <button type="submit" class="btn btn-sm btn-primary">✓ Marcar completado(s)</button>
     </form>
-    <form method="post" action="/pedidos/bulk-cancel" style="display:inline;">
+    <form method="post" action="/pedidos/bulk-cancel" style="display:inline;"
+          class="js-confirm-form" data-confirm-title="¿Cancelar pedidos?" data-confirm-body="Los pedidos seleccionados se marcarán como cancelados." data-confirm-danger="true">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="ids" id="bulk-cancel-ids-{{ key }}">
       <button type="submit" class="btn btn-sm btn-ghost">✕ Cancelar</button>
     </form>

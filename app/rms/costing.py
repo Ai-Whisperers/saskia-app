@@ -627,6 +627,20 @@ def void_sale(
     if sale.voided_at is not None:
         raise ValueError(f"Sale {sale_id} ya anulada")
 
+    # P0 cerrar-puertas: block void after EOD close (accounting violation).
+    # The roadmap (saskia-only-roadmap.md, 2026-09-29) flagged this as a
+    # critical gap: Saskia could void a Monday sale on Wednesday AFTER
+    # closing Monday's books. The router translates this to a clean
+    # Spanish user-facing message via the Conflict exception.
+    sale_date = sale.sold_at.date() if sale.sold_at else None
+    if sale_date is not None:
+        from app.rms.eod_closed import eod_is_day_closed
+
+        if eod_is_day_closed(session, sale_date):
+            raise ValueError(
+                f"void_after_eod_close:{sale_date.isoformat()}"
+            )
+
     restored: list[tuple[int, float]] = []
     # AGENTS.md hard rule: never use naive datetime.now() — always store UTC
     # so that tz-aware consumers (audit log, /ventas, reports) can convert

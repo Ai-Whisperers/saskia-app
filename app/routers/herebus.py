@@ -353,11 +353,12 @@ async def bank_categorize(
     )
     record_audit(
         request, session=session,
-        action="bank.recategorize", target_type="BankTransaction",
+        action="write.bank.categorize", target_type="BankTransaction",
         target_id=tx.id, detail={
             "from": old_category, "to": category, "amount": tx.amount,
         },
     )
+    session.commit()
     return RedirectResponse(url="/bank", status_code=303)
 
 

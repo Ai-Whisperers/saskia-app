@@ -12,6 +12,7 @@
 <div class="card mb-4">
   <div class="card-body">
     <form method="post" action="/produccion-planner/compute">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div style="display:flex;gap:1rem;align-items:end;">
         <div class="form-group" style="flex:1;">
           <label for="recipe_id_combo">Receta</label>
@@ -99,6 +100,7 @@
   {% elif total_shortage_gs > 0 %}
   <div class="card-footer" style="padding:1rem;">
     <form method="post" action="/produccion-planner/compute" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="recipe_id" value="{{ recipe.id }}">
       <input type="hidden" name="batches" value="{{ batches }}">
       <button type="submit" class="btn btn-warning">Generar lista de compras con faltantes</button>

@@ -82,6 +82,7 @@
   <p class="text-muted mb-3">Las entradas de auditoría se eliminan automáticamente después de 1 año.
      Podés eliminar las entradas más antiguas manualmente.</p>
   <form method="post" action="/auditoria/prune" id="prune-form" style="display:none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="idempotency_key" value="prune-{{ now|string|replace(' ', 'T')|replace(':', '') }}">
   </form>
   <button type="button" class="btn btn-danger"

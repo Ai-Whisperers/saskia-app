@@ -47,6 +47,7 @@
   </div>
   {% if recipes %}
   <form method="post" action="/merma/receta" class="form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="form-row">
       <label for="recipe_id">Receta</label>
       {{ ui.combo_field(
@@ -99,6 +100,7 @@
     </h2>
   </div>
   <form method="post" action="/merma/registrar" class="form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="form-row">
       <label for="ingredient_combo">Ingrediente</label>
       {# Combobox replaces the 30+-item native <select>. Picks set

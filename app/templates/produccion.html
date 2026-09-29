@@ -16,6 +16,7 @@
         Usá este formulario en lugar del plan diario automático.
       </p>
       <form method="post" action="/produccion-planner/compute" style="display:flex;gap:var(--space-3);align-items:end;flex-wrap:wrap;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="form-group" style="flex:1;min-width:240px;">
           <label for="produccion-plan-recipe">Receta</label>
           <input type="text" id="produccion-plan-recipe" name="recipe_name_display"
@@ -171,6 +172,7 @@
       <td>{{ source_labels.get(r.forecast_source, 'Sugerido') }}</td>
       <td class="actions" style="white-space:nowrap;">
           <form method="post" action="/produccion/override" style="display:inline-flex;gap:var(--space-1);align-items:center;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="for_date" value="{{ for_date }}">
             <input type="hidden" name="product_id" value="{{ r.product_id }}">
             <input type="number" name="qty" step="0.5" min="0" size="4" value="{{ '%.1f'|format(r.qty_to_produce) }}"
@@ -239,7 +241,7 @@
   <strong>Fork plantilla:</strong>
   <form method="post" action="/produccion/template/fork-week" style="display:inline-block;margin-left:var(--space-2);"
         class="js-confirm-form" data-confirm-title="¿Clonar overrides?" data-confirm-body="Se copiarán los overrides de esta semana al template semanal.">
-    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="from_date" value="{{ week_start }}">
     <button type="submit" class="btn btn-sm btn-ghost">Duplicar overrides → template semanal</button>
   </form>

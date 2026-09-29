@@ -12,6 +12,7 @@
    ) }}
 
 <form method="post" action="/pedidos/nuevo" id="pedido-form" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   {# ── Cliente (combobox) ─────────────────────────────────────────
      Single field that:
      - type-ahead filters existing customers (live API search)

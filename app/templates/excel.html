@@ -13,6 +13,7 @@
   <section class="card">
     <h2>Importar desde Excel</h2>
     <form method="post" action="/excel/importar" enctype="multipart/form-data" id="import-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="form-row">
         <label for="file">Archivo .xlsx</label>
         <input type="file" id="file" name="file" accept=".xlsx" required>
@@ -54,6 +55,7 @@
     </form>
 
     <form method="post" action="/excel/validar" enctype="multipart/form-data" id="validate-form" target="_blank" style="display:none;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="file" id="file" name="file" accept=".xlsx" required>
       <input type="radio" name="mode" value="PATCH" checked style="display:none;">
     </form>

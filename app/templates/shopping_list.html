@@ -43,6 +43,7 @@
   </a>
   <a href="/produccion-planner" class="btn">📐 Crear plan</a>
   <form method="post" action="/shopping-list/sync-low-stock" style="display:inline;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <button type="submit" class="btn btn-warning" title="Importar todos los ingredientes con stock &lt; mínimo">
       🔄 Sincronizar faltantes
     </button>
@@ -93,15 +94,18 @@
       <td>
         {% if not item.purchased %}
           <form method="post" action="/shopping-list/{{ item.id }}/mark-purchased" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button class="btn btn-sm btn-success">✓ Comprado</button>
           </form>
         {% else %}
           <form method="post" action="/shopping-list/{{ item.id }}/unmark" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button class="btn btn-sm btn-ghost">↺</button>
           </form>
         {% endif %}
         <form method="post" action="/shopping-list/{{ item.id }}/delete" style="display:inline;"
                       class="js-confirm-form" data-confirm-title="¿Eliminar ítem?" data-confirm-body="Eliminar {{ fmt.entity_name(item.ingredient) if item.ingredient else 'este ítem' }} de la lista?" data-confirm-danger="true">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button class="btn btn-sm btn-danger">×</button>
         </form>
       </td>

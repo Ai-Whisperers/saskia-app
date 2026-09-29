@@ -23,6 +23,7 @@
 
 <form method="post" action="/productos{{ '/nuevo' if mode == 'new' else '/' ~ product.id ~ '/editar' }}"
       enctype="multipart/form-data" id="product-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <div class="form-row">
     <label for="name">Nombre</label>
     <input type="text" id="name" name="name" required maxlength="120"

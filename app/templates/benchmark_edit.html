@@ -14,7 +14,7 @@
 {% endif %}
 
 <form method="post" action="/vs-mercado/{{ b.id }}/save" class="card mb-4">
-  <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <div class="card-body">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
       <div>

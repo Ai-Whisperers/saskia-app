@@ -16,6 +16,7 @@ from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
 from app.rms.eod_completions import completions_for_date, upsert_completion
 from app.rms.errors import BadRequest
+from app.rms.observability import record_audit
 from app.rms.production import plan_production
 from app.rms.workflow import eod_progress, fresh_eod_checklist
 from app.services.template_render import render
@@ -151,6 +152,15 @@ def eod_check_save(
                 key=meta_key, value=notes_for_next.strip()[:2000], updated_at=now_iso,
             ))
 
+    items_done = [k for k, v in checkboxes.items() if v in ("on", "true", "1", "yes")]
+    record_audit(
+        request,
+        session=session,
+        action="write.eod.checklist.save",
+        target_type="eod",
+        target_id=today,
+        detail={"items_done": items_done},
+    )
     session.commit()
     return RedirectResponse(url="/eod?flash=Cierre+guardado", status_code=303)
 
@@ -193,14 +203,17 @@ def eod_completar(
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Producto no encontrado") from exc
 
-    from app.auth import current_user_id
-    from app.rms.audit import record as audit_record
-    audit_record(
-        session,
-        user_id=current_user_id(request) or "operator",
-        action="write.eod.completion",
-        request=request,
-        detail={"product_id": product_id, "for_date": for_date.isoformat(), "completed_qty": completed_qty},
+    record_audit(
+        request,
+        session=session,
+        action="write.eod.complete",
+        target_type="eod",
+        target_id=for_date.isoformat(),
+        detail={
+            "product_id": product_id,
+            "for_date": for_date.isoformat(),
+            "completed_qty": completed_qty,
+        },
     )
     session.commit()
     return RedirectResponse(url="/eod", status_code=303)

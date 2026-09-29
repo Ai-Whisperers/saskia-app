@@ -16,6 +16,7 @@ from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.errors import BadRequest, NotFound
 from app.rms.models import Ingredient, Recipe
+from app.rms.observability import record_audit
 from app.rms.waste import (
     WasteReason,
     list_waste,
@@ -170,7 +171,7 @@ def merma_register(
         raise HTTPException(status_code=429, detail="Demasiadas acciones en 1 minuto. Esperá un momento.")
 
     try:
-        record_waste(
+        log = record_waste(
             session,
             ingredient_id=ingredient_id,
             qty=qty,
@@ -186,14 +187,12 @@ def merma_register(
             context={"operation": "record_waste", "original_error": str(exc)},
         ) from exc
 
-    # Audit + commit
-    from app.auth import current_user_id
-    from app.rms.audit import record as audit_record
-    audit_record(
-        session,
-        user_id=current_user_id(request) or "operator",
-        action="write.merma.register",
-        request=request,
+    record_audit(
+        request,
+        session=session,
+        action="write.merma.create",
+        target_type="merma",
+        target_id=log.id,
         detail={"ingredient_id": ingredient_id, "qty": qty, "reason": reason},
     )
     session.commit()
@@ -247,13 +246,12 @@ def merma_register_recipe(
             context={"original_error": str(exc)},
         ) from exc
 
-    from app.auth import current_user_id
-    from app.rms.audit import record as audit_record
-    audit_record(
-        session,
-        user_id=current_user_id(request) or "operator",
+    record_audit(
+        request,
+        session=session,
         action="write.merma.recipe",
-        request=request,
+        target_type="merma",
+        target_id=recipe_id,
         detail={
             "recipe_id": recipe_id,
             "recipe_name": result.recipe_name,

@@ -28,6 +28,7 @@ from app.auth import require_login_or_disabled as require_login
 from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
 from app.rms.models import Pedido, PedidoLine, Product, ProductionPlanOverride, Recipe, Sale
+from app.rms.observability import record_audit
 from app.rms.production import plan_production
 from app.services.template_render import render
 
@@ -365,12 +366,13 @@ def produccion_override(
             updated_by=user_id,
         )
 
-    audit_record(
-        session,
-        user_id=user_id,
-        action="write.produccion.override",
-        request=request,
-        detail={"product_id": product_id, "for_date": for_date.isoformat(), "qty": qty},
+    record_audit(
+        request,
+        session=session,
+        action="write.production.override.set",
+        target_type="production",
+        target_id=product_id,
+        detail={"for_date": for_date.isoformat(), "qty": qty},
     )
     session.commit()
     return RedirectResponse(

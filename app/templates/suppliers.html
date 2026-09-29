@@ -56,6 +56,7 @@
         {% if not s.ingredients %}
         <form method="post" action="/suppliers/{{ s.id }}/eliminar" style="display:inline;"
               class="js-confirm-form" data-confirm-title="¿Eliminar proveedor?" data-confirm-body="¿Eliminar {{ fmt.entity_name(s) }}?" data-confirm-danger="true">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
         </form>
         {% endif %}

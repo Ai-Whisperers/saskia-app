@@ -12,6 +12,7 @@
 <h1>Editar cliente</h1>
 
 <form method="post" action="/clientes/{{ customer.id }}/editar" class="card" style="max-width:560px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <div class="form-row is-required">
     <label for="name">Nombre</label>
     <input type="text" id="name" name="name" value="{{ customer.name or '' }}" required maxlength="120" aria-required="true" autofocus>

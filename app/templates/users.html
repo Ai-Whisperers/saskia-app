@@ -98,6 +98,7 @@
   </div>
 
   <form id="user-form" method="post" action="/users/crear">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="form-group">
       <label for="username">Nombre de usuario</label>
       <input type="text" id="username" name="username" required minlength="2" maxlength="120"
@@ -140,6 +141,7 @@
   </div>
 
   <form id="edit-user-form" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" id="edit-user-id" name="user_id">
 
     <div class="form-group">
@@ -194,6 +196,7 @@
   <p id="delete-user-message">¿Estás seguro de que deseas eliminar este usuario?</p>
 
   <form id="delete-user-form" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" id="delete-user-id" name="user_id">
 
     <div class="dialog-actions">

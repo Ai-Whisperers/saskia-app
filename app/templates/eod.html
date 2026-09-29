@@ -27,6 +27,7 @@
 </div>
 
 <form method="post" action="/eod/check">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   {{ ui.skeleton_section(id="eod-table", variant="line", count=8, label="Cargando cierre diario") }}
   <div data-loaded-section="eod-table">
   <table class="table is-hoverable">
@@ -151,6 +152,7 @@
         <td class="num">{{ "%.1f"|format(r.qty_to_produce) }}</td>
         <td class="num">
           <form method="post" action="/eod/completar" style="display:inline-flex;gap:var(--space-1);align-items:center;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="product_id" value="{{ r.product_id }}">
             <input type="hidden" name="for_date" value="{{ today_iso }}">
             <input type="number" name="completed_qty" step="0.5" min="0" size="4"

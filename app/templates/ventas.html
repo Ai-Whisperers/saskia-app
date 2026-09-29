@@ -31,7 +31,7 @@
        the cart panel (compact 3-column row labeled "Venta"). #}
     <form method="post" action="/ventas/nueva/multi" id="sale-form"
           onsubmit="return handleFormSubmit(this)">
-
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       {# Hidden cart (serialised by JS) #}
       <input type="hidden" name="_cart_json" id="cart-json" value="[]">
 

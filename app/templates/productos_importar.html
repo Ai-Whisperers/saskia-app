@@ -93,6 +93,7 @@
     </div>
     {% else %}
     <form method="post" action="/productos/importar" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="form-row">
         <label for="file">Archivo CSV</label>
         <input type="file" id="file" name="file" accept=".csv,text/csv" required>

@@ -123,6 +123,7 @@
   <summary style="padding:1rem;cursor:pointer;"><strong>+ Agregar movimiento manualmente</strong> (PY savings, etc.)</summary>
   <div style="padding:1rem;">
     <form method="post" action="/bank/add" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="form-group">
         <label for="posted_at">Fecha</label>
         <saskia-date id="posted_at" name="posted_at"></saskia-date>
@@ -199,10 +200,12 @@
             ✓ {{ tx.reconciled_with_type }}#{{ tx.reconciled_with_id }}
           </span>
           <form method="post" action="/bank/{{ tx.id }}/unreconcile" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn btn-sm btn-link" title="Desconciliar">×</button>
           </form>
         {% else %}
           <form method="post" action="/bank/{{ tx.id }}/reconcile" class="d-inline-flex">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <select name="with_type" class="form-select form-select-sm me-1" style="width:auto;">
               <option value="pedido">Pedido</option>
               <option value="gasto">Gasto</option>
