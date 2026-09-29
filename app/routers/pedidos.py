@@ -23,7 +23,7 @@ from collections.abc import Iterable
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Path, Query, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from loguru import logger
 from sqlalchemy import func, select, update
@@ -803,6 +803,135 @@ def public_pedido(request: Request, token: str) -> HTMLResponse:
                 "pedido": decorated,
                 "shop_name": "Saskia RMS",
                 "currency_label": "Gs.",
+            },
+        )
+
+
+# P1-B3: public comprobante upload from /p/{token}
+# No auth, no CSRF (public endpoint by design — the random 8-char token IS
+# the auth). Files saved under /data/payment_receipts/{pedido_id}/.
+_ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp", ".pdf"}
+_MAX_BYTES = 8 * 1024 * 1024  # 8 MB
+
+
+@public_router.post("/p/{token}/comprobante", response_class=HTMLResponse)
+async def pedido_publico_comprobante(
+    request: Request,
+    token: str,
+    file: UploadFile = File(...),
+) -> HTMLResponse:
+    """Receive a payment receipt uploaded from /p/{token}.
+
+    The page rendered after the upload is the same /p/{token} page, but
+    with ?upload=ok or ?upload=error in the query string so the template
+    can show a banner. We deliberately avoid redirect-after-POST here
+    because the customer has no browser history with this URL and the
+    inline banner keeps it self-contained.
+    """
+    from app.rms.config import DATA_DIR
+
+    with request.app.state.session_factory() as session:
+        pedido = session.execute(
+            select(Pedido).where(Pedido.public_token == token)
+        ).scalar_one_or_none()
+        if pedido is None:
+            raise HTTPException(status_code=404, detail="Pedido no encontrado")
+
+        # Validate file extension (cheap, prevents shell-pasted junk)
+        filename = (file.filename or "comprobante.jpg").lower()
+        ext = "." + filename.rsplit(".", 1)[-1] if "." in filename else ""
+        if ext not in _ALLOWED_EXT:
+            return _render_public_with_flash(
+                request, pedido, token, "error",
+                f"Formato no permitido: {ext or 'sin extensión'}. "
+                f"Subí JPG, PNG, WEBP o PDF.",
+            )
+
+        # Read with a hard cap (8 MB) so a malicious client can't OOM us.
+        contents = await file.read(_MAX_BYTES + 1)
+        if len(contents) > _MAX_BYTES:
+            return _render_public_with_flash(
+                request, pedido, token, "error",
+                "Archivo demasiado grande (máx 8 MB).",
+            )
+
+        # Save to /data/payment_receipts/{pedido_id}/{timestamp}_{safe_name}.
+        # pedido_id namespaces the directory so a re-upload overwrites cleanly.
+        receipts_root = DATA_DIR / "payment_receipts" / str(pedido.id)
+        receipts_root.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_name = "".join(
+            ch if ch.isalnum() or ch in ("-", "_", ".") else "_"
+            for ch in filename
+        )
+        stored_name = f"{timestamp}_{safe_name}"
+        stored_path = receipts_root / stored_name
+        stored_path.write_bytes(contents)
+
+        # Store relative path so it survives data-dir moves.
+        relative_path = f"payment_receipts/{pedido.id}/{stored_name}"
+        pedido.payment_receipt_path = relative_path
+        pedido.payment_receipt_uploaded_at = datetime.utcnow()
+        session.commit()
+
+        # Rate-limit-style audit: every upload is recorded even though the
+        # endpoint is unauthenticated (the public_token is the audit subject).
+        audit_record(
+            session,
+            user_id=None,
+            action="public.pedido.comprobante.upload",
+            request=request,
+            detail={
+                "pedido_id": pedido.id,
+                "filename": stored_name,
+                "bytes": len(contents),
+                "ext": ext,
+            },
+        )
+        session.commit()
+
+        return _render_public_with_flash(
+            request, pedido, token, "ok",
+            "Comprobante recibido. Te avisamos por WhatsApp cuando confirmemos.",
+        )
+
+
+def _render_public_with_flash(
+    request: Request,
+    pedido: Pedido,
+    token: str,
+    flash_kind: str,
+    flash_msg: str,
+) -> HTMLResponse:
+    """Re-render the /p/{token} page with a flash banner."""
+    with request.app.state.session_factory() as session:
+        # re-fetch with lines loaded (session may have been closed)
+        pedido = session.execute(
+            select(Pedido)
+            .where(Pedido.public_token == token)
+            .options(selectinload(Pedido.lines))
+        ).scalar_one()
+        decorated = _decorate_pedido(pedido, session)
+        decorated["lines"] = [
+            {
+                "product_name": ln.product.name if ln.product else f"#{ln.product_id}",
+                "qty": ln.qty,
+                "unit_price_gs": ln.unit_price_gs,
+                "line_total_gs": to_int_gs(
+                    Decimal(str(ln.qty)) * Decimal(str(ln.unit_price_gs))
+                ),
+            }
+            for ln in pedido.lines
+        ]
+        return render(
+            request,
+            "pedido_publico.html",
+            {
+                "pedido": decorated,
+                "shop_name": "Saskia RMS",
+                "currency_label": "Gs.",
+                "flash_kind": flash_kind,
+                "flash_msg": flash_msg,
             },
         )
 

@@ -124,5 +124,56 @@
     <p>Guardá este link o esta página para revisar tu pedido.</p>
     <p>Si necesitás cambiar algo, respondé por WhatsApp.</p>
   </div>
+
+  {# P1-B3: comprobante upload. Visible only when payment_intent != efectivo. #}
+  {% if pedido.payment_intent in ("transferencia", "qr", "tarjeta") %}
+  <div class="card" style="margin-top: var(--space-4);">
+    <div class="metric-label">Comprobante de pago</div>
+    {% if pedido.payment_receipt_path %}
+    <p class="text-muted" style="font-size: var(--text-sm); margin: var(--space-2) 0;">
+      Recibido el {{ pedido.payment_receipt_uploaded_at.strftime("%d/%m/%Y a las %H:%M") if pedido.payment_receipt_uploaded_at else "—" }}.
+    </p>
+    <details>
+      <summary style="cursor:pointer;color:var(--color-link);font-size:var(--text-sm);">
+        ¿Querés reemplazar el comprobante?
+      </summary>
+      <form method="post" action="/p/{{ pedido.public_token }}/comprobante"
+            enctype="multipart/form-data"
+            style="margin-top: var(--space-3); display:flex; flex-direction:column; gap:var(--space-2);">
+        <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required
+               style="font-size:var(--text-sm);">
+        <button type="submit" class="btn">Subir nuevo comprobante</button>
+        <p class="text-muted" style="font-size:var(--text-xs);margin:0;">
+          Formatos: JPG, PNG, WEBP, PDF. Máx 8 MB.
+        </p>
+      </form>
+    </details>
+    {% else %}
+    <p style="font-size:var(--text-sm); margin: var(--space-2) 0;">
+      Pagaste por <strong>{{ pedido.payment_intent }}</strong>? Subí tu comprobante
+      así confirmamos el pedido sin esperarte.
+    </p>
+    <form method="post" action="/p/{{ pedido.public_token }}/comprobante"
+          enctype="multipart/form-data"
+          style="display:flex; flex-direction:column; gap:var(--space-2);">
+      <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required
+             style="font-size:var(--text-sm);">
+      <button type="submit" class="btn">Subir comprobante</button>
+      <p class="text-muted" style="font-size:var(--text-xs);margin:0;">
+        Formatos: JPG, PNG, WEBP, PDF. Máx 8 MB.
+      </p>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# Flash banner — shown when the page re-renders after an upload. #}
+  {% if flash_kind %}
+  <div class="alert alert-{{ 'success' if flash_kind == 'ok' else 'danger' }}"
+       role="alert"
+       style="margin-top: var(--space-3);">
+    {{ flash_msg }}
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

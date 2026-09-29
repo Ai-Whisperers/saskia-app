@@ -144,7 +144,10 @@
       });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const data = await r.json();
-      btn.innerHTML = '✓ ' + data.updated + ' actualizados';
+      const msg = data.repaired
+        ? `✓ ${data.repaired} reparados (${data.tags_removed} tags eliminadas)`
+        : `✓ ${data.validation_issues} actualizados`;
+      btn.innerHTML = msg;
       // Reload to show the new state
       setTimeout(() => window.location.reload(), 800);
     } catch (err) {

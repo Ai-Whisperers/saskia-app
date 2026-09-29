@@ -55,9 +55,12 @@ _CATEGORY_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
         "huevo", "huevos", "clara", "yema",
     ),
     "carnes": (
-        "carne", "pollo", "cerdo", "res", "pavo",
+        # 2026-09-29: word-boundary issues with substring match — 'res'
+        # matched 'fresco' (Jengibre fresco → carnes!). Use word-boundary
+        # via the _KEYWORD_BOUNDARY pattern in infer_category instead.
+        "carne", "pollo", "cerdo", "pavo",
         "pescado", "atún", "marisco", "pechuga", "panceta",
-        "chorizo", "jamón",
+        "chorizo", "jamón", "res",
     ),
     "decoración": (
         "esencia", "ralladura", "colorante", "glaseado", "chocolate cobertura",
@@ -79,7 +82,8 @@ _CATEGORY_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
         "arándano", "ciruela", "pera", "uva",
     ),
     "líquidos": (
-        "agua", "jugo", "caldo",
+        "agua", "jugo", "caldo", "café", "espresso",
+        "té", "mate",
     ),
     "semillas": (
         "semilla de chía", "semilla de lino", "semilla de girasol",
@@ -184,12 +188,30 @@ def _normalize(name: str) -> str:
     return re.sub(r"\s+", " ", name.strip().lower())
 
 
+def _keyword_in(keyword: str, normalized: str) -> bool:
+    """Word-boundary containment for category keywords (2026-09-29).
+
+    The old substring match caused `'res' in 'jengibre fresco'` to be
+    True — classifying every ingredient containing 'fresco' as 'carnes'.
+    Now keywords need a real token boundary on both sides.
+
+    Multi-word keywords like 'aceite de oliva' still match if the phrase
+    appears in the normalized name (the spaces in the keyword already
+    act as boundaries for single-keyword sub-checks).
+    """
+    # Whole-token match: keyword must be at start, end, or surrounded by
+    # whitespace, hyphen, slash, or punctuation. Use a small set of
+    # word separators so 'café-' doesn't false-match inside 'café-con-leche'.
+    pattern = r"(?:^|[\s\-/,.;:])" + re.escape(keyword) + r"(?:$|[\s\-/,.;:])"
+    return re.search(pattern, normalized) is not None
+
+
 def infer_category(name: str) -> str:
     """Return one of the closed category set, or 'otros' if no match."""
     norm = _normalize(name)
     for cat, keywords in _CATEGORY_KEYWORDS.items():
         for kw in keywords:
-            if kw in norm:
+            if _keyword_in(kw, norm):
                 return cat
     return "otros"
 

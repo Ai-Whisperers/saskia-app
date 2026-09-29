@@ -655,14 +655,31 @@ def inventory_tag_audit(
 def inventory_tag_audit_rerun(
     session: Session = Depends(get_session),
 ) -> JSONResponse:
-    """Re-run backfill_validation_issues() in case data changed since
-    the last migration. Returns the count of ingredients updated.
+    """Re-run repair + backfill in case data changed since the last
+    migration. The repair step (audit_repair) uses the allergens column
+    as source of truth and drops contradictory dietary_tags claims —
+    that's the one-shot auto-fix the user asked for. Returns:
+
+      { "repaired": N, "tags_removed": M, "validation_issues": K }
+
+    N = ingredients that had at least one tag dropped
+    M = total tags dropped
+    K = remaining ingredients with validation issues (after the repair)
     """
     from app.rms.tagging.audit import backfill_validation_issues
+    from app.rms.tagging.audit_repair import repair_all_ingredients
 
-    count = backfill_validation_issues(session)
+    changes = repair_all_ingredients(session)
+    tags_removed = sum(len(v) for v in changes.values())
+    session.flush()
+
+    issues_count = backfill_validation_issues(session)
     session.commit()
-    return JSONResponse({"updated": count})
+    return JSONResponse({
+        "repaired": len(changes),
+        "tags_removed": tags_removed,
+        "validation_issues": issues_count,
+    })
 
 
 @router.get("/{ing_id}", response_class=HTMLResponse)

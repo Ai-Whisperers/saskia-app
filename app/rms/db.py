@@ -2581,6 +2581,73 @@ def _migration_060_tag_normalization(conn: Any) -> None:
     _bump_schema_version(conn, 60)
 
 
+def _migration_062_audit_repair(conn: Any) -> None:
+    """Auto-repair contradictory ingredient tags (2026-09-29).
+
+    Picks up where audit.validate_ingredient() flags contradictions and
+    resolves them using the `allergens` column as source of truth.
+
+    Resolution rules (allergens column wins over dietary_tags claims):
+      sin gluten declared + gluten allergen  → drop 'sin gluten', 'sin tacc'
+      sin lactosa declared + dairy allergen  → drop 'sin lactosa'
+      sin huevo declared + eggs allergen     → drop 'sin huevo'
+      sin frutos secos declared + nuts       → drop 'sin frutos secos'
+      vegano declared + dairy/eggs allergen  → drop 'vegano', 'vegetariano'
+      vegetariano declared + name is meat    → drop 'vegetariano'
+      sin tacc declared + may_contain_gluten → drop 'sin tacc', 'sin gluten'
+
+    Live targets (2026-09-29):
+      #62 Panceta:    sin gluten/sin tacc/keto removed (allergens=gluten)
+      #66 Pan rallado: sin gluten/sin tacc removed (allergens=gluten)
+
+    Idempotent: re-running does nothing once all tags are consistent.
+    """
+    from app.rms.db import make_engine as _make_engine
+    from app.rms.db import make_session_factory
+    from app.rms.tagging.audit_repair import repair_all_ingredients
+
+    eng = _make_engine()
+    SessionLocal = make_session_factory(eng)
+    with SessionLocal() as s:
+        changes = repair_all_ingredients(s)
+        # Re-backfill the validation_issues column so the audit page
+        # reflects the new state immediately.
+        from app.rms.tagging.audit import backfill_validation_issues
+        backfill_validation_issues(s)
+        s.commit()
+
+    _bump_schema_version(conn, 62)
+
+
+def _migration_063_payment_receipt(conn: Any) -> None:
+    """P1-B3: add pedido.payment_receipt_path + payment_receipt_uploaded_at.
+
+    Customers pay via transferencia/QR and the operator has been
+    chasing them on WhatsApp for the comprobante. Now /p/{token} shows
+    an upload form (when payment_intent != efectivo) and saves the
+    file under {DATA_DIR}/payment_receipts/{pedido_id}/{ts}_{name}.
+
+    Idempotent: ALTER try/except.
+    """
+    try:
+        conn.execute(
+            text(
+                "ALTER TABLE pedido ADD COLUMN payment_receipt_path TEXT"
+            )
+        )
+    except Exception:  # noqa: BLE001, S110
+        pass
+    try:
+        conn.execute(
+            text(
+                "ALTER TABLE pedido ADD COLUMN payment_receipt_uploaded_at TIMESTAMP"
+            )
+        )
+    except Exception:  # noqa: BLE001, S110
+        pass
+    _bump_schema_version(conn, 63)
+
+
 def _migration_061_tag_validation(conn: Any) -> None:
     """Add ingredient.tag_validation_issues column + backfill (2026-09-29).
 
@@ -2698,6 +2765,8 @@ MIGRATIONS = {
     59: _migration_059_product_mayorista,
     60: _migration_060_tag_normalization,
     61: _migration_061_tag_validation,
+    62: _migration_062_audit_repair,
+    63: _migration_063_payment_receipt,
 }
 
 

@@ -99,6 +99,12 @@ class Pedido(Base):
         ForeignKey("sale.id"), nullable=True, index=True
     )
     cancel_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # P1-B3: customer-uploaded comprobante de pago from /p/{public_token}.
+    # Relative path like "payment_receipts/123/2026-09-29_141503.jpg".
+    payment_receipt_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payment_receipt_uploaded_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )
 
     # Relationships
     lines: Mapped[list["PedidoLine"]] = relationship(

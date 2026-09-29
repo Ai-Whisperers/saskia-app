@@ -381,6 +381,20 @@ def validate_ingredient(ing: object) -> list[str]:
     if getattr(ing, "may_contain_gluten", False) and "sin tacc" in declared:
         issues.append("sin tacc cannot be true when may_contain_gluten is set")
 
+    # Category mismatch (2026-09-29): if the inferred category from the
+    # name disagrees with the stored category, surface a warning. The
+    # operator may have intentionally miscategorized (e.g. an unusual
+    # import), but most often this is a typo (Jengibre fresco → carnes).
+    stored_category = (getattr(ing, "category", None) or "").strip().lower()
+    if stored_category and stored_category != "otros":
+        from app.rms.ingredient_intel import infer_category
+        inferred = infer_category(getattr(ing, "name", "") or "")
+        if inferred and inferred != stored_category:
+            issues.append(
+                f"category '{stored_category}' may be wrong; "
+                f"name suggests '{inferred}'"
+            )
+
     return issues
 
 
