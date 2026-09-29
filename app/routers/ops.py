@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from app.auth import current_user_id, require_login_or_disabled as require_login
+from loguru import logger
 from app.services.demo_reset import reset_demo_data
 from app.services.template_render import render
 
@@ -82,8 +83,9 @@ async def ops_reset_demo_data(request: Request) -> JSONResponse:
     finally:
         try:
             session.close()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001 — dependency cleanup may re-close
+            # Session may already be closed by dependency cleanup; not fatal.
+            logger.debug("ops session close failed: {}", exc)
 
     return JSONResponse(
         status_code=200,

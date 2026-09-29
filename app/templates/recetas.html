@@ -64,20 +64,20 @@
   <a href="/recetas" class="btn" style="height:36px;">Limpiar todo</a>
   {% endif %}
 </form>
-{# Active filter chips #}
+{# ── Active filter chips ── #}
 {% set rec_active_filters = [] %}
-{% if q %}{% do rec_active_filters.append({'key': 'q', 'label': 'Búsqueda', 'value': q})%}{% endif %}
-{% if familias_sel %}{% do rec_active_filters.append({'key': 'familia', 'label': 'Familia', 'value': familias_sel|join(', ')})%}{% endif %}
-{% if dif_sel %}{% do rec_active_filters.append({'key': 'dificultad', 'label': 'Dificultad', 'value': dif_sel})%}{% endif %}
-{% if diet_sel %}{% do rec_active_filters.append({'key': 'dieteticas', 'label': 'Dietéticas', 'value': diet_sel|join(', ')})%}{% endif %}
-{% if ingredient_id %}{% do rec_active_filters.append({'key': 'ingredient_id', 'label': 'Ingrediente', 'value': ingredient_id})%}{% endif %}
+{% if q %}{% set _ = rec_active_filters.append({'key': 'q', 'label': 'Búsqueda', 'value': q}) %}{% endif %}
+{% if familias_sel %}{% set _ = rec_active_filters.append({'key': 'familia', 'label': 'Familia', 'value': familias_sel|join(', ')}) %}{% endif %}
+{% if dif_sel %}{% set _ = rec_active_filters.append({'key': 'dificultad', 'label': 'Dificultad', 'value': dif_sel}) %}{% endif %}
+{% if diet_sel %}{% set _ = rec_active_filters.append({'key': 'dieteticas', 'label': 'Dietéticas', 'value': diet_sel|join(', ')}) %}{% endif %}
+{% if ingredient_id %}{% set _ = rec_active_filters.append({'key': 'ingredient_id', 'label': 'Ingrediente', 'value': ingredient_id}) %}{% endif %}
 
 {% if rec_active_filters %}
 <div class="active-filters" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:var(--space-3);">
   {% for f in rec_active_filters %}
     {% set rec_remove_params = [] %}
     {% for k, v in request.query_params.multi_items() %}
-      {% if k != f.key %}{% do rec_remove_params.append(k ~ '=' ~ v) %}{% endif %}
+      {% if k != f.key %}{% set _ = rec_remove_params.append(k ~ '=' ~ v) %}{% endif %}
     {% endfor %}
     <span class="filter-chip">{{ f.label }}: {{ f.value }} <a href="{{ request.url.path }}{% if rec_remove_params %}?{{ rec_remove_params | join('&') }}{% endif %}">×</a></span>
   {% endfor %}

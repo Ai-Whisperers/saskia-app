@@ -639,8 +639,8 @@ def inventory_update(
     if shelf_life_days.strip():
         try:
             ing.shelf_life_days = int(float(shelf_life_days)) or None
-        except ValueError:
-            pass
+        except (TypeError, ValueError) as exc:  # noqa: BLE001 — defensive parse; logged
+            logger.debug("inventory shelf_life_days parse failed: {}", exc)
     if allergens != "__unset__":
         # Empty string = explicitly cleared to "sin declarar" (None).
         ing.allergens = allergens.strip() or None
@@ -650,8 +650,8 @@ def inventory_update(
     if lead_time_days.strip():
         try:
             ing.lead_time_days = int(lead_time_days) or None
-        except ValueError:
-            pass
+        except (TypeError, ValueError) as exc:  # noqa: BLE001 — defensive parse; logged
+            logger.debug("inventory lead_time_days parse failed: {}", exc)
 
     # Wave 2 — auto-fill inference on update too.
     # Operator can override category via the form; if they leave it blank,

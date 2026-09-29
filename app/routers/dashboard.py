@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
+from loguru import logger
 from app.rms.constants import DEFAULT_TAX_REGIME
 from app.rms.analytics import (
     batch_stock_turnover,
@@ -449,8 +450,10 @@ async def dashboard(
             if f.urgency in ("expired", "critical"):
                 vencer_48h_count += 1
                 vencer_48h_gs += int(f.value_at_risk_gs or 0)
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as exc:  # noqa: BLE001 — defensive; logged at debug
+        # Defensive: dashboard never fails because of analytics math.
+        # Logged at debug so it's traceable in saskia.log without spamming.
+        logger.debug("dashboard expiry scan skipped: {}", exc)
 
     # Costs completeness for the "provisional" pill
     _recipes_with_cost = len(all_recipes) - len(recipes_no_cost)

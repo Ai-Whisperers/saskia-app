@@ -88,19 +88,19 @@
 
 {# ── Active filter chips ── #}
 {% set active_filters = [] %}
-{% if q %}{% do active_filters.append({'key': 'q', 'label': 'Búsqueda', 'value': q})%}{% endif %}
-{% if tag_sel %}{% do active_filters.append({'key': 'tag', 'label': 'Tag', 'value': tag_sel})%}{% endif %}
-{% if category_sel %}{% do active_filters.append({'key': 'category', 'label': 'Categoría', 'value': category_sel})%}{% endif %}
-{% if margen_sel %}{% do active_filters.append({'key': 'margen', 'label': 'Margen', 'value': margen_sel})%}{% endif %}
-{% if disp_sel == 'si' %}{% do active_filters.append({'key': 'disponibles', 'label': 'Disponibilidad', 'value': 'Disponibles'})%}{% elif disp_sel == 'no' %}{% do active_filters.append({'key': 'disponibles', 'label': 'Disponibilidad', 'value': 'No disponibles'})%}{% endif %}
-{% if has_recipe == 'yes' %}{% do active_filters.append({'key': 'has_recipe', 'label': 'Receta', 'value': 'Con receta'})%}{% elif has_recipe == 'no' %}{% do active_filters.append({'key': 'has_recipe', 'label': 'Receta', 'value': 'Sin receta'})%}{% endif %}
+{% if q %}{% set _ = active_filters.append({'key': 'q', 'label': 'Búsqueda', 'value': q}) %}{% endif %}
+{% if tag_sel %}{% set _ = active_filters.append({'key': 'tag', 'label': 'Tag', 'value': tag_sel}) %}{% endif %}
+{% if category_sel %}{% set _ = active_filters.append({'key': 'category', 'label': 'Categoría', 'value': category_sel}) %}{% endif %}
+{% if margen_sel %}{% set _ = active_filters.append({'key': 'margen', 'label': 'Margen', 'value': margen_sel}) %}{% endif %}
+{% if disp_sel == 'si' %}{% set _ = active_filters.append({'key': 'disponibles', 'label': 'Disponibilidad', 'value': 'Disponibles'}) %}{% elif disp_sel == 'no' %}{% set _ = active_filters.append({'key': 'disponibles', 'label': 'Disponibilidad', 'value': 'No disponibles'}) %}{% endif %}
+{% if has_recipe == 'yes' %}{% set _ = active_filters.append({'key': 'has_recipe', 'label': 'Receta', 'value': 'Con receta'}) %}{% elif has_recipe == 'no' %}{% set _ = active_filters.append({'key': 'has_recipe', 'label': 'Receta', 'value': 'Sin receta'}) %}{% endif %}
 
 {% if active_filters %}
 <div class="active-filters" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:var(--space-3);">
   {% for f in active_filters %}
     {% set remove_params = [] %}
     {% for k, v in request.query_params.multi_items() %}
-      {% if k != f.key %}{% do remove_params.append(k ~ '=' ~ v) %}{% endif %}
+      {% if k != f.key %}{% set _ = remove_params.append(k ~ '=' ~ v) %}{% endif %}
     {% endfor %}
     <span class="filter-chip">{{ f.label }}: {{ f.value }} <a href="{{ request.url.path }}{% if remove_params %}?{{ remove_params | join('&') }}{% endif %}">×</a></span>
   {% endfor %}

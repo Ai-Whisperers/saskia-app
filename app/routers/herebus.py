@@ -393,15 +393,17 @@ async def bank_export_csv(
         try:
             start_dt = datetime.fromisoformat(start_date)
             query = query.where(BankTransaction.posted_at >= start_dt)
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as exc:  # noqa: BLE001 — bad user input, logged
+            # User-supplied date filter; bad input → just skip the filter.
+            logger.debug("herebus start_dt filter dropped: {}", exc)
             
     if end_date:
         try:
             end_dt = datetime.fromisoformat(end_date)
             query = query.where(BankTransaction.posted_at <= end_dt)
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as exc:  # noqa: BLE001 — bad user input, logged
+            # User-supplied date filter; bad input → just skip the filter.
+            logger.debug("herebus start_dt filter dropped: {}", exc)
     
     if category:
         query = query.where(BankTransaction.category == category)
@@ -514,15 +516,17 @@ def bank_list(
         try:
             start_dt = datetime.fromisoformat(start_date)
             query = query.where(BankTransaction.posted_at >= start_dt)
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as exc:  # noqa: BLE001 — bad user input, logged
+            # User-supplied date filter; bad input → just skip the filter.
+            logger.debug("herebus start_dt filter dropped: {}", exc)
             
     if end_date:
         try:
             end_dt = datetime.fromisoformat(end_date)
             query = query.where(BankTransaction.posted_at <= end_dt)
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as exc:  # noqa: BLE001 — bad user input, logged
+            # User-supplied date filter; bad input → just skip the filter.
+            logger.debug("herebus start_dt filter dropped: {}", exc)
     
     if category:
         query = query.where(BankTransaction.category == category)

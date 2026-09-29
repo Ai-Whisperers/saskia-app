@@ -100,8 +100,9 @@ async def recipes_list(
     if ingredient_id and ingredient_id.strip():
         try:
             ing_id_ints.append(int(ingredient_id))
-        except (TypeError, ValueError):
-            pass
+        except (TypeError, ValueError) as exc:  # noqa: BLE001 — bad URL param; logged
+            # Bad URL param — skip this id but keep parsing the rest.
+            logger.debug("recipes filter: bad ingredient_id: {}", exc)
     # Parse multi-id list. Strip whitespace, ignore empties, validate as int, dedupe.
     if ingredient_ids and ingredient_ids.strip():
         for raw in ingredient_ids.split(","):
@@ -128,8 +129,9 @@ async def recipes_list(
     if dif_sel:
         try:
             count_stmt = count_stmt.where(Recipe.difficulty == int(dif_sel))
-        except ValueError:
-            pass
+        except ValueError as exc:  # noqa: BLE001 — bad query param; logged
+            # Bad difficulty query param — just don't filter.
+            logger.debug("recipes difficulty filter dropped: {}", exc)
     if diet_sel:
         for tag in diet_sel:
             count_stmt = count_stmt.where(Recipe.dietary_tags.ilike(f"%{tag}%"))
@@ -161,8 +163,9 @@ async def recipes_list(
     if dif_sel:
         try:
             stmt = stmt.where(Recipe.difficulty == int(dif_sel))
-        except ValueError:
-            pass
+        except ValueError as exc:  # noqa: BLE001 — bad query param; logged
+            # Bad difficulty query param — just don't filter.
+            logger.debug("recipes difficulty filter dropped: {}", exc)
     if diet_sel:
         for tag in diet_sel:
             stmt = stmt.where(Recipe.dietary_tags.ilike(f"%{tag}%"))

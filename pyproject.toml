@@ -94,11 +94,18 @@ line-length = 100
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I"]  # pycodestyle errors/warnings, pyflakes, isort
+select = ["E", "F", "W", "I", "BLE", "PERF"]  # pycodestyle errors/warnings, pyflakes, isort, blind-except, perf
 ignore = ["E501"]  # line-too-long (we use 100, ruff default is 88)
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["E402"]  # test files may have non-top imports
+
+# Backlog #53: ban silent except: pass in routers. Use BadRequest /
+# logger.warning / explicit re-raise. Migration scripts (app/rms/migrations/)
+# are exempt — they need to swallow known schema errors.
+# ruff rule BLE001 fires on every bare `except Exception:` that re-raises
+# nothing. Combined with our `tests/test_no_silent_excepts.py` test, this
+# closes the door on silent failures.
 
 # Hypothesis profile
 [tool.hypothesis]
