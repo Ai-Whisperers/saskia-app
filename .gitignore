@@ -73,4 +73,11 @@ docs/operations/dashboard/STATUS.md
 notifications_spool/
 receipts/
 /tmp/aiw-saskia-backups/
+# Local uploads dir (real uploads are not committed — too many PNGs)
 app/static/uploads/
+
+# Test/dev artifacts (debug scripts written into the worktree)
+test_import*.py
+test_main_simulation*.py
+test_router*.py
+.scratch/
