@@ -339,7 +339,7 @@ async def bank_categorize(
     tx_id: int,
     category: str = Form(...),
     session: Session = Depends(get_session),
-):
+) -> RedirectResponse:
     """Auto-categorize a bank transaction."""
     tx = session.get(BankTransaction, tx_id)
     if not tx:
@@ -430,7 +430,7 @@ async def bank_reconcile(
     with_type: str = Form(...),
     with_id: int = Form(...),
     session: Session = Depends(get_session),
-):
+) -> RedirectResponse:
     """Mark a bank transaction as reconciled with an entity (pedido, gasto, ingreso)."""
     # Get the transaction
     tx = session.execute(
@@ -461,7 +461,7 @@ async def bank_unreconcile(
     request: Request,
     tx_id: int,
     session: Session = Depends(get_session),
-):
+) -> RedirectResponse:
     """Mark a bank transaction as unreconciled."""
     tx = session.execute(
         select(BankTransaction).where(BankTransaction.id == tx_id)
