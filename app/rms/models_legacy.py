@@ -114,6 +114,8 @@ class Ingredient(Base):
     is_packaging: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
     )
+    # Phase 2 — Expiry date for ingredient lot tracking (HACCP / FIFO).
+    expiry_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True, index=True)
 
     # Relationships
     # NOTE: `recipe_lines` (the reverse of RecipeLine.ingredient) is NOT defined here
@@ -335,6 +337,9 @@ class Product(Base):
     requires_rspa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     rspa_number: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     rspa_expiry: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # ISO
+
+    # Phase 2 — Wholesale / mayorista price (B2B channel).
+    mayorista_price_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     # Phase 1.C — HACCP + costing (lazy fields; detailed cost fields added in Phase 1.D)
     yield_percentage: Mapped[Optional[float]] = mapped_column(Float, nullable=True)

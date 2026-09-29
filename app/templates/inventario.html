@@ -50,6 +50,11 @@
     <div class="metric-value">{{ kpi_no_cost }}</div>
     <div class="metric-sub">{% if kpi_no_cost %}sin precio no hay margen{% else %}todo con precio ✓{% endif %}</div>
   </div>
+  <div class="metric-card">
+    <div class="metric-label">Por vencer (7 días)</div>
+    <div class="metric-value">{% if expiring_soon %}<span class="badge badge-warn">{{ expiring_soon }}</span>{% else %}0{% endif %}</div>
+    <div class="metric-sub">{% if expiring_soon %}<a href="?expiry=7days">ver ingredientes →</a>{% else %}ninguno{% endif %}</div>
+  </div>
 </div>
 </div>
 
@@ -96,6 +101,15 @@
     </div>
   </div>
   {% endif %}
+  {# ── Vencimiento: single-select ── #}
+  <div class="mf-pop" data-mf="expiry">
+    <button type="button" class="mf-btn" aria-expanded="false">{% if expiry == 'expired' %}Vencidos{% elif expiry == '7days' %}× 7 días{% elif expiry == '30days' %}× 30 días{% else %}Vencimiento{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      {% for val, lbl in [('', 'Todos'), ('expired', 'Vencidos'), ('7days', 'Próximos 7 días'), ('30days', 'Próximos 30 días')] %}
+      <label class="mf-option"><input type="radio" name="expiry" value="{{ val }}" {% if expiry == val %}checked{% endif %}> {{ lbl }}</label>
+      {% endfor %}
+    </div>
+  </div>
   <button type="submit" class="btn btn-primary" style="height:36px;">Filtrar</button>
   {% if q or estado or categorias or alergenos_sel or almacen %}
   <a href="{{ request.url.path }}" class="btn" style="height:36px;">Limpiar todo</a>
@@ -148,8 +162,10 @@
   <thead>
     <tr>
       <th>{% set ns = namespace(cur_sort=False) %}{% for k,v in request.query_params.multi_items() if k == 'sort' %}{% set ns.cur_sort = v %}{% endfor %}{% set cur_dir = request.query_params.get('dir', 'asc') %}<a href="{{ request.url.path }}?sort=name&dir={% if ns.cur_sort=='name' and cur_dir=='asc' %}desc{% else %}asc{% endif %}{% for k,v in request.query_params.multi_items() if k not in ('sort','dir') %}&{{ k }}={{ v }}{% endfor %}">Nombre {% if ns.cur_sort=='name' %}<small>{% if cur_dir=='asc' %}▲{% else %}▼{% endif %}</small>{% endif %}</a></th>
+      <th>Proveedor</th>
       <th>Unidad</th>
       <th class="num">{% set ns2 = namespace(cur_sort=False) %}{% for k,v in request.query_params.multi_items() if k == 'sort' %}{% set ns2.cur_sort = v %}{% endfor %}{% set cur_dir = request.query_params.get('dir', 'asc') %}<a href="{{ request.url.path }}?sort=stock_qty&dir={% if ns2.cur_sort=='stock_qty' and cur_dir=='asc' %}desc{% else %}asc{% endif %}{% for k,v in request.query_params.multi_items() if k not in ('sort','dir') %}&{{ k }}={{ v }}{% endfor %}">Stock actual {% if ns2.cur_sort=='stock_qty' %}<small>{% if cur_dir=='asc' %}▲{% else %}▼{% endif %}</small>{% endif %}</a></th>
+      <th class="num">Valor</th>
       <th class="num">{% set ns3 = namespace(cur_sort=False) %}{% for k,v in request.query_params.multi_items() if k == 'sort' %}{% set ns3.cur_sort = v %}{% endfor %}{% set cur_dir = request.query_params.get('dir', 'asc') %}<a href="{{ request.url.path }}?sort=min_stock_qty&dir={% if ns3.cur_sort=='min_stock_qty' and cur_dir=='asc' %}desc{% else %}asc{% endif %}{% for k,v in request.query_params.multi_items() if k not in ('sort','dir') %}&{{ k }}={{ v }}{% endfor %}">Stock mínimo {% if ns3.cur_sort=='min_stock_qty' %}<small>{% if cur_dir=='asc' %}▲{% else %}▼{% endif %}</small>{% endif %}</a></th>
       <th class="num">{% set ns4 = namespace(cur_sort=False) %}{% for k,v in request.query_params.multi_items() if k == 'sort' %}{% set ns4.cur_sort = v %}{% endfor %}{% set cur_dir = request.query_params.get('dir', 'asc') %}<a href="{{ request.url.path }}?sort=purchase_price_gs&dir={% if ns4.cur_sort=='purchase_price_gs' and cur_dir=='asc' %}desc{% else %}asc{% endif %}{% for k,v in request.query_params.multi_items() if k not in ('sort','dir') %}&{{ k }}={{ v }}{% endfor %}">Precio compra (Gs.) {% if ns4.cur_sort=='purchase_price_gs' %}<small>{% if cur_dir=='asc' %}▲{% else %}▼{% endif %}</small>{% endif %}</a></th>
       <th>Estado</th>
@@ -180,6 +196,7 @@
         </details>
         {% endif %}
       </td>
+      <td>{{ i.supplier.name if i.supplier else '—' }}</td>
       <td>{{ i.unit }}</td>
       <td class="num">
         {% if i.stock_qty < 0 %}
@@ -188,6 +205,7 @@
           {{ i.stock_qty|round(2) }} {{ i.unit }}
         {% endif %}
       </td>
+      <td class="num">{% if i.purchase_price_gs is not none %}{{ m.gs((i.stock_qty or 0) * (i.purchase_price_gs or 0) | int) }}{% else %}<em class="muted">—</em>{% endif %}</td>
       <td class="num">{{ i.min_stock_qty|round(2) }}</td>
       <td class="num">{% if i.purchase_price_gs is none %}<em class="muted">sin precio</em>{% else %}{{ m.gs_full(i.purchase_price_gs) }}{% endif %}{% if price_info.get(i.id) %}<div class="price-strip">90d: min {{ m.gs(price_info[i.id].stats.min) }} · max {{ m.gs(price_info[i.id].stats.max) }}{% if price_info[i.id].sparkline_svg %} {{ price_info[i.id].sparkline_svg | safe }}{% endif %}</div>{% endif %}{% if market_refs.get(i.id) %}<div class="price-strip" title="vs. mercado: {{ m.gs_full(market_refs[i.id].market_price_gs) }} Gs/{{ market_refs[i.id].market_unit }} — {{ market_refs[i.id].market_notes }}">{% set delta = market_refs[i.id].delta_pct %}<span class="badge {% if delta > 10 %}badge-danger{% elif delta < -10 %}badge-good{% else %}badge-neutral{% endif %}" style="margin-left:4px">vs mercado {% if delta >= 0 %}+{% endif %}{{ "%.0f"|format(delta) }}%</span></div>{% endif %}</td>
       <td>

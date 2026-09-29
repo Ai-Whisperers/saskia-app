@@ -83,6 +83,26 @@
   </div>
 
   <div class="form-row">
+    <label for="mayorista_price_gs">Precio mayorista (Gs.)</label>
+    <div class="currency-input-wrap">
+      <input type="number" id="mayorista_price_gs" name="mayorista_price_gs" step="0.01" min="0" inputmode="numeric" class="currency-input"
+             value="{{ product.mayorista_price_gs if product and product.mayorista_price_gs is not none else '' }}"
+             placeholder="Mayorista (opcional)">
+    </div>
+    <small class="muted">Precio B2B para ventas por cantidad. Dejá en blanco si no aplica.</small>
+  </div>
+
+  <div class="form-row">
+    <label for="iva_rate">IVA%</label>
+    <select id="iva_rate" name="iva_rate" class="form-control" style="max-width:200px;">
+      <option value="10" {% if (product and product.iva_rate=='10') or (not product) %}selected{% endif %}>10%</option>
+      <option value="5" {% if product and product.iva_rate=='5' %}selected{% endif %}>5%</option>
+      <option value="0" {% if product and product.iva_rate=='0' %}selected{% endif %}>0%</option>
+      <option value="exento" {% if product and product.iva_rate=='exento' %}selected{% endif %}>Exento</option>
+    </select>
+  </div>
+
+  <div class="form-row">
     <label for="recipe_id_combo">Receta</label>
     {{ ui.combo_field(
       name='recipe_id',
@@ -141,6 +161,34 @@
     <label for="notes">Notas</label>
     <textarea id="notes" name="notes" rows="2">{{ product.notes if product and product.notes else '' }}</textarea>
   </div>
+
+  <details class="rspa-section" style="margin-bottom: 1rem;">
+    <summary style="cursor:pointer; font-weight:600; user-select:none;">
+      Certificación / RSPA
+    </summary>
+    <div style="padding: 0.75rem 0 0.25rem;">
+      <div class="form-row form-row-toggle">
+        <label>
+          <input type="checkbox" id="requires_rspa" name="requires_rspa"
+                 {% if product and product.requires_rspa %}checked{% endif %}
+                 onclick="document.getElementById('rspa-fields').style.display = this.checked ? 'block' : 'none'">
+          Requiere RSPA
+        </label>
+      </div>
+      <div id="rspa-fields" style="display:{% if product and product.requires_rspa %}block{% else %}none{% endif %};">
+        <div class="form-row">
+          <label for="rspa_number">Nº Registro RSPA</label>
+          <input type="text" id="rspa_number" name="rspa_number" maxlength="30"
+                 value="{{ product.rspa_number if product and product.rspa_number else '' }}">
+        </div>
+        <div class="form-row">
+          <label for="rspa_expiry">Vencimiento RSPA</label>
+          <input type="date" id="rspa_expiry" name="rspa_expiry"
+                 value="{{ product.rspa_expiry if product and product.rspa_expiry else '' }}">
+        </div>
+      </div>
+    </div>
+  </details>
 
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">Guardá</button>

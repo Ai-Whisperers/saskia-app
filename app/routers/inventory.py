@@ -179,10 +179,15 @@ def inventory_list(
     sort: str | None = Query(None, description="Sort column: name, stock_qty, unit, min_stock_qty, purchase_price_gs"),
     dir: str = Query("asc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
+    expiry: str = Query("all", pattern="^(all|7days|30days|expired)$"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """List all ingredients with stock badge. Paginated at 50/page."""
     PER_PAGE = 50
+    from datetime import date, timedelta
+    today = date.today()
+    week_from_now = today + timedelta(days=7)
+    month_from_now = today + timedelta(days=30)
 
     # ── KPI strip + filters (inventory redesign 2026-09-25) ───────────
     from app.rms.inventory_intel import stock_value_gs
@@ -224,6 +229,12 @@ def inventory_list(
             return False
         if almacen and (i.storage or "") != almacen:
             return False
+        if expiry == "expired" and not (i.expiry_date and i.expiry_date < today):
+            return False
+        if expiry == "7days" and not (i.expiry_date and i.expiry_date <= week_from_now and i.expiry_date >= today):
+            return False
+        if expiry == "30days" and not (i.expiry_date and i.expiry_date <= month_from_now and i.expiry_date >= today):
+            return False
         return True
 
     _filtered_all = [i for i in all_ings if _match(i)]
@@ -231,6 +242,12 @@ def inventory_list(
     total_all = len(all_ings)
     total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
     page = min(page, total_pages)
+
+    # KPI: count ingredients expiring within 7 days
+    expiring_soon = sum(
+        1 for i in all_ings
+        if i.expiry_date and i.expiry_date <= week_from_now and i.expiry_date >= today
+    )
 
     categories = sorted({(i.category or "").strip() for i in all_ings if (i.category or "").strip()})
     storages = sorted({(i.storage or "").strip() for i in all_ings if (i.storage or "").strip()})
@@ -338,11 +355,13 @@ def inventory_list(
             "kpi_critical": kpi_critical,
             "kpi_value_gs": kpi_value_gs,
             "kpi_no_cost": kpi_no_cost,
+            "expiring_soon": expiring_soon,
             "q": q,
             "estado": estado,
             "categorias": categorias,
             "alergenos_sel": alergenos,
             "almacen": almacen,
+            "expiry": expiry,
             "categories": categories,
             "storages": storages,
             "allergen_codes": [
