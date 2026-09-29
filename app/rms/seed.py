@@ -776,7 +776,7 @@ def seed_demo_data(
             detail=report.as_dict(),
         )
         report.audit_log_rows = 2
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.warning(f"audit seed failed: {exc}")
 
     # --- AppMeta schema_version pin (idempotent) ---

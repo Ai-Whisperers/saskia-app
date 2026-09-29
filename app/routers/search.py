@@ -65,7 +65,7 @@ def global_search(
                 "badge_class": f"tier-{tier_label.lower()}",
                 "url": f"/clientes/{c.id}",
             })
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.warning(f"global_search: customers query failed: {exc!r}")
 
     # ── Products ─────────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ def global_search(
                 "badge_class": "info" if p.recipe_name else "neutral",
                 "url": f"/productos/{p.id}/editar",
             })
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.warning(f"global_search: products query failed: {exc!r}")
 
     # ── Pedidos ─────────────────────────────────────────────────────────────
@@ -120,7 +120,7 @@ def global_search(
                 "badge_class": cls,
                 "url": f"/pedidos/{ped.id}",
             })
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.warning(f"global_search: pedidos query failed: {exc!r}")
 
     # ── Recipes ─────────────────────────────────────────────────────────────
@@ -141,7 +141,7 @@ def global_search(
                 "badge_class": "info",
                 "url": f"/recetas/{r.id}/editar",
             })
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.warning(f"global_search: recipes query failed: {exc!r}")
 
     return JSONResponse(results)

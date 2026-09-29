@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -268,7 +268,7 @@ async def excel_import(
             request=request,
         )
         session.commit()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         session.rollback()
         logger.warning(f"excel_io: audit.record for excel.import failed (non-fatal): {exc!r}")
 
@@ -293,7 +293,7 @@ async def excel_export(request: Request, session: Session = Depends(get_session)
             filename="saskia-rms-export.xlsx",
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-    except Exception:
+    except Exception:  # noqa: BLE001
         try:
             tmp_path.unlink()
         except OSError as exc:

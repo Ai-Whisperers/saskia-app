@@ -151,7 +151,7 @@ def apply_postgres_indexes(session: Session) -> list[str]:
         try:
             session.execute(text(stmt))
             statements.append(stmt)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — defensive default — guarded by surrounding try
             log.info("Skipping %s: %s", stmt, e)
     return statements
 

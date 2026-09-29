@@ -112,7 +112,7 @@ def sign_in_with_password(email: str, password: str) -> Optional[dict]:
     client = get_supabase_client()
     try:
         response = client.auth.sign_in_with_password({"email": email, "password": password})
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         # Supabase raises on bad creds; we want a clean None return.
         # Narrow exception check to only catch auth failures, not config bugs.
         msg = str(exc).lower()
@@ -149,7 +149,7 @@ def sign_out(access_token: str) -> None:
     try:
         client = get_supabase_client()
         client.auth.sign_out()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         # Best-effort: the cookie clear below will log the user out
         # regardless. Log so an operator can see Supabase outage patterns
         # (BACKLOG #43).
@@ -164,7 +164,7 @@ def refresh_session(refresh_token: str) -> Optional[dict]:
     client = get_supabase_client()
     try:
         response = client.auth.refresh_session(refresh_token)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.warning("supabase.refresh_session_failed: {!r}", exc)
         return None
     if response is None or response.session is None:
@@ -189,7 +189,7 @@ def verify_jwt(access_token: str) -> Optional[SupabaseUser]:
     client = get_supabase_client()
     try:
         claims = client.auth.get_claims(access_token)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         # Hot-path failure: log at debug (not warning) so a sustained
         # Supabase outage doesn't spam WARNs every request. The auth
         # router detects the resulting None and falls back to re-login.
@@ -273,7 +273,7 @@ def trigger_password_reset(email: str) -> None:
     try:
         client = get_supabase_client()
         client.auth.reset_password_email(email)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         # Silently no-op (don't leak email enumeration) but log so an
         # operator can see whether Supabase email delivery is broken.
         logger.warning("supabase.password_reset_failed email={!r}: {!r}", email, exc)

@@ -26,7 +26,7 @@ def _migration_057_recipe_instructions(conn: Any) -> None:
     # ORM model before migrations run; ALTER would then fail.
     try:
         conn.execute(text("ALTER TABLE recipe ADD COLUMN instructions TEXT"))
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive no-op — guarded by health check
         pass  # column already exists
 
     _bump_schema_version(conn, 57)

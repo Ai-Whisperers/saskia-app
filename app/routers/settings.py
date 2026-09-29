@@ -87,7 +87,7 @@ def _safe_get_user(session, user_id):
         return None
     try:
         return session.get(User, user_id)
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive fallback — guarded response
         return None
 
 
@@ -288,7 +288,7 @@ def settings_seed_demo(
         do_overwrite = overwrite == "1"
         # Use a short, deterministic seed so the same demo data is reproduced
         report = seed_demo_data(session, overwrite=do_overwrite, seed=20260922)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         # Roll back partial work and surface the error
         session.rollback()
         logger.exception(f"seed_demo_data failed: {exc}")

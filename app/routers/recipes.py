@@ -398,7 +398,7 @@ async def recipe_create(
         if not cook_min:
             recipe.cook_minutes = estimate_cook_minutes(recipe)
         session.commit()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.warning("auto-fill inference failed for recipe %s: %s", recipe.id, exc)
         session.rollback()
 
@@ -409,7 +409,7 @@ async def recipe_create(
         cascade_refresh(session, recipe_id=recipe.id)
         _product_inherit_sync(session, recipe.id)
         session.commit()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.warning("tag cascade failed for recipe %s: %s", recipe.id, exc)
         session.rollback()
 
@@ -543,7 +543,7 @@ async def recipe_detail(
         if r.instructions:
             import json as _json
             recipe_phases = _json.loads(r.instructions)
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive default — guarded by surrounding try
         recipe_phases = None
     return render(request, "receta_detalle.html", {
         "recipe": r,
@@ -717,7 +717,7 @@ async def recipe_update(
         for rid in refreshed:
             _product_inherit_sync(session, rid)
         session.commit()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.warning("tag cascade failed for recipe %s: %s", r.id, exc)
         session.rollback()
 

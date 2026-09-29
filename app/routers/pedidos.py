@@ -1010,7 +1010,7 @@ def pedidos_fulfill(
                 continue
             try:
                 moves = _compute_stock_moves(session, recipe, float(ln.qty), set())
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 logger.warning(
                     f"pedidos.fulfill: _compute_stock_moves failed for product "
                     f"{line_product.id}: {exc!r}"
@@ -1026,7 +1026,7 @@ def pedidos_fulfill(
                         "shortfall": round(abs(after), 3),
                         "product": line_product.name,
                     })
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         # Defensive: if the calc itself blows up, do not block the fulfill;
         # log loudly so ops sees it, but proceed (matches pre-fix behavior).
         logger.warning(
@@ -1171,7 +1171,7 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
                 "total_gs": pedido.total_gs or 0,
                 "business_name": "Saskia RMS",
             })
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.warning(f"pedidos._send_fulfill_notification: render_template failed (fallback to legacy msg): {exc!r}")
     if msg is None:
         msg = (
@@ -1202,7 +1202,7 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
             if not ok:
                 log.warning("Twilio error for pedido %s: %s %s", pedido.id, r.status_code, r.text)
             return ok
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — defensive fallback — guarded response
             log.error("Twilio exception for pedido %s: %s", pedido.id, exc)
             return False
 
@@ -1254,7 +1254,7 @@ def pedidos_stock_preview(
             continue
         try:
             moves = _compute_stock_moves(session, recipe, float(ln.qty), set())
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             logger.warning(f"pedidos.stock_preview: _compute_stock_moves failed for product {product.id}: {exc!r}")
             continue
         for _affected_recipe_id, ingredient_id, qty_delta in moves:

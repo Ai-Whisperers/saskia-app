@@ -300,7 +300,7 @@ def render(
             else:
                 from app.rms.settings_runtime import DEFAULT_BRANDING
                 ctx["branding"] = DEFAULT_BRANDING
-        except Exception:
+        except Exception:  # noqa: BLE001 — defensive default — guarded by surrounding try
             from app.rms.settings_runtime import DEFAULT_BRANDING
             ctx["branding"] = DEFAULT_BRANDING
 

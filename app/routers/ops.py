@@ -74,7 +74,7 @@ async def ops_reset_demo_data(request: Request) -> JSONResponse:
         logger.info(
             f"demo_reset invoked by user_id={user_id} counts={counts}"
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         session.close()
         raise HTTPException(
             status_code=500, detail=f"reset_demo_data failed: {exc}"

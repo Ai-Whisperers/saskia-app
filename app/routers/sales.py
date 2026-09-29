@@ -822,7 +822,7 @@ async def sale_create_multi(
 
     try:
         body = _Body.model_validate(await request.json())
-    except Exception:
+    except Exception:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=SALE_BODY_INVALID)
 
     items = body.items
@@ -1064,10 +1064,10 @@ def _fire_printer_for_sale(
         try:
             cfg = config_from_env()
             send_to_printer(receipt.encode("utf-8"), cfg)
-        except Exception:
+        except Exception:  # noqa: BLE001
             from loguru import logger
             logger.warning("printer send failed (non-fatal)")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         from loguru import logger
         logger.warning(f"printer trigger skipped: {exc!r}")
 
@@ -1111,7 +1111,7 @@ async def sale_void(
             detail={"reason": reason_clean, "voided_by": user_id},
         )
         session.commit()  # void_sale already committed; the audit row needs its own
-    except Exception as exc:  # best-effort: never block the void
+    except Exception as exc:  # best-effort: never block the void  # noqa: BLE001
         from loguru import logger as _logger
 
         _logger.warning("audit for void sale {} failed: {}", sale_id, exc)

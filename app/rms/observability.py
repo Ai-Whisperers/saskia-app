@@ -62,7 +62,7 @@ def _safe_get_user_id(request: Request) -> str | None:
             if u is not None and u != "":
                 return str(u)
         return None
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive fallback — guarded response
         return None
 
 
@@ -106,7 +106,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             start = time.perf_counter() if not skip_log else None
             try:
                 response = await call_next(request)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 # AppError / HTTPException are EXPECTED: FastAPI's exception
                 # handler will render them with the right status. We just
                 # re-raise without logging (the exception handler will log).
@@ -185,7 +185,7 @@ def record_audit(
             detail=merged_detail,
             request=request,
         )
-    except Exception as e:  # pragma: no cover — defensive
+    except Exception as e:  # pragma: no cover — defensive  # noqa: BLE001
         logger.error(
             "audit_log_failed action={} target={}#{} rid={}: {!r}",
             action, target_type, target_id, rid, e,

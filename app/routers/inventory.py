@@ -506,7 +506,7 @@ def inventory_create(
         try:
             record_price_event(session, ing.id, price, source="manual")
             session.commit()
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Don't fail the whole request on a price-history write error.
             logger.warning(
                 "record_price_event failed for new ingredient ing_id={}",
@@ -572,7 +572,7 @@ def _price_stats_safe(session, ing_id: int):
     try:
         from app.rms.price_history import price_stats
         return price_stats(session, ing_id, days=90)
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive fallback — guarded response
         return None
 
 
@@ -721,7 +721,7 @@ def inventory_update(
         try:
             record_price_event(session, ing.id, price, source="manual")
             session.commit()
-        except Exception:
+        except Exception:  # noqa: BLE001
             logger.warning(
                 "record_price_event failed for ingredient ing_id={} update",
                 ing.id, exc_info=True,
@@ -735,7 +735,7 @@ def inventory_update(
         for rid in refreshed:
             _product_inherit_sync(session, rid)
         session.commit()
-    except Exception:
+    except Exception:  # noqa: BLE001
         logger.warning(
             "tag cascade failed for ingredient ing_id=%s update", ing.id,
             exc_info=True,

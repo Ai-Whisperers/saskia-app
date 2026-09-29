@@ -203,7 +203,7 @@ async def lifespan(app: FastAPI):
             app.state.migration_status = "ok"
             app.state.migration_error = None
             app.state.migration_schema_version = post
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             # Migrations must never crash the app. Log and continue.
             print(f"MIGRATIONS: failed to apply: {exc!r}", file=sys.stderr)
             logger.exception("migration apply failed on startup")
@@ -212,7 +212,7 @@ async def lifespan(app: FastAPI):
                 from app.rms.db import schema_version as _sv
                 with engine.connect() as conn:
                     pre = _sv(conn)
-            except Exception:
+            except Exception:  # noqa: BLE001 — defensive default — guarded by surrounding try
                 pre = None
             app.state.migration_status = "failed"
             app.state.migration_error = repr(exc)
@@ -227,7 +227,7 @@ async def lifespan(app: FastAPI):
         from app.rms.db import make_session_factory as _make_session
         with _make_session(engine)() as _bs:
             run_password_sync(_bs)
-    except Exception:
+    except Exception:  # noqa: BLE001
         logger.exception("password bootstrap failed (non-fatal)")
 
     # Phase 1.C — Apply HACCP defaults to ingredients that have a known
@@ -239,7 +239,7 @@ async def lifespan(app: FastAPI):
             n = apply_haccp_defaults(_bs)
             if n:
                 logger.info("haccp: applied defaults to %d ingredients", n)
-    except Exception:
+    except Exception:  # noqa: BLE001
         logger.exception("haccp seed failed (non-fatal)")
 
     app.state.engine = engine
@@ -261,7 +261,7 @@ async def lifespan(app: FastAPI):
 
             get_supabase_client()
             logger.info("supabase client pre-warmed")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.warning(f"supabase pre-warm failed (non-fatal): {exc!r}")
 
     # Backup scheduler: idempotent, no-op if R2 not configured.
@@ -272,7 +272,7 @@ async def lifespan(app: FastAPI):
 
         with app.state.session_factory() as _s:
             run_backup(_s, DB_PATH)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         # Don't crash the app on backup failures; the request handlers
         # are independent of this. (Errors are recorded in app_meta.)
         logger.warning(f"backup scheduler failed: {exc!r}")
@@ -800,7 +800,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
             _sentry.set_tag("request_id", rid)
             _sentry.set_tag("request_method", request.method)
             _sentry.set_tag("request_path", request.url.path)
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive default — guarded by surrounding try
         # Sentry not installed, not initialised, or Hub is unavailable.
         # Never let an observability hook break the response.
         pass
@@ -823,7 +823,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
                 },
             )
             _s.commit()
-    except Exception:
+    except Exception:  # noqa: BLE001
         logger.warning("audit.record for http.500 failed (non-fatal)")
 
     # Browsers get the styled 500 page; API clients get JSON.
@@ -838,7 +838,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
                 },
                 status_code=500,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001
             logger.warning("500 template render failed")
 
     return JSONResponse(
@@ -909,7 +909,7 @@ def migrate() -> None:
     try:
         with engine.connect() as conn:
             before = _current_schema_version(conn)
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive default — guarded by surrounding try
         before = 0
 
     if before == CURRENT_SCHEMA_VERSION:

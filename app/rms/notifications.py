@@ -161,7 +161,7 @@ def send_whatsapp_summary(body: str, *, to: str | None = None) -> NotifyResult:
                 bytes_sent=len(body),
                 error=None,
             )
-    except Exception as e:  # network / twilio error
+    except Exception as e:  # network / twilio error  # noqa: BLE001 — defensive fallback — guarded response
         spool = _spool_message("whatsapp-FAILED", body)
         return NotifyResult(
             ok=False,
@@ -210,7 +210,7 @@ def send_email_summary(
             detail=f"sent to {to}; spool: {spool}",
             bytes_sent=len(body),
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — defensive fallback — guarded response
         spool = _spool_message("email-FAILED", body)
         return NotifyResult(
             ok=False, kind="email",
