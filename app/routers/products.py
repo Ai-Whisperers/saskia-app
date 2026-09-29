@@ -186,6 +186,7 @@ def products_list(
                 "labor_cost_gs": pc.labor_cost_gs,
                 "overhead_cost_gs": pc.overhead_cost_gs,
                 "notes": p.notes,
+                "mayorista_price_gs": p.mayorista_price_gs,
                 "is_dead": p.id not in sold_product_ids,
             }
         )
@@ -304,6 +305,11 @@ def product_create(
     image_url: str = Form(""),
     category: str = Form(""),
     tags: str = Form(""),
+    mayorista_price_gs: str = Form(""),
+    iva_rate: str = Form("10"),
+    requires_rspa: str = Form(""),
+    rspa_number: str = Form(""),
+    rspa_expiry: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Create new product.
@@ -330,6 +336,18 @@ def product_create(
     category_clean = optional_text(category, max_len=32)
     tags_clean = optional_text(tags, max_len=500)
 
+    # Wholesale price (mayorista) — optional B2B field.
+    mayorista_price = parse_money_gs(mayorista_price_gs, allow_zero=True) if mayorista_price_gs.strip() else None
+
+    # IVA rate — validated against allowed values.
+    iva_valid = iva_rate in ("10", "5", "0", "exento")
+    iva_clean = iva_rate if iva_valid else "10"
+
+    # RSPA fields.
+    requires_rspa_bool = requires_rspa == "on"
+    rspa_number_clean = optional_text(rspa_number, max_len=30)
+    rspa_expiry_clean = parse_date_iso(rspa_expiry) if rspa_expiry.strip() else None
+
     # Wave 2 — auto-fill category + tags from the linked recipe if operator
     # left either blank. Recipe's family → category, dietary_tags → tags.
     if rid and (not category_clean or not tags_clean):
@@ -352,6 +370,11 @@ def product_create(
         image_url=image_url_clean,
         category=category_clean,
         tags=tags_clean,
+        mayorista_price_gs=mayorista_price,
+        iva_rate=iva_clean,
+        requires_rspa=requires_rspa_bool,
+        rspa_number=rspa_number_clean,
+        rspa_expiry=rspa_expiry_clean,
     )
     session.add(product)
     try:
@@ -408,11 +431,16 @@ def product_update(
     image_url: str = Form(""),
     category: str = Form(""),
     tags: str = Form(""),
+    mayorista_price_gs: str = Form(""),
+    iva_rate: str = Form("10"),
+    requires_rspa: str = Form(""),
+    rspa_number: str = Form(""),
+    rspa_expiry: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Update existing product."""
     from app.rms.validation import (
-        require_text, optional_text, parse_money_gs, validate_url,
+        require_text, optional_text, parse_money_gs, validate_url, parse_date_iso,
     )
 
     p = session.get(Product, p_id)
@@ -433,6 +461,18 @@ def product_update(
     category_clean = optional_text(category, max_len=32)
     tags_clean = optional_text(tags, max_len=500)
 
+    # Wholesale price (mayorista) — optional B2B field.
+    mayorista_price = parse_money_gs(mayorista_price_gs, allow_zero=True) if mayorista_price_gs.strip() else None
+
+    # IVA rate — validated against allowed values.
+    iva_valid = iva_rate in ("10", "5", "0", "exento")
+    iva_clean = iva_rate if iva_valid else "10"
+
+    # RSPA fields.
+    requires_rspa_bool = requires_rspa == "on"
+    rspa_number_clean = optional_text(rspa_number, max_len=30)
+    rspa_expiry_clean = parse_date_iso(rspa_expiry) if rspa_expiry.strip() else None
+
     p.name = clean_name
     p.portion_label = portion_label_clean
     p.sale_price_gs = price
@@ -443,6 +483,11 @@ def product_update(
     p.image_url = image_url_clean
     p.category = category_clean
     p.tags = tags_clean
+    p.mayorista_price_gs = mayorista_price
+    p.iva_rate = iva_clean
+    p.requires_rspa = requires_rspa_bool
+    p.rspa_number = rspa_number_clean
+    p.rspa_expiry = rspa_expiry_clean
     try:
         session.commit()
     except IntegrityError:
