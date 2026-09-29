@@ -800,7 +800,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
             _sentry.set_tag("request_id", rid)
             _sentry.set_tag("request_method", request.method)
             _sentry.set_tag("request_path", request.url.path)
-    except Exception:  # noqa: BLE001 — defensive default — guarded by surrounding try
+    except Exception:  # noqa: BLE001, S110 — defensive default — guarded by surrounding try
         # Sentry not installed, not initialised, or Hub is unavailable.
         # Never let an observability hook break the response.
         pass

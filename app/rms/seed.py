@@ -56,7 +56,7 @@ from app.rms.tags import TagKind, ensure_starter_tags, ensure_tag, tag_target
 # Sale.sold_at is DateTime without tz; we store UTC-naive.
 
 DEMO_USER_EMAIL = "demo@herbus.local"
-DEMO_USER_PASSWORD = "demo1234"
+DEMO_USER_PASSWORD = "demo1234"  # noqa: S105 — public demo password (test fixtures / smoke env only)
 DEMO_USER_USERNAME = "demo"
 
 # Realistic Paraguayan bakery ingredients.
@@ -797,7 +797,7 @@ def seed_demo_data(
             ts_q = now_str.replace("'", "''")
             session.execute(
                 sa_text(
-                    f"INSERT INTO app_meta (key, value, updated_at) "
+                    f"INSERT INTO app_meta (key, value, updated_at) "  # noqa: S608
                     f"VALUES ('last_seed_at', '\"{ts_q}\"'::jsonb, '{ts_q}') "
                     f"ON CONFLICT (key) DO NOTHING"
                 )

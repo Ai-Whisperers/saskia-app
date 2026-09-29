@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
@@ -69,10 +70,20 @@ def validate_product(
     """Validate product key fields on blur. Returns {} if valid, errors dict otherwise."""
     errors: dict[str, str] = {}
 
-    # name: required
+    # name: required + duplicate check
     name_val = name.strip()
     if not name_val:
         errors["name"] = "El nombre es obligatorio."
+    else:
+        from sqlalchemy import func
+        from app.rms.models import Product
+        existing = session.scalar(
+            func.count()
+        ).select_from(Product).where(
+            func.lower(Product.name) == name_val.lower()
+        )
+        if session.scalar(existing) > 0:
+            errors["name"] = "Ya existe un producto con este nombre."
 
     # sale_price_gs: required, > 0
     if not sale_price_gs.strip():

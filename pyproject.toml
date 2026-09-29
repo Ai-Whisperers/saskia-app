@@ -141,6 +141,7 @@ ignore = [
 "app/rms/db.py" = [
     "S608",            # SQL builder helpers (text() calls are intentional)
     "BLE001",          # migrations use try/except ALTER TABLE
+    "S110",            # migrations: try/except pass is the idempotent-ALTER pattern
 ]
 
 # Backlog #53: ban silent except: pass in routers. Use BadRequest /
