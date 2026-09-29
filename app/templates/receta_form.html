@@ -799,6 +799,7 @@
   }
 
   function computeCosts() {
+    console.log('computeCosts CALLED');
     var batchTotal = 0;
     var warnings = [];
     var lines = document.querySelectorAll('#lines .line-row');
@@ -826,6 +827,10 @@
     var batchEl = document.getElementById('batch-cost');
     var unitEl = document.getElementById('unit-cost');
     var sugEl = document.getElementById('suggested-price');
+    // DOM check: verify elements exist before writing
+    if (!batchEl) { console.warn('computeCosts: #batch-cost NOT FOUND in DOM'); return; }
+    if (!unitEl) { console.warn('computeCosts: #unit-cost NOT FOUND'); }
+    console.log('computeCosts: batchTotal=' + batchTotal + ' writing to batch-cost');
     if (batchEl) batchEl.textContent = formatGs(batchTotal);
     if (unitEl) unitEl.textContent = formatGs(unitCost);
     if (sugEl) sugEl.textContent = formatGs(suggestedPrice);
