@@ -568,9 +568,23 @@ async def recipe_edit(
     r = session.get(Recipe, r_id)
     if r is None:
         raise NotFound("receta")
-    lines = session.scalars(
+    raw_lines = session.scalars(
         select(RecipeLine).where(RecipeLine.recipe_id == r_id).order_by(RecipeLine.id)
     ).all()
+    # Resolve target names so the form shows "Harina" not "#34"
+    from app.rms.costing import resolve_line_target
+    lines = []
+    for ln in raw_lines:
+        target = resolve_line_target(session, ln)
+        lines.append({
+            "id": ln.id,
+            "line_kind": ln.line_kind,
+            "line_ref_id": ln.line_ref_id,
+            "qty": ln.qty,
+            "line_unit": ln.line_unit,
+            "note": ln.note,
+            "target_name": target.name if target else f"#{ln.line_ref_id}",
+        })
     ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
     other_recipes = session.scalars(
         select(Recipe).where(Recipe.id != r_id).order_by(Recipe.name)
