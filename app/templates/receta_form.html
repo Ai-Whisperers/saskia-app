@@ -848,8 +848,6 @@
     // Yield and divide
     var yieldQty = parseFloat((document.getElementById('yield_qty') || {}).value) || 1;
     var unitCost = yieldQty > 0 ? batchTotal / yieldQty : 0;
-    // DEBUG
-    console.log('computeCosts: batchTotal=' + batchTotal + ' yieldQty=' + yieldQty + ' unitCost=' + unitCost);
     // Fetch pricing markup config from API (configurable in /settings/pricing)
     var markupCfg = { multiplier: 3.0, round_to_gs: 1000 };
     fetch('/api/settings/pricing-markup').then(function(r){return r.json()}).then(function(cfg){
@@ -861,11 +859,9 @@
     var batchEl = document.getElementById('batch-cost');
     var unitEl = document.getElementById('unit-cost');
     var sugEl = document.getElementById('suggested-price');
-    if (batchTotal > 0) {
-      if (batchEl) batchEl.textContent = formatGs(batchTotal);
-      if (unitEl) unitEl.textContent = formatGs(unitCost);
-      if (sugEl) sugEl.textContent = formatGs(suggestedPrice);
-    }
+    if (batchEl) batchEl.textContent = formatGs(batchTotal);
+    if (unitEl) unitEl.textContent = formatGs(unitCost);
+    if (sugEl) sugEl.textContent = formatGs(suggestedPrice);
 
     var warnEl = document.getElementById('cost-warnings');
     var listEl = document.getElementById('cost-warnings-list');
@@ -933,16 +929,10 @@
   var yieldQtyEl = document.getElementById('yield_qty');
   if (yieldQtyEl) yieldQtyEl.addEventListener('input', computeCosts);
 
-  // NOTE: do NOT call computeCosts() on page load — the server has already
-  // rendered correct per-line costs. Calling it overwrites them with 0 because
-  // computeCosts() currently relies on ingredientPrices[combo.value] lookups
-  // that fail when saskia-combo has no internal <input> element to query.
-  // Interactive cost updates (qty/unit changes) call computeCosts() via
-  // the change event listeners on each combo.
-  //
-  // TODO: fix computeCosts to use getAttribute('value') on the saskia-combo
-  // element directly (not querySelector on a non-existent child <input>),
-  // then re-enable the on-load call to get live Escandallo totals.
+  // ---------- Compute costs on page load for pre-filled existing lines ----------
+  // computeCosts reads data-line-cost (pierces shadow DOM) and also uses
+  // ingredientPrices[targetId] for live interactive updates.
+  computeCosts();
 
 
   // ---------- Auto-expand textareas ----------
