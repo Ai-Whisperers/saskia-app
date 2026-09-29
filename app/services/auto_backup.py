@@ -18,6 +18,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from app.rms.config import ASUNCION_TZ
+
 # Threshold constants — kept here (not config.py) because they're
 # rarely changed. If you need to tune, change them here.
 AUTO_BACKUP_THRESHOLD_HOURS = 24

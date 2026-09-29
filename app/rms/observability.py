@@ -62,7 +62,7 @@ def _safe_get_user_id(request: Request) -> str | None:
             if u is not None and u != "":
                 return str(u)
         return None
-    except Exception:  # noqa: BLE001 — defensive fallback — guarded response
+    except Exception:  # noqa: BLE001 — defensive default
         return None
 
 
@@ -156,7 +156,7 @@ def bind_request_route(request: Request, route_name: str) -> None:
 def record_audit(
     request: Request,
     *,
-    session: Any,  # noqa: ANN401 — accepts Session | AsyncSession variants
+    session: Any,
     action: str,
     target_type: str | None = None,
     target_id: str | int | None = None,

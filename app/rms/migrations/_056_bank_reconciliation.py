@@ -41,7 +41,7 @@ def _create_index_if_missing(conn, index_name: str, table: str, cols: str) -> No
     conn.execute(text(f"CREATE INDEX {index_name} ON {table}({cols})"))
 
 
-def _migration_056_bank_reconciliation(conn: Any) -> None:  # noqa: ANN401
+def _migration_056_bank_reconciliation(conn: Any) -> None:
     """Add reconciliation fields to bank_transaction table.
 
     Tracks which bank transactions have been matched to:

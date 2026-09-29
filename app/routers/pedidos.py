@@ -222,7 +222,7 @@ def _decorate_pedido(p: Pedido, session: Session) -> dict:
     Denormalizes: customer_name (already on the model), 30d spend, total Gs,
     qty total, line count, age in days, normalized channel display.
     """
-    today = date.today()  # noqa: DTZ011
+    today = date.today()
     promised = p.promised_date.date() if isinstance(p.promised_date, datetime) else p.promised_date
     age_days = (today - promised).days
     return {
@@ -263,7 +263,7 @@ def _group_pedidos(
     - Esta semana: promised_date in [today+2, today+7]
     - Pendientes viejos: status='pending' AND promised_date < today
     """
-    today = date.today()  # noqa: DTZ011
+    today = date.today()
     out: dict[str, list[dict]] = {
         "hoy_manana": [],
         "esta_semana": [],
@@ -313,7 +313,7 @@ def pedidos_list(
     Results are paginated; the groups are computed from the full filtered set,
     then sliced per page for display.
     """
-    today = date.today()  # noqa: DTZ011
+    today = date.today()
     horizon = today + timedelta(days=7)
 
     stmt_base = (
@@ -393,7 +393,7 @@ def pedidos_board(
 ) -> HTMLResponse:
     """Kitchen display: large cards for prep staff. Auto-refreshes every 30s.
     Shows pending + confirmed + ready orders grouped by time slot."""
-    today = date.today()  # noqa: DTZ011
+    today = date.today()
     horizon = today + timedelta(days=3)
 
     stmt = (
@@ -449,7 +449,7 @@ def pedidos_new_form(
     customers = session.scalars(
         select(Customer).order_by(Customer.created_at.desc()).limit(50)
     ).all()
-    tomorrow = date.today() + timedelta(days=1)  # noqa: DTZ011
+    tomorrow = date.today() + timedelta(days=1)
 
     # Load active delivery zones for the picker
     from app.rms.models import DeliveryZone
@@ -468,7 +468,7 @@ def pedidos_new_form(
             "channels": CHANNELS,
             "payment_methods": sorted(set(ALLOWED_PAYMENT_METHODS)),
             "delivery_zones": delivery_zones,
-            "today_iso": date.today().isoformat(),  # noqa: DTZ011
+            "today_iso": date.today().isoformat(),
             "default_promised_date": tomorrow.isoformat(),
         },
     )
@@ -690,7 +690,7 @@ def pedidos_export_csv(
     import csv
     import io
 
-    today = date.today()  # noqa: DTZ011
+    today = date.today()
     horizon = today + timedelta(days=365)  # full history
 
     stmt = (
@@ -744,7 +744,7 @@ def pedidos_export_csv(
         io.BytesIO(output.getvalue().encode("utf-8")),
         media_type="text/csv",
         headers={
-            "Content-Disposition": f"attachment; filename=pedidos_{date.today().isoformat()}.csv"  # noqa: DTZ011
+            "Content-Disposition": f"attachment; filename=pedidos_{date.today().isoformat()}.csv"
         },
     )
 
@@ -1010,7 +1010,7 @@ def pedidos_fulfill(
                 continue
             try:
                 moves = _compute_stock_moves(session, recipe, float(ln.qty), set())
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001 — defensive default
                 logger.warning(
                     f"pedidos.fulfill: _compute_stock_moves failed for product "
                     f"{line_product.id}: {exc!r}"
@@ -1026,7 +1026,7 @@ def pedidos_fulfill(
                         "shortfall": round(abs(after), 3),
                         "product": line_product.name,
                     })
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — defensive default
         # Defensive: if the calc itself blows up, do not block the fulfill;
         # log loudly so ops sees it, but proceed (matches pre-fix behavior).
         logger.warning(
@@ -1171,7 +1171,7 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
                 "total_gs": pedido.total_gs or 0,
                 "business_name": "Saskia RMS",
             })
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — defensive default
         logger.warning(f"pedidos._send_fulfill_notification: render_template failed (fallback to legacy msg): {exc!r}")
     if msg is None:
         msg = (
@@ -1202,7 +1202,7 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
             if not ok:
                 log.warning("Twilio error for pedido %s: %s %s", pedido.id, r.status_code, r.text)
             return ok
-        except Exception as exc:  # noqa: BLE001 — defensive fallback — guarded response
+        except Exception as exc:  # noqa: BLE001 — defensive default
             log.error("Twilio exception for pedido %s: %s", pedido.id, exc)
             return False
 
@@ -1254,7 +1254,7 @@ def pedidos_stock_preview(
             continue
         try:
             moves = _compute_stock_moves(session, recipe, float(ln.qty), set())
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 — defensive default
             logger.warning(f"pedidos.stock_preview: _compute_stock_moves failed for product {product.id}: {exc!r}")
             continue
         for _affected_recipe_id, ingredient_id, qty_delta in moves:

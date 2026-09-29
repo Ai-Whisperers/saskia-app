@@ -17,7 +17,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 # Globals exposed to all templates
 def _now_year() -> int:
-    return datetime.now().year  # noqa: DTZ005 — naive is OK, year is tz-independent
+    return datetime.now().year
 
 
 def _now():
@@ -42,7 +42,7 @@ def _now():
     tz is set to America/Asuncion (server runtime tz), `datetime.now()`
     returns the Asuncion local time without tzinfo.
     """
-    return datetime.now()  # noqa: DTZ005 — intentional naive, see docstring
+    return datetime.now()
 
 
 def _now_local():
@@ -189,8 +189,8 @@ def _now_str() -> str:
         _MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
         _n = datetime.now(ASUNCION_TZ)
         return f"{_DIAS[_n.weekday()]} {_n.day} {_MESES[_n.month-1]} {_n.year} · {_n.strftime('%H:%M')}"  # locale set below
-    except Exception:  # noqa: BLE001 — topbar date must never break a page
-        return datetime.now().strftime("%d/%m/%Y %H:%M")  # noqa: DTZ005 — see _now() docstring
+    except Exception:  # noqa: BLE001 — defensive default
+        return datetime.now().strftime("%d/%m/%Y %H:%M")
 
 
 templates.env.globals["now_str"] = _now_str
@@ -201,8 +201,8 @@ def _greeting() -> str:
     try:
         from app.rms.config import ASUNCION_TZ
         h = datetime.now(ASUNCION_TZ).hour
-    except Exception:  # noqa: BLE001
-        h = datetime.now().hour  # noqa: DTZ005 — hour is tz-independent for greeting purposes
+    except Exception:  # noqa: BLE001 — defensive default
+        h = datetime.now().hour
     if 12 <= h < 19:
         return "Buenas tardes"
     if h >= 19 or h < 4:
@@ -277,7 +277,7 @@ def render(
         else:
             # Production: call get_current_user (may raise if no session)
             ctx.setdefault("is_logged_in", get_current_user(request) is not None)
-    except Exception:  # noqa: BLE001 — chrome must never break a page
+    except Exception:  # noqa: BLE001 — defensive default
         ctx.setdefault("is_logged_in", False)
 
     # SS-1: sidebar/nav renders from the nav table (app/rms/nav.py)
@@ -285,7 +285,7 @@ def render(
         try:
             from app.rms.nav import NAV_GROUPS
             ctx["nav_groups"] = NAV_GROUPS
-        except Exception:  # noqa: BLE001 — nav must never break a page
+        except Exception:  # noqa: BLE001 — defensive default
             ctx["nav_groups"] = []
 
     if "branding" not in ctx:
@@ -300,7 +300,7 @@ def render(
             else:
                 from app.rms.settings_runtime import DEFAULT_BRANDING
                 ctx["branding"] = DEFAULT_BRANDING
-        except Exception:  # noqa: BLE001 — defensive default — guarded by surrounding try
+        except Exception:  # noqa: BLE001 — defensive default
             from app.rms.settings_runtime import DEFAULT_BRANDING
             ctx["branding"] = DEFAULT_BRANDING
 

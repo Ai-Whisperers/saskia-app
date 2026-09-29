@@ -28,7 +28,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.rms.config import BACKUP_DIR, BACKUP_THRESHOLD_HOURS, KEEP_LOCAL_BACKUPS_DAYS
+from app.rms.config import ASUNCION_TZ, BACKUP_DIR, BACKUP_THRESHOLD_HOURS, KEEP_LOCAL_BACKUPS_DAYS
 from app.rms.models import AppMeta
 from app.services.export_csv import to_dir as to_csv_dir
 from app.services.export_xlsx import to_file

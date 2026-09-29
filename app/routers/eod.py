@@ -32,7 +32,7 @@ def eod_view(request: Request, session: Session = Depends(get_session)) -> HTMLR
     # (Saskia review, T5). We display the forecast so she can reconcile against
     # what was actually produced. Persistence of completions deferred to a future
     # phase; this view surfaces the forecast side.
-    today = date.today()  # noqa: DTZ011
+    today = date.today()
     today_plan = plan_production(session, for_date=today)
     completions = completions_for_date(session, today)
 

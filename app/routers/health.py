@@ -157,7 +157,7 @@ def healthz_deps(request: Request) -> JSONResponse | dict:
     for pkg in ("supabase", "supabase-auth", "fastapi", "starlette"):
         try:
             pkgs[pkg] = md.version(pkg)
-        except Exception:  # noqa: BLE001 — defensive default — guarded by surrounding try
+        except Exception:  # noqa: BLE001 — defensive default
             pkgs[pkg] = "NOT INSTALLED"
     return {
         "SUPABASE_URL": fp("SUPABASE_URL"),
@@ -225,14 +225,14 @@ def healthz_db(request: Request) -> JSONResponse:
                     payload["last_audit_at"] = last.isoformat()
                 else:
                     payload["last_audit_at"] = str(last)
-        except Exception as inner_exc:  # noqa: BLE001 — defensive default — guarded by surrounding try
+        except Exception as inner_exc:  # noqa: BLE001 — defensive default
             # Don't 503 the whole endpoint — DB is reachable, the metadata
             # queries aren't. Surface the detail so the operator can tell
             # the difference between "DB down" and "audit table missing".
             payload["db"] = "ok_no_metadata"
             payload["metadata_error"] = str(inner_exc)
         return payload
-    except Exception as exc:  # noqa: BLE001 — defensive fallback — guarded response
+    except Exception as exc:  # noqa: BLE001 — defensive default
         return JSONResponse({"db": "error", "detail": str(exc)}, status_code=503)
 
 
@@ -309,7 +309,7 @@ def healthz_migrate(request: Request):
 
     try:
         init_db(engine)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — defensive default
         logger.exception("admin_migrate failed")
         return JSONResponse(
             status_code=500,
@@ -370,7 +370,7 @@ def admin_migrate(request: Request):
 
     try:
         init_db(engine)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — defensive default
         logger.exception("admin_migrate failed")
         return JSONResponse(
             status_code=500,

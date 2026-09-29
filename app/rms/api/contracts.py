@@ -116,7 +116,7 @@ def create_error(
 
 
 def create_response(
-    data: Any = None,  # noqa: ANN401
+    data: Any = None,
     message: str = "Operation successful",
     request_id: Optional[str] = None
 ) -> APIResponse:

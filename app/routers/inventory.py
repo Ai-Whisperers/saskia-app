@@ -59,7 +59,7 @@ def packaging_api_search(
     like = f"%{q.strip().lower()}%"
     rows = session.execute(
         select(Ingredient)
-        .where(Ingredient.is_packaging == True)  # noqa: E712
+        .where(Ingredient.is_packaging == True)
         .where(func.lower(Ingredient.name).like(like))
         .order_by(Ingredient.name)
         .limit(limit)
@@ -193,7 +193,7 @@ def inventory_list(
     """List all ingredients with stock badge. Paginated at 50/page."""
     PER_PAGE = 50
     from datetime import date, timedelta
-    today = date.today()  # noqa: DTZ011
+    today = date.today()
     week_from_now = today + timedelta(days=7)
     month_from_now = today + timedelta(days=30)
 
@@ -206,7 +206,7 @@ def inventory_list(
     kpi_no_cost = sum(1 for i in all_ings if not i.purchase_price_gs)
     try:
         kpi_value_gs = stock_value_gs(session)
-    except Exception:  # noqa: BLE001 — KPI must never break the list
+    except Exception:  # noqa: BLE001 — defensive default
         kpi_value_gs = sum((i.stock_qty or 0) * (i.purchase_price_gs or 0) for i in all_ings)
 
     q = (request.query_params.get("q") or "").strip().lower()
@@ -506,7 +506,7 @@ def inventory_create(
         try:
             record_price_event(session, ing.id, price, source="manual")
             session.commit()
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001 — defensive default
             # Don't fail the whole request on a price-history write error.
             logger.warning(
                 "record_price_event failed for new ingredient ing_id={}",
@@ -572,7 +572,7 @@ def _price_stats_safe(session: Session, ing_id: int) -> object:
     try:
         from app.rms.price_history import price_stats
         return price_stats(session, ing_id, days=90)
-    except Exception:  # noqa: BLE001 — defensive fallback — guarded response
+    except Exception:  # noqa: BLE001 — defensive default
         return None
 
 
@@ -721,7 +721,7 @@ def inventory_update(
         try:
             record_price_event(session, ing.id, price, source="manual")
             session.commit()
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001 — defensive default
             logger.warning(
                 "record_price_event failed for ingredient ing_id={} update",
                 ing.id, exc_info=True,
@@ -735,7 +735,7 @@ def inventory_update(
         for rid in refreshed:
             _product_inherit_sync(session, rid)
         session.commit()
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 — defensive default
         logger.warning(
             "tag cascade failed for ingredient ing_id=%s update", ing.id,
             exc_info=True,

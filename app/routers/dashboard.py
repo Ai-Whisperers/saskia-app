@@ -176,7 +176,7 @@ def _compliance_alerts(session: Session) -> list[dict]:
 
     from app.rms.models import ComplianceInfo
 
-    today = date.today()  # noqa: DTZ011
+    today = date.today()
     alerts: list[dict] = []
 
     ci = session.get(ComplianceInfo, 1)
@@ -432,7 +432,7 @@ async def dashboard(
     try:
         _y = _eod_for_date(session, yesterday_d)
         cierre_ayer_pendiente = not _y
-    except Exception:  # noqa: BLE001 — new DBs may lack the table yet
+    except Exception:  # noqa: BLE001 — defensive default
         cierre_ayer_pendiente = False
 
     # Merma hoy
@@ -450,7 +450,7 @@ async def dashboard(
             if f.urgency in ("expired", "critical"):
                 vencer_48h_count += 1
                 vencer_48h_gs += int(f.value_at_risk_gs or 0)
-    except Exception as exc:  # noqa: BLE001 — defensive; logged at debug
+    except Exception as exc:  # noqa: BLE001 — defensive default
         # Defensive: dashboard never fails because of analytics math.
         # Logged at debug so it's traceable in saskia.log without spamming.
         logger.debug("dashboard expiry scan skipped: {}", exc)

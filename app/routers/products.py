@@ -621,7 +621,7 @@ def product_bulk_edit(
     set_availability (bool), set_category (string)."""
     try:
         body = request._json()
-    except Exception:  # noqa: BLE001 — defensive fallback — guarded response
+    except Exception:  # noqa: BLE001 — defensive default
         return JSONResponse(status_code=400, content={"error": "JSON body required"})
 
     product_ids: list[int] = body.get("product_ids", [])
@@ -764,7 +764,7 @@ def products_import_csv(
                 session.add(product)
                 created += 1
             session.commit()
-        except Exception as e:  # noqa: BLE001 — rollback + best-effort — already logged elsewhere
+        except Exception as e:  # noqa: BLE001 — defensive default
             session.rollback()
             errors.append({"row": row_num, "error": str(e)})
 

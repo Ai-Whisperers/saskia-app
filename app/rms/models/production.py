@@ -51,7 +51,7 @@ class ProductionCompletion(Base):
     )
 
     # Relationships
-    product: Mapped["Product"] = relationship("Product")  # noqa: F821
+    product: Mapped["Product"] = relationship("Product")  # noqa: F821 — SQLAlchemy 2.0 forward ref
 
 class ProductionPlanTemplate(Base):
     """PRO-01: Repeating weekly production plan template.
@@ -81,7 +81,7 @@ class ProductionPlanTemplate(Base):
     )
 
     # Relationships
-    product: Mapped["Product"] = relationship("Product")  # noqa: F821
+    product: Mapped["Product"] = relationship("Product")  # noqa: F821 — SQLAlchemy 2.0 forward ref
 
 class ProductionPlanOverride(Base):
     """PRO-01: Per-date override of the weekly template.
@@ -108,7 +108,7 @@ class ProductionPlanOverride(Base):
     )
 
     # Relationships
-    product: Mapped["Product"] = relationship("Product")  # noqa: F821
+    product: Mapped["Product"] = relationship("Product")  # noqa: F821 — SQLAlchemy 2.0 forward ref
 
 class ProductionPlan(Base):
     """A planned batch — output of the Production Planner.
@@ -130,8 +130,8 @@ class ProductionPlan(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
-    recipe: Mapped["Recipe"] = relationship("Recipe")  # noqa: F821
-    shopping_items: Mapped[list["ShoppingListItem"]] = relationship(  # noqa: F821
+    recipe: Mapped["Recipe"] = relationship("Recipe")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    shopping_items: Mapped[list["ShoppingListItem"]] = relationship(  # noqa: F821 — SQLAlchemy 2.0 forward ref
         back_populates="production_plan", cascade="all, delete-orphan"
     )
 

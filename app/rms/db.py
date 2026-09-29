@@ -40,7 +40,7 @@ from app.rms.config import (
 )
 
 
-def _set_sqlite_pragmas(dbapi_conn: Any, _: Any) -> None:  # noqa: ANN401
+def _set_sqlite_pragmas(dbapi_conn: Any, _: Any) -> None:
     """SQLAlchemy connect listener: enable WAL + secure_delete + foreign_keys.
 
     Called on every new connection. Idempotent.
@@ -93,7 +93,7 @@ def make_engine(url: str | None = None, *, for_tests: bool = False) -> Engine:
 MigrationFn = Callable[[Any], None]
 
 
-def _migration_001_initial_schema(conn: Any) -> None:  # noqa: ANN401
+def _migration_001_initial_schema(conn: Any) -> None:
     """Initial schema (8 tables). Called once on fresh DBs.
 
     We let SQLAlchemy's create_all() do the heavy lifting; this migration is a
@@ -127,7 +127,7 @@ def _migration_001_initial_schema(conn: Any) -> None:  # noqa: ANN401
     conn.execute(text(upsert2), {"ts": ts})
 
 
-def _migration_002_audit_log(conn: Any) -> None:  # noqa: ANN401
+def _migration_002_audit_log(conn: Any) -> None:
     """Add the audit_log table (E3.S1).
 
     Records every security-relevant action: login success/failure, logout,
@@ -176,7 +176,7 @@ def _migration_002_audit_log(conn: Any) -> None:  # noqa: ANN401
     _bump_schema_version(conn, 2)
 
 
-def _migration_007_product_sku(conn: Any) -> None:  # noqa: ANN401
+def _migration_007_product_sku(conn: Any) -> None:
     """Add Product.sku column (E23.S1).
 
     SKU is optional; most bakeries don't print barcodes on products but
@@ -187,7 +187,7 @@ def _migration_007_product_sku(conn: Any) -> None:  # noqa: ANN401
     _bump_schema_version(conn, 7)
 
 
-def _add_column_if_missing(conn: Any, table: str, column: str,  # noqa: ANN401
+def _add_column_if_missing(conn: Any, table: str, column: str,
                            pg_type: str, sqlite_type: str) -> None:
     """Add a column to a table if it doesn't already exist.
 
@@ -216,13 +216,13 @@ def _add_column_if_missing(conn: Any, table: str, column: str,  # noqa: ANN401
             )
 
 
-def _migration_006_waste_log(conn: Any) -> None:  # noqa: ANN401
+def _migration_006_waste_log(conn: Any) -> None:
     """Add waste_log table (E22)."""
     _bump_schema_version(conn, 6)
 
 
 
-def _migration_004_tags(conn: Any) -> None:  # noqa: ANN401
+def _migration_004_tags(conn: Any) -> None:
     """Add Tag + TagLink tables (E9.S1).
 
     Tags are polymorphic (target_kind in product|ingredient|recipe). The
@@ -237,7 +237,7 @@ def _migration_004_tags(conn: Any) -> None:  # noqa: ANN401
     _bump_schema_version(conn, 4)
 
 
-def _migration_003_analytics_columns(conn: Any) -> None:  # noqa: ANN401
+def _migration_003_analytics_columns(conn: Any) -> None:
     """Add analytics-tracking columns (E8).
 
     New columns:
@@ -265,7 +265,7 @@ def _migration_003_analytics_columns(conn: Any) -> None:  # noqa: ANN401
     for table, col, decl in _add_columns:
         try:
             conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {decl}"))
-        except Exception:
+        except Exception:  # noqa: BLE001 — defensive default
             pass
 
     # Index on last_consumed_at so dead_stock reports stay fast.
@@ -320,7 +320,7 @@ def _migration_009_ingredient_intel(conn):
     for col_name, col_type in cols:
         try:
             conn.execute(text(f"ALTER TABLE ingredient ADD COLUMN {col_name} {col_type}"))
-        except Exception:
+        except Exception:  # noqa: BLE001 — defensive default
             # Column already exists — idempotent.
             pass
     _bump_schema_version(conn, 9)
@@ -340,7 +340,7 @@ def _migration_010_recipe_intel(conn):
     for col_name, col_type in cols:
         try:
             conn.execute(text(f"ALTER TABLE recipe ADD COLUMN {col_name} {col_type}"))
-        except Exception:
+        except Exception:  # noqa: BLE001 — defensive default
             # Column already exists — idempotent.
             pass
     _bump_schema_version(conn, 10)
@@ -361,7 +361,7 @@ def _migration_011_sale_payment_discount(conn):
     for col_name, col_type in cols:
         try:
             conn.execute(text(f"ALTER TABLE sale ADD COLUMN {col_name} {col_type}"))
-        except Exception:
+        except Exception:  # noqa: BLE001 — defensive default
             # Column already exists — idempotent.
             pass
     _bump_schema_version(conn, 11)
@@ -377,14 +377,14 @@ def _migration_012_sale_tz(conn):
     dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     try:
         conn.execute(text("ALTER TABLE sale ADD COLUMN tz VARCHAR(64) DEFAULT 'America/Asuncion' NOT NULL"))
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive default
         # Column already exists — idempotent.
         pass
     # SQLite ALTER TABLE doesn't support DEFAULT with NOT NULL; backfill explicitly.
     if dialect == "sqlite":
         try:
             conn.execute(text("UPDATE sale SET tz = 'America/Asuncion' WHERE tz IS NULL OR tz = ''"))
-        except Exception:
+        except Exception:  # noqa: BLE001 — defensive default
             pass
     _bump_schema_version(conn, 12)
 
@@ -397,7 +397,7 @@ def _migration_013_ingredient_max_stock(conn):
     """
     try:
         conn.execute(text("ALTER TABLE ingredient ADD COLUMN max_stock_qty FLOAT"))
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive default
         pass  # already exists
     _bump_schema_version(conn, 13)
 
@@ -443,7 +443,7 @@ def _migration_015_sale_channel(conn):
             conn.execute(text(f"ALTER TABLE sale ADD COLUMN channel {pg_type}"))
         else:
             conn.execute(text(f"ALTER TABLE sale ADD COLUMN channel {sqlite_type}"))
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive default
         # Column already exists — idempotent.
         pass
 
@@ -452,7 +452,7 @@ def _migration_015_sale_channel(conn):
     if dialect == "sqlite":
         try:
             conn.execute(text("UPDATE sale SET channel = 'mostrador' WHERE channel IS NULL OR channel = ''"))
-        except Exception:
+        except Exception:  # noqa: BLE001 — defensive default
             pass
 
     _bump_schema_version(conn, 15)
@@ -717,7 +717,7 @@ def _migration_022_user_roles(conn):
     col_type = "VARCHAR(32) NOT NULL DEFAULT 'admin'" if dialect == "postgresql" else "TEXT DEFAULT 'admin' NOT NULL"
     try:
         conn.execute(text(f"ALTER TABLE user ADD COLUMN role {col_type}"))
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive default
         pass  # already exists
 
     _bump_schema_version(conn, 22)
@@ -777,7 +777,7 @@ def _migration_023_supplier(conn):
             conn.execute(
                 text("ALTER TABLE ingredient ADD COLUMN supplier_id INTEGER REFERENCES supplier(id)")
             )
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive default
         pass  # already exists
 
     _bump_schema_version(conn, 23)
@@ -798,7 +798,7 @@ def _migration_024_recipe_intel_extended(conn):
     for col_name, col_type in cols:
         try:
             conn.execute(text(f"ALTER TABLE recipe ADD COLUMN {col_name} {col_type}"))
-        except Exception:
+        except Exception:  # noqa: BLE001 — defensive default
             pass  # already exists
 
     _bump_schema_version(conn, 24)
@@ -822,7 +822,7 @@ def _migration_025_ingredient_opening_stock_reorder_point(conn):
                 conn.execute(text(f"ALTER TABLE ingredient ADD COLUMN {col_name} {col_type}"))
             else:
                 conn.execute(text(f"ALTER TABLE ingredient ADD COLUMN {col_name} {col_type}"))
-        except Exception:
+        except Exception:  # noqa: BLE001 — defensive default
             pass  # already exists
 
     _bump_schema_version(conn, 25)
@@ -849,7 +849,7 @@ def _migration_026_product_audit_columns(conn):
     for col_name, col_type in cols:
         try:
             conn.execute(text(f"ALTER TABLE product ADD COLUMN {col_name} {col_type}"))
-        except Exception:
+        except Exception:  # noqa: BLE001 — defensive default
             pass  # already exists
 
     _bump_schema_version(conn, 26)
@@ -970,7 +970,7 @@ def _migration_028_recipe_yield_qty_check(conn):
                     SELECT RAISE(ABORT, 'recipe_line.qty must be > 0 (or NULL)');
                 END
             """))
-        except Exception:
+        except Exception:  # noqa: BLE001 — defensive default
             # Older engine without trigger support — Python-level validation
             # in apply_sale() / recipe CRUD continues to enforce.
             pass
@@ -1009,7 +1009,7 @@ def _migration_029_herebus_integration(conn) -> None:
     # Customer.zone — free-text label
     try:
         conn.execute(text("ALTER TABLE customer ADD COLUMN zone VARCHAR(64)"))
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive default
         # Column may already exist on a partially-migrated DB
         pass
 
@@ -1019,7 +1019,7 @@ def _migration_029_herebus_integration(conn) -> None:
             "ALTER TABLE pedido ADD COLUMN delivery_zone_id INTEGER "
             "REFERENCES delivery_zone(id)"
         ))
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive default
         pass
 
     # Index for delivery_zone lookups
@@ -1028,7 +1028,7 @@ def _migration_029_herebus_integration(conn) -> None:
             "CREATE INDEX IF NOT EXISTS ix_pedido_delivery_zone_id "
             "ON pedido(delivery_zone_id)"
         ))
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive default
         pass
 
     _bump_schema_version(conn, 29)
@@ -1045,7 +1045,7 @@ def _migration_030_recipe_image_url(conn) -> None:
         conn.execute(text(
             "ALTER TABLE recipe ADD COLUMN image_url VARCHAR(255)"
         ))
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive default
         pass
 
     _bump_schema_version(conn, 30)
@@ -1122,7 +1122,7 @@ def _migration_033_ingredient_storage(conn):
     col_type = "VARCHAR(16)"
     try:
         conn.execute(text(f"ALTER TABLE ingredient ADD COLUMN storage {col_type}"))
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive default
         # Column already exists — idempotent.
         pass
     _bump_schema_version(conn, 33)
@@ -1299,7 +1299,7 @@ def _migration_038_ingredient_haccp(conn):
     _bump_schema_version(conn, 38)
 
 
-def _migration_050_sale_void_reason(conn: Any) -> None:  # noqa: ANN401
+def _migration_050_sale_void_reason(conn: Any) -> None:
     """Add void_reason and voided_by to sale for CIE-01 cancellation audit trail.
 
     The previous void flow only stored ``voided_at``. That made it impossible
@@ -1313,7 +1313,7 @@ def _migration_050_sale_void_reason(conn: Any) -> None:  # noqa: ANN401
     _bump_schema_version(conn, 50)
 
 
-def _migration_051_ingredient_variant(conn: Any) -> None:  # noqa: ANN401
+def _migration_051_ingredient_variant(conn: Any) -> None:
     """Add ingredient_variant table (Sprint 7 — Decision A1).
 
     Saskia's exact words from the audio review:
@@ -1433,7 +1433,7 @@ def _migration_051_ingredient_variant(conn: Any) -> None:  # noqa: ANN401
     _bump_schema_version(conn, 51)
 
 
-def _migration_052_ingredient_forecast_horizon(conn: Any) -> None:  # noqa: ANN401
+def _migration_052_ingredient_forecast_horizon(conn: Any) -> None:
     """Add Ingredient.forecast_horizon_days (Sprint 7 — Decision B).
 
     Per-ingredient forecast horizon for the "days until I'm short" widget
@@ -1574,7 +1574,7 @@ def _migration_039_category_table(conn):
         for name, kind, color in STARTER_TAGS:
             try:
                 ensure_tag_with_conn(conn, name, kind, color)
-            except Exception:
+            except Exception:  # noqa: BLE001 — defensive default
                 pass  # Already exists, or transient — skip.
     except Exception as exc:
         # Tag seeding is best-effort — don't block schema migration.
@@ -2214,7 +2214,7 @@ def _migration_049_storage_keywords(conn):
     _bump_schema_version(conn, 49)
 
 
-def _migration_053_sale_packaging(conn: Any) -> None:  # noqa: ANN401
+def _migration_053_sale_packaging(conn: Any) -> None:
     """Sprint 8 — US 4.1: per-sale packaging.
 
     Saskia's exact words from the audio review (paraphrased from the
@@ -2282,7 +2282,7 @@ def _migration_053_sale_packaging(conn: Any) -> None:  # noqa: ANN401
 
 
 
-def _migration_054_tag_algebra(conn: Any) -> None:  # noqa: ANN401
+def _migration_054_tag_algebra(conn: Any) -> None:
     """Tag algebra: cached derived tags + SINACLA cross-contamination flag.
 
     - recipe.allergens (Text, nullable) — union cache
@@ -2296,7 +2296,7 @@ def _migration_054_tag_algebra(conn: Any) -> None:  # noqa: ANN401
         # ORM model before migrations run; ALTER would then fail.
         try:
             conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
-        except Exception:
+        except Exception:  # noqa: BLE001 — defensive default
             pass  # column already exists
     _add_column("recipe", "allergens", "TEXT")
     _add_column("recipe", "derived_dietary_tags", "TEXT")
@@ -2305,7 +2305,7 @@ def _migration_054_tag_algebra(conn: Any) -> None:  # noqa: ANN401
     _bump_schema_version(conn, 54)
 
 
-def _migration_055_supplier_ruc(conn: Any) -> None:  # noqa: ANN401
+def _migration_055_supplier_ruc(conn: Any) -> None:
     """Add supplier.ruc field (Paraguay RUC/ID for legal suppliers).
 
     RUC (Registro Único del Contribuyente) is required for legal invoices
@@ -2314,14 +2314,14 @@ def _migration_055_supplier_ruc(conn: Any) -> None:  # noqa: ANN401
     def _add_column(table: str, col: str, ddl: str) -> None:
         try:
             conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
-        except Exception:
+        except Exception:  # noqa: BLE001 — defensive default
             pass  # column already exists
 
     _add_column("supplier", "ruc", "VARCHAR(20)")
     _bump_schema_version(conn, 55)
 
 
-def _migration_056_bank_reconciliation(conn: Any) -> None:  # noqa: ANN401
+def _migration_056_bank_reconciliation(conn: Any) -> None:
     """Wire the bank_reconciliation migration that ships in
     ``app/rms/migrations/_056_bank_reconciliation.py`` into the
     MIGRATIONS registry. The function is defined there; we just
@@ -2334,7 +2334,7 @@ def _migration_056_bank_reconciliation(conn: Any) -> None:  # noqa: ANN401
     _bump_schema_version(conn, 56)
 
 
-def _migration_057_recipe_instructions(conn: Any) -> None:  # noqa: ANN401
+def _migration_057_recipe_instructions(conn: Any) -> None:
     """Add recipe.instructions (TEXT) for JSON phase storage.
 
     Closes the ORM↔DB gap: ``Recipe.instructions`` was added to the ORM
@@ -2346,13 +2346,13 @@ def _migration_057_recipe_instructions(conn: Any) -> None:  # noqa: ANN401
     """
     try:
         conn.execute(text("ALTER TABLE recipe ADD COLUMN instructions TEXT"))
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive default
         pass  # column already exists
 
     _bump_schema_version(conn, 57)
 
 
-def _migration_058_ingredient_expiry(conn: Any) -> None:  # noqa: ANN401
+def _migration_058_ingredient_expiry(conn: Any) -> None:
     """Add ingredient.expiry_date (DATE, nullable) for HACCP lot tracking.
 
     Closes the ORM↔DB gap: ``Ingredient.expiry_date`` was added to the
@@ -2362,13 +2362,13 @@ def _migration_058_ingredient_expiry(conn: Any) -> None:  # noqa: ANN401
     """
     try:
         conn.execute(text("ALTER TABLE ingredient ADD COLUMN expiry_date DATE"))
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive default
         pass  # column already exists
 
     _bump_schema_version(conn, 58)
 
 
-def _migration_059_product_mayorista(conn: Any) -> None:  # noqa: ANN401
+def _migration_059_product_mayorista(conn: Any) -> None:
     """Add product.mayorista_price_gs (INTEGER, nullable).
 
     Closes the ORM↔DB gap from P1 features merge (commit c237c4c):
@@ -2378,7 +2378,7 @@ def _migration_059_product_mayorista(conn: Any) -> None:  # noqa: ANN401
     """
     try:
         conn.execute(text("ALTER TABLE product ADD COLUMN mayorista_price_gs INTEGER"))
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive default
         pass  # column already exists
 
     _bump_schema_version(conn, 59)
@@ -2466,7 +2466,7 @@ def _clean_allergens_m60(raw: str | None) -> str | None:
     return ",".join(parts) if parts else None
 
 
-def _migration_060_tag_normalization(conn: Any) -> None:  # noqa: ANN401
+def _migration_060_tag_normalization(conn: Any) -> None:
     """Fix tag-algebra tag-language mismatch (2026-09-29 live bug).
 
     Symptom: /recetas/<id> showed "CANCELADAS (14) — ver por qué" on every
@@ -2585,7 +2585,7 @@ def _migration_060_tag_normalization(conn: Any) -> None:  # noqa: ANN401
     _bump_schema_version(conn, 60)
 
 
-def _migration_005_customer(conn: Any) -> None:  # noqa: ANN401
+def _migration_005_customer(conn: Any) -> None:
     """Add Customer table + Sale.customer_id FK (E13).
 
     Tables are created via create_all() in init_db(). The Sale
@@ -2675,7 +2675,7 @@ def _bump_schema_version(conn, version: int) -> None:
         # fail — so we do a ROLLBACK first to recover.
         try:
             conn.execute(text("ROLLBACK"))
-        except Exception:
+        except Exception:  # noqa: BLE001 — defensive default
             pass
         try:
             conn.execute(
@@ -2711,7 +2711,7 @@ def _bump_schema_version(conn, version: int) -> None:
         )
 
 
-def _current_schema_version(conn: Any) -> int:  # noqa: ANN401
+def _current_schema_version(conn: Any) -> int:
     """Read schema version from app_meta table (default 0)."""
     row = conn.execute(text("SELECT value FROM app_meta WHERE key = 'schema_version'")).first()
     if row is None:
@@ -2722,7 +2722,7 @@ def _current_schema_version(conn: Any) -> int:  # noqa: ANN401
         return 0
 
 
-def schema_version(conn: Any) -> int:  # noqa: ANN401
+def schema_version(conn: Any) -> int:
     """Read schema version. Public alias for _current_schema_version.
 
     Used by `/healthz/schema` endpoint to detect drift between code and
@@ -2731,7 +2731,7 @@ def schema_version(conn: Any) -> int:  # noqa: ANN401
     return _current_schema_version(conn)
 
 
-def schema_version_mismatch(conn: Any) -> int:  # noqa: ANN401
+def schema_version_mismatch(conn: Any) -> int:
     """Return CURRENT_SCHEMA_VERSION - actual_db_version.
 
     - Positive = DB is behind code (migrations not applied — risk of
@@ -2744,7 +2744,7 @@ def schema_version_mismatch(conn: Any) -> int:  # noqa: ANN401
     return CURRENT_SCHEMA_VERSION - _current_schema_version(conn)
 
 
-def app_meta_read(conn: Any, key: str) -> str | None:  # noqa: ANN401
+def app_meta_read(conn: Any, key: str) -> str | None:
     """Read one key from app_meta. Returns None if the row is missing.
 
     Dialect-agnostic. Returns str | None.
@@ -2755,7 +2755,7 @@ def app_meta_read(conn: Any, key: str) -> str | None:  # noqa: ANN401
     return row[0] if row else None
 
 
-def app_meta_write(conn: Any, key: str, value: str) -> None:  # noqa: ANN401
+def app_meta_write(conn: Any, key: str, value: str) -> None:
     """Upsert one key into app_meta. Dialect-agnostic.
 
     Postgres uses ON CONFLICT (key) DO UPDATE; SQLite uses
@@ -2848,7 +2848,7 @@ def _init_db_inner(engine, dialect_name, Base) -> None:
                 # The migration calls _bump_schema_version which uses
                 # the same connection. We then commit the whole tx.
                 mig_conn.commit()
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — defensive default
             # Don't fail the whole init_db — log and continue to next
             # migration. The lifespan will retry on next boot.
             logger.warning(
@@ -2866,7 +2866,7 @@ def _init_db_inner(engine, dialect_name, Base) -> None:
             Session = sessionmaker(bind=engine)()
             _ = apply_postgres_indexes(Session)
             Session.close()
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — defensive default
             # Indexes are an optimization, not a correctness fix.
             # Don't crash startup if the applier hiccups.
             logger.warning(f"apply_postgres_indexes failed (non-fatal): {exc!r}")
@@ -2916,7 +2916,7 @@ def safe_commit(session: Session) -> bool:
     except Exception as exc:
         try:
             session.rollback()
-        except Exception:
+        except Exception:  # noqa: BLE001 — defensive default
             # If rollback itself fails, the connection pool will recycle
             # it on close. Log and continue.
             pass

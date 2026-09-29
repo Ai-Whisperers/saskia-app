@@ -24,11 +24,11 @@ _DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domin
 _MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
 
 
-def _is_numberish(v: Any) -> bool:  # noqa: ANN401
+def _is_numberish(v: Any) -> bool:
     return isinstance(v, (int, float)) and not isinstance(v, bool)
 
 
-def fmt_money(v: Any) -> str:  # noqa: ANN401
+def fmt_money(v: Any) -> str:
     """Money → 'Gs. 18.000'. Tolerates None/undefined/strings (drift guard)."""
     if v is None or not _is_numberish(v):
         return "—"
@@ -36,7 +36,7 @@ def fmt_money(v: Any) -> str:  # noqa: ANN401
     return f"{sign}Gs. {int(abs(v)):,}".replace(",", ".")
 
 
-def fmt_qty(v: Any, unit: str = "") -> str:  # noqa: ANN401
+def fmt_qty(v: Any, unit: str = "") -> str:
     """Quantity → '0,4 kg' / '2 u.' — trimmed zeros, py comma."""
     if v is None or not _is_numberish(v):
         return "—" if not unit else f"— {unit}"
@@ -47,7 +47,7 @@ def fmt_qty(v: Any, unit: str = "") -> str:  # noqa: ANN401
     return f"{s} {unit}".strip()
 
 
-def fmt_pct(v: Any, delta: bool = False) -> str:  # noqa: ANN401
+def fmt_pct(v: Any, delta: bool = False) -> str:
     """Percent → '68%' / '0,8%' (1 dec <10). delta=True prefixes +/−."""
     if v is None or not _is_numberish(v):
         return "—"
@@ -62,7 +62,7 @@ def fmt_pct(v: Any, delta: bool = False) -> str:  # noqa: ANN401
     return s
 
 
-def fmt_date(d: Any, mode: str = "table") -> str:  # noqa: ANN401
+def fmt_date(d: Any, mode: str = "table") -> str:
     """Date → table '26/09/2026' · prose 'sáb 26 sep 2026' · iso '2026-09-26'."""
     if d is None:
         return "—"
@@ -82,7 +82,7 @@ def fmt_date(d: Any, mode: str = "table") -> str:  # noqa: ANN401
     return d.strftime("%d/%m/%Y")
 
 
-def delta(current: Any, prior: Any) -> dict:  # noqa: ANN401
+def delta(current: Any, prior: Any) -> dict:
     """ONE implementation of the delta neutral-empty rule.
 
     Returns {pct: float|None, direction: 'up'|'down'|'neutral', empty: bool}.
@@ -105,7 +105,7 @@ def delta(current: Any, prior: Any) -> dict:  # noqa: ANN401
     }
 
 
-def entity_name(x: Any) -> str:  # noqa: ANN401
+def entity_name(x: Any) -> str:
     """Guard hash-suffixed seed names: 'Producto 99b78b3b' → 'Producto sin nombre'."""
     if x is None:
         return "—"

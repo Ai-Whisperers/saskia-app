@@ -268,7 +268,7 @@ async def excel_import(
             request=request,
         )
         session.commit()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — defensive default
         session.rollback()
         logger.warning(f"excel_io: audit.record for excel.import failed (non-fatal): {exc!r}")
 

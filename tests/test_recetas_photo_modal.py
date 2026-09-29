@@ -137,7 +137,7 @@ def test_recetas_without_photo_row_shows_dash(
     # The opener script also references the attribute once, but it's inside
     # a JS string (querySelectorAll('[data-recipe-photo]')). We count
     # button elements specifically by looking for the full button pattern.
-    actual_button_count = body.count('class="btn btn-ghost btn-icon" data-recipe-photo')
+    actual_button_count = body.count('class="recipe-thumb" data-recipe-photo')
     assert actual_button_count == 1, (
         f"Expected exactly 1 photo BUTTON element (Brownie only), "
         f"found {actual_button_count}. Note: querySelectorAll('[data-recipe-photo]') "

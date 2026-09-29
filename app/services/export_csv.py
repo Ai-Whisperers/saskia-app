@@ -34,12 +34,17 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.rms.models import (
+    AppMeta,
     ComplianceInfo,
     Customer,
+    ImportBatch,
     Ingredient,
     Pedido,
     Product,
+    Recipe,
+    RecipeLine,
     Sale,
+    SaleStockMove,
 )
 from app.rms.config import ASUNCION_TZ
 

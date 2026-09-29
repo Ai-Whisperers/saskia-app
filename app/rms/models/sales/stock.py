@@ -22,7 +22,7 @@ class SaleStockMove(Base):
     quantity: Mapped[float] = mapped_column(Integer, nullable=False)
 
     # Relationships
-    sale: Mapped["Sale"] = relationship("Sale", back_populates="stock_moves")  # noqa: F821
+    sale: Mapped["Sale"] = relationship("Sale", back_populates="stock_moves")  # noqa: F821 — SQLAlchemy 2.0 forward ref
 
     def __repr__(self) -> str:
         return f"SaleStockMove(id={self.id}, sale_id='{self.sale_id}', quantity={self.quantity})"

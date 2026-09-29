@@ -91,7 +91,7 @@ def is_rate_limited(
             )
             .count()
         )
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 — defensive default
         logger.warning("rate_limit_check failed: DB query failed, failing open for safety")
         return RateLimitDecision(
             allowed=True,
@@ -173,7 +173,7 @@ def is_write_rate_limited(
             )
             .count()
         )
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 — defensive default
         logger.warning("is_write_rate_limited DB query failed, failing closed for safety")
         return False
     return count >= max_per_minute

@@ -156,7 +156,7 @@ def current_variant_price(
     v = session.scalars(
         select(IngredientVariant)
         .where(IngredientVariant.ingredient_id == ingredient_id)
-        .where(IngredientVariant.preferred == True)  # noqa: E712
+        .where(IngredientVariant.preferred == True)
         .limit(1)
     ).first()
     if v is not None:
@@ -236,7 +236,7 @@ def avg_daily_consumption(
     in the window.
     """
     if today is None:
-        today = date.today()  # noqa: DTZ011
+        today = date.today()
     start = today - timedelta(days=_consumption_lookback_days(horizon_days, today=today))
     end = today
 

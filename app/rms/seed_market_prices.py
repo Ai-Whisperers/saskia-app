@@ -87,7 +87,7 @@ def refresh_market_prices_from_csv(session, csv_path: str, replace: bool = True)
     matched = 0
     skipped = 0
     missing_ingredients: list[str] = []
-    today = date.today()  # noqa: DTZ011
+    today = date.today()
 
     existing = {row.name.lower(): row for row in session.query(Ingredient).all()}
 

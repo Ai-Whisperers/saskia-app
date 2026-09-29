@@ -65,6 +65,10 @@ def _decorate(session: Session, r: Recipe, batch: CostResult, unit: CostResult |
         # template, because `r` isn't passed to the template — only `recipes`
         # (a list of these dicts) is.
         "image_url": r.image_url,
+        # 2026-09-29: template's Dificultad column renders r.difficulty, but
+        # `recipes` is a list of these decorated dicts, not Recipe objects.
+        # Without this key the cell renders "—" for every row.
+        "difficulty": r.difficulty,
     }
 
 
@@ -398,7 +402,7 @@ async def recipe_create(
         if not cook_min:
             recipe.cook_minutes = estimate_cook_minutes(recipe)
         session.commit()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — defensive default
         logger.warning("auto-fill inference failed for recipe %s: %s", recipe.id, exc)
         session.rollback()
 
@@ -409,7 +413,7 @@ async def recipe_create(
         cascade_refresh(session, recipe_id=recipe.id)
         _product_inherit_sync(session, recipe.id)
         session.commit()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — defensive default
         logger.warning("tag cascade failed for recipe %s: %s", recipe.id, exc)
         session.rollback()
 
@@ -543,7 +547,7 @@ async def recipe_detail(
         if r.instructions:
             import json as _json
             recipe_phases = _json.loads(r.instructions)
-    except Exception:  # noqa: BLE001 — defensive default — guarded by surrounding try
+    except Exception:  # noqa: BLE001 — defensive default
         recipe_phases = None
     return render(request, "receta_detalle.html", {
         "recipe": r,
@@ -757,7 +761,7 @@ async def recipe_update(
         for rid in refreshed:
             _product_inherit_sync(session, rid)
         session.commit()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — defensive default
         logger.warning("tag cascade failed for recipe %s: %s", r.id, exc)
         session.rollback()
 

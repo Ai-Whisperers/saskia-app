@@ -257,4 +257,4 @@ class MarketPriceReference(Base):
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False,
     )
 
-    ingredient: Mapped["Ingredient"] = relationship("Ingredient")  # noqa: F821
+    ingredient: Mapped["Ingredient"] = relationship("Ingredient")  # noqa: F821 — SQLAlchemy 2.0 forward ref

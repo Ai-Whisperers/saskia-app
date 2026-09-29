@@ -82,7 +82,7 @@ async def ops_reset_demo_data(request: Request) -> JSONResponse:
     finally:
         try:
             session.close()
-        except Exception as exc:  # noqa: BLE001 — dependency cleanup may re-close
+        except Exception as exc:  # noqa: BLE001 — defensive default
             # Session may already be closed by dependency cleanup; not fatal.
             logger.debug("ops session close failed: {}", exc)
 

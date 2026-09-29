@@ -831,7 +831,7 @@ async def sale_create_multi(
 
     try:
         body = _Body.model_validate(await request.json())
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 — defensive default
         raise HTTPException(status_code=400, detail=SALE_BODY_INVALID) from None
 
     items = body.items
@@ -1073,10 +1073,10 @@ def _fire_printer_for_sale(
         try:
             cfg = config_from_env()
             send_to_printer(receipt.encode("utf-8"), cfg)
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001 — defensive default
             from loguru import logger
             logger.warning("printer send failed (non-fatal)")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — defensive default
         from loguru import logger
         logger.warning(f"printer trigger skipped: {exc!r}")
 

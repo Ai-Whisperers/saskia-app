@@ -87,7 +87,7 @@ def _user_agent(request: Optional["Request"]) -> Optional[str]:
 def record(
     session: "Session",
     *,
-    user_id: Any,  # noqa: ANN401
+    user_id: Any,
     action: str,
     target_type: Optional[str] = None,
     target_id: Optional[str] = None,

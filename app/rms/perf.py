@@ -151,7 +151,7 @@ def apply_postgres_indexes(session: Session) -> list[str]:
         try:
             session.execute(text(stmt))
             statements.append(stmt)
-        except Exception as e:  # noqa: BLE001 — defensive default — guarded by surrounding try
+        except Exception as e:  # noqa: BLE001 — defensive default
             log.info("Skipping %s: %s", stmt, e)
     return statements
 
@@ -161,7 +161,7 @@ def count_models(session: Session) -> dict[str, int]:
     out: dict[str, int] = {}
     for model in [Ingredient, Recipe, Product, Sale, Customer, AuditLog]:
         out[model.__tablename__] = session.execute(
-            text(f"SELECT COUNT(*) FROM {model.__tablename__}")  # noqa: S608 — table name from SQLAlchemy model, not user input
+            text(f"SELECT COUNT(*) FROM {model.__tablename__}")
         ).scalar() or 0
     return out
 

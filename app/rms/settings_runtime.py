@@ -25,7 +25,7 @@ from app.rms.models import SettingsKV
 DEFAULT_PRICING_MARKUP = {"multiplier": 3.0, "round_to_gs": 1000}
 
 
-def settings_get(session: Session, key: str, default: Any = None) -> Any:  # noqa: ANN401
+def settings_get(session: Session, key: str, default: Any = None) -> Any:
     """Read one key from settings_kv (parsed JSON). Returns default if missing."""
     row = session.execute(
         select(SettingsKV).where(SettingsKV.key == key)
@@ -38,7 +38,7 @@ def settings_get(session: Session, key: str, default: Any = None) -> Any:  # noq
         return default
 
 
-def settings_set(session: Session, key: str, value: Any) -> None:  # noqa: ANN401
+def settings_set(session: Session, key: str, value: Any) -> None:
     """Upsert one key into settings_kv (serialized as JSON)."""
     import json as _json
     payload = _json.dumps(value)

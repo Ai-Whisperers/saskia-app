@@ -153,7 +153,7 @@ def waste_cost(session: Session,
                 WasteLog.recorded_at < end,
             )
         ).all())
-    except Exception:  # noqa: BLE001 — defensive fallback — guarded response
+    except Exception:  # noqa: BLE001 — defensive default
         return 0
 
     return sum(int(cost or 0) for (cost,) in rows)

@@ -27,7 +27,7 @@ class QueryOptimizer:
 
         def decorator(func: Callable) -> Callable:
             @wraps(func)
-            def wrapper(*args, **kwargs) -> Any:  # noqa: ANN401 — generic decorator wrapper
+            def wrapper(*args, **kwargs) -> Any:
                 result = []
                 items = kwargs.get('items', args[0] if args else [])
 
@@ -52,14 +52,14 @@ class QueryOptimizer:
 
     @staticmethod
     def select_only_needed_fields(
-        model_class: Any,  # noqa: ANN401
+        model_class: Any,
         required_fields: List[str]
     ) -> Callable:
         """Decorator to select only required fields from database queries."""
 
         def decorator(func: Callable) -> Callable:
             @wraps(func)
-            def wrapper(*args, **kwargs) -> Any:  # noqa: ANN401 — generic decorator wrapper
+            def wrapper(*args, **kwargs) -> Any:
                 # Apply field selection to query if it's a query
                 query = kwargs.get('query') or (args[0] if args else None)
                 if query and hasattr(query, 'options'):
@@ -80,7 +80,7 @@ class ResponseCacher:
         self.cache: Dict[str, Dict] = {}
         self.ttl = ttl
 
-    def get(self, key: str) -> Optional[Any]:  # noqa: ANN401 — cache returns Any
+    def get(self, key: str) -> Optional[Any]:
         """Get value from cache if it exists and is not expired."""
         if key in self.cache:
             entry = self.cache[key]
@@ -90,7 +90,7 @@ class ResponseCacher:
                 del self.cache[key]
         return None
 
-    def set(self, key: str, value: Any) -> None:  # noqa: ANN401
+    def set(self, key: str, value: Any) -> None:
         """Set value in cache with current timestamp."""
         self.cache[key] = {
             'value': value,
@@ -111,7 +111,7 @@ def cache_response(key_prefix: str = "api", ttl: int = 300) -> Callable:
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(*args, **kwargs) -> Any:  # noqa: ANN401 — generic cache decorator
+        def wrapper(*args, **kwargs) -> Any:
             # Generate cache key
             cache_key = f"{key_prefix}:{func.__name__}:{hash(str(args) + str(kwargs))}"
 

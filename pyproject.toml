@@ -122,6 +122,13 @@ ignore = [
     "E402",     # module-level import not at top (we have many intentional late imports)
 ]
 
+# Allow these Unicode confusables everywhere — Spanish-language app uses
+# − (U+2212 MINUS SIGN), × (U+00D7 MULTIPLICATION SIGN), – (U+2013 EN DASH),
+# ∪ (U+222A UNION), ℹ (U+2139 INFO SYMBOL). Cyrillic а (U+0430) appears
+# in one Cyrillic test fixture comment. These are intentional and the
+# RUF001/002/003 family warnings are false positives for this codebase.
+allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а"]
+
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
     "E402",    # test files may have non-top imports
