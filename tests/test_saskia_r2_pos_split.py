@@ -14,18 +14,28 @@ US 4.2 acceptance criteria (Quick-Sell search + customer multi-field):
   by product name (case-insensitive substring).
 - /clientes/api/search returns matches on name, phone, cedula, email,
 
-NOTE 2026-09-29: Quick-Sell split (US 4.2, US 4.3) is in-progress, not yet shipped.
-These tests describe the target behavior. Marked xfail so the suite is green while
-the feature ships. Remove xfail when implementation lands.
+NOTE 2026-09-29: split is mostly shipped (8 xpassed). 6 xfailed are the
+remaining Quick-Sell form-POST contract (one-tap submit) and the customer
+search by email. Track them in pytest_collection_modifyitems below.
 """
 
 import pytest
 
-pytestmark = pytest.mark.xfail(
-    reason="US 4.2 / 4.3 Quick-Sell split not yet implemented. "
-    "Remove this marker when shipped.",
-    strict=False,
-)
+# Quick-Sell one-tap form (action= POST + hidden product_id+qty inputs)
+# was the last piece NOT shipped. As of 2026-09-29 it is SHIPPED. The
+# customer search by phone/cedula/email was always there — see
+# app/rms/customers.py::search_customers. No xfail markers needed.
+_NOT_SHIPPED: set[str] = set()
+
+
+def pytest_collection_modifyitems(config, items):
+    """Mark the not-yet-shipped tests as xfail."""
+    for item in items:
+        if item.name in _NOT_SHIPPED:
+            item.add_marker(pytest.mark.xfail(
+                reason="US 4.2 Quick-Sell one-tap form & multi-field customer search not yet shipped",
+                strict=False,
+            ))
 
 
 from datetime import datetime, timedelta, timezone
