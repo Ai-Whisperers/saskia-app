@@ -1,784 +1,735 @@
-# Saskia RMS — Complete UX/UI Upgrade Plan
+# Saskia RMS — Complete UX/UI Upgrade Plan v2 (Full Catalog)
 
-**Generated:** 2026-09-29 (revised — full catalog sweep)
-**Author:** UX/UI Principal review (multi-hat analysis + cross-page consolidation)
-**Source audits (complete list — 14 files in `/tmp/designer-drop/`):**
-- `audit-batch2-prod.md` (78 KB · 948 lines · 14 pages — Inventario/Producción/Pedidos/Receta)
-- `audit-batch3-reports.md` (69 KB · 950 lines · 14 pages — Compras/Reportes/Admin/Bank/Riesgos/Auditoría)
-- `cross-page-wishlist-consolidation.md` (37 KB · 602 lines — top 30 patterns + top 10 macros + top 10 defects)
-- `cross-cutting-consistency-audit.md` (38 KB · 544 lines — 12 naming/consistency dimensions)
-- `ux-audit-2026-09-27.md` (34 KB — 18 P0 defects categorized)
-- **`design-plans-2026-09-27.md`** (340 KB · 9,463 lines · **17 pages × 5-hat analysis + wishlist + QoL + defects**)
-- **`macro-contracts-2026-09-27.md`** (68 KB · 2,363 lines · **10 atomic macro contracts with full args/HTML/behavior/a11y/locale/per-page usage/anti-patterns**)
-- **`qol-touches-catalog.md`** (40 KB · 358 lines · **219 QoL items in 16 categories** with effort estimates)
-- **`state-machines-2026-09-27.md`** (32 KB · 769 lines · **4 state machines** — Pedido, Stock Ledger, Cierre de Caja, Bake-loss math)
-- **`role-wireframes-2026-09-27.md`** (44 KB · 932 lines · **5 personas** with ASCII wireframes + keyboard maps + cognitive-load targets)
-- **`implementation-status-2026-09-27.md`** + **`implementation-status-2026-09-27-evening.md`** (9 KB + 9 KB · what got shipped 2026-09-27)
-- `REPORT.md` (52 KB · route → router → template → context-keys reference)
-- `README.md` (overview)
-- `saskia-ux-audit-drop-2026-09-27.zip` (9.5 MB · full bundle + 82 screenshots)
-
-**Counts:** 30 patterns + 10 macros + 10 cross-page defects + 12 naming dimensions + **219 QoL items in 16 categories** + 17 fully-analyzed pages (5-hat) + 28 per-page audits + 4 state machines + 5 personas + 18 P0 defects.
-
-**Status of what's already shipped** (from session 20260927_182227 — 9 commits, ~165 files, 7/18 P0 defects closed):
-- `/tmp/designer-drop/REPORT.md` (52 KB — route → router → template → context-keys reference)
-- `/tmp/saskia-ux-audit-drop-2026-09-27.zip` (9.5 MB — full bundle + 82 screenshots)
-
-**Repo state:** 77 page templates, 88 with components, 32 routers, 292 test files, 647 commits.
+**Generated:** 2026-09-29 (rev 3 — full catalog sweep, ops triad blueprint integrated)
+**Author:** UX/UI Principal review (multi-hat analysis + Gemini QA on operational triad)
+**Repo:** `/opt/data/profiles/ivan/scratch/saskia-app-work`
+**Live:** `https://saskia-vps.paragu-ai.com` (Docker Swarm, image `saskia-rms:prod`, schema v60)
 
 ---
 
-## TL;DR
+## Source audits (complete — 14 files in `/tmp/designer-drop/`)
 
-The app has **strong bones but inconsistent UX**. Three priorities:
+| File | Size | Lines | Contents |
+|---|---:|---:|---|
+| `design-plans-2026-09-27.md` | 340 KB | 9,463 | **17 pages × 5-hat analysis + wishlist + QoL + defects** |
+| `macro-contracts-2026-09-27.md` | 68 KB | 2,363 | **10 atomic macro contracts** (Purpose/Arguments/HTML/Behavior/A11y/Locale/Used-by/Anti-patterns) |
+| `audit-batch2-prod.md` | 78 KB | 948 | 14 pages (Inventario/Producción/Pedidos/Receta) |
+| `audit-batch3-reports.md` | 69 KB | 950 | 14 pages (Compras/Reportes/Admin/Bank/Riesgos/Auditoría) |
+| `role-wireframes-2026-09-27.md` | 44 KB | 932 | **5 personas** × ASCII wireframes + keyboard maps + cognitive-load targets |
+| `cross-page-wishlist-consolidation.md` | 37 KB | 602 | top 30 patterns + top 10 macros + top 10 defects |
+| `cross-cutting-consistency-audit.md` | 38 KB | 544 | **12 naming/consistency dimensions** |
+| `ux-audit-2026-09-27.md` | 34 KB | 587 | **18 P0 defects categorized** + 5 universal defects |
+| `state-machines-2026-09-27.md` | 32 KB | 769 | **4 state machines** (Pedido / Stock Ledger / Cierre Caja / Bake-loss math) |
+| `qol-touches-catalog.md` | 40 KB | 358 | **219 QoL items in 16 categories** with effort estimates |
+| `REPORT.md` | 52 KB | 1,402 | route → router → template → context-keys reference |
+| `implementation-status-2026-09-27.md` + `-evening.md` | 18 KB | 279 | what got shipped 2026-09-27 |
+| `README.md` | — | 66 | overview |
+| `saskia-ux-audit-drop-2026-09-27.zip` | 9.5 MB | — | full bundle + 82 screenshots |
 
-1. **Extract 10 atomic macros** from `inventario.html` (list) + `inventario_form.html` (form) — the gold-standard pages — and roll them out across every other page.
-2. **Fix the 6 universal defects** (D1–D6) — currency format drift is the worst (recurring finance bug).
-3. **Fix the 5 broken/empty pages** (`dashboard` → delete+redirect, `pedido_stock_preview` → 500 error, `riesgos` → empty-state CTA, `benchmarks` (vs-mercado) → shows 1 row, `bank` → import CSV CTA).
-
-**Estimated total effort for full top-15 priority plan:** ~58 hours (~7 working days).
-**Highest-leverage 3 things:** Fix currency drift + empty states + seed names = 8 hours for biggest perceived quality jump.
-
----
-
-## 1. The 77 page templates — full inventory
-
-| Router | Page template | LOC | Bytes | Tests touching it |
-|---|---|---:|---:|---:|
-| analisis | `analisis.html` | 250 | 12.6 KB | 2 |
-| auditoria | `auditoria.html` | 167 | 7.7 KB | 2 |
-| auth | `login.html` | 163 | 6.4 KB | 1 |
-| credits | `creditos.html` | 35 | 1.3 KB | — |
-| customers | `clientes.html` | 199 | 8.9 KB | 1 |
-| customers | `cliente_detalle.html` | 137 | 5.7 KB | — |
-| customers | `cliente_editar.html` | 54 | 2.1 KB | — |
-| dashboard | `inicio.html` | 333 | 15.2 KB | 1 |
-| dev | `dev_combo_smoke.html` | 73 | 2.4 KB | — |
-| eod | `eod.html` | 184 | 6.7 KB | 1 |
-| excel_io | `excel.html` | 140 | 5.9 KB | 3 |
-| excel_io | `excel_mode_guidance.html` | 36 | 1.4 KB | — |
-| excel_io | `excel_validate.html` | 68 | 1.7 KB | — |
-| help | `guia.html` | 13 | 0.4 KB | — |
-| herebus | `bank.html` | 274 | 12.0 KB | **4 (61 tests)** |
-| herebus | `benchmark_edit.html` | 97 | 4.0 KB | — |
-| herebus | `benchmarks.html` | 108 | 4.2 KB | — |
-| herebus | `dashboard.html` | 152 | 6.8 KB | 1 |
-| herebus | `planner.html` | 115 | 4.6 KB | 1 |
-| herebus | `pricing.html` | 54 | 2.4 KB | — |
-| herebus | `riesgos.html` | 63 | 2.7 KB | — |
-| herebus | `wishlist.html` | 71 | 3.2 KB | 1 |
-| insights_derived | `insight_demand.html` | 45 | 1.9 KB | — |
-| insights_derived | `insight_food_cost.html` | 35 | 1.9 KB | — |
-| insights_derived | `insight_freshness.html` | 42 | 1.8 KB | — |
-| insights_derived | `insight_price_impact.html` | 43 | 1.8 KB | — |
-| insights_stock | `insight_afinidades.html` | 28 | 1.2 KB | — |
-| insights_stock | `insight_margenes.html` | 63 | 3.7 KB | — |
-| insights_stock | `insight_margenes_detalle.html` | 40 | 2.0 KB | — |
-| insights_stock | `insight_stock.html` | 50 | 2.2 KB | — |
-| inventory | `inventario.html` | 292 | 17.9 KB | 4 |
-| inventory | `inventario_form.html` | 144 | 7.9 KB | 2 |
-| inventory | `ingrediente_detalle.html` | 387 | 14.7 KB | — |
-| inventory | `inventario_movimientos.html` | 82 | 2.8 KB | — |
-| merma | `merma.html` | 264 | 9.8 KB | 1 |
-| ops | `ops_status.html` | 48 | 1.7 KB | — |
-| pedidos | `pedidos.html` | 297 | 12.5 KB | 3 |
-| pedidos | `pedidos_nuevo.html` | 213 | 7.1 KB | 1 |
-| pedidos | `pedido_detalle.html` | 196 | 8.1 KB | — |
-| pedidos | `pedido_board.html` | 335 | **66.5 KB** | — |
-| pedidos | `pedido_stock_preview.html` | 91 | 3.6 KB | 1 |
-| pedidos | `pedido_publico.html` | 128 | 5.6 KB | — |
-| produccion | `produccion.html` | 452 | 18.8 KB | 1 |
-| products | `productos.html` | 579 | 28.9 KB | — |
-| products | `producto_form.html` | 508 | 19.5 KB | — |
-| products | `productos_importar.html` | 113 | 5.0 KB | — |
-| recipes | `recetas.html` | 270 | 12.7 KB | 6 (53 tests) |
-| recipes | `receta_form.html` | **1,149** | **44.0 KB** | — |
-| recipes | `receta_detalle.html` | 329 | 13.6 KB | — |
-| recipes | `recipe_photos.html` | 39 | 1.7 KB | — |
-| reorder | `reorder.html` | 184 | 8.5 KB | 2 |
-| reportes | `reportes.html` | 30 | 1.1 KB | — |
-| reportes | `reportes_diario.html` | 67 | 2.6 KB | 1 |
-| reportes | `reportes_iva.html` | 65 | 2.4 KB | — |
-| reportes | `reportes_retencion.html` | 62 | 2.4 KB | 1 |
-| reportes | `reportes_metricas.html` | 143 | 5.7 KB | — |
-| reportes | `reportes_top_productos.html` | 62 | 1.9 KB | 1 |
-| reportes | `reportes_libro_ventas.html` | 95 | 3.4 KB | — |
-| reportes | `reportes_cierre_mensual.html` | 164 | 7.5 KB | 1 |
-| reportes | `reportes_precios.html` | 113 | 3.7 KB | — |
-| reportes | `reportes_comparacion.html` | 109 | 4.7 KB | — |
-| reportes | `reportes_metodos_pago.html` | 65 | 2.1 KB | — |
-| reportes | `reportes_ventas_hora.html` | 50 | 1.5 KB | — |
-| reportes | `reportes_valor_pedido.html` | 49 | 2.0 KB | — |
-| sales | `ventas.html` | 656 | 28.8 KB | 3 |
-| sales | `ventas_historial.html` | 180 | 7.8 KB | 1 |
-| sales | `recibo.html` | 144 | 5.9 KB | — |
-| settings | `settings.html` | 747 | 27.3 KB | 1 |
-| settings | `settings_catalog.html` | 956 | 46.1 KB | 1 |
-| shopping | `shopping_list.html` | 124 | 5.3 KB | 1 |
-| suppliers | `suppliers.html` | 77 | 2.8 KB | 1 |
-| suppliers | `supplier_form.html` | 48 | 2.4 KB | — |
-| suppliers | `supplier_orders.html` | 85 | 3.0 KB | — |
-| users | `users.html` | 211 | 7.5 KB | — |
-
-**Orphans (no router):** `base.html` (309 LOC, parent template), `delivery_zones.html` (38 LOC, dead route?), `produccion_calendario.html` (25 LOC, dead route?).
-
-**Heaviest 10 by LOC:**
-1. `receta_form.html` — 1,149 LOC, 44 KB
-2. `settings_catalog.html` — 956 LOC, 46 KB
-3. `settings.html` — 747 LOC, 27 KB
-4. `ventas.html` — 656 LOC, 29 KB (POS)
-5. `productos.html` — 579 LOC, 29 KB
-6. `producto_form.html` — 508 LOC, 20 KB
-7. `produccion.html` — 452 LOC, 19 KB
-8. `ingrediente_detalle.html` — 387 LOC, 15 KB
-9. `pedido_board.html` — 335 LOC, **66 KB** (largest by bytes — minified inline)
-10. `inicio.html` — 333 LOC, 15 KB
+**Grand total:** 30 patterns · 10 macros · 219 QoL items · 18 P0 defects · 12 naming dimensions · 17 pages × 5-hat · 28 per-page audits · 4 state machines · 5 personas · 6 universal defects · 10 cross-page defects.
 
 ---
 
-## 2. Universal defects (apply app-wide)
+## What's already shipped (from session 20260927_182227 — 9 commits, ~165 files)
 
-| # | Defect | Affected pages | Fix | Priority |
-|---|---|---|---|---|
-| **D3** | **Currency format drift** — same data renders as `Gs. 75` / `75` / `Gs. 75,00` depending on context | All `/reportes/*`, `/productos`, `/recetas/{id}`, `/bank` | **Mandate `format_gs` Jinja filter everywhere**; add CI grep rule that fails if `Gs\. {{` or `Gs. {{` appears without the filter | **P0** |
-| **D6** | **Seed-name identifiers leak** — "Producto cfaf4b47", "Receta 0da4ca66" | `/reportes/top-productos`, `/analisis`, `/vs-mercado` | Seeder should generate Spanish bakery names ("Pan de queso", "Chipa grande") | P0 |
-| **D1** | **Native date picker still visible** — white-on-white triangle, English "mm/dd/yyyy" | `/reportes/top-productos`, `/merma`, `/inventario/nuevo`, `/settings` | `<saskia-date>` web component with voseo placeholders + dark-mode tokens | P1 |
-| **D4** | **"Cargando..." spinner never replaced** on slow routes | `/reportes/*`, `/analisis` | Confirm mutation observer attached to async elements | P1 |
-| **D5** | **0 vs — ambiguity** — "no data" vs "zero data" | `/clientes`, `/ventas/historial`, `/merma`, `/analisis` rotación | Server passes `value=None` vs `value=0`; renderer maps to "—" vs "0" | P1 |
-| **D2** | **"Editar"/"Ver" button too far right** on wide tables | `/clientes`, `/suppliers`, `/inventario`, `/productos` | Sticky-right action column or row-leading chevron | P2 |
+**Web Components built (5):** `saskia-date` (12.9 KB · D1 fix) · `saskia-combo` (18.6 KB · D17 refactor in progress) · `saskia-month` (9.4 KB) · `saskia-skeleton` (6.0 KB) · `saskia-toast` (7.5 KB · D14 in progress)
+**CSS layers:** `app.css` 48 KB · `app-shell.css` 13.7 KB · `app-components.css` 28.3 KB · `app-improvements.css` 15.8 KB
+**Macros defined in atoms.html (18):** page_header · metric_card · kpi_strip · status_pill · status_pill_for · empty_state · report_source_footer · loading_state · skeleton_section · entity_link · filter_toolbar · data_table · row_actions · alert_row · stepper · tooltip · flash_toast · combo_field
+**Adoption (this session):** skeleton_section 41 templates · empty_state 26 · status_pill 19 · page_header 19 · combo_field 18 · report_source_footer 14 · metric_card 9 · alert_row 3 · entity_link 2 · **stub-only:** kpi_strip 1, filter_toolbar 1, data_table 1, row_actions 1, stepper 1, tooltip 1, loading_state 1 (these need `{% call %}` block refactor)
+**P0 defects fixed:** D1 native date → `<saskia-date>` ✅ · D4 slug names → `fmt.entity_name()` (65 refs) ✅ · D5 bilingual pedido status ✅ · D6 stock-preview 500 ✅ · D8 /riesgos CTA ✅ · D10 /bank empty state ✅ · D12 audit confirm modal ✅ · D16 date format drift ✅ (8/18)
+**P0 defects remaining:** D2 loading skeletons (39 pages) · D3 currency drift (mostly fixed) · D7 /dashboard decision · D9 /vs-mercado data layer · D13 empty-state counts · D14 toast feedback · D15 0 vs — · D17 native selects · D18 orphan text
 
 ---
 
-## 3. Naming consistency — 12 dimensions to fix
+## Architectural blueprint (NEW — operational triad)
 
-From `cross-cutting-consistency-audit.md`. Pick a canonical term for each and grep-replace across all templates + copy:
+**Source:** Gemini UX/UI QA Review (paste received 2026-09-29) — covers `pedidos_nuevo.html`, `produccion.html`, `eod.html` with strict DOM ordering.
 
-| # | Current drift | Canonical choice |
-|---|---|---|
-| 1 | "Guardá" / "Salvar" / "Guardar" | **"Guardá"** (voseo imperative, per AGENTS.md) |
-| 2 | "Cliente" / "Comprador" / "Customer" | **"Cliente"** |
-| 3 | "Producto" / "Receta" | **"Receta"** is the production entity; **"Producto"** is the commercial entity. Don't conflate. |
-| 4 | "Mostrador" / "Pickup" / "Counter" | **"Mostrador"** |
-| 5 | "Cerrar día" / "Cierre" / "EOD" | **"Cerrar día"** |
-| 6 | "Comprobante fiscal" / "Boleta" / "Factura" / "Recibo" | **"Comprobante"** |
-| 7 | "ingrediente" / "Insumo" | **"Ingrediente"** |
-| 8 | "Ver" / "Abrir" / "Ver detalle" / "Detalle" | **"Ver"** |
-| 9 | "Categoría" / "Familia" / "Etiqueta" / "Tag" | **"Categoría"** (ingredient), **"Etiqueta"** (dietary/allergen) |
+### `pedidos_nuevo.html` — 60/40 Split-Pane POS
+
+**Layout:** `display: grid; grid-template-columns: 2fr 1fr` (`.detail-grid-layout`)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ h1 "Nuevo Pedido"   [Guardar] [Cancelar]                │  ← page roof
+├──────────────────────────────┬──────────────────────────┤
+│ Card 1: Cliente picker       │ Card 4: Productos (cart) │
+│ Card 2: Entrega (date,time,  │ Running ticket — builds  │
+│           delivery zone)     │ vertically as items add  │
+│ Card 3: Origen (canal, pago) │                          │
+│ Card 5: Notas + toggles      │ Total (Gs.) pinned bottom│
+└──────────────────────────────┴──────────────────────────┘
+```
+
+**QA invariants:**
+- Stock-low warning `"Stock bajo: {qty} {unit}"` renders INSIDE the right pane cart, not at top of page
+- Price inputs default to `sale_price_gs` when left at 0
+- All cards: `import "_components/atoms.html" as ui`
+
+### `produccion.html` — 3-tier horizontal cascade
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ ⚠ "Pedidos pendientes para hoy" (full width, urgent)   │  ← Layer 1
+├──────────────────────────┬──────────────────────────────┤
+│ Card: 🧁 Plan manual     │ Table: Productos a producir  │  ← Layer 2
+│ (collapsible details)    │ Source badges (Ventas14d,    │
+│                          │ Plantilla, Override input)  │
+├──────────────────────────┴──────────────────────────────┤
+│ Table: Ingredientes necesarios                          │  ← Layer 3
+│ Rows with stock<required → bg-danger-soft + ¡Falta!     │
+│ [Guardar overrides] docked below Productos table        │
+└─────────────────────────────────────────────────────────┘
+```
+
+### `eod.html` — 2-column ritual/data isolation
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ h1 "🔒 Cierre diario"  [Progreso: 5/9] [Listo badge]     │  ← page roof
+├──────────────────────────┬──────────────────────────────┤
+│ Left: The Ritual         │ Right: The Hard Data         │
+│  - 9-item checklist      │ Card 1: Producción del día  │
+│  - Textarea "Notas..."   │   Producto | Plan | Hecho   │
+│  - ⚠ "Cerrar el día no  │   Delta: green+/red- (CSS   │
+│    cambia el stock"      │   vars --color-success/     │
+│    (bold uppercase)      │   --color-danger)           │
+│  - [Guardar cierre]      │ Card 2: Reposición (top 5   │
+│                          │   low-stock + cost footer + │
+│                          │   "Abrir Reponer" link)     │
+└──────────────────────────┴──────────────────────────────┘
+```
 
 ---
 
-## 4. The 30 reusable UX patterns (the "abstract and reuse" list)
+## The 30 reusable UX patterns (complete)
 
-**Legend:** ✅ already a reusable component in `_components/` · ⚠ partially implemented · ❌ missing everywhere
+**Legend:** ✅ already a reusable component in `_components/` · ⚠ partially implemented · ❌ missing everywhere · 📊 # of pages needing it
 
-| # | Pattern | Pages needing it | Effort | Priority | Status |
+| # | Pattern | Pages | Effort | Priority | Status |
 |---|---|---|---|---|---|
-| 1 | **KPI delta strip** (vs prior period) | 9 (Inventario list, Lista compras, Bank, Pricing, Resumen diario, Riesgos, Producción, Pedidos board, Reportes per-card) | M | P1 | ❌ |
-| 2 | **Filter chip rail** | 6 (Inventario, Proveedores, Pedidos board, Bank, Auditoría, Auditoría quick-access needs to be clickable) | M | **P0** (defect: chips non-clickable) | ⚠ |
-| 3 | **Severity color bar** (left-edge stripe) | 7 (Riesgos, Auditoría, Bank, Inventario list, Reponer, Pedidos board cards, Lista compras) | S | P1 | ❌ |
-| 4 | **Empty state with onboarding CTA** | 8 (Proveedores subpages, Riesgos, Wishlist, Bank, Pricing, Vs-mercado, Auditoría, Inventario-movimientos) | S | **P0** (Riesgos empty state is worst in system) | ⚠ |
-| 5 | **In-page "derived tags" block** | 6 (Inventario-detalle, Inventario list, Producción, Pedido-nuevo, Pedido-detalle, Receta-editar) | M | P1 | ⚠ |
-| 6 | **Side-rail live preview panel** | 5 (Receta-editar, Pedidos-nuevo, Produccion-planner, Inventario-nuevo, Inventario-editar) | M | P1 | ⚠ |
-| 7 | **Source attribution at table footer** | 5 (Pedidos board, Inventario list, Reponer, Producción, Reportes per-card) | S | P2 | ⚠ |
-| 8 | **Sticky top action cluster** | 8 long forms (Inventario-nuevo, Inventario-editar, Proveedor-nuevo, Pedidos-nuevo, Receta-editar, Vs-mercado-editar, list pages with bulk actions) | S | P1 | ❌ |
-| 9 | **Tab nav with active underline** | 5 (Producción, Lista compras, Reportes index, Proveedor-detail, Inventario-detalle) | S | P1 | ⚠ |
-| 10 | **Collapsible "ejemplo" callout** | 5 (Proveedor-nuevo, Receta-editar, Riesgos, Pedidos-nuevo, Inventario-nuevo) | S | P2 | ❌ |
-| 11 | **Inline derived pill cluster** (dietary, allergen, status, channel) | 6 (Inventario-nuevo, Inventario list, Pedido-detalle, Receta-editar, Pedidos board, Receta-editar detail) | S | P2 | ⚠ |
-| 12 | **Aggregated KPI strip** (real cards, not plain labels) | 9 (Inventario, Lista compras, Bank, Pricing, Wishlist, Riesgos, Pedidos board, Producción, Reportes index) | S | **P0** (Wishlist `Gs. 50,000,000` in plain text is broken) | ⚠ |
-| 13 | **Inline warnings** (margin<30%, no recipe, price=0, "sin consumo") | 5+ (Receta-editar, Vs-mercado, Pedido-detalle, Reponer, Inventario-detalle) | S | P1 | ⚠ |
-| 14 | **Bulk action bar** | 6 (Inventario, Proveedores, Reponer, Pedidos, Auditoría, Clientes) | S | P1 | ❌ |
-| 15 | **Inline row actions** (Mark Done, Edit, Duplicate, View) | 7 (Pedidos board, Auditoría, Bank, Lista compras, Reponer, Proveedores, Inventario) | S | P2 | ⚠ |
-| 16 | **Date range presets** (Hoy/Ayer/Esta semana/Mes/Trimestre/Año) | 8 (Inventario-movimientos, Reponer, Bank, Auditoría, Reportes/*, Pedidos board, Producción, Merma) | S | **P0** | ❌ |
-| 17 | **Bar chart visualization** | 7 (Inventario, Producción, Lista compras, Reportes per-card, Pricing, Wishlist, Análisis) | M | P1 | ⚠ |
-| 18 | **Period comparison overlay** | 4 (Inicio, Análisis, Reportes/*, Dashboard) | M | P2 | ❌ |
+| 1 | **KPI delta strip** (vs prior period) | 9 | M | P1 | ❌ |
+| 2 | **Filter chip rail** | 6 | M | **P0** (defect: chips non-clickable) | ⚠ |
+| 3 | **Severity color bar** (left-edge stripe) | 7 | S | P1 | ❌ |
+| 4 | **Empty state with onboarding CTA** | 8 | S | **P0** (Riesgos worst) | ⚠ (26 uses) |
+| 5 | **In-page "derived tags" block** | 6 | M | P1 | ⚠ |
+| 6 | **Side-rail live preview panel** | 5 | M | P1 | ⚠ |
+| 7 | **Source attribution at table footer** | 5 | S | P2 | ⚠ (14 uses) |
+| 8 | **Sticky top action cluster** | 8 | S | P1 | ❌ |
+| 9 | **Tab nav with active underline** | 5 | S | P1 | ⚠ |
+| 10 | **Collapsible "ejemplo" callout** | 5 | S | P2 | ❌ |
+| 11 | **Inline derived pill cluster** | 6 | S | P2 | ⚠ |
+| 12 | **Aggregated KPI strip** (real cards) | 9 | S | **P0** (Wishlist broken) | ⚠ |
+| 13 | **Inline warnings** (margin<30%, etc.) | 5+ | S | P1 | ⚠ |
+| 14 | **Bulk action bar** | 6 | S | P1 | ❌ |
+| 15 | **Inline row actions** | 7 | S | P2 | ⚠ |
+| 16 | **Date range presets** | 8 | S | **P0** | ❌ |
+| 17 | **Bar chart visualization** | 7 | M | P1 | ⚠ |
+| 18 | **Period comparison overlay** | 4 | M | P2 | ❌ |
 | 19 | **Drill-down (click row → detail)** | 9 | S | P2 | ✅ |
-| 20 | **Print preview** | 5 (Recibo, Reportes/*, Producción prep sheet, Auditoría, Inventario-movimientos) | S | P2 | ⚠ |
-| 21 | **Source attribution footer** | (same as #7) | — | — | — |
-| 22 | **Search bar** (page-local, not just global) | 8 (Inventario, Productos, Recetas, Clientes, Auditoría, Bank, Reportes index, Wishlist) | S | **P0** | ⚠ |
+| 20 | **Print preview** | 5 | S | P2 | ⚠ |
+| 21 | **Source attribution footer** (= #7) | — | — | — | — |
+| 22 | **Search bar** (page-local) | 8 | S | **P0** | ⚠ |
 | 23 | **Saved filters per user** | 6 | M | P2 | ❌ |
-| 24 | **Sortable column headers with active highlight** | 7 (Inventario, Productos, Recetas, Clientes, Pedidos, Bank, Auditoría) | S | P2 | ⚠ |
-| 25 | **Sticky header** | 9 (long table pages) | S | P1 | ❌ |
-| 26 | **Pagination + jump-to-page** | 6 (Inventario, Productos, Clientes, Pedidos, Bank, Auditoría) | S | **P0** (Bank already does this) | ⚠ |
-| 27 | **Tooltip glossary (?) on technical terms** | all | S | P2 | ❌ |
-| 28 | **Photo placeholder** (initials in colored box) | 5 (Inventario, Productos, Recetas, Clientes, Proveedores) | S | P2 | ❌ |
-| 29 | **Drag-drop reorder** | 3 (Receta-editar líneas, Producción day cards, Pedido board) | L | P2 | ❌ |
-| 30 | **Required-field markers (*) + Save feedback (toast/inline)** | all | S | **P0** | ⚠ |
+| 24 | **Sortable column headers** | 7 | S | P2 | ⚠ |
+| 25 | **Sticky header** | 9 | S | P1 | ❌ |
+| 26 | **Pagination + jump-to-page** | 6 | S | **P0** | ⚠ |
+| 27 | **Tooltip glossary (?) on jargon** | all | S | P2 | ❌ |
+| 28 | **Photo placeholder** (initials) | 5 | S | P2 | ❌ |
+| 29 | **Drag-drop reorder** | 3 | L | P2 | ❌ |
+| 30 | **Required-field markers (*) + save feedback (toast/inline)** | all | S | **P0** | ⚠ |
 
 ---
 
-## 5. The 10 architectural macros to extract
+## The 10 architectural macros (complete contracts)
 
-These are the atoms to extract from `inventario.html` and `inventario_form.html` (the gold-standard pages) into `app/components/atoms.html`. Use them as the canonical template for every other list/form page.
+**From `macro-contracts-2026-09-27.md` — 2,363 lines, full spec for each:**
 
-| # | Macro | Pattern(s) it covers | Already exists? |
+| # | Macro | Signature | Status |
 |---|---|---|---|
-| 1 | `<KpiStrip>` | #1 (delta) + #12 (aggregated cards) | ⚠ partial (`.dashboard-grid`) |
-| 2 | `<FilterChipRail>` | #2 | ⚠ partial (chips on auditoría but non-clickable — defect) |
-| 3 | `<SeverityStripe>` | #3 | ❌ |
-| 4 | `<EmptyState>` | #4 | ⚠ partial (`_components/atoms.html` has one but inconsistent across pages) |
-| 5 | `<DerivedTagsBlock>` | #5 + #11 (pill cluster) | ⚠ partial (`_components/ingredient_tags.html` for one use case) |
-| 6 | `<LivePreviewPanel>` | #6 | ⚠ partial (receta_form has inline one) |
-| 7 | `<StickyActionCluster>` | #8 | ❌ |
-| 8 | `<TabNav>` | #9 | ⚠ partial (used inconsistently) |
-| 9 | `<EjemploCallout>` | #10 | ⚠ partial (merma has one) |
-| 10 | `<PillCluster>` | #11 | ⚠ partial (tags macro has one) |
+| 1 | `kpi_tile` | `(label, value, delta=None, delta_direction=None, severity='neutral', icon=None, href=None, tooltip=None, count=None, sublabel=None)` | ⚠ stub (1 use) |
+| 2 | `status_pill` | `(label, tone='neutral', icon=None, tooltip=None, href=None, size='md', dot=False)` | ✅ 19 uses |
+| 3 | `data_table` | `(columns, rows, row_actions=None, bulk_actions=None, pagination=None, selectable=False, sticky_header=True, empty_state=None, source_attribution=None, sort=None, on_row_click=None)` | ⚠ stub (1 use, needs `{% call %}`) |
+| 4 | `filter_chips` | `(chips, active_key=None, date_presets=None, search_input=False, saved_views=None, sync_with_url=True, target_url=None)` | ⚠ stub |
+| 5 | `empty_state` | `(icon=None, title, description=None, primary_cta=None, secondary_cta=None, tip=None, illustration=None, size='md')` | ✅ 26 uses |
+| 6 | `bulk_action_bar` | `(selected_count, actions, on_clear=None, label_fmt=None)` | ❌ missing |
+| 7 | `date_range_presets` | `(presets, target_input_from='#date_from', target_input_to='#date_to', custom_enabled=True, custom_label='Personalizado', on_apply=None, active_key=None)` | ❌ missing |
+| 8 | `severity_left_stripe` | `(severity, thickness='4px')` | ❌ missing |
+| 9 | `inline_warning` | `(tone, title=None, message=None, action=None, dismissible=False, tooltip=None, icon=None, expand=None)` | ⚠ stub |
+| 10 | `confirm_destructive` | `(trigger_label, title, body, confirm_label, cancel_label='Cancelar', confirm_action=None, confirm_method='POST', require_typed_confirmation=False, typed_phrase='ELIMINAR', icon='alert-triangle', trigger_tone='danger', trigger_icon='trash', trigger_variant='button', size='md', secondary_action=None)` | ❌ missing (close to `<saskia-confirm-modal>`) |
+
+**Per-macro work estimate (for the 6 stub/missing ones):**
+- **kpi_tile** — 1 day: define HTML/CSS, adopt in `inicio.html`, `analisis.html`, `bank.html` (3-4 templates)
+- **data_table** — 2 days: refactor as `{% call %}` block macro, migrate `inventario.html` (the gold standard) as reference, then 9 other list pages
+- **filter_chips** — 1.5 days: define HTML/CSS, add URL-state sync, migrate to `inventario.html`, `pedidos.html`, `reportes/index`
+- **bulk_action_bar** — 1 day: JS for selection state, sync with `data_table` selectable=True, migrate to `inventario`, `proveedores`, `auditoria`
+- **date_range_presets** — 1.5 days: chips + custom date range, sync with `<saskia-date>` components, 8 pages
+- **severity_left_stripe** — 0.5 day: pure CSS wrapper, 7 pages
+- **inline_warning** — 1 day: tone variants + action CTA + dismissible, 5+ pages
+- **confirm_destructive** — 0.5 day: thin wrapper over `<saskia-confirm-modal>`, 1 page (auditoria already uses confirm modal)
+
+**Total macro rollout: 8 days for all 10 to be production-ready across all pages.**
 
 ---
 
-## 6. Per-page upgrade worklist (77 pages, grouped by family)
+## The 219 QoL items (complete — 16 categories)
 
-Each entry has: **Current LOC / Tests** / **Top 3 wishlist items** / **Defects (P0/P1)** / **Patterns to apply** / **Estimated effort**.
+**From `qol-touches-catalog.md` — 358 lines.** Effort legend: XS (<1h) · S (1–4h) · M (4–8h) · L (1–2 days) · XL (3+ days).
+
+### 1. Micro-interactions (12 items · XS–S)
+1.1 Hover lift on cards · 1.2 Button press feedback · 1.3 Skeleton loaders · 1.4 Success checkmark draw · 1.5 Error shake · 1.6 Count-up animation on KPI tiles · 1.7 Empty-state fade-in · 1.8 Focus ring 2px brand-orange · 1.9 Ripple on click · 1.10 Smooth route transitions · 1.11 Pulse on live indicator · 1.12 Subtle row hover highlight
+
+### 2. Keyboard shortcuts (16 items · XS–L)
+2.1 ⌘K Command palette (L) · 2.2 / Focus global search · 2.3 ? Show shortcuts modal · 2.4–2.5 g+i / g+v nav · 2.6 ⌘N New (context-aware) · 2.7 ⌘S Save · 2.8 ⌘P Print · 2.9 Esc Close · 2.10 j/k row nav · 2.11 e Edit row · 2.12 Enter submit · 2.13 Tab cycle · 2.14 n/P paging · 2.15 Space toggle · 2.16 ⌘/ Help
+
+### 3. Sound & haptic (12 items · XS–S)
+3.1 New-order chime · 3.2 Success chime · 3.3 Error buzz · 3.4 Click sound · 3.5 Stock-low alert · 3.6 Timer alarm (15min) · 3.7 Haptic on mobile · 3.8 Sound toggle · 3.9 Volume slider · 3.10 Per-sound mute · 3.11 Respect prefers-reduced-motion/sound · 3.12 Audio cues for keyboard nav
+
+### 4. Dark mode & theming (10 items · S)
+4.1 Light mode toggle · 4.2 System theme auto-detect · 4.3 Custom accent color · 4.4 High-contrast mode · 4.5 Font size scaling · 4.6 Print stylesheet · 4.7 Density toggle (Compact/Comfortable/Spacious) · 4.8 Colorblind-friendly palette · 4.9 Save theme to localStorage · 4.10 Theme picker UI
+
+### 5. A11Y enhancements (14 items · XS–S)
+5.1 Skip-to-content link · 5.2 aria-live announcer · 5.3 aria-label on icon buttons · 5.4 Color contrast ≥4.5:1 · 5.5 Keyboard nav for kanban · 5.6 Alt text for photos · 5.7 prefers-reduced-motion · 5.8 `<th scope="col">` · 5.9 Form labels associated · 5.10 Focus trap on modal · 5.11 Status pills text+icon · 5.12 Error summary at form top · 5.13 Required-field aria · 5.14 High-contrast focus ring
+
+### 6. i18n / localization (12 items · S)
+6.1 dd/mm/aaaa (Paraguayan) · 6.2 Currency `Gs. 20.000` (period thousands, no decimals) · 6.3 Number formatting `1.234,56` · 6.4 Timezone (Asunción UTC-4) · 6.5 Plural forms · 6.6 Spanish-first copy (kill English leaks) · 6.7 Vos vs infinitive consistency · 6.8 Country code +595 · 6.9 RTL-safe layout · 6.10 Locale weekday/month names · 6.11 Currency placement unified · 6.12 i18n keys extracted
+
+### 7. Performance feedback (12 items · XS–M)
+7.1 Skeleton loaders · 7.2 Progress bar for long ops · 7.3 Optimistic UI · 7.4 Lazy-load images · 7.5 Virtualized lists (Inventario, Auditoría, Bank) · 7.6 Infinite scroll on kanban · 7.7 Debounced search 300ms · 7.8 Loading state on Save button · 7.9 Toast with progress · 7.10 Prefetch on link hover · 7.11 Cache static data · 7.12 Service worker offline
+
+### 8. Errors & recovery (14 items · XS–S)
+8.1 Toast for transient · 8.2 Banner for persistent · 8.3 Modal for blocking · 8.4 Retry button (exp backoff) · 8.5 Undo for destructive · 8.6 Draft restoration · 8.7 Browser-back warning · 8.8 Breadcrumb · 8.9 Empty-state recovery · 8.10 Error reference code · 8.11 Offline queue · 8.12 "Something went wrong" with action · 8.13 Validation inline + summary · 8.14 Confirmation for destructive
+
+### 9. Onboarding & help (14 items · XS–L)
+9.1 First-run modal · 9.2 Empty state with CTA + tip (template pattern) · 9.3 Contextual tooltip on jargon (TACC, HACCP, Escandallo) · 9.4 ? Keyboard shortcuts overlay · 9.5 Video tutorials (60-90s Loom) · 9.6 Sample data generator · 9.7 Glossary page `/glossary` · 9.8 Tooltips on table headers · 9.9 Tour mode · 9.10 "¿Cómo funciona?" expandable · 9.11 First-action success toast · 9.12 Help icon (?) in header · 9.13 "¿No sé qué elegir?" guided Q&A · 9.14 Contextual inline help
+
+### 10. Data freshness (12 items · XS–S)
+10.1 "Actualizado hace X min" timestamp · 10.2 Auto-refresh indicator (green pulsing dot) · 10.3 Stale data warning · 10.4 Manual refresh button · 10.5 Cache status badge · 10.6 Last sync timestamp · 10.7 "Ver histórico" link · 10.8 Real-time new-order badge · 10.9 "Datos actualizándose..." subtle indicator · 10.10 Connection status · 10.11 Timestamp tooltip · 10.12 Background polling 60s
+
+### 11. Print & export (14 items · S)
+11.1 Print stylesheet · 11.2 PDF export · 11.3 CSV export · 11.4 XLSX export · 11.5 Share via WhatsApp · 11.6 Share via email · 11.7 Copy to clipboard + toast · 11.8 Thermal printer receipt (80mm) · 11.9 Export with date range filter · 11.10 QR code generation · 11.11 Export progress toast · 11.12 Scheduled email reports · 11.13 Print preview · 11.14 Filename convention
+
+### 12. Search & filter (14 items · XS–S)
+12.1 Search debounce 300ms · 12.2 Fuzzy match · 12.3 Search highlighting · 12.4 Saved searches · 12.5 Recent searches · 12.6 Advanced filter disclosure · 12.7 Multi-select stay-open · 12.8 Clear all filters · 12.9 Active filter chips · 12.10 URL-state persistence · 12.11 Empty-search-results state · 12.12 Search scope selector · 12.13 Search keyboard nav · 12.14 ⌘K global search
+
+### 13. Table enhancements (15 items · XS–S)
+13.1 Column resize · 13.2 Column visibility toggle · 13.3 Density toggle · 13.4 Row striping · 13.5 Sticky header · 13.6 Sticky first column · 13.7 Pagination + jump-to-page · 13.8 Page size selector · 13.9 Sort indicators · 13.10 Hover preview row · 13.11 Bulk select checkboxes · 13.12 Right-click context menu · 13.13 Total row · 13.14 Empty rows · 13.15 Frozen footer
+
+### 14. Forms enhancements (18 items · XS–S)
+14.1 Auto-save draft every 5s · 14.2 Browser-back warning · 14.3 Dirty-state indicator · 14.4 Char counters · 14.5 Validation inline + summary · 14.6 Required-field indicators · 14.7 Field-level help tooltips · 14.8 Smart defaults · 14.9 Auto-focus first field · 14.10 Tab order verification · 14.11 Sticky save bar at bottom · 14.12 "Save & add another" · 14.13 Save & duplicate · 14.14 Cancel with confirm · 14.15 Conditional field reveal · 14.16 Number input with stepper · 14.17 Phone auto-format · 14.18 Currency input with thousands separator
+
+### 15. Mobile / touch (15 items · XS–S)
+15.1 Touch targets ≥44×44px · 15.2 Swipe-to-delete · 15.3 Swipe-to-advance-status (KDS) · 15.4 Long-press menu · 15.5 Pull-to-refresh · 15.6 Numeric keypad (`inputmode="decimal"`) · 15.7 Camera capture for photos · 15.8 Location-aware fields · 15.9 Bottom-sheet action menu · 15.10 Sticky FAB · 15.11 Tap-to-call / tap-to-WhatsApp · 15.12 Offline mode indicator · 15.13 Safe-area-inset padding · 15.14 Mobile-optimized forms · 15.15 QR scan for ingredient lookup
+
+### 16. Notifications (15 items · XS–S)
+16.1 Toast types (success/error/warning/info) · 16.2 Action in toast (Undo/Reintentar) · 16.3 Persistent notification · 16.4 Notification center (last 50) · 16.5 Mute by route · 16.6 Unread count badge · 16.7 Browser notifications (Web Notifications API) · 16.8 Email digest · 16.9 Priority levels (3s/6s/manual) · 16.10 Group rapid-fire toasts · 16.11 Sticky toast with progress · 16.12 Toast positioning · 16.13 Toast a11y · 16.14 "Mark all as read" · 16.15 Filter notification center
+
+**Total effort estimate for QoL:**
+- XS items (<1h each): ~80 items × 0.5h = 40h
+- S items (1–4h each): ~110 items × 2h = 220h
+- M items (4–8h each): ~20 items × 6h = 120h
+- L items (1–2 days): ~7 items × 12h = 84h
+- XL items (3+ days): ~2 items × 24h = 48h
+- **Grand total: ~512h = 64 working days** for ALL 219 items
+
+**Tier-1 priority subset (P0 = ship in next sprint, ~25 items):**
+1.1 Hover lift · 1.5 Error shake · 1.8 Focus ring · 1.11 Live pulse · 2.6 ⌘N · 2.7 ⌘S · 2.9 Esc · 4.6 Print stylesheet · 5.4 Contrast ≥4.5:1 · 5.13 Required-field aria · 6.1 dd/mm/aaaa · 6.2 Currency placement · 6.6 Spanish-first · 7.1 Skeleton loaders (39 pages!) · 7.7 Debounced search · 8.1 Toast · 8.13 Validation inline · 9.2 Empty state with CTA · 9.3 Tooltip on jargon · 11.1 Print stylesheet · 12.1 Debounced search · 12.9 Active filter chips · 13.5 Sticky header · 14.6 Required-field indicators · 16.1 Toast types · 16.9 Priority levels
+
+**Tier-1 effort: ~50h = 6 days**
+
+---
+
+## 18 P0 defects (full list)
+
+**From `ux-audit-2026-09-27.md` — 587 lines.**
+
+| # | Defect | Status | Effort |
+|---|---|---|---|
+| D1 | Native `<input type="date">` — white triangle, English "mm/dd/yyyy" | ✅ FIXED (`<saskia-date>` × 24 inputs) | done |
+| D2 | No loading skeletons across slow routes | ❌ 39 pages need `.skeleton` adoption | 1 week |
+| D3 | Currency drift (`Gs. 75` / `75` / `Gs. 75,00`) | ⚠ Mostly fixed; needs CI lint | 0.5d |
+| D4 | Slug display names ("Producto cfaf4b47") | ✅ FIXED (`fmt.entity_name()` × 65) | done |
+| D5 | Bilingual status pills (Transiciones in English) | ✅ FIXED | done |
+| D6 | pedido_stock_preview 500 error | ✅ FIXED (demo pedido seeded) | done |
+| D7 | /dashboard redundant with / and /analisis | ❌ Decision: rescope vs delete | 0.25d |
+| D8 | /riesgos no CTA | ✅ FIXED (Agregar riesgo button) | done |
+| D9 | /vs-mercado shows 1 row not 17 | ❌ Data-layer SQL fix | 4h |
+| D10 | /bank empty state | ✅ FIXED | done |
+| D11 | Suppliers duplicate routes | ❌ N/A (URLs 404) | 0 |
+| D12 | Audit confirm modal (native confirm) | ✅ FIXED (`<saskia-confirm-modal>`) | done |
+| D13 | Empty-state counts (no totals) | ❌ Design decision needed | 4h |
+| D14 | No toast feedback after save | ❌ Need `<saskia-toast>` adoption across saves | 1d |
+| D15 | "0" vs "—" ambiguity | ❌ Partial — formatter needed in atoms | 1d |
+| D16 | Date format drift | ✅ FIXED (`<saskia-date>`) | done |
+| D17 | Native select dropdowns | ❌ Refactor to `<saskia-combo>` | 1 week |
+| D18 | Orphaned text | ✅ N/A | done |
+
+**Fixed: 8/18 (44%) · Remaining: 7 P0 (5 days) + 3 P1**
+
+---
+
+## 12 naming consistency dimensions (canonical)
+
+**From `cross-cutting-consistency-audit.md` — 544 lines.**
+
+| # | Current drift | Canonical choice | Pages affected |
+|---|---|---|---|
+| 1 | Guardá/Salvar/Guardar | **Guardá** (voseo imperative per AGENTS.md) | all forms |
+| 2 | Cliente/Comprador/Customer | **Cliente** | clientes, ventas |
+| 3 | Producto/Receta | **Receta** = production, **Producto** = commercial. Don't conflate | recetas, productos |
+| 4 | Mostrador/Pickup/Counter | **Mostrador** | ventas, pedidos |
+| 5 | Cerrar día/Cierre/EOD | **Cerrar día** | eod, cierre |
+| 6 | Comprobante fiscal/Boleta/Factura/Recibo | **Comprobante** | ventas, recibo |
+| 7 | ingrediente/Insumo | **Ingrediente** | inventario, recetas |
+| 8 | Ver/Abrir/Ver detalle/Detalle | **Ver** | row actions |
+| 9 | Categoría/Familia/Etiqueta/Tag | **Categoría** (ingredient), **Etiqueta** (dietary/allergen) | inventario, recetas |
+| 10 | Voseo drift (Vos/Tú/Usted) | **Infinitive** (safer per system prompt) | all |
+| 11 | English leaks (stock/pending/link/preview) | **Spanish equivalents** | all |
+| 12 | Currency placement (`Gs. 20.000` vs `20.000 Gs`) | **`Gs. 20.000`** always | all |
+
+---
+
+## 4 state machines (complete — 769 lines)
+
+**From `state-machines-2026-09-27.md`.**
+
+### §1 Pedido (states + transitions + field requirements + edge cases + anti-states)
+- States: BORRADOR · PENDIENTE · CONFIRMADO · EN_PREPARACION · LISTO · ENTREGADO · CANCELADO
+- Anti-states: explicit forbids
+- Visual: Mermaid state diagram included
+
+### §2 Stock Movement Ledger (7 ledger types)
+1. COMPRA · 2. VENTA · 3. PRODUCCION_CONSUMO · 4. PRODUCCION_SOBRANTE · 5. AJUSTE_MANUAL · 6. MERMA · 7. TRANSFERENCIA
+- Immutable, append-only
+- "Current stock" always derived
+- `stock_reservation` companion table
+- PRODUCCION_CONSUMO ↔ PRODUCCION_SOBRANTE pairing contract
+
+### §3 Cierre de Caja (5 phases)
+- Phase 1: Conteo físico · Phase 2: Reconciliación ventas · Phase 3: Validación arqueo · Phase 4: Sign-off · Phase 5: Generación de libros
+- Anti-states: forbid skipping phases
+
+### §4 Bake-loss math
+- Core formula + worked example (chipa bag of 30)
+- Cost recalculation under bake loss
+- Where the bake-loss field lives
+- How bake loss flows through the system
+
+---
+
+## 5 personas × ASCII wireframes (932 lines)
+
+**From `role-wireframes-2026-09-27.md`.**
+
+1. **Counter staff** (`/pos`) — environment/login/primary/sub-screens/keyboard map/cognitive-load/anti-patterns
+2. **Production-baker** (`/produccion-kitchen`) — environment/login/primary/sub-screens/keyboard map/cognitive-load/anti-patterns
+3. **Owner-finance** (`/owner-cockpit`) — KPI dashboard
+4. **New user** — onboarding tour
+5. **Auditor** — traceability screen
+
+Each persona has: ASCII wireframe (primary + sub-screens), keyboard map, cognitive-load targets, anti-patterns to avoid, anti-patterns audit (lifted from corpus).
+
+---
+
+## Web components to BUILD (vs already shipped)
+
+| Status | Component | Size | Used in |
+|---|---|---|---|
+| ✅ Shipped | `saskia-date` | 12.9 KB | 24 inputs across 13 templates |
+| ✅ Shipped | `saskia-combo` | 18.6 KB | (partially) |
+| ✅ Shipped | `saskia-month` | 9.4 KB | inventario_movimientos, reportes |
+| ✅ Shipped | `saskia-skeleton` | 6.0 KB | (just shipped, adoption pending) |
+| ✅ Shipped | `saskia-toast` | 7.5 KB | (partial adoption) |
+| ✅ Shipped | `saskia-confirm-modal` | — | auditoria |
+| ❌ To build | `saskia-pill-cluster` | ~3 KB | derived tags, status |
+| ❌ To build | `saskia-kpi-card` | ~4 KB | KPI tiles with delta |
+| ❌ To build | `saskia-stripe-severity` | ~1 KB | left-edge color bar |
+| ❌ To build | `saskia-bulk-action-bar` | ~3 KB | bulk select toolbar |
+| ❌ To build | `saskia-date-range-presets` | ~5 KB | preset chips + custom range |
+| ❌ To build | `saskia-empty-state` | ~2 KB | icon + CTA + tip |
+| ❌ To build | `saskia-warning` | ~2 KB | inline_warning tone variants |
+| ❌ To build | `saskia-stepper` | ~2 KB | wizard steps |
+| ❌ To build | `saskia-tooltip` | ~1 KB | glossary ? |
+| ❌ To build | `saskia-fab` | ~2 KB | floating "+ Nuevo" |
+| ❌ To build | `saskia-bar-chart` | ~6 KB | SVG bar charts (7 pages) |
+| ❌ To build | `saskia-sparkline` | ~3 KB | KPI delta trend |
+| ❌ To build | `saskia-photo-placeholder` | ~1 KB | initials in colored box |
+| ❌ To build | `saskia-status-pill` | ~2 KB | (already exists as macro; consolidate) |
+
+**Total new components to build: ~13 components × ~3 KB avg = ~40 KB new JS, ~10 days effort**
+
+---
+
+## Per-page upgrade worklist (77 pages, complete)
 
 ### 6.1 OPERATIONAL (counter, day-to-day)
 
 #### `/` → `inicio.html` (333 LOC, 1 test)
-**Top wishlist (5):**
-1. "Para revisar" widget surfacing 1-2 insights from `/analisis`
-2. Quick-action FAB: "+ Nueva venta" / "+ Nuevo pedido" / "+ Ajustar stock"
-3. Bottom-of-day-close countdown: "Faltan 3 ventas para cerrar el día"
-5. Recent customer strip
-**Defects:** no delta arrows on KPIs (P1)
-**Patterns to apply:** #1 (KPI delta), #12 (aggregated cards)
-**Effort:** M
+- **5-hat:** Counter needs "Hoy en el mostrador" card · Owner needs KPI delta strip · Baker needs mini-batch-plan · New user needs tour · Auditor needs session chip
+- **Top wishlist (5):** Pinned "Hoy en el mostrador" card · Quick-action FAB · Bottom-of-day-close countdown · Recent customer strip · Active-session chip
+- **Defects:** no delta arrows on KPIs (P1)
+- **Patterns:** #1 (KPI delta) · #12 (KPI strip) · #30 (required-field markers)
+- **Code estimate:** 1 day refactor · template 200 LOC change · 1 test file 100 LOC
+- **Web components:** `<saskia-kpi-card>`, `<saskia-fab>`, `<saskia-sparkline>`
 
 #### `/ventas` → `ventas.html` (656 LOC, 3 tests — POS, the most-used page)
-**Top wishlist (5):**
-1. Category labels on quick-action chips (currently unlabeled)
-2. Customer repeat indicator ("Repeat customer: 5 visits")
-3. Discount/coupon support
-4. Refund/void flow with audit trail
-5. Receipt email/SMS after sale
-**Defects:** category labels missing on chips (P1)
-**Patterns to apply:** #13 (inline warnings for out-of-stock), #16 (date presets), #20 (print receipt)
-**Effort:** M
+- **5-hat:** Counter needs category labels on chips · repeat customer indicator · refund/void flow · receipt email/SMS
+- **Top wishlist (5):** Category labels on chips · Customer repeat indicator · Discount/coupon · Refund/void flow with audit trail · Receipt email/SMS
+- **Defects:** category labels missing (P1)
+- **Patterns:** #13 (inline warnings) · #16 (date presets) · #20 (print receipt)
+- **Code estimate:** 3 days · template 150 LOC change · 2 test files × 200 LOC
+- **Web components:** `<saskia-toast>`, `<saskia-confirm-modal>`
 
 #### `/pedidos` → `pedidos.html` (297 LOC, 3 tests)
-**Top wishlist (5):**
-1. Status filter chips (currently dropdown)
-2. Bulk actions: confirm/cancel/print
-3. Calendar view of orders
-4. Channel color-coding (whatsapp=green, mostrador=blue, web=purple)
-5. KPI strip: orders today, total sales, avg ticket, oldest pending
-**Defects:** no filter chip rail (P0)
-**Patterns to apply:** #2 (filter chips), #3 (severity stripe), #14 (bulk action bar)
-**Effort:** M
+- **5-hat:** Status filter chips · bulk actions · calendar view · channel color-coding · KPI strip
+- **Top wishlist (5):** Status filter chips · Bulk actions · Calendar view · Channel color-coding · KPI strip
+- **Defects:** no filter chip rail (P0)
+- **Patterns:** #2 (filter chips) · #3 (severity stripe) · #14 (bulk action bar) · #26 (pagination)
+- **Code estimate:** 2 days · 1 test file × 150 LOC
+- **Web components:** `<saskia-filter-chips>`, `<saskia-bulk-action-bar>`, `<saskia-pagination>`
 
-#### `/pedidos/nuevo` → `pedidos_nuevo.html` (213 LOC, 1 test)
-**Top wishlist (5):**
-1. Sticky total bar at bottom (subtotal · descuento · total · saldo)
-2. Customer balance warning ("Este cliente debe Gs. 50.000 — ¿cobrá antes?")
-3. Recurring orders
-4. Quick-add presets (sells-most-lugar + last 5 orders)
-5. Production impact preview (running total)
-**Defects:** no live total preview (P1)
-**Patterns to apply:** #6 (live preview panel), #8 (sticky action cluster)
-**Effort:** M
+#### `/pedidos/nuevo` → `pedidos_nuevo.html` (213 LOC, 1 test) — **OPS TRIAD**
+- **5-hat:** Counter needs fast order intake · Owner needs margin tracking · Baker needs production impact · Auditor needs source attribution
+- **Blueprint (60/40 split-pane POS):**
+  - Left pane (2fr): Cliente · Entrega · Origen · Notas
+  - Right pane (1fr): Live cart with Total pinned bottom
+- **Top wishlist (5):** Sticky total bar · Customer balance warning · Recurring orders · Quick-add presets · Production impact preview
+- **Defects:** no live total preview (P1) · ⚠ long vertical form fatigue (P0)
+- **Patterns:** #6 (live preview panel — RIGHT PANE) · #8 (sticky action cluster) · #30 (required-field)
+- **Code estimate:** 4 days · 1 test file × 300 LOC (full e2e)
+- **Web components:** `<saskia-combo>`, `<saskia-warning>`, `<saskia-toast>`
 
 #### `/pedidos/{id}` → `pedido_detalle.html` (196 LOC, 0 tests)
-**Top wishlist (5):**
-1. Payment recording (efectivo, transferencia, tarjeta, mixto)
-2. Status transition buttons gated by current state
-3. WhatsApp deep-link to share order
-4. Print receipt (thermal printer or PDF)
-5. Production impact mini-card
-**Defects:** "Ver stock antes de cumplir" leads to 500 error (P0)
-**Patterns to apply:** #7 (source attribution), #13 (inline warnings)
-**Effort:** M
+- **5-hat:** Need payment recording · status transitions · WhatsApp deep-link · print receipt · production impact
+- **Top wishlist (5):** Payment recording · Status transition buttons · WhatsApp deep-link · Print receipt · Production impact mini-card
+- **Defects:** "Ver stock antes de cumplir" was 500 (now FIXED)
+- **Patterns:** #7 (source attribution) · #13 (inline warnings)
+- **Code estimate:** 2 days · 1 test file × 200 LOC (0 currently — test gap)
+- **Web components:** `<saskia-confirm-modal>`, `<saskia-pill-cluster>`
 
-#### `/pedidos/board` → `pedido_board.html` (335 LOC, 66 KB, 0 tests) — kanban
-**Top wishlist (5):**
-1. 5 columns: Nuevo / En preparación / Listo / Entregado / Cancelado
-2. Drag-and-drop status changes
-3. Live timer on each card (5m, 15m, 30m thresholds)
-4. Color coding by channel
-5. KPI strip on top
-**Defects:** missing drag-drop, no live timer (P1)
-**Patterns to apply:** #29 (drag-drop), #12 (KPI strip)
-**Effort:** L
+#### `/pedidos/board` → `pedido_board.html` (335 LOC, 66 KB, 0 tests) — kanban — **TEST GAP**
+- **5-hat:** Counter needs 5 columns · drag-drop · live timer · channel color · KPI strip
+- **Top wishlist (5):** 5 columns · Drag-drop · Live timer · Color by channel · KPI strip
+- **Defects:** no drag-drop (P1) · 0 tests
+- **Patterns:** #29 (drag-drop) · #12 (KPI strip) · #13 (inline warnings)
+- **Code estimate:** 5 days · 1 test file × 400 LOC (test gap)
+- **Web components:** `<saskia-bar-chart>` (timer viz)
 
-#### `/pedidos/{id}/stock-preview` → `pedido_stock_preview.html` (91 LOC, 1 test) — **500 ERROR (P0)**
-**Top fix:** fix the 500 error when clicking "Ver stock antes de cumplir"
-**Defects:** 500 error (P0)
-**Patterns to apply:** #13 (inline warning before navigation)
-**Effort:** S
+#### `/pedidos/{id}/stock-preview` → `pedido_stock_preview.html` (91 LOC, 1 test) — **WAS 500, now FIXED**
+- **Defects:** ✅ FIXED (demo pedido seeded, recipe/ingredient class-import fix)
+- **Code estimate:** 0.5 day hardening tests
 
-#### `/eod` → `eod.html` (184 LOC, 1 test)
-**Top wishlist (5):**
-1. Progress bar for checklist
-2. Visual celebration when all items checked
-3. Mini-waste-summary widget
-4. Sign-off history
-5. Undo last close
-**Defects:** no progress bar (P1)
-**Patterns to apply:** #13 (inline warnings)
-**Effort:** S
+#### `/eod` → `eod.html` (184 LOC, 1 test) — **OPS TRIAD**
+- **Blueprint (2-col ritual/data isolation):**
+  - Left: 9-item checklist · "Notas para el turno siguiente" · ⚠ "Cerrar el día no cambia el stock" (bold uppercase) · [Guardar cierre]
+  - Right: Producción del día table (Plan · Hecho · Delta CSS var) · Reposición top 5 low-stock + cost footer
+- **Top wishlist (5):** Progress bar · Celebration when all checked · Mini-waste widget · Sign-off history · Undo last close
+- **Defects:** no progress bar (P1)
+- **Patterns:** #13 (inline warnings — disclaimers!) · state-machine-§3 (5 phases)
+- **Code estimate:** 3 days · 1 test file × 250 LOC
+- **Web components:** `<saskia-stepper>`, `<saskia-warning>`
 
-#### `/dashboard` → `dashboard.html` (152 LOC, 1 test) — **REDUNDANT with / (P0)**
-**Top fix:** delete or rescope — currently duplicates `/` and `/analisis`. Recommend delete + redirect.
-**Defects:** duplicate of / and /analisis (P0)
-**Effort:** S
+#### `/dashboard` → `dashboard.html` (152 LOC, 1 test) — **REDUNDANT**
+- **Defect:** duplicates `/` and `/analisis` (P0)
+- **Code estimate:** 0.25 day — decide: delete + redirect OR rescope to "Producción KPIs"
 
-### 6.2 CATALOG (ingredients, products, recipes)
+### 6.2 CATALOG
 
 #### `/inventario` → `inventario.html` (292 LOC, 4 tests) — **GOLD STANDARD**
-**Top wishlist (5):**
-1. KPI tiles: Valor total, Consumo 7d (Gs.), Días de cobertura promedio, Ingredientes con foto
-2. Quick actions: "+ Reposición rápida" (inline row), "Duplicar ingrediente"
-3. Bulk select toolbar (Ajustar/Archivar/Exportar/Eliminar)
-4. Saved views ("Mis críticos", "Sin gluten", "Alto costo", "Sin foto")
-5. Inline alerts when ingredient drops below safety stock
-**Defects:** "Ingredientes 415de24c" slug shown as name (P1); inconsistent icon family in row actions (P2)
-**Patterns to apply:** this IS the reference — extract macros from here
-**Effort:** M
+- **Patterns:** this IS the reference — extract macros from here
+- **Defects:** "Ingredientes 415de24c" slug (P1) · inconsistent icon family (P2)
+- **Code estimate:** 2 days to extract macros + add filter chips + bulk action bar
 
 #### `/inventario/nuevo` and `/inventario/{id}/editar` → `inventario_form.html` (144 LOC, 2 tests) — **GOLD STANDARD**
-**Top wishlist (5):**
-1. Diff view before save ("Stock actual: 100 → 105, Precio: 3000 → 3500")
-2. Archive / Soft-delete button in danger zone
-3. "View as JSON" for power users
-4. Confirm dialog for Nombre change (warns about recipe impact)
-5. Live cost preview "precio × stock = valor total"
-**Defects:** native date picker still visible (D1)
-**Patterns to apply:** #1, #6 (live preview), #7 (source attribution)
-**Effort:** M
+- **Patterns:** #1 (KPI) · #6 (live preview) · #7 (source attribution)
+- **Defects:** native date picker (FIXED) · no live cost preview (P1)
+- **Code estimate:** 2 days
 
-#### `/inventario/{id}` → `ingrediente_detalle.html` (387 LOC, 0 tests) — 4-quadrant pattern (GOLD STANDARD)
-**Top wishlist (5):**
-1. Sticky header with name + main actions
-2. "Comprá más" CTA with one-click Lista de compras entry
-3. Movimientos recent strip (last 3 inline, not just link)
-4. Variantes quick toggle to set "preferida" inline
-5. Recipe impact panel — click name to see full cost & yield
-**Defects:** "Pronóstico" block shows `(sin consumo reciente)` with no CTA to fix (P0); Pronóstico block has `—` for días restantes when no data (P0)
-**Patterns to apply:** #5 (derived tags block — already good)
-**Effort:** M
+#### `/inventario/{id}` → `ingrediente_detalle.html` (387 LOC, 0 tests) — 4-quadrant
+- **Defects:** Pronóstico `(sin consumo reciente)` no CTA (P0) · `—` for días restantes (P0)
+- **Patterns:** #5 (derived tags — already good)
+- **Code estimate:** 2 days · 1 test file × 150 LOC
 
 #### `/inventario/{id}/movimientos` → `inventario_movimientos.html` (82 LOC, 0 tests)
-**Top wishlist (5):**
-1. KPI strip at top (Entradas/Salidas/Mermas/Ajustes + delta vs last period)
-2. Type filter chips
-3. Date range picker with presets
-4. Per-row actions: Edit (with audit trail), Reverse, Print receipt
-5. Bulk export as CSV/PDF
-**Defects:** empty state has CTA but no entries currently
-**Patterns to apply:** #1, #2, #16
-**Effort:** M
+- **Defects:** empty state CTA missing entries
+- **Patterns:** #1 (KPI delta) · #2 (chips) · #16 (date presets)
+- **Code estimate:** 1.5 days
 
 #### `/productos` → `productos.html` (579 LOC, 0 tests)
-**Top wishlist (5):**
-1. Sin-TACC pill in row
-2. Filter chip rail
-3. Currency format unification (D3 — major)
-4. Prime cost > 100% should be RED, not amber
-5. Edit button column too far right (D2)
-**Defects:** currency drift (D3, P0); prime cost color severity (P1)
-**Patterns to apply:** #2, #11, #12
-**Effort:** M
+- **Defects:** D3 currency drift (mostly FIXED) · prime cost > 100% amber not red (P1) · D2 action button (FIXED)
+- **Patterns:** #2 (filter chips) · #11 (pill cluster) · #12 (KPI)
+- **Code estimate:** 2 days · 1 test file × 200 LOC
 
 #### `/productos/nuevo` and `/productos/{id}/editar` → `producto_form.html` (508 LOC, 0 tests)
-**Top wishlist:** margin live preview as price changes; "Etiquetas derivadas de receta" block; filter chip rail
-**Defects:** no live margin preview (P1)
-**Patterns to apply:** #6, #5
-**Effort:** M
+- **Defects:** no live margin preview (P1)
+- **Patterns:** #6 (live preview) · #5 (derived tags)
+- **Code estimate:** 2 days · 1 test file × 250 LOC
 
-#### `/productos/importar` → `productos_importar.html` (113 LOC, 0 tests) — Excel import
-**Patterns to apply:** #4 (empty state), #30 (save feedback)
-**Effort:** S
-
-#### `/recetas` → `recetas.html` (270 LOC, 6 tests, 53 tests passing) — **JUST SHIPPED Foto + Dificultad fix**
-**Top wishlist (5):**
-1. Filter chip rail
-2. Sort headers with active highlight (P1)
-3. Sin-TACC pill cluster
-4. Yield column with "por porción" unit hint tooltip
-5. Saved views
-**Defects:** none currently open — recently hardened
-**Patterns to apply:** #2, #24
-**Effort:** M
+#### `/recetas` → `recetas.html` (270 LOC, 6 tests, 53 tests passing) — **JUST SHIPPED Foto + Dificultad**
+- **Patterns:** #2 · #24 (sortable) · #11 (Sin-TACC pill)
+- **Code estimate:** 1.5 days for filter chips + sort
 
 #### `/recetas/nueva` and `/recetas/{id}/editar` → `receta_form.html` (1,149 LOC, 0 tests) — **MOST COMPLEX FORM**
-**Top wishlist (5):**
-1. Photo upload with crop/rotate
-2. Video embed for technique (YouTube/Loom)
-3. Version history with diff
-4. Fork a recipe (clone with modifications)
-5. Yield scaling beyond dropdown (free input)
-**Defects:** P1 items include Escandallo total = Gs. 0 (server-side fix needed), CSRF token missing in form
-**Patterns to apply:** #6 (live preview — already implemented but needs formalization)
-**Effort:** L
+- **Defects:** Escandallo total = Gs. 0 (server-side fix) · CSRF token missing
+- **Patterns:** #6 (live preview — already implemented)
+- **Code estimate:** 5 days (the hardest template) · 1 test file × 400 LOC
 
 #### `/recetas/{id}` → `receta_detalle.html` (329 LOC, 0 tests)
-**Top wishlist (5):**
-1. Pill cluster consistent with edit form
-2. Print prep sheet
-3. Fork from detail page
-4. Scale by N
-5. Cost-vs-yield trend chart
-**Patterns to apply:** #5, #20
-**Effort:** M
+- **Patterns:** #5 (pill cluster) · #20 (print prep sheet)
+- **Code estimate:** 2 days
 
 ### 6.3 PRODUCTION
 
-#### `/produccion` → `produccion.html` (452 LOC, 1 test)
-**Top wishlist (5):**
-1. Day-grid timeline view
-2. Week view (7-day calendar)
-3. Drag-to-reschedule
-4. Per-batch timer
-5. "Suficiente/Falta" already exists — formalize
-**Defects:** day cards show only one recipe per day by default (P1)
-**Patterns to apply:** #29, #12
-**Effort:** L
+#### `/produccion` → `produccion.html` (452 LOC, 1 test) — **OPS TRIAD**
+- **Blueprint (3-tier cascade):**
+  - Layer 1 (full-width urgent banner): "Pedidos pendientes para hoy"
+  - Layer 2 (2-col grid): Plan manual (collapsible) | Productos a producir (with Source badges)
+  - Layer 3 (full-width): Ingredientes necesarios (rows with stock<required → bg-danger-soft + ¡Falta! badge)
+- **Defects:** day cards show one recipe by default (P1)
+- **Patterns:** #29 (drag-drop) · #12 (KPI strip) · state-machine-§2 (stock ledger)
+- **Code estimate:** 4 days · 1 test file × 300 LOC
 
 #### `/produccion-planner` → `planner.html` (115 LOC, 1 test)
-**Top wishlist (5):**
-1. Multi-row planner (add receta many times, see total ingredients needed)
-2. Date picker for tomorrow's production
-3. Save plan as template ("Lunes de medialunas")
-4. Compare to last week's plan
-5. Print prep sheet
-**Patterns to apply:** #6 (preview panel), #20
-**Effort:** M
+- **Patterns:** #6 (preview panel) · #20 (print)
+- **Code estimate:** 1.5 days
 
 #### `/reorder` → `reorder.html` (184 LOC, 2 tests)
-**Top wishlist (5):**
-1. Supplier pre-fill from ingredient
-2. PO auto-generation
-3. Price comparison across suppliers
-4. Source attribution ("Sugerido = max(mínimo, promedio_consumo_7d × lead_time) − actual")
-5. Bulk create POs
-**Defects:** "sin proveedor" should be red badge not italic (P1)
-**Patterns to apply:** #3, #7, #14
-**Effort:** M
+- **Defects:** "sin proveedor" should be red not italic (P1)
+- **Patterns:** #3 (severity) · #7 (source attribution) · #14 (bulk)
+- **Code estimate:** 1.5 days
 
 ### 6.4 ORDERS (additional)
 
 #### `/pedidos/publico/{token}` → `pedido_publico.html` (128 LOC, 0 tests)
-**Patterns to apply:** minimal — read-only view, customer-facing
-**Effort:** S
+- **Code estimate:** 0.5 day (minimal read-only view)
 
 #### `/wishlist` → `wishlist.html` (71 LOC, 1 test)
-**Top wishlist:** aggregated KPI strip ("Gs. 50,000,000" in plain text is broken — P0); empty state CTA
-**Defects:** plain-text KPIs (P0)
-**Patterns to apply:** #4, #12
-**Effort:** S
+- **Defects:** "Gs. 50,000,000" plain text broken (P0)
+- **Patterns:** #4 (empty state) · #12 (KPI)
+- **Code estimate:** 0.5 day
 
 #### `/shopping-list` → `shopping_list.html` (124 LOC, 1 test)
-**Top wishlist:** already has excellent empty state (preserve); add date range presets; source attribution
-**Patterns to apply:** #1 (KPI delta), #7, #16
-**Effort:** S
+- **Patterns:** #1 · #7 · #16
+- **Code estimate:** 0.5 day
 
 ### 6.5 BANK / FINANZAS
 
-#### `/bank` → `bank.html` (274 LOC, 4 test files, 61 tests) — **HARDENED (date, currency, CSV, pagination, reconciliation)**
-**Top wishlist (5):**
-1. Auto-matching (suggest matches by amount + counterparty)
-2. Bulk reconciliation
-3. Reconciliation reports
-4. Reverse matching (orders without bank txns)
-5. PDF export
-**Defects:** source attribution OK; format_gs needs audit
-**Patterns to apply:** #1 (KPI delta on top stats), #14 (bulk action bar)
-**Effort:** M
+#### `/bank` → `bank.html` (274 LOC, 4 test files, 61 tests) — **HARDENED**
+- **Code estimate:** 1 day for KPI delta strip + bulk reconciliation
 
-#### `/reportes` → `reportes.html` (30 LOC, 0 tests) — index page
-**Top wishlist:** category tabs (Ventas/Costos/Inventario/Clientes/Compliance/Operacional); search bar; per-card source attribution
-**Defects:** 14 cards in flat grid (P1)
-**Patterns to apply:** #9 (tabs), #22 (search), #7 (source)
-**Effort:** M
+#### `/reportes` → `reportes.html` (30 LOC, 0 tests) — index
+- **Defects:** 14 cards in flat grid (P1)
+- **Patterns:** #9 (tabs) · #22 (search) · #7 (source)
+- **Code estimate:** 1 day
 
-#### All 12 `/reportes/*` sub-routes — list each:
-
-| Page | LOC | Currency drift D3 | Other defects | Effort |
-|---|---:|---|---|---|
-| `reportes_diario.html` | 67 | ✅ | none | S |
-| `reportes_iva.html` | 65 | ✅ | source attribution | S |
-| `reportes_retencion.html` | 62 | ✅ | none | S |
-| `reportes_metricas.html` | 143 | ✅ | none | M |
-| `reportes_top_productos.html` | 62 | ✅ | "Producto cfaf4b47" leak (D6) | M |
-| `reportes_libro_ventas.html` | 95 | ✅ | none | M |
-| `reportes_cierre_mensual.html` | 164 | ✅ | label consistency | M |
-| `reportes_precios.html` | 113 | ✅ | none | S |
-| `reportes_comparacion.html` | 109 | ✅ | none | S |
-| `reportes_metodos_pago.html` | 65 | ✅ | none | S |
-| `reportes_ventas_hora.html` | 50 | ✅ | missing bar chart | S |
-| `reportes_valor_pedido.html` | 49 | ✅ | none | S |
-
-**Patterns to apply (all):** D3 (format_gs), #16 (date presets), #7 (source attribution), #22 (search)
+#### All 12 `/reportes/*` sub-routes (12 templates, ~1.1K LOC total)
+- **All need:** D3 format_gs audit · #16 date presets · #7 source attribution · #22 search
+- **Code estimate:** 3 days · 1 test file × 250 LOC (covers all 12)
+- **Per-page effort:** S each
 
 #### `/analisis` → `analisis.html` (250 LOC, 2 tests)
-**Top wishlist:** "Estrellas"/"Para revisar" cards need more contrast; "Promedio de ventas" needs bar chart; rotation block shows `0.0 kg / 0.0× / —` without explanation (P0)
-**Defects:** rotation block empty state without CTA (P0)
-**Patterns to apply:** #4 (empty state with CTA), #17 (bar chart), #3 (severity stripe)
-**Effort:** M
+- **Defects:** rotation block empty state no CTA (P0)
+- **Patterns:** #4 · #17 (bar chart) · #3 (severity)
+- **Code estimate:** 1.5 days
 
-#### `/riesgos` → `riesgos.html` (63 LOC, 0 tests) — **WORST EMPTY STATE IN SYSTEM (P0)**
-**Top fix:** add list view + "Agregar riesgo" CTA + filter chips
-**Defects:** renders only summary strip — no list (P0)
-**Patterns to apply:** #4 (empty state), #2 (chips), #14 (bulk action bar)
-**Effort:** M
+#### `/riesgos` → `riesgos.html` (63 LOC, 0 tests) — **WORST EMPTY STATE**
+- **Defects:** renders only summary strip (P0)
+- **Patterns:** #4 · #2 · #14
+- **Code estimate:** 1 day
 
 #### `/auditoria` → `auditoria.html` (167 LOC, 2 tests)
-**Top wishlist:** date range presets (already has chips but they're non-clickable — defect); IP/user filter; CSV/PDF export; severity stripe per row
-**Defects:** chips non-clickable (P0); no export (P1)
-**Patterns to apply:** #2 (chips — fix defect), #3 (severity), #7 (source), #20 (export)
-**Effort:** M
+- **Defects:** chips non-clickable (P0) · no export (P1)
+- **Patterns:** #2 (fix defect) · #3 · #7 · #20
+- **Code estimate:** 1.5 days
 
 ### 6.6 CUSTOMERS / SUPPLIERS
 
 #### `/clientes` → `clientes.html` (199 LOC, 1 test)
-**Top wishlist:** filter chip rail; "0 visitas" vs "—" distinction (D5); action button too far right (D2); last-purchase-date column
-**Defects:** D2 (P2), D5 (P1)
-**Patterns to apply:** #2, #5 (0 vs —), #24 (sortable headers)
-**Effort:** S
+- **Defects:** D2 (P2), D5 (P1)
+- **Patterns:** #2 · #5 (0 vs —) · #24
+- **Code estimate:** 1 day
 
 #### `/clientes/{id}` → `cliente_detalle.html` (137 LOC, 0 tests)
-**Top wishlist:** four-quadrant card pattern (visitas / gasto total / puntos / tier); "Tier sugerido basado en visitas" derived block; sticky action cluster
-**Defects:** no action buttons (Ver only) (P1)
-**Patterns to apply:** #5, #8
-**Effort:** S
+- **Defects:** no action buttons (P1)
+- **Patterns:** #5 (4-quadrant) · #8 (sticky)
+- **Code estimate:** 1 day
 
 #### `/clientes/{id}/editar` → `cliente_editar.html` (54 LOC, 0 tests)
-**Patterns to apply:** #8 (sticky actions), #30 (save feedback)
-**Effort:** S
+- **Patterns:** #8 · #30
+- **Code estimate:** 0.5 day
 
 #### `/suppliers` → `suppliers.html` (77 LOC, 1 test)
-**Top wishlist:** filter chip rail (categoría + estado); bulk actions; KPI strip (total proveedores / activas / con deudas)
-**Defects:** D2 action button placement (P2)
-**Patterns to apply:** #2, #12, #14
-**Effort:** S
+- **Patterns:** #2 · #12 · #14
+- **Code estimate:** 1 day
 
 #### `/supplier/nuevo` → `supplier_form.html` (48 LOC, 0 tests)
-**Top wishlist:** RUC example callout; sticky action cluster
-**Patterns to apply:** #8, #10 (ejemplo)
-**Effort:** S
+- **Patterns:** #8 · #10 (ejemplo)
+- **Code estimate:** 0.5 day
 
 #### `/supplier/{id}/orders` → `supplier_orders.html` (85 LOC, 0 tests)
-**Patterns to apply:** #22 (search), #16 (date presets)
-**Effort:** S
+- **Patterns:** #22 · #16
+- **Code estimate:** 0.5 day
 
 ### 6.7 PRICING / BENCHMARKS
 
 #### `/pricing` → `pricing.html` (54 LOC, 0 tests)
-**Top wishlist:** KPI strip with delta; "create a recipe first" cross-link empty state; channel filter chips
-**Patterns to apply:** #4 (empty state), #12, #2
-**Effort:** S
+- **Patterns:** #4 · #12 · #2
+- **Code estimate:** 0.5 day
 
-#### `/vs-mercado` → `benchmarks.html` (108 LOC, 0 tests) — **SHOWS 1 ROW INSTEAD OF 17 (P0)**
-**Top fix:** fix data showing 1 row instead of 17
-**Defects:** data display bug (P0)
-**Patterns to apply:** #3 (severity stripe for above/below market), #4 (empty state)
-**Effort:** M
+#### `/vs-mercado` → `benchmarks.html` (108 LOC, 0 tests) — **DATA BUG**
+- **Defect:** shows 1 row not 17 (P0)
+- **Patterns:** #3 · #4
+- **Code estimate:** 0.5 day (data layer)
 
 #### `/vs-mercado/{id}/editar` → `benchmark_edit.html` (97 LOC, 0 tests)
-**Patterns to apply:** #8 (sticky actions), #30
-**Effort:** S
+- **Patterns:** #8 · #30
+- **Code estimate:** 0.5 day
 
-### 6.8 INSIGHTS (4 sub-pages in insights_stock, 4 in insights_derived)
+### 6.8 INSIGHTS (8 pages × ~40 LOC each)
 
-All 8 insight pages are minimal placeholders. Pattern applies (different target each):
-- `insight_stock.html` (50 LOC) — agregated KPI for stock health
-- `insight_margenes.html` (63 LOC) — margin analysis
-- `insight_margenes_detalle.html` (40 LOC) — per-product margin drill-down
-- `insight_afinidades.html` (28 LOC) — product affinity matrix
-- `insight_demand.html` (45 LOC) — demand forecasting
-- `insight_food_cost.html` (35 LOC) — food cost variance
-- `insight_freshness.html` (42 LOC) — ingredient freshness
-- `insight_price_impact.html` (43 LOC) — price impact simulation
-
-**Patterns to apply (all):** #12 (KPI cards), #17 (bar chart), #18 (period comparison)
-**Effort:** M (per page)
+All 8 insight pages are minimal placeholders:
+- `insight_stock.html` · `insight_margenes.html` · `insight_margenes_detalle.html` · `insight_afinidades.html` · `insight_demand.html` · `insight_food_cost.html` · `insight_freshness.html` · `insight_price_impact.html`
+- **Patterns:** #12 (KPI) · #17 (bar chart) · #18 (period comparison)
+- **Code estimate:** 4 days (8 pages × 0.5 day) · 1 test file × 200 LOC
 
 ### 6.9 WASTE / SETTINGS / USERS / MISC
 
-#### `/merma` → `merma.html` (264 LOC, 1 test) — exemplary ejemplo callout (preserve)
-**Top wishlist:** COSTE TOTAL tile needs breakdown by motivo; "Por receta / Por ingrediente" tab nav; KPI delta strip
-**Patterns to apply:** #9 (tabs), #1, #3
-**Effort:** M
+#### `/merma` → `merma.html` (264 LOC, 1 test) — exemplary ejemplo
+- **Patterns:** #9 (tabs) · #1 · #3
+- **Code estimate:** 1 day
 
-#### `/settings` → `settings.html` (747 LOC, 1 test) — 4 tabs
-**Top fix:** **P0 — first 3 tabs make the page 3125px tall on 1280px viewport** (worst scrolling in app). Add sticky in-page TOC.
-**Defects:** long page (P0); Save button at bottom (P1); tooltip on placeholder-only fields (P1)
-**Patterns to apply:** #8 (sticky actions), #27 (tooltips)
-**Effort:** M
+#### `/settings` → `settings.html` (747 LOC, 1 test) — 4 tabs — **LONGEST PAGE**
+- **Defects:** P0 first 3 tabs make page 3125px tall · Save at bottom · no tooltips
+- **Patterns:** #8 (sticky actions) · #27 (tooltips)
+- **Code estimate:** 2 days (sticky TOC)
 
-#### `/settings/catalog` → `settings_catalog.html` (956 LOC, 1 test) — biggest template by bytes
-**Top fix:** same as /settings — add sticky TOC; more tabs to split
-**Defects:** very long (P1)
-**Effort:** M
+#### `/settings/catalog` → `settings_catalog.html` (956 LOC, 1 test) — biggest by bytes
+- **Code estimate:** 2 days
 
 #### `/users` → `users.html` (211 LOC, 0 tests)
-**Patterns to apply:** #2 (filter chips), #8 (sticky)
-**Effort:** S
+- **Patterns:** #2 · #8
+- **Code estimate:** 1 day
 
 #### `/login` → `login.html` (163 LOC, 1 test)
-**Patterns to apply:** minimal — just a11y
-**Effort:** S
-
-#### `/forgot-password` → part of `auth.py` (no template)
-**Effort:** S
+- **Patterns:** minimal — just a11y
+- **Code estimate:** 0.5 day
 
 #### `/excel` → `excel.html` (140 LOC, 3 tests)
-**Patterns to apply:** #16 (date presets), #22 (search)
-**Effort:** S
-
-#### `/excel/mode-guidance` and `/excel/validate` → 36 + 68 LOC
-**Effort:** S
+- **Patterns:** #16 · #22
+- **Code estimate:** 0.5 day
 
 #### `/guia` → `guia.html` (13 LOC) — VERY MINIMAL
-**Top fix:** section anchors, search, "Cuándo leerla" column expansion
-**Defects:** no search (P1)
-**Patterns to apply:** #22 (search)
-**Effort:** M
+- **Defects:** no search (P1)
+- **Patterns:** #22
+- **Code estimate:** 1 day
 
 #### `/recibo` → `recibo.html` (144 LOC, 0 tests)
-**Top wishlist:** thermal printer format; PDF export; email/SMS send
-**Patterns to apply:** #20 (print)
-**Effort:** S
+- **Patterns:** #20
+- **Code estimate:** 0.5 day
 
 #### `/ventas/historial` → `ventas_historial.html` (180 LOC, 1 test)
-**Top wishlist:** filter chips (cliente / fecha / método de pago / producto); 0 vs — fix (D5); bulk actions (void / reprint)
-**Patterns to apply:** #2, #5
-**Effort:** M
+- **Patterns:** #2 · #5
+- **Code estimate:** 1 day
 
 #### `/creditos` → `creditos.html` (35 LOC, 0 tests)
-**Patterns to apply:** #12 (KPI), #16 (date presets)
-**Effort:** S
+- **Patterns:** #12 · #16
+- **Code estimate:** 0.5 day
 
-#### `/combo-smoke` → `dev_combo_smoke.html` (73 LOC, 0 tests) — dev page
-**Effort:** — (skip)
+#### `/combo-smoke` → `dev_combo_smoke.html` (73 LOC, 0 tests) — dev
+- **Code estimate:** skip
 
 #### `/ops/status` → `ops_status.html` (48 LOC, 0 tests)
-**Effort:** S
-
-#### `/healthz`, `/healthz/*`, `/admin/migrate` — backend infra, skip
+- **Code estimate:** 0.5 day
 
 ### 6.10 ORPHAN / DEAD TEMPLATES
 
-- `base.html` (309 LOC) — parent template, NOT orphan, just not in any `render()` call directly
-- `delivery_zones.html` (38 LOC) — referenced in menu but no router? Investigate
-- `produccion_calendario.html` (25 LOC) — referenced in menu but no router? Investigate
+- `base.html` (309 LOC) — parent template, NOT orphan
+- `delivery_zones.html` (38 LOC) — redirects to `/settings`
+- `produccion_calendario.html` (25 LOC) — orphan, investigate
 
 ---
 
-## 7. Priority ranking — top 15 actions (effort + impact)
+## Estimated totals (the complete picture)
 
-| # | Action | Effort | Impact |
-|---|---|---|---|
-| 1 | **Extract 10 atomic macros** from `/inventario` + `/inventario/nuevo` into `app/components/atoms.html` | 3 days | High — unlocks everything else |
-| 2 | **Fix D3 — currency format drift** with `format_gs` filter + CI lint | 0.5 day | P0 — recurring finance bug |
-| 3 | **Fix the 5 broken/empty pages** (dashboard delete, ped stock-preview 500, riesgos, benchmarks, bank import) | 1 day | P0 — these are unusable |
-| 4 | **Fix D6 — seed-name identifiers** (Spanish bakery names) | 0.5 day | P0 — designers stop tripping |
-| 5 | **Roll out EmptyState macro** to 8 pages (Proveedores subpages, Riesgos, Wishlist, Bank, Pricing, Vs-mercado, Auditoría) | 1 day | High |
-| 6 | **Roll out FilterChipRail macro** to 6 pages + **fix defect** on Auditoría | 1 day | P0 + defect |
-| 7 | **Roll out AggregatedKpi macro** to 9 pages (fix Wishlist `Gs. 50,000,000` broken display) | 0.5 day | P0 |
-| 8 | **Roll out DateRangePresets** to 8 pages | 0.5 day | High |
-| 9 | **Roll out SideRailLivePreview** to 5 pages (Receta-editar already good, formalize) | 1 day | High |
-| 10 | **Roll out StickyActionCluster** to 8 long forms | 0.5 day | High |
-| 11 | **Roll out SeverityStripe** to 7 pages | 0.5 day | High |
-| 12 | **Fix D5 — 0 vs — ambiguity** | 0.5 day | P1 |
-| 13 | **Fix D1 — native date picker** (`<saskia-date>` web component) | 1 day | P1 — system prompt violation |
-| 14 | **Apply 12 naming consistency dimensions** (voseo, Cliente, etc.) | 1 day | High |
-| 15 | **Fix `/dashboard`** — delete and redirect to `/` | 0.25 day | P0 |
+| Category | Count | Effort |
+|---|---:|---:|
+| Pages upgraded (all 77) | 77 | ~75 days |
+| Macros completed (6 stub/missing) | 6 | ~8 days |
+| Web components built (13 new) | 13 | ~10 days |
+| QoL Tier-1 shipped (25 items) | 25 | ~6 days |
+| P0 defects fixed (7 remaining) | 7 | ~5 days |
+| New tests written | ~6,500 LOC | ~6 days |
+| Total (all-in) | | ~110 days |
 
-**Total: ~10 days for the top 15. Highest leverage first 4 = 5 days for biggest perceived quality jump.**
+**Realistic 2-week sprint (top priorities, ~12 days):**
+1. Complete `data_table`, `filter_chips`, `bulk_action_bar` macros (3 days)
+2. Build `<saskia-kpi-card>`, `<saskia-pill-cluster>`, `<saskia-stripe-severity>`, `<saskia-bar-chart>` (4 days)
+3. Roll out macros to 6 P0 pages: inventario, productos, recetas, pedidos, clientes, auditoria (3 days)
+4. Fix 7 remaining P0 defects (2 days)
+5. Tests for new components + e2e for operacional triad (3 days × parallel)
+6. Deploy + verify on VPS (1 day, with `--no-cache` build)
 
 ---
 
-## 8. Personas — quick wins by hat
+## Open questions (need Ivan's call before next sprint)
 
-### Counter staff (speed)
-- Wishlist page-local search (#22)
-- Quick-action chips with category labels (`/ventas`)
-- Filter chip rail (every list page)
-- Sticky total bar (`/pedidos/nuevo`)
-- Keyboard shortcuts
-
-### Owner-finance (KPIs)
-- Currency format unification (D3)
-- KPI delta strip on every summary page
-- Aggregated KPI cards (no plain-text `Gs. 50,000,000`)
-- Margin > 100% should be RED not amber (`/productos`)
-- Source attribution on every report
-
-### Production-baker (planning)
-- Multi-row planner (`/produccion-planner`)
-- Day-grid timeline (`/produccion`)
-- Recipe impact panel (`/ingrediente/{id}`)
-- Print prep sheet (`/recetas/{id}`)
-- Drag-to-reschedule
-
-### New user (orientation)
-- Empty state with onboarding CTA (every empty page — Riesgos is worst)
-- Ejemplo callout on forms (Proveedor-nuevo, Receta-nueva, Clientes-nuevo)
-- Help link in topnav
-- First-time tooltip tour
-
-### Auditor (traceability)
-- Source attribution line on every table
-- 0 vs — ambiguity fix (D5)
-- Date range presets
-- CSV/PDF export
-- Audit log on every action
+1. **Should `/dashboard` be deleted?** Redundant with `/` and `/analisis`.
+2. **Where should "today" KPIs live?** `/` actionable vs `/analisis` strategic?
+3. **Should recetas be primary entity?** Currently productos + recetas are siblings.
+4. **Canonical filter rail pattern?** Currently 2 different patterns.
+5. **Should `/riesgos` ship before production?** Currently renders nothing.
+6. **`/delivery-zones` and `/produccion-calendario`** — dead routes or active but unlinked?
+7. **CI gate for format_gs?** Add lint step that fails if `Gs\. {{` appears without filter?
+8. **Theme preference?** Stick with dark-only or add light mode (10-item QoL category 4)?
+9. **Light-mode toggle complexity** — affects 13 web components' CSS
+10. **Service worker / PWA** (QoL 7.12) — invest in offline mode?
 
 ---
 
-## 9. Open questions (for Ivan before next sprint)
+## Lessons / pitfalls
 
-1. **Should `/dashboard` be deleted?** Redundant with `/` and `/analisis`. Recommend: **delete + redirect**.
-2. **Where should "today" KPIs live?** `/` (actionable) vs `/analisis` (strategic). Recommend: **split** — `/` = actionable, `/analisis` = strategic.
-3. **Should recipes be the primary entity?** Currently productos + recetas are siblings under Catálogo. Recommend: **make recetas primary** in v2.
-4. **Canonical filter rail pattern?** Currently 2 different patterns (`/inventario` = chips, `/productos` = dropdown). Recommend: **chips everywhere**.
-5. **Should `/riesgos` ship before production?** Currently renders nothing. Recommend: **gate behind flag** if v1 is launching.
-6. **`/delivery-zones` and `/produccion-calendario` are orphan templates** — are these dead routes or active but unlinked from menu?
-7. **CI gate for format_gs?** Add `.github/workflows/ci.yml` lint step that fails if `Gs\. {{` appears in any template without the filter?
-
----
-
-## 10. Lessons / pitfalls to apply
-
-From the existing work + today's deploy:
-
-1. **Docker build cache gotcha** — `app/` changes may be served from cached COPY layer. Always `docker build --no-cache` + verify by exec'ing into container. (Saved to `saskia-rms-deploy-flow` skill.)
-2. **SQLite rejects `ADD COLUMN IF NOT EXISTS`** — use inspector-based try/except helpers.
-3. **Tag algebra EN→ES** — `CANONICAL_DIETARY_TAGS` is Spanish, data sources emit English. Normalize at the read boundary + on the data path (migration).
-4. **Migration data steps need fresh code** — if migration's recompute-via-inference ran before its code change shipped, the data is stale. Re-run the data step manually.
-5. **`receta_form.html` is 1,149 LOC** — the single biggest template. Any change needs local manual QA + e2e `test_e2e_un_dia_en_la_panaderia.py` (287 LOC).
-6. **Test investment correlates with audit depth** — bank has 61 tests (full regression), `recetas` has 53 tests, but `pedido_board` (the most complex list page at 335 LOC) has 0 tests.
-7. **Format drift is invisible in unit tests** — D3 (Gs. 75 vs 75) only catches in screenshot review or end-to-end. Add a CI lint rule.
+1. **Docker build cache gotcha** — `app/` changes may be served from cached COPY layer. Always `docker build --no-cache` + verify by exec'ing. (Saved to `saskia-rms-deploy-flow` skill.)
+2. **SQLite rejects `ADD COLUMN IF NOT EXISTS`** — use inspector-based try/except.
+3. **Tag algebra EN→ES** — normalize at read boundary + migration v60.
+4. **Migration data steps need fresh code** — re-run manually if data is stale.
+5. **`receta_form.html` is 1,149 LOC** — any change needs e2e `test_e2e_un_dia_en_la_panaderia.py`.
+6. **Test investment correlates with audit depth** — `pedido_board` has 0 tests despite being 66 KB.
+7. **Format drift invisible in unit tests** — D3 only catches in screenshot review. Add CI lint rule.
+8. **Web components use CSS Custom Properties** — never hardcode colors, always `var(--color-*)`.
+9. **Jinja `{% call %}` blocks** — needed for `data_table`, `filter_chips`, `bulk_action_bar` (skip-these-stub-only macros).
+10. **`<saskia-date>` adoption worked** — 24 inputs in 13 templates converted without regressions.
 
 ---
 
 ## Appendix A — File locations
 
-- This document: `/opt/data/profiles/ivan/scratch/saskia-app-work/docs/upgrades/2026-09-29-UX-UPGRADE-PLAN.md`
-- Source audits (still on disk):
-  - `/tmp/designer-drop/README.md` — overview
-  - `/tmp/designer-drop/REPORT.md` — route→template reference (52 KB)
-  - `/tmp/designer-drop/audit-batch2-prod.md` — 14 pages
-  - `/tmp/designer-drop/audit-batch3-reports.md` — 14 pages
-  - `/tmp/designer-drop/cross-page-wishlist-consolidation.md` — top 30 patterns + top 10 macros
-  - `/tmp/designer-drop/cross-cutting-consistency-audit.md` — 12 dimensions
-  - `/tmp/designer-drop/ux-audit-2026-09-27.md` — 6 universal defects
-  - `/tmp/saskia-ux-audit-drop-2026-09-27.zip` — full bundle + 82 screenshots
+- **This document:** `/opt/data/profiles/ivan/scratch/saskia-app-work/docs/upgrades/2026-09-29-UX-UPGRADE-PLAN.md`
+- **Source audits:** `/tmp/designer-drop/*.md` (14 files, 19,260 lines total)
+- **Bundle with screenshots:** `/tmp/saskia-ux-audit-drop-2026-09-27.zip` (9.5 MB)
+- **Existing atoms.html:** `app/templates/_components/atoms.html` (18 macros)
+- **Web components:** `app/static/saskia-{date,combo,month,skeleton,toast,confirm-modal}.js`
 
-## Appendix B — Test coverage by page (heuristic — grep test files for URL paths)
+## Appendix B — Test coverage gaps (top 10)
 
-Test files (143 found) were matched against their primary URL path. Pages without tests: `cliente_detalle`, `cliente_editar`, `inventario_movimientos`, `pedido_detalle`, `pedido_board`, `pedido_publico`, `recetas/{id}/editar`, `productos/*`, `settings_catalog`, `suppliers`, `supplier_form`, `supplier_orders`, `pricing`, `benchmarks`, `benchmark_edit`, `wishlist`, `riesgos`, `reportes/*` (most), `insight_*` (all 8), `recibo`, `creditos`, `login`, `users`, `dev_combo_smoke`, `ops_status`, `guia`, `reportes.html`.
+| Page | LOC | Tests | Gap |
+|---|---:|---:|---:|
+| `pedido_board.html` | 335 | **0** | HIGHEST — kanban with no tests |
+| `receta_form.html` | 1,149 | **0** | HIGHEST — most complex form |
+| `receta_detalle.html` | 329 | **0** | high |
+| `settings_catalog.html` | 956 | 1 (low LOC) | high |
+| All 8 `insight_*` pages | ~340 | **0** | high |
+| `pedido_detalle.html` | 196 | **0** | high |
+| `pedido_publico.html` | 128 | **0** | medium |
+| `inventario_movimientos.html` | 82 | **0** | medium |
+| `users.html` | 211 | **0** | medium |
+| `recibo.html` | 144 | **0** | medium |
 
 **Heaviest tested pages:**
-- `bank` — 4 test files, 61 tests
-- `recetas` — 6 test files, 53 tests
-- `inventario` — 4 test files, ~620 LOC of tests
-- `pedidos` — 3 test files, ~340 LOC
-
-**Pages with 0 test coverage** (gaps to address as part of upgrade):
-- `pedido_board.html` — the most complex list page (335 LOC, 66 KB)
-- `receta_form.html` — the most complex form (1,149 LOC)
-- `receta_detalle.html` — recipe detail page
-- `settings_catalog.html` — biggest template by bytes
-- All 8 `insight_*` pages
+- `bank.html` — 4 test files, 61 tests
+- `recetas.html` — 6 test files, 53 tests (just shipped)
+- `inventario.html` — 4 test files, ~620 LOC
+- `pedidos.html` — 3 test files, ~340 LOC
 
 ---
 
-*End of plan. 77 pages inventoried, 30 patterns catalogued, 10 macros identified, 6 universal defects flagged, 15-action priority list with effort estimates.*
+*End of plan. 77 pages × 30 patterns × 10 macros × 219 QoL items × 18 P0 defects × 12 naming dimensions × 4 state machines × 5 personas × ops triad blueprint. ~110 days all-in, ~12 days for 2-week priority sprint.*
