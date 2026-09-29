@@ -79,3 +79,223 @@ button.tab.is-active { color: var(--color-accent); border-bottom-color: var(--co
   padding: 4px 6px;
   height: auto;
 }
+
+/* ===========================================================================
+   C2 — Customer-facing tablet menu (/m/{slug}).
+   Designed for a 1280×720 landscape tablet mounted on the bakery counter.
+   Mobile-first: the layout stacks vertically on phones, then unfolds
+   to a side-by-side photo + info card at landscape ≥720px.
+   No sidebar, no auth chrome — the base.html logged-out branch handles it.
+   =========================================================================== */
+
+.menu-tablet {
+  max-width: 720px;
+  margin: var(--space-4) auto;
+  padding: 0 var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.menu-tablet__header {
+  text-align: center;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.menu-tablet__shop {
+  font-size: var(--text-xl);
+  margin: 0;
+  color: var(--color-accent);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+}
+
+.menu-tablet__subtitle {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+.menu-tablet__card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow-elevated);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.menu-tablet__photo {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-height: 360px;
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-tablet__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.menu-tablet__photo-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--color-text-subtle);
+  background: var(--color-surface-subtle);
+}
+
+.menu-tablet__title {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.menu-tablet__name {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-text);
+}
+
+.menu-tablet__portion {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--color-text-muted);
+}
+
+.menu-tablet__category {
+  display: inline-block;
+  margin: var(--space-2) auto 0;
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+.menu-tablet__price {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-5) var(--space-4);
+  background: var(--color-accent-soft);
+  border-radius: var(--radius-lg);
+}
+
+.menu-tablet__price-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.menu-tablet__price-value {
+  font-size: var(--text-4xl);
+  font-weight: 800;
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-accent);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.menu-tablet__notes {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  text-align: center;
+  line-height: var(--leading-normal);
+}
+
+.menu-tablet__tags {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: center;
+}
+
+.menu-tablet__tag {
+  display: inline-block;
+  padding: 4px 12px;
+  background: var(--color-surface-subtle);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+}
+
+.menu-tablet__footer {
+  text-align: center;
+  padding: var(--space-3) 0 var(--space-6);
+}
+
+/* Landscape tablet (1280×720 is the design target). */
+@media (min-width: 720px) and (orientation: landscape) {
+  .menu-tablet {
+    max-width: 1100px;
+    padding: 0 var(--space-6);
+  }
+
+  .menu-tablet__card {
+    display: grid;
+    grid-template-columns: minmax(320px, 480px) 1fr;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "photo title"
+      "photo price"
+      "photo tags"
+      "photo notes";
+    gap: var(--space-5) var(--space-8);
+    padding: var(--space-8);
+  }
+
+  .menu-tablet__photo { grid-area: photo; aspect-ratio: 1 / 1; max-height: none; }
+  .menu-tablet__title { grid-area: title; text-align: left; justify-content: flex-start; align-items: flex-start; }
+  .menu-tablet__price { grid-area: price; align-items: flex-start; padding: var(--space-5) var(--space-6); }
+  .menu-tablet__notes { grid-area: notes; text-align: left; }
+  .menu-tablet__tags { grid-area: tags; justify-content: flex-start; }
+
+  .menu-tablet__name { font-size: var(--text-4xl); }
+  .menu-tablet__price-value { font-size: 3.5rem; }
+}
+
+/* Dark theme: photo fallback & price pill need explicit color overrides
+   so they don't disappear on dark backgrounds. */
+:root[data-theme="dark"] .menu-tablet__photo-fallback {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-subtle);
+}
+
+:root[data-theme="dark"] .menu-tablet__price {
+  background: var(--color-accent-soft);
+}
+
+@media print {
+  .menu-tablet__header { border-bottom: 1px solid #999; }
+  .menu-tablet__card { box-shadow: none; border: 1px solid #999; }
+}

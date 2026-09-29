@@ -14,6 +14,7 @@ Usage:
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import Final
 
 from fastapi import HTTPException
@@ -235,6 +236,75 @@ def parse_date_iso(value: str | None, *, field: str = "fecha") -> str | None:
     return cleaned
 
 
+# C2: URL-safe slug normalization.
+# Used by /m/{slug} tablet-menu URLs and the product-form auto-suggest.
+_SLUG_RE = re.compile(r"[^a-z0-9-]+")
+_SLUG_DASH_RE = re.compile(r"-{2,}")
+
+
+def slugify(value: str | None, *, fallback: str = "item", max_len: int = 60) -> str:
+    """Normalize a free-text string into a URL-safe slug.
+
+    Strips accents (NFD decomposition), lowercases, replaces every
+    non-``[a-z0-9-]`` run with a single dash, and trims leading/trailing
+    dashes. Returns ``fallback`` when the cleaned value is empty (e.g.,
+    user typed only punctuation).
+
+    ``max_len`` is enforced after cleanup; the function never raises on
+    long input — it just truncates. Use ``validate_slug`` to enforce
+    strict bounds and raise HTTP 400 on invalid input.
+    """
+    cleaned = (value or "").strip().lower()
+    # Strip accents: NFD + remove combining marks.
+    cleaned = unicodedata.normalize("NFKD", cleaned).encode("ascii", "ignore").decode("ascii")
+    # Replace non-alphanumeric runs with a single dash.
+    cleaned = _SLUG_RE.sub("-", cleaned)
+    cleaned = _SLUG_DASH_RE.sub("-", cleaned).strip("-")
+    if not cleaned:
+        return fallback
+    return cleaned[:max_len]
+
+
+def validate_slug(
+    value: str | None,
+    *,
+    field: str = "slug",
+    max_len: int = 60,
+    required: bool = False,
+) -> str | None:
+    """Validate a user-supplied slug and return the cleaned string.
+
+    Rules:
+      - blank + ``required=False`` → ``None``
+      - blank + ``required=True`` → 400
+      - non-lowercase / non-alphanumeric / non-dash chars are rejected
+        (we don't auto-fix on input — silently changing what the user
+        typed is worse than asking them to retype)
+      - length > ``max_len`` → 400
+      - leading/trailing dash rejected
+    """
+    raw = (value or "").strip()
+    if not raw:
+        if required:
+            raise HTTPException(status_code=400, detail=f"{field} es obligatorio")
+        return None
+    if len(raw) > max_len:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{field} demasiado largo (máx {max_len} caracteres)",
+        )
+    if not re.match(r"^[a-z0-9]+(?:-[a-z0-9]+)*$", raw):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"{field} inválido: {raw!r}. "
+                "Usá solo letras minúsculas, números y guiones medios, "
+                "sin espacios ni acentos."
+            ),
+        )
+    return raw
+
+
 __all__ = [
     "optional_text",
     "parse_date_iso",
@@ -242,9 +312,11 @@ __all__ = [
     "parse_quantity",
     "parse_unit",
     "require_text",
+    "slugify",
     "validate_cedula",
     "validate_email",
     "validate_phone",
     "validate_ruc",
+    "validate_slug",
     "validate_url",
 ]

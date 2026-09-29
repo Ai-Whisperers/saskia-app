@@ -198,6 +198,33 @@
     </div>
   </details>
 
+  {# C2 — Tablet-menu visibility. Operators opt each product in/out
+     of the public /m/{slug} menu; the slug is the URL tail. #}
+  <details class="tablet-section" style="margin-bottom: 1rem;">
+    <summary style="cursor:pointer; font-weight:600; user-select:none;">
+      Menú tablet (C2)
+    </summary>
+    <div style="padding: 0.75rem 0 0.25rem;">
+      <div class="form-row form-row-toggle">
+        <label>
+          <input type="checkbox" id="tablet_visible" name="tablet_visible"
+                 {% if (product is none) or (product and product.tablet_visible) %}checked{% endif %}>
+          Visible en el menú público (tablet)
+        </label>
+      </div>
+      <div class="form-row">
+        <label for="tablet_slug">Slug URL <small style="color:var(--color-text-muted);">(opcional, se genera del nombre)</small></label>
+        <input type="text" id="tablet_slug" name="tablet_slug" maxlength="60"
+               pattern="[a-z0-9]+(-[a-z0-9]+)*"
+               placeholder="ej: chipa-guazu"
+               value="{{ product.tablet_slug if product and product.tablet_slug else '' }}">
+        <small style="color:var(--color-text-muted); font-size:var(--text-xs);">
+          URL del menú: <code>/m/<span id="tablet-slug-preview">{{ product.tablet_slug or '' }}</span></code>
+        </small>
+      </div>
+    </div>
+  </details>
+
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">Guardá</button>
     <a href="/productos" class="btn">Cancelar</a>
@@ -322,6 +349,41 @@
         skuManuallyEdited = false;
         skuEl.value = generateSku(nameEl.value);
       });
+    }
+  }
+
+  // ---------- C2: tablet-slug auto-suggest ----------
+  // Mirrors the backend `app.rms.validation.slugify` so the URL preview
+  // updates live as the operator types the product name. Manual edits
+  // freeze the auto-suggest until the user clears the field.
+  var slugEl = document.getElementById('tablet_slug');
+  var slugPreviewEl = document.getElementById('tablet-slug-preview');
+  var slugManuallyEdited = false;
+
+  function tabletSlugify(s) {
+    return (s || '').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'item';
+  }
+
+  if (slugEl && nameEl) {
+    slugEl.addEventListener('input', function() {
+      slugManuallyEdited = slugEl.value !== '';
+      if (slugPreviewEl) slugPreviewEl.textContent = slugEl.value || tabletSlugify(nameEl.value);
+    });
+    nameEl.addEventListener('input', function() {
+      // Only auto-fill the slug preview if the operator hasn't typed one.
+      // We don't overwrite their input — we just refresh the preview.
+      if (!slugManuallyEdited && slugPreviewEl) {
+        slugPreviewEl.textContent = tabletSlugify(nameEl.value);
+      }
+    });
+    // On load, if the slug field is empty, set the preview to whatever
+    // the auto-slug would be so the URL hint isn't blank.
+    if (!slugEl.value && slugPreviewEl) {
+      slugPreviewEl.textContent = tabletSlugify(nameEl.value);
     }
   }
 

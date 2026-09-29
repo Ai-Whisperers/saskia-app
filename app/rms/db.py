@@ -2648,6 +2648,126 @@ def _migration_063_payment_receipt(conn: Any) -> None:
     _bump_schema_version(conn, 63)
 
 
+def _migration_064_no_op(conn: Any) -> None:
+    """No-op migration for slot 64 (C2 tablet-slug renumbered to 66).
+
+    A sibling agent shipped migration 065 (suscripciones) between the
+    time C2 picked the slot 64 and the time the change was committed.
+    Renumbering C2 to slot 66 left a gap. This no-op fills the gap so
+    the migration runner walks 64 → 65 → 66 in order without raising
+    "No migration registered for schema version 64".
+
+    Idempotent: pure bump.
+    """
+    _bump_schema_version(conn, 64)
+
+
+def _migration_066_product_tablet_slug(conn: Any) -> None:
+    """C2: add product.tablet_slug + product.tablet_visible.
+
+    /m/{slug} is a public, no-auth tablet-menu page that lists the
+    bakery's products with photos and prices for walk-in customers.
+    Each product gets a unique URL-safe slug so the link is short
+    enough to type on a 1280×720 tablet, and an explicit
+    ``tablet_visible`` toggle so operators can hide items they only
+    sell behind-the-counter (e.g., encargos, internal stock).
+
+    Idempotent: ALTER try/except.
+    """
+    try:
+        conn.execute(
+            text(
+                "ALTER TABLE product ADD COLUMN tablet_slug VARCHAR(60)"
+            )
+        )
+    except Exception:  # noqa: BLE001, S110
+        pass
+    try:
+        conn.execute(
+            text(
+                "ALTER TABLE product ADD COLUMN tablet_visible BOOLEAN NOT NULL DEFAULT 1"
+            )
+        )
+    except Exception:  # noqa: BLE001, S110
+        pass
+    # Best-effort: index on tablet_slug for fast lookups. CREATE INDEX
+    # is idempotent on its own (IF NOT EXISTS) on SQLite + Postgres.
+    try:
+        conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_product_tablet_slug "
+                "ON product (tablet_slug)"
+            )
+        )
+    except Exception:  # noqa: BLE001, S110
+        pass
+    _bump_schema_version(conn, 66)
+
+
+def _migration_065_suscripciones(conn: Any) -> None:
+    """P1-B5 — add suscripcion table for recurring customer orders (no cron).
+
+    Captures a customer's standing request (e.g., "1 kg chipa cada
+    sábado"). The operator reads the list when planning and
+    pre-loads pedidos manually. No automatic billing, no implicit
+    stock decrement.
+
+    Idempotent: create_all() handles the table on fresh DBs; the
+    explicit CREATE is the no-op-on-existing fallback for legacy
+    DBs that ran init_db() before the ORM model was added.
+    """
+    # create_all() in init_db() already creates the table from the
+    # ORM model; this CREATE IF NOT EXISTS is the safety net for any
+    # deployment that ran init_db before the Suscripcion class
+    # shipped. SQLite + Postgres both support IF NOT EXISTS for tables.
+    try:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS suscripcion (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    customer_id INTEGER NOT NULL REFERENCES customer(id) ON DELETE RESTRICT,
+                    product_summary VARCHAR(500) NOT NULL,
+                    cadence VARCHAR(16) NOT NULL,
+                    preferred_day_of_week INTEGER,
+                    preferred_time VARCHAR(8),
+                    start_date DATE NOT NULL,
+                    end_date DATE,
+                    price_gs INTEGER NOT NULL DEFAULT 0,
+                    status VARCHAR(16) NOT NULL DEFAULT 'activa',
+                    notes TEXT,
+                    created_at TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP NOT NULL,
+                    CONSTRAINT ck_suscripcion_cadence
+                        CHECK (cadence IN ('semanal','quincenal','mensual')),
+                    CONSTRAINT ck_suscripcion_status
+                        CHECK (status IN ('activa','pausada','cancelada')),
+                    CONSTRAINT ck_suscripcion_dow
+                        CHECK (preferred_day_of_week IS NULL
+                               OR (preferred_day_of_week BETWEEN 1 AND 7)),
+                    CONSTRAINT ck_suscripcion_price_nonneg
+                        CHECK (price_gs >= 0)
+                )
+                """
+            )
+        )
+    except Exception:  # noqa: BLE001, S110
+        pass
+    try:
+        conn.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_suscripcion_status ON suscripcion (status)")
+        )
+    except Exception:  # noqa: BLE001, S110
+        pass
+    try:
+        conn.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_suscripcion_customer ON suscripcion (customer_id)")
+        )
+    except Exception:  # noqa: BLE001, S110
+        pass
+    _bump_schema_version(conn, 65)
+
+
 def _migration_061_tag_validation(conn: Any) -> None:
     """Add ingredient.tag_validation_issues column + backfill (2026-09-29).
 
@@ -2767,6 +2887,9 @@ MIGRATIONS = {
     61: _migration_061_tag_validation,
     62: _migration_062_audit_repair,
     63: _migration_063_payment_receipt,
+    64: _migration_064_no_op,  # sibling migration claimed slot 64; tablet-slug is at 66
+    65: _migration_065_suscripciones,
+    66: _migration_066_product_tablet_slug,
 }
 
 

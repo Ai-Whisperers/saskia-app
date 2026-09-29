@@ -346,6 +346,21 @@ class Product(Base):
     # Phase 2 — Wholesale / mayorista price (B2B channel).
     mayorista_price_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
+    # C2 — Public tablet-menu slug. Unique URL-safe identifier for the
+    # customer-facing `/m/{slug}` page. NULL means the product is NOT
+    # visible on the tablet menu (operators can opt-in per product).
+    # Stored as a normalised lowercase alphanumeric slug (max 60 chars)
+    # so URLs are short enough to type on a 1280×720 tablet display.
+    tablet_slug: Mapped[Optional[str]] = mapped_column(
+        String(60), nullable=True, unique=True, index=True
+    )
+    # Whether the product shows on the public tablet menu. Default True
+    # so existing products auto-appear; the operator can flip this off to
+    # hide specific items (e.g., items only sold at-mostrador).
+    tablet_visible: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="1"
+    )
+
     # Phase 1.C — HACCP + costing (lazy fields; detailed cost fields added in Phase 1.D)
     yield_percentage: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     inherited_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -1779,6 +1794,8 @@ __all__ = [
     # Static-content-audit Phase 8 — migration 047
     "StorageType",
     "Supplier",
+    # P1-B5 — suscripciones (recurring customer orders), no cron
+    "Suscripcion",
     "Tag",
     "TagLink",
     "Tenant",
@@ -1824,3 +1841,73 @@ class MarketPriceReference(Base):
     )
 
     ingredient: Mapped["Ingredient"] = relationship("Ingredient")
+
+
+class Suscripcion(Base):
+    """P1-B5 — Suscripción (recurring customer order).
+
+    Captures a customer's standing request (e.g., "1 kg de pan cada
+    sábado a las 9") without auto-generating pedidos: no cron, no
+    implicit stock decrement, no automatic billing. The operator
+    reads the list on /suscripciones when planning and pre-loads
+    the corresponding pedidos manually.
+
+    Status is a soft-state machine (activa → pausada / cancelada).
+    Deletion is allowed when no pedidos have been generated against
+    the suscripción; otherwise the operator must cancel rather than
+    delete to preserve history.
+
+    Schema:
+        customer_id: FK to Customer (required — every suscripción belongs to one)
+        product_summary: free-text description (e.g., "1 kg chipa + 2 facturas")
+        cadence: 'semanal' | 'quincenal' | 'mensual'
+        preferred_day_of_week: 1-7 (ISO weekday) or None for cadence-derived
+        preferred_time: HH:MM (optional, free-text)
+        start_date / end_date: subscription window
+        price_gs: estimated price snapshot (int, Guaraníes)
+        status: 'activa' | 'pausada' | 'cancelada'
+        notes: free text
+        created_at / updated_at: audit timestamps
+    """
+
+    __tablename__ = "suscripcion"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    customer_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("customer.id", ondelete="RESTRICT"), nullable=False, index=True,
+    )
+    product_summary: Mapped[str] = mapped_column(String(500), nullable=False)
+    cadence: Mapped[str] = mapped_column(String(16), nullable=False)
+    preferred_day_of_week: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    preferred_time: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
+    start_date: Mapped["Date"] = mapped_column(Date, nullable=False, default=date.today)
+    end_date: Mapped[Optional["Date"]] = mapped_column(Date, nullable=True)
+    price_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="activa")
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped["DateTime"] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False,
+    )
+    updated_at: Mapped["DateTime"] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False,
+    )
+
+    customer: Mapped["Customer"] = relationship("Customer")
+
+    __table_args__ = (
+        CheckConstraint(
+            "cadence IN ('semanal','quincenal','mensual')",
+            name="ck_suscripcion_cadence",
+        ),
+        CheckConstraint(
+            "status IN ('activa','pausada','cancelada')",
+            name="ck_suscripcion_status",
+        ),
+        CheckConstraint(
+            "preferred_day_of_week IS NULL OR (preferred_day_of_week BETWEEN 1 AND 7)",
+            name="ck_suscripcion_dow",
+        ),
+        CheckConstraint("price_gs >= 0", name="ck_suscripcion_price_nonneg"),
+        Index("ix_suscripcion_status", "status"),
+        Index("ix_suscripcion_customer", "customer_id"),
+    )

@@ -67,6 +67,7 @@ from app.routers import (
     health,
     help,
     herebus,
+    insights,
     insights_derived,
     insights_stock,
     inventory,
@@ -84,6 +85,7 @@ from app.routers import (
     settings_runtime,
     shopping,
     suppliers,
+    suscripciones,
     users,
     validation,
 )
@@ -554,6 +556,7 @@ app.include_router(produccion.router)
 app.include_router(eod.router)
 app.include_router(merma.router)
 app.include_router(reportes.router)
+app.include_router(suscripciones.router)
 
 # HEREBUS Drive integration modules
 app.include_router(herebus.wishlist_router)
@@ -561,9 +564,10 @@ app.include_router(herebus.risks_router)
 app.include_router(herebus.pricing_router)
 app.include_router(herebus.bank_router)
 app.include_router(herebus.benchmarks_router)
-app.include_router(herebus.dashboard_router)
 app.include_router(insights_derived.router)
+app.include_router(insights.router, prefix="/api/insights", tags=["insights"])
 app.include_router(insights_stock.router)
+app.include_router(herebus.dashboard_router)
 app.include_router(herebus.planner_router)
 app.include_router(herebus.delivery_router)
 app.include_router(shopping.router)
@@ -597,6 +601,9 @@ app.include_router(reorder.router)
 app.include_router(help.router)
 app.include_router(credits.router)
 app.include_router(pedidos.public_router)
+# C2 — public tablet menu at /m/{slug}. Mounted at root so the URL
+# stays short enough for a 1280×720 walk-in tablet to type / display.
+app.include_router(products.public_router)
 app.include_router(pedidos.router)
 
 # Dev-only routes (gated by env var, never enabled in production)

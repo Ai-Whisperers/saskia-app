@@ -1,0 +1,84 @@
+{# C2 — Customer-facing tablet menu at /m/{slug}.
+
+   Designed for a 1280×720 landscape tablet mounted on the bakery
+   counter. Mobile-first CSS lives in app.css under
+   `@media (min-width: 720px) and (orientation: landscape)` — the
+   page reads naturally on phones too.
+
+   No auth, no sidebar (the base template renders the logged-out
+   chrome automatically because ``is_logged_in`` is False).#}
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% block title %}{{ product.name }} — Menú{% endblock %}
+
+{% block content %}
+<div class="menu-tablet" data-product-id="{{ product.id }}">
+
+  {# Header — shop brand + product name + portion #}
+  <header class="menu-tablet__header">
+    <h1 class="menu-tablet__shop">{{ shop_name }}</h1>
+    <p class="menu-tablet__subtitle">Menú del día</p>
+  </header>
+
+  <main class="menu-tablet__card" aria-labelledby="product-name">
+
+    {# Photo — large, centered, with a graceful empty-state fallback #}
+    <div class="menu-tablet__photo" aria-hidden="{{ 'false' if product.image_url else 'true' }}">
+      {% if product.image_url %}
+        <img src="{{ product.image_url }}"
+             alt="{{ product.name }}"
+             class="menu-tablet__img"
+             loading="eager">
+      {% else %}
+        <div class="menu-tablet__photo-fallback" aria-label="Sin foto">
+          <svg class="icon" aria-hidden="true" style="width:96px;height:96px;color:var(--color-text-muted);">
+            <use href="#icon-box"/>
+          </svg>
+        </div>
+      {% endif %}
+    </div>
+
+    {# Name + portion + category badge #}
+    <div class="menu-tablet__title">
+      <h2 id="product-name" class="menu-tablet__name">{{ product.name }}</h2>
+      {% if product.portion_label %}
+        <p class="menu-tablet__portion">{{ product.portion_label }}</p>
+      {% endif %}
+      {% if product.category %}
+        <span class="menu-tablet__category">{{ product.category }}</span>
+      {% endif %}
+    </div>
+
+    {# Price — the focal point #}
+    <div class="menu-tablet__price" aria-label="Precio">
+      <span class="menu-tablet__price-label">Precio</span>
+      <span class="menu-tablet__price-value">
+        {{ currency_label }} {{ m.gs(product.sale_price_gs) }}
+      </span>
+    </div>
+
+    {# Description / notes — optional, only shown when set #}
+    {% if product.notes %}
+    <p class="menu-tablet__notes">{{ product.notes }}</p>
+    {% endif %}
+
+    {# Dietary / allergen tags — small chips. Skip the parenthesised
+       'Alérgenos:' label so the chips read as plain positive claims. #}
+    {% if product.tags %}
+    <ul class="menu-tablet__tags" aria-label="Etiquetas">
+      {% for tag in product.tags %}
+        <li class="menu-tablet__tag">{{ tag }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+  </main>
+
+  <footer class="menu-tablet__footer">
+    <small class="text-muted">
+      Consultá disponibilidad y precios por WhatsApp.
+    </small>
+  </footer>
+
+</div>
+{% endblock %}

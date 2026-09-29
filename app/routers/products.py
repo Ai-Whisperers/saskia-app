@@ -36,6 +36,14 @@ from app.services.template_render import render
 router = APIRouter(prefix="/productos", dependencies=[Depends(require_login)])
 
 
+# C2 — Public router for the customer-facing tablet menu.
+# Mounted at app root so the URL is `/m/{slug}` (short enough to type
+# on a 1280×720 tablet). The slug is the product's `tablet_slug`
+# column; products without a slug or with `tablet_visible=False`
+# are not addressable through this router.
+public_router = APIRouter()
+
+
 @router.get("/api/search", response_class=JSONResponse)
 def products_api_search(
     q: str = Query("", description="Search query"),
@@ -364,6 +372,13 @@ def product_create(
     requires_rspa: str = Form(""),
     rspa_number: str = Form(""),
     rspa_expiry: str = Form(""),
+    tablet_slug: str = Form(""),
+    # Optional so an unchecked checkbox (which the browser omits from
+    # form data) is detected as missing. The new-product form renders
+    # the checkbox checked by default, so realistic POSTs still send
+    # ``tablet_visible=on``; this default of None only kicks in when
+    # a hand-crafted POST omits the field.
+    tablet_visible: str | None = Form(None),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Create new product.
@@ -376,6 +391,8 @@ def product_create(
         parse_date_iso,
         parse_money_gs,
         require_text,
+        slugify,
+        validate_slug,
         validate_url,
     )
 
@@ -405,6 +422,12 @@ def product_create(
     rspa_number_clean = optional_text(rspa_number, max_len=30)
     rspa_expiry_clean = parse_date_iso(rspa_expiry) if rspa_expiry.strip() else None
 
+    # C2 — tablet-menu visibility. Slug is auto-generated from the
+    # product name when the operator leaves it blank (so 95% of products
+    # are zero-effort to publish). Manual override wins on user input.
+    tablet_visible_bool = tablet_visible == "on"
+    tablet_slug_clean = validate_slug(tablet_slug or slugify(clean_name), field="slug")
+
     # Wave 2 — auto-fill category + tags from the linked recipe if operator
     # left either blank. Recipe's family → category, dietary_tags → tags.
     if rid and (not category_clean or not tags_clean):
@@ -432,12 +455,25 @@ def product_create(
         requires_rspa=requires_rspa_bool,
         rspa_number=rspa_number_clean,
         rspa_expiry=rspa_expiry_clean,
+        tablet_slug=tablet_slug_clean,
+        tablet_visible=tablet_visible_bool,
     )
     session.add(product)
     try:
         session.commit()
     except IntegrityError:
         session.rollback()
+        # Distinguish name vs slug uniqueness conflicts so the operator
+        # gets a useful error. C2 — slug uniqueness is independent of name.
+        slug_taken = tablet_slug_clean and session.scalar(
+            select(Product).where(Product.tablet_slug == tablet_slug_clean)
+        ) is not None
+        if slug_taken:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Ya existe otro producto con slug {tablet_slug_clean!r}. "
+                "Elegí otro slug para el menú.",
+            ) from None
         raise HTTPException(
             status_code=409, detail=f"Ya existe un producto con nombre {clean_name!r}"
         ) from None
@@ -502,6 +538,10 @@ def product_update(
     requires_rspa: str = Form(""),
     rspa_number: str = Form(""),
     rspa_expiry: str = Form(""),
+    tablet_slug: str = Form(""),
+    # Optional so an unchecked checkbox (which the browser omits from
+    # form data) is detected as missing rather than defaulting to "on".
+    tablet_visible: str | None = Form(None),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Update existing product."""
@@ -510,6 +550,8 @@ def product_update(
         parse_date_iso,
         parse_money_gs,
         require_text,
+        slugify,
+        validate_slug,
         validate_url,
     )
 
@@ -543,6 +585,13 @@ def product_update(
     rspa_number_clean = optional_text(rspa_number, max_len=30)
     rspa_expiry_clean = parse_date_iso(rspa_expiry) if rspa_expiry.strip() else None
 
+    # C2 — tablet-menu visibility. Slug auto-generates from the name on
+    # blank input; the operator can also type a custom slug.
+    tablet_visible_bool = tablet_visible == "on"
+    tablet_slug_clean = validate_slug(
+        tablet_slug or slugify(clean_name), field="slug"
+    )
+
     p.name = clean_name
     p.portion_label = portion_label_clean
     p.sale_price_gs = price
@@ -558,10 +607,24 @@ def product_update(
     p.requires_rspa = requires_rspa_bool
     p.rspa_number = rspa_number_clean
     p.rspa_expiry = rspa_expiry_clean
+    p.tablet_slug = tablet_slug_clean
+    p.tablet_visible = tablet_visible_bool
     try:
         session.commit()
     except IntegrityError:
         session.rollback()
+        # C2 — slug uniqueness is independent of name. A duplicate slug
+        # on update raises IntegrityError just like a duplicate name.
+        slug_taken = tablet_slug_clean and session.scalar(
+            select(Product)
+            .where(Product.tablet_slug == tablet_slug_clean, Product.id != p_id)
+        ) is not None
+        if slug_taken:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Ya existe otro producto con slug {tablet_slug_clean!r}. "
+                "Elegí otro slug para el menú.",
+            ) from None
         raise HTTPException(
             status_code=409, detail=f"Ya existe otro producto con nombre {clean_name!r}"
         ) from None
@@ -776,7 +839,7 @@ def products_import_csv(
     })
 
 
-__all__ = ["router"]
+__all__ = ["router", "public_router"]
 
 @router.post("/upload-image")
 async def product_upload_image(
@@ -837,3 +900,66 @@ async def product_upload_image(
 
     url = f"/static/uploads/{name}"
     return JSONResponse({"url": url, "filename": name, "size": len(content_bytes)})
+
+
+# ─── C2 — Public tablet menu (/m/{slug}) ──────────────────────────────────────
+# No auth, no sidebar, mobile-first CSS for a 1280×720 walk-in tablet.
+# Each product has its OWN /m/{slug} page so the bakery can deep-link a
+# single item to WhatsApp ("mirá nuestro chipa: saskia.app/m/chipa-guazu").
+# A slug that doesn't match any visible product 404s — same behavior as
+# /p/{token} so an attacker can't enumerate the catalog by varying the slug.
+
+
+@public_router.get("/m/{slug}", response_class=HTMLResponse)
+def public_menu(
+    request: Request,
+    slug: str,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Public tablet-menu page for one product. No auth required.
+
+    URL: /m/{tablet_slug}
+
+    Returns 200 with the tablet template if a product exists with
+    ``tablet_slug == slug`` and ``tablet_visible`` is True.
+    Returns 404 otherwise — never leaks the existence of hidden products.
+    """
+    from app.rms.models import Product
+
+    slug_clean = (slug or "").strip()
+    if not slug_clean:
+        raise HTTPException(status_code=404, detail="Menú no encontrado")
+
+    product = session.scalar(
+        select(Product).where(
+            Product.tablet_slug == slug_clean,
+            Product.tablet_visible.is_(True),
+        )
+    )
+    if product is None:
+        # Same 404 message whether the slug doesn't exist OR is hidden,
+        # so an attacker can't enumerate the hidden catalog.
+        raise HTTPException(status_code=404, detail="Menú no encontrado")
+
+    # Build the card payload. We only surface what a customer needs:
+    # name, photo, portion label, price. No cost / margin / stock.
+    payload = {
+        "id": product.id,
+        "name": product.name,
+        "portion_label": product.portion_label or "",
+        "sale_price_gs": product.sale_price_gs,
+        "image_url": product.image_url or "",
+        "category": product.category or "",
+        "tags": [t.strip() for t in (product.tags or "").split(",") if t.strip()],
+        "notes": product.notes or "",
+        "tablet_slug": product.tablet_slug or "",
+    }
+    return render(
+        request,
+        "menu_tablet.html",
+        {
+            "product": payload,
+            "shop_name": "Saskia RMS",
+            "currency_label": "Gs.",
+        },
+    )
