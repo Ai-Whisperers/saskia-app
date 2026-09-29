@@ -73,3 +73,6 @@ docs/operations/dashboard/STATUS.md
 notifications_spool/
 receipts/
 /tmp/aiw-saskia-backups/
+
+# User-uploaded files (PNGs from capture_screenshots.py etc.)
+app/static/uploads/
