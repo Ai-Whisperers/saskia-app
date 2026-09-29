@@ -236,3 +236,120 @@ def test_observability_helpers_importable():
     assert all(c in "0123456789abcdef" for c in rid)
     from starlette.middleware.base import BaseHTTPMiddleware
     assert issubclass(RequestContextMiddleware, BaseHTTPMiddleware)
+
+
+# ─── Regression: BACKLOG #41 (user_id session key lookup) ─────────────
+#
+# Background: the bcrypt backend writes ``request.session["local_user_id"]``
+# and the Supabase backend writes ``request.session["supabase_user_id"]``.
+# Before 2026-09-29, ``_safe_get_user_id`` only checked generic
+# ``user_id`` / ``uid`` / ``user`` keys, so bcrypt users logged as
+# ``user_id=None`` in every log line (audit rows were correct — those go
+# through ``auth.current_user_id()`` which uses the right key).
+#
+# These tests pin the new behavior so a future refactor that drops the
+# key list re-introduces the bug is caught at CI time.
+
+
+def _fake_request_with_session(session_dict: dict):
+    """Build a minimal request-like object exposing ``.session``."""
+    from types import SimpleNamespace
+    from typing import cast
+
+    from starlette.requests import Request
+
+    # SimpleNamespace lets us set arbitrary attrs without subclassing.
+    # The cast silences type-checkers (the function under test only
+    # reads ``request.session``, which SimpleNamespace exposes fine).
+    return cast(Request, SimpleNamespace(session=session_dict))
+
+
+def test_safe_get_user_id_bcrypt_key():
+    """The bcrypt backend's ``local_user_id`` key resolves to the user id."""
+    from app.rms.observability import _safe_get_user_id
+
+    req = _fake_request_with_session({"local_user_id": 42})
+    assert _safe_get_user_id(req) == "42"
+
+
+def test_safe_get_user_id_supabase_key():
+    """The Supabase backend's ``supabase_user_id`` key resolves to the user id."""
+    from app.rms.observability import _safe_get_user_id
+
+    req = _fake_request_with_session({"supabase_user_id": "abc-uuid-1234"})
+    assert _safe_get_user_id(req) == "abc-uuid-1234"
+
+
+def test_safe_get_user_id_generic_key_still_supported():
+    """Generic ``user_id`` / ``uid`` / ``user`` keys still work (back-compat)."""
+    from app.rms.observability import _safe_get_user_id
+
+    assert _safe_get_user_id(_fake_request_with_session({"user_id": 7})) == "7"
+    assert _safe_get_user_id(_fake_request_with_session({"uid": 8})) == "8"
+    assert _safe_get_user_id(_fake_request_with_session({"user": "nine"})) == "nine"
+
+
+def test_safe_get_user_id_missing_returns_none():
+    """No recognised key → None (anonymous request)."""
+    from app.rms.observability import _safe_get_user_id
+
+    assert _safe_get_user_id(_fake_request_with_session({})) is None
+    assert _safe_get_user_id(_fake_request_with_session({"unrelated": "x"})) is None
+
+
+def test_safe_get_user_id_empty_string_treated_as_missing():
+    """An empty string is NOT a valid user id — return None so callers
+    can distinguish 'no session' from 'session with user_id=0'."""
+    from app.rms.observability import _safe_get_user_id
+
+    assert _safe_get_user_id(_fake_request_with_session({"local_user_id": ""})) is None
+
+
+def test_safe_get_user_id_priority_order():
+    """If multiple keys are present (shouldn't happen, but defensive),
+    ``local_user_id`` wins because it's the bcrypt default."""
+    from app.rms.observability import _safe_get_user_id
+
+    req = _fake_request_with_session(
+        {"local_user_id": 1, "supabase_user_id": "2", "user_id": 3}
+    )
+    assert _safe_get_user_id(req) == "1"
+
+
+def test_safe_get_user_id_no_session_attr():
+    """A request without ``.session`` (e.g. WebSocket) doesn't crash."""
+    from app.rms.observability import _safe_get_user_id
+
+    class _R:
+        pass
+
+    r = _R()
+    # No .session attribute at all
+    assert _safe_get_user_id(r) is None
+
+
+def test_safe_get_user_id_session_raises_swallowed():
+    """If ``request.session`` raises on access (defensive), we still
+    return None instead of propagating — middleware must never crash."""
+    from app.rms.observability import _safe_get_user_id
+
+    class _R:
+        @property
+        def session(self):
+            raise RuntimeError("session unavailable")
+
+    assert _safe_get_user_id(_R()) is None
+
+
+def test_session_user_id_keys_constant_is_complete():
+    """Pin the canonical session-key list so a future refactor that
+    drops a backend breaks here at CI time, not in prod at 2am."""
+    from app.rms.observability import _SESSION_USER_ID_KEYS
+
+    # The list must contain the bcrypt AND supabase keys as the first
+    # two entries (highest priority). Generic keys come after for
+    # back-compat.
+    assert "local_user_id" in _SESSION_USER_ID_KEYS
+    assert "supabase_user_id" in _SESSION_USER_ID_KEYS
+    assert _SESSION_USER_ID_KEYS[0] == "local_user_id"
+    assert _SESSION_USER_ID_KEYS[1] == "supabase_user_id"

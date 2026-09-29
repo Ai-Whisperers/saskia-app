@@ -29,6 +29,20 @@ from starlette.responses import Response
 _REQUEST_ID_HEADER = "X-Request-Id"
 _LOG_CONTEXT_KEYS = ("request_id", "user_id", "method", "path", "route")
 
+# Order matters: the bcrypt backend writes ``local_user_id`` (see
+# ``app.auth.LOCAL_SESSION_KEY_USER_ID``) and the Supabase backend writes
+# ``supabase_user_id`` (see ``app.auth_supabase.SESSION_KEY_USER_ID``).
+# The previous lookup only checked a generic ``user_id`` / ``uid`` /
+# ``user`` set of keys, so bcrypt users logged as ``user_id=None`` in
+# every log line — fixed 2026-09-29 (see IMPROVEMENT_BACKLOG.md #41).
+_SESSION_USER_ID_KEYS = (
+    "local_user_id",
+    "supabase_user_id",
+    "user_id",
+    "uid",
+    "user",
+)
+
 
 def generate_request_id() -> str:
     """Generate a short, URL-safe request id (12 hex chars)."""
@@ -36,11 +50,18 @@ def generate_request_id() -> str:
 
 
 def _safe_get_user_id(request: Request) -> str | None:
-    """Extract user id from session if present (without raising)."""
+    """Extract user id from session if present (without raising).
+
+    Tries each known backend's session key in order; first non-empty wins.
+    See ``_SESSION_USER_ID_KEYS`` for the canonical list.
+    """
     try:
         sess = getattr(request, "session", None) or {}
-        u = sess.get("user_id") or sess.get("uid") or sess.get("user")
-        return str(u) if u is not None else None
+        for key in _SESSION_USER_ID_KEYS:
+            u = sess.get(key)
+            if u is not None and u != "":
+                return str(u)
+        return None
     except Exception:
         return None
 
@@ -51,6 +72,11 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
     This is the single chokepoint that makes the rest of the app
     traceable. Without it, every router would need to manually thread
     request_id through every function call.
+
+    The middleware is registered FIRST in ``app.add_middleware`` so it
+    ends up the INNERMOST — meaning by the time its preprocess runs,
+    the outer ``_NoVaryCookieSessionMiddleware`` has already decrypted
+    the cookie and ``request.session`` is populated. (BACKLOG #41.)
     """
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
@@ -58,6 +84,13 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         # This makes traces stitchable across services.
         rid = request.headers.get(_REQUEST_ID_HEADER) or generate_request_id()
         request.state.request_id = rid
+
+        # ``request.session`` works here because RequestContextMiddleware
+        # is registered FIRST in app.add_middleware() calls, which makes
+        # it the INNERMOST middleware at request time — so the outer
+        # SessionMiddleware has already populated scope["session"] before
+        # our preprocess reads it. (BACKLOG #41 — was the cause of
+        # ``user_id=None`` on every log line prior to 2026-09-29.)
         request.state.user_id = _safe_get_user_id(request)
 
         # Bind context for all loguru emissions during this request.

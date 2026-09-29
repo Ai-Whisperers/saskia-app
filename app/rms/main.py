@@ -743,6 +743,20 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
         "unhandled error request_id={} method={} path={}: {!r}",
         rid, request.method, request.url.path, exc,
     )
+    # Tag Sentry events with the request_id so an operator who sees a
+    # Sentry alert can grep `/auditoria?action_filter=http.500` (target_id
+    # == request_id) to pull the local traceback + breadcrumb. Fixed
+    # 2026-09-29 (BACKLOG #44). No-op when Sentry isn't initialised.
+    try:
+        import sentry_sdk as _sentry
+        if _sentry.Hub.current.client is not None:
+            _sentry.set_tag("request_id", rid)
+            _sentry.set_tag("request_method", request.method)
+            _sentry.set_tag("request_path", request.url.path)
+    except Exception:
+        # Sentry not installed, not initialised, or Hub is unavailable.
+        # Never let an observability hook break the response.
+        pass
     # Best-effort audit log row so operators can see error counts per hour.
     # Failures here MUST NOT bubble up — use a fresh session.
     try:
