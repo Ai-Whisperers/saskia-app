@@ -1,0 +1,85 @@
+{
+  "generated": "2026-09-29",
+  "recipes_needing_photos": [
+    {
+      "id": 1,
+      "name": "D17 Final Test",
+      "family": "otros",
+      "yield": "12.0 und"
+    },
+    {
+      "id": 2,
+      "name": "muffin_chocolate",
+      "family": "pastelería",
+      "yield": "12.0 und"
+    },
+    {
+      "id": 3,
+      "name": "muffin_nueces",
+      "family": "pastelería",
+      "yield": "12.0 und"
+    },
+    {
+      "id": 4,
+      "name": "cheesecake",
+      "family": "fríos",
+      "yield": "8.0 und"
+    },
+    {
+      "id": 5,
+      "name": "hojaldre_dulce",
+      "family": "panadería",
+      "yield": "16.0 und"
+    },
+    {
+      "id": 6,
+      "name": "appeltaart",
+      "family": "pastelería",
+      "yield": "8.0 und"
+    },
+    {
+      "id": 7,
+      "name": "tompoezen",
+      "family": "otros",
+      "yield": "12.0 und"
+    },
+    {
+      "id": 8,
+      "name": "oliebollen",
+      "family": "frituras",
+      "yield": "24.0 und"
+    },
+    {
+      "id": 9,
+      "name": "babka",
+      "family": "otros",
+      "yield": "10.0 und"
+    },
+    {
+      "id": 10,
+      "name": "stroopwafel",
+      "family": "otros",
+      "yield": "24.0 und"
+    },
+    {
+      "id": 11,
+      "name": "pan_lactal",
+      "family": "panadería",
+      "yield": "2.0 und"
+    },
+    {
+      "id": 12,
+      "name": "facturas",
+      "family": "panadería",
+      "yield": "24.0 und"
+    },
+    {
+      "id": 13,
+      "name": "1.0",
+      "family": "otros",
+      "yield": "12.0 und"
+    }
+  ],
+  "count": 13,
+  "tip": "Upload a JPG/PNG for each via the recipe form (Recetas > [name] > Edit). Or paste an image_url pointing to a CDN."
+}
