@@ -23,6 +23,7 @@ from app.rms.errors import (
     Conflict,
     NotFound,
 )
+from app.rms.messages import INGREDIENT_DUPLICATE_NAME, INGREDIENT_NAME_REQUIRED
 from app.rms.observability import record_audit
 from app.rms.charts import sparkline
 from app.rms.dependencies import get_session
@@ -406,10 +407,7 @@ def inventory_create(
     # BUG-00: empty name must yield a 400 with a Spanish error, not a 500.
     name = name.strip() if name else ""
     if not name:
-        raise HTTPException(
-            status_code=400,
-            detail="Nombre es obligatorio",
-        )
+        raise BadRequest(INGREDIENT_NAME_REQUIRED)
     try:
         unit_enum = Unit.coerce(unit)
     except ValueError as e:
@@ -703,8 +701,9 @@ def inventory_update(
         session.commit()
     except IntegrityError:
         session.rollback()
-        raise HTTPException(
-            status_code=409, detail=f"Ya existe otro ingrediente con nombre {name_clean!r}"
+        raise Conflict(
+            INGREDIENT_DUPLICATE_NAME,
+            context={"name": name_clean},
         ) from None
 
     if should_record:

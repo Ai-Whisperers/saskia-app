@@ -21,6 +21,15 @@ from app.rms.costing import (
     batch_recipes_cost,
 )
 from app.rms.dependencies import get_session
+from app.rms.errors import BadRequest, Conflict, NotFound
+from app.rms.messages import (
+    RECIPE_CYCLE_DETECTED,
+    RECIPE_DUPLICATE_NAME,
+    RECIPE_INVALID_UNIT,
+    RECIPE_LINES_REQUIRED,
+    RECIPE_NAME_REQUIRED,
+    RECIPE_NOT_FOUND,
+)
 from app.rms.models import Ingredient, Product, Recipe, RecipeLine
 from app.rms.units import Unit
 from app.rms.recipe_intel import (
@@ -284,12 +293,12 @@ async def recipe_create(
     dietary_tags = str(form.get("dietary_tags", "")).strip() or None
 
     if not name:
-        raise HTTPException(status_code=400, detail="Nombre es obligatorio")
+        raise BadRequest(RECIPE_NAME_REQUIRED)
 
     try:
         y_unit = Unit.coerce(yield_unit_raw)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Unidad inválida: {e}") from e
+        raise BadRequest(RECIPE_INVALID_UNIT, context={"original_error": str(e)}) from e
 
     y_qty = float(yield_qty_raw) if yield_qty_raw else None
     prep_min = int(prep_minutes_raw) if prep_minutes_raw else None
@@ -315,8 +324,9 @@ async def recipe_create(
         session.commit()
     except IntegrityError:
         session.rollback()
-        raise HTTPException(
-            status_code=409, detail=f"Ya existe una receta con nombre {name!r}"
+        raise Conflict(
+            RECIPE_DUPLICATE_NAME,
+            context={"name": name},
         ) from None
 
     skipped = _apply_lines_from_form(session, recipe.id, form)
@@ -334,7 +344,7 @@ async def recipe_create(
         session.rollback()
         raise HTTPException(
             status_code=400,
-            detail="La receta debe tener al menos un ingrediente o sub-receta.",
+            detail=RECIPE_LINES_REQUIRED,
         )
     if skipped and valid_line_count == 0:
         session.rollback()
@@ -362,7 +372,7 @@ async def recipe_create(
         ).scalars().all()
         raise HTTPException(
             status_code=400,
-            detail=f"No se puede guardar: las sub-recetas crean una dependencia cíclica: {' → '.join(str(n) for n in cycle_names)} → {name}",
+            detail=RECIPE_CYCLE_DETECTED,
         )
 
     # If the user checked "create product from this recipe", redirect
@@ -456,7 +466,7 @@ async def recipe_detail(
     """Read-only recipe detail with cost breakdown and used-by products."""
     r = session.get(Recipe, r_id)
     if r is None:
-        raise HTTPException(status_code=404, detail="Receta no encontrada")
+        raise NotFound("receta")
     lines = session.scalars(
         select(RecipeLine).where(RecipeLine.recipe_id == r_id).order_by(RecipeLine.id)
     ).all()
@@ -558,7 +568,7 @@ async def recipe_edit(
 ) -> HTMLResponse:
     r = session.get(Recipe, r_id)
     if r is None:
-        raise HTTPException(status_code=404, detail="Receta no encontrada")
+        raise NotFound("receta")
     lines = session.scalars(
         select(RecipeLine).where(RecipeLine.recipe_id == r_id).order_by(RecipeLine.id)
     ).all()
@@ -616,7 +626,7 @@ async def recipe_update(
 ) -> RedirectResponse:
     r = session.get(Recipe, r_id)
     if r is None:
-        raise HTTPException(status_code=404, detail="Receta no encontrada")
+        raise NotFound("receta")
 
     form = await request.form()
     name = str(form.get("name", "")).strip()
@@ -630,11 +640,11 @@ async def recipe_update(
     dietary_tags = str(form.get("dietary_tags", "")).strip() or None
 
     if not name:
-        raise HTTPException(status_code=400, detail="Nombre es obligatorio")
+        raise BadRequest(RECIPE_NAME_REQUIRED)
     try:
         y_unit = Unit.coerce(yield_unit_raw)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Unidad inválida: {e}") from e
+        raise BadRequest(RECIPE_INVALID_UNIT, context={"original_error": str(e)}) from e
     difficulty_val: int | None = None
     if difficulty_raw:
         try:
@@ -671,7 +681,7 @@ async def recipe_update(
         session.rollback()
         raise HTTPException(
             status_code=400,
-            detail="La receta debe tener al menos un ingrediente o sub-receta.",
+            detail=RECIPE_LINES_REQUIRED,
         )
     if skipped and valid_line_count == 0:
         session.rollback()
@@ -697,7 +707,7 @@ async def recipe_update(
         ).scalars().all()
         raise HTTPException(
             status_code=400,
-            detail=f"No se puede guardar: las sub-recetas crean una dependencia cíclica: {' → '.join(str(n) for n in cycle_names)} → {name}",
+            detail=RECIPE_CYCLE_DETECTED,
         )
 
     # Tag algebra (054): re-derive after line changes; cascade to parents
@@ -731,7 +741,7 @@ async def recipe_create_product_redirect(
     """
     r = session.get(Recipe, r_id)
     if r is None:
-        raise HTTPException(status_code=404, detail="Receta no encontrada")
+        raise NotFound("receta")
 
     # Compute suggested price: cost × SettingsKV-configured markup (default 3.0)
     from app.rms.costing import recipe_unit_cost_gs

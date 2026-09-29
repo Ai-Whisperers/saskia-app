@@ -20,7 +20,23 @@ from app.rms.config import ASUNCION_TZ
 from app.rms.costing import RecipeWithoutYield, apply_sale, void_sale
 from app.rms.db import safe_commit
 from app.rms.dependencies import get_session
-from app.rms.errors import BadRequest, Conflict
+from app.rms.errors import BadRequest, Conflict, NotFound, ValidationError
+from app.rms.messages import (
+    SALE_BODY_INVALID,
+    SALE_CUSTOMER_NOT_FOUND,
+    SALE_DELETED,
+    SALE_DISCOUNT_TOO_HIGH,
+    SALE_INVALID_CHANNEL,
+    SALE_INVALID_DATE,
+    SALE_INVALID_PAYMENT_METHOD,
+    SALE_NOT_FOUND,
+    SALE_PRODUCT_OR_SKU_REQUIRED,
+    SALE_QTY_TOO_HIGH,
+    SALE_RATE_LIMITED,
+    SALE_SKU_NOT_FOUND,
+    SALE_SKU_REQUIRED,
+    SALE_TOO_MANY_ITEMS,
+)
 from app.rms.models import Customer, Product, Sale
 from app.rms.catalogs import list_channels, list_payment_methods, default_channel_code, default_payment_method_code
 from app.rms.schemas import (
@@ -432,7 +448,7 @@ async def sale_receipt(
     """
     sale = session.get(Sale, sale_id)
     if sale is None:
-        raise HTTPException(status_code=404, detail="Venta no encontrada")
+        raise NotFound("venta", id=sale_id)
     return render(
         request,
         "recibo.html",
@@ -456,7 +472,7 @@ def sale_lookup_by_sku(
     from app.rms.barcode import get_product_by_sku
 
     if not sku:
-        raise HTTPException(status_code=422, detail="sku requerido")
+        raise ValidationError(SALE_SKU_REQUIRED, context={"field": "sku"})
     result = get_product_by_sku(session, sku)
     if not result.ok or result.product is None:
         return JSONResponse({"found": False, "sku": sku})
@@ -509,16 +525,14 @@ async def sale_create(
     if (not product_id or product_id == 0) and sku:
         result = get_product_by_sku(session, sku)
         if not result.ok or result.product is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"SKU no encontrado: {sku!r}",
+            raise NotFound(
+                "sku",
+                context={"sku": sku},
+                message=SALE_SKU_NOT_FOUND,
             )
         product_id = result.product.id
     if not product_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Elegí un producto o escaneá un SKU",
-        )
+        raise BadRequest(SALE_PRODUCT_OR_SKU_REQUIRED)
 
     # Allergen guard (derived-intel engine 3): block sales that put a
     # declared customer allergen in their hands. Hard stop, Spanish detail.
@@ -541,12 +555,14 @@ async def sale_create(
     if qty > MAX_QTY:
         raise HTTPException(
             status_code=400,
-            detail=f"cantidad no puede ser mayor a {MAX_QTY}",
+            detail=SALE_QTY_TOO_HIGH,
+            headers={"X-Max-Qty": str(MAX_QTY)},
         )
     if discount_gs > MAX_DISCOUNT_GS:
         raise HTTPException(
             status_code=400,
-            detail=f"descuento no puede ser mayor a {MAX_DISCOUNT_GS} Gs.",
+            detail=SALE_DISCOUNT_TOO_HIGH,
+            headers={"X-Max-Discount-Gs": str(MAX_DISCOUNT_GS)},
         )
 
     # Parse sold_at (defaults to now in Asunción TZ)
@@ -558,7 +574,7 @@ async def sale_create(
             sold_at_dt = naive.replace(tzinfo=ASUNCION_TZ).astimezone(ASUNCION_TZ)
         except ValueError as e:
             raise HTTPException(
-                status_code=400, detail=f"Fecha inválida: {sold_at_raw!r}"
+                status_code=400, detail=SALE_INVALID_DATE
             ) from e
     else:
         sold_at_dt = datetime.now(ASUNCION_TZ)
@@ -568,7 +584,7 @@ async def sale_create(
     if payment_method_clean is not None and payment_method_clean not in ALLOWED_PAYMENT_METHODS:
         raise HTTPException(
             status_code=400,
-            detail=f"Forma de pago inválida. Permitidas: {sorted(ALLOWED_PAYMENT_METHODS)}",
+            detail=SALE_INVALID_PAYMENT_METHOD,
         )
 
     # channel: optional, must be in ALLOWED_CHANNELS if set.
@@ -578,7 +594,7 @@ async def sale_create(
     if channel_clean not in ALLOWED_CHANNELS:
         raise HTTPException(
             status_code=400,
-            detail=f"Canal inválido. Permitidos: {sorted(ALLOWED_CHANNELS)}",
+            detail=SALE_INVALID_CHANNEL,
         )
 
     notes_clean = notes.strip() or None
@@ -590,7 +606,7 @@ async def sale_create(
 
         if get_customer(session, customer_id) is None:
             raise HTTPException(
-                status_code=400, detail=f"cliente {customer_id} no existe"
+                status_code=400, detail=SALE_CUSTOMER_NOT_FOUND
             )
 
     # Phase 1.B — Compute fiscal invoice fields BEFORE apply_sale so we can
@@ -709,7 +725,7 @@ async def sale_create(
     from app.rms.audit import record as audit_record
     from app.rms.rate_limit import is_write_rate_limited
     if is_write_rate_limited(session, request, max_per_minute=10):
-        raise HTTPException(status_code=429, detail="Demasiadas ventas en 1 minuto. Esperá un momento.")
+        raise HTTPException(status_code=429, detail=SALE_RATE_LIMITED)
 
     audit_record(
         session,
@@ -804,17 +820,18 @@ async def sale_create_multi(
     try:
         body = _Body.model_validate(await request.json())
     except Exception:
-        raise HTTPException(status_code=400, detail="Cuerpo de petición inválido")
+        raise HTTPException(status_code=400, detail=SALE_BODY_INVALID)
 
     items = body.items
     if len(items) > 50:
-        raise HTTPException(status_code=400, detail="Máximo 50 ítems por venta")
+        raise HTTPException(status_code=400, detail=SALE_TOO_MANY_ITEMS)
 
     for item in items:
         if item.qty > MAX_QTY:
             raise HTTPException(
                 status_code=400,
-                detail=f"Cantidad {item.qty} > máximo {MAX_QTY}",
+                detail=SALE_QTY_TOO_HIGH,
+                headers={"X-Max-Qty": str(MAX_QTY)},
             )
 
     # ── Sold-at ──────────────────────────────────────────────────────────
@@ -825,7 +842,7 @@ async def sale_create_multi(
             sold_at_dt = naive.replace(tzinfo=ASUNCION_TZ).astimezone(ASUNCION_TZ)
         except ValueError as e:
             raise HTTPException(
-                status_code=400, detail=f"Fecha inválida: {sold_at_raw!r}"
+                status_code=400, detail=SALE_INVALID_DATE
             ) from e
     else:
         sold_at_dt = datetime.now(ASUNCION_TZ)
@@ -836,7 +853,7 @@ async def sale_create_multi(
         from app.rms.customers import get_customer
         if get_customer(session, customer_id) is None:
             raise HTTPException(
-                status_code=400, detail=f"Cliente {customer_id} no existe"
+                status_code=400, detail=SALE_CUSTOMER_NOT_FOUND
             )
 
     # ── Payment ───────────────────────────────────────────────────────────
@@ -844,14 +861,14 @@ async def sale_create_multi(
     if payment_method_clean is not None and payment_method_clean not in ALLOWED_PAYMENT_METHODS:
         raise HTTPException(
             status_code=400,
-            detail=f"Forma de pago inválida. Permitidas: {sorted(ALLOWED_PAYMENT_METHODS)}",
+            detail=SALE_INVALID_PAYMENT_METHOD,
         )
 
     channel_clean = body.channel.strip() or CHANNEL_DEFAULT
     if channel_clean not in ALLOWED_CHANNELS:
         raise HTTPException(
             status_code=400,
-            detail=f"Canal inválido. Permitidos: {sorted(ALLOWED_CHANNELS)}",
+            detail=SALE_INVALID_CHANNEL,
         )
 
     notes_clean = body.notes.strip() or None
@@ -859,7 +876,8 @@ async def sale_create_multi(
     if discount_gs > MAX_DISCOUNT_GS:
         raise HTTPException(
             status_code=400,
-            detail=f"Descuento no puede ser mayor a {MAX_DISCOUNT_GS} Gs.",
+            detail=SALE_DISCOUNT_TOO_HIGH,
+            headers={"X-Max-Discount-Gs": str(MAX_DISCOUNT_GS)},
         )
 
     # ── Invoice ───────────────────────────────────────────────────────────
@@ -986,7 +1004,7 @@ async def sale_create_multi(
     from app.rms.audit import record as audit_record
     from app.rms.rate_limit import is_write_rate_limited
     if is_write_rate_limited(session, request, max_per_minute=10):
-        raise HTTPException(status_code=429, detail="Demasiadas ventas en 1 minuto.")
+        raise HTTPException(status_code=429, detail=SALE_RATE_LIMITED)
 
     audit_record(
         session,
