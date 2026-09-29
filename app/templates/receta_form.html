@@ -167,7 +167,7 @@
             <td class="line-col-cost">
               <span class="line-cost-display"
                     data-line-cost="{{ line.unit_cost_gs or 0 }}"
-              >{{ "Gs. %d"|format(line.unit_cost_gs) if line.unit_cost_gs else 'Gs. 0' }}</span>
+              >{{ "Gs. %s"|format("{:,}".format(line.unit_cost_gs).replace(",", ".")) if line.unit_cost_gs else 'Gs. 0' }}</span>
             </td>
             <td class="line-col-note">
               <input type="text" name="line_notes" maxlength="200" value="{{ line.note or '' }}"
@@ -313,17 +313,17 @@
 
       <div class="cost-metric">
         <span class="cost-label">Costo del lote</span>
-        <span class="cost-value" id="batch-cost">{% if batch_cost_gs %}{{ "Gs. %d"|format(batch_cost_gs) }}{% else %}Gs. 0{% endif %}</span>
+        <span class="cost-value" id="batch-cost">{% if batch_cost_gs %}Gs. {{ "{:,}".format(batch_cost_gs).replace(",", ".") }}{% else %}Gs. 0{% endif %}</span>
       </div>
 
       <div class="cost-metric">
         <span class="cost-label">Costo por unidad</span>
-        <span class="cost-value" id="unit-cost">{% if unit_cost_gs %}{{ "Gs. %d"|format(unit_cost_gs) }}{% else %}Gs. 0{% endif %}</span>
+        <span class="cost-value" id="unit-cost">{% if unit_cost_gs %}Gs. {{ "{:,}".format(unit_cost_gs).replace(",", ".") }}{% else %}Gs. 0{% endif %}</span>
       </div>
 
       <div class="cost-metric cost-metric-margin">
         <span class="cost-label">Precio sugerido (×3)</span>
-        <span class="cost-value" id="suggested-price">{% if suggested_price_gs %}{{ "Gs. %d"|format(suggested_price_gs) }}{% else %}Gs. 0{% endif %}</span>
+        <span class="cost-value" id="suggested-price">{% if suggested_price_gs %}Gs. {{ "{:,}".format(suggested_price_gs).replace(",", ".") }}{% else %}Gs. 0{% endif %}</span>
       </div>
 
       <div class="cost-warnings" id="cost-warnings" hidden>
@@ -538,16 +538,17 @@
   font-size: var(--text-sm);
   table-layout: fixed;
 }
-.recipe-lines-table col.line-col-type { width: 90px; }
+.recipe-lines-table col.line-col-type { width: 130px; }
 .recipe-lines-table col.line-col-item { width: auto; }
 .recipe-lines-table col.line-col-qty { width: 96px; }
-.recipe-lines-table col.line-col-unit { width: 76px; }
+.recipe-lines-table col.line-col-unit { width: 90px; }
 .recipe-lines-table col.line-col-cost { width: 110px; }
 .recipe-lines-table col.line-col-note { width: auto; }
 .recipe-lines-table col.line-col-action { width: 44px; }
-.recipe-lines-table thead th.line-col-type { width: 90px; }
+.recipe-lines-table thead th.line-col-type { width: 130px; }
 .recipe-lines-table thead th.line-col-qty { width: 96px; }
-.recipe-lines-table thead th.line-col-unit { width: 76px; }
+.recipe-lines-table thead th.line-col-unit { width: 90px; }
+.recipe-lines-table saskia-combo { min-width: 90px; }
 .recipe-lines-table thead th.line-col-cost { width: 110px; }
 .recipe-lines-table thead th.line-col-action { width: 44px; }
 .recipe-lines-table thead th {
@@ -798,7 +799,8 @@
 
   function formatGs(n) {
     if (!n || n === 0) return 'Gs. 0';
-    return 'Gs. ' + Math.round(n).toLocaleString('es-PY');
+    // es-PY uses dots as thousands separator (e.g. 1.924.500)
+    return 'Gs. ' + Math.round(n).toLocaleString('es-PY').replace(/,/g, '.');
   }
 
   function computeCosts() {
