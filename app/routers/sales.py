@@ -298,6 +298,34 @@ async def sales_list(
     return render(request, "ventas.html", ctx)
 
 
+# ─────────────────────────────────────────────────────────────────────
+# QA / Smoke tests (2026-09-29)
+# ─────────────────────────────────────────────────────────────────────
+# Page at /ventas/qa runs 6 automated end-to-end checks against the live
+# API surface. Each test is a separate fetch() against an internal route
+# (login is via cookie). Output is a green/red table the operator can
+# read before declaring a deploy safe.
+#
+# Tests cover the full cashier flow:
+#   1. login + session healthz
+#   2. create customer via /clientes/api/create
+#   3. list products (catalog reachable)
+#   4. create sale without customer (cash-only)
+#   5. create sale with customer (debt tracked)
+#   6. void the sale (must restore customer stats + product stock)
+# ─────────────────────────────────────────────────────────────────────
+
+
+@router.get("/qa", response_class=HTMLResponse)
+def ventas_qa(request: Request) -> HTMLResponse:
+    """Smoke-test page. Each test fires a fetch() against the live API
+    and shows pass/fail. No DB writes happen until the operator clicks
+    'Run all tests' — the page itself just describes what each test
+    does so the operator knows what they're approving.
+    """
+    return render(request, "ventas_qa.html", {})
+
+
 @router.get("/historial", response_class=HTMLResponse)
 async def sales_history(
     request: Request,

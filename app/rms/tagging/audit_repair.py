@@ -30,6 +30,10 @@ from sqlalchemy.orm import Session
 
 # (issue_text_substring, allergen_trigger, tags_to_remove)
 # Order matters: more-specific rules first.
+#
+# A rule fires when its `substring` appears anywhere in the validator's
+# issue string. We don't filter on allergen_trigger — the validator has
+# already validated that the allergen exists.
 _REPAIR_RULES: list[tuple[str, frozenset[str], frozenset[str]]] = [
     # allergen contradictions (allergens wins)
     ("sin gluten' but allergens include gluten", frozenset({"gluten"}),
@@ -42,10 +46,16 @@ _REPAIR_RULES: list[tuple[str, frozenset[str], frozenset[str]]] = [
      frozenset({"sin huevo"})),
     ("sin frutos secos' but allergens include nuts", frozenset({"nuts"}),
      frozenset({"sin frutos secos"})),
-    ("vegano' but allergens include", frozenset({"dairy", "eggs"}),
-     frozenset({"vegano", "vegetariano"})),
+    # 'vegano' but allergens include [anything that disqualifies vegan].
+    # Validator currently only flags dairy/eggs; if it ever flags more
+    # (e.g. meat allergens), this substring still matches.
+    ("vegano' but allergens include", frozenset(),
+     frozenset({"vegano"})),
+    # vegetariano + name is meat → drop BOTH vegetariano and vegano
+    # (vegano is stricter than vegetariano; if the ingredient isn't
+    # even vegetarian, it definitely isn't vegan).
     ("vegetariano' but name suggests", frozenset(),
-     frozenset({"vegetariano"})),
+     frozenset({"vegetariano", "vegano"})),
     # may_contain_gluten overrides sin tacc
     ("sin tacc cannot be true", frozenset(),
      frozenset({"sin tacc", "sin gluten"})),
@@ -104,7 +114,7 @@ def repair_ingredient(ing) -> list[str]:
                 try:
                     head, tail = issue.split("name suggests ", 1)
                     stored = head.split("'")[1]
-                    inferred = tail.rstrip("'").strip()
+                    inferred = tail.strip().rstrip("'").lstrip("'").strip()
                 except (IndexError, ValueError):
                     continue
                 if (ing.category or "").lower() == stored and inferred in {
