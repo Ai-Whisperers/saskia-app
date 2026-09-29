@@ -186,9 +186,6 @@
           Marcá a medida que sale del horno. Las cantidades alimentan el cierre EOD.
         </p>
       </div>
-      <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('quick-merma-modal').showModal()">
-        + Reportá merma
-      </button>
     </div>
 
     <table class="table is-hoverable align-middle">
@@ -253,9 +250,13 @@
       </tbody>
     </table>
 
-    {# Single unified submit (replaces row-by-row "Usar" button fatigue). #}
+    {# Single unified submit (replaces row-by-row "Usar" button fatigue).
+       NOTE: shift-update / shift-notes / quick-merma endpoints are
+       scheduled for a future sprint — today we fall back to the
+       existing /produccion/override route so the row data still
+       persists as daily overrides. #}
     <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center; padding-top: var(--space-3); border-top: 1px solid var(--color-border); margin-top: var(--space-3); gap: var(--space-3); flex-wrap: wrap;">
-      <small class="text-muted">Se guarda como {{ for_date }} y se refleja automáticamente en /eod.</small>
+      <small class="text-muted">Se guarda como override del {{ for_date }} y alimenta el cierre EOD.</small>
       <button type="submit" class="btn btn-primary">
         <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
         Guardá ejecución del turno
@@ -263,28 +264,6 @@
     </div>
   </section>
 </form>
-
-{# ── Shift notes / substitution ledger ── #}
-<section class="card mb-4" style="background: var(--color-surface-raised);">
-  <div style="display: flex; align-items: flex-start; gap: var(--space-3);">
-    <svg class="icon text-muted mt-1" aria-hidden="true"><use href="#icon-edit"/></svg>
-    <div style="flex: 1;">
-      <label for="shift-notes" class="font-bold text-sm block mb-1" style="display: block; font-weight: 600; font-size: var(--text-sm); margin-bottom: var(--space-1);">
-        Notas del turno y sustituciones
-      </label>
-      <form method="post" action="/produccion/shift-notes">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="for_date" value="{{ for_date }}">
-        <textarea id="shift-notes" name="shift_notes" rows="2"
-                  style="width: 100%; background: transparent; border: 1px dashed var(--color-border); border-radius: var(--radius); padding: var(--space-2); font-family: inherit;"
-                  placeholder="Ej: Usamos margarina en vez de manteca para el Carrot Cake.">{{ shift_notes or '' }}</textarea>
-        <div style="margin-top: var(--space-2); text-align: right;">
-          <button type="submit" class="btn btn-sm">Guardá notas</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</section>
 {% else %}
 <p class="empty">No hay producción planificada. Verificá que haya ventas registradas en los últimos 14 días.</p>
 {% endif %}
@@ -350,52 +329,10 @@
 </section>
 {% endif %}
 
-{# ── Quick Merma Modal — inline waste logging ── #}
-<dialog id="quick-merma-modal" class="card"
-        style="max-width: 420px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-4); color: var(--foreground);">
-  <form method="POST" action="/merma/quick-log">
-    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-3);">
-      <h3 style="margin: 0; font-weight: 700; color: var(--color-danger, #dc2626);">Reportá un incidente</h3>
-      <button type="button" class="btn btn-ghost btn-sm" onclick="this.closest('dialog').close()">✕</button>
-    </div>
-
-    <div style="display: flex; flex-direction: column; gap: var(--space-3);">
-      <label>
-        <span style="font-size: var(--text-sm); font-weight: 600; display: block; margin-bottom: var(--space-1);">Producto afectado</span>
-        <select name="product_id" class="form-control" required style="width: 100%;">
-          {% for r in plan.rows %}
-          <option value="{{ r.product_id }}">{{ r.product_name }}</option>
-          {% endfor %}
-        </select>
-      </label>
-
-      <label>
-        <span style="font-size: var(--text-sm); font-weight: 600; display: block; margin-bottom: var(--space-1);">Cantidad perdida</span>
-        <input type="number" name="qty" min="0.5" step="0.5" required style="width: 100%;">
-      </label>
-
-      <label>
-        <span style="font-size: var(--text-sm); font-weight: 600; display: block; margin-bottom: var(--space-1);">Razón</span>
-        <select name="reason" required style="width: 100%;">
-          <option value="Error de producción">Se quemó / Error de receta</option>
-          <option value="Robo">Consumo interno (Chef tax)</option>
-          <option value="Dañado">Se cayó / Contaminado</option>
-          <option value="Vencido">Vencido</option>
-        </select>
-      </label>
-
-      <label>
-        <span style="font-size: var(--text-sm); font-weight: 600; display: block; margin-bottom: var(--space-1);">Notas (opcional)</span>
-        <input type="text" name="notes" style="width: 100%;" placeholder="Ej: Horno calentó de más...">
-      </label>
-    </div>
-
-    <div style="margin-top: var(--space-4); text-align: right;">
-      <button type="submit" class="btn btn-danger">Registrá merma</button>
-    </div>
-  </form>
-</dialog>
+{# ── Quick Merma Modal — scheduled for a future sprint ── #}
+{# NOTE: this <dialog> requires the /merma/quick-log endpoint, which
+   is part of a future spec (US 5.x). Re-enable here once that
+   endpoint lands in app/routers/merma.py. #}
 
 <script>
   // Strike-through on row-complete toggle
