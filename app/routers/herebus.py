@@ -14,13 +14,15 @@ All routes are read-only by default. Mutations guarded by require_login.
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -374,16 +376,116 @@ async def bank_categorize(
     return RedirectResponse(url="/bank", status_code=303)
 
 
+@bank_router.get("/export.csv", response_class=Response)
+async def bank_export_csv(
+    request: Request,
+    category: str | None = Query(None),
+    start_date: str | None = Query(None, alias="start_date"),
+    end_date: str | None = Query(None, alias="end_date"),
+    currency: str | None = Query(None),
+    session: Session = Depends(get_session),
+) -> Response:
+    """CSV export of bank transactions."""
+    query = select(BankTransaction).order_by(BankTransaction.posted_at.desc())
+    
+    # Apply date range filter if provided
+    if start_date:
+        try:
+            start_dt = datetime.fromisoformat(start_date)
+            query = query.where(BankTransaction.posted_at >= start_dt)
+        except (ValueError, TypeError):
+            pass
+            
+    if end_date:
+        try:
+            end_dt = datetime.fromisoformat(end_date)
+            query = query.where(BankTransaction.posted_at <= end_dt)
+        except (ValueError, TypeError):
+            pass
+    
+    if category:
+        query = query.where(BankTransaction.category == category)
+    
+    if currency:
+        query = query.where(BankTransaction.currency == currency)
+    
+    transactions = session.execute(query).scalars().all()
+    
+    # Create CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Fecha", "Cuenta", "Importe", "Categoría", "Contraparte", "Descripción"])
+    
+    for tx in transactions:
+        writer.writerow([
+            tx.posted_at.strftime("%Y-%m-%d"),
+            tx.currency,
+            f"{tx.amount:+.2f}",
+            tx.category or "",
+            tx.counterparty_name or "",
+            tx.description or ""
+        ])
+    
+    # Create response
+    response = Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=bank_transactions.csv"}
+    )
+    
+    return response
+
+
 @bank_router.get("", response_class=HTMLResponse)
 def bank_list(
     request: Request,
     category: str = Query(None),
+    start_date: str | None = Query(None, alias="start_date"),
+    end_date: str | None = Query(None, alias="end_date"),
+    currency: str | None = Query(None),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=10, le=200),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    query = select(BankTransaction).order_by(BankTransaction.posted_at.desc()).limit(50)
+    query = select(BankTransaction).order_by(BankTransaction.posted_at.desc())
+    
+    # Apply date range filter if provided
+    if start_date:
+        try:
+            start_dt = datetime.fromisoformat(start_date)
+            query = query.where(BankTransaction.posted_at >= start_dt)
+        except (ValueError, TypeError):
+            pass
+            
+    if end_date:
+        try:
+            end_dt = datetime.fromisoformat(end_date)
+            query = query.where(BankTransaction.posted_at <= end_dt)
+        except (ValueError, TypeError):
+            pass
+    
     if category:
         query = query.where(BankTransaction.category == category)
-    transactions = session.execute(query).scalars().all()
+    
+    if currency:
+        query = query.where(BankTransaction.currency == currency)
+    
+    # Get total count for pagination
+    from sqlalchemy import func
+    total_count = session.execute(
+        select(func.count()).select_from(query.subquery())
+    ).scalar() or 0
+    
+    # Apply pagination
+    offset = (page - 1) * per_page
+    transactions = session.execute(
+        query.limit(per_page).offset(offset)
+    ).scalars().all()
+    
+    # Calculate pagination info
+    total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
+    has_prev = page > 1
+    has_next = page < total_pages
 
     # Compute aggregates
     stats = session.execute(
@@ -422,6 +524,13 @@ def bank_list(
             "pyg_balance_gs": pyg_balance,
             "categories": sorted(categories),
             "active_category": category,
+            "active_currency": currency,
+            "page": page,
+            "per_page": per_page,
+            "total_count": total_count,
+            "total_pages": total_pages,
+            "has_prev": has_prev,
+            "has_next": has_next,
         },
     )
 
