@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% block title %}Producción · Mañana{% endblock %}
+{% block content %}
+<h1>Producción de mañana</h1>
+
+<p style="color:var(--color-text-muted);font-size:var(--text-sm);margin-bottom:var(--space-4);">
+  Plan generado automáticamente para el <strong>{{ tomorrow }}</strong>
+  ({{ "lunes,2 marzo"|replace("lunes,2 marzo", "") or "" }}{% if seasonal_note %} ·
+  <span class="badge badge-seasonal">{{ seasonal_note }}</span>{% endif %}).
+</p>
+
+<div class="kpi-row mb-4">
+  <saskia-kpi-card
+    label="Productos a producir"
+    value="{{ rows|length }}"
+    {% if rows %}delta="{{ rows|length }}" delta-direction="flat"{% endif %}
+    ></saskia-kpi-card>
+  <saskia-kpi-card
+    label="Ingreso estimado mañana"
+    value="{% if estimated_revenue_gs %}{{ m.gs_full(estimated_revenue_gs) }}{% else %}—{% endif %}"
+    sub="precio catálogo × cantidad"></saskia-kpi-card>
+  <saskia-kpi-card
+    label="Confianza media"
+    value="{% if rows %}{{ (rows|sum(attribute='confidence_pct') / rows|length)|round(0, 'floor')|int }}%{% else %}—{% endif %}"
+    {% if low_confidence_count > 0 %}severity="warn"{% endif %}
+    sub="{{ low_confidence_count }} con confianza <70%"></saskia-kpi-card>
+  <saskia-kpi-card
+    label="Ingredientes necesarios"
+    value="{{ plan.lines|length }}"
+    href="/produccion"></saskia-kpi-card>
+</div>
+
+{% if rows|length == 0 %}
+<div class="card" style="padding:var(--space-6);text-align:center;">
+  <p class="text-muted">No hay productos con venta en los últimos 14 días.
+  Esperá unos días para que el sistema acumule datos, o creá un override manual.</p>
+  <a href="/produccion" class="btn">Ir al plan semanal</a>
+</div>
+{% else %}
+<div class="card">
+  <div class="card-header">
+    <h2 style="font-size:var(--text-md);margin:0;">Qué producir</h2>
+    <p class="text-muted" style="font-size:var(--text-sm);margin:var(--space-2) 0 0 0;">
+      Confianza baja = pocos datos de venta. Verde = 14+ días de historial,
+      ámbar = 3-13 días, rojo = 1-2 ventas.
+    </p>
+  </div>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th style="text-align:right;">Cantidad</th>
+        <th>Fuente</th>
+        <th style="text-align:center;">Confianza</th>
+        <th style="text-align:right;">Override</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>
+          <strong>{{ row.product_name }}</strong>
+          {% if row.recipe_id %}
+          <a href="/recetas/{{ row.recipe_id }}" class="text-muted" style="font-size:var(--text-xs);margin-left:var(--space-2);">ver receta</a>
+          {% endif %}
+        </td>
+        <td style="text-align:right;">
+          <span style="font-size:var(--text-lg);font-weight:600;">{{ row.qty_to_produce|int }}</span>
+        </td>
+        <td>
+          {% if row.forecast_source == 'manual' %}
+            <span class="badge badge-manual">Manual</span>
+          {% elif row.forecast_source == 'override' %}
+            <span class="badge badge-manual">Override</span>
+          {% elif row.forecast_source == 'template' %}
+            <span class="badge badge-template">Plantilla semanal</span>
+          {% else %}
+            <span class="badge badge-rolling">14d rolling</span>
+          {% endif %}
+        </td>
+        <td style="text-align:center;">
+          {% if row.confidence_pct >= 70 %}
+            <span class="confidence-pill conf-high">{{ row.confidence_pct }}%</span>
+          {% elif row.confidence_pct >= 50 %}
+            <span class="confidence-pill conf-medium">{{ row.confidence_pct }}%</span>
+          {% elif row.confidence_pct > 0 %}
+            <span class="confidence-pill conf-low">{{ row.confidence_pct }}%</span>
+          {% else %}
+            <span class="confidence-pill conf-none">—</span>
+          {% endif %}
+        </td>
+        <td style="text-align:right;">
+          <form method="post" action="/produccion/override" style="display:inline-flex;gap:var(--space-2);">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="product_id" value="{{ row.product_id }}">
+            <input type="hidden" name="for_date" value="{{ tomorrow }}">
+            <input type="number" name="qty" min="0" max="9999" step="1"
+                   value="{{ overrides_tomorrow.get(row.product_id, '') }}"
+                   placeholder="—"
+                   style="width:60px;padding:var(--space-1) var(--space-2);border:1px solid var(--color-border);border-radius:4px;">
+            <button type="submit" class="btn btn-sm">Guardar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="card mt-4">
+  <div class="card-header">
+    <h2 style="font-size:var(--text-md);margin:0;">Ingredientes necesarios</h2>
+  </div>
+  {% if plan.lines %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Ingrediente</th>
+        <th style="text-align:right;">Cantidad</th>
+        <th style="text-align:right;">Stock</th>
+        <th style="text-align:right;">A comprar</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in plan.lines %}
+      <tr>
+        <td>{{ line.ingredient_name }}</td>
+        <td style="text-align:right;">{{ line.qty_required|round(2) }} {{ line.unit }}</td>
+        <td style="text-align:right;">{{ line.stock_on_hand|round(2) }} {{ line.unit }}</td>
+        <td style="text-align:right;">
+          {% if line.qty_to_buy > 0 %}
+            <span class="badge badge-warn">{{ line.qty_to_buy|round(2) }} {{ line.unit }}</span>
+          {% else %}
+            <span class="text-muted">OK</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-muted" style="padding:var(--space-4);">No hay líneas de ingredientes (probablemente faltan recetas vinculadas a productos).</p>
+  {% endif %}
+</div>
+
+<style>
+  .badge { display:inline-block;padding:2px 8px;border-radius:12px;font-size:var(--text-xs);font-weight:500; }
+  .badge-manual   { background:#dbeafe;color:#1e40af; }
+  .badge-template { background:#f3e8ff;color:#6b21a8; }
+  .badge-rolling  { background:#f3f4f6;color:#374151; }
+  .badge-warn     { background:#fef3c7;color:#92400e; }
+  .badge-seasonal { background:#fce7f3;color:#9d174d; }
+  .confidence-pill { display:inline-block;padding:2px 10px;border-radius:12px;font-weight:600;font-size:var(--text-sm);min-width:48px; }
+  .conf-high   { background:#d1fae5;color:#065f46; }
+  .conf-medium { background:#fef3c7;color:#92400e; }
+  .conf-low    { background:#fee2e2;color:#991b1b; }
+  .conf-none   { background:#f3f4f6;color:#6b7280; }
+  .data-table  { width:100%;border-collapse:collapse; }
+  .data-table th, .data-table td { padding:var(--space-3);border-bottom:1px solid var(--color-border); }
+  .data-table th { text-align:left;font-weight:600;background:var(--color-surface-subtle); }
+</style>
+
+{% endblock %}

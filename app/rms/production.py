@@ -39,6 +39,7 @@ class ProductionRow:
     recipe_id: int | None  # None when product has no recipe attached
     qty_to_produce: float
     forecast_source: str  # "rolling_14d_avg" | "seasonal_event" | "manual"
+    confidence_pct: int = 50  # 0-100, see _forecast_confidence()
 
 
 @dataclass
@@ -64,6 +65,35 @@ class ProductionPlan:
     notes: list[str] = field(default_factory=list)
 
 
+def _forecast_confidence(sale_count: int, days_span: int) -> int:
+    """Return a 0-100 confidence score for a forecast based on data sample size.
+
+    Heuristic (deterministic, no ML):
+      - 0 sales  → 0% (no data)
+      - 1 sale    → 25% (single data point, very noisy)
+      - 2 sales   → 40%
+      - 3-6 sales → 55-70%
+      - 7-13 sales (1-2 weeks of daily data) → 70-80%
+      - 14-29 sales (2-4 weeks of daily data) → 80-90%
+      - 30+ sales (1+ month of daily data) → 90-95%
+
+    The "confidence" tells the operator when to trust the auto-suggestion vs.
+    when to override. The roadmap example: "mañana vas a necesitar ~120
+    chipitas (confianza 78%)" — operator trusts it when confidence >= 70.
+    """
+    if sale_count == 0:
+        return 0
+    if sale_count == 1:
+        return 25
+    if sale_count == 2:
+        return 40
+    # Logarithmic curve from 3 sales (50%) upward
+    base = 50 + min(sale_count - 3, 30) * 1.5  # +1.5% per extra sale, capped at +45%
+    # Boost if we have data spread across many days (not all clustered)
+    spread_bonus = min(days_span, 14)  # up to 14 days spread adds up to +14%
+    return min(95, int(base + spread_bonus))
+
+
 def forecast_sales(
     session: Session,
     *,
@@ -86,6 +116,33 @@ def forecast_sales(
         )
     ).scalar() or 0.0
     return float(rows) / days_history
+
+
+def _forecast_sample_stats(session: Session, *, product_id: int, days_history: int) -> tuple[int, int]:
+    """Return (sale_count, days_span) for the confidence calculation.
+
+    sale_count = number of distinct sales of this product in the window.
+    days_span = number of distinct calendar days (Asunción local) with
+                at least one sale. A product sold 5 times all on Saturday
+                has sale_count=5 but days_span=1 — the forecast is less
+                trustworthy than one sold 5 times across 5 days.
+    """
+    from app.rms.config import ASUNCION_TZ
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=days_history)
+    rows = session.execute(
+        select(Sale.sold_at)
+        .where(
+            Sale.product_id == product_id,
+            Sale.sold_at >= start,
+            Sale.sold_at <= end,
+            Sale.voided_at.is_(None),
+        )
+    ).all()
+    if not rows:
+        return 0, 0
+    days = {(r[0].astimezone(ASUNCION_TZ).date().isoformat()) for r in rows}
+    return len(rows), len(days)
 
 
 def plan_production(
@@ -161,6 +218,15 @@ def plan_production(
         if source not in ("manual", "override", "template") and qty > 0:
             qty = math.ceil(qty)
         if qty > 0:
+            # Compute confidence for auto-forecasts (skip for explicit overrides
+            # — operator-typed values get 100% by definition).
+            if source in ("manual", "override", "template"):
+                confidence = 100
+            else:
+                sale_count, days_span = _forecast_sample_stats(
+                    session, product_id=prod.id, days_history=days_history
+                )
+                confidence = _forecast_confidence(sale_count, days_span)
             rows.append(
                 ProductionRow(
                     product_id=prod.id,
@@ -168,6 +234,7 @@ def plan_production(
                     recipe_id=prod.recipe_id,
                     qty_to_produce=qty,
                     forecast_source=source,
+                    confidence_pct=confidence,
                 )
             )
             product_forecasts[prod.id] = qty

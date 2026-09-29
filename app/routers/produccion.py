@@ -528,3 +528,76 @@ def produccion_template_fork_week(
 
 
 __all__ = ["router"]
+
+
+# --- P1-B2 forecast enchufado: tomorrow-focused view ---
+@router.get("/manana", response_class=HTMLResponse)
+def produccion_manana(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Tomorrow's production plan with confidence scores + seasonal events.
+
+    The roadmap asks for: "mañana vas a necesitar ~120 chipitas (confianza 78%)"
+    Each row shows:
+      - product name + qty to produce
+      - confidence % (color: <50 red, 50-75 amber, >=75 green)
+      - source: rolling_14d_avg / override / template / manual
+      - seasonal event note (if a calendar event applies tomorrow)
+
+    Operators can override the qty by typing a number; the form posts to
+    /produccion/override as usual.
+    """
+    from app.rms.config import ASUNCION_TZ
+    from app.rms.seasonal import calendar_for_year
+
+    today = datetime.now(ASUNCION_TZ).date()
+    tomorrow = today + timedelta(days=1)
+    plan = plan_production(session, for_date=tomorrow, days_history=14)
+
+    # Pull seasonal events for tomorrow's date (calendar uses SEASONAL_CALENDAR_2026)
+    # The calendar dict has 'start'/'end' fields (date ranges), not 'date'.
+    tomorrow_iso = tomorrow.isoformat()
+    events = [
+        ev for ev in calendar_for_year(tomorrow.year)
+        if ev.get("start", "") <= tomorrow_iso <= ev.get("end", "")
+    ]
+    seasonal_multiplier = None  # already baked into plan.rows[*].qty
+    seasonal_note = None
+    if events:
+        # Take the first event as the headline; plan.notes carries the multiplier
+        head = events[0]
+        seasonal_note = f"{head.get('name', 'Evento estacional')} (×{head.get('multiplier', 1.0)})"
+
+    # Sort: highest confidence first, lowest qty last
+    rows = sorted(plan.rows, key=lambda r: (-r.confidence_pct, r.product_name))
+
+    # Total estimated production in Gs (sum of qty * product.sale_price_gs)
+    products_by_id = {
+        p.id: p for p in session.execute(select(Product)).scalars()
+    }
+    estimated_revenue_gs = 0
+    for row in rows:
+        p = products_by_id.get(row.product_id)
+        if p is not None and p.sale_price_gs:
+            estimated_revenue_gs += int(row.qty_to_produce * p.sale_price_gs)
+
+    # Override form pre-fill (read existing overrides for tomorrow)
+    from app.rms.production import get_overrides_for_date
+    overrides_tomorrow = get_overrides_for_date(session, tomorrow)
+
+    return render(
+        request,
+        "produccion_manana.html",
+        {
+            "today": today.isoformat(),
+            "tomorrow": tomorrow.isoformat(),
+            "rows": rows,
+            "plan": plan,
+            "seasonal_note": seasonal_note,
+            "seasonal_multiplier": seasonal_multiplier,
+            "estimated_revenue_gs": estimated_revenue_gs,
+            "overrides_tomorrow": overrides_tomorrow,
+            "low_confidence_count": sum(1 for r in rows if r.confidence_pct < 70),
+        },
+    )

@@ -23,6 +23,7 @@ NAV_GROUPS: list[tuple[str, list[dict]]] = [
         {"route": "/ventas", "label": "Ventas", "icon": "icon-sale"},
         {"route": "/pedidos", "label": "Pedidos", "icon": "icon-box"},
         {"route": "/produccion", "label": "Producción", "icon": "icon-production"},
+        {"route": "/produccion/manana", "label": "Producción de mañana", "icon": "icon-spark"},
         {"route": "/eod", "label": "Cierre del día", "icon": "icon-close"},
     ]),
     ("Catálogo", [
