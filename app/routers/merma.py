@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
+from app.rms.errors import BadRequest, NotFound
 from app.rms.models import Ingredient, Recipe
 from app.rms.waste import (
     WasteReason,
@@ -151,7 +152,10 @@ def merma_register(
     try:
         reason_enum = WasteReason(reason)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise BadRequest(
+            "Motivo de merma inválido.",
+            context={"original_error": str(exc)},
+        ) from exc
 
     # Rate-limit writes per IP.
     from app.rms.rate_limit import is_write_rate_limited
@@ -177,7 +181,10 @@ def merma_register(
     except ValueError as exc:
         # Unknown ingredient FK etc. — 404, not a 500 crash (found by the
         # e2e negative-path matrix).
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise NotFound(
+            "Recurso no encontrado",
+            context={"operation": "record_waste", "original_error": str(exc)},
+        ) from exc
 
     # Audit + commit
     from app.auth import current_user_id
@@ -210,7 +217,10 @@ def merma_register_recipe(
     try:
         reason_enum = WasteReason(reason)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise BadRequest(
+            "Motivo de merma inválido.",
+            context={"original_error": str(exc)},
+        ) from exc
     if batch_qty <= 0:
         raise HTTPException(
             status_code=400, detail="La cantidad de lotes debe ser mayor a 0"
@@ -232,7 +242,10 @@ def merma_register_recipe(
             notes=notes or None,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise BadRequest(
+            "Datos inválidos para registrar merma por receta.",
+            context={"original_error": str(exc)},
+        ) from exc
 
     from app.auth import current_user_id
     from app.rms.audit import record as audit_record

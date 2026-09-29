@@ -20,6 +20,7 @@ from app.rms.config import ASUNCION_TZ
 from app.rms.costing import RecipeWithoutYield, apply_sale, void_sale
 from app.rms.db import safe_commit
 from app.rms.dependencies import get_session
+from app.rms.errors import BadRequest, Conflict
 from app.rms.models import Customer, Product, Sale
 from app.rms.catalogs import list_channels, list_payment_methods, default_channel_code, default_payment_method_code
 from app.rms.schemas import (
@@ -667,9 +668,15 @@ async def sale_create(
             packaging_qty=packaging_qty,
         )
     except RecipeWithoutYield as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
+        raise Conflict(
+            "La receta no tiene rendimiento definido; no se puede vender.",
+            context={"original_error": str(e)},
+        ) from e
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise BadRequest(
+            "Datos inválidos para registrar la venta.",
+            context={"original_error": str(e)},
+        ) from e
 
     # Apply Phase 1.B invoice fields to the just-created Sale
     from app.rms.invoicing import allocate_invoice_number
@@ -951,9 +958,15 @@ async def sale_create_multi(
                     first_sale.iva_amount_gs = snapshot["iva_amount_gs"]
 
     except RecipeWithoutYield as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
+        raise Conflict(
+            "La receta no tiene rendimiento definido; no se puede vender.",
+            context={"original_error": str(e)},
+        ) from e
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise BadRequest(
+            "Datos inválidos para registrar la venta.",
+            context={"original_error": str(e)},
+        ) from e
 
     # Update idempotency record
     if idempotency_key:
@@ -1059,7 +1072,10 @@ async def sale_void(
         reason_clean = (reason or "").strip() or None
         void_sale(session, sale_id, reason=reason_clean, voided_by=user_id)
     except ValueError as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
+        raise Conflict(
+            "No se puede anular la venta.",
+            context={"sale_id": str(sale_id), "original_error": str(e)},
+        ) from e
     # Forensic completeness: the void must leave an audit-log row, not just
     # the sale's own void_* columns (found by the tests/e2e audit-sweep —
     # every other mutation writes one, voids silently didn't).

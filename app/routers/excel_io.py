@@ -30,6 +30,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_login_or_disabled as require_login
 from app.rms.audit import record
 from app.rms.dependencies import get_session
+from app.rms.errors import BadRequest
 from app.rms.models import ImportBatch
 from app.services.template_render import render
 
@@ -175,9 +176,15 @@ async def excel_validate(
             errors = result.errors
             warnings = result.warnings
         except FileNotFoundError as exc:
-            raise HTTPException(status_code=400, detail=f"Sheet no encontrado: {exc}") from exc
+            raise BadRequest(
+                "Sheet no encontrado.",
+                context={"original_error": str(exc)},
+            ) from exc
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise BadRequest(
+                "Datos inválidos en el archivo Excel.",
+                context={"original_error": str(exc)},
+            ) from exc
 
     return render(request, "excel_validate.html", {
         "filename": filename,
@@ -229,9 +236,15 @@ async def excel_import(
             result = from_file(session, save_path, mode=resolved_mode)  # type: ignore[arg-type]
             row_counts = result.row_counts()
         except FileNotFoundError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise BadRequest(
+                "Archivo Excel no encontrado.",
+                context={"original_error": str(exc)},
+            ) from exc
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise BadRequest(
+                "Datos inválidos al importar Excel.",
+                context={"original_error": str(exc)},
+            ) from exc
         except IntegrityError as exc:
             session.rollback()
             raise HTTPException(

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.eod_completions import completions_for_date, upsert_completion
+from app.rms.errors import BadRequest
 from app.rms.production import plan_production
 from app.rms.workflow import eod_progress, fresh_eod_checklist
 from app.services.template_render import render
@@ -177,7 +178,16 @@ def eod_completar(
             notes=notes or None,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        # BadRequest inherits HTTPException via the global handler, but
+        # now carries reason_code="bad_request" + AppError.context for
+        # the audit log. The original str(exc) is preserved via
+        # `cause` so the Python repr stays in the local traceback
+        # (visible to operators) but the user sees a clean Spanish
+        # message (no SQLAlchemy/internal text leak).
+        raise BadRequest(
+            "Datos inválidos en el cierre del día.",
+            context={"original_error": str(exc)},
+        ) from exc
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Producto no encontrado") from exc
 
