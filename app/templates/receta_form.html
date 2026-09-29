@@ -155,14 +155,16 @@
               {% endfor %}
               {{ ui.combo_field(
                 name='line_unit',
-                value=(line.line_unit or line.unit or 'g'),
-                display=(line.line_unit or line.unit or 'g'),
+                value=(line.line_unit or 'und'),
+                display=(line.target_unit if line.target_unit in ('g','kg','ml','l','und') else 'und'),
                 placeholder='g',
                 src=_unit_src
               ) }}
             </td>
             <td class="line-col-cost">
-              <span class="line-cost-display" data-cost-per-unit="0">Gs. 0</span>
+              <span class="line-cost-display"
+                    data-cost-per-unit="{{ line.unit_cost_gs | default(0) }}"
+              >{{ "Gs. %d"|format(line.unit_cost_gs) if line.unit_cost_gs else 'Gs. 0' }}</span>
             </td>
             <td class="line-col-note">
               <input type="text" name="line_notes" maxlength="200" value="{{ line.note or '' }}"
@@ -918,6 +920,9 @@
   // ---------- Yield changes affect unit cost ----------
   var yieldQtyEl = document.getElementById('yield_qty');
   if (yieldQtyEl) yieldQtyEl.addEventListener('input', computeCosts);
+
+  // ---------- Compute costs on page load for pre-filled existing lines ----------
+  computeCosts();
 
 
   // ---------- Auto-expand textareas ----------

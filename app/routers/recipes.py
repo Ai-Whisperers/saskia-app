@@ -573,6 +573,27 @@ async def recipe_edit(
     ).all()
     # Resolve target names so the form shows "Harina" not "#34"
     from app.rms.costing import resolve_line_target
+    # Unit conversion factors for same-family normalization
+    _UF = {"g": 1, "kg": 1000, "ml": 1, "l": 1000, "und": 1, "u": 1, "porcion": 1}
+
+    def _line_cost(ln, target) -> int:
+        """ComputeGs. cost for a recipe line, or 0 if price unavailable."""
+        if target is None or not hasattr(target, "purchase_price_gs"):
+            return 0
+        price = getattr(target, "purchase_price_gs", None) or 0
+        if price == 0:
+            return 0
+        lu = ln.line_unit or "und"
+        tu = getattr(target, "unit", "und")
+        lf = _UF.get(lu, 1)
+        tf = _UF.get(tu, 1)
+        # Same family: weight (g/kg) or volume (ml/l) — normalize
+        if lf != 1 and tf != 1 and (lu in ("und", "u", "porcion")) == (tu in ("und", "u", "porcion")):
+            qty_norm = ln.qty * lf / tf
+        else:
+            qty_norm = ln.qty
+        return int(qty_norm * price)
+
     lines = []
     for ln in raw_lines:
         target = resolve_line_target(session, ln)
@@ -581,9 +602,11 @@ async def recipe_edit(
             "line_kind": ln.line_kind,
             "line_ref_id": ln.line_ref_id,
             "qty": ln.qty,
-            "line_unit": ln.line_unit,
+            "line_unit": ln.line_unit or "und",
             "note": ln.notes,
             "target_name": target.name if target else f"#{ln.line_ref_id}",
+            "target_unit": getattr(target, "unit", "und") if target else "und",
+            "unit_cost_gs": _line_cost(ln, target),
         })
     ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
     other_recipes = session.scalars(
