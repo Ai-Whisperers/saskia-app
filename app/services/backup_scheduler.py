@@ -69,10 +69,10 @@ def _get_meta(session: Session, key: str) -> str | None:
 def _set_meta(session: Session, key: str, value: str) -> None:
     row = session.scalars(select(AppMeta).where(AppMeta.key == key)).first()
     if row is None:
-        session.add(AppMeta(key=key, value=value, updated_at=datetime.now().isoformat()))
+        session.add(AppMeta(key=key, value=value, updated_at=datetime.now(ASUNCION_TZ).isoformat()))
     else:
         row.value = value
-        row.updated_at = datetime.now().isoformat()
+        row.updated_at = datetime.now(ASUNCION_TZ).isoformat()
 
 
 def _last_backup_at_meta(session: Session) -> datetime | None:
@@ -204,9 +204,9 @@ def run_backup(
         keep_last_n: Prune local backups beyond this count.
         key_file: Path to the Fernet key. Defaults to BACKUP_DIR / "r2-encryption.key".
         storage: Inject a Storage for tests. None → use real R2 if configured.
-        now: Inject "now" for tests. None → use datetime.now().
+        now: Inject "now" for tests. None → use datetime.now(ASUNCION_TZ).
     """
-    now = now or datetime.now()
+    now = now or datetime.now(ASUNCION_TZ)
     last_backup = _last_backup_at_meta(session)
 
     if not _needs_backup(last_backup, threshold_hours):

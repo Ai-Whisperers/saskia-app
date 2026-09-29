@@ -26,6 +26,7 @@ from app.auth import (
     using_supabase,
 )
 from app.rms.audit import record as audit_record
+from app.rms.config import ASUNCION_TZ
 from app.rms.rate_limit import is_disabled, is_rate_limited
 from app.services.template_render import render
 
@@ -175,7 +176,7 @@ def _login_local(
     from datetime import datetime
 
     login_user_local(request, user.id, user.username)
-    user.last_login_at = datetime.now().isoformat()
+    user.last_login_at = datetime.now(ASUNCION_TZ).isoformat()
     audit_record(
         session,
         user_id=user.id,

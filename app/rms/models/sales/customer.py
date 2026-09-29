@@ -23,7 +23,7 @@ class Customer(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     # Relationships
-    sales: Mapped[list["Sale"]] = relationship("Sale", back_populates="customer")
+    sales: Mapped[list["Sale"]] = relationship("Sale", back_populates="customer")  # noqa: F821
 
     def __repr__(self) -> str:
         return f"Customer(id={self.id}, name='{self.name}', email='{self.email}')"

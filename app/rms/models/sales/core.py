@@ -30,8 +30,8 @@ class Sale(Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
 
     # Relationships
-    customer: Mapped["Customer"] = relationship("Customer")
-    stock_moves: Mapped[list["SaleStockMove"]] = relationship(
+    customer: Mapped["Customer"] = relationship("Customer")  # noqa: F821
+    stock_moves: Mapped[list["SaleStockMove"]] = relationship(  # noqa: F821
         "SaleStockMove", back_populates="sale"
     )
 

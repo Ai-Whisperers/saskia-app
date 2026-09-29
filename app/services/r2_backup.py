@@ -132,14 +132,14 @@ class Boto3Storage:
     def put(self, key: str, data: bytes) -> None:
         try:
             self._client.put_object(Bucket=self._bucket, Key=key, Body=data)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise StorageError(f"S3 put failed for {key}: {exc}") from exc
 
     def get(self, key: str) -> bytes:
         try:
             resp = self._client.get_object(Bucket=self._bucket, Key=key)
             return resp["Body"].read()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             if "NoSuchKey" in str(exc) or "404" in str(exc):
                 raise KeyError(key) from exc
             raise StorageError(f"S3 get failed for {key}: {exc}") from exc

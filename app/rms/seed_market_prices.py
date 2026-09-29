@@ -16,6 +16,8 @@ When operator updates this file, run:
     python -m app.rms.seed_market_prices
 """
 
+import os
+
 # Mapping: ingredient_name (lowercase, exact match with seed.py) → (unit, price_gs_per_unit, source, notes)
 # Verified Sept 2026 against 3+ sources where available.
 MARKET_REFERENCE_SEED = [
@@ -85,7 +87,7 @@ def refresh_market_prices_from_csv(session, csv_path: str, replace: bool = True)
     matched = 0
     skipped = 0
     missing_ingredients: list[str] = []
-    today = date.today()
+    today = date.today()  # noqa: DTZ011
 
     existing = {row.name.lower(): row for row in session.query(Ingredient).all()}
 

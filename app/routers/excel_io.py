@@ -293,7 +293,7 @@ async def excel_export(request: Request, session: Session = Depends(get_session)
             filename="saskia-rms-export.xlsx",
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         try:
             tmp_path.unlink()
         except OSError as exc:

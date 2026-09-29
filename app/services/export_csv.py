@@ -34,15 +34,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.rms.models import (
-    AppMeta,
-    ImportBatch,
+    ComplianceInfo,
+    Customer,
     Ingredient,
+    Pedido,
     Product,
-    Recipe,
-    RecipeLine,
     Sale,
-    SaleStockMove,
 )
+from app.rms.config import ASUNCION_TZ
 
 # (filename_suffix, model_class, ordered_columns)
 TABLE_EXPORTS = [
@@ -167,7 +166,7 @@ def to_dir(session: Session, path: str | Path) -> list[Path]:
     """
     path = Path(path)
     path.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    timestamp = datetime.now(ASUNCION_TZ).strftime("%Y%m%d-%H%M%S")
     written: list[Path] = []
 
     for table_name, model_cls, columns in TABLE_EXPORTS:

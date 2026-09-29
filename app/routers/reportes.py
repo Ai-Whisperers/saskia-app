@@ -629,7 +629,7 @@ def reportes_cierre_mensual(
     from app.rms.cierre import compute_monthly_close
 
     # Default to current month if no params
-    today = date.today()
+    today = date.today()  # noqa: DTZ011
     year = year or today.year
     month = month or today.month
     if month < 1 or month > 12 or year < 2020 or year > 2099:

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
@@ -76,6 +75,7 @@ def validate_product(
         errors["name"] = "El nombre es obligatorio."
     else:
         from sqlalchemy import func
+
         from app.rms.models import Product
         existing = session.scalar(
             func.count()

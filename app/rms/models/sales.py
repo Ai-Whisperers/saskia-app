@@ -76,7 +76,7 @@ class Sale(Base):
     iva_amount_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
     # Relationships
-    product: Mapped["Product"] = relationship(back_populates="sales")
+    product: Mapped["Product"] = relationship(back_populates="sales")  # noqa: F821
     customer: Mapped[Optional["Customer"]] = relationship(back_populates="sales")
     stock_moves: Mapped[list["SaleStockMove"]] = relationship(
         back_populates="sale", cascade="all, delete-orphan"
@@ -112,10 +112,10 @@ class SaleStockMove(Base):
 
     # Relationships
     sale: Mapped["Sale"] = relationship(back_populates="stock_moves")
-    affected_recipe: Mapped["Recipe"] = relationship(
+    affected_recipe: Mapped["Recipe"] = relationship(  # noqa: F821
         foreign_keys=[affected_recipe_id], back_populates="stock_moves"
     )
-    ingredient: Mapped["Ingredient"] = relationship(back_populates="stock_moves")
+    ingredient: Mapped["Ingredient"] = relationship(back_populates="stock_moves")  # noqa: F821
 
 class Customer(Base):
     """A customer record (E13).
@@ -228,7 +228,7 @@ class RecipePricing(Base):
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
-    recipe: Mapped["Recipe"] = relationship("Recipe")
+    recipe: Mapped["Recipe"] = relationship("Recipe")  # noqa: F821
 
     __table_args__ = (
         CheckConstraint("cost_per_unit_gs >= 0", name="ck_pricing_per_unit_nonneg"),

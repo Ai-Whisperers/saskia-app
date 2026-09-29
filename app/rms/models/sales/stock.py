@@ -22,7 +22,7 @@ class SaleStockMove(Base):
     quantity: Mapped[float] = mapped_column(Integer, nullable=False)
 
     # Relationships
-    sale: Mapped["Sale"] = relationship("Sale", back_populates="stock_moves")
+    sale: Mapped["Sale"] = relationship("Sale", back_populates="stock_moves")  # noqa: F821
 
     def __repr__(self) -> str:
         return f"SaleStockMove(id={self.id}, sale_id='{self.sale_id}', quantity={self.quantity})"

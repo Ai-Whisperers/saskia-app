@@ -112,7 +112,7 @@ def sign_in_with_password(email: str, password: str) -> Optional[dict]:
     client = get_supabase_client()
     try:
         response = client.auth.sign_in_with_password({"email": email, "password": password})
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         # Supabase raises on bad creds; we want a clean None return.
         # Narrow exception check to only catch auth failures, not config bugs.
         msg = str(exc).lower()

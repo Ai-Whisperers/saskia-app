@@ -175,7 +175,7 @@ def _compliance_alerts(session) -> list[dict]:
 
     from app.rms.models import ComplianceInfo
 
-    today = date.today()
+    today = date.today()  # noqa: DTZ011
     alerts: list[dict] = []
 
     ci = session.get(ComplianceInfo, 1)

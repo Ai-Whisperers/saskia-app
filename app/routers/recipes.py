@@ -10,7 +10,7 @@ only handles single values.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError

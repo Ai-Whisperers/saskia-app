@@ -98,8 +98,9 @@ def healthz_errors(request: Request) -> JSONResponse:
         )
 
     from app.rms.models import AuditLog
+    from app.rms.config import ASUNCION_TZ
 
-    now = datetime.now()
+    now = datetime.now(ASUNCION_TZ)
     last_1h = now - timedelta(hours=1)
     last_24h = now - timedelta(hours=24)
 

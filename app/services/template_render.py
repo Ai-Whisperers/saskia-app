@@ -17,7 +17,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 # Globals exposed to all templates
 def _now_year() -> int:
-    return datetime.now().year
+    return datetime.now().year  # noqa: DTZ005 — naive is OK, year is tz-independent
 
 
 def _now():
@@ -42,7 +42,7 @@ def _now():
     tz is set to America/Asuncion (server runtime tz), `datetime.now()`
     returns the Asuncion local time without tzinfo.
     """
-    return datetime.now()
+    return datetime.now()  # noqa: DTZ005 — intentional naive, see docstring
 
 
 def _now_local():
@@ -190,7 +190,7 @@ def _now_str() -> str:
         _n = datetime.now(ASUNCION_TZ)
         return f"{_DIAS[_n.weekday()]} {_n.day} {_MESES[_n.month-1]} {_n.year} · {_n.strftime('%H:%M')}"  # locale set below
     except Exception:  # noqa: BLE001 — topbar date must never break a page
-        return datetime.now().strftime("%d/%m/%Y %H:%M")
+        return datetime.now().strftime("%d/%m/%Y %H:%M")  # noqa: DTZ005 — see _now() docstring
 
 
 templates.env.globals["now_str"] = _now_str
@@ -202,7 +202,7 @@ def _greeting() -> str:
         from app.rms.config import ASUNCION_TZ
         h = datetime.now(ASUNCION_TZ).hour
     except Exception:  # noqa: BLE001
-        h = datetime.now().hour
+        h = datetime.now().hour  # noqa: DTZ005 — hour is tz-independent for greeting purposes
     if 12 <= h < 19:
         return "Buenas tardes"
     if h >= 19 or h < 4:

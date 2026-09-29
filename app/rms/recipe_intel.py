@@ -98,8 +98,15 @@ def infer_recipe_family(recipe: Recipe) -> str:
     More specific keywords come first within their families.
     """
     return infer_recipe_family_from_name(recipe.name)
-    # Family keyword order matters: specific words before generic ones
-    # to avoid "empanada" matching "pan" in panadería.
+
+
+def infer_recipe_family_with_keywords(recipe: Recipe) -> tuple[str, str]:
+    """Return (family, matched_keyword) for explainability + UI debug.
+
+    Like infer_recipe_family() but also returns which keyword matched.
+    Used by /recetas/inteligencia diagnostic page.
+    """
+    name = (recipe.name or "").lower()
     ordered_keywords = [
         ("frituras", ("oliebollen", "donut", "buñuelo", "frikandel")),
         ("salados", ("empanada", "quiche", "sandwich", "tostado",
@@ -118,8 +125,8 @@ def infer_recipe_family(recipe: Recipe) -> str:
     for family, keywords in ordered_keywords:
         for kw in keywords:
             if kw in name:
-                return family
-    return "otros"
+                return (family, kw)
+    return ("otros", "")
 
 
 def estimate_prep_minutes(recipe: Recipe, ingredient_count: int | None = None) -> int:

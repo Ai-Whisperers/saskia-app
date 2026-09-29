@@ -106,7 +106,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             start = time.perf_counter() if not skip_log else None
             try:
                 response = await call_next(request)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 # AppError / HTTPException are EXPECTED: FastAPI's exception
                 # handler will render them with the right status. We just
                 # re-raise without logging (the exception handler will log).

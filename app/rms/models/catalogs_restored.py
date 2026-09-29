@@ -60,58 +60,20 @@ class Category(Base):
 
 
 __all__ = [
-    "AppMeta",
-    "AuditLog",
-    "BankTransaction",
-    "Base",
     # Static-content-audit fix — migration 039
     "Category",
-    # Static-content-audit Phase 4 — migrations 041, 042
-    "Channel",
-    "ComplianceInfo",
-    "Customer",
     # Static-content-audit Phase 9 — migration 048
     "DateRangePreset",
-    # HEREBUS Drive integration — migration 029
-    "DeliveryZone",
-    "ImportBatch",
-    "Ingredient",
-    "IngredientPriceEvent",
     # Static-content-audit Phase 7 — migrations 045, 046
     "MarginTier",
-    "MarketBenchmark",
     # Static-content-audit Phase 6 — migration 044
     "MessageTemplate",
     "PaymentMethod",
-    "Pedido",
-    "PedidoLine",
-    "PriceHistory",
-    "Product",
-    "ProductionCompletion",
-    "ProductionPlan",
-    "ProductionPlanOverride",
-    "ProductionPlanTemplate",
-    "Recipe",
-    "RecipeLine",
-    "RecipePricing",
-    "RiskItem",
-    "Sale",
-    "SaleStockMove",
-    "SettingsKV",
-    "ShoppingListItem",
-    "StockMovement",
     "StockStatusConfig",
     # Static-content-audit Phase 11 — migration 049
     "StorageKeyword",
     # Static-content-audit Phase 8 — migration 047
     "StorageType",
-    "Supplier",
-    "Tag",
-    "TagLink",
-    "Tenant",
-    "User",
-    "WasteLog",
-    "WishlistItem",
 ]
 
 

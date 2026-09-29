@@ -213,41 +213,12 @@ class ComplianceInfo(Base):
 
 
 __all__ = [
-    "AppMeta",
-    "AuditLog",
     "BankTransaction",
-    "Base",
     "ComplianceInfo",
-    "Customer",
     # HEREBUS Drive integration — migration 029
-    "DeliveryZone",
-    "ImportBatch",
-    "Ingredient",
-    "IngredientPriceEvent",
     "MarketBenchmark",
-    "Pedido",
-    "PedidoLine",
-    "PriceHistory",
-    "Product",
-    "ProductionCompletion",
-    "ProductionPlan",
-    "ProductionPlanOverride",
-    "ProductionPlanTemplate",
-    "Recipe",
-    "RecipeLine",
-    "RecipePricing",
+    "MarketPriceReference",
     "RiskItem",
-    "Sale",
-    "SaleStockMove",
-    "SettingsKV",
-    "ShoppingListItem",
-    "StockMovement",
-    "Supplier",
-    "Tag",
-    "TagLink",
-    "Tenant",
-    "User",
-    "WasteLog",
     "WishlistItem",
 ]
 
@@ -286,4 +257,4 @@ class MarketPriceReference(Base):
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False,
     )
 
-    ingredient: Mapped["Ingredient"] = relationship("Ingredient")
+    ingredient: Mapped["Ingredient"] = relationship("Ingredient")  # noqa: F821

@@ -58,6 +58,7 @@ from app.rms.models import (
     RecipeLine,
     Sale,
 )
+from app.rms.config import ASUNCION_TZ
 from app.rms.money import parse_gs, to_int_gs
 
 ImportMode = Literal["FULL", "PATCH", "APPEND"]
@@ -259,7 +260,7 @@ def _validate_workbook(wb, mode: str) -> tuple[list[dict], list[dict]]:
         if sold_at is None:
             _err(row_num, "sold_at", "sold_at requerido")
         elif isinstance(sold_at, datetime):
-            if sold_at > datetime.now():
+            if sold_at > datetime.now(ASUNCION_TZ):
                 _warn(row_num, "sold_at", f"Fecha en el futuro: {sold_at}")
         product_id = _opt_int(row.get("product_id"))
         if product_id is None:
@@ -339,7 +340,7 @@ def _import_append(session: Session, wb, result: ImportResult) -> None:
             result.warnings.append("Ventas: unit_price_gs requerido")
             continue
         sale = Sale(
-            sold_at=sold_at if isinstance(sold_at, datetime) else datetime.now(),
+            sold_at=sold_at if isinstance(sold_at, datetime) else datetime.now(ASUNCION_TZ),
             product_id=product_id_val,
             qty=qty,
             unit_price_gs=unit_price,
@@ -855,7 +856,7 @@ def from_file(
         _import_full(session, wb, result)
 
     batch = ImportBatch(
-        imported_at=datetime.now(),
+        imported_at=datetime.now(ASUNCION_TZ),
         source_filename=path.name,
         note=f"mode={mode}",
         row_counts_json=result.row_counts(),
@@ -891,7 +892,7 @@ def from_workbook(
         _import_full(session, wb, result)
 
     batch = ImportBatch(
-        imported_at=datetime.now(),
+        imported_at=datetime.now(ASUNCION_TZ),
         source_filename=source_filename,
         note=f"mode={mode}",
         row_counts_json=result.row_counts(),

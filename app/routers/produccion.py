@@ -492,7 +492,6 @@ def produccion_template_fork_week(
 
     user_id = current_user_id(request) or "operator"
     user_id = str(user_id)
-    datetime.now()
     rows_written = 0
     for (wd, pid), qty in bucket.items():
         if qty <= 0:

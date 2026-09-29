@@ -32,21 +32,21 @@ def needs_auto_backup(last_backup_at, threshold_hours: int = AUTO_BACKUP_THRESHO
         >>> needs_auto_backup(None)
         True
         >>> from datetime import datetime, timedelta
-        >>> needs_auto_backup(datetime.now() - timedelta(hours=1))
+        >>> needs_auto_backup(datetime.now(ASUNCION_TZ) - timedelta(hours=1))
         False
-        >>> needs_auto_backup(datetime.now() - timedelta(hours=25))
+        >>> needs_auto_backup(datetime.now(ASUNCION_TZ) - timedelta(hours=25))
         True
     """
     if last_backup_at is None:
         return True
-    return datetime.now() - last_backup_at > timedelta(hours=threshold_hours)
+    return datetime.now(ASUNCION_TZ) - last_backup_at > timedelta(hours=threshold_hours)
 
 
 def needs_warning(last_backup_at, threshold_days: int = WARN_THRESHOLD_DAYS) -> bool:
     """True if last_backup_at is older than threshold_days, or no backup yet."""
     if last_backup_at is None:
         return True
-    return datetime.now() - last_backup_at > timedelta(days=threshold_days)
+    return datetime.now(ASUNCION_TZ) - last_backup_at > timedelta(days=threshold_days)
 
 
 def last_backup_at(folder: Path):
@@ -66,7 +66,7 @@ def last_backup_at(folder: Path):
 
 def backup_filename(timestamp: datetime | None = None) -> str:
     """Generate the standard backup filename for a given timestamp."""
-    ts = (timestamp or datetime.now()).strftime("%Y%m%d-%H%M%S")
+    ts = (timestamp or datetime.now(ASUNCION_TZ)).strftime("%Y%m%d-%H%M%S")
     return f"rms-backup-{ts}.xlsx"
 
 

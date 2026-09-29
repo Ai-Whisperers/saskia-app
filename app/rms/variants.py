@@ -236,7 +236,7 @@ def avg_daily_consumption(
     in the window.
     """
     if today is None:
-        today = date.today()
+        today = date.today()  # noqa: DTZ011
     start = today - timedelta(days=_consumption_lookback_days(horizon_days, today=today))
     end = today
 
