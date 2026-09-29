@@ -366,7 +366,7 @@ def test_patch_ingredientes_price_update_sets_timestamp(session_factory):
     seeds = _seed_basic(session_factory)
     ing_name, ing_id = seeds["ing"]
 
-    before = datetime.now(timezone.utc) - timedelta(minutes=1)
+    before = datetime.utcnow() - timedelta(minutes=1)
 
     wb = _make_wb(
         {

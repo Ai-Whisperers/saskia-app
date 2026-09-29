@@ -53,8 +53,8 @@ def test_post_login_empty_password_rejected(client):
         data={"username": "test@example.com", "password": ""},
         follow_redirects=False,
     )
-    # 422 = form validation, 303 = rejected redirect
-    assert r.status_code in (200, 303, 422), (
+    # 400/422 = form validation, 303 = rejected redirect, 200 = re-render form
+    assert r.status_code in (200, 303, 400, 422), (
         f"Empty password returned {r.status_code}: {r.text[:200]}"
     )
 

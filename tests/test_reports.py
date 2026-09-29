@@ -140,8 +140,10 @@ def test_validate_year_month_accepts_december():
     from app.services.reports import _validate_year_month
 
     start, end = _validate_year_month(2026, 12)
-    assert start == datetime(2026, 12, 1)
-    assert end == datetime(2027, 1, 1)
+    # Drop timezone for comparison — function returns tz-aware, the test
+    # asserts the calendar day.
+    assert start.replace(tzinfo=None) == datetime(2026, 12, 1)
+    assert end.replace(tzinfo=None) == datetime(2027, 1, 1)
 
 
 def test_validate_year_month_rejects_string():

@@ -12,18 +12,39 @@ import pathlib
 
 
 def _all_routes():
+    """Walk all routes reachable from app, recursing into _IncludedRouter wrappers.
+
+    FastAPI's app.routes mixes APIRoute (user-defined) with _IncludedRouter
+    wrappers (sub-routers registered via include_router). Each wrapper's
+    routes live on .original_router.routes; we recurse into that.
+    """
     from app.rms.main import app
 
     out = []
-    for r in app.routes:
-        methods = sorted(
-            m for m in getattr(r, "methods", []) if m in ("GET", "POST", "PUT", "DELETE", "PATCH")
-        )
-        path = getattr(r, "path", "")
-        if not path or path.startswith(("/openapi", "/docs")):
-            continue
-        for m in methods:
-            out.append((m, path))
+
+    def _walk(routes, prefix=""):
+        for r in routes:
+            sub = getattr(r, "routes", None)
+            orig = getattr(r, "original_router", None)
+            if orig is not None and getattr(orig, "routes", None):
+                # _IncludedRouter: recurse. Sub-paths on the inner router
+                # already include the sub-router's prefix, so we don't merge.
+                _walk(orig.routes, prefix=prefix)
+                continue
+            if sub is not None and getattr(r, "methods", None) is None:
+                # Mount or other non-API wrapper: skip.
+                continue
+            methods = sorted(
+                m for m in getattr(r, "methods", []) or []
+                if m in ("GET", "POST", "PUT", "DELETE", "PATCH")
+            )
+            path = getattr(r, "path", "") or prefix
+            if not path or path.startswith(("/openapi", "/docs")):
+                continue
+            for m in methods:
+                out.append((m, path))
+
+    _walk(app.routes)
     return sorted(set(out))
 
 
@@ -45,6 +66,9 @@ _EXEMPT = {
     ("GET", "/api/openapi.json"),
     # emergency operator action; smoke-covered only
     ("POST", "/admin/migrate"),
+    # /api/validate/* are inline blur validators, tested via UI flows
+    ("POST", "/api/validate/product"),
+    ("POST", "/api/validate/recipe"),
 }
 
 

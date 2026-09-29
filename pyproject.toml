@@ -86,6 +86,10 @@ filterwarnings = [
     # sqlalchemy/sql/schema.py:3627. Their deprecation; will be fixed
     # when we bump SQLAlchemy.
     "ignore::DeprecationWarning:sqlalchemy.sql.schema",
+    # starlette.testclient warns about httpx vs httpx2 (not our code).
+    # StarletteDeprecationWarning inherits from UserWarning, not
+    # DeprecationWarning, so it needs its own filter.
+    "ignore::starlette.exceptions.StarletteDeprecationWarning",
 ]
 
 # Ruff config

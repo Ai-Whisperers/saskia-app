@@ -34,7 +34,7 @@ def test_ventas_page_renders_all_five_payment_methods(client):
     body = resp.text
     # Check for payment method combo data source
     for pm in ("efectivo", "transferencia", "qr", "tarjeta", "otro"):
-        assert f"'name': '{pm}'" in body, f"missing option for {pm}"
+        assert f'"value": "{pm}"' in body, f"missing option for {pm}"
     # Helper text the operator asked for
     assert "transferencia/QR" in body
     assert "alias" in body

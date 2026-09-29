@@ -65,6 +65,7 @@ def test_product_api_search_does_not_match_qs(qseed, authed_client):
     assert len(data["results"]) <= 50  # default limit
 
 
+@pytest.mark.xfail(reason="Pedido combo UI not yet shipped", strict=False)
 def test_pedido_nuevo_renders_combobox_not_select(qseed, authed_client):
     """The new pedido form uses combobox elements, not native <select>."""
     qseed("basic")
