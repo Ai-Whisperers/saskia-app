@@ -183,3 +183,59 @@ window.SaskiaSortTable = {
     rows.forEach(function (r) { tbody.appendChild(r); });
   }
 };
+
+// ── SaskiaDifficultyStars: star picker for recipe difficulty ───────────────
+(function () {
+  'use strict';
+  document.addEventListener('DOMContentLoaded', function () {
+    var container = document.getElementById('difficulty-stars');
+    if (!container) return;
+    var hidden = container.querySelector('input[type="hidden"][name="difficulty"]');
+    var buttons = Array.prototype.slice.call(container.querySelectorAll('.star-btn'));
+    var currentVal = parseInt(hidden && hidden.value, 10) || 0;
+
+    function render(val) {
+      buttons.forEach(function (btn) {
+        var bv = parseInt(btn.getAttribute('data-value'), 10);
+        btn.classList.toggle('star-filled', bv <= val);
+      });
+      hidden.value = val || '';
+    }
+
+    buttons.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var val = parseInt(btn.getAttribute('data-value'), 10);
+        render(val === currentVal ? 0 : val); // toggle off if same
+        currentVal = parseInt(hidden.value, 10) || 0;
+      });
+      // keyboard: Enter/Space selects
+      btn.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          btn.click();
+        }
+      });
+    });
+
+    render(currentVal);
+  });
+})();
+
+// ── SaskiaEscandalloEmpty: mark escandallo as empty when no ingredient rows ─
+(function () {
+  'use strict';
+  document.addEventListener('DOMContentLoaded', function () {
+    var summary = document.querySelector('.cost-summary');
+    if (!summary) return;
+    var table = document.getElementById('ingredient-lines-body') ||
+                 document.querySelector('[id$="-body"]'); // any recipe-line tbody
+    if (!table) return;
+    var rows = table.querySelectorAll('tr[data-line-id], tr:not([data-line-id])');
+    // count non-template rows: real rows have data-line-id or are <tr> with td input
+    var realRows = Array.prototype.slice.call(table.querySelectorAll('tr'))
+      .filter(function (r) { return r.querySelector('input[name$="_qty"]'); });
+    if (realRows.length === 0) {
+      summary.classList.add('is-empty');
+    }
+  });
+})();

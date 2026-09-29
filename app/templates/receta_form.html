@@ -189,18 +189,18 @@
       </button>
     </section>
 
-    {# ── Section 3: Preparation instructions ──────────────────── #}
+    {# ── Section 3: Notes / free-form observations ────────────────── #}
     <section class="form-section">
       <header class="form-section-header">
-        <h2 class="form-section-title">Instrucciones de preparación</h2>
-        <p class="form-section-hint">Pasos, técnica, tips, notas internas</p>
+        <h2 class="form-section-title">Notas de receta</h2>
+        <p class="form-section-hint">Notas, tips, observaciones — se muestra en la receta como "Notas". Para pasos de preparación estructurados, editá la secuencia en la vista de detalle.</p>
       </header>
 
       <div class="form-row">
         <textarea id="notes" name="notes" rows="6"
                   class="recipe-instructions"
                   data-autoexpand="true"
-                  placeholder="Pasos de la receta (Markdown básico soportado):&#10;&#10;1. Mezclar ingredientes secos&#10;2. Combinar con húmedos sin batir de más&#10;3. Hornear a 180°C por 22 min"
+                  placeholder="Notas u observaciones sobre esta receta&#10;&#10;Ej:&#10;- Sacar del horno cuando esté dorada por debajo&#10;- Si no hay mantequilla, reemplazar por margarine"
         >{{ recipe.notes if recipe and recipe.notes else '' }}</textarea>
       </div>
     </section>
