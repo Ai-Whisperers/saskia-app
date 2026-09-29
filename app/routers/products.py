@@ -240,7 +240,7 @@ def products_list(
 
     # Margin state filter (post-costing, in-memory): negativo <0, bajo <30%, ok 30-70%, alto >70%
     if margen_sel:
-        def _mstate(r) -> str:
+        def _mstate(r: object) -> str:
             if r["margin_ratio"] is None: return "sin-datos"
             pct = r["margin_ratio"] * 100
             if pct < 0: return "negativo"

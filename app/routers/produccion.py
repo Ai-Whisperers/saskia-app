@@ -68,7 +68,7 @@ def _day_counts(session: Session, days: list[date]) -> dict[str, int]:
     return counts
 
 
-def _parse_overrides(params) -> dict[int, float]:
+def _parse_overrides(params: object) -> dict[int, float]:
     """Override params look like ov_12=10.5 -> {12: 10.5}."""
     out: dict[int, float] = {}
     for key, value in params.items():

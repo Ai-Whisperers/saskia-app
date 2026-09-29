@@ -29,7 +29,7 @@ router = APIRouter(prefix="/users", dependencies=[Depends(require_login)])
 VALID_ROLES = ("admin", "cashier", "manager")
 
 
-def _is_admin(user) -> bool:
+def _is_admin(user: object) -> bool:
     """Return True if the current user has admin role."""
     if user is None:
         return False

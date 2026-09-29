@@ -11,7 +11,7 @@ When imported, this module registers all migrations found via pkgutil.
 
 import importlib
 import pkgutil
-from pathlib import Path  # noqa: F401 — re-exported
+from pathlib import Path  # noqa: F401 — re-exported via __all__
 from typing import Any, Callable
 
 # MIGRATIONS dict populated automatically via pkgutil discovery

@@ -104,8 +104,8 @@ class Pedido(Base):
     lines: Mapped[list["PedidoLine"]] = relationship(
         back_populates="pedido", cascade="all, delete-orphan"
     )
-    customer: Mapped["Customer | None"] = relationship()  # noqa: F821 — SQLAlchemy forward ref
-    delivery_zone: Mapped["DeliveryZone | None"] = relationship(  # noqa: F821 — SQLAlchemy forward ref
+    customer: Mapped["Customer | None"] = relationship()  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    delivery_zone: Mapped["DeliveryZone | None"] = relationship(  # noqa: F821 — SQLAlchemy 2.0 forward ref
         back_populates="pedidos"
     )
 

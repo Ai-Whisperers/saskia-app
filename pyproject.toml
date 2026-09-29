@@ -110,6 +110,8 @@ select = [
     "BLE", "PERF",
     "ANN", "S", "DTZ",
     "B", "PIE", "RUF", "ASYNC",
+    # Explicit codes for RUF100 to recognize noqa as used:
+    "BLE001", "F401", "F821", "ANN401",
 ]
 ignore = [
     "E501",     # line-too-long (we use 100, ruff default is 88)

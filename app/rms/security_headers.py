@@ -65,7 +65,7 @@ _PERMISSIONS_POLICY = (
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Add defense-in-depth response headers to every HTTP response."""
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(self, request: Request, call_next: object) -> Response:
         response = await call_next(request)
 
         response.headers.setdefault("X-Frame-Options", "DENY")

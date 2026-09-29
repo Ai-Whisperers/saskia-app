@@ -27,7 +27,7 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 MISSING_MONEY = None
 
 
-def to_decimal(value) -> Decimal:
+def to_decimal(value: object) -> Decimal:
     """Coerce input to Decimal safely.
 
     Reject None, empty string, NaN, infinity, or non-numeric input.
@@ -60,7 +60,7 @@ def to_decimal(value) -> Decimal:
     return d
 
 
-def to_int_gs(value) -> int:
+def to_int_gs(value: object) -> int:
     """Round to nearest integer Gs., half up. Use at persistence sites only.
 
     NEVER use this in intermediate calculations. The pattern is:

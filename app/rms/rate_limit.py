@@ -47,7 +47,7 @@ class RateLimitDecision:
     retry_after_seconds: int
 
 
-def _client_ip(request) -> str:
+def _client_ip(request: object) -> str:
     """Pull first-hop IP from X-Forwarded-For, fall back to request.client.host.
 
     Mirrors the same logic in app/rms/audit.py so the rate-limit
@@ -62,7 +62,7 @@ def _client_ip(request) -> str:
 
 def is_rate_limited(
     session: Session,
-    request,
+    request: object,
     *,
     limit: int = DEFAULT_LIMIT,
     window_minutes: int = DEFAULT_WINDOW_MINUTES,
@@ -142,11 +142,11 @@ def is_disabled() -> bool:
 
 def is_write_rate_limited(
     session: Session,
-    request,
+    request: object,
     *,
     max_per_minute: int = 10,
     window_seconds: int = 60,
-    now=None,
+    now: object=None,
 ) -> bool:
     """Return True if this client has exceeded max_per_minute writes.
 

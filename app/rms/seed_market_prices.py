@@ -63,7 +63,7 @@ MARKET_REFERENCE_SEED = [
 
 
 
-def refresh_market_prices_from_csv(session, csv_path: str, replace: bool = True) -> dict:
+def refresh_market_prices_from_csv(session: object, csv_path: str, replace: bool = True) -> dict:
     """Phase 1.E — Refresh MarketPriceReference from a CSV file.
 
     Expected CSV format (header row required):

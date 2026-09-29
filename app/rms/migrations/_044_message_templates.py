@@ -3,7 +3,7 @@ from sqlalchemy import text
 from app.rms.db import _bump_schema_version
 
 
-def _migration_044_message_templates(conn):
+def _migration_044_message_templates(conn: object):
     """Phase 6 — MessageTemplate table + seed common templates.
 
     Replaces hardcoded copy in pedidos.py, email notifications, etc.

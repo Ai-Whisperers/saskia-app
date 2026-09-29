@@ -53,7 +53,7 @@ def _is_postgres(url: str) -> bool:
     )
 
 
-def _set_sqlite_pragmas(dbapi_conn, _):
+def _set_sqlite_pragmas(dbapi_conn: object, _):
     """SQLite-specific pragmas. No-op for Postgres."""
     cursor = dbapi_conn.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")

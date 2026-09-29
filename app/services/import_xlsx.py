@@ -105,7 +105,7 @@ class ImportResult:
         return d
 
 
-def _sheet(wb, name: str) -> Worksheet | None:
+def _sheet(wb: object, name: str) -> Worksheet | None:
     """Return sheet by name, or None if missing."""
     if name in wb.sheetnames:
         return wb[name]
@@ -130,7 +130,7 @@ def _rows(sheet: Worksheet | None) -> list[dict]:
     return out
 
 
-def _opt_str(value) -> str | None:
+def _opt_str(value: object) -> str | None:
     """Cell value → optional string (None → None; empty string → None)."""
     if value is None:
         return None
@@ -138,7 +138,7 @@ def _opt_str(value) -> str | None:
     return s or None
 
 
-def _opt_float(value) -> float | None:
+def _opt_float(value: object) -> float | None:
     """Cell value → optional float (None/empty → None)."""
     if value is None:
         return None
@@ -150,7 +150,7 @@ def _opt_float(value) -> float | None:
     return float(s)
 
 
-def _opt_int(value) -> int | None:
+def _opt_int(value: object) -> int | None:
     """Cell value → optional int (None/empty → None)."""
     f = _opt_float(value)
     if f is None:
@@ -158,7 +158,7 @@ def _opt_int(value) -> int | None:
     return int(f)
 
 
-def _money_int_gs(value, *, field_name: str, warnings: list) -> int | None:
+def _money_int_gs(value: object, *, field_name: str, warnings: list) -> int | None:
     """Cell value → integer Gs. via parse_gs (accepts 'Gs. 5.000' format) or
     to_int_gs (accepts numeric).
 
@@ -192,15 +192,15 @@ def _money_int_gs(value, *, field_name: str, warnings: list) -> int | None:
 # --------------------------------------------------------------------------_
 
 
-def _validate_workbook(wb, mode: str) -> tuple[list[dict], list[dict]]:
+def _validate_workbook(wb: object, mode: str) -> tuple[list[dict], list[dict]]:
     """Validate all sheets without writing. Returns (errors, warnings)."""
     errors: list[dict] = []
     warnings: list[dict] = []
 
-    def _err(row_num, field, msg):
+    def _err(row_num: object, field: object, msg: object):
         errors.append({"row": row_num, "field": field, "message": msg})
 
-    def _warn(row_num, field, msg):
+    def _warn(row_num: object, field: object, msg: object):
         warnings.append({"row": row_num, "field": field, "message": msg})
 
     # Ingredientes
@@ -276,7 +276,7 @@ def _validate_workbook(wb, mode: str) -> tuple[list[dict], list[dict]]:
 # APPEND mode — insert rows without updating existing
 # --------------------------------------------------------------------------
 
-def _import_append(session: Session, wb, result: ImportResult) -> None:
+def _import_append(session: Session, wb: object, result: ImportResult) -> None:
     """APPEND mode: insert new rows without modifying existing ones.
 
     Matches by natural key but does NOT update — only inserts rows that
@@ -355,7 +355,7 @@ def _import_append(session: Session, wb, result: ImportResult) -> None:
 # --------------------------------------------------------------------------
 
 
-def _import_full(session: Session, wb, result: ImportResult) -> None:
+def _import_full(session: Session, wb: object, result: ImportResult) -> None:
     warnings = result.warnings
     # 1. Ingredientes
     ingredients_index: dict[str, int] = {}  # name → id
@@ -579,7 +579,7 @@ def _customer_lookup(session: Session) -> dict[str, Customer]:
     return out
 
 
-def _import_patch_productos(session: Session, wb, result: ImportResult) -> None:
+def _import_patch_productos(session: Session, wb: object, result: ImportResult) -> None:
     """PATCH Productos: match by name (case-insensitive) OR sku. Update fields."""
     warnings = result.warnings
     by_name, by_sku = _product_lookup(session)
@@ -629,7 +629,7 @@ def _import_patch_productos(session: Session, wb, result: ImportResult) -> None:
         result.products += 1
 
 
-def _import_patch_clientes(session: Session, wb, result: ImportResult) -> None:
+def _import_patch_clientes(session: Session, wb: object, result: ImportResult) -> None:
     """PATCH Clientes: match by phone. Update or create."""
     warnings = result.warnings
     by_phone = _customer_lookup(session)
@@ -688,7 +688,7 @@ def _import_patch_clientes(session: Session, wb, result: ImportResult) -> None:
         result.customers += 1
 
 
-def _import_patch_ingredientes(session: Session, wb, result: ImportResult) -> None:
+def _import_patch_ingredientes(session: Session, wb: object, result: ImportResult) -> None:
     """PATCH Ingredientes: match by name. Update fields."""
     warnings = result.warnings
     by_name = _ingredient_lookup(session)
@@ -758,7 +758,7 @@ def _import_patch_ingredientes(session: Session, wb, result: ImportResult) -> No
         result.ingredients += 1
 
 
-def _import_patch_recetas(session: Session, wb, result: ImportResult) -> None:
+def _import_patch_recetas(session: Session, wb: object, result: ImportResult) -> None:
     """PATCH Recetas: match by name. Update fields."""
     warnings = result.warnings
     by_name = _recipe_lookup(session)
@@ -797,7 +797,7 @@ def _import_patch_recetas(session: Session, wb, result: ImportResult) -> None:
         result.recipes += 1
 
 
-def _import_patch(session: Session, wb, result: ImportResult) -> None:
+def _import_patch(session: Session, wb: object, result: ImportResult) -> None:
     """PATCH mode dispatcher — process sheets independently. Each sheet is
     best-effort: bad rows log warnings and the rest proceed."""
     _import_patch_productos(session, wb, result)
@@ -870,7 +870,7 @@ def from_file(
 
 def from_workbook(
     session: Session,
-    wb,
+    wb: object,
     *,
     mode: ImportMode = "FULL",
     source_filename: str = "upload.xlsx",

@@ -35,11 +35,11 @@ from sqlalchemy.orm import Session
 
 from app.rms.models import (
     AppMeta,
-    ComplianceInfo,  # noqa: F401 — re-exported
-    Customer,  # noqa: F401 — re-exported
+    ComplianceInfo,  # noqa: F401 — re-exported via __all__
+    Customer,  # noqa: F401 — re-exported via __all__
     ImportBatch,
     Ingredient,
-    Pedido,  # noqa: F401 — re-exported
+    Pedido,  # noqa: F401 — re-exported via __all__
     Product,
     Recipe,
     RecipeLine,
@@ -145,7 +145,7 @@ TABLE_EXPORTS = [
 ]
 
 
-def _row_for(model_obj, columns: list[str]) -> list:
+def _row_for(model_obj: object, columns: list[str]) -> list:
     """Build a CSV row from a model instance + column list."""
     row = []
     for col in columns:

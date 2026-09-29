@@ -222,7 +222,7 @@ def walk_recipe_tree(
     return targets, cycles
 
 
-def _resolve(session: Session, line) -> object | None:
+def _resolve(session: Session, line: object) -> object | None:
     from app.rms.costing import resolve_line_target
 
     try:
@@ -235,7 +235,7 @@ def _resolve(session: Session, line) -> object | None:
 # Ingredient-level tag sets
 # ---------------------------------------------------------------------------
 
-def ingredient_dietary_set(ing) -> frozenset[str]:
+def ingredient_dietary_set(ing: object) -> frozenset[str]:
     """(takes Ingredient lazily — see module header note)"""
     """Dietary tags an ingredient qualifies for (normalized to canonical Spanish).
 
@@ -253,7 +253,7 @@ def ingredient_dietary_set(ing) -> frozenset[str]:
     return frozenset(out)
 
 
-def ingredient_blocks(ing, tag: str) -> bool:
+def ingredient_blocks(ing: object, tag: str) -> bool:
     """True if this ingredient DISQUALIFIES the recipe from `tag`.
 
     An ingredient blocks tag T unless T is in its declared dietary set.

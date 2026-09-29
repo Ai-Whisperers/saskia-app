@@ -77,7 +77,7 @@ def settings_page(
     })
 
 
-def _safe_get_user(session, user_id) -> object:
+def _safe_get_user(session: object, user_id: object) -> object:
     """Look up the User by id, handling UUID strings (Supabase) gracefully.
 
     Returns None for non-integer ids (e.g., Supabase UUID) so the template

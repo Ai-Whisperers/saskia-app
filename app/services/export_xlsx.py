@@ -87,7 +87,7 @@ STOCKMOVES_COLS = [
 ]
 
 
-def _write_header(ws, cols: list[str]) -> None:
+def _write_header(ws: object, cols: list[str]) -> None:
     for i, col in enumerate(cols, start=1):
         ws.cell(row=1, column=i, value=col)
 
@@ -99,7 +99,7 @@ def _money_cell(value: int | None) -> str | None:
     return format_gs(value)
 
 
-def _autosize(ws, max_width: int = 40) -> None:
+def _autosize(ws: object, max_width: int = 40) -> None:
     """Set column widths from content. Capped at max_width."""
     for col_idx in range(1, ws.max_column + 1):
         max_len = 0
@@ -389,7 +389,7 @@ PLANTILLA_INGREDIENTES_COLS = [
 PLANTILLA_RECETAS_COLS = ["name", "yield_qty", "prep_minutes", "notes"]
 
 
-def _autosize_simple(ws, max_width: int = 40) -> None:
+def _autosize_simple(ws: object, max_width: int = 40) -> None:
     """Same as `_autosize` but operates on a fresh workbook without relying
     on the helper being defined earlier in the module flow."""
     for col_idx in range(1, ws.max_column + 1):

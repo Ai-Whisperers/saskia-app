@@ -298,12 +298,12 @@ def _migration_003_analytics_columns(conn: Any) -> None:
 
 
 
-def _migration_008_tenant(conn):
+def _migration_008_tenant(conn: Any) -> None:
     """Add tenant table (E15)."""
     _bump_schema_version(conn, 8)
 
 
-def _migration_009_ingredient_intel(conn):
+def _migration_009_ingredient_intel(conn: Any) -> None:
     """Add ingredient intelligence columns (E26): category, subcategory, role,
     allergens, dietary_tags, lead_time_days.
     """
@@ -326,7 +326,7 @@ def _migration_009_ingredient_intel(conn):
     _bump_schema_version(conn, 9)
 
 
-def _migration_010_recipe_intel(conn):
+def _migration_010_recipe_intel(conn: Any) -> None:
     """Add recipe intelligence columns (E27): family, difficulty, dietary_tags,
     cook_minutes. prep_minutes already exists (added in migration 003).
     """
@@ -346,7 +346,7 @@ def _migration_010_recipe_intel(conn):
     _bump_schema_version(conn, 10)
 
 
-def _migration_011_sale_payment_discount(conn):
+def _migration_011_sale_payment_discount(conn: Any) -> None:
     """Add payment_method + discount_gs to Sale (Phase 5 sales overhaul).
 
     payment_method: nullable string (cash/transfer/card/other).
@@ -367,7 +367,7 @@ def _migration_011_sale_payment_discount(conn):
     _bump_schema_version(conn, 11)
 
 
-def _migration_012_sale_tz(conn):
+def _migration_012_sale_tz(conn: Any) -> None:
     """Add tz column to Sale (Phase 6 wishlist: timezone-groupby-sales).
 
     tz: VARCHAR(64), default 'America/Asuncion'. Backward compatible:
@@ -389,7 +389,7 @@ def _migration_012_sale_tz(conn):
     _bump_schema_version(conn, 12)
 
 
-def _migration_013_ingredient_max_stock(conn):
+def _migration_013_ingredient_max_stock(conn: Any) -> None:
     """Add max_stock_qty column to Ingredient (Phase 7 reorder feature).
 
     max_stock_qty: nullable FLOAT. NULL means "use 2x min_stock_qty"
@@ -402,7 +402,7 @@ def _migration_013_ingredient_max_stock(conn):
     _bump_schema_version(conn, 13)
 
 
-def _migration_014_customer_cedula(conn):
+def _migration_014_customer_cedula(conn: Any) -> None:
     """Add cedula column to Customer (sales picker overhaul).
 
     cedula: Paraguayan CI/RUC identifier. Nullable; indexed for
@@ -424,7 +424,7 @@ def _migration_014_customer_cedula(conn):
     _bump_schema_version(conn, 14)
 
 
-def _migration_015_sale_channel(conn):
+def _migration_015_sale_channel(conn: Any) -> None:
     """Add `channel` column to Sale (Stream A prelaunch — 2026-09-17).
 
     channel: VARCHAR(32) NOT NULL DEFAULT 'mostrador'. Allowed values:
@@ -458,7 +458,7 @@ def _migration_015_sale_channel(conn):
     _bump_schema_version(conn, 15)
 
 
-def _migration_016_pedidos(conn):
+def _migration_016_pedidos(conn: Any) -> None:
     """Add Pedido + PedidoLine tables (Phase 3 — prelaunch roadmap 2026-09-17).
 
     Tables are created via create_all() in init_db() (the model classes
@@ -475,7 +475,7 @@ def _migration_016_pedidos(conn):
     _bump_schema_version(conn, 16)
 
 
-def _migration_017_recipe_line_unit(conn):
+def _migration_017_recipe_line_unit(conn: Any) -> None:
     """Add `line_unit` to recipe_line (Phase B — T1: recipe line unit selector).
 
     Per Saskia's review ("Se debe de poder agregar en gramos la cantidad"), each
@@ -531,7 +531,7 @@ def _migration_017_recipe_line_unit(conn):
     _bump_schema_version(conn, 17)
 
 
-def _migration_018_price_event(conn):
+def _migration_018_price_event(conn: Any) -> None:
     """Create ingredient_price_event table (Phase B — Q1 core).
 
     Append-only purchase-price history for each ingredient. Powers the
@@ -603,7 +603,7 @@ def _migration_018_price_event(conn):
     _bump_schema_version(conn, 18)
 
 
-def _migration_019_production_completion(conn):
+def _migration_019_production_completion(conn: Any) -> None:
     """Add production_completion table (Saskia review round 1, T5).
 
     Table is created via create_all() in init_db() (the model class was
@@ -614,7 +614,7 @@ def _migration_019_production_completion(conn):
     _bump_schema_version(conn, 19)
 
 
-def _migration_020_sale_date_voided_index(conn):
+def _migration_020_sale_date_voided_index(conn: Any) -> None:
     """Add composite index on Sale(sold_at, voided_at).
 
     Covers every date-range + void-filter query: dashboards, daily/weekly
@@ -649,7 +649,7 @@ def _migration_020_sale_date_voided_index(conn):
     _bump_schema_version(conn, 20)
 
 
-def _migration_021_stock_movement(conn):
+def _migration_021_stock_movement(conn: Any) -> None:
     """Create stock_movement table (stock movement ledger).
 
     Append-only audit log of every stock change: sale, adjustment, merma,
@@ -708,7 +708,7 @@ def _migration_021_stock_movement(conn):
     _bump_schema_version(conn, 21)
 
 
-def _migration_022_user_roles(conn):
+def _migration_022_user_roles(conn: Any) -> None:
     """Add role column to User table for multi-user support.
 
     role: VARCHAR(32) NOT NULL DEFAULT 'admin'. Values: admin, cashier, manager.
@@ -723,7 +723,7 @@ def _migration_022_user_roles(conn):
     _bump_schema_version(conn, 22)
 
 
-def _migration_023_supplier(conn):
+def _migration_023_supplier(conn: Any) -> None:
     """Create supplier table + add supplier_id to ingredient (audit items 250, 284).
 
     Supplier: name, contact_name, phone, email, address, notes, is_active.
@@ -783,7 +783,7 @@ def _migration_023_supplier(conn):
     _bump_schema_version(conn, 23)
 
 
-def _migration_024_recipe_intel_extended(conn):
+def _migration_024_recipe_intel_extended(conn: Any) -> None:
     """Add recipe cook_minutes, difficulty, family, dietary_tags (audit items 122, 124).
 
     prep_minutes already exists from migration 003.
@@ -804,7 +804,7 @@ def _migration_024_recipe_intel_extended(conn):
     _bump_schema_version(conn, 24)
 
 
-def _migration_025_ingredient_opening_stock_reorder_point(conn):
+def _migration_025_ingredient_opening_stock_reorder_point(conn: Any) -> None:
     """Add opening_stock_qty, opening_stock_date, reorder_point to Ingredient.
 
     opening_stock: the initial stock when the ingredient was first loaded.
@@ -829,7 +829,7 @@ def _migration_025_ingredient_opening_stock_reorder_point(conn):
 
 
 
-def _migration_026_product_audit_columns(conn):
+def _migration_026_product_audit_columns(conn: Any) -> None:
     """Add product columns used by audit-implemented features but never migrated.
 
     Originally added to Product model in commit 541e625 (Section 5/6 audit) but
@@ -858,7 +858,7 @@ def _migration_026_product_audit_columns(conn):
 
 
 
-def _migration_027_production_plan_template(conn):
+def _migration_027_production_plan_template(conn: Any) -> None:
     """PRO-01: weekly repeating production plan template + per-date overrides."""
     dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     if dialect == "postgresql":
@@ -929,7 +929,7 @@ def _migration_027_production_plan_template(conn):
     _bump_schema_version(conn, 27)
 
 
-def _migration_028_recipe_yield_qty_check(conn):
+def _migration_028_recipe_yield_qty_check(conn: Any) -> None:
     """DB-level CHECK: recipe.yield_qty and recipe_line.qty must be > 0
     when populated (NULL is allowed for draft state).
 
@@ -978,7 +978,7 @@ def _migration_028_recipe_yield_qty_check(conn):
     _bump_schema_version(conn, 28)
 
 
-def _migration_029_herebus_integration(conn) -> None:
+def _migration_029_herebus_integration(conn: Any) -> None:
     """HEREBUS Drive integration — 10 new tables + customer.zone + pedido.delivery_zone_id.
 
     Source-of-truth: the 33-file Google Drive dump of HEREBUS's bakery operations
@@ -1034,7 +1034,7 @@ def _migration_029_herebus_integration(conn) -> None:
     _bump_schema_version(conn, 29)
 
 
-def _migration_030_recipe_image_url(conn) -> None:
+def _migration_030_recipe_image_url(conn: Any) -> None:
     """Add Recipe.image_url (HEREBUS cookbook photos).
 
     Optional VARCHAR(255) for storing /static/recipes/<file>.jpg
@@ -1051,7 +1051,7 @@ def _migration_030_recipe_image_url(conn) -> None:
     _bump_schema_version(conn, 30)
 
 
-def _migration_031_risk_status_activo(conn) -> None:
+def _migration_031_risk_status_activo(conn: Any) -> None:
     """Re-create ck_risk_status to accept both 'active' and 'activo'.
 
     Original constraint used ('active', 'mitigated', 'closed') but the
@@ -1093,7 +1093,7 @@ def _migration_031_risk_status_activo(conn) -> None:
     _bump_schema_version(conn, 31)
 
 
-def _migration_032_pedido_cancel_reason(conn) -> None:
+def _migration_032_pedido_cancel_reason(conn: Any) -> None:
     """Add pedido.cancel_reason (was in model but missing migration).
 
     The Pedido model declares `cancel_reason: Mapped[str | None]` (a Text
@@ -1111,7 +1111,7 @@ def _migration_032_pedido_cancel_reason(conn) -> None:
 
 
 
-def _migration_033_ingredient_storage(conn):
+def _migration_033_ingredient_storage(conn: Any) -> None:
     """Add storage column to ingredient table (Wave 2 / HACCP).
 
     storage ∈ {ambient, refrigerated, frozen, dry}.
@@ -1130,7 +1130,7 @@ def _migration_033_ingredient_storage(conn):
 
 
 
-def _migration_034_market_price_reference(conn):
+def _migration_034_market_price_reference(conn: Any) -> None:
     """Wave 4 — Add market_price_reference table for ingredient market prices.
 
     Operator-curated baseline. One row per ingredient (no historical
@@ -1175,7 +1175,7 @@ def _migration_034_market_price_reference(conn):
 
 
 
-def _migration_035_compliance_info(conn):
+def _migration_035_compliance_info(conn: Any) -> None:
     """Phase 1.A — Add compliance_info table for tax / regulatory IDs.
 
     Single-row table; PK is always 1. Stores RUC, INAN R.E., timbrado,
@@ -1242,7 +1242,7 @@ def _migration_035_compliance_info(conn):
 
 
 
-def _migration_036_product_tax_haccp(conn):
+def _migration_036_product_tax_haccp(conn: Any) -> None:
     """Phase 1.A/C — Add product tax + HACCP columns.
 
     - iva_rate (default '10' = general rate per Art. 91 inc. e Ley 125/91)
@@ -1263,7 +1263,7 @@ def _migration_036_product_tax_haccp(conn):
 
 
 
-def _migration_037_sale_fiscal_invoice(conn):
+def _migration_037_sale_fiscal_invoice(conn: Any) -> None:
     """Phase 1.B — Add fiscal invoice fields to sale table.
 
     Required for Paraguayan DNIT/SET bookkeeping (Ley 7165 — every sale
@@ -1281,7 +1281,7 @@ def _migration_037_sale_fiscal_invoice(conn):
 
 
 
-def _migration_038_ingredient_haccp(conn):
+def _migration_038_ingredient_haccp(conn: Any) -> None:
     """Phase 1.C — HACCP storage columns on ingredient table.
 
     Per Res S.G. N° 213/2019, every bakery ingredient must have
@@ -1455,7 +1455,7 @@ def _migration_052_ingredient_forecast_horizon(conn: Any) -> None:
 
 
 
-def _migration_039_category_table(conn):
+def _migration_039_category_table(conn: Any) -> None:
     """Phase 1 catalog unification — operator-configurable categories/families.
 
     Replaces the hardcoded lists previously living in
@@ -1583,7 +1583,7 @@ def _migration_039_category_table(conn):
     _bump_schema_version(conn, 39)
 
 
-def ensure_tag_with_conn(conn, name: str, kind: str, color: str = "#757575") -> object:
+def ensure_tag_with_conn(conn: Any, name: str, kind: str, color: str = "#757575") -> object:
     """INSERT OR IGNORE a tag by (name, kind). Used inside migrations.
 
     Mirrors app.rms.tags.ensure_tag but takes a raw connection instead of
@@ -1606,7 +1606,7 @@ def ensure_tag_with_conn(conn, name: str, kind: str, color: str = "#757575") -> 
         )
 
 
-def _migration_040_pricing_setting(conn):
+def _migration_040_pricing_setting(conn: Any) -> None:
     """Phase 2 — SettingsKV-backed pricing markup setting.
 
     The suggested retail multiplier (cost * 3) was previously hardcoded
@@ -1631,7 +1631,7 @@ def _migration_040_pricing_setting(conn):
 
 
 
-def _migration_041_channel_catalog(conn):
+def _migration_041_channel_catalog(conn: Any) -> None:
     """Phase 4 — Sale channel catalog table.
 
     Replaces the hardcoded CHANNELS_DISPLAY / ALLOWED_CHANNELS frozenset
@@ -1688,7 +1688,7 @@ def _migration_041_channel_catalog(conn):
     _bump_schema_version(conn, 41)
 
 
-def _migration_042_payment_method_catalog(conn):
+def _migration_042_payment_method_catalog(conn: Any) -> None:
     """Phase 4 — Payment method catalog table.
 
     Replaces PAYMENT_METHODS_DISPLAY / ALLOWED_PAYMENT_METHODS frozenset
@@ -1756,7 +1756,7 @@ def _migration_042_payment_method_catalog(conn):
 
 
 
-def _migration_043_branding_setting(conn):
+def _migration_043_branding_setting(conn: Any) -> None:
     """Phase 5 — Branding settings.
 
     Seeds SettingsKV["branding"] with defaults that match the previous
@@ -1786,7 +1786,7 @@ def _migration_043_branding_setting(conn):
 
 
 
-def _migration_044_message_templates(conn):
+def _migration_044_message_templates(conn: Any) -> None:
     """Phase 6 — MessageTemplate table + seed common templates.
 
     Replaces hardcoded copy in pedidos.py, email notifications, etc.
@@ -1801,7 +1801,7 @@ def _migration_044_message_templates(conn):
     conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
 
 
-def _migration_044_message_templates(conn):
+def _migration_044_message_templates(conn: Any) -> None:
     """Phase 6 — MessageTemplate table + seed common templates.
 
     Replaces hardcoded copy in pedidos.py, email notifications, etc.
@@ -1909,7 +1909,7 @@ def _migration_044_message_templates(conn):
 
 
 
-def _migration_045_margin_tiers(conn):
+def _migration_045_margin_tiers(conn: Any) -> None:
     """Phase 7 — Margin tier table (operator-tunable thresholds).
 
     Replaces hardcoded magic numbers in app/rms/tags.py:378-382 that used
@@ -1971,7 +1971,7 @@ def _migration_045_margin_tiers(conn):
     _bump_schema_version(conn, 45)
 
 
-def _migration_046_stock_status_config(conn):
+def _migration_046_stock_status_config(conn: Any) -> None:
     """Phase 7 — Stock status thresholds (operator-tunable).
 
     Replaces hardcoded magic numbers in app/rms/tags.py:325-331:
@@ -2031,7 +2031,7 @@ def _migration_046_stock_status_config(conn):
 
 
 
-def _migration_047_storage_types(conn):
+def _migration_047_storage_types(conn: Any) -> None:
     """Phase 8 — HACCP storage codes table.
 
     Replaces the hardcoded _STORAGE_KEYWORDS dict in
@@ -2090,7 +2090,7 @@ def _migration_047_storage_types(conn):
     _bump_schema_version(conn, 47)
 
 
-def _migration_048_date_range_presets(conn):
+def _migration_048_date_range_presets(conn: Any) -> None:
     """Phase 9 — Date range presets table.
 
     Replaces the hardcoded DATE_RANGE_PRESETS_DAYS dict in
@@ -2148,7 +2148,7 @@ def _migration_048_date_range_presets(conn):
 
 
 
-def _migration_049_storage_keywords(conn):
+def _migration_049_storage_keywords(conn: Any) -> None:
     """Phase 11 — Localize HACCP storage keywords to DB.
 
     Replaces the hardcoded _STORAGE_KEYWORDS dict in
@@ -2659,7 +2659,7 @@ MIGRATIONS = {
 }
 
 
-def _bump_schema_version(conn, version: int) -> None:
+def _bump_schema_version(conn: Any, version: int) -> None:
     """Set schema_version to `version` on both SQLite and Postgres.
 
     On Postgres, app_meta.value is JSONB; a plain TEXT literal fails
@@ -2809,7 +2809,7 @@ def init_db(engine: Engine) -> None:
     _init_db_inner(engine, dialect_name, Base)
 
 
-def _init_db_inner(engine, dialect_name, Base) -> None:
+def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
     """Inner init_db helper (extracted so the outer wrapper can release the
     Postgres advisory lock in a finally block).
 

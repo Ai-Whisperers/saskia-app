@@ -37,7 +37,7 @@ class Unit(Enum):
         return self.value
 
     @classmethod
-    def coerce(cls, value) -> "Unit":
+    def coerce(cls, value: object) -> "Unit":
         """Parse free-text input into canonical Unit. Fuzzy on aliases.
 
         Examples:
@@ -137,7 +137,7 @@ def can_convert(from_unit: Unit, to_unit: Unit) -> bool:
     return (from_unit, to_unit) in _CONVERSION_FACTORS
 
 
-def convert_qty(qty, from_unit: Unit, to_unit: Unit) -> object:
+def convert_qty(qty: object, from_unit: Unit, to_unit: Unit) -> object:
     """Convert quantity from one unit to another within the same family.
 
     Examples:
@@ -160,7 +160,7 @@ def convert_qty(qty, from_unit: Unit, to_unit: Unit) -> object:
     return qty_dec * factor
 
 
-def normalize_recipe_line_qty(line_qty, line_unit, ingredient_unit) -> Decimal:
+def normalize_recipe_line_qty(line_qty: object, line_unit: object, ingredient_unit: object) -> Decimal:
     """Normalize a recipe line's quantity into the linked ingredient's unit.
 
     This is the helper used by the recipe line unit selector (Phase B — T1):

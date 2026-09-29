@@ -12,50 +12,50 @@ from app.rms.models_legacy import *
 
 # Also export names legacy __all__ may miss
 from app.rms.models_legacy import (
-    AppMeta,  # noqa: F401 — re-exported
-    AuditLog,  # noqa: F401 — re-exported
-    BankTransaction,  # noqa: F401 — re-exported
-    Category,  # noqa: F401 — re-exported
-    Channel,  # noqa: F401 — re-exported
-    ComplianceInfo,  # noqa: F401 — re-exported
-    Customer,  # noqa: F401 — re-exported
-    DateRangePreset,  # noqa: F401 — re-exported
-    DeliveryZone,  # noqa: F401 — re-exported
-    ImportBatch,  # noqa: F401 — re-exported
-    Ingredient,  # noqa: F401 — re-exported
-    IngredientPriceEvent,  # noqa: F401 — re-exported
-    IngredientVariant,  # noqa: F401 — re-exported
-    MarginTier,  # noqa: F401 — re-exported
-    MarketBenchmark,  # noqa: F401 — re-exported
-    MarketPriceReference,  # noqa: F401 — re-exported
-    MessageTemplate,  # noqa: F401 — re-exported
-    PaymentMethod,  # noqa: F401 — re-exported
-    Pedido,  # noqa: F401 — re-exported
-    PedidoLine,  # noqa: F401 — re-exported
-    PriceHistory,  # noqa: F401 — re-exported
-    Product,  # noqa: F401 — re-exported
-    ProductionCompletion,  # noqa: F401 — re-exported
-    ProductionPlan,  # noqa: F401 — re-exported
-    ProductionPlanOverride,  # noqa: F401 — re-exported
-    ProductionPlanTemplate,  # noqa: F401 — re-exported
-    Recipe,  # noqa: F401 — re-exported
-    RecipeLine,  # noqa: F401 — re-exported
-    RecipePricing,  # noqa: F401 — re-exported
-    RiskItem,  # noqa: F401 — re-exported
-    Sale,  # noqa: F401 — re-exported
-    SaleStockMove,  # noqa: F401 — re-exported
-    SettingsKV,  # noqa: F401 — re-exported
-    ShoppingListItem,  # noqa: F401 — re-exported
-    StockMovement,  # noqa: F401 — re-exported
-    StockStatusConfig,  # noqa: F401 — re-exported
-    StorageKeyword,  # noqa: F401 — re-exported
-    StorageType,  # noqa: F401 — re-exported
-    Supplier,  # noqa: F401 — re-exported
-    Tag,  # noqa: F401 — re-exported
-    TagLink,  # noqa: F401 — re-exported
-    Tenant,  # noqa: F401 — re-exported
-    User,  # noqa: F401 — re-exported
-    WasteLog,  # noqa: F401 — re-exported
-    WishlistItem,  # noqa: F401 — re-exported
+    AppMeta,  # noqa: F401 — re-exported via __all__
+    AuditLog,  # noqa: F401 — re-exported via __all__
+    BankTransaction,  # noqa: F401 — re-exported via __all__
+    Category,  # noqa: F401 — re-exported via __all__
+    Channel,  # noqa: F401 — re-exported via __all__
+    ComplianceInfo,  # noqa: F401 — re-exported via __all__
+    Customer,  # noqa: F401 — re-exported via __all__
+    DateRangePreset,  # noqa: F401 — re-exported via __all__
+    DeliveryZone,  # noqa: F401 — re-exported via __all__
+    ImportBatch,  # noqa: F401 — re-exported via __all__
+    Ingredient,  # noqa: F401 — re-exported via __all__
+    IngredientPriceEvent,  # noqa: F401 — re-exported via __all__
+    IngredientVariant,  # noqa: F401 — re-exported via __all__
+    MarginTier,  # noqa: F401 — re-exported via __all__
+    MarketBenchmark,  # noqa: F401 — re-exported via __all__
+    MarketPriceReference,  # noqa: F401 — re-exported via __all__
+    MessageTemplate,  # noqa: F401 — re-exported via __all__
+    PaymentMethod,  # noqa: F401 — re-exported via __all__
+    Pedido,  # noqa: F401 — re-exported via __all__
+    PedidoLine,  # noqa: F401 — re-exported via __all__
+    PriceHistory,  # noqa: F401 — re-exported via __all__
+    Product,  # noqa: F401 — re-exported via __all__
+    ProductionCompletion,  # noqa: F401 — re-exported via __all__
+    ProductionPlan,  # noqa: F401 — re-exported via __all__
+    ProductionPlanOverride,  # noqa: F401 — re-exported via __all__
+    ProductionPlanTemplate,  # noqa: F401 — re-exported via __all__
+    Recipe,  # noqa: F401 — re-exported via __all__
+    RecipeLine,  # noqa: F401 — re-exported via __all__
+    RecipePricing,  # noqa: F401 — re-exported via __all__
+    RiskItem,  # noqa: F401 — re-exported via __all__
+    Sale,  # noqa: F401 — re-exported via __all__
+    SaleStockMove,  # noqa: F401 — re-exported via __all__
+    SettingsKV,  # noqa: F401 — re-exported via __all__
+    ShoppingListItem,  # noqa: F401 — re-exported via __all__
+    StockMovement,  # noqa: F401 — re-exported via __all__
+    StockStatusConfig,  # noqa: F401 — re-exported via __all__
+    StorageKeyword,  # noqa: F401 — re-exported via __all__
+    StorageType,  # noqa: F401 — re-exported via __all__
+    Supplier,  # noqa: F401 — re-exported via __all__
+    Tag,  # noqa: F401 — re-exported via __all__
+    TagLink,  # noqa: F401 — re-exported via __all__
+    Tenant,  # noqa: F401 — re-exported via __all__
+    User,  # noqa: F401 — re-exported via __all__
+    WasteLog,  # noqa: F401 — re-exported via __all__
+    WishlistItem,  # noqa: F401 — re-exported via __all__
 )
-from app.rms.models_legacy import __all__ as _legacy_all  # noqa: F401 — re-exported
+from app.rms.models_legacy import __all__ as _legacy_all  # noqa: F401 — re-exported via __all__

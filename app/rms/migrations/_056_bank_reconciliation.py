@@ -20,7 +20,7 @@ from sqlalchemy import inspect, text
 from app.rms.db import _bump_schema_version
 
 
-def _add_col_if_missing(conn, table: str, column: str, ddl: str) -> None:
+def _add_col_if_missing(conn: object, table: str, column: str, ddl: str) -> None:
     """SQLite doesn't support ``ADD COLUMN IF NOT EXISTS``.  Use the
     inspector to read existing columns first and skip when present.
     ``ddl`` is the full column definition (type + defaults) past the
@@ -33,7 +33,7 @@ def _add_col_if_missing(conn, table: str, column: str, ddl: str) -> None:
     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
 
 
-def _create_index_if_missing(conn, index_name: str, table: str, cols: str) -> None:
+def _create_index_if_missing(conn: object, index_name: str, table: str, cols: str) -> None:
     insp = inspect(conn)
     existing = {ix["name"] for ix in insp.get_indexes(table)}
     if index_name in existing:

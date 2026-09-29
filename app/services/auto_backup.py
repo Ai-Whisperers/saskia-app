@@ -27,7 +27,7 @@ WARN_THRESHOLD_DAYS = 7
 DEFAULT_KEEP_LAST_N = 30
 
 
-def needs_auto_backup(last_backup_at, threshold_hours: int = AUTO_BACKUP_THRESHOLD_HOURS) -> bool:
+def needs_auto_backup(last_backup_at: object, threshold_hours: int = AUTO_BACKUP_THRESHOLD_HOURS) -> bool:
     """True if last_backup_at is older than threshold, or no backup yet.
 
     Examples:
@@ -44,7 +44,7 @@ def needs_auto_backup(last_backup_at, threshold_hours: int = AUTO_BACKUP_THRESHO
     return datetime.now(ASUNCION_TZ) - last_backup_at > timedelta(hours=threshold_hours)
 
 
-def needs_warning(last_backup_at, threshold_days: int = WARN_THRESHOLD_DAYS) -> bool:
+def needs_warning(last_backup_at: object, threshold_days: int = WARN_THRESHOLD_DAYS) -> bool:
     """True if last_backup_at is older than threshold_days, or no backup yet."""
     if last_backup_at is None:
         return True

@@ -154,13 +154,13 @@ LOCAL_SESSION_KEY_USER_ID = "local_user_id"
 LOCAL_SESSION_KEY_USERNAME = "local_username"
 
 
-def login_user_local(request: Request, user_id, username: str) -> None:
+def login_user_local(request: Request, user_id: object, username: str) -> None:
     """Bcrypt backend: store user_id + username in session."""
     request.session[LOCAL_SESSION_KEY_USER_ID] = user_id
     request.session[LOCAL_SESSION_KEY_USERNAME] = username
 
 
-def login_user(request: Request, user_id, username: str) -> None:
+def login_user(request: Request, user_id: object, username: str) -> None:
     """Dispatch to whichever backend is configured."""
     if _supabase_enabled():
         # The Supabase login flow happens in routers/auth.py via

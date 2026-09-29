@@ -277,7 +277,7 @@ def batch_customer_stats(
 
 
 def _raw_stats_to_customer_stats(
-    session: Session, row, customers: list[Customer]
+    session: Session, row: object, customers: list[Customer]
 ) -> CustomerStats:
     """Convert an aggregated DB row to CustomerStats for one customer."""
     # Find the Customer object for this id

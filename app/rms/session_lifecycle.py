@@ -35,7 +35,7 @@ logger = logging.getLogger("app.rms.session_lifecycle")
 class SessionLifecycleMiddleware(BaseHTTPMiddleware):
     """Detect sessions opened during a request that weren't closed."""
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next: object):
         # Skip entirely in production — gc.get_objects() is too expensive
         if not os.getenv("SASKIA_DEBUG"):
             return await call_next(request)

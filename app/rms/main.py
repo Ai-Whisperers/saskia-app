@@ -393,7 +393,7 @@ class HealthCacheMiddleware(BaseHTTPMiddleware):
     + performance-research.md section 5 (Cloudflare caching).
     """
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next: object):
         response = await call_next(request)
         if request.url.path.startswith("/healthz"):
             # s-maxage is for shared caches (Cloudflare); max-age is for browsers.

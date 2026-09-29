@@ -125,7 +125,7 @@ def make_boto3_client(settings: R2Settings) -> "object":
 class Boto3Storage:
     """Storage adapter that wraps a boto3 S3 client + bucket name."""
 
-    def __init__(self, client, bucket: str) -> None:
+    def __init__(self, client: object, bucket: str) -> None:
         self._client = client
         self._bucket = bucket
 

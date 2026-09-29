@@ -83,14 +83,14 @@ def _make_money_helper():
     """Build the `m` namespace exposed to templates."""
     from app.rms.money import format_gs
 
-    def gs(value):
+    def gs(value: object):
         """Format integer Gs. as 'Gs. 8.696.000' (Paraguayan convention).
 
         Use {{ m.gs(x) }} — the result already includes the 'Gs. ' prefix.
         """
         return format_gs(value)
 
-    def gs_plain(value):
+    def gs_plain(value: object):
         """Format integer Gs. as '8.696.000' WITHOUT the 'Gs.' prefix.
         Use in table cells where the column header already says 'Gs.'.
         """
@@ -98,17 +98,17 @@ def _make_money_helper():
             return "—"
         return f"{value:,}".replace(",", ".") if value >= 0 else f"-{abs(value):,}".replace(",", ".")
 
-    def gs_full(value):
+    def gs_full(value: object):
         """Alias for gs() — kept for templates that already use this name."""
         return format_gs(value)
 
-    def margin_pct(margen_gs, ventas_gs) -> str:
+    def margin_pct(margen_gs: object, ventas_gs: object) -> str:
         """Compute gross margin percent (one decimal, Paraguayan style)."""
         if not ventas_gs:
             return "—"
         return f"{(margen_gs / ventas_gs * 100):.1f}%"
 
-    def stock_badge(stock_qty, min_stock_qty) -> str:
+    def stock_badge(stock_qty: object, min_stock_qty: object) -> str:
         """Tier-based stock badge.
 
         stock == 0         → Agotado (solid red badge)
@@ -129,7 +129,7 @@ def _make_money_helper():
             return '<span class="badge--stock-low" title="Stock bajo el mínimo">Bajo</span>'
         return '<span class="badge--stock-ok" title="Stock suficiente">OK</span>'
 
-    def top_list_card(title, items, currency_prefix="", icon_id=None) -> str:
+    def top_list_card(title: object, items: object, currency_prefix: object="", icon_id: object=None) -> str:
         """Render a top-N list as a compact card. Pure string builder
         because Jinja macros would need an extra import."""
         if not items:

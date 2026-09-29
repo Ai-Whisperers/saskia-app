@@ -1,4 +1,4 @@
-def _migration_006_simple_test(conn):
+def _migration_006_simple_test(conn: object):
     """Simple test migration for pkgutil discovery.
 
     This is a test migration to verify pkgutil discovery works.

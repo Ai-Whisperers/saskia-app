@@ -1,4 +1,4 @@
-def _migration_043_branding_setting(conn):
+def _migration_043_branding_setting(conn: object):
     """Phase 5 — Branding settings.
 
     Seeds SettingsKV["branding"] with defaults that match the previous

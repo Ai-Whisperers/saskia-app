@@ -19,7 +19,7 @@ from starlette.staticfiles import StaticFiles
 class ReadyStaticFiles(StaticFiles):
     """StaticFiles that 503s during cold-start (matches /healthz behavior)."""
 
-    async def __call__(self, scope, receive, send) -> None:
+    async def __call__(self, scope: object, receive: object, send: object) -> None:
         if scope["type"] != "http":
             return await super().__call__(scope, receive, send)
 

@@ -129,7 +129,7 @@ DEFAULT_BRANDING = {
 }
 
 
-def get_branding(session) -> dict:
+def get_branding(session: object) -> dict:
     """Return the branding dict with defaults for missing keys.
 
     The footer gets a trailing year (e.g. "· 2026") stripped at read time:
@@ -149,7 +149,7 @@ def get_branding(session) -> dict:
     return out
 
 
-def set_branding(session, **fields) -> dict:
+def set_branding(session: object, **fields) -> dict:
     """Update branding fields. Returns the new full dict.
 
     Allowed keys: business_name, tagline, footer, accent_color, logo_path.

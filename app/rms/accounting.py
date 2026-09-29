@@ -404,7 +404,7 @@ def cross_period_comparison(
     period2_end: datetime,
 ) -> dict:
     """Compare sales between two periods (this month vs last month)."""
-    def _period_summary(s_start, s_end):
+    def _period_summary(s_start: object, s_end: object):
         sales = sales_in_window(
             session, start=s_start, end=s_end, end_inclusive=False
         )
@@ -428,7 +428,7 @@ def cross_period_comparison(
     p1 = _period_summary(period1_start, period1_end)
     p2 = _period_summary(period2_start, period2_end)
 
-    def _diff(current, prior):
+    def _diff(current: object, prior: object):
         if prior == 0:
             return None
         return ((current - prior) / prior) * 100

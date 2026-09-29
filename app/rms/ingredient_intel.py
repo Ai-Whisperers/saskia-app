@@ -361,7 +361,7 @@ def classify_ingredient(name: str, session: Session | None = None) -> dict:
 # Substitutability — recipe co-occurrence graph
 # ---------------------------------------------------------------------------
 
-def find_substitutes_by_role(session, ingredient_id: int) -> list[int]:
+def find_substitutes_by_role(session: object, ingredient_id: int) -> list[int]:
     """Find ingredients with the same role that co-occur in recipes.
 
     Two ingredients are substitutable if they share ≥3 recipes (a heuristic
