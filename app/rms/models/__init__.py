@@ -51,6 +51,7 @@ from app.rms.models_legacy import (
     StorageKeyword,  # noqa: F401 — re-exported via __all__
     StorageType,  # noqa: F401 — re-exported via __all__
     Supplier,  # noqa: F401 — re-exported via __all__
+    Suscripcion,  # noqa: F401 — re-exported via __all__
     Tag,  # noqa: F401 — re-exported via __all__
     TagLink,  # noqa: F401 — re-exported via __all__
     Tenant,  # noqa: F401 — re-exported via __all__

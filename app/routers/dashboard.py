@@ -33,7 +33,7 @@ from app.rms.config import ASUNCION_TZ
 from app.rms.constants import DEFAULT_TAX_REGIME
 from app.rms.costing import batch_products_cost_margin, batch_recipes_cost
 from app.rms.dependencies import get_session
-from app.rms.insights import build_insights
+from app.rms.insights import build_insights, build_actionable_insights
 from app.rms.models import Ingredient, Recipe, RiskItem, Sale, ShoppingListItem, WishlistItem
 from app.rms.money import to_int_gs
 from app.services.template_render import render
@@ -266,6 +266,7 @@ def _compliance_alerts(session: Session) -> list[dict]:
 
 
 @router.get("/", response_class=HTMLResponse)
+@router.get("/inicio", response_class=HTMLResponse)
 async def dashboard(
     request: Request,
     period: str = Query("today", pattern="^(today|week|month|custom)$"),
@@ -514,6 +515,8 @@ async def dashboard(
             "chart_30day": _build_30day_sales_chart(session),
             "chart_payment_methods": _build_payment_methods_donut(sales),
             "top_products_revenue": _build_top_products_revenue(ranking),
+            # P1-B7: actionable insights for dashboard
+            "actionable_insights": build_actionable_insights(session),
             "low_stock_alerts": [
                 {
                     "name": i.name,

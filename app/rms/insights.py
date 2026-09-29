@@ -126,7 +126,176 @@ def _peak_dow_helper(session: Session) -> int:
     return peak_day_of_week(session)
 
 
+def restock_urgent(session: Session) -> dict | None:
+    """Find ingredients with <3 days of stock, pre-populated reorder."""
+    from app.rms.inventory_intel import low_stock_alerts
+    
+    alerts = low_stock_alerts(session, top_n=1)
+    if not alerts:
+        return None
+    
+    alert = alerts[0]
+    if alert.days_of_stock is None or alert.days_of_stock >= 3:
+        return None
+    
+    # Pre-populate the ingredient in the reorder URL
+    return {
+        "id": "restock_urgent",
+        "title": "Reposición urgente",
+        "detail": f"{alert.ingredient_name} con solo {alert.days_of_stock:.0f} días de stock",
+        "action_text": "Reordenar",
+        "action_href": f"/reorder?ingredient={alert.ingredient_id}",
+        "severity": "warn" if alert.days_of_stock > 0 else "danger",
+        "icon": "icon-reorder"
+    }
+
+
+def bestseller_drop(session: Session) -> dict | None:
+    """Find top-10 products that sold <50% of trailing 7d avg."""
+    from datetime import datetime, timedelta, timezone
+    from sqlalchemy import select
+    from app.rms.models import Sale, Product
+    from app.rms.money import to_int_gs
+    from app.config import ASUNCION_TZ
+    
+    now_local = datetime.now(ASUNCION_TZ)
+    end_utc = now_local.astimezone(timezone.utc).replace(tzinfo=None)
+    start_utc = (now_local - timedelta(days=7)).astimezone(timezone.utc).replace(tzinfo=None)
+    
+    # Get all products
+    products = list(session.scalars(select(Product)).all())
+    
+    for product in products[:10]:  # Check only top 10 by name for simplicity
+        # Sales in last 7 days
+        recent_sales = session.scalars(
+            select(Sale).where(
+                Sale.product_id == product.id,
+                Sale.sold_at >= start_utc,
+                Sale.sold_at <= end_utc,
+                Sale.voided_at.is_(None)
+            )
+        ).all()
+        
+        recent_total = sum(
+            to_int_gs(float(str(s.qty)) * float(str(s.unit_price_gs)))
+            for s in recent_sales if s.unit_price_gs is not None
+        )
+        
+        # Sales in prior 7 days for comparison
+        prior_start_utc = start_utc - timedelta(days=7)
+        prior_sales = session.scalars(
+            select(Sale).where(
+                Sale.product_id == product.id,
+                Sale.sold_at >= prior_start_utc,
+                Sale.sold_at < start_utc,
+                Sale.voided_at.is_(None)
+            )
+        ).all()
+        
+        prior_total = sum(
+            to_int_gs(float(str(s.qty)) * float(str(s.unit_price_gs)))
+            for s in prior_sales if s.unit_price_gs is not None
+        )
+        
+        # Check if recent is <50% of prior avg (if prior had sales)
+        if prior_total > 0 and recent_total < prior_total * 0.5:
+            return {
+                "id": "bestseller_drop",
+                "title": "Mejor vendedor en caída",
+                "detail": f"{product.name} vendió un {recent_total/prior_total*100:.0f}% menos que el promedio de 7 días",
+                "action_text": "Ver análisis",
+                "action_href": f"/analisis?focus={product.id}",
+                "severity": "warn",
+                "icon": "icon-chart-line-down"
+            }
+    
+    return None
+
+
+def cash_flow_warning(session: Session) -> dict | None:
+    """If past day 25 AND month-to-date revenue <60% of last month's same window."""
+    from datetime import datetime, timedelta, timezone
+    from sqlalchemy import select
+    from app.rms.models import Sale
+    from app.rms.money import to_int_gs
+    from app.config import ASUNCION_TZ
+    from app.rms.dashboard import _period_window, _compute_window_totals
+    
+    now_local = datetime.now(ASUNCION_TZ)
+    day_of_month = now_local.day
+    
+    # Only trigger past day 25
+    if day_of_month < 25:
+        return None
+    
+    # Get current month-to-date
+    month_start, month_end = _period_window("month")
+    month_start_utc = month_start.astimezone(timezone.utc).replace(tzinfo=None)
+    month_end_utc = month_end.astimezone(timezone.utc).replace(tzinfo=None)
+    
+    month_sales = session.scalars(
+        select(Sale).where(
+            Sale.sold_at >= month_start_utc,
+            Sale.sold_at <= month_end_utc
+        )
+    ).all()
+    
+    current_month_revenue = sum(
+        to_int_gs(float(str(s.qty)) * float(str(s.unit_price_gs)))
+        for s in month_sales if s.unit_price_gs is not None
+    )
+    
+    # Get previous month same window
+    prev_month_start = month_start.replace(day=1)
+    prev_month_end = prev_month_start + (month_end - month_start)
+    
+    prev_month_sales = session.scalars(
+        select(Sale).where(
+            Sale.sold_at >= prev_month_start.astimezone(timezone.utc).replace(tzinfo=None),
+            Sale.sold_at <= prev_month_end.astimezone(timezone.utc).replace(tzinfo=None)
+        )
+    ).all()
+    
+    prev_month_revenue = sum(
+        to_int_gs(float(str(s.qty)) * float(str(s.unit_price_gs)))
+        for s in prev_month_sales if s.unit_price_gs is not None
+    )
+    
+    # Check if <60% of previous month
+    if prev_month_revenue > 0 and current_month_revenue < prev_month_revenue * 0.6:
+        return {
+            "id": "cash_flow_warn",
+            "title": "Alerta de flujo de caja",
+            "detail": f"Ventas del mes ({current_month_revenue}) son solo {current_month_revenue/prev_month_revenue*100:.0f}% del mes pasado",
+            "action_text": "Ver reportes",
+            "action_href": "/reportes",
+            "severity": "danger",
+            "icon": "icon-warn"
+        }
+    
+    return None
+
+
+def build_actionable_insights(session: Session) -> list[dict]:
+    """Build the 3 actionable insights for the dashboard."""
+    insights = []
+    
+    # Check each insight
+    for insight_func in [restock_urgent, bestseller_drop, cash_flow_warning]:
+        try:
+            insight = insight_func(session)
+            if insight:
+                insights.append(insight)
+        except Exception as e:
+            # Log but don't break the dashboard
+            from loguru import logger
+            logger.debug(f"Actionable insight calculation failed: {e}")
+    
+    return insights
+
+
 __all__ = [
     "InsightsPanel",
     "build_insights",
+    "build_actionable_insights",
 ]

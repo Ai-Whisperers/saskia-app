@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Suscripciones{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-customer"/></svg>
+  Suscripciones
+</h1>
+<p class="hint">
+  Pedidos recurrentes de clientes (ej.: <em>"1 kg de chipa cada sábado a las 9"</em>).
+  Esta lista es de referencia: <strong>no genera pedidos automáticos</strong>.
+  Cuando planifiques el día, mirá esta página para pre-cargar los pedidos manualmente.
+</p>
+
+<div class="card mb-4">
+  <a href="/suscripciones/nuevo" class="btn btn-primary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+    Nueva suscripción
+  </a>
+
+  <nav class="status-filter" aria-label="Filtrar por estado"
+       style="display: inline-flex; gap: var(--space-1); margin-left: var(--space-4); padding: 2px; background: var(--color-surface-subtle); border-radius: var(--radius);">
+    {% set opts = [
+        ("todas", "Todas", None),
+        ("activa", "Activas", counts.activa if counts else 0),
+        ("pausada", "Pausadas", counts.pausada if counts else 0),
+        ("cancelada", "Canceladas", counts.cancelada if counts else 0),
+      ] %}
+    {% for value, label, count in opts %}
+    <a href="/suscripciones?status_filter={{ value }}"
+       class="btn btn-sm {% if status_filter == value %}btn-primary{% else %}btn-ghost{% endif %}"
+       {% if status_filter == value %}aria-current="page"{% endif %}>
+      {{ label }}
+      {% if count is not none %}<span class="badge badge-neutral" style="margin-left:.3rem;">{{ count }}</span>{% endif %}
+    </a>
+    {% endfor %}
+  </nav>
+</div>
+
+{% if suscripciones %}
+{{ ui.skeleton_section(id="suscripciones-table", variant="line", count=6, label="Cargando suscripciones") }}
+<div data-loaded-section="suscripciones-table">
+<table class="table is-hoverable is-striped">
+  <thead>
+    <tr>
+      <th>Cliente</th>
+      <th>Descripción</th>
+      <th>Cadencia</th>
+      <th>Día / hora</th>
+      <th class="num">Precio Gs.</th>
+      <th>Vigencia</th>
+      <th>Estado</th>
+      <th class="actions"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in suscripciones %}
+    {% set cust = s.customer %}
+    <tr>
+      <td>
+        {% if cust %}
+          <strong>{{ fmt.entity_name(cust) }}</strong>
+          {% if cust.phone %}<br><small class="text-muted">{{ cust.phone }}</small>{% endif %}
+        {% else %}
+          <em class="muted">cliente eliminado</em>
+        {% endif %}
+      </td>
+      <td data-copy="{{ s.id }}">
+        {{ s.product_summary }}
+        {% if s.notes %}<br><small class="text-muted">{{ s.notes }}</small>{% endif %}
+      </td>
+      <td>
+        {% if s.cadence == "semanal" %}
+          <span class="badge badge-info">Semanal</span>
+        {% elif s.cadence == "quincenal" %}
+          <span class="badge badge-info">Quincenal</span>
+        {% elif s.cadence == "mensual" %}
+          <span class="badge badge-info">Mensual</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if s.preferred_day_of_week %}
+          <strong>{{ dow_labels.get(s.preferred_day_of_week, "?") }}</strong>
+        {% else %}
+          <em class="muted">—</em>
+        {% endif %}
+        {% if s.preferred_time %}<br><small class="text-muted">{{ s.preferred_time }}</small>{% endif %}
+      </td>
+      <td class="num">{{ m.gs(s.price_gs) }}</td>
+      <td>
+        <small>desde {{ s.start_date.strftime("%d/%m/%Y") }}</small>
+        {% if s.end_date %}
+          <br><small class="text-muted">hasta {{ s.end_date.strftime("%d/%m/%Y") }}</small>
+        {% else %}
+          <br><small class="text-muted">sin fin</small>
+        {% endif %}
+      </td>
+      <td>
+        {% if s.status == "activa" %}
+          {{ ui.status_pill("Activa", sev="ok") }}
+        {% elif s.status == "pausada" %}
+          {{ ui.status_pill("Pausada", sev="warn") }}
+        {% elif s.status == "cancelada" %}
+          {{ ui.status_pill("Cancelada", sev="neutral") }}
+        {% endif %}
+      </td>
+      <td class="actions">
+        <a href="/suscripciones/{{ s.id }}/editar" class="btn btn-sm">
+          <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+          Editar
+        </a>
+        {% if s.status == "activa" %}
+        <form method="post" action="/suscripciones/{{ s.id }}/estado" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="status" value="pausada">
+          <button type="submit" class="btn btn-sm btn-ghost">Pausar</button>
+        </form>
+        {% elif s.status == "pausada" %}
+        <form method="post" action="/suscripciones/{{ s.id }}/estado" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="status" value="activa">
+          <button type="submit" class="btn btn-sm btn-ghost">Reanudar</button>
+        </form>
+        {% endif %}
+        {% if s.status != "cancelada" %}
+        <form method="post" action="/suscripciones/{{ s.id }}/estado" style="display:inline;"
+              class="js-confirm-form" data-confirm-title="¿Cancelar suscripción?" data-confirm-body="La suscripción quedará como cancelada y no generará más recordatorios." data-confirm-danger="true">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="status" value="cancelada">
+          <button type="submit" class="btn btn-sm btn-ghost">Cancelar</button>
+        </form>
+        {% endif %}
+        {% if s.status == "cancelada" %}
+        <form method="post" action="/suscripciones/{{ s.id }}/eliminar" style="display:inline;"
+              class="js-confirm-form" data-confirm-title="¿Eliminar suscripción?" data-confirm-body="Esta acción no se puede deshacer." data-confirm-danger="true">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<div class="table-info">
+  <span>Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ total }}</strong> suscripciones</span>
+</div>
+
+{% else %}
+{{ ui.empty_state(
+  title="Sin suscripciones todavía",
+  icon="icon-customer",
+  hint="Las suscripciones registran pedidos recurrentes de clientes (ej.: '1 kg de chipa cada sábado'). No se generan pedidos automáticos — esta lista te ayuda a no olvidarlos.",
+  cta_href="/suscripciones/nuevo",
+  cta_label="Agregar la primera"
+) }}
+{% endif %}
+
+{% endblock %}

@@ -40,6 +40,7 @@ NAV_GROUPS: list[tuple[str, list[dict]]] = [
     ]),
     ("Ventas y clientes", [
         {"route": "/clientes", "label": "Clientes", "icon": "icon-customer"},
+        {"route": "/suscripciones", "label": "Suscripciones", "icon": "icon-customer"},
     ]),
     ("Finanzas", [
         {"route": "/reportes", "label": "Reportes", "icon": "icon-report"},
@@ -94,6 +95,8 @@ CRUMBS: dict[str, list[tuple[str, str | None]]] = {
     "/proveedores": [("Inicio", "/"), ("Proveedores", None)],
     "/wishlist": [("Inicio", "/"), ("Equipamiento", None)],
     "/clientes": [("Inicio", "/"), ("Clientes", None)],
+    "/suscripciones": [("Inicio", "/"), ("Suscripciones", None)],
+    "/suscripciones/nuevo": [("Inicio", "/"), ("Suscripciones", "/suscripciones"), ("Nueva", None)],
     "/reportes": [("Inicio", "/"), ("Reportes", None)],
     "/analisis": [("Inicio", "/"), ("Análisis", None)],
     "/dashboard": [("Inicio", "/"), ("KPIs mensuales", None)],
@@ -119,6 +122,7 @@ ENTITY_CRUMBS: dict[str, tuple[str, str, str]] = {
     "/pedidos/": ("Pedidos", "/pedidos", "Pedido #{id}"),
     "/suppliers/": ("Proveedores", "/proveedores", "{name}"),
     "/ventas/": ("Ventas", "/ventas/historial", "Venta #{id}"),
+    "/suscripciones/": ("Suscripciones", "/suscripciones", "Suscripción #{id}"),
 }
 
 

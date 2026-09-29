@@ -6,6 +6,49 @@
 {% block content %}
 <h1>Análisis <small class="text-muted" style="font-size:var(--text-sm);font-weight:400;">· los últimos 30–90 días</small></h1>
 
+{# ── Food Cost Semáforo (C4) ───────────────────────────────────── #}
+{% set actual_pct = insights.food_cost.actual_food_cost_pct %}
+{% set theoretical_pct = insights.food_cost.theoretical_food_cost_pct %}
+{% set semaforo_color = "gray" %}
+{% set semaforo_title = "Sin datos" %}
+{% if actual_pct is not none and theoretical_pct is not none %}
+  {% if actual_pct > theoretical_pct * 1.20 %}
+    {% set semaforo_color = "danger" %}
+    {% set semaforo_title = "¡Alerta! costo real > 120% teórico" %}
+  {% elif actual_pct > theoretical_pct * 1.10 %}
+    {% set semaforo_color = "warning" %}
+    {% set semaforo_title = "Atención: costo real > 110% teórico" %}
+  {% elif actual_pct <= theoretical_pct * 1.10 %}
+    {% set semaforo_color = "ok" %}
+    {% set semaforo_title = "Costo normal" %}
+  {% endif %}
+{% endif %}
+<div class="band-label">Costo de materia prima (Semáforo)</div>
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="d-flex align-items-center">
+      <div style="width:2.5rem; height:2.5rem; border-radius:50%; display:flex; align-items:center; justify-content:center; margin-right:1rem; background-color:var(--{{ semaforo_color }});">
+        {% if semaforo_color == "ok" %}<svg class="icon" style="color:white;" aria-hidden="true"><use href="#icon-check"/></svg>{% endif %}
+        {% if semaforo_color == "warning" %}<svg class="icon" style="color:white;" aria-hidden="true"><use href="#icon-warning"/></svg>{% endif %}
+        {% if semaforo_color == "danger" %}<svg class="icon" style="color:white;" aria-hidden="true"><use href="#icon-close"/></svg>{% endif %}
+        {% if semaforo_color == "gray" %}<svg class="icon" style="color:white;" aria-hidden="true"><use href="#icon-help"/></svg>{% endif %}
+      </div>
+      <div>
+        <h5 class="card-title mb-1">{{ semaforo_title }}</h5>
+        {% if actual_pct is not none and theoretical_pct is not none %}
+          <p class="mb-0">
+            Real: {{ '%.1f'|format(actual_pct) }}% &nbsp;·&nbsp; 
+            Teórico: {{ '%.1f'|format(theoretical_pct) }}% &nbsp;·&nbsp; 
+            Ratio: {{ '%.2fx'|format(insights.food_cost.ratio) }}
+          </p>
+        {% else %}
+          <p class="text-muted mb-0">No hay suficientes ventas en el período</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
 {# ── Inteligencia KPIs ─────────────────────────────────────────── #}
 <div class="band-label">Panorama</div>
 {{ ui.skeleton_section(id="analisis-panorama", variant="kpi", count=4, label="Cargando panorama") }}

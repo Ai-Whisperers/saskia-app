@@ -39,6 +39,8 @@ SIDEBAR_ROUTES = [
     "/produccion-planner",
     "/eod",
     "/clientes",
+    "/suscripciones",
+    "/suscripciones/nuevo",
     # Finanzas
     "/reportes",
     "/reportes/margenes",

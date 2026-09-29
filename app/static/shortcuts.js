@@ -9,6 +9,7 @@
  *   g + e → EOD (Cierre)
  *   g + m → Merma
  *   g + s → Settings
+ *   Cmd+K / Ctrl+K → Command palette (P1-B6)
  *   ?     → Show shortcut help modal
  *   Esc   → Close modal
  *
@@ -33,6 +34,18 @@
     'l': '/reorder',
     't': '/reportes',
     'c': '/clientes',
+  };
+
+  // POS hotkeys (only fire on /ventas) — P1-B6 sub-bullet
+  const POS_HOTKEYS = {
+    'F2': () => {
+      const sale = document.querySelector('[data-action="save-sale"]');
+      if (sale) sale.click();
+    },
+    'F4': () => {
+      const disc = document.querySelector('[data-action="apply-discount"]');
+      if (disc) disc.click();
+    },
   };
 
   // Two-key state: waiting for second key after 'g'
@@ -79,8 +92,11 @@
                 <tr><td><kbd>g</kbd> + <kbd>e</kbd></td><td>Ir a Cierre (EOD)</td></tr>
                 <tr><td><kbd>g</kbd> + <kbd>m</kbd></td><td>Ir a Merma</td></tr>
                 <tr><td><kbd>g</kbd> + <kbd>s</kbd></td><td>Ir a Configuración</td></tr>
+                <tr><td><kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd></td><td>Paleta de comandos</td></tr>
                 <tr><td><kbd>?</kbd></td><td>Mostrar este diálogo</td></tr>
                 <tr><td><kbd>Esc</kbd></td><td>Cerrar diálogo</td></tr>
+                <tr><td><kbd>F2</kbd></td><td>Registrar venta (en /ventas)</td></tr>
+                <tr><td><kbd>F4</kbd></td><td>Aplicar descuento (en /ventas)</td></tr>
               </tbody>
             </table>
             <p class="text-muted">
@@ -95,7 +111,7 @@
         if (e.target === modal) closeShortcutHelp();
       });
     }
-    // Wire up the nav button if present (added in base.html Phase 5+).
+  // Wire up the nav button if present (added in base.html Phase 5+).
     var navBtn = document.getElementById('open-shortcuts');
     if (navBtn && !navBtn._shortcutsWired) {
       navBtn.addEventListener('click', function(e) {
@@ -103,6 +119,15 @@
         showShortcutHelp();
       });
       navBtn._shortcutsWired = true;
+    }
+    // P1-B6: topbar search button opens the command palette too.
+    var searchBtn = document.getElementById('global-search-btn');
+    if (searchBtn && !searchBtn._paletteWired) {
+      searchBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        openPalette();
+      });
+      searchBtn._paletteWired = true;
     }
     modal.style.display = 'flex';
     document.getElementById('close-shortcuts').focus();
@@ -143,6 +168,137 @@
     if (key === 'g') {
       prefix = 'g';
       prefixTimer = setTimeout(() => { prefix = null; }, PREFIX_TIMEOUT_MS);
+      return;
+    }
+
+    // POS hotkeys (F2/F4) only fire on /ventas — keeps other pages clean.
+    if (window.location.pathname.startsWith('/ventas') && POS_HOTKEYS[e.key]) {
+      e.preventDefault();
+      POS_HOTKEYS[e.key]();
+      return;
+    }
+  });
+
+  // --- P1-B6 Command Palette (Cmd+K / Ctrl+K) ---
+  // Fuzzy search through NAV. Opens a modal with a search input,
+  // filters by label substring, navigate on Enter. Datalist-style.
+  function buildPaletteItems() {
+    const items = [];
+    document.querySelectorAll('.sidebar .nav-item').forEach(a => {
+      const text = (a.textContent || '').trim();
+      const href = a.getAttribute('href');
+      if (!href || href.startsWith('#')) return;
+      items.push({ label: text, route: href });
+    });
+    // Add create-actions from the FAB if present
+    document.querySelectorAll('[data-palette-action]').forEach(el => {
+      items.push({
+        label: el.getAttribute('data-palette-action'),
+        route: el.getAttribute('href') || el.getAttribute('data-route'),
+        isAction: true,
+      });
+    });
+    return items;
+  }
+
+  let paletteModal = null;
+  let paletteInput = null;
+  let paletteResults = null;
+  let paletteActiveIdx = 0;
+  let paletteItems = [];
+
+  function getPaletteModal() {
+    if (paletteModal) return paletteModal;
+    paletteModal = document.createElement('div');
+    paletteModal.id = 'cmd-k-palette';
+    paletteModal.className = 'modal-backdrop';
+    paletteModal.style.display = 'none';
+    paletteModal.innerHTML = `
+      <div class="modal-dialog" style="max-width:520px;margin-top:10vh;">
+        <div style="padding:var(--space-3);">
+          <input id="cmd-k-input" type="search" placeholder="Buscar página o acción..."
+                 autocomplete="off" spellcheck="false"
+                 style="width:100%;padding:var(--space-3);font-size:var(--text-md);
+                        border:1px solid var(--color-border);border-radius:8px;
+                        background:var(--color-surface);">
+        </div>
+        <div id="cmd-k-results" style="max-height:50vh;overflow:auto;padding:0 var(--space-3) var(--space-3);"></div>
+        <div style="padding:var(--space-2) var(--space-3);font-size:var(--text-xs);color:var(--color-text-muted);border-top:1px solid var(--color-border);">
+          <kbd>↑</kbd>/<kbd>↓</kbd> navegar &nbsp; <kbd>↵</kbd> ir &nbsp; <kbd>Esc</kbd> cerrar
+        </div>
+      </div>
+    `;
+    document.body.appendChild(paletteModal);
+    paletteInput = document.getElementById('cmd-k-input');
+    paletteResults = document.getElementById('cmd-k-results');
+
+    paletteInput.addEventListener('input', renderPalette);
+    paletteInput.addEventListener('keydown', function(ev) {
+      if (ev.key === 'ArrowDown') {
+        ev.preventDefault();
+        paletteActiveIdx = Math.min(paletteActiveIdx + 1, paletteItems.length - 1);
+        renderPalette();
+      } else if (ev.key === 'ArrowUp') {
+        ev.preventDefault();
+        paletteActiveIdx = Math.max(paletteActiveIdx - 1, 0);
+        renderPalette();
+      } else if (ev.key === 'Enter') {
+        ev.preventDefault();
+        const item = paletteItems[paletteActiveIdx];
+        if (item && item.route) {
+          window.location.href = item.route;
+        }
+      } else if (ev.key === 'Escape') {
+        ev.preventDefault();
+        closePalette();
+      }
+    });
+    paletteModal.addEventListener('click', function(ev) {
+      if (ev.target === paletteModal) closePalette();
+    });
+    return paletteModal;
+  }
+
+  function renderPalette() {
+    const q = (paletteInput.value || '').toLowerCase();
+    paletteItems = buildPaletteItems().filter(it => !q || it.label.toLowerCase().includes(q));
+    paletteActiveIdx = 0;
+    if (paletteItems.length === 0) {
+      paletteResults.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-3);">Sin resultados</p>';
+      return;
+    }
+    paletteResults.innerHTML = paletteItems.map((it, i) => `
+      <a href="${it.route || '#'}" data-idx="${i}"
+         style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-3);
+                border-radius:6px;text-decoration:none;color:inherit;
+                ${i === paletteActiveIdx ? 'background:var(--color-surface-subtle);font-weight:600;' : ''}">
+        <span>${it.label}</span>
+        ${it.isAction ? '<span style="margin-left:auto;font-size:var(--text-xs);color:var(--color-text-muted);">acción</span>' : ''}
+      </a>
+    `).join('');
+  }
+
+  function openPalette() {
+    getPaletteModal().style.display = 'flex';
+    paletteInput.value = '';
+    paletteItems = buildPaletteItems();
+    renderPalette();
+    setTimeout(() => paletteInput.focus(), 50);
+  }
+
+  function closePalette() {
+    if (paletteModal) paletteModal.style.display = 'none';
+  }
+
+  // Cmd+K (mac) or Ctrl+K (everything else) — P1-B6
+  document.addEventListener('keydown', function(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      if (paletteModal && paletteModal.style.display === 'flex') {
+        closePalette();
+      } else {
+        openPalette();
+      }
       return;
     }
   });

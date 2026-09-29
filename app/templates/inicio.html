@@ -66,7 +66,22 @@
     {% if costs_incomplete %}sub="{{ costs_incomplete }} cargado"{% endif %}></saskia-kpi-card>
 </div>
 
-{# ══ Middle band: Acciones · Plan de mañana · Alertas ══════════════ #}
+{# ══ P1-B7: 3 actionable insights ═════════════════════════════════════ #}
+<div class="insights-band mb-4">
+  {% for insight in actionable_insights %}
+  <saskia-insight-card
+    id="{{ insight.id }}"
+    title="{{ insight.title }}"
+    detail="{{ insight.detail }}"
+    action-text="{{ insight.action_text }}"
+    action-href="{{ insight.action_href }}"
+    severity="{{ insight.severity }}"
+    icon="{{ insight.icon }}">
+  </saskia-insight-card>
+  {% endfor %}
+</div>
+
+{# ══ Middle band: Acciones · Plan de mañana · Alertas ════════════════ #}
 <div class="home-band-3 mb-4">
 
   {# ── Acciones del día ──────────────────────────────────────────── #}
