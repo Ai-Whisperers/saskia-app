@@ -5,6 +5,45 @@
 
 ## [Unreleased]
 
+### Fixed (2026-09-29) — P0 audit gap closed (A.3) + A.1 regression test
+
+**Supplier CRUD now writes audit rows (A.3 forensic gap closed).**
+The 3 supplier endpoints (`/suppliers/nuevo`, `/suppliers/{id}/editar`,
+`/suppliers/{id}/eliminar`) previously wrote/deleted rows silently — if
+Saskia ever deleted a supplier by mistake there was zero forensic trace.
+
+- `app/routers/suppliers.py` — added `record_audit(...)` calls using the
+  same double-commit pattern as `inventory.py:96` (commit the row,
+  record the audit, commit again so the audit row is atomic with the
+  action). Actions: `write.supplier.create`, `write.supplier.update`,
+  `write.supplier.delete`. Detail includes `name` + `ruc` (create) /
+  `name` (update) / `name` + `ingredients_linked` (delete). The 400
+  guard "proveedor con ingredientes vinculados" stays as-is — it now
+  precedes the audit call so the rejection path writes no audit row.
+- The delete endpoint captures `supplier_name`, `ingredients_linked`,
+  and `supplier_id` BEFORE `session.delete()` to survive the
+  post-commit session expunge.
+- Tests: `tests/test_p0_audit_log_coverage.py` gained 3 new tests
+  (`test_supplier_create_audited`, `test_supplier_update_audited`,
+  `test_supplier_delete_audited`). All green.
+
+**A.1 regression test (confirm modal coverage).**
+A new test file walks every destructive template and asserts the
+appropriate confirm hook is present. Two patterns are accepted:
+- **Form-level**: `<form method="post" ... class="js-confirm-form">`
+  (5 templates: ingrediente_detalle, pedidos, shopping_list,
+  suppliers, ventas_historial).
+- **JS-level**: `data-action="delete-*"` buttons wrapped by
+  `SaskiaConfirmModal.show(...)` inside a click handler (1 template:
+  settings_catalog, 8 delete actions).
+
+If someone removes a confirm hook from any destructive form, this test
+fails loudly with the exact (template, action) pair so the regression
+is pinned at the file/action level rather than discovered in production.
+
+- `tests/test_p0_confirm_modal_destructive_coverage.py` — 7 tests
+  (1 main + 5 parametrised per-form + 1 settings_catalog). All green.
+
 ### Added (2026-09-29) — Session A: KPI web component + D3 currency lint gate
 
 **New web component: `<saskia-kpi-card>`**

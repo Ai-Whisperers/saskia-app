@@ -1,4 +1,5 @@
 """app/routers/suppliers.py — /suppliers CRUD (audit items 249, 250, 284)."""
+
 from __future__ import annotations
 
 from urllib.parse import quote
@@ -11,24 +12,26 @@ from sqlalchemy.orm import Session
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.models import Ingredient, Supplier
+from app.rms.observability import record_audit
 from app.services.template_render import render
 
 router = APIRouter(prefix="/suppliers", dependencies=[Depends(require_login)])
-
-
-
 
 
 @router.get("", response_class=HTMLResponse)
 def suppliers_list(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     """List all suppliers."""
     suppliers = session.scalars(select(Supplier).order_by(Supplier.name)).all()
-    return render(request, "suppliers.html", {
-        "suppliers": list(suppliers),
-        "total": len(suppliers),
-        "page_start": 1,
-        "page_end": len(suppliers),
-    })
+    return render(
+        request,
+        "suppliers.html",
+        {
+            "suppliers": list(suppliers),
+            "total": len(suppliers),
+            "page_start": 1,
+            "page_end": len(suppliers),
+        },
+    )
 
 
 @router.get("/nuevo", response_class=HTMLResponse)
@@ -83,11 +86,22 @@ def supplier_create(
     )
     session.add(supplier)
     session.commit()
+    record_audit(
+        request,
+        session=session,
+        action="write.supplier.create",
+        target_type="supplier",
+        target_id=supplier.id,
+        detail={"name": supplier.name, "ruc": supplier.ruc or None},
+    )
+    session.commit()
     return RedirectResponse(url="/suppliers", status_code=303)
 
 
 @router.get("/{s_id}/editar", response_class=HTMLResponse)
-def supplier_edit(s_id: int, request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
+def supplier_edit(
+    s_id: int, request: Request, session: Session = Depends(get_session)
+) -> HTMLResponse:
     """Edit supplier form."""
     supplier = session.get(Supplier, s_id)
     if supplier is None:
@@ -128,11 +142,22 @@ def supplier_update(
     supplier.ruc = optional_text(ruc, max_len=20)
     supplier.notes = optional_text(notes, max_len=2000)
     session.commit()
+    record_audit(
+        request,
+        session=session,
+        action="write.supplier.update",
+        target_type="supplier",
+        target_id=supplier.id,
+        detail={"name": supplier.name},
+    )
+    session.commit()
     return RedirectResponse(url="/suppliers", status_code=303)
 
 
 @router.post("/{s_id}/eliminar")
-def supplier_delete(s_id: int, request: Request, session: Session = Depends(get_session)) -> RedirectResponse:
+def supplier_delete(
+    s_id: int, request: Request, session: Session = Depends(get_session)
+) -> RedirectResponse:
     """Delete a supplier (only if no ingredients linked)."""
     supplier = session.get(Supplier, s_id)
     if supplier is None:
@@ -142,10 +167,25 @@ def supplier_delete(s_id: int, request: Request, session: Session = Depends(get_
     if supplier.ingredients:
         raise HTTPException(
             status_code=400,
-            detail=f"No se puede eliminar: {len(supplier.ingredients)} ingredientes están vinculados a este proveedor."
+            detail=f"No se puede eliminar: {len(supplier.ingredients)} ingredientes están vinculados a este proveedor.",
         )
 
+    # Capture identifying fields BEFORE delete so the audit detail survives
+    # the session expunge.
+    supplier_name = supplier.name
+    ingredients_linked = len(supplier.ingredients) if supplier.ingredients else 0
+    supplier_id = supplier.id
+
     session.delete(supplier)
+    session.commit()
+    record_audit(
+        request,
+        session=session,
+        action="write.supplier.delete",
+        target_type="supplier",
+        target_id=supplier_id,
+        detail={"name": supplier_name, "ingredients_linked": ingredients_linked},
+    )
     session.commit()
     return RedirectResponse(url="/suppliers", status_code=303)
 
@@ -196,10 +236,7 @@ def supplier_precios(
             {
                 "group": g,
                 "this_price": this_row,
-                "rank": next(
-                    i for i, s in enumerate(g.suppliers) if s.supplier_id == s_id
-                )
-                + 1,
+                "rank": next(i for i, s in enumerate(g.suppliers) if s.supplier_id == s_id) + 1,
                 "total_suppliers": len(g.suppliers),
             }
         )
@@ -214,9 +251,7 @@ def supplier_precios(
             "savings_per_unit_gs": savings_per_unit,
             "supplier_count": len(supplier_ids),
             "ingredient_count": len(comparison),
-            "multi_supplier_count": sum(
-                1 for g in comparison if len(g.suppliers) > 1
-            ),
+            "multi_supplier_count": sum(1 for g in comparison if len(g.suppliers) > 1),
         },
     )
 
@@ -234,11 +269,13 @@ def supplier_orders(
 
     # Get all ingredients from this supplier that are below minimum
     from app.rms.reorder import compute_reorder_list
+
     all_items = compute_reorder_list(session)
     supplier_items = [
-        i for i in all_items
-        if session.get(Ingredient, i.ingredient_id) and
-           session.get(Ingredient, i.ingredient_id).supplier_id == s_id
+        i
+        for i in all_items
+        if session.get(Ingredient, i.ingredient_id)
+        and session.get(Ingredient, i.ingredient_id).supplier_id == s_id
     ]
 
     # Build WhatsApp text
@@ -251,22 +288,35 @@ def supplier_orders(
     else:
         for item in supplier_items:
             session.get(Ingredient, item.ingredient_id)
-            lines.append(f"• {item.name}: {item.suggested_qty:.2f} {item.unit} "
-                         f"(stock: {item.current_stock:.2f}, mín: {item.min_stock:.2f})")
+            lines.append(
+                f"• {item.name}: {item.suggested_qty:.2f} {item.unit} "
+                f"(stock: {item.current_stock:.2f}, mín: {item.min_stock:.2f})"
+            )
         lines.append("")
-        lines.append(f"Total estimado: Gs. {sum(i.estimated_cost_gs for i in supplier_items):,}".replace(",", "."))
+        lines.append(
+            f"Total estimado: Gs. {sum(i.estimated_cost_gs for i in supplier_items):,}".replace(
+                ",", "."
+            )
+        )
 
     text = "\n".join(lines).strip()
     encoded_text = quote(text, safe="")
-    wa_url = f"https://wa.me/{supplier.phone.replace('+', '').replace(' ', '') if supplier.phone else ''}?text={encoded_text}" if supplier.phone else ""
+    wa_url = (
+        f"https://wa.me/{supplier.phone.replace('+', '').replace(' ', '') if supplier.phone else ''}?text={encoded_text}"
+        if supplier.phone
+        else ""
+    )
 
-    return render(request, "supplier_orders.html", {
-        "supplier": supplier,
-        "items": supplier_items,
-        "wa_url": wa_url,
-        "total_cost": sum(i.estimated_cost_gs for i in supplier_items),
-    })
+    return render(
+        request,
+        "supplier_orders.html",
+        {
+            "supplier": supplier,
+            "items": supplier_items,
+            "wa_url": wa_url,
+            "total_cost": sum(i.estimated_cost_gs for i in supplier_items),
+        },
+    )
 
 
 __all__ = ["router"]
-

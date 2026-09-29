@@ -12,6 +12,7 @@ Conventions:
 - Tolerates non-2xx status codes (graceful failure when validation
   rejects) — the audit row still must exist IF the action succeeded.
 """
+
 from __future__ import annotations
 
 import io
@@ -43,30 +44,46 @@ def _seed_basic(session_factory):
     sf = session_factory
     with sf() as s:
         ing = Ingredient(
-            name="Harina QA", unit="kg", stock_qty=10.0,
-            min_stock_qty=2.0, purchase_price_gs=5000,
+            name="Harina QA",
+            unit="kg",
+            stock_qty=10.0,
+            min_stock_qty=2.0,
+            purchase_price_gs=5000,
         )
-        s.add(ing); s.flush()
+        s.add(ing)
+        s.flush()
         rec = Recipe(name="Brownie QA", yield_qty=12, yield_unit="und")
-        s.add(rec); s.flush()
-        s.add(RecipeLine(
-            recipe_id=rec.id, line_kind="ingredient",
-            line_ref_id=ing.id, qty=0.3, line_unit="kg",
-        ))
+        s.add(rec)
+        s.flush()
+        s.add(
+            RecipeLine(
+                recipe_id=rec.id,
+                line_kind="ingredient",
+                line_ref_id=ing.id,
+                qty=0.3,
+                line_unit="kg",
+            )
+        )
         s.flush()
         prod = Product(
-            name="Brownie Producto QA", sale_price_gs=2500,
+            name="Brownie Producto QA",
+            sale_price_gs=2500,
             recipe_id=rec.id,
         )
-        s.add(prod); s.flush()
+        s.add(prod)
+        s.flush()
         cust = Customer(
-            name="Cliente QA", phone="0981112222",
+            name="Cliente QA",
+            phone="0981112222",
         )
-        s.add(cust); s.flush()
+        s.add(cust)
+        s.flush()
         s.commit()
         return {
-            "ingredient_id": ing.id, "recipe_id": rec.id,
-            "product_id": prod.id, "customer_id": cust.id,
+            "ingredient_id": ing.id,
+            "recipe_id": rec.id,
+            "product_id": prod.id,
+            "customer_id": cust.id,
         }
 
 
@@ -283,6 +300,111 @@ def test_customer_delete_audited(authed_client, session_factory):
     assert str(last.target_id) == str(cid)
 
 
+# ─── Supplier CRUD ──────────────────────────────────────────────────────
+
+
+def test_supplier_create_audited(authed_client, session_factory):
+    """POST /suppliers/nuevo writes a write.supplier.create audit row.
+
+    Supplier is the parent entity behind ingredients (audit item 284)
+    plus the lookup table for reorder suggestions and price comparison.
+    Until this audit was wired up, Saskia could silently lose or rename
+    a supplier with zero forensic trace. Now there is one.
+    """
+    r = authed_client.post(
+        "/suppliers/nuevo",
+        data={
+            "name": "Proveedor QA",
+            "contact_name": "Contacto QA",
+            "phone": "+595 021 123456",
+            "email": "ventas@proveedor-qa.com.py",
+            "address": "Av. Test 123",
+            "ruc": "12345678-9",
+            "notes": "Notas de prueba",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code < 500, f"supplier create returned {r.status_code}"
+
+    rows = _audit_rows(session_factory, "write.supplier.create", target_type="supplier")
+    assert len(rows) >= 1, "no write.supplier.create audit row"
+    last = rows[-1]
+    assert last.detail.get("name") == "Proveedor QA"
+    assert last.detail.get("ruc") == "12345678-9"
+    assert last.target_id is not None
+
+
+def test_supplier_update_audited(authed_client, session_factory):
+    """POST /suppliers/{id}/editar writes a write.supplier.update audit row.
+
+    Seeds a supplier via the ORM (the create endpoint is covered above,
+    we don't want a coupling), then edits it. Asserts target_id matches.
+    """
+    from app.rms.models import Supplier
+
+    sf = session_factory
+    with sf() as s:
+        sup = Supplier(name="Proveedor QA Original")
+        s.add(sup)
+        s.flush()
+        s.commit()
+        sup_id = sup.id
+
+    r = authed_client.post(
+        f"/suppliers/{sup_id}/editar",
+        data={
+            "name": "Proveedor QA Editado",
+            "contact_name": "",
+            "phone": "",
+            "email": "",
+            "address": "",
+            "ruc": "",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code < 500, f"supplier update returned {r.status_code}"
+
+    rows = _audit_rows(session_factory, "write.supplier.update", target_type="supplier")
+    assert len(rows) >= 1, "no write.supplier.update audit row"
+    last = rows[-1]
+    assert str(last.target_id) == str(sup_id)
+    assert last.detail.get("name") == "Proveedor QA Editado"
+
+
+def test_supplier_delete_audited(authed_client, session_factory):
+    """POST /suppliers/{id}/eliminar writes a write.supplier.delete audit row.
+
+    Critical: this is the only test that proves a deletion is recorded
+    (not just the 400 "proveedor con ingredientes vinculados" guard).
+    The supplier must have ZERO linked ingredients, otherwise the
+    endpoint 400s before reaching the audit call.
+    """
+    from app.rms.models import Supplier
+
+    sf = session_factory
+    with sf() as s:
+        sup = Supplier(name="Proveedor QA Borrable")
+        s.add(sup)
+        s.flush()
+        s.commit()
+        sup_id = sup.id
+
+    r = authed_client.post(
+        f"/suppliers/{sup_id}/eliminar",
+        data={},
+        follow_redirects=False,
+    )
+    assert r.status_code < 500, f"supplier delete returned {r.status_code}"
+
+    rows = _audit_rows(session_factory, "write.supplier.delete", target_type="supplier")
+    assert len(rows) >= 1, "no write.supplier.delete audit row"
+    last = rows[-1]
+    assert str(last.target_id) == str(sup_id)
+    assert last.detail.get("name") == "Proveedor QA Borrable"
+    assert last.detail.get("ingredients_linked") == 0
+
+
 # ─── EOD ────────────────────────────────────────────────────────────────
 
 
@@ -362,8 +484,13 @@ def test_excel_import_audited(authed_client, session_factory):
 
     r = authed_client.post(
         "/excel/importar?mode=PATCH",
-        files={"file": ("test.xlsx", buf.getvalue(),
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        files={
+            "file": (
+                "test.xlsx",
+                buf.getvalue(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
         follow_redirects=False,
     )
     assert r.status_code < 500, f"excel import returned {r.status_code}"
@@ -422,7 +549,9 @@ def test_production_override_audited(authed_client, session_factory, qseed):
     assert r.status_code < 500, f"production override returned {r.status_code}"
 
     rows = _audit_rows(
-        session_factory, "write.production.override.set", target_type="production",
+        session_factory,
+        "write.production.override.set",
+        target_type="production",
     )
     assert len(rows) >= 1, "no write.production.override.set audit row"
     last = rows[-1]
@@ -460,7 +589,9 @@ def test_production_completion_audited(authed_client, session_factory, qseed):
         target_type="production",
     )
     eod_rows = _audit_rows(
-        session_factory, "write.eod.complete", target_type="eod",
+        session_factory,
+        "write.eod.complete",
+        target_type="eod",
     )
     assert len(rows) + len(eod_rows) >= 1, (
         "no write.production.completion.record or write.eod.complete audit row"
@@ -489,7 +620,8 @@ def test_bank_categorize_audited(authed_client, session_factory):
             description="Test audit",
             category="uncategorized",
         )
-        s.add(tx); s.flush()
+        s.add(tx)
+        s.flush()
         s.commit()
         tx_id = tx.id
 
@@ -501,7 +633,9 @@ def test_bank_categorize_audited(authed_client, session_factory):
     assert r.status_code < 500, f"bank categorize returned {r.status_code}"
 
     rows = _audit_rows(
-        session_factory, "write.bank.categorize", target_type="BankTransaction",
+        session_factory,
+        "write.bank.categorize",
+        target_type="BankTransaction",
     )
     assert len(rows) >= 1, "no write.bank.categorize audit row"
     last = rows[-1]
