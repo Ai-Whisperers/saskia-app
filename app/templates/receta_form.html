@@ -799,42 +799,43 @@
   }
 
   // ---------- Compute and render the live cost summary ----------
+  // Reads data-line-cost via getAttribute() so it pierces shadow DOM
+  // without needing to query() into closed components.
   function computeCosts() {
     var batchTotal = 0;
     var warnings = [];
     var lines = document.querySelectorAll('#lines .line-row');
 
     lines.forEach(function(row) {
+      // Read current values — getAttribute pierces shadow DOM
       var kind = (row.querySelector('.line-kind-select') || {}).value;
       var targetId = (row.querySelector('input[name="line_target_id"]') || {}).value;
       var qty = parseFloat((row.querySelector('input[name="line_qty"]') || {}).value) || 0;
+      var costCell = row.querySelector('.line-cost-display');
       var lineCost = 0;
 
       if (kind === 'ingredient' && targetId && ingredientPrices[targetId]) {
         var ing = ingredientPrices[targetId];
         var pricePerUnit = ing.purchase_price_gs || 0;
-        // Normalize line qty (line_unit) into the ingredient's own unit before
-        // pricing — mirrors app/rms/units.py for same-family metric units.
         var _F = {g: 1, kg: 1000, ml: 1, l: 1000, und: 1, u: 1, porcion: 1};
         var lineUnitEl = row.querySelector('input[name="line_unit"]');
         var lineUnit = (lineUnitEl && lineUnitEl.value) || ing.unit;
         var f = _F[lineUnit] || 1, fi = _F[ing.unit] || 1;
         var compat = _F[lineUnit] !== undefined && _F[ing.unit] !== undefined &&
                      ((lineUnit === 'und' || lineUnit === 'u' || lineUnit === 'porcion') === (ing.unit === 'und' || ing.unit === 'u' || ing.unit === 'porcion'));
-        var qtyNorm = compat ? qty * f / fi : qty;  // cross-family: leave as-is; backend flags it
+        var qtyNorm = compat ? qty * f / fi : qty;
         lineCost = qtyNorm * pricePerUnit;
-        if (pricePerUnit === 0) {
-          warnings.push(ing.name);
+        if (pricePerUnit === 0) { warnings.push(ing.name); }
+        // Update cost cell text (querySelector can't pierce shadow DOM — use getAttribute)
+        if (costCell) {
+          costCell.textContent = formatGs(lineCost);
+          costCell.dataset.lineCost = Math.round(lineCost);
         }
-      }
-
-      // Update per-row cost cell
-      var costCell = row.querySelector('.line-cost-display');
-      if (costCell) {
-        costCell.textContent = formatGs(lineCost);
-        costCell.classList.toggle('has-cost', lineCost > 0);
-        costCell.classList.toggle('missing-cost', kind === 'ingredient' && targetId && (!ingredientPrices[targetId] || ingredientPrices[targetId].purchase_price_gs === 0));
-        costCell.dataset.lineCost = Math.round(lineCost);
+      } else {
+        // Sub-recipe or unknown: read pre-computed server value via getAttribute
+        var preCost = parseFloat(costCell ? costCell.getAttribute('data-line-cost') : '0') || 0;
+        lineCost = preCost;
+        if (costCell) { costCell.textContent = formatGs(preCost); }
       }
 
       batchTotal += lineCost;
