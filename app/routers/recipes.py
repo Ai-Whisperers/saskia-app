@@ -320,6 +320,29 @@ async def recipe_create(
         ) from None
 
     skipped = _apply_lines_from_form(session, recipe.id, form)
+    # Validate: at least one valid line must exist
+    valid_line_count = 0
+    for i, kind in enumerate(form.getlist("line_kind")):
+        target = form.getlist("line_target_id")[i] if i < len(form.getlist("line_target_id")) else ""
+        qty_raw = form.getlist("line_qty")[i] if i < len(form.getlist("line_qty")) else ""
+        try:
+            if str(kind).strip() and str(target).strip() and float(str(qty_raw).strip()) > 0:
+                valid_line_count += 1
+        except (ValueError, IndexError):
+            continue
+    if valid_line_count == 0:
+        session.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="La receta debe tener al menos un ingrediente o sub-receta.",
+        )
+    if skipped and valid_line_count == 0:
+        session.rollback()
+        from fastapi import HTTPException as _HTTPExc
+        detail = "Algunas líneas no se pudieron guardar. " + "; ".join(skipped[:5])
+        if len(skipped) > 5:
+            detail += f" (y {len(skipped) - 5} más)"
+        raise _HTTPExc(status_code=400, detail=detail)
     if skipped:
         # BUG-00: surface WHY a line was rejected instead of silently dropping it.
         # Roll back so the operator can fix and retry without orphans.
@@ -329,6 +352,18 @@ async def recipe_create(
         if len(skipped) > 5:
             detail += f" (y {len(skipped) - 5} más)"
         raise _HTTPExc(status_code=400, detail=detail)
+
+    # Cycle detection: check sub_recipe references don't create a cycle
+    cycle = _detect_sub_recipe_cycle(session, recipe.id)
+    if cycle:
+        session.rollback()
+        cycle_names = session.execute(
+            select(Recipe.name).where(Recipe.id.in_(cycle))
+        ).scalars().all()
+        raise HTTPException(
+            status_code=400,
+            detail=f"No se puede guardar: las sub-recetas crean una dependencia cíclica: {' → '.join(str(n) for n in cycle_names)} → {name}",
+        )
 
     # If the user checked "create product from this recipe", redirect
     # to the crear-producto helper instead of /recetas.
@@ -605,6 +640,29 @@ async def recipe_update(
         session.delete(old)
     session.flush()
     skipped = _apply_lines_from_form(session, r.id, form)
+    # Validate: at least one valid line must exist
+    valid_line_count = 0
+    for i, kind in enumerate(form.getlist("line_kind")):
+        target = form.getlist("line_target_id")[i] if i < len(form.getlist("line_target_id")) else ""
+        qty_raw = form.getlist("line_qty")[i] if i < len(form.getlist("line_qty")) else ""
+        try:
+            if str(kind).strip() and str(target).strip() and float(str(qty_raw).strip()) > 0:
+                valid_line_count += 1
+        except (ValueError, IndexError):
+            continue
+    if valid_line_count == 0:
+        session.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="La receta debe tener al menos un ingrediente o sub-receta.",
+        )
+    if skipped and valid_line_count == 0:
+        session.rollback()
+        from fastapi import HTTPException as _HTTPExc
+        detail = "Algunas líneas no se pudieron guardar. " + "; ".join(skipped[:5])
+        if len(skipped) > 5:
+            detail += f" (y {len(skipped) - 5} más)"
+        raise _HTTPExc(status_code=400, detail=detail)
     if skipped:
         session.rollback()
         from fastapi import HTTPException as _HTTPExc
@@ -612,6 +670,18 @@ async def recipe_update(
         if len(skipped) > 5:
             detail += f" (y {len(skipped) - 5} más)"
         raise _HTTPExc(status_code=400, detail=detail)
+
+    # Cycle detection: check sub_recipe references don't create a cycle
+    cycle = _detect_sub_recipe_cycle(session, r.id)
+    if cycle:
+        session.rollback()
+        cycle_names = session.execute(
+            select(Recipe.name).where(Recipe.id.in_(cycle))
+        ).scalars().all()
+        raise HTTPException(
+            status_code=400,
+            detail=f"No se puede guardar: las sub-recetas crean una dependencia cíclica: {' → '.join(str(n) for n in cycle_names)} → {name}",
+        )
 
     # Tag algebra (054): re-derive after line changes; cascade to parents
     # and sync linked products' inherited tags.
@@ -742,6 +812,45 @@ def _apply_lines_from_form(session: Session, recipe_id: int, form) -> list[str]:
         )
 
     return skipped
+
+
+def _detect_sub_recipe_cycle(
+    session: Session,
+    recipe_id: int,
+    visited: set[int] | None = None,
+) -> list[int]:
+    """Return list of recipe IDs that participate in a cycle starting from recipe_id.
+
+    Walks sub_recipe lines recursively.  If a sub-recipe transitively references
+    back to `recipe_id` (or any ancestor in `visited`), a cycle exists.
+
+    Returns the cycle path as a list of recipe IDs, or [] if no cycle.
+    """
+    if visited is None:
+        visited = set()
+    if recipe_id in visited:
+        return list(visited)
+    visited.add(recipe_id)
+
+    # Get all sub-recipe lines for this recipe
+    sub_lines = session.scalars(
+        select(RecipeLine).where(
+            RecipeLine.recipe_id == recipe_id,
+            RecipeLine.line_kind == "sub_recipe",
+        )
+    ).all()
+
+    for line in sub_lines:
+        sub_recipe_id = line.line_ref_id
+        # Direct self-reference
+        if sub_recipe_id == recipe_id:
+            return [recipe_id]
+        # Check recursively
+        cycle = _detect_sub_recipe_cycle(session, sub_recipe_id, visited.copy())
+        if cycle:
+            return cycle
+
+    return []
 
 
 @router.get("/api/search", response_class=JSONResponse)

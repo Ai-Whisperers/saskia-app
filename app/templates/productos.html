@@ -123,7 +123,7 @@
       </td>
       <td class="col-portion">{{ p.portion_label }}</td>
       <td class="num col-price">{{ m.gs_full(p.sale_price_gs) }}</td>
-      <td class="col-recipe">{% if p.recipe_name %}{{ p.recipe_name }}{% else %}<em class="muted">sin receta</em>{% endif %}</td>
+      <td class="col-recipe">{% if p.recipe_name %}<a href="/recetas/{{ p.recipe_id }}" class="text-link">{{ p.recipe_name }}</a>{% else %}<em class="muted">sin receta</em>{% endif %}</td>
       <td class="num col-cost">{% if p.cost_gs is none %}<em class="muted">falta precio</em>{% else %}{{ m.gs(p.cost_gs) }}{% endif %}</td>
       <td class="num col-margin">{% if p.margin_gs is none %}<em class="muted">—</em>{% else %}{% if p.margin_gs < 0 %}<span class="badge badge-danger">{{ m.gs(p.margin_gs) }}</span>{% else %}{{ m.gs(p.margin_gs) }}{% endif %}{% endif %}</td>
       <td class="num col-marginpct">{% if p.margin_ratio is none %}<em class="muted">—</em>{% elif p.margin_gs is not none and p.margin_gs < 0 %}<span class="badge badge-danger" title="Vendés por debajo del costo">{{ m.margin_pct(p.margin_gs, p.sale_price_gs) }}</span>{% else %}{{ m.margin_pct(p.margin_gs, p.sale_price_gs) }}{% endif %}</td>
@@ -166,19 +166,19 @@
   </span>
   <div class="pagination-links">
     {% if page > 1 %}
-      <a href="?page=1&sort={{ sort }}&dir={{ dir }}&q={{ q }}&has_recipe={{ has_recipe }}" class="btn btn-sm btn-ghost">«</a>
-      <a href="?page={{ page - 1 }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}&has_recipe={{ has_recipe }}" class="btn btn-sm btn-ghost">‹</a>
+      <a href="{{ request.url.path }}?page=1{% for k,v in request.query_params.multi_items() if k not in ('page',) %}&{{ k }}={{ v }}{% endfor %}" class="btn btn-sm btn-ghost">«</a>
+      <a href="{{ request.url.path }}?page={{ page - 1 }}{% for k,v in request.query_params.multi_items() if k not in ('page',) %}&{{ k }}={{ v }}{% endfor %}" class="btn btn-sm btn-ghost">‹</a>
     {% endif %}
     {% for p in range([1, page - 2] | max, [page + 3, total_pages + 1] | min) %}
       {% if p == page %}
         <span class="btn btn-sm btn-primary" aria-current="page">{{ p }}</span>
       {% else %}
-        <a href="?page={{ p }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}&has_recipe={{ has_recipe }}" class="btn btn-sm btn-ghost">{{ p }}</a>
+      <a href="{{ request.url.path }}?page={{ p }}{% for k,v in request.query_params.multi_items() if k not in ('page',) %}&{{ k }}={{ v }}{% endfor %}" class="btn btn-sm btn-ghost">{{ p }}</a>
       {% endif %}
     {% endfor %}
     {% if page < total_pages %}
-      <a href="?page={{ page + 1 }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}&has_recipe={{ has_recipe }}" class="btn btn-sm btn-ghost">›</a>
-      <a href="?page={{ total_pages }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}&has_recipe={{ has_recipe }}" class="btn btn-sm btn-ghost">»</a>
+      <a href="{{ request.url.path }}?page={{ page + 1 }}{% for k,v in request.query_params.multi_items() if k not in ('page',) %}&{{ k }}={{ v }}{% endfor %}" class="btn btn-sm btn-ghost">›</a>
+      <a href="{{ request.url.path }}?page={{ total_pages }}{% for k,v in request.query_params.multi_items() if k not in ('page',) %}&{{ k }}={{ v }}{% endfor %}" class="btn btn-sm btn-ghost">»</a>
     {% endif %}
   </div>
 </nav>

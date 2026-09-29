@@ -152,11 +152,11 @@
 {% if pagination.total_pages > 1 %}
 <nav class="pagination" aria-label="Paginación de recetas">
   {% if pagination.page > 1 %}
-  <a href="?page={{ pagination.page - 1 }}&amp;q={{ q }}&amp;sort={{ sort }}&amp;dir={{ dir }}"
+  <a href="{{ request.url.path }}?page={{ pagination.page - 1 }}{% for k,v in request.query_params.multi_items() if k not in ('page',) %}&{{ k }}={{ v }}{% endfor %}"
      class="btn btn-ghost">← Anterior</a>
   {% endif %}
   {% if pagination.page < pagination.total_pages %}
-  <a href="?page={{ pagination.page + 1 }}&amp;q={{ q }}&amp;sort={{ sort }}&amp;dir={{ dir }}"
+  <a href="{{ request.url.path }}?page={{ pagination.page + 1 }}{% for k,v in request.query_params.multi_items() if k not in ('page',) %}&{{ k }}={{ v }}{% endfor %}"
      class="btn btn-ghost">Siguiente →</a>
   {% endif %}
 </nav>

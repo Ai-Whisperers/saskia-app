@@ -18,6 +18,15 @@ import os as _os
 _os.environ.setdefault("AIW_SASKIA_INTERNAL_ROUTES", "1")
 _os.environ.setdefault("SASKIA_TEST_AUTH_DISABLED", "1")
 
+# Inject Session stub for compatibility with newer starlette versions
+# where Session was removed from starlette.middleware.sessions
+import starlette.middleware.sessions as _sms
+if not hasattr(_sms, "Session"):
+    import sys as _sys
+    from tests._session_stub import Session as _SessionStub
+    _sms.Session = _SessionStub
+    _sys.modules["starlette.middleware.sessions"].Session = _SessionStub
+
 # Suppress "unclosed database" ResourceWarnings during tests.
 # SQLAlchemy sessions created via `s = session_factory()` (without context
 # manager) leak connections when the Session object is GC'd at test end.
