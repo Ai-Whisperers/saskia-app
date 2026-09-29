@@ -128,3 +128,16 @@ def test_kpi_card_adoptions_use_format_gs(template):
     else:
         # inicio + analisis use m.gs_full (full Gs. prefix)
         assert "m.gs_full" in text, f"{template} must use m.gs_full for currency"
+
+
+def test_kpi_card_value_has_uniform_height():
+    """The KPI tile value cell must have a min-height so that short values
+    ('Sáb') and long values ('G. 10.948.527' / '10:00 hs') render at the
+    same row height — flagged by the Session A screenshot subagent."""
+    css = (REPO / "app/static/app-components.css").read_text(encoding="utf-8")
+    # The min-height rule on .metric-card__value
+    assert ".metric-card__value" in css, "value cell class missing"
+    assert "min-height" in css, "uniform tile height missing — panorama row will misalign"
+    # The rule must apply to both compact and full tiles
+    assert ".metric-card--compact .metric-card__value" in css, \
+        "compact tiles (e.g. /bank) need a smaller uniform height"

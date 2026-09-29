@@ -39,6 +39,17 @@
 .metric-card__delta { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-sm); font-weight: 600; margin-top: var(--space-1); }
 .metric-card__delta-arrow { font-weight: 700; line-height: 1; }
 .metric-card__delta-text { font-variant-numeric: tabular-nums; }
+
+/* Uniform tile height across the row — keeps Panorama KPIs visually aligned
+   when values like "10:00 hs" or "G. 10.948.527" differ in intrinsic width.
+   Floor value-text height to two lines so wrapping stays inside the card. */
+.metric-card__value {
+  min-height: calc(var(--text-3xl) * 1.2 * 2);
+  display: flex; align-items: flex-end;
+}
+.metric-card--compact .metric-card__value {
+  min-height: calc(var(--text-xl) * 1.2 * 2);
+}
 .metric-card__delta-prior { font-weight: 400; color: var(--color-text-muted); font-size: var(--text-xs); }
 .metric-card__delta--up { color: var(--color-success); }
 .metric-card__delta--up .metric-card__delta-arrow { color: var(--color-success); }
