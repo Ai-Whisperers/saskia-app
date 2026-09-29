@@ -315,6 +315,132 @@ def _format_gs_compact(value: int) -> str:
     return f"Gs. {value}"
 
 
+@router.get("/duplicados", response_class=HTMLResponse)
+def clientes_duplicados(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Surface likely-duplicate customers by phone prefix / exact name match.
+
+    Renders a Jinja page with groups. Each group is one canonical
+    candidate + its likely duplicates. The operator picks which row
+    is the canonical (target) and submits the merge form to
+    POST /clientes/{target_id}/merge with source_ids=<csv of dupes>.
+
+    IMPORTANT: registered BEFORE the `/clientes/{customer_id}` dynamic
+    route — otherwise Starlette matches the literal `duplicados` against
+    `customer_id` and blows up trying to coerce "duplicados" to int.
+    """
+    from sqlalchemy import and_, literal_column, or_
+
+    # Self-join: c1.id < c2.id guarantees each pair appears once.
+    # Phone prefix match is the strongest signal in this codebase —
+    # phone is the de-facto unique identifier at the counter.
+    # Exact name match on >3 chars catches spelling-duplicate typos.
+    pairs = session.execute(
+        select(
+            Customer.id.label("id1"),
+            Customer.name.label("name1"),
+            Customer.phone.label("phone1"),
+            literal_column("c2.id").label("id2"),
+            literal_column("c2.name").label("name2"),
+            literal_column("c2.phone").label("phone2"),
+        )
+        .select_from(Customer)
+        .join(
+            Customer.__table__.alias("c2"),
+            Customer.id < literal_column("c2.id"),
+        )
+        .where(
+            or_(
+                and_(
+                    Customer.phone.is_not(None),
+                    Customer.phone != "",
+                    literal_column("c2.phone").is_not(None),
+                    literal_column("c2.phone") != "",
+                    func.substr(Customer.phone, 1, 5)
+                    == func.substr(literal_column("c2.phone"), 1, 5),
+                ),
+                and_(
+                    func.length(Customer.name) > 3,
+                    Customer.name == literal_column("c2.name"),
+                ),
+            )
+        )
+    ).all()
+
+    # Group pairs by canonical-id heuristic: smallest id wins within
+    # a connected component. Simpler: build adjacency, then union-find.
+    parent: dict[int, int] = {}
+
+    def find(x: int) -> int:
+        while parent.get(x, x) != x:
+            parent[x] = parent.get(parent[x], parent[x])
+            x = parent[x]
+        return x
+
+    def union(a: int, b: int) -> None:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            if ra < rb:
+                parent[rb] = ra
+            else:
+                parent[ra] = rb
+
+    for r in pairs:
+        union(int(r.id1), int(r.id2))
+
+    # Collect groups.
+    members: dict[int, set[int]] = {}
+    for r in pairs:
+        root = find(int(r.id1))
+        members.setdefault(root, set()).update({int(r.id1), int(r.id2)})
+
+    # Load full Customer rows for each group.
+    all_ids = {i for ids in members.values() for i in ids}
+    if not all_ids:
+        return render(
+            request,
+            "clientes_duplicados.html",
+            {"groups": [], "total_groups": 0, "total_dupes": 0},
+        )
+
+    customers_rows = session.scalars(
+        select(Customer).where(Customer.id.in_(all_ids)).order_by(Customer.id)
+    ).all()
+    by_id = {c.id: c for c in customers_rows}
+
+    groups: list[dict] = []
+    for root in sorted(members.keys()):
+        ids = sorted(members[root])
+        # Canonical = smallest id (oldest row). The operator can change
+        # the choice on the merge form anyway.
+        canonical_id = ids[0]
+        canonical = by_id.get(canonical_id)
+        if canonical is None:
+            continue
+        dupes = [by_id[i] for i in ids[1:] if i in by_id]
+        if not dupes:
+            continue
+        groups.append(
+            {
+                "canonical": canonical,
+                "duplicates": dupes,
+                "duplicate_ids": [d.id for d in dupes],
+            }
+        )
+
+    return render(
+        request,
+        "clientes_duplicados.html",
+        {
+            "groups": groups,
+            "total_groups": len(groups),
+            "total_dupes": sum(len(g["duplicate_ids"]) for g in groups),
+        },
+    )
+
+
 @router.get("/api/search", response_class=JSONResponse)
 def customer_search_api(
     q: str = Query("", description="Search query"),
@@ -579,4 +705,81 @@ def clientes_bulk_delete(
     flash = f"{deleted} cliente(s) eliminado(s)"
     if skipped:
         flash += f", {skipped} omitido(s) por tener ventas"
+    return RedirectResponse(url=f"/clientes?flash={flash}", status_code=303)
+
+
+@router.post("/{target_id}/merge")
+def cliente_merge(
+    request: Request,
+    target_id: int = Path(..., ge=1),
+    source_ids: str = Form(...),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Merge `source_ids` (comma-separated) into `target_id`.
+
+    Domain rules live in `app/rms/customer_merge.customer_merge()`.
+    This wrapper handles:
+      - Parsing `source_ids` into ints
+      - CSRF: the middleware already validated the cookie (cookie-level
+        check); form `csrf_token` is also submitted (double-submit).
+      - Auth: enforced by the router-level `require_login` dependency.
+      - Audit row: `write.customer.merge` with the list of merged ids
+        and the totals.
+      - Transactional commit / rollback.
+
+    Redirects to /clientes with a flash message. On error (ValueError
+    from the domain layer), redirects with an error flash so the
+    operator sees what went wrong.
+    """
+    # Source-id list parsing.
+    try:
+        source_id_list = [int(s) for s in source_ids.split(",") if s.strip()]
+    except ValueError:
+        return RedirectResponse(
+            url="/clientes/duplicados?flash=IDs+inv%C3%A1lidos",
+            status_code=303,
+        )
+    if not source_id_list:
+        return RedirectResponse(
+            url="/clientes/duplicados?flash=No+se+seleccionaron+duplicados",
+            status_code=303,
+        )
+
+    from app.rms.customer_merge import customer_merge as _customer_merge
+
+    try:
+        result = _customer_merge(
+            session,
+            target_id=target_id,
+            source_ids=source_id_list,
+        )
+    except ValueError as e:
+        msg = str(e).replace(" ", "+").replace("\n", "+")
+        return RedirectResponse(
+            url=f"/clientes/duplicados?flash={msg}",
+            status_code=303,
+        )
+
+    # Audit row — use the same session so the audit + the merge land
+    # atomically.
+    record_audit(
+        request,
+        session=session,
+        action="write.customer.merge",
+        target_type="customer",
+        target_id=target_id,
+        detail={
+            "sources": [
+                {"id": s.from_id, "name": s.from_name}
+                for s in result.sources_merged
+            ],
+            "sales_reassigned": sum(s.sales_reassigned for s in result.sources_merged),
+            "pedidos_reassigned": sum(s.pedidos_reassigned for s in result.sources_merged),
+            "phone_filled_from_source": result.phone_filled_from_source,
+            "email_filled_from_source": result.email_filled_from_source,
+        },
+    )
+    session.commit()
+
+    flash = f"Se+fusionaron+{len(result.sources_merged)}+clientes+en+1"
     return RedirectResponse(url=f"/clientes?flash={flash}", status_code=303)

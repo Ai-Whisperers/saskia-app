@@ -11,7 +11,12 @@
 {{ ui.flash_toast(request) }}
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
-  <div></div>
+  <div>
+    <a href="/clientes/duplicados" class="btn btn-sm" data-testid="link-duplicados">
+      <svg class="icon" aria-hidden="true"><use href="#icon-merge"/></svg>
+      Ver duplicados
+    </a>
+  </div>
   <div style="display:flex;gap:var(--space-2);align-items:center;">
     {% set csv_q = dict(request.query_params.multi_items()) %}{% set _ = csv_q.update({'format': 'csv'}) %}
     <a href="{{ request.url.path }}?{{ csv_q|urlencode }}" class="btn btn-sm btn-ghost" download="clientes.csv">
