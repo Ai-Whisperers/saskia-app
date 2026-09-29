@@ -14,13 +14,15 @@ All routes are read-only by default. Mutations guarded by require_login.
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -374,16 +376,191 @@ async def bank_categorize(
     return RedirectResponse(url="/bank", status_code=303)
 
 
+@bank_router.get("/export.csv", response_class=Response)
+async def bank_export_csv(
+    request: Request,
+    category: str | None = Query(None),
+    start_date: str | None = Query(None, alias="start_date"),
+    end_date: str | None = Query(None, alias="end_date"),
+    currency: str | None = Query(None),
+    session: Session = Depends(get_session),
+) -> Response:
+    """CSV export of bank transactions."""
+    query = select(BankTransaction).order_by(BankTransaction.posted_at.desc())
+    
+    # Apply date range filter if provided
+    if start_date:
+        try:
+            start_dt = datetime.fromisoformat(start_date)
+            query = query.where(BankTransaction.posted_at >= start_dt)
+        except (ValueError, TypeError):
+            pass
+            
+    if end_date:
+        try:
+            end_dt = datetime.fromisoformat(end_date)
+            query = query.where(BankTransaction.posted_at <= end_dt)
+        except (ValueError, TypeError):
+            pass
+    
+    if category:
+        query = query.where(BankTransaction.category == category)
+    
+    if currency:
+        query = query.where(BankTransaction.currency == currency)
+    
+    transactions = session.execute(query).scalars().all()
+    
+    # Create CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Fecha", "Cuenta", "Importe", "Categoría", "Contraparte", "Descripción"])
+    
+    for tx in transactions:
+        writer.writerow([
+            tx.posted_at.strftime("%Y-%m-%d"),
+            tx.currency,
+            f"{tx.amount:+.2f}",
+            tx.category or "",
+            tx.counterparty_name or "",
+            tx.description or ""
+        ])
+    
+    # Create response
+    response = Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=bank_transactions.csv"}
+    )
+    
+    return response
+
+
+@bank_router.post("/{tx_id}/reconcile", response_class=HTMLResponse)
+async def bank_reconcile(
+    request: Request,
+    tx_id: int,
+    with_type: str = Form(...),
+    with_id: int = Form(...),
+    session: Session = Depends(get_session),
+):
+    """Mark a bank transaction as reconciled with an entity (pedido, gasto, ingreso)."""
+    # Get the transaction
+    tx = session.execute(
+        select(BankTransaction).where(BankTransaction.id == tx_id)
+    ).scalar_one_or_none()
+    
+    if not tx:
+        return RedirectResponse(url="/bank", status_code=303)
+    
+    # Validate with_type
+    if with_type not in ("pedido", "gasto", "ingreso"):
+        return RedirectResponse(url="/bank", status_code=303)
+    
+    # Mark as reconciled
+    tx.reconciled = True
+    tx.reconciled_with_type = with_type
+    tx.reconciled_with_id = with_id
+    tx.reconciled_at = datetime.now(timezone.utc)
+    tx.reconciled_by = "system"  # TODO: get from session
+    
+    session.commit()
+    
+    return RedirectResponse(url="/bank", status_code=303)
+
+
+@bank_router.post("/{tx_id}/unreconcile", response_class=HTMLResponse)
+async def bank_unreconcile(
+    request: Request,
+    tx_id: int,
+    session: Session = Depends(get_session),
+):
+    """Mark a bank transaction as unreconciled."""
+    tx = session.execute(
+        select(BankTransaction).where(BankTransaction.id == tx_id)
+    ).scalar_one_or_none()
+    
+    if not tx:
+        return RedirectResponse(url="/bank", status_code=303)
+    
+    # Mark as unreconciled
+    tx.reconciled = False
+    tx.reconciled_with_type = None
+    tx.reconciled_with_id = None
+    tx.reconciled_at = None
+    tx.reconciled_by = None
+    
+    session.commit()
+    
+    return RedirectResponse(url="/bank", status_code=303)
+
+
 @bank_router.get("", response_class=HTMLResponse)
 def bank_list(
     request: Request,
     category: str = Query(None),
+    start_date: str | None = Query(None, alias="start_date"),
+    end_date: str | None = Query(None, alias="end_date"),
+    currency: str | None = Query(None),
+    reconciled: str | None = Query(None),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=10, le=200),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    query = select(BankTransaction).order_by(BankTransaction.posted_at.desc()).limit(50)
+    query = select(BankTransaction).order_by(BankTransaction.posted_at.desc())
+    
+    # Apply date range filter if provided
+    if start_date:
+        try:
+            start_dt = datetime.fromisoformat(start_date)
+            query = query.where(BankTransaction.posted_at >= start_dt)
+        except (ValueError, TypeError):
+            pass
+            
+    if end_date:
+        try:
+            end_dt = datetime.fromisoformat(end_date)
+            query = query.where(BankTransaction.posted_at <= end_dt)
+        except (ValueError, TypeError):
+            pass
+    
     if category:
         query = query.where(BankTransaction.category == category)
-    transactions = session.execute(query).scalars().all()
+    
+    if currency:
+        query = query.where(BankTransaction.currency == currency)
+    
+    # Apply reconciliation filter
+    if reconciled == "yes":
+        query = query.where(BankTransaction.reconciled == True)
+    elif reconciled == "no":
+        query = query.where(BankTransaction.reconciled == False)
+    
+    # Get total count for pagination
+    from sqlalchemy import func
+    total_count = session.execute(
+        select(func.count()).select_from(query.subquery())
+    ).scalar() or 0
+    
+    # Apply pagination
+    offset = (page - 1) * per_page
+    transactions = session.execute(
+        query.limit(per_page).offset(offset)
+    ).scalars().all()
+    
+    # Calculate pagination info
+    total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
+    has_prev = page > 1
+    has_next = page < total_pages
+    
+    # Get reconciliation stats
+    reconciled_count = session.execute(
+        select(func.count()).select_from(BankTransaction).where(BankTransaction.reconciled == True)
+    ).scalar() or 0
+    
+    unreconciled_count = session.execute(
+        select(func.count()).select_from(BankTransaction).where(BankTransaction.reconciled == False)
+    ).scalar() or 0
 
     # Compute aggregates
     stats = session.execute(
@@ -422,6 +599,16 @@ def bank_list(
             "pyg_balance_gs": pyg_balance,
             "categories": sorted(categories),
             "active_category": category,
+            "active_currency": currency,
+            "active_reconciled": reconciled,
+            "page": page,
+            "per_page": per_page,
+            "total_count": total_count,
+            "total_pages": total_pages,
+            "has_prev": has_prev,
+            "has_next": has_next,
+            "reconciled_count": reconciled_count,
+            "unreconciled_count": unreconciled_count,
         },
     )
 

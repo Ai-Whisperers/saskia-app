@@ -33,7 +33,19 @@ from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+try:
+    from starlette.middleware.sessions import Session
+except ImportError:
+    # Newer starlette versions removed Session; provide a minimal stub.
+    class Session(dict):
+        pass
+from starlette.requests import HTTPConnection
+from starlette.datastructures import MutableHeaders
+from itsdangerous.exc import BadSignature
+from base64 import b64decode
+import json
 from starlette.responses import Response
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.auth import SESSION_SECRET
 from app.rms.config import BIND_HOST, CURRENT_SCHEMA_VERSION, ensure_dirs
@@ -281,39 +293,73 @@ app = FastAPI(
 
 
 
-class StaticCacheMiddleware(BaseHTTPMiddleware):
-    """Add Cache-Control: max-age=1year, immutable to /static/* responses.
+class StaticCacheMiddleware:
+    """Add Cache-Control + strip vary:Cookie on /static/* responses.
 
-    Assets behind /static/* are version-busted via the ?v= query parameter
-    (e.g. app.css?v=1790018202). When the server deploys a new version,
-    the v= value changes, producing a new URL — the old URL is never
-    re-requested. Therefore these responses can be cached "forever" in
-    both browser and CDN with the immutable directive, which suppresses
-    all conditional revalidation (If-Modified-Since, ETag) for maximum
-    perf.
+    Implemented as a raw ASGI middleware (not BaseHTTPMiddleware) so we can
+    intercept the http.response.start message and remove the vary:Cookie
+    header that SessionMiddleware adds *after* BaseHTTPMiddleware.dispatch
+    has already returned its modified Response object.
 
-    Exception: /static/app.js is NEVER served with `immutable`. It is the
-    one asset whose behavior depends on bindings registered at deploy
-    time (initConfirmLinks, initSidebar, etc.), and a tab that loaded
-    /static/app.js?v=<old> before a deploy will keep using the stale JS
-    for a year under immutable — leaving confirm-modals silently dead.
-    For app.js we send `no-cache` instead, which forces a revalidation
-    (If-Modified-Since) on every navigation: ~one round trip, then 304
-    until the next deploy. The CDN still gets the benefit of validation.
+    Assets behind /static/* are version-busted via the ?v= query parameter.
+    Responses can therefore be cached "forever" with the immutable directive,
+    which suppresses all conditional revalidation (If-Modified-Since, ETag).
+
+    Exception: /static/app.js is NEVER served with `immutable`.  It carries
+    bindings registered at deploy time (initConfirmLinks, initSidebar, etc.)
+    and a tab with the old /static/app.js?v=<stale> would lose those bindings
+    silently for a full year.  We send no-cache instead, forcing
+    If-Modified-Since revalidation on every visit.
     """
 
     # Paths under /static/ that must NOT use the immutable cache header.
-    # Keep this set tiny — every entry costs a revalidation per visit.
     _REVALIDATE_PATHS = frozenset({"/static/app.js"})
 
-    async def dispatch(self, request: Request, call_next):
-        response: Response = await call_next(request)
-        if request.url.path.startswith("/static/"):
-            if request.url.path in self._REVALIDATE_PATHS:
-                response.headers["Cache-Control"] = "no-cache"
-            else:
-                response.headers["Cache-Control"] = "max-age=31536000, immutable"
-        return response
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or not scope["path"].startswith("/static/"):
+            await self.app(scope, receive, send)
+            return
+
+        path = scope["path"]
+        is_immutable = path not in self._REVALIDATE_PATHS
+        vary_stripped = False
+
+        async def wrapped_send(message: Message) -> None:
+            nonlocal vary_stripped
+            if message["type"] == "http.response.start":
+                if not vary_stripped:
+                    vary_stripped = True
+                    # Copy the message so our header mutations don't affect
+                    # SessionMiddleware.send_wrapper which holds a reference
+                    # to the original dict/list and will re-mutate the headers.
+                    message = dict(message)
+                    message["headers"] = list(message["headers"])
+
+                    new_headers = [
+                        (k, v)
+                        for k, v in message["headers"]
+                        if k.lower() != b"vary"
+                    ]
+                    message["headers"] = new_headers
+
+                # Set Cache-Control.
+                # The if above guarantees immutable is only set for immutable paths.
+                cache_value = (
+                    "no-cache"
+                    if path in self._REVALIDATE_PATHS
+                    else "max-age=31536000, immutable"
+                )
+                # Append or replace Cache-Control.
+                headers = [(k, v) for k, v in message["headers"] if k.lower() != b"cache-control"]
+                headers.append((b"cache-control", cache_value.encode()))
+                message["headers"] = headers
+
+            await send(message)
+
+        await self.app(scope, receive, wrapped_send)
 
 
 # GZip compression: ~70% bandwidth reduction on all HTML/CSS/JS responses.
@@ -378,8 +424,45 @@ app.middleware("http")(csrf_cookie_middleware)
 # Session middleware: signs cookies with SESSION_SECRET.
 # Must be added BEFORE routers so login_user() can write to request.session.
 # Same-site=lax + https-only when behind CF Tunnel (which always terminates TLS).
+class _NoVaryCookieSessionMiddleware(SessionMiddleware):
+    """SessionMiddleware that skips adding 'vary: Cookie' for static assets.
+
+    SessionMiddleware normally adds vary:Cookie to every response that accessed
+    the session, preventing browsers/CDNs from caching static assets (images,
+    CSS, fonts) independently of the session cookie.  For /static/* paths the
+    response is always identical regardless of session, so we skip the
+    vary:Cookie header there.  (Cache-Control is handled separately by
+    StaticCacheMiddleware.)
+    """
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] not in ("http", "websocket"):  # pragma: no cover
+            await self.app(scope, receive, send)
+            return
+
+        if scope["path"].startswith("/static/"):
+            # For static assets: pass through without touching the session OR
+            # the vary header.  The session signer is still initialized so
+            # login_user() can write request.session on the way through.
+            connection = HTTPConnection(scope)
+            if self.session_cookie in connection.cookies:
+                try:
+                    data = connection.cookies[self.session_cookie].encode("utf-8")
+                    data = self.signer.unsign(data, max_age=self.max_age)
+                    scope["session"] = Session(json.loads(b64decode(data)))
+                except BadSignature:
+                    scope["session"] = Session()
+            else:
+                scope["session"] = Session()
+            await self.app(scope, receive, send)
+            return
+
+        # Normal session middleware for all other paths.
+        await super().__call__(scope, receive, send)
+
+
 app.add_middleware(
-    SessionMiddleware,
+    _NoVaryCookieSessionMiddleware,
     secret_key=SESSION_SECRET,
     session_cookie="saskia_rms_session",
     max_age=60 * 60 * 24 * 7,  # 7 days
