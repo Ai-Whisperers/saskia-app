@@ -2581,6 +2581,51 @@ def _migration_060_tag_normalization(conn: Any) -> None:
     _bump_schema_version(conn, 60)
 
 
+def _migration_061_tag_validation(conn: Any) -> None:
+    """Add ingredient.tag_validation_issues column + backfill (2026-09-29).
+
+    Background: tagging/ refactor (see app/rms/tagging/audit.py) detects
+    logical contradictions in ingredient tags:
+
+      - declares 'vegano' but allergens include dairy/eggs
+      - declares 'sin gluten' but allergens include gluten
+      - declares 'vegetariano' but name suggests meat/fish
+
+    Persisted to a new TEXT column on Ingredient so the inventory page
+    can show a warning banner without re-running the audit on every
+    render. Refreshed when allergens / dietary_tags / name changes.
+
+    Idempotent: ALTER try/except, UPDATE keyed on prior value.
+    """
+    # (1) Add the column.
+    try:
+        conn.execute(
+            text("ALTER TABLE ingredient ADD COLUMN tag_validation_issues TEXT")
+        )
+    except Exception:
+        pass
+
+    # (2) Backfill via the new audit module.
+    from app.rms.db import make_engine as _make_engine
+    from app.rms.db import make_session_factory
+    from app.rms.tagging.audit import audit_all_ingredients
+
+    eng = _make_engine()
+    SessionLocal = make_session_factory(eng)
+    with SessionLocal() as s:
+        issues_by_id = audit_all_ingredients(s)
+        for iid, issues in issues_by_id.items():
+            s.execute(
+                text(
+                    "UPDATE ingredient SET tag_validation_issues = :v WHERE id = :i"
+                ),
+                {"v": "\n".join(issues), "i": iid},
+            )
+        s.commit()
+
+    _bump_schema_version(conn, 61)
+
+
 def _migration_005_customer(conn: Any) -> None:
     """Add Customer table + Sale.customer_id FK (E13).
 
@@ -2652,6 +2697,7 @@ MIGRATIONS = {
     58: _migration_058_ingredient_expiry,
     59: _migration_059_product_mayorista,
     60: _migration_060_tag_normalization,
+    61: _migration_061_tag_validation,
 }
 
 

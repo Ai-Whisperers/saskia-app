@@ -38,23 +38,21 @@ from app.rms.models import (
     SaleStockMove,
     WasteLog,
 )
-from app.rms.tag_algebra import _split_tags
+from app.rms.tagging.cache import _split_tags
 
 # ───────────────────────────────────────────────────────────────────────────
 # 1. Customer-allergen guard
 # ───────────────────────────────────────────────────────────────────────────
-
 # Canonical Spanish allergen words customers use, mapped to our codes.
-_CUSTOMER_ALLERGEN_WORDS: dict[str, str] = {
-    "gluten": "gluten", "trigo": "gluten", "harina": "gluten", "celia": "gluten",
-    "lactosa": "dairy", "leche": "dairy", "lácteos": "dairy", "lacteo": "dairy",
-    "huevo": "eggs", "huevos": "eggs",
-    "frutos secos": "nuts", "nueces": "nuts", "nuez": "nuts", "almendra": "nuts",
-    "maní": "nuts", "mani": "nuts", "cacahuete": "nuts", "avellana": "nuts",
-    "soja": "soy", "soya": "soy",
-    "sésamo": "sesame", "sesamo": "sesame", "ajonjolí": "sesame",
-    "sulfitos": "sulfites", "sulfito": "sulfites",
-}
+#
+# As of the 2026-09-29 tagging/ refactor, the canonical vocabulary lives
+# in app.rms.tagging.vocabulary.CUSTOMER_ALLERGEN_WORDS. This shim is kept
+# for backwards compatibility with code that imports the underscore-prefixed
+# name from this module. New code should use the public re-export from
+# app.rms.tagging.
+from app.rms.tagging.vocabulary import (
+    CUSTOMER_ALLERGEN_WORDS as _CUSTOMER_ALLERGEN_WORDS,
+)
 
 
 def parse_customer_allergies(notes: str | None) -> list[str]:

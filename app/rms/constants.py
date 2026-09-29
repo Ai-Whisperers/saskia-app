@@ -170,19 +170,15 @@ __all__ = [
     "VALID_TAX_REGIMES",
 ]
 
-# ── Tag algebra (2026-09-24) ──────────────────────────────────────────────
-# Canonical Paraguayan bakery dietary-tag vocabulary used as the default
-# intersection domain when deriving recipe tags (app/rms/tag_algebra.py).
-# Operators extend per-installation via the `tag` table (kind='recipe').
-CANONICAL_DIETARY_TAGS: tuple[str, ...] = (
-    "sin gluten",
-    "sin tacc",
-    "sin lactosa",
-    "sin huevo",
-    "sin frutos secos",
-    "vegano",
-    "vegetariano",
-    "sin azúcar",
-    "integral",
-    "orgánico",
+# ── Tag algebra (2026-09-24, refactored 2026-09-29) ──────────────────────
+# Canonical Paraguayan bakery dietary-tag vocabulary. Single source of
+# truth lives in app/rms/tagging/vocabulary.py — this re-export preserves
+# backwards compatibility for code paths that still import from constants.
+# New code should import from app.rms.tagging.vocabulary (or the
+# app.rms.tagging package's __init__).
+from app.rms.tagging.vocabulary import (
+    CANONICAL_DIETARY_TAGS as _CANONICAL_DIETARY_TAGS_FROZENSET,
 )
+
+# Backwards-compat tuple (legacy code expects mutable indexable tuple).
+CANONICAL_DIETARY_TAGS: tuple[str, ...] = tuple(_CANONICAL_DIETARY_TAGS_FROZENSET)

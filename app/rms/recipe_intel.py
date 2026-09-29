@@ -167,56 +167,43 @@ def infer_difficulty(recipe: Recipe, ingredient_count: int, sub_recipe_depth: in
 def infer_recipe_dietary(session: Session, recipe: Recipe) -> set[str]:
     """Recipe is vegan/vegetarian/etc. only if ALL ingredients qualify.
 
-    Returns set of tags. Recipe has no tag if any ingredient disqualifies it.
+    Returns set of English-form tag labels (legacy contract).
+
+    Backwards-compat shim: delegates to the canonical derivation in
+    app.rms.tagging.derive.derive_recipe_tags. The intersection rule is
+    identical; the new module additionally handles:
+      - sub-recipe recursion (operator-claimed dietary_tags no longer
+        silently blocks the parent)
+      - sin tacc cross-contamination (may_contain_gluten)
+      - the neutrals allow-list (water/salt/spices never block)
+      - dietary_tags cross-check (a claim overrides a heuristic match)
+      - English→Spanish normalization at the read boundary
+
+    Kept in place because classify_recipe() / classify_all_recipes() and
+    external scripts import it. New code should use
+    derive_recipe_tags().dietary directly.
     """
-    ingredients = _recipe_ingredients(session, recipe)
-    if not ingredients:
-        return set()
+    from app.rms.tagging.classify import TAG_ALIASES
+    from app.rms.tagging.derive import derive_recipe_tags
 
-    # For each ingredient, determine which categories it disqualifies:
-    # - not vegan: contains animal-product keywords
-    # - not vegetarian: contains meat/fish (we don't have these in our seed, so
-    #   anything with dairy/eggs is still vegetarian)
-    # - not gluten_free: contains gluten
-    # - not keto_friendly: sugar/flour (sugar-heavy)
-    has_animal = False
-    has_meat_fish = False  # dairy/eggs OK for vegetarian; meat/fish not.
-    has_gluten = False
-    has_sugar = False
-
-    animal_keywords = ("leche", "crema", "manteca", "mantequilla", "yogur",
-                       "queso", "huevo", "carne", "pollo", "pescado",
-                       "dulce de leche")
-    meat_fish_keywords = ("carne", "pollo", "pescado", "cerdo", "res",
-                          "atún", "marisco")
-    gluten_keywords = ("harina", "trigo", "avena", "cebada", "centeno",
-                       "malta")
-    sugar_keywords = ("azúcar", "miel", "glucosa", "dextrosa", "jarabe",
-                      "fécula", "maicena")
-
-    for ing in ingredients:
-        n = (ing.name or "").lower()
-        if any(kw in n for kw in animal_keywords):
-            has_animal = True
-        if any(kw in n for kw in meat_fish_keywords):
-            has_meat_fish = True
-        if any(kw in n for kw in gluten_keywords):
-            has_gluten = True
-        if any(kw in n for kw in sugar_keywords):
-            # stevia is sugar-substitute, allowed for keto
-            if "stevia" not in n:
-                has_sugar = True
-
-    tags: set[str] = set()
-    if not has_meat_fish:
-        tags.add("vegetarian")
-    if not has_animal:
-        tags.add("vegan")
-    if not has_gluten:
-        tags.add("gluten_free")
-    if not has_sugar:
-        tags.add("keto_friendly")
-    return tags
+    d = derive_recipe_tags(session, recipe.id)
+    out: set[str] = set()
+    for canonical in d.dietary:
+        # canonical Spanish → English inverse; reverse alias map.
+        # Build on each call is fine — vocab is small and this is
+        # only called from classify_recipe paths.
+        for eng, es in TAG_ALIASES.items():
+            if es == canonical and eng in {
+                "vegan", "vegetarian", "gluten_free", "sugar_free",
+                "keto_friendly", "lactose_free", "egg_free", "nut_free",
+            }:
+                out.add(eng)
+                break
+        else:
+            # Tags with no English alias (e.g. 'integral', 'orgánico',
+            # 'sin tacc') — fall back to canonical Spanish.
+            out.add(canonical)
+    return out
 
 
 # ---------------------------------------------------------------------------

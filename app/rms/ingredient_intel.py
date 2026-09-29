@@ -135,17 +135,15 @@ _ROLE_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
 
 # Allergens — present in this ingredient.
 # Aligned with INAN Resolución S.G. N° 402/2018 + 614/2023 allergen list.
-_ALLERGEN_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
-    "gluten": ("harina", "trigo", "avena", "cebada", "centeno", "malta", "espelta"),
-    "dairy": ("leche", "crema", "manteca", "mantequilla", "yogur",
-              "queso", "queso crema", "ricota", "requesón", "dulce de leche"),
-    "eggs": ("huevo", "huevos", "clara", "yema", "ovoalbúmina"),
-    "nuts": ("almendra", "nuez", "nueces", "avellana", "pistacho", "maní",
-             "castaña", "pecán", "macadamia"),
-    "soy": ("soja", "lec[hi]tina de soja", "tofu"),
-    "sesame": ("sésamo", "ajonjolí"),
-    "sulfites": ("sulfito", "metabisulfito"),
-}
+#
+# As of the 2026-09-29 tagging/ refactor, the canonical allergen-keyword
+# table lives in app/rms.tagging.vocabulary.ALLERGEN_KEYWORDS. This
+# `_ALLERGEN_KEYWORDS` shim is kept for backwards compatibility with any
+# external code that imports it directly (tests, scripts, third-party
+# integrations). New code should import from app.rms.tagging.vocabulary.
+from app.rms.tagging.vocabulary import (  # noqa: F401
+    ALLERGEN_KEYWORDS as _ALLERGEN_KEYWORDS,
+)
 
 # Default shelf-life (days) per category.
 CATEGORY_SHELF_LIFE: Final[dict[str, int]] = {
@@ -221,76 +219,30 @@ def infer_role(name: str) -> str:
 
 
 def infer_allergens(name: str) -> list[str]:
-    """Return sorted list of allergens present."""
-    norm = _normalize(name)
-    found = []
-    for allergen, keywords in _ALLERGEN_KEYWORDS.items():
-        for kw in keywords:
-            if kw in norm:
-                found.append(allergen)
-                break
-    return sorted(found)
+    """Return sorted list of allergens present.
+
+    Thin shim over app.rms.tagging.classify.infer_allergens — kept here
+    for backwards compatibility with the original public API. New code
+    should import from app.rms.tagging.classify.
+    """
+    from app.rms.tagging.classify import infer_allergens as _impl
+    return _impl(name)
 
 
 def infer_dietary_tags(name: str) -> list[str]:
     """Dietary tags this ingredient fits.
 
-    Rules:
-    - meat/fish/poultry present → not vegan, not vegetarian
-    - any other animal product (dairy/eggs/honey) → not vegan, vegetarian OK
-    - no animal product + no honey → vegan
-    - contains wheat/barley/etc → not gluten_free
-    - sugar/flour/syrup → not keto (stevia/erythritol are OK)
+    Backwards-compat shim. The canonical implementation now lives in
+    app/rms.tagging.classify; this wrapper preserves the legacy contract
+    (returns English-form labels) for the inventory auto-suggest flow
+    while the rest of the system uses normalize() to map to Spanish.
+
+    Returns English labels like 'vegan', 'vegetarian', 'gluten_free',
+    'keto_friendly' — same as before. The recipe derivation normalizes
+    these through TAG_ALIASES at the read boundary.
     """
-    norm = _normalize(name)
-    allergens = set(infer_allergens(name))
-
-    tags: list[str] = []
-
-    # Animal-product keywords.
-    # Dairy/eggs/honey → not vegan, but vegetarian OK.
-    # Meat/fish/poultry → not vegan, not vegetarian.
-    dairy_egg_honey = (
-        "leche", "crema", "manteca", "mantequilla", "yogur",
-        "queso", "queso crema", "ricota", "requesón",
-        "huevo", "huevos", "clara", "yema",
-        "dulce de leche", "miel", "gelatina",
-    )
-    meat_fish = (
-        "carne", "pollo", "cerdo", "res", "pavo",
-        "pescado", "atún", "marisco", "pechuga", "panceta",
-        "chorizo", "jamón",
-    )
-    has_dairy_egg_honey = any(kw in norm for kw in dairy_egg_honey)
-    has_meat_fish = any(kw in norm for kw in meat_fish)
-
-    if has_meat_fish:
-        pass  # neither vegan nor vegetarian
-    else:
-        # Anything without meat (plants, dairy, eggs) is vegetarian.
-        tags.append("vegetarian")
-        if not has_dairy_egg_honey:
-            # Pure plant-based: also vegan.
-            tags.append("vegan")
-
-    # Gluten check
-    if "gluten" not in allergens:
-        tags.append("gluten_free")
-
-    # Keto: zero/low carb. Sugar + flour disqualify.
-    sugar_or_flour = any(
-        kw in norm
-        for kw in (
-            "azúcar", "harina", "maicena", "miel", "glucosa",
-            "dextrosa", "fécula", "jarabe", "melaza",
-            "panela", "rapadura", "almidón", "mandioca",
-        )
-    )
-    is_keto_sweetener = any(kw in norm for kw in ("stevia", "eritritol"))
-    if not sugar_or_flour or is_keto_sweetener:
-        tags.append("keto_friendly")
-
-    return sorted(tags)
+    from app.rms.tagging.classify import infer_dietary_tags as _impl
+    return _impl(name)
 
 
 def infer_shelf_life_days(name: str) -> int:

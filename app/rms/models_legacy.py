@@ -83,6 +83,12 @@ class Ingredient(Base):
     role: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     allergens: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     dietary_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Migration 061: pre-computed list of logical contradictions in this
+    # ingredient's tags (e.g. "declares 'vegano' but allergens include dairy").
+    # Newline-separated. NULL = no issues or never computed.
+    # Populated by app.rms.tagging.audit.backfill_validation_issues() and
+    # refreshed whenever allergens / dietary_tags / name changes.
+    tag_validation_issues: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     lead_time_days: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
     supplier_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("supplier.id"), nullable=True, index=True
