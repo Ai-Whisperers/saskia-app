@@ -52,7 +52,7 @@ def test_seed_inserts_all_entity_types(session_factory):
         # Count assertions
         assert report.ingredients == 30, f"expected 30 ingredients, got {report.ingredients}"
         assert report.recipes == 12, f"expected 12 recipes, got {report.recipes}"
-        assert report.products == 20, f"expected 20 products, got {report.products}"
+        assert report.products == 21, f"expected 21 products (20 catalog + 1 Venta libre), got {report.products}"
         assert report.recipe_lines > 60, f"expected >60 recipe_lines, got {report.recipe_lines}"
         assert report.sales >= 200, f"expected >=200 sales, got {report.sales}"
         assert report.stock_moves > 100, f"expected >100 stock_moves, got {report.stock_moves}"
@@ -69,7 +69,7 @@ def test_seed_inserts_all_entity_types(session_factory):
         assert len(n_recipes) == 12
 
         n_products = session.execute(select(Product)).scalars().all()
-        assert len(n_products) == 20
+        assert len(n_products) == 21, f"expected 21 products (20 catalog + 1 Venta libre), got {len(n_products)}"
 
         n_sales = session.execute(select(Sale)).scalars().all()
         assert len(n_sales) >= 200
@@ -301,10 +301,16 @@ def test_no_pii_in_seeded_data(session_factory):
         expected_recipe_names = {row[0] for row in RECIPES}
         assert recipe_names == expected_recipe_names
 
-        # All product names should be in PRODUCTS
+        # All product names should be in PRODUCTS (+ Venta libre added by
+        # E13.S2 for the cashier-typed-price flow — kept out of PRODUCTS so
+        # the operator can toggle sale_price_gs=0 + custom pricing without
+        # polluting the catalog list).
         product_names = {row.name for row in session.execute(select(Product)).scalars()}
-        expected_product_names = {row[0] for row in PRODUCTS}
-        assert product_names == expected_product_names
+        expected_product_names = {row[0] for row in PRODUCTS} | {"Venta libre"}
+        assert product_names == expected_product_names, (
+            f"unexpected product names: {product_names - expected_product_names}; "
+            f"missing: {expected_product_names - product_names}"
+        )
     finally:
         session.close()
 
