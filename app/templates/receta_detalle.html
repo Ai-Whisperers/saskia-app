@@ -205,8 +205,7 @@
       <h2 class="card-title">Secuencia Completa de Preparación (Incluye Sub-recetas)</h2>
       <p class="text-sm text-muted">Procedimiento paso a paso para la base y el ensamblaje de sus sub-recetas.</p>
     </div>
-    {% import json %}
-    {% set phases = json.loads(recipe.instructions) %}
+    {% set phases = recipe_phases %}
     {% if phases %}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:var(--space-3);margin-top:var(--space-3);">
       {% for phase in phases %}
