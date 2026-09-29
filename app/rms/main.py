@@ -32,7 +32,13 @@ from fastapi.staticfiles import StaticFiles as _StaticFiles  # noqa: F401  (re-e
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
-from starlette.middleware.sessions import SessionMiddleware, Session
+from starlette.middleware.sessions import SessionMiddleware
+try:
+    from starlette.middleware.sessions import Session
+except ImportError:
+    # Newer starlette versions removed Session; provide a minimal stub.
+    class Session(dict):
+        pass
 from starlette.requests import HTTPConnection
 from starlette.datastructures import MutableHeaders
 from itsdangerous.exc import BadSignature
