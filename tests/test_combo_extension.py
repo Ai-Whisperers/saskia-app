@@ -1,21 +1,14 @@
 """Tests for the reusable saskia-combo component and recipe-form/merma
 conversions to it.
 
-NOTE 2026-09-29: Combo UI conversion is partially in-progress (US 2.1 / 3.1).
-Tests marked xfail; remove the marker when each ship.
+NOTE 2026-09-29: US 2.1 / 3.1 partial shipping — combo infrastructure
+done; recipe form + merma form conversion still pending.
 """
 
 import pytest
 
-pytestmark = pytest.mark.xfail(
-    reason="US 2.1 / 3.1 combo UI conversion not fully shipped.",
-    strict=False,
-)
-
-import pytest
-
 # ──────────────────────────────────────────────────────────────────────
-# Combo infrastructure
+# Combo infrastructure — SHIPPED 2026-09-29
 # ──────────────────────────────────────────────────────────────────────
 
 def test_combo_js_is_served(client):

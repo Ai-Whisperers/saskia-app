@@ -472,6 +472,17 @@ app.add_middleware(
 # Mount static files (CSS, images, etc.) so templates can link /static/app.css
 _static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
 if os.path.isdir(_static_dir):
+    # ── combo component alias — must be registered BEFORE app.mount("/static")
+    # so the explicit route wins over the StaticFiles catch-all. The combo
+    # Web Component lives at saskia-combo.js; /static/combo.js is kept as a
+    # legacy alias so existing templates + tests still resolve.
+    @app.get("/static/combo.js", include_in_schema=False)
+    def _combo_js_alias() -> FileResponse:
+        return FileResponse(
+            os.path.join(_static_dir, "saskia-combo.js"),
+            media_type="application/javascript",
+        )
+
     # Use ReadyStaticFiles to gate on app.state.ready — without this, the
     # browser fetches /static/app.css during Render cold-start (5-30s) and
     # gets broken CSS. With the gate, the browser sees a clean 503 that

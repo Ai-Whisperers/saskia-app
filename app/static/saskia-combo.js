@@ -106,7 +106,8 @@ TODOs (for tomorrow's full implementation):
       </svg>
     </button>
     <div class="panel" role="listbox">
-      <input type="text" class="search" aria-label="Buscar" placeholder="Buscar…">
+      <input type="text" class="search combo-input" aria-label="Buscar" placeholder="Buscar…">
+      <span class="combo-input" hidden></span>
       <ul class="results" role="presentation"></ul>
     </div>
   `;
@@ -128,8 +129,10 @@ TODOs (for tomorrow's full implementation):
     }
 
     static get observedAttributes() {
-      return ['value', 'display', 'name', 'placeholder', 'endpoint', 'src', 'disabled',
-              'value-field', 'label-field', 'allow-create'];
+      // data-source is an alias for endpoint (compatibility with combo v1 markup
+      // and tests that reference data-source= directly).
+      return ['value', 'display', 'name', 'placeholder', 'endpoint', 'data-source',
+              'src', 'disabled', 'value-field', 'label-field', 'allow-create'];
     }
 
     connectedCallback() {
@@ -166,7 +169,8 @@ TODOs (for tomorrow's full implementation):
     _parseAttributes() {
       this._value = this.getAttribute('value') || null;
       this._display = this.getAttribute('display') || null;
-      this._endpoint = this.getAttribute('endpoint') || null;
+      // data-source is an alias for endpoint.
+      this._endpoint = this.getAttribute('endpoint') || this.getAttribute('data-source') || null;
       this._src = this._parseAttrJSON('src') || [];
     }
 
@@ -367,7 +371,26 @@ TODOs (for tomorrow's full implementation):
         li.setAttribute('role', 'option');
         li.dataset.value = item.value;
         li.dataset.display = item.label || item.value;
-        li.textContent = item.label || item.value;
+        // row-label: allow per-instance row renderer (combo-rows.js builders).
+        // Lookup happens on each render so a later-loaded combo-rows.js still wins.
+        const rowLabelName = self.getAttribute('row-label');
+        const rowLabelFn =
+          (rowLabelName && typeof window[rowLabelName] === 'function')
+            ? window[rowLabelName]
+            : (typeof window.defaultRowLabel === 'function' ? window.defaultRowLabel : null);
+        if (rowLabelFn) {
+          try {
+            const html = rowLabelFn(item);
+            // row builders return safe HTML (they escape internally).
+            li.innerHTML = html || escapeHtml(item.label || item.value);
+          } catch (err) {
+            li.textContent = item.label || item.value;
+          }
+        } else {
+          // Inline minimal escaper so we never assign raw value to innerHTML.
+          const raw = item.label || item.value || '';
+          li.textContent = raw;
+        }
         if (String(item.value) === String(self._value)) li.classList.add('selected');
         li.addEventListener('click', function () { self._selectItem(item); });
         li.addEventListener('mouseenter', function () { self._setActiveIdx(idx); });

@@ -1,0 +1,206 @@
+/* combobox.css — styles for the <saskia-combo> Web Component. */
+
+/* Root element — the input trigger */
+saskia-combo {
+  display: block;
+  position: relative;
+  width: 100%;
+}
+
+saskia-combo .saskia-combo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 0.5rem);
+  width: 100%;
+  height: var(--input-height, 40px);
+  padding: 0 var(--space-3, 0.75rem);
+  background: var(--input-bg, var(--color-surface, #fff));
+  color: var(--input-color, var(--color-text, #111));
+  border: 1px solid var(--input-border, var(--color-border, #d1d5db));
+  border-radius: var(--input-radius, 6px);
+  font-family: inherit;
+  font-size: var(--text-sm, 0.875rem);
+  cursor: pointer;
+  transition: border-color var(--duration-fast, 150ms) var(--ease-out, ease),
+              box-shadow var(--duration-fast, 150ms) var(--ease-out, ease);
+}
+
+saskia-combo .saskia-combo:hover {
+  border-color: var(--color-border-strong, #9ca3af);
+}
+
+saskia-combo .saskia-combo.is-focused {
+  border-color: var(--input-border-focus, var(--color-accent, #f97316));
+  box-shadow: 0 0 0 3px var(--color-accent-soft, rgba(249, 115, 22, 0.12));
+  outline: none;
+}
+
+/* The visible text input inside the combo */
+saskia-combo input.combo-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  outline: none;
+  padding: 0;
+  height: 100%;
+  min-width: 0;
+}
+
+saskia-combo input.combo-input::placeholder {
+  color: var(--color-text-subtle, #6b7280);
+}
+
+/* Caret / clear button */
+saskia-combo .combo-caret,
+saskia-combo .combo-clear {
+  flex-shrink: 0;
+  width: 1em;
+  height: 1em;
+  color: var(--color-text-muted, #6b7280);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+saskia-combo .combo-clear:hover {
+  color: var(--color-text, #111);
+}
+
+/* Dropdown panel */
+saskia-combo .combo-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: var(--z-dropdown, 100);
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--color-surface-raised, #fff);
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: var(--radius, 6px);
+  box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
+  padding: var(--space-1, 0.25rem) 0;
+}
+
+/* Empty / loading / error states */
+saskia-combo .combo-empty,
+saskia-combo .combo-loading,
+saskia-combo .combo-error {
+  padding: var(--space-3, 0.75rem);
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--color-text-muted, #6b7280);
+  text-align: center;
+}
+
+saskia-combo .combo-error {
+  color: var(--color-danger, #dc2626);
+}
+
+/* Individual row in the dropdown */
+.combo-row,
+saskia-combo .combo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 0.75rem);
+  padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+  cursor: pointer;
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--color-text, #111);
+  user-select: none;
+}
+
+.combo-row:hover,
+saskia-combo .combo-row:hover,
+.combo-row.is-active,
+saskia-combo .combo-row.is-active {
+  background: var(--color-surface-subtle, #f3f4f6);
+}
+
+.combo-row.is-selected,
+saskia-combo .combo-row.is-selected {
+  background: var(--color-accent-soft, rgba(249, 115, 22, 0.12));
+  color: var(--color-accent, #f97316);
+}
+
+.combo-row .combo-row-main,
+saskia-combo .combo-row .combo-row-main {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.combo-row .combo-row-sub,
+saskia-combo .combo-row .combo-row-sub {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--color-text-muted, #6b7280);
+  flex-shrink: 0;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.combo-row .combo-row-badge,
+saskia-combo .combo-row .combo-row-badge {
+  font-size: var(--text-xs, 0.75rem);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--color-surface-subtle, #f3f4f6);
+  color: var(--color-text-muted, #6b7280);
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.combo-row .combo-row-stock.is-out,
+saskia-combo .combo-row .combo-row-stock.is-out {
+  background: var(--color-danger-soft, rgba(239, 68, 68, 0.12));
+  color: var(--color-danger-fg, #991b1b);
+}
+
+.combo-row .combo-row-stock.is-low,
+saskia-combo .combo-row .combo-row-stock.is-low {
+  background: var(--color-warn-soft, rgba(245, 158, 11, 0.12));
+  color: var(--color-warn-fg, #92400e);
+}
+
+.combo-row .combo-row-stock.is-ok,
+saskia-combo .combo-row .combo-row-stock.is-ok {
+  background: var(--color-success-soft, rgba(34, 197, 94, 0.12));
+  color: var(--color-success-fg, #166534);
+}
+
+.combo-row--new,
+saskia-combo .combo-row--new {
+  background: var(--color-warn-soft, rgba(245, 158, 11, 0.12));
+  color: var(--color-warn-fg, #92400e);
+  border-left: 3px solid var(--color-warn, #f59e0b);
+}
+
+.combo-row--recipe,
+saskia-combo .combo-row--recipe {
+  font-style: italic;
+}
+
+/* Disabled state */
+saskia-combo[disabled] .saskia-combo,
+saskia-combo.is-disabled .saskia-combo {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Form integration: hide the saskia-combo element itself when paired
+   with a hidden native input (fallback for browsers without Web Components) */
+saskia-combo[hidden] {
+  display: none !important;
+}
