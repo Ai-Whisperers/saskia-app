@@ -81,7 +81,7 @@
 - **In-app:** `Decimal` (never `float`).
 - **Persistence:** `app/rms/money.py:to_int_gs()` is the ONLY allowed path.
 - **Display:** `app/rms/money.py:format_gs()` (Paraguayan: `Gs. 1.234.567`).
-- **Parsing user input:** `app/rms/money.py:parse_gs()` (strict; rejects negatives, decimals).
+- **Parsing user input:** `app/rms/money.py:parse_gs()` (strict; rejects negatives, decimals, malformed). For HTTP-shaped routes that need Spanish HTTPException(400) + int/float/None coercion + optional `allow_zero`, use the wrapper `app/rms.validation.parse_money_gs()` which delegates to `parse_gs` under the hood. **Do not** write a third parser — keep `parse_gs` as the single source of truth for the Gs. grammar.
 
 ## Error handling
 

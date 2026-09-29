@@ -19,6 +19,7 @@ from typing import Final
 
 from fastapi import HTTPException
 
+from app.rms.money import parse_gs
 from app.rms.units import Unit
 
 # Paraguay phone formats we accept:
@@ -84,32 +85,65 @@ def optional_int(value: str | int | None, *, default: int | None = None) -> int 
         return default
 
 
-def parse_money_gs(value: str | int | float | None, *, allow_zero: bool = True) -> int:
-    """Parse a money string into integer Gs.
+def parse_money_gs(
+    value: str | int | float | None, *, allow_zero: bool = True
+) -> int:
+    """Parse a money string into integer Gs., HTTP-shaped wrapper around parse_gs.
 
-    Rejects negative unless allow_zero=False. Accepts:
-      - "12.500" → 12500 (dot-separated thousands, Paraguay style)
-      - "12,500" → 12500 (US style)
-      - "Gs. 6.500" → 6500 (with currency prefix)
-      - "12500" → 12500 (plain integer)
-    Negative numbers and zero (when allow_zero=False) raise Spanish 400.
+    The canonical parser is :func:`app.rms.money.parse_gs` — it handles the
+    full grammar (digit groups, thousands separators, currency prefixes,
+    rejects negatives/decimals/malformed). This wrapper exists for
+    FastAPI routes that need:
+
+      - Spanish HTTPException(400) on bad input (instead of ValueError)
+      - int / float / None coercion (form data is sometimes already
+        a number — FastAPI parses "12500" as int when the input
+        type is declared)
+      - An optional ``allow_zero`` flag (the canonical parser
+        treats zero as a valid amount; some forms require nonzero)
+
+    Examples (all raise HTTPException(400, ...) on the unhappy path):
+        >>> parse_money_gs("12.500")
+        12500
+        >>> parse_money_gs("Gs. 6.500")
+        6500
+        >>> parse_money_gs("₲12500")
+        12500
+        >>> parse_money_gs(12500)
+        12500
+        >>> parse_money_gs(None)
+        Traceback (most recent exception being shown): ...
+        fastapi.exceptions.HTTPException: 400: Precio es obligatorio
     """
     if value is None or value == "":
         raise HTTPException(status_code=400, detail="Precio es obligatorio")
+    # Coerce numeric inputs (FastAPI sometimes hands us int/float when
+    # the form field is declared as a number type). Always go through
+    # parse_gs with a string so the parser sees one input shape.
     if isinstance(value, (int, float)):
-        amount = int(value)
+        s = str(int(value)) if isinstance(value, float) and value.is_integer() else str(value)
     else:
-        # Strip currency prefix/suffix and grouping separators.
-        s = str(value).strip()
-        # Remove "Gs.", "G$", "$", "₲" prefixes (with optional whitespace)
-        import re as _re
-        s = _re.sub(r"^\s*(?:Gs\.?|G\$|₲|\$)\s*", "", s, flags=_re.IGNORECASE)
-        s = s.replace(".", "").replace(",", "").strip()
-        if not s or not s.lstrip("-").isdigit():
+        s = value
+
+    # Delegate the strict grammar check to parse_gs (single source of
+    # truth). Translate ValueError → Spanish HTTP 400, preserving the
+    # distinction callers depend on: "negativo" vs "inválido".
+    try:
+        amount = parse_gs(s)
+    except ValueError as exc:
+        msg = str(exc).lower()
+        if "negatives not allowed" in msg:
             raise HTTPException(
-                status_code=400, detail=f"Precio inválido: {value!r}"
-            )
-        amount = int(s)
+                status_code=400, detail="Precio no puede ser negativo"
+            ) from exc
+        # "empty string" or any other parse failure → "inválido".
+        raise HTTPException(
+            status_code=400, detail=f"Precio inválido: {value!r}"
+        ) from exc
+
+    # parse_gs already rejects negatives via the ValueError branch
+    # above, so this defensive check only triggers if parse_gs ever
+    # starts accepting them.
     if amount < 0:
         raise HTTPException(status_code=400, detail="Precio no puede ser negativo")
     if amount == 0 and not allow_zero:

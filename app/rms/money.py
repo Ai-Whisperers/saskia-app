@@ -156,6 +156,11 @@ def parse_gs(s: str) -> int:
         if cleaned.startswith(prefix):
             cleaned = cleaned[len(prefix) :].strip()
             break
+    # Also strip currency symbols: ₲ (Guarani unicode), G$ (rare), $
+    for prefix in ("₲", "G$", "$"):
+        if cleaned.startswith(prefix):
+            cleaned = cleaned[len(prefix) :].strip()
+            break
     # A valid Gs. amount is digits with optional periods or commas as
     # thousands separators (every 3 digits from the right). Patterns accepted:
     #   "1234567"      no separators
