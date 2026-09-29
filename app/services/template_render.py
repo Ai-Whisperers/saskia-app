@@ -11,13 +11,15 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from app.rms.config import ASUNCION_TZ
+
 # Single global Jinja2Templates instance; uses the app's templates dir.
 templates = Jinja2Templates(directory="app/templates")
 
 
 # Globals exposed to all templates
 def _now_year() -> int:
-    return datetime.now().year
+    return datetime.now(ASUNCION_TZ).year
 
 
 def _now():
@@ -42,7 +44,7 @@ def _now():
     tz is set to America/Asuncion (server runtime tz), `datetime.now()`
     returns the Asuncion local time without tzinfo.
     """
-    return datetime.now()
+    return datetime.now(ASUNCION_TZ)
 
 
 def _now_local():
@@ -190,7 +192,7 @@ def _now_str() -> str:
         _n = datetime.now(ASUNCION_TZ)
         return f"{_DIAS[_n.weekday()]} {_n.day} {_MESES[_n.month-1]} {_n.year} · {_n.strftime('%H:%M')}"  # locale set below
     except Exception:  # noqa: BLE001 — defensive default
-        return datetime.now().strftime("%d/%m/%Y %H:%M")
+        return datetime.now(ASUNCION_TZ).strftime("%d/%m/%Y %H:%M")
 
 
 templates.env.globals["now_str"] = _now_str
@@ -199,10 +201,9 @@ templates.env.globals["now_str"] = _now_str
 def _greeting() -> str:
     """Time-aware Spanish greeting (Asunción tz)."""
     try:
-        from app.rms.config import ASUNCION_TZ
         h = datetime.now(ASUNCION_TZ).hour
     except Exception:  # noqa: BLE001 — defensive default
-        h = datetime.now().hour
+        h = datetime.now(ASUNCION_TZ).hour
     if 12 <= h < 19:
         return "Buenas tardes"
     if h >= 19 or h < 4:

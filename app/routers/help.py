@@ -51,17 +51,13 @@ def _md_to_html(md_text: str) -> str:
             return "<pre>" + "\n".join(table_buf) + "</pre>"
         # First row = headers.
         header = [c.strip() for c in rows[0].strip("|").split("|")]
-        body_rows = []
-        for r in rows[1:]:
-            body_rows.append([c.strip() for c in r.strip("|").split("|")])
+        body_rows = [[c.strip() for c in r.strip("|").split("|")] for r in rows[1:]]
         html = ["<table class=\"data\"><thead><tr>"]
-        for h in header:
-            html.append(f"<th>{_inline(h)}</th>")
+        html.extend(f"<th>{_inline(h)}</th>" for h in header)
         html.append("</tr></thead><tbody>")
         for row in body_rows:
             html.append("<tr>")
-            for cell in row:
-                html.append(f"<td>{_inline(cell)}</td>")
+            html.extend(f"<td>{_inline(cell)}</td>" for cell in row)
             html.append("</tr>")
         html.append("</tbody></table>")
         return "".join(html)

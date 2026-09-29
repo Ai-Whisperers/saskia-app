@@ -97,8 +97,8 @@ def healthz_errors(request: Request) -> JSONResponse:
             content={"status": "warming_up"},
         )
 
-    from app.rms.models import AuditLog
     from app.rms.config import ASUNCION_TZ
+    from app.rms.models import AuditLog
 
     now = datetime.now(ASUNCION_TZ)
     last_1h = now - timedelta(hours=1)

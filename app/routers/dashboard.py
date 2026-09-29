@@ -176,7 +176,7 @@ def _compliance_alerts(session: Session) -> list[dict]:
 
     from app.rms.models import ComplianceInfo
 
-    today = date.today()
+    today = datetime.now(ASUNCION_TZ).date()
     alerts: list[dict] = []
 
     ci = session.get(ComplianceInfo, 1)
@@ -187,7 +187,8 @@ def _compliance_alerts(session: Session) -> list[dict]:
         if not s:
             return None
         try:
-            return datetime.strptime(s, "%Y-%m-%d").date()
+            dt = datetime.strptime(s, "%Y-%m-%d").replace(tzinfo=ASUNCION_TZ)
+            return dt.date()
         except (ValueError, TypeError):
             return None
 
@@ -275,8 +276,8 @@ async def dashboard(
     if period == "custom" and start and end:
         try:
             from datetime import datetime as dt_cls
-            start_dt = dt_cls.strptime(start, "%Y-%m-%d")
-            end_dt = dt_cls.strptime(end, "%Y-%m-%d")
+            start_dt = dt_cls.strptime(start, "%Y-%m-%d").replace(tzinfo=ASUNCION_TZ)
+            end_dt = dt_cls.strptime(end, "%Y-%m-%d").replace(tzinfo=ASUNCION_TZ)
             range_start = start_dt.replace(hour=0, minute=0, second=0, microsecond=0)
             range_end = end_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
         except ValueError:

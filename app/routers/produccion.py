@@ -25,6 +25,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import require_login_or_disabled as require_login
+from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
 from app.rms.models import Pedido, PedidoLine, Product, ProductionPlanOverride, Recipe, Sale
 from app.rms.production import plan_production
@@ -206,8 +207,8 @@ def produccion_worksheet(
 
         # Sales data for this month (actual sales)
         from datetime import timezone as tz_cls
-        month_end_dt = datetime(year, mon, ndays, 23, 59, 59).replace(tzinfo=tz_cls.utc)
-        month_start_dt = datetime(year, mon, 1, 0, 0, 0).replace(tzinfo=tz_cls.utc)
+        month_end_dt = datetime(year, mon, ndays, 23, 59, 59, tzinfo=tz_cls.utc)
+        month_start_dt = datetime(year, mon, 1, 0, 0, 0, tzinfo=tz_cls.utc)
         sales_rows = session.execute(
             select(
                 Sale.product_id, Product.name, func.sum(Sale.qty), func.count(Sale.id)
@@ -461,7 +462,7 @@ def produccion_template_fork_week(
     from datetime import datetime as _dt
     from datetime import timedelta as _td
     try:
-        src = _dt.strptime(from_date, "%Y-%m-%d").date()
+        src = _dt.strptime(from_date, "%Y-%m-%d").replace(tzinfo=ASUNCION_TZ).date()
     except (TypeError, ValueError):
         raise HTTPException(status_code=400, detail="from_date debe ser YYYY-MM-DD") from None
     # Source week: Monday-of(src.date()) .. Monday+6

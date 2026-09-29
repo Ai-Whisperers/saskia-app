@@ -653,6 +653,10 @@ async def recipe_edit(
             "other_recipes": other_recipes,
             "batch_cost_gs": batch_cost.batch_cost_gs,
             "unit_cost_gs": unit_cost.batch_cost_gs if unit_cost else None,
+            "suggested_price_gs": (
+                int((unit_cost.batch_cost_gs * 3 // 1000) * 1000)
+                if unit_cost and unit_cost.batch_cost_gs else None
+            ),
             "products_using": [{"id": p.id, "name": p.name} for p in products_using],
             "scale_factor": scale_factor,
             "recipe_families": list_cats(session, "recipe_family"),
@@ -947,14 +951,15 @@ def recipe_search_api(
         return JSONResponse({"results": [], "count": 0})
 
     # Format results for combo
-    payload = []
-    for r in recipes:
-        payload.append({
+    payload = [
+        {
             "id": r.id,
             "name": r.name,
             "yield_qty": r.yield_qty,
             "yield_unit": r.yield_unit,
-        })
+        }
+        for r in recipes
+    ]
 
     return JSONResponse({
         "results": payload,
@@ -970,12 +975,13 @@ def units_api() -> JSONResponse:
     """
     from app.rms.units import Unit
 
-    payload = []
-    for unit in Unit:
-        payload.append({
+    payload = [
+        {
             "value": unit.value,
             "display": unit.display,
-        })
+        }
+        for unit in Unit
+    ]
 
     return JSONResponse({
         "results": payload,

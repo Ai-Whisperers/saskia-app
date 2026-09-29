@@ -1144,12 +1144,8 @@ def _migration_034_market_price_reference(conn: Any) -> None:
     str32 = "VARCHAR(32)"
     text_type = "TEXT"
     date = "DATE"
-    dt = "TIMESTAMP" if dialect == "sqlite" else "TIMESTAMP"
-    fk_ref = (
-        "INTEGER REFERENCES ingredient(id) ON DELETE CASCADE"
-        if dialect == "sqlite"
-        else "INTEGER REFERENCES ingredient(id) ON DELETE CASCADE"
-    )
+    dt = "TIMESTAMP"
+    fk_ref = "INTEGER REFERENCES ingredient(id) ON DELETE CASCADE"
 
     conn.execute(text(
         f"""
@@ -1194,7 +1190,7 @@ def _migration_035_compliance_info(conn: Any) -> None:
     str120 = "VARCHAR(120)"
     str255 = "VARCHAR(255)"
     bool_t = "BOOLEAN" if dialect != "sqlite" else "INTEGER"
-    dt = "TIMESTAMP" if dialect == "sqlite" else "TIMESTAMP"
+    dt = "TIMESTAMP"
 
     conn.execute(text(
         f"""

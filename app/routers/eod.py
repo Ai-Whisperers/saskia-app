@@ -12,8 +12,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
-from app.rms.dependencies import get_session
 from app.rms.config import ASUNCION_TZ
+from app.rms.dependencies import get_session
 from app.rms.eod_completions import completions_for_date, upsert_completion
 from app.rms.errors import BadRequest
 from app.rms.production import plan_production
@@ -32,7 +32,7 @@ def eod_view(request: Request, session: Session = Depends(get_session)) -> HTMLR
     # (Saskia review, T5). We display the forecast so she can reconcile against
     # what was actually produced. Persistence of completions deferred to a future
     # phase; this view surfaces the forecast side.
-    today = date.today()
+    today = datetime.now(ASUNCION_TZ).date()
     today_plan = plan_production(session, for_date=today)
     completions = completions_for_date(session, today)
 

@@ -345,8 +345,8 @@ def libro_ventas_set_pdf(
     table_data = [
         ["Fecha", "Cliente", "Producto", "Cant.", "Gravado", "IVA", "Total"],
     ]
-    for r in rows:
-        table_data.append([
+    table_data.extend(
+        [
             r.sold_at.strftime("%d/%m/%Y") if r.sold_at else "",
             (r.customer_name or "—")[:30],
             r.product_name[:30],
@@ -354,7 +354,9 @@ def libro_ventas_set_pdf(
             f"{r.base_gs:,}",
             f"{r.iva_gs:,}",
             f"{r.total_gross_gs:,}",
-        ])
+        ]
+        for r in rows
+    )
 
     t = Table(table_data, colWidths=[2.5 * cm, 4 * cm, 4 * cm, 1.5 * cm, 3 * cm, 2 * cm, 3 * cm])
     t.setStyle(TableStyle([
@@ -629,7 +631,7 @@ def reportes_cierre_mensual(
     from app.rms.cierre import compute_monthly_close
 
     # Default to current month if no params
-    today = date.today()
+    today = datetime.now(ASUNCION_TZ).date()
     year = year or today.year
     month = month or today.month
     if month < 1 or month > 12 or year < 2020 or year > 2099:
@@ -948,14 +950,16 @@ def reportes_iva_pdf(
 
     # Monthly table
     table_data = [["Mes", "Ventas", "Gravado", "IVA 10%", "Total"]]
-    for r in rows:
-        table_data.append([
+    table_data.extend(
+        [
             f"{r.year}-{r.month:02d}",
             str(r.n_sales),
             f"{r.total_base_gs:,}",
             f"{r.total_iva_gs:,}",
             f"{r.total_gross_gs:,}",
-        ])
+        ]
+        for r in rows
+    )
     t = Table(table_data, colWidths=[3 * cm, 2 * cm, 4 * cm, 3 * cm, 4 * cm])
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.grey),

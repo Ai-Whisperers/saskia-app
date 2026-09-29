@@ -132,15 +132,16 @@ def clientes_list(
 
     # --- CSV export (all rows, not just current page) ---
     if request.query_params.get("format") == "csv":
-        export_rows = []
-        for r in rows:
-            export_rows.append({
+        export_rows = [
+            {
                 "id": r["id"], "name": r["name"], "phone": r["phone"] or "",
                 "n_sales": r["n_sales"], "lifetime_spend_gs": r["lifetime_spend_gs"],
                 "tier": r["tier"], "points": r["points"],
                 "last_sale_at": r["last_sale_at"].iso if r["last_sale_at"] else "",
                 "created_at": r["created_at"].iso if r["created_at"] else "",
-            })
+            }
+            for r in rows
+        ]
         buf = io.StringIO()
         w = csv.DictWriter(buf, fieldnames=["id","name","phone","n_sales","lifetime_spend_gs","tier","points","last_sale_at","created_at"])
         w.writeheader()

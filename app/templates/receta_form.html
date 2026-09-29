@@ -233,6 +233,8 @@
           <span class="field-error" id="yield_qty-error" style="color:var(--color-danger);font-size:var(--text-xs);display:block;margin-top:.25rem;"></span>
           {{ ui.combo_field(
             name='yield_unit',
+            value=(recipe.yield_unit if recipe else 'und'),
+            display=(recipe.yield_unit if recipe else 'und'),
             placeholder='und',
             endpoint='/recetas/api/units?q=',
             value_field='value',
@@ -310,17 +312,17 @@
 
       <div class="cost-metric">
         <span class="cost-label">Costo del lote</span>
-        <span class="cost-value" id="batch-cost">Gs. 0</span>
+        <span class="cost-value" id="batch-cost">{% if batch_cost_gs %}{{ "Gs. %d"|format(batch_cost_gs) }}{% else %}Gs. 0{% endif %}</span>
       </div>
 
       <div class="cost-metric">
         <span class="cost-label">Costo por unidad</span>
-        <span class="cost-value" id="unit-cost">Gs. 0</span>
+        <span class="cost-value" id="unit-cost">{% if unit_cost_gs %}{{ "Gs. %d"|format(unit_cost_gs) }}{% else %}Gs. 0{% endif %}</span>
       </div>
 
       <div class="cost-metric cost-metric-margin">
         <span class="cost-label">Precio sugerido (×3)</span>
-        <span class="cost-value" id="suggested-price">Gs. 0</span>
+        <span class="cost-value" id="suggested-price">{% if suggested_price_gs %}{{ "Gs. %d"|format(suggested_price_gs) }}{% else %}Gs. 0{% endif %}</span>
       </div>
 
       <div class="cost-warnings" id="cost-warnings" hidden>
@@ -799,42 +801,38 @@
   }
 
   function computeCosts() {
-    console.log('computeCosts CALLED');
+    // Live Escandallo update: sum pre-computed data-line-cost attributes.
+    // Runs on qty/unit/kind change events. Server already renders
+    // correct batch/unit totals on page load — no initial call needed.
     var batchTotal = 0;
-    var warnings = [];
     var lines = document.querySelectorAll('#lines .line-row');
-    var _debug = [];
-
     lines.forEach(function(row) {
-      var targetCombo = row.querySelector('saskia-combo[name="line_target_id"]');
-      var targetId = targetCombo ? (targetCombo.getAttribute ? targetCombo.getAttribute('value') : targetCombo.value) : '';
       var costCell = row.querySelector('.line-cost-display');
-      var preCost = costCell ? parseFloat(costCell.getAttribute('data-line-cost') || '0') : 0;
-      _debug.push('row: targetId=' + targetId + ' preCost=' + preCost);
+      var preCost = costCell ? (parseFloat(costCell.getAttribute('data-line-cost')) || 0) : 0;
       batchTotal += preCost;
     });
 
-    console.log('computeCosts: lineCosts=' + JSON.stringify(_debug) + ' batchTotal=' + batchTotal);
     var yieldQty = parseFloat((document.getElementById('yield_qty') || {}).value) || 1;
     var unitCost = yieldQty > 0 ? batchTotal / yieldQty : 0;
-    var markupCfg = { multiplier: 3.0, round_to_gs: 1000 };
-    fetch('/api/settings/pricing-markup').then(function(r){return r.json()}).then(function(cfg){
-      markupCfg = cfg;
-    }).catch(function(){}).finally(function(){
-      var suggestedPrice = Math.ceil(unitCost * markupCfg.multiplier / markupCfg.round_to_gs) * markupCfg.round_to_gs;
-    });
-
     var batchEl = document.getElementById('batch-cost');
     var unitEl = document.getElementById('unit-cost');
     var sugEl = document.getElementById('suggested-price');
-    // DOM check: verify elements exist before writing
-    if (!batchEl) { console.warn('computeCosts: #batch-cost NOT FOUND in DOM'); return; }
-    if (!unitEl) { console.warn('computeCosts: #unit-cost NOT FOUND'); }
-    console.log('computeCosts: batchTotal=' + batchTotal + ' writing to batch-cost');
     if (batchEl) batchEl.textContent = formatGs(batchTotal);
     if (unitEl) unitEl.textContent = formatGs(unitCost);
-    if (sugEl) sugEl.textContent = formatGs(suggestedPrice);
+    if (sugEl) sugEl.textContent = formatGs(Math.ceil(unitCost * 3 / 1000) * 1000);
   }
+
+  // Wire computeCosts to user interactions (qty/unit/kind changes)
+  document.querySelectorAll('#lines').forEach(function(tbody) {
+    tbody.addEventListener('input', function(e) {
+      if (e.target.matches('input[name="line_qty"], saskia-combo')) computeCosts();
+    });
+    tbody.addEventListener('change', function(e) {
+      if (e.target.matches('saskia-combo')) computeCosts();
+    });
+  });
+  var yieldQtyEl = document.getElementById('yield_qty');
+  if (yieldQtyEl) yieldQtyEl.addEventListener('input', computeCosts);
 
   // ---------- Add line button ----------
   var addBtn = document.getElementById('add-line');

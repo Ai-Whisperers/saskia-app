@@ -33,6 +33,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.rms.config import ASUNCION_TZ
 from app.rms.models import (
     AppMeta,
     ComplianceInfo,  # noqa: F401 — re-exported via __all__
@@ -46,7 +47,6 @@ from app.rms.models import (
     Sale,
     SaleStockMove,
 )
-from app.rms.config import ASUNCION_TZ
 
 # (filename_suffix, model_class, ordered_columns)
 TABLE_EXPORTS = [

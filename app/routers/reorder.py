@@ -214,13 +214,11 @@ def reorder_generate_po(
     lines = ["*Pedido de materiales*", ""]
     for supplier_name, sup_items in by_supplier.items():
         lines.append(f"📦 *{supplier_name}*")
-        for item in sup_items:
-            lines.append(f"  • {item.name}: {item.suggested_qty:.2f} {item.unit}")
+        lines.extend(f"  • {item.name}: {item.suggested_qty:.2f} {item.unit}" for item in sup_items)
         lines.append("")
     if no_supplier:
         lines.append("📦 *Sin proveedor asignado*")
-        for item in no_supplier:
-            lines.append(f"  • {item.name}: {item.suggested_qty:.2f} {item.unit}")
+        lines.extend(f"  • {item.name}: {item.suggested_qty:.2f} {item.unit}" for item in no_supplier)
         lines.append("")
 
     text = "\n".join(lines).strip()

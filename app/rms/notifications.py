@@ -55,8 +55,7 @@ def format_daily_summary_message(
     if summary.top_products:
         lines.append("")
         lines.append("*Top productos:*")
-        for row in summary.top_products[:3]:
-            lines.append(f"• {row.product_name} x{row.qty_sold:.0f}")
+        lines.extend(f"• {row.product_name} x{row.qty_sold:.0f}" for row in summary.top_products[:3])
     if summary.low_stock_ingredients:
         lines.append("")
         names = ", ".join(summary.low_stock_ingredients[:5])
@@ -64,8 +63,7 @@ def format_daily_summary_message(
     if summary.warnings:
         lines.append("")
         lines.append("⚠")
-        for w in summary.warnings[:max_lines]:
-            lines.append(f"- {w}")
+        lines.extend(f"- {w}" for w in summary.warnings[:max_lines])
     return "\n".join(lines)
 
 

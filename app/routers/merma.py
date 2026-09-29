@@ -275,12 +275,13 @@ def waste_reasons_api() -> JSONResponse:
     """
     from app.rms.waste import WasteReason
 
-    payload = []
-    for reason in WasteReason:
-        payload.append({
+    payload = [
+        {
             "value": reason.value,
             "display": reason.value,
-        })
+        }
+        for reason in WasteReason
+    ]
 
     return JSONResponse({
         "results": payload,

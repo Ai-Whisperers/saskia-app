@@ -117,13 +117,14 @@ def auditoria_index(
                 items.append((k, str(v)))
         return items
 
-    formatted_rows = []
-    for r in paginated:
-        formatted_rows.append({
+    formatted_rows = [
+        {
             "row": r,
             "detail_pairs": fmt_detail(r.detail or {}),
             "user_agent_short": (r.user_agent[:60] + "...") if r.user_agent and len(r.user_agent) > 60 else r.user_agent,
-        })
+        }
+        for r in paginated
+    ]
 
     presets = _date_presets()
 

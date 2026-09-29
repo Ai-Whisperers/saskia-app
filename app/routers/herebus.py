@@ -27,6 +27,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
+from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
 from app.rms.errors import (
     BadRequest,
@@ -298,7 +299,7 @@ async def bank_add(
     """
     from datetime import datetime as dt
     try:
-        posted_at_dt = dt.strptime(posted_at, "%Y-%m-%d")
+        posted_at_dt = dt.strptime(posted_at, "%Y-%m-%d").replace(tzinfo=ASUNCION_TZ)
     except ValueError:
         raise BadRequest(
             "Fecha inválida.",
@@ -994,9 +995,8 @@ def delivery_zones_api(
             DeliveryZone.coverage_text.ilike(like) | DeliveryZone.name.ilike(like)
         )
     zones = session.execute(stmt.order_by(DeliveryZone.position)).scalars().all()
-    payload = []
-    for z in zones:
-        payload.append({
+    payload = [
+        {
             "id": z.id,
             "name": z.name,
             "code": z.code,
@@ -1005,7 +1005,9 @@ def delivery_zones_api(
             "min_order_gs": z.min_order_gs,
             "delivery_minutes": z.delivery_minutes,
             "display": f"{z.name} — ₲{z.delivery_cost_gs:,} + mín ₲{z.min_order_gs:,}",
-        })
+        }
+        for z in zones
+    ]
     return JSONResponse({"results": payload, "count": len(payload)})
 
 

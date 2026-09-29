@@ -33,6 +33,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.rms.config import ASUNCION_TZ
 from app.rms.costing import product_unit_cost_gs
 from app.rms.models import Ingredient, Sale
 from app.rms.money import to_int_gs
@@ -54,11 +55,11 @@ def _validate_year_month(year: int, month: int) -> tuple[datetime, datetime]:
         raise ValueError(f"year out of range: {year}")
     if not (1 <= month <= 12):
         raise ValueError(f"month out of range: {month}")
-    start = datetime(year, month, 1)
+    start = datetime(year, month, 1, tzinfo=ASUNCION_TZ)
     if month == 12:
-        end = datetime(year + 1, 1, 1)
+        end = datetime(year + 1, 1, 1, tzinfo=ASUNCION_TZ)
     else:
-        end = datetime(year, month + 1, 1)
+        end = datetime(year, month + 1, 1, tzinfo=ASUNCION_TZ)
     return start, end
 
 
@@ -131,19 +132,18 @@ def monthly_stockout_report(session: Session, year: int, month: int) -> list[Sto
     no threshold set).
     """
     _validate_year_month(year, month)
-    rows: list[StockoutRow] = []
-    for ing in session.scalars(select(Ingredient).where(Ingredient.min_stock_qty > 0)).all():
-        if ing.stock_qty < ing.min_stock_qty:
-            rows.append(
-                StockoutRow(
-                    ingredient_id=ing.id,
-                    name=ing.name,
-                    unit=ing.unit,
-                    stock_qty=ing.stock_qty,
-                    min_stock_qty=ing.min_stock_qty,
-                    deficit=ing.min_stock_qty - ing.stock_qty,
-                )
-            )
+    rows: list[StockoutRow] = [
+        StockoutRow(
+            ingredient_id=ing.id,
+            name=ing.name,
+            unit=ing.unit,
+            stock_qty=ing.stock_qty,
+            min_stock_qty=ing.min_stock_qty,
+            deficit=ing.min_stock_qty - ing.stock_qty,
+        )
+        for ing in session.scalars(select(Ingredient).where(Ingredient.min_stock_qty > 0)).all()
+        if ing.stock_qty < ing.min_stock_qty
+    ]
     # Sort by largest deficit first (most urgent)
     rows.sort(key=lambda r: r.deficit, reverse=True)
     return rows

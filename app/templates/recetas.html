@@ -130,9 +130,7 @@
                 <button type="button" class="recipe-thumb" data-recipe-photo
                         data-src="{{ r.image_url }}" data-name="{{ fmt.entity_name(r) }}"
                         aria-label="Ver foto de {{ fmt.entity_name(r) }}">
-                  <img src="{{ r.image_url }}" alt="{{ fmt.entity_name(r) }}"
-                       loading="lazy" decoding="async"
-                       style="width:64px;height:64px;object-fit:cover;border-radius:var(--radius);display:block;border:1px solid var(--border);">
+                  <img src="{{ r.image_url }}" alt="{{ fmt.entity_name(r) }}">
                 </button>
               {% else %}
                 <span class="muted" aria-label="Sin foto">—</span>

@@ -63,7 +63,7 @@ def last_backup_at(folder: Path) -> object:
     files = list(folder.glob("rms-backup-*.xlsx"))
     if not files:
         return None
-    return datetime.fromtimestamp(max(f.stat().st_mtime for f in files))
+    return datetime.fromtimestamp(max(f.stat().st_mtime for f in files), tz=ASUNCION_TZ)
 
 
 def backup_filename(timestamp: datetime | None = None) -> str:

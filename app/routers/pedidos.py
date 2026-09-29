@@ -222,7 +222,7 @@ def _decorate_pedido(p: Pedido, session: Session) -> dict:
     Denormalizes: customer_name (already on the model), 30d spend, total Gs,
     qty total, line count, age in days, normalized channel display.
     """
-    today = date.today()
+    today = datetime.now(ASUNCION_TZ).date()
     promised = p.promised_date.date() if isinstance(p.promised_date, datetime) else p.promised_date
     age_days = (today - promised).days
     return {
@@ -263,7 +263,7 @@ def _group_pedidos(
     - Esta semana: promised_date in [today+2, today+7]
     - Pendientes viejos: status='pending' AND promised_date < today
     """
-    today = date.today()
+    today = datetime.now(ASUNCION_TZ).date()
     out: dict[str, list[dict]] = {
         "hoy_manana": [],
         "esta_semana": [],
@@ -313,7 +313,7 @@ def pedidos_list(
     Results are paginated; the groups are computed from the full filtered set,
     then sliced per page for display.
     """
-    today = date.today()
+    today = datetime.now(ASUNCION_TZ).date()
     horizon = today + timedelta(days=7)
 
     stmt_base = (
@@ -393,7 +393,7 @@ def pedidos_board(
 ) -> HTMLResponse:
     """Kitchen display: large cards for prep staff. Auto-refreshes every 30s.
     Shows pending + confirmed + ready orders grouped by time slot."""
-    today = date.today()
+    today = datetime.now(ASUNCION_TZ).date()
     horizon = today + timedelta(days=3)
 
     stmt = (
@@ -449,7 +449,7 @@ def pedidos_new_form(
     customers = session.scalars(
         select(Customer).order_by(Customer.created_at.desc()).limit(50)
     ).all()
-    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = datetime.now(ASUNCION_TZ).date() + timedelta(days=1)
 
     # Load active delivery zones for the picker
     from app.rms.models import DeliveryZone
@@ -468,7 +468,7 @@ def pedidos_new_form(
             "channels": CHANNELS,
             "payment_methods": sorted(set(ALLOWED_PAYMENT_METHODS)),
             "delivery_zones": delivery_zones,
-            "today_iso": date.today().isoformat(),
+            "today_iso": datetime.now(ASUNCION_TZ).date().isoformat(),
             "default_promised_date": tomorrow.isoformat(),
         },
     )
@@ -690,7 +690,7 @@ def pedidos_export_csv(
     import csv
     import io
 
-    today = date.today()
+    today = datetime.now(ASUNCION_TZ).date()
     horizon = today + timedelta(days=365)  # full history
 
     stmt = (
@@ -744,7 +744,7 @@ def pedidos_export_csv(
         io.BytesIO(output.getvalue().encode("utf-8")),
         media_type="text/csv",
         headers={
-            "Content-Disposition": f"attachment; filename=pedidos_{date.today().isoformat()}.csv"
+            "Content-Disposition": f"attachment; filename=pedidos_{datetime.now(ASUNCION_TZ).date().isoformat()}.csv"
         },
     )
 

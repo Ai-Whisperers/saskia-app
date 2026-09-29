@@ -241,11 +241,15 @@ def products_list(
     # Margin state filter (post-costing, in-memory): negativo <0, bajo <30%, ok 30-70%, alto >70%
     if margen_sel:
         def _mstate(r: object) -> str:
-            if r["margin_ratio"] is None: return "sin-datos"
+            if r["margin_ratio"] is None:
+                return "sin-datos"
             pct = r["margin_ratio"] * 100
-            if pct < 0: return "negativo"
-            if pct < 30: return "bajo"
-            if pct <= 70: return "ok"
+            if pct < 0:
+                return "negativo"
+            if pct < 30:
+                return "bajo"
+            if pct <= 70:
+                return "ok"
             return "alto"
         decorated = [r for r in decorated if _mstate(r) == margen_sel]
         total = len(decorated)
