@@ -249,6 +249,8 @@ class Recipe(Base):
     # Tag algebra (migration 054): cached union allergens + intersection tags.
     allergens: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     derived_dietary_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Recipe instructions: JSON array of {phase, title, steps}
+    instructions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships
     lines: Mapped[list["RecipeLine"]] = relationship(
