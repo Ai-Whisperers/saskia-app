@@ -113,7 +113,7 @@ class NotFound(AppError):
     def __init__(
         self,
         entity: str,
-        id: Any = None,
+        id: Any = None,  # noqa: ANN401
         *,
         context: dict[str, Any] | None = None,
         message: str | None = None,

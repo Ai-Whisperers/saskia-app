@@ -87,7 +87,7 @@ class BackupManifest:
         }
 
 
-def _serialize(value: Any) -> Any:
+def _serialize(value: Any) -> Any:  # noqa: ANN401
     """Make a value JSON-serializable."""
     if value is None:
         return None
@@ -100,7 +100,7 @@ def _serialize(value: Any) -> Any:
     return str(value)
 
 
-def _row_to_dict(row: Any) -> dict:
+def _row_to_dict(row: Any) -> dict:  # noqa: ANN401
     return {
         col.name: _serialize(getattr(row, col.name))
         for col in row.__table__.columns

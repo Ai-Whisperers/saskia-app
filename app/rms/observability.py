@@ -156,7 +156,7 @@ def bind_request_route(request: Request, route_name: str) -> None:
 def record_audit(
     request: Request,
     *,
-    session: Any,
+    session: Any,  # noqa: ANN401 — accepts Session | AsyncSession variants
     action: str,
     target_type: str | None = None,
     target_id: str | int | None = None,

@@ -20,7 +20,7 @@ from sqlalchemy import text
 from app.rms.db import _bump_schema_version
 
 
-def _migration_057_recipe_instructions(conn: Any) -> None:
+def _migration_057_recipe_instructions(conn: Any) -> None:  # noqa: ANN401 — migration hook param
     """Add recipe.instructions (TEXT, nullable) for JSON phase storage."""
     # Idempotent: create_all may have already added the column via the
     # ORM model before migrations run; ALTER would then fail.

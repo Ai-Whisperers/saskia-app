@@ -40,7 +40,7 @@ from app.rms.config import (
 )
 
 
-def _set_sqlite_pragmas(dbapi_conn: Any, _: Any) -> None:
+def _set_sqlite_pragmas(dbapi_conn: Any, _: Any) -> None:  # noqa: ANN401
     """SQLAlchemy connect listener: enable WAL + secure_delete + foreign_keys.
 
     Called on every new connection. Idempotent.
@@ -93,7 +93,7 @@ def make_engine(url: str | None = None, *, for_tests: bool = False) -> Engine:
 MigrationFn = Callable[[Any], None]
 
 
-def _migration_001_initial_schema(conn: Any) -> None:
+def _migration_001_initial_schema(conn: Any) -> None:  # noqa: ANN401
     """Initial schema (8 tables). Called once on fresh DBs.
 
     We let SQLAlchemy's create_all() do the heavy lifting; this migration is a
@@ -127,7 +127,7 @@ def _migration_001_initial_schema(conn: Any) -> None:
     conn.execute(text(upsert2), {"ts": ts})
 
 
-def _migration_002_audit_log(conn: Any) -> None:
+def _migration_002_audit_log(conn: Any) -> None:  # noqa: ANN401
     """Add the audit_log table (E3.S1).
 
     Records every security-relevant action: login success/failure, logout,
@@ -176,7 +176,7 @@ def _migration_002_audit_log(conn: Any) -> None:
     _bump_schema_version(conn, 2)
 
 
-def _migration_007_product_sku(conn: Any) -> None:
+def _migration_007_product_sku(conn: Any) -> None:  # noqa: ANN401
     """Add Product.sku column (E23.S1).
 
     SKU is optional; most bakeries don't print barcodes on products but
@@ -187,7 +187,7 @@ def _migration_007_product_sku(conn: Any) -> None:
     _bump_schema_version(conn, 7)
 
 
-def _add_column_if_missing(conn: Any, table: str, column: str,
+def _add_column_if_missing(conn: Any, table: str, column: str,  # noqa: ANN401
                            pg_type: str, sqlite_type: str) -> None:
     """Add a column to a table if it doesn't already exist.
 
@@ -216,13 +216,13 @@ def _add_column_if_missing(conn: Any, table: str, column: str,
             )
 
 
-def _migration_006_waste_log(conn: Any) -> None:
+def _migration_006_waste_log(conn: Any) -> None:  # noqa: ANN401
     """Add waste_log table (E22)."""
     _bump_schema_version(conn, 6)
 
 
 
-def _migration_004_tags(conn: Any) -> None:
+def _migration_004_tags(conn: Any) -> None:  # noqa: ANN401
     """Add Tag + TagLink tables (E9.S1).
 
     Tags are polymorphic (target_kind in product|ingredient|recipe). The
@@ -237,7 +237,7 @@ def _migration_004_tags(conn: Any) -> None:
     _bump_schema_version(conn, 4)
 
 
-def _migration_003_analytics_columns(conn: Any) -> None:
+def _migration_003_analytics_columns(conn: Any) -> None:  # noqa: ANN401
     """Add analytics-tracking columns (E8).
 
     New columns:
@@ -1299,7 +1299,7 @@ def _migration_038_ingredient_haccp(conn):
     _bump_schema_version(conn, 38)
 
 
-def _migration_050_sale_void_reason(conn: Any) -> None:
+def _migration_050_sale_void_reason(conn: Any) -> None:  # noqa: ANN401
     """Add void_reason and voided_by to sale for CIE-01 cancellation audit trail.
 
     The previous void flow only stored ``voided_at``. That made it impossible
@@ -1313,7 +1313,7 @@ def _migration_050_sale_void_reason(conn: Any) -> None:
     _bump_schema_version(conn, 50)
 
 
-def _migration_051_ingredient_variant(conn: Any) -> None:
+def _migration_051_ingredient_variant(conn: Any) -> None:  # noqa: ANN401
     """Add ingredient_variant table (Sprint 7 — Decision A1).
 
     Saskia's exact words from the audio review:
@@ -1433,7 +1433,7 @@ def _migration_051_ingredient_variant(conn: Any) -> None:
     _bump_schema_version(conn, 51)
 
 
-def _migration_052_ingredient_forecast_horizon(conn: Any) -> None:
+def _migration_052_ingredient_forecast_horizon(conn: Any) -> None:  # noqa: ANN401
     """Add Ingredient.forecast_horizon_days (Sprint 7 — Decision B).
 
     Per-ingredient forecast horizon for the "days until I'm short" widget
@@ -2214,7 +2214,7 @@ def _migration_049_storage_keywords(conn):
     _bump_schema_version(conn, 49)
 
 
-def _migration_053_sale_packaging(conn: Any) -> None:
+def _migration_053_sale_packaging(conn: Any) -> None:  # noqa: ANN401
     """Sprint 8 — US 4.1: per-sale packaging.
 
     Saskia's exact words from the audio review (paraphrased from the
@@ -2282,7 +2282,7 @@ def _migration_053_sale_packaging(conn: Any) -> None:
 
 
 
-def _migration_054_tag_algebra(conn: Any) -> None:
+def _migration_054_tag_algebra(conn: Any) -> None:  # noqa: ANN401
     """Tag algebra: cached derived tags + SINACLA cross-contamination flag.
 
     - recipe.allergens (Text, nullable) — union cache
@@ -2305,7 +2305,7 @@ def _migration_054_tag_algebra(conn: Any) -> None:
     _bump_schema_version(conn, 54)
 
 
-def _migration_055_supplier_ruc(conn: Any) -> None:
+def _migration_055_supplier_ruc(conn: Any) -> None:  # noqa: ANN401
     """Add supplier.ruc field (Paraguay RUC/ID for legal suppliers).
 
     RUC (Registro Único del Contribuyente) is required for legal invoices
@@ -2321,7 +2321,7 @@ def _migration_055_supplier_ruc(conn: Any) -> None:
     _bump_schema_version(conn, 55)
 
 
-def _migration_056_bank_reconciliation(conn: Any) -> None:
+def _migration_056_bank_reconciliation(conn: Any) -> None:  # noqa: ANN401
     """Wire the bank_reconciliation migration that ships in
     ``app/rms/migrations/_056_bank_reconciliation.py`` into the
     MIGRATIONS registry. The function is defined there; we just
@@ -2334,7 +2334,7 @@ def _migration_056_bank_reconciliation(conn: Any) -> None:
     _bump_schema_version(conn, 56)
 
 
-def _migration_057_recipe_instructions(conn: Any) -> None:
+def _migration_057_recipe_instructions(conn: Any) -> None:  # noqa: ANN401
     """Add recipe.instructions (TEXT) for JSON phase storage.
 
     Closes the ORM↔DB gap: ``Recipe.instructions`` was added to the ORM
@@ -2352,7 +2352,7 @@ def _migration_057_recipe_instructions(conn: Any) -> None:
     _bump_schema_version(conn, 57)
 
 
-def _migration_058_ingredient_expiry(conn: Any) -> None:
+def _migration_058_ingredient_expiry(conn: Any) -> None:  # noqa: ANN401
     """Add ingredient.expiry_date (DATE, nullable) for HACCP lot tracking.
 
     Closes the ORM↔DB gap: ``Ingredient.expiry_date`` was added to the
@@ -2368,7 +2368,7 @@ def _migration_058_ingredient_expiry(conn: Any) -> None:
     _bump_schema_version(conn, 58)
 
 
-def _migration_059_product_mayorista(conn: Any) -> None:
+def _migration_059_product_mayorista(conn: Any) -> None:  # noqa: ANN401
     """Add product.mayorista_price_gs (INTEGER, nullable).
 
     Closes the ORM↔DB gap from P1 features merge (commit c237c4c):
@@ -2466,7 +2466,7 @@ def _clean_allergens_m60(raw: str | None) -> str | None:
     return ",".join(parts) if parts else None
 
 
-def _migration_060_tag_normalization(conn: Any) -> None:
+def _migration_060_tag_normalization(conn: Any) -> None:  # noqa: ANN401
     """Fix tag-algebra tag-language mismatch (2026-09-29 live bug).
 
     Symptom: /recetas/<id> showed "CANCELADAS (14) — ver por qué" on every
@@ -2585,7 +2585,7 @@ def _migration_060_tag_normalization(conn: Any) -> None:
     _bump_schema_version(conn, 60)
 
 
-def _migration_005_customer(conn: Any) -> None:
+def _migration_005_customer(conn: Any) -> None:  # noqa: ANN401
     """Add Customer table + Sale.customer_id FK (E13).
 
     Tables are created via create_all() in init_db(). The Sale
@@ -2711,7 +2711,7 @@ def _bump_schema_version(conn, version: int) -> None:
         )
 
 
-def _current_schema_version(conn: Any) -> int:
+def _current_schema_version(conn: Any) -> int:  # noqa: ANN401
     """Read schema version from app_meta table (default 0)."""
     row = conn.execute(text("SELECT value FROM app_meta WHERE key = 'schema_version'")).first()
     if row is None:
@@ -2722,7 +2722,7 @@ def _current_schema_version(conn: Any) -> int:
         return 0
 
 
-def schema_version(conn: Any) -> int:
+def schema_version(conn: Any) -> int:  # noqa: ANN401
     """Read schema version. Public alias for _current_schema_version.
 
     Used by `/healthz/schema` endpoint to detect drift between code and
@@ -2731,7 +2731,7 @@ def schema_version(conn: Any) -> int:
     return _current_schema_version(conn)
 
 
-def schema_version_mismatch(conn: Any) -> int:
+def schema_version_mismatch(conn: Any) -> int:  # noqa: ANN401
     """Return CURRENT_SCHEMA_VERSION - actual_db_version.
 
     - Positive = DB is behind code (migrations not applied — risk of
@@ -2744,7 +2744,7 @@ def schema_version_mismatch(conn: Any) -> int:
     return CURRENT_SCHEMA_VERSION - _current_schema_version(conn)
 
 
-def app_meta_read(conn: Any, key: str) -> str | None:
+def app_meta_read(conn: Any, key: str) -> str | None:  # noqa: ANN401
     """Read one key from app_meta. Returns None if the row is missing.
 
     Dialect-agnostic. Returns str | None.
@@ -2755,7 +2755,7 @@ def app_meta_read(conn: Any, key: str) -> str | None:
     return row[0] if row else None
 
 
-def app_meta_write(conn: Any, key: str, value: str) -> None:
+def app_meta_write(conn: Any, key: str, value: str) -> None:  # noqa: ANN401
     """Upsert one key into app_meta. Dialect-agnostic.
 
     Postgres uses ON CONFLICT (key) DO UPDATE; SQLite uses
