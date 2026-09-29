@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+
+{% block title %}Importar productos desde CSV{% endblock %}
+
+{% block content %}
+{{ ui.page_header(
+     title='Importar productos',
+     desc='Subí un archivo CSV para importar o actualizar productos masivamente.',
+     crumbs=[('Productos', '/productos'), ('Importar', None)]
+   ) }}
+
+<div class="card" style="max-width:760px;">
+
+  {# ── Instructions ────────────────────────────────────────────────────────── #}
+  <section class="form-section">
+    <header class="form-section-header">
+      <h2 class="form-section-title">Formato del CSV</h2>
+    </header>
+    <p>El archivo debe tener las siguientes columnas (encabezados exactos):</p>
+    <div style="overflow-x:auto;">
+    <table class="table is-striped" style="font-size:var(--text-sm);">
+      <thead>
+        <tr>
+          <th>Columna</th>
+          <th>Descripción</th>
+          <th>Ejemplo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><code>name</code></td><td>Nombre del producto (único, sensible a mayúsculas)</td><td>Tostadas de queso</td></tr>
+        <tr><td><code>sku</code></td><td>Código SKU (opcional)</td><td>TRS-104</td></tr>
+        <tr><td><code>category</code></td><td>Categoría (opcional)</td><td>Panadería</td></tr>
+        <tr><td><code>portion_label</code></td><td>Etiqueta de porción (opcional)</td><td>1 unidad</td></tr>
+        <tr><td><code>sale_price_gs</code></td><td>Precio de venta en guaraníes (opcional, 0 si se omite)</td><td>8500</td></tr>
+        <tr><td><code>yield_percentage</code></td><td>Porcentaje de rendimiento (ignorado en importación de productos)</td><td>95</td></tr>
+        <tr><td><code>tags</code></td><td>Etiquetas separadas por coma (opcional)</td><td>popular,navidad</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="muted" style="margin-top:var(--space-2);">
+      <strong>Nota:</strong> Si ya existe un producto con el mismo nombre, se actualizan los campos presentes en el CSV.
+      Los campos vacíos en el CSV no sobreescriben valores existentes.
+    </p>
+  </section>
+
+  {# ── Upload form ─────────────────────────────────────────────────────────── #}
+  <section class="form-section">
+    <header class="form-section-header">
+      <h2 class="form-section-title">Subir archivo</h2>
+    </header>
+
+    {% if error %}
+    <div class="alert alert-danger" style="margin-bottom:var(--space-3);">
+      ⚠️ {{ error }}
+    </div>
+    {% endif %}
+
+    {% if created is defined or updated is defined %}
+    <div style="margin-bottom:var(--space-4);">
+      <div class="card" style="background:#d1fae5;border-color:#10b981;padding:var(--space-4);border-radius:var(--radius);">
+        <h3 style="margin:0 0 var(--space-2) 0;">Resultados de la importación</h3>
+        <ul style="margin:0;padding-left:1.4rem;">
+          <li>✅ <strong>{{ created or 0 }}</strong> producto(s) creado(s)</li>
+          <li>🔄 <strong>{{ updated or 0 }}</strong> producto(s) actualizado(s)</li>
+          {% if errors %}
+          <li>❌ <strong>{{ errors | length }}</strong> error(es)</li>
+          {% endif %}
+        </ul>
+      </div>
+
+      {% if errors %}
+      <details style="margin-top:var(--space-3);">
+        <summary style="cursor:pointer;font-weight:600;">Ver errores ({{ errors | length }})</summary>
+        <table class="table is-striped" style="font-size:var(--text-sm);margin-top:var(--space-2);">
+          <thead><tr><th>Fila</th><th>Error</th></tr></thead>
+          <tbody>
+            {% for e in errors %}
+            <tr>
+              <td>Fila {{ e.row }}</td>
+              <td><code>{{ e.error }}</code></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </details>
+      {% endif %}
+
+      <div style="margin-top:var(--space-3);">
+        <a href="/productos" class="btn btn-primary">Ver productos</a>
+        <a href="/productos/importar" class="btn btn-secondary">Importar otro archivo</a>
+      </div>
+    </div>
+    {% else %}
+    <form method="post" action="/productos/importar" enctype="multipart/form-data">
+      <div class="form-row">
+        <label for="file">Archivo CSV</label>
+        <input type="file" id="file" name="file" accept=".csv,text/csv" required>
+        <small class="muted">Archivos .csv generados por Excel, Google Sheets o exportación de Saskia.</small>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+          <svg class="icon" aria-hidden="true"><use href="#icon-upload"/></svg>
+          Importar
+        </button>
+        <a href="/productos" class="btn">Cancelar</a>
+      </div>
+    </form>
+    {% endif %}
+  </section>
+
+</div>
+{% endblock %}

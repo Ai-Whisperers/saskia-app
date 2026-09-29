@@ -102,6 +102,8 @@ def products_list(
     has_recipe: str | None = None,
     margen: str | None = Query(None, description="Filter by margin state: negativo/bajo/ok/alto"),
     disponibles: str | None = Query(None, description="Filter availability: si/no"),
+    tag: str | None = Query(None, description="Filter by tag (partial match on tags field)"),
+    category: str | None = Query(None, description="Filter by category (exact match)"),
     sort: str | None = Query(None, description="Sort column: name, sale_price_gs, cost_gs, margin_gs"),
     dir: str = Query("asc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
@@ -130,12 +132,21 @@ def products_list(
     # count after decoration below. Track them here.
     margen_sel = (margen or "").strip()
     disp_sel = (disponibles or "").strip()
+    tag_sel = (tag or "").strip()
+    category_sel = (category or "").strip()
     if disp_sel == "si":
         stmt = stmt.where(Product.is_available.is_(True))
         count_stmt = count_stmt.where(Product.is_available.is_(True))
     elif disp_sel == "no":
         stmt = stmt.where(Product.is_available.is_(False))
         count_stmt = count_stmt.where(Product.is_available.is_(False))
+
+    if tag_sel:
+        stmt = stmt.where(Product.tags.ilike(f"%{tag_sel}%"))
+        count_stmt = count_stmt.where(Product.tags.ilike(f"%{tag_sel}%"))
+    if category_sel:
+        stmt = stmt.where(Product.category == category_sel)
+        count_stmt = count_stmt.where(Product.category == category_sel)
 
     # Count total
     total = session.scalar(count_stmt) or 0
@@ -214,6 +225,8 @@ def products_list(
         "has_recipe": has_recipe or "",
         "margen_sel": margen_sel,
         "disp_sel": disp_sel,
+        "tag_sel": tag_sel,
+        "category_sel": category_sel,
         "total_all": session.scalar(select(func.count()).select_from(Product)) or 0,
         "sort": sort or "",
         "dir": dir,
@@ -552,6 +565,171 @@ def product_bulk_delete(
     if skipped:
         flash += f", {skipped} omitido(s) por tener ventas"
     return RedirectResponse(url=f"/productos?flash={flash}", status_code=303)
+
+
+# ─── Bulk edit ──────────────────────────────────────────────────────────────────
+
+@router.post("/bulk-edit")
+def product_bulk_edit(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Bulk-edit products: price_pct (±% on sale_price_gs),
+    set_availability (bool), set_category (string)."""
+    try:
+        body = request._json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"error": "JSON body required"})
+
+    product_ids: list[int] = body.get("product_ids", [])
+    action: str = body.get("action", "")
+    value: float | bool | str = body.get("value")
+
+    if not product_ids or not action:
+        return JSONResponse(status_code=400, content={"error": "product_ids and action required"})
+
+    valid_actions = {"price_pct", "set_availability", "set_category"}
+    if action not in valid_actions:
+        return JSONResponse(status_code=400, content={"error": f"action must be one of {valid_actions}"})
+
+    updated = 0
+    for pid in product_ids:
+        p = session.get(Product, pid)
+        if p is None:
+            continue
+        if action == "price_pct":
+            if not isinstance(value, (int, float)):
+                return JSONResponse(status_code=400, content={"error": "price_pct requires numeric value"})
+            p.sale_price_gs = max(0, int(p.sale_price_gs * (1 + float(value) / 100)))
+        elif action == "set_availability":
+            p.is_available = bool(value)
+        elif action == "set_category":
+            p.category = str(value)[:32]
+        updated += 1
+
+    session.commit()
+    return JSONResponse({"updated": updated})
+
+
+# ─── API helpers ───────────────────────────────────────────────────────────────
+
+@router.get("/api/tags", response_class=JSONResponse)
+def products_api_tags(session: Session = Depends(get_session)) -> JSONResponse:
+    """Return distinct tag values across all products."""
+    rows = session.scalars(
+        select(Product.tags)
+        .where(Product.tags.isnot(None))
+        .where(Product.tags != "")
+        .distinct()
+    ).all()
+    all_tags: set[str] = set()
+    for raw in rows:
+        for t in raw.split(","):
+            t = t.strip()
+            if t:
+                all_tags.add(t)
+    return JSONResponse({"tags": sorted(all_tags)})
+
+
+@router.get("/api/categories", response_class=JSONResponse)
+def products_api_categories(session: Session = Depends(get_session)) -> JSONResponse:
+    """Return distinct category values across all products."""
+    rows = session.scalars(
+        select(Product.category)
+        .where(Product.category.isnot(None))
+        .where(Product.category != "")
+        .distinct()
+    ).all()
+    return JSONResponse({"categories": sorted(r for r in rows if r)})
+
+
+# ─── CSV Import ────────────────────────────────────────────────────────────────
+
+@router.get("/importar", response_class=HTMLResponse)
+def products_import_page(request: Request) -> HTMLResponse:
+    """Show the CSV import form."""
+    return render(request, "productos_importar.html", {})
+
+
+@router.post("/importar")
+def products_import_csv(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Parse uploaded CSV, find-or-create each product, return results."""
+    from app.rms.validation import optional_text, parse_money_gs
+
+    form_data = request._form()
+    file = form_data.get("file")
+    if not file or not hasattr(file, "filename"):
+        return render(request, "productos_importar.html", {
+            "error": "No se recibió ningún archivo."
+        })
+
+    content = file.read().decode("utf-8", errors="replace")
+    reader = csv.DictReader(content.splitlines())
+    if reader.fieldnames is None:
+        return render(request, "productos_importar.html", {
+            "error": "El archivo no parece ser un CSV válido."
+        })
+
+    expected = {"name", "sku", "category", "portion_label", "sale_price_gs", "yield_percentage", "tags"}
+    if not expected.issubset(reader.fieldnames):
+        return render(request, "productos_importar.html", {
+            "error": f"Columnas requeridas faltantes. Esperado: {', '.join(sorted(expected))}. Encontrado: {', '.join(reader.fieldnames)}"
+        })
+
+    created = 0
+    updated = 0
+    errors: list[dict] = []
+
+    for row_num, row in enumerate(reader, start=2):
+        try:
+            name = (row.get("name") or "").strip()
+            if not name:
+                errors.append({"row": row_num, "error": "Nombre vacío"})
+                continue
+
+            # Find or create
+            existing = session.scalars(
+                select(Product).where(func.lower(Product.name) == name.lower()).limit(1)
+            ).first()
+
+            sku = optional_text(row.get("sku", ""), max_len=32)
+            category = optional_text(row.get("category", ""), max_len=32)
+            portion_label = optional_text(row.get("portion_label", ""), max_len=60) or "1 unidad"
+            price = parse_money_gs(row.get("sale_price_gs", ""), allow_zero=True)
+            tags = optional_text(row.get("tags", ""), max_len=500)
+
+            if existing:
+                existing.sku = sku
+                existing.category = category
+                existing.portion_label = portion_label
+                existing.sale_price_gs = price
+                existing.tags = tags
+                updated += 1
+            else:
+                product = Product(
+                    name=name,
+                    sku=sku,
+                    category=category,
+                    portion_label=portion_label,
+                    sale_price_gs=price,
+                    tags=tags,
+                    is_available=True,
+                )
+                session.add(product)
+                created += 1
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            errors.append({"row": row_num, "error": str(e)})
+
+    return render(request, "productos_importar.html", {
+        "created": created,
+        "updated": updated,
+        "errors": errors,
+    })
 
 
 __all__ = ["router"]
