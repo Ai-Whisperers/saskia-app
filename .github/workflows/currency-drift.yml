@@ -1,0 +1,34 @@
+# .github/workflows/currency-drift.yml — D3 lint gate (Session A, 2026-09-29)
+#
+# Catches the universal defect D3 from the UX audit: currency formatting drift
+# across templates ("Gs. 75" / "Gs. 75.000" / "75" all rendering inconsistently).
+#
+# Per AGENTS.md rule #4 (integer Gs. in DB), every Gs. rendering must go through
+# the format_gs filter (m.gs / m.gs_full). This workflow fails the build if a
+# developer adds a raw "Gs. {{ value }}" template without the filter.
+#
+# Runs on PRs and pushes to main. ~5 seconds.
+name: Currency Drift Lint (D3)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  currency-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Run D3 currency drift check
+        run: |
+          chmod +x scripts/check_currency_drift.sh
+          ./scripts/check_currency_drift.sh
+
+      - name: Annotate violations (best-effort)
+        if: failure()
+        run: |
+          echo "::error::Currency drift detected. Wrap each Gs. rendering in {{ m.gs(value) }} or {{ m.gs_full(value) }} — see scripts/check_currency_drift.sh for details and allowlist."
+          echo "Universal defect D3: 'Gs. 75' / 'Gs. 75,00' / '75' render differently across pages, causing 1000x reading errors."

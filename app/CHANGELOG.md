@@ -5,6 +5,37 @@
 
 ## [Unreleased]
 
+### Added (2026-09-29) — Session A: KPI web component + D3 currency lint gate
+
+**New web component: `<saskia-kpi-card>`**
+- `app/static/saskia-kpi-card.js` — KPI tile with label, value, optional
+  delta arrow (↑/↓/—) + delta direction (up/down/flat/neutral) + delta
+  prior label + severity (success/warn/danger) + optional href.
+- CSS in `app/static/app-components.css` (`.metric-card--kpi` block).
+- Registered globally via `base.html` (defer-loaded with `asset_version()`).
+- Tests: `tests/test_saskia_kpi_card.py` (21 tests, all green).
+
+**Adoption (3 pages):**
+- `app/templates/inicio.html` — HOY band (Ventas, Operaciones, Ticket,
+  Margen) now uses `<saskia-kpi-card>`. Delta pill survives via
+  `delta-direction` + `delta-prior` attributes.
+- `app/templates/analisis.html` — 4 panorama KPIs (Capital inventario,
+  Hora pico, Día pico, MP cost %) upgraded. Severity `warn` triggered
+  when food-cost % > 50%.
+- `app/templates/bank.html` — 4 financial KPIs (EUR income/spent/net,
+  PYG balance). EUR net shows severity based on sign.
+
+**D3 currency drift fix (universal defect closed):**
+- `scripts/check_currency_drift.sh` — bash lint that fails CI when a
+  template renders raw `Gs. {{ value }}` without the format_gs filter.
+- `.github/workflows/currency-drift.yml` — GitHub Actions gate.
+- Fixed 2 real violations: `pedido_stock_preview.html` (line 32) and
+  `produccion.html` (line 141 + missing `m` macro import).
+- Tests: `tests/test_currency_drift_lint.py` (11 tests, all green).
+
+**Decision origin:** 40-hat deliberation (hat 29 — finance hat — flagged
+D3 as a SECURITY issue, not cosmetic; CI lint is the only enforcement).
+
 ### Added (2026-09-25) — AIW QA Department gate hook (CI only, no app code)
 
 Caller workflow `.github/workflows/qa-gates.yml` invokes the reusable

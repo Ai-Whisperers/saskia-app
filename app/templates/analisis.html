@@ -10,34 +10,13 @@
 <div class="band-label">Panorama</div>
 {{ ui.skeleton_section(id="analisis-panorama", variant="kpi", count=4, label="Cargando panorama") }}
 <div class="grid grid-4 mb-4" data-loaded-section="analisis-panorama">
-  <div class="metric-card">
-    <div class="metric-label">Capital en inventario</div>
-    <div class="metric-value">{{ m.gs_full(insights.inventory_capital_gs) }}</div>
-  </div>
-  <div class="metric-card">
-    <div class="metric-label">Hora pico de ventas</div>
-    <div class="metric-value">{% if insights.sales_peak_hour is not none and insights.sales_peak_hour >= 0 %}{{ "%02d"|format(insights.sales_peak_hour|int) }}:00 hs{% else %}—{% endif %}</div>
-  </div>
-  <div class="metric-card">
-    <div class="metric-label">Día pico de ventas</div>
-    <div class="metric-value">
-      {% set dow_names = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'] %}
-      {% if insights.sales_peak_dow is not none and insights.sales_peak_dow >= 0 %}{{ dow_names[insights.sales_peak_dow|int] }}{% else %}—{% endif %}
-    </div>
-  </div>
-  <div class="metric-card">
-    <div class="metric-label">Costo de materia prima % (30d)</div>
-    <div class="metric-value">
-      {% set mp_pct = insights.food_cost.theoretical_food_cost_pct %}
-      {% if mp_pct is none or insights.food_cost.sales_revenue_gs <= 0 %}
-        <small class="text-muted">sin ventas para comparar</small>
-      {% elif mp_pct > 100 %}
-        <small class="text-muted">revisar datos de costo</small>
-      {% else %}
-        {{ "%.1f"|format(mp_pct) }}%
-      {% endif %}
-    </div>
-  </div>
+  <saskia-kpi-card label="Capital en inventario" value="{{ m.gs_full(insights.inventory_capital_gs) }}"></saskia-kpi-card>
+  <saskia-kpi-card label="Hora pico de ventas" value="{% if insights.sales_peak_hour is not none and insights.sales_peak_hour >= 0 %}{{ '%02d'|format(insights.sales_peak_hour|int) }}:00 hs{% else %}—{% endif %}"></saskia-kpi-card>
+  <saskia-kpi-card label="Día pico de ventas" value="{% set dow_names = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'] %}{% if insights.sales_peak_dow is not none and insights.sales_peak_dow >= 0 %}{{ dow_names[insights.sales_peak_dow|int] }}{% else %}—{% endif %}"></saskia-kpi-card>
+  <saskia-kpi-card
+    label="Costo de materia prima % (30d)"
+    value="{% set mp_pct = insights.food_cost.theoretical_food_cost_pct %}{% if mp_pct is none or insights.food_cost.sales_revenue_gs <= 0 %}sin ventas para comparar{% elif mp_pct > 100 %}revisar datos de costo{% else %}{{ '%.1f'|format(mp_pct) }}%{% endif %}"
+    {% set mp_pct_check = insights.food_cost.theoretical_food_cost_pct %}{% if mp_pct_check is not none and mp_pct_check > 50 and mp_pct_check <= 100 %}severity="warn"{% endif %}></saskia-kpi-card>
 </div>
 </div>
 

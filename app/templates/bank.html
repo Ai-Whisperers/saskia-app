@@ -6,10 +6,10 @@
 }}
 
 <div class="kpi-strip">
-  {{ ui.metric_card(label="EUR income", value='€{:,.2f}'.format(eur_income), compact=True) }}
-  {{ ui.metric_card(label="EUR spent", value='€{:,.2f}'.format(eur_spent), compact=True) }}
-  {{ ui.metric_card(label="EUR net", value='€{:,.2f}'.format(eur_net), compact=True) }}
-  {{ ui.metric_card(label="PYG balance", value=m.gs(pyg_balance_gs), compact=True) }}
+  <saskia-kpi-card label="EUR income" value="€{{ '{:,.2f}'.format(eur_income) }}" compact></saskia-kpi-card>
+  <saskia-kpi-card label="EUR spent" value="€{{ '{:,.2f}'.format(eur_spent) }}" compact></saskia-kpi-card>
+  <saskia-kpi-card label="EUR net" value="€{{ '{:,.2f}'.format(eur_net) }}" compact severity="{% if eur_net >= 0 %}success{% else %}danger{% endif %}"></saskia-kpi-card>
+  <saskia-kpi-card label="PYG balance" value="{{ m.gs(pyg_balance_gs) }}" compact severity="success"></saskia-kpi-card>
 </div>
 
 {% if active_category %}

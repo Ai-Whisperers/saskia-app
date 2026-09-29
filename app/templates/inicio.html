@@ -35,30 +35,35 @@
 {# ══ HOY band: 4 KPI cards ═════════════════════════════════════════ #}
 <div class="band-label">Hoy</div>
 <div class="kpi-row mb-4">
-  <div class="metric-card">
-    <div class="metric-label">Ventas de hoy</div>
-    <div class="metric-value">{% if ventas_gs %}{{ m.gs_full(ventas_gs) }}{% else %}<small class="text-muted">aún no hay ventas hoy</small>{% endif %}</div>
-    <div class="metric-sub">{{ m.delta_pill(delta_ventas, prior_label) }}</div>
-  </div>
-  <div class="metric-card">
-    <div class="metric-label">Operaciones</div>
-    <div class="metric-value">{% if ops_today %}{{ ops_today }}{% else %}<small class="text-muted">—</small>{% endif %}</div>
-    <div class="metric-sub">{% if ops_delta_label %}{{ ops_delta_label }}{% endif %}</div>
-  </div>
-  <div class="metric-card">
-    <div class="metric-label">Ticket promedio</div>
-    <div class="metric-value">{% if ticket_promedio_gs %}{{ m.gs_full(ticket_promedio_gs) }}{% else %}<small class="text-muted">—</small>{% endif %}</div>
-    <div class="metric-sub">{% if ticket_delta_label %}{{ ticket_delta_label }}{% endif %}</div>
-  </div>
-  <div class="metric-card">
-    <div class="metric-label">Margen estimado</div>
-    <div class="metric-value">
-      {% if margen_pct_fmt and margen_pct_fmt != '—' %}{{ margen_pct_fmt }}{% else %}<small class="text-muted">—</small>{% endif %}
-    </div>
-    <div class="metric-sub">
-      {% if costs_incomplete %}<span class="badge badge-neutral">provisional · {{ costs_incomplete }}</span>{% endif %}
-    </div>
-  </div>
+  <saskia-kpi-card
+    label="Ventas de hoy"
+    value="{% if ventas_gs %}{{ m.gs_full(ventas_gs) }}{% else %}aún no hay ventas hoy{% endif %}"
+    {% if delta_ventas and delta_ventas.pct is not none %}
+    delta="{{ delta_ventas.pct | abs | round(0, 'floor') | int }}%"
+    delta-direction="{{ delta_ventas.direction if delta_ventas.direction != 'new' else 'up' }}"
+    {% if prior_label %}delta-prior="vs {{ prior_label }}"{% endif %}
+    {% endif %}
+    href="/reportes/diario"></saskia-kpi-card>
+  <saskia-kpi-card
+    label="Operaciones"
+    value="{% if ops_today %}{{ ops_today }}{% else %}—{% endif %}"
+    {% if ops_today and ops_delta_label %}
+    delta="{{ ops_delta_label.split(' ')[1] }}"
+    delta-direction="{{ 'up' if '▲' in ops_delta_label else 'down' if '▼' in ops_delta_label else 'flat' }}"
+    delta-prior="vs semana pasada"
+    {% endif %}></saskia-kpi-card>
+  <saskia-kpi-card
+    label="Ticket promedio"
+    value="{% if ticket_promedio_gs %}{{ m.gs_full(ticket_promedio_gs) }}{% else %}—{% endif %}"
+    {% if ticket_delta_label %}
+    delta="{{ ticket_delta_label.split(' ')[1] }}"
+    delta-direction="{{ 'up' if '▲' in ticket_delta_label else 'down' if '▼' in ticket_delta_label else 'flat' }}"
+    delta-prior="vs semana pasada"
+    {% endif %}></saskia-kpi-card>
+  <saskia-kpi-card
+    label="Margen estimado"
+    value="{% if margen_pct_fmt and margen_pct_fmt != '—' %}{{ margen_pct_fmt }}{% else %}—{% endif %}"
+    {% if costs_incomplete %}sub="{{ costs_incomplete }} cargado"{% endif %}></saskia-kpi-card>
 </div>
 
 {# ══ Middle band: Acciones · Plan de mañana · Alertas ══════════════ #}

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
 {% block title %}Producción{% endblock %}
 {% block content %}
 <h1>Producción</h1>
@@ -138,7 +139,7 @@
         </div>
         <ul style="margin-top:var(--space-2);padding-left:var(--space-5);">
           {% for it in p.line_items %}
-          <li>{{ it.qty }} × {{ it.product_name }} (Gs. {{ '{:,}'.format(it.unit_price_gs).replace(',', '.') }})</li>
+          <li>{{ it.qty }} × {{ it.product_name }} ({{ m.gs(it.unit_price_gs) }})</li>
           {% endfor %}
         </ul>
         {% if p.notes %}<small class="text-muted">📝 {{ p.notes }}</small>{% endif %}

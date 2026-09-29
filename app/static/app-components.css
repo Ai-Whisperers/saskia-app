@@ -29,6 +29,31 @@
 .metric-card__target-fill.is-danger { background: var(--color-danger); }
 .metric-card__target-label { font-size: var(--text-xs); color: var(--color-text-subtle); }
 
+/* ═══ <saskia-kpi-card> styles (Session A — 2026-09-29) ═══ */
+.metric-card--kpi { position: relative; transition: transform 150ms ease, box-shadow 150ms ease; }
+.metric-card--kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.metric-card__head { display: flex; align-items: center; gap: var(--space-2); }
+.metric-card__icon svg { width: 16px; height: 16px; fill: currentColor; color: var(--color-text-muted); }
+.metric-card__link { text-decoration: none; color: inherit; display: block; }
+.metric-card__link:hover { color: inherit; }
+.metric-card__delta { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-sm); font-weight: 600; margin-top: var(--space-1); }
+.metric-card__delta-arrow { font-weight: 700; line-height: 1; }
+.metric-card__delta-text { font-variant-numeric: tabular-nums; }
+.metric-card__delta-prior { font-weight: 400; color: var(--color-text-muted); font-size: var(--text-xs); }
+.metric-card__delta--up { color: var(--color-success); }
+.metric-card__delta--up .metric-card__delta-arrow { color: var(--color-success); }
+.metric-card__delta--down { color: var(--color-danger); }
+.metric-card__delta--down .metric-card__delta-arrow { color: var(--color-danger); }
+.metric-card__delta--flat { color: var(--color-text-muted); }
+/* Severity: 4px left-edge stripe + subtle bg tint */
+.metric-card--sev-success { border-left: 4px solid var(--color-success); }
+.metric-card--sev-warn { border-left: 4px solid var(--color-warn); }
+.metric-card--sev-danger { border-left: 4px solid var(--color-danger); }
+.metric-card--sev-neutral { border-left: 4px solid var(--color-border); }
+/* Compact variant for tight lists */
+.metric-card--compact.metric-card--kpi { padding: var(--space-3); }
+.metric-card--compact.metric-card--kpi .metric-card__value { font-size: var(--text-xl); }
+
 /* ── status_pill (A-3) ─────────────────────────────────────────────── */
 .status-pill { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); font-size: var(--text-xs); font-weight: 600; border-radius: var(--radius-pill); line-height: 1.4; white-space: nowrap; }
 .status-pill--ok { background: var(--color-success-soft); color: var(--color-success-fg); }
