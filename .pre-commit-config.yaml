@@ -73,12 +73,51 @@ repos:
         # 2026-09-02: a rotated GitHub PAT was found in .git/config in a
         # shared scratch dir. This hook catches future instances.
         # Token-shape patterns: ghp_, ghs_, gho_, ghu_, github_pat_,
-        # x-access-token: URLs, AKIA (AWS), generic JWTs, long key=values.
+        # x-access-token: *** AKIA (AWS), generic JWTs, long key=values.
         entry: python scripts/check_no_secrets.py
         language: system
         pass_filenames: true
         types_or: [python, yaml, json, toml, markdown, text, shell]
         stages: [pre-commit]
+
+      - id: lint-tier1
+        name: template component conventions (lint_tier1.py)
+        # Enforces saskia-combo / saskia-date / saskia-toast usage over
+        # native date inputs, native confirm(), hand-rolled empty states.
+        # Without this, new templates ship with inconsistent UX.
+        # The 7 known violations are grandfathered in CI via --no-verify
+        # until they're fixed (see IMPROVEMENT_BACKLOG.md Tier 9).
+        entry: uv run python scripts/lint_tier1.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: no-hardcoded-dates
+        name: no hardcoded 2024-2029 dates in tests
+        # Per skill aiw-local-first-app-tests Pitfall #8 — calendar drift
+        # causes silent test rot. New tests must use datetime.now(...) or
+        # freezegun, not literal dates.
+        entry: uv run pytest -x -q --no-cov tests/test_no_hardcoded_dates.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: routers-require-auth
+        name: every router must reference an auth gate
+        # Per BACKLOG rule added 2026-09-29. Catches new routers that
+        # forget to add require_login — security gate.
+        entry: uv run pytest -x -q --no-cov tests/test_routers_require_auth.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: no-silent-excepts
+        name: no silent except blocks in routers
+        # Per BACKLOG #53. AST-based scan over every except block.
+        entry: uv run pytest -x -q --no-cov tests/test_no_silent_excepts.py
+        language: system
+        pass_filenames: false
+        always_run: true
 
 # Install:
 #   uv tool install pre-commit
