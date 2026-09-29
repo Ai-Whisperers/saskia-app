@@ -80,6 +80,7 @@ from app.routers import (
     shopping,
     suppliers,
     users,
+    validation,
 )
 from app.services.template_render import templates
 
@@ -537,6 +538,7 @@ def _is_public(path: str) -> bool:
 app.include_router(auth.router)
 app.include_router(health.router)
 app.include_router(dashboard.router)
+app.include_router(validation.router)
 app.include_router(analisis.router)
 app.include_router(inventory.router)
 app.include_router(recipes.router)

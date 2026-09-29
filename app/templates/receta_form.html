@@ -12,6 +12,26 @@
      crumbs=[('Recetas', '/recetas'), (action, None)]
    ) }}
 
+{% if mode == 'edit' and recipe %}
+{# ── Recipe photo zone ── #}
+<div style="margin-bottom:var(--space-4);display:flex;align-items:center;gap:var(--space-3);">
+  <div style="position:relative;display:inline-block;" id="recipe-photo-zone">
+    {% if recipe.image_url %}
+      <img src="{{ recipe.image_url }}" alt="{{ recipe.name }}" style="max-height:120px;border-radius:var(--radius);object-fit:cover;">
+    {% else %}
+      <div style="width:120px;height:120px;background:var(--color-surface-subtle);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:var(--color-text-muted);font-size:var(--text-sm);text-align:center;padding:1rem;">Sin foto</div>
+    {% endif %}
+    <button type="button" onclick="document.getElementById('recipe-photo-modal').showModal()"
+            style="position:absolute;inset:0;width:100%;height:100%;background:rgba(0,0,0,0.4);color:white;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:var(--text-sm);opacity:0;transition:opacity .2s;cursor:pointer;border:none;"
+            onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'"
+            aria-label="Cambiar foto">
+      <svg class="icon" style="width:24px;height:24px"><use href="#icon-camera"/></svg>
+      <span style="margin-left:.25rem">Cambiar foto</span>
+    </button>
+  </div>
+</div>
+{% endif %}
+
 <form method="post" action="/recetas{{ '/nueva' if mode == 'new' else '/' ~ recipe.id ~ '/editar' }}"
       id="recipe-form"
       class="recipe-form-layout">
@@ -33,7 +53,10 @@
           <label for="name">Nombre <span class="required-mark">*</span></label>
           <input type="text" id="name" name="name" required maxlength="120"
                  value="{{ recipe.name if recipe else '' }}"
-                 placeholder="Ej: Muffin de chocolate">
+                 placeholder="Ej: Muffin de chocolate"
+                 hx-post="/api/validate/recipe" hx-trigger="blur" hx-include="closest form"
+                 onhtmx:after-request="handleValidation(this, event)">
+          <span class="field-error" id="name-error" style="color:var(--color-danger);font-size:var(--text-xs);display:block;margin-top:.25rem;"></span>
         </div>
 
         <div class="form-row">
@@ -200,7 +223,10 @@
         <div class="yield-group">
           <input type="number" id="yield_qty" name="yield_qty" step="0.01" min="0"
                  class="yield-qty-input"
-                 value="{{ "%.2f"|format(recipe.yield_qty) if recipe and recipe.yield_qty is not none else '12' }}">
+                 value="{{ "%.2f"|format(recipe.yield_qty) if recipe and recipe.yield_qty is not none else '12' }}"
+                 hx-post="/api/validate/recipe" hx-trigger="blur" hx-include="closest form"
+                 onhtmx:after-request="handleValidation(this, event)">
+          <span class="field-error" id="yield_qty-error" style="color:var(--color-danger);font-size:var(--text-xs);display:block;margin-top:.25rem;"></span>
           {{ ui.combo_field(
             name='yield_unit',
             placeholder='und',
@@ -253,10 +279,18 @@
           <div class="time-field">
             <label for="difficulty" class="time-field-label">Dificultad</label>
             <div class="time-input-group">
-              <input type="number" id="difficulty" name="difficulty" min="1" max="5"
-                     class="time-input" value="{{ recipe.difficulty if recipe and recipe.difficulty is not none else '' }}"
-                     placeholder="auto">
-              <span class="time-suffix">/5</span>
+              {# Star-rating difficulty selector #}
+              <div class="difficulty-stars" id="difficulty-stars" style="display:flex;gap:4px;cursor:pointer;" role="group" aria-label="Dificultad">
+                {% for s in range(1, 6) %}
+                  <span class="star-btn" data-val="{{ s }}" aria-label="{{ s }}"
+                        style="font-size:1.1rem;line-height:1;color:var(--color-text-muted);user-select:none;">&#9733;</span>
+                {% endfor %}
+              </div>
+              <input type="hidden" id="difficulty" name="difficulty"
+                     value="{{ recipe.difficulty if recipe and recipe.difficulty is not none else '' }}"
+                     hx-post="/api/validate/recipe" hx-trigger="blur" hx-include="closest form"
+                     onhtmx:after-request="handleValidation(this, event)">
+              <span class="field-error" id="difficulty-error" style="color:var(--color-danger);font-size:var(--text-xs);"></span>
             </div>
           </div>
         </div>
@@ -1005,6 +1039,135 @@
   // ---------- Initial compute on page load ----------
   computeCosts();
 })();
+
+// ── Unsaved changes warning ──
+(function() {
+  var form = document.getElementById('recipe-form');
+  if (!form) return;
+  var formDirty = false;
+  form.querySelectorAll('input, select, textarea').forEach(function(el) {
+    el.addEventListener('input', function() { formDirty = true; });
+  });
+  window.addEventListener('beforeunload', function(e) {
+    if (formDirty) { e.preventDefault(); e.returnValue = ''; }
+  });
+  form.addEventListener('submit', function() { formDirty = false; });
+})();
+
+// ── HTMX inline validation handler ──
+function handleValidation(inputEl, event) {
+  var response = event.detail.xhr.responseText;
+  try {
+    var data = JSON.parse(response);
+  } catch(e) { return; }
+  var errors = data.errors || {};
+  var fieldName = inputEl.name;
+  var errorEl = document.getElementById(fieldName + '-error');
+  if (errorEl) {
+    errorEl.textContent = errors[fieldName] || '';
+    errorEl.style.display = errors[fieldName] ? '' : 'none';
+  }
+}
+
+// ── Difficulty star rating ──
+(function() {
+  var container = document.getElementById('difficulty-stars');
+  if (!container) return;
+  var input = document.getElementById('difficulty');
+  var stars = container.querySelectorAll('.star-btn');
+
+  function setStars(val) {
+    stars.forEach(function(s) {
+      var sv = parseInt(s.getAttribute('data-val'), 10);
+      s.style.color = sv <= val ? '#f59e0b' : 'var(--color-text-muted)';
+    });
+  }
+
+  // Init from current value
+  var initial = parseInt(input && input.value, 10);
+  if (initial) setStars(initial);
+
+  stars.forEach(function(star) {
+    star.addEventListener('click', function() {
+      var val = parseInt(star.getAttribute('data-val'), 10);
+      input.value = val;
+      setStars(val);
+      // Trigger HTMX validation
+      input.dispatchEvent(new Event('blur'));
+    });
+    star.addEventListener('mouseover', function() {
+      setStars(parseInt(star.getAttribute('data-val'), 10));
+    });
+  });
+
+  container.addEventListener('mouseleave', function() {
+    var current = parseInt(input.value, 10) || 0;
+    setStars(current);
+  });
+})();
+
+// ── Recipe photo picker ──
+(function() {
+  var modal = document.getElementById('recipe-photo-modal');
+  if (!modal) return;
+
+  // Populate photos from /recetas/{id}/set-photo via fetch
+  var recipeId = {{ recipe.id if mode == 'edit' and recipe else 'null' }};
+  if (recipeId) {
+    fetch('/recetas/' + recipeId + '/set-photo')
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        // Inject just the photo grid into the modal body
+        var tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        var grid = tmp.querySelector('.photo-grid');
+        var body = modal.querySelector('.modal-body');
+        if (grid && body) {
+          // Replace existing content
+          var existing = body.querySelector('.photo-grid');
+          if (existing) existing.remove();
+          body.appendChild(grid);
+        }
+      })
+      .catch(function() {});
+  }
+
+  var img = document.getElementById('recipe-photo-img');
+  var title = document.getElementById('recipe-photo-title');
+  var closeBtn = document.getElementById('recipe-photo-close');
+
+  document.querySelectorAll('[data-recipe-photo]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var src = btn.getAttribute('data-src');
+      var name = btn.getAttribute('data-name') || '';
+      if (!src) return;
+      if (img) img.src = src;
+      if (title) title.textContent = name;
+      modal.showModal();
+    });
+  });
+
+  if (closeBtn) closeBtn.addEventListener('click', function() { modal.close(); });
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) modal.close();
+  });
+})();
 </script>
+
+{# ── Recipe photo picker modal (re-used from /recetas/{id}/set-photo) ── #}
+<dialog id="recipe-photo-modal" class="modal" aria-labelledby="recipe-photo-title" aria-modal="true">
+  <div class="modal-dialog" role="document" style="max-width:min(90vw, 720px);">
+    <div class="modal-header">
+      <h2 id="recipe-photo-title" class="modal-title">Elegir foto</h2>
+      <button type="button" class="btn-ghost btn-icon" onclick="document.getElementById('recipe-photo-modal').close()" aria-label="Cerrar">
+        <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="text-align:center;">
+      {# Photos injected via JS from /recetas/{id}/set-photo #}
+      <div id="photo-picker-loading" class="muted" style="padding:2rem;">Cargando fotos…</div>
+    </div>
+  </div>
+</dialog>
 
 {% endblock %}
