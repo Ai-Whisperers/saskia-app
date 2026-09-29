@@ -123,7 +123,7 @@ def test_difficulty_minimum_1():
 def test_recipe_dietary_all_vegan(session_factory):
     """Recipe with only vegan ingredients is vegan."""
     with session_factory() as s:
-        ing_flour = Ingredient(name="harina_xyz", unit="kg", stock_qty=1,
+        ing_flour = Ingredient(name="Harina xyz", unit="kg", stock_qty=1,
                                purchase_price_gs=5000)
         ing_water = Ingredient(name="agua_xyz", unit="l", stock_qty=1,
                                purchase_price_gs=0)
@@ -145,9 +145,9 @@ def test_recipe_dietary_all_vegan(session_factory):
 def test_recipe_dietary_with_dairy_not_vegan(session_factory):
     """Recipe containing milk is NOT vegan but IS vegetarian."""
     with session_factory() as s:
-        ing_flour = Ingredient(name="harina_xyz", unit="kg", stock_qty=1,
+        ing_flour = Ingredient(name="Harina xyz", unit="kg", stock_qty=1,
                                purchase_price_gs=5000)
-        ing_milk = Ingredient(name="leche_xyz", unit="l", stock_qty=1,
+        ing_milk = Ingredient(name="Leche xyz", unit="l", stock_qty=1,
                               purchase_price_gs=8000)
         s.add_all([ing_flour, ing_milk])
         s.flush()
@@ -255,7 +255,7 @@ def test_recipe_sub_recipe_depth_three_levels(session_factory):
 
 def test_classify_recipe_basic(session_factory):
     with session_factory() as s:
-        ing = Ingredient(name="harina_xyz", unit="kg", stock_qty=1,
+        ing = Ingredient(name="Harina xyz", unit="kg", stock_qty=1,
                          purchase_price_gs=5000)
         s.add(ing)
         s.flush()
@@ -281,7 +281,7 @@ def test_classify_recipe_basic(session_factory):
 def test_recipe_cost_per_gram_computes(session_factory):
     """A recipe with cost should compute cost-per-gram."""
     with session_factory() as s:
-        ing = Ingredient(name="harina_xyz", unit="kg", stock_qty=1,
+        ing = Ingredient(name="Harina xyz", unit="kg", stock_qty=1,
                          purchase_price_gs=5000)
         s.add(ing)
         s.flush()

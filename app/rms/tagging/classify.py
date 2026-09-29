@@ -16,6 +16,7 @@ Public API:
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from app.rms.tagging.vocabulary import (
     ALLERGEN_KEYWORDS,
@@ -77,12 +78,58 @@ _NAME_NORMALIZE_RE = re.compile(r"\s+")
 
 
 def _normalize_name(name: str) -> str:
-    """Lowercase + strip + collapse whitespace."""
-    return _NAME_NORMALIZE_RE.sub(" ", name.strip().lower())
+    """Lowercase + strip + collapse whitespace + strip accents.
+
+    Accent stripping is essential for Spanish allergen matching:
+    `maní` (peanut) and `mani` (Indonesian "sweet") are different words,
+    but `maní` should match the Spanish keyword regardless of whether
+    the operator typed it with or without accent.
+    """
+    norm = _NAME_NORMALIZE_RE.sub(" ", name.strip().lower())
+    # Decompose accented chars (maní → mani + combining acute), drop the
+    # combining marks. This is the canonical Unicode approach (NFD + Mn
+    # filter) and handles every Spanish diacritic.
+    return "".join(
+        c for c in unicodedata.normalize("NFD", norm)
+        if unicodedata.category(c) != "Mn"
+    )
+
+
+def _keyword_matches(keyword: str, name: str) -> bool:
+    """Word-boundary match for a single allergen keyword.
+
+    EXACT-word match (no auto-plural). Operators must list both singular
+    and plural forms in vocabulary.ALLERGEN_KEYWORDS if needed.
+
+    Why no auto-plural: distinguishing language collisions.
+      - "mani" (Spanish maní / peanut) vs "manis" (Indonesian "sweet")
+      - "nuez" vs "nueces" — both are valid Spanish, must be listed
+      - "almendra" vs "almendras" — both common, both must be listed
+
+    Returns True if the keyword matches as a complete word (case- and
+    accent-insensitive).
+    """
+    n = name.strip().lower()
+    if not n:
+        return False
+    # Require: word boundary, the keyword, then word boundary.
+    # Delimiters: whitespace, hyphen, slash, comma, period, semicolon, colon,
+    # underscore (so test ingredient names like "leche_xyz" don't false-match).
+    pat = r"(?:^|[\s\-/_,.;:])" + re.escape(keyword) + r"(?:[\s\-/_,.;:]|$)"
+    return re.search(pat, n) is not None
 
 
 def infer_allergens(name: str) -> list[str]:
     """Return sorted list of allergens present in this ingredient name.
+
+    Uses WORD-BOUNDARY matching (not substring) to avoid false positives:
+
+      ✓ "Maní tostado"          → ["nuts"]   (word: mani)
+      ✗ "Ketjap Manis"          → []          (word: manis, no "mani" word)
+      ✓ "Harina de almendras"   → ["gluten"]  (word: harina; operator's
+                                              sin-gluten claim overrides)
+      ✓ "Leche descremada"      → ["dairy"]   (word: leche)
+      ✓ "Nuez moscada"          → ["nuts"]    (word: nuez)
 
     Bootstrap helper: when an operator adds a new ingredient without
     filling allergens, we suggest the matches here for them to confirm.
@@ -91,7 +138,7 @@ def infer_allergens(name: str) -> list[str]:
     norm = _normalize_name(name)
     found: list[str] = []
     for allergen, keywords in ALLERGEN_KEYWORDS.items():
-        if any(kw in norm for kw in keywords):
+        if any(_keyword_matches(kw, norm) for kw in keywords):
             found.append(allergen)
     return sorted(found)
 
@@ -144,19 +191,19 @@ def infer_dietary_tags(name: str) -> list[str]:
 
     tags: list[str] = []
 
-    if any(kw in norm for kw in _MEAT_FISH):
+    if any(_keyword_matches(kw, norm) for kw in _MEAT_FISH):
         # meat/fish → not vegan, not vegetarian
         pass
     else:
         tags.append("vegetarian")
-        if not any(kw in norm for kw in _DAIRY_EGG_HONEY):
+        if not any(_keyword_matches(kw, norm) for kw in _DAIRY_EGG_HONEY):
             tags.append("vegan")
 
     if "gluten" not in allergens:
         tags.append("gluten_free")
 
-    sugar_or_flour = any(kw in norm for kw in _SUGAR_FLOUR)
-    is_keto_sweetener = any(kw in norm for kw in _KETO_SWEETENERS)
+    sugar_or_flour = any(_keyword_matches(kw, norm) for kw in _SUGAR_FLOUR)
+    is_keto_sweetener = any(_keyword_matches(kw, norm) for kw in _KETO_SWEETENERS)
     if not sugar_or_flour or is_keto_sweetener:
         tags.append("keto_friendly")
 
@@ -304,7 +351,9 @@ def validate_ingredient(ing: object) -> list[str]:
 
     # vegetarian + meat/fish in name
     if "vegetariano" in declared:
-        if any(kw in name_lower for kw in _MEAT_FISH_KEYWORDS):
+        # Use word-boundary matching to avoid false positives like
+        # 'maní' (peanut) being mistaken for a meat.
+        if any(_keyword_matches(kw, name_lower) for kw in _MEAT_FISH_KEYWORDS):
             issues.append("declares 'vegetariano' but name suggests meat/fish")
 
     # sin gluten + gluten allergen

@@ -396,3 +396,88 @@ def test_zanahoria_does_not_block_sin_azucar():
     """Carrots should not block sin-azúcar — they're not sweet."""
     ing = _ing("Zanahoria")
     assert ingredient_blocks(ing, "sin azúcar") is False
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Word-boundary keyword matching (2026-09-29 collision fixes)
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_ketjap_manis_is_not_nuts():
+    """Regression: Ketjap Manis (Indonesian soy sauce) was falsely flagged
+    as nuts because 'mani' (peanut in Spanish) is a substring of 'manis'
+    (Indonesian 'sweet'). Word-boundary matching fixes it.
+    """
+    out = infer_allergens("Ketjap Manis")
+    assert "nuts" not in out
+
+
+def test_mani_tostado_still_recognized_as_nuts():
+    """Spanish maní (peanut) — must still be recognized."""
+    out = infer_allergens("Maní tostado")
+    assert "nuts" in out
+
+
+def test_nuez_moscada_is_nuts():
+    out = infer_allergens("Nuez moscada")
+    assert "nuts" in out
+
+
+def test_almendra_molida_is_nuts_not_gluten():
+    """almendra molida — only nuts, no gluten. Word 'almendra' present."""
+    out = infer_allergens("almendra molida")
+    assert "nuts" in out
+
+
+def test_almendras_plural_form_matches():
+    out = infer_allergens("Almendras tostadas")
+    assert "nuts" in out
+
+
+def test_leche_de_almendras_is_dairy_and_nuts():
+    """Compound: both 'leche' (dairy) and 'almendras' (nuts) match."""
+    out = infer_allergens("Leche de almendras")
+    assert "dairy" in out
+    assert "nuts" in out
+
+
+def test_yemas_plural_matches():
+    out = infer_allergens("Yemas")
+    assert "eggs" in out
+
+
+def test_queso_crema_phrase_matches_as_dairy():
+    """Multi-word keyword 'queso crema' must match the phrase."""
+    out = infer_allergens("Queso crema")
+    assert "dairy" in out
+
+
+def test_ingredient_with_hyphen_separator_matches():
+    """Hyphenated names like 'leche-descremada' should match 'leche'."""
+    out = infer_allergens("Leche-descremada")
+    assert "dairy" in out
+
+
+def test_ingredient_with_parenthesis_ingredient_name():
+    """Names with parentheses — 'Crema agria' should match dairy via 'crema'."""
+    out = infer_allergens("Crema agria")
+    assert "dairy" in out
+
+
+def test_accent_insensitive_matching():
+    """Keyword 'mani' should match 'maní' (accent stripped in normalize)."""
+    out = infer_allergens("maní tostado")
+    assert "nuts" in out
+
+
+def test_cebolla_ajo_no_false_positives():
+    """Vegetables should not match any allergen."""
+    for name in ("Cebolla", "Ajo", "Perejil", "Tomate", "Lechuga"):
+        out = infer_allergens(name)
+        assert out == [], f"{name!r} unexpectedly matched {out}"
+
+
+def test_dulce_de_leche_phrase_matches_dairy():
+    """Multi-word phrase 'dulce de leche' must match dairy."""
+    out = infer_allergens("Dulce de leche")
+    assert "dairy" in out

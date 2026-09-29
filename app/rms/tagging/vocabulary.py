@@ -155,29 +155,61 @@ TAG_ALLERGEN_BLOCKERS: dict[str, tuple[str, ...]] = {
 # — kept in separate constants below.
 # ─────────────────────────────────────────────────────────────────────────
 ALLERGEN_KEYWORDS: dict[str, tuple[str, ...]] = {
+    # Both singular and plural forms are listed explicitly because the
+    # word-boundary matcher in classify._keyword_matches requires exact
+    # word forms (no auto-plural — would collide with Indonesian "manis").
     "gluten": (
-        "harina", "trigo", "avena", "cebada", "centeno",
-        "malta", "espelta", "cebada", "centeno",
+        "harina", "harinas",
+        "trigo",
+        "avena",
+        "cebada",
+        "centeno",
+        "malta",
+        "espelta",
     ),
     "dairy": (
-        "leche", "crema", "manteca", "mantequilla", "yogur",
-        "queso", "queso crema", "ricota", "requesón", "dulce de leche",
+        "leche", "leches",
+        "crema",
+        "manteca", "mantecas",
+        "mantequilla", "mantequillas",
+        "yogur", "yogures",
+        "queso", "quesos",
+        "queso crema",
+        "ricota",
+        "requeson", "requesón",
+        "dulce de leche",
     ),
     "eggs": (
-        "huevo", "huevos", "clara", "yema", "ovoalbúmina",
+        "huevo", "huevos",
+        "clara", "claras",
+        "yema", "yemas",
+        "ovoalbumina",
     ),
     "nuts": (
-        "almendra", "nuez", "nueces", "avellana", "pistacho",
-        "maní", "mani", "castaña", "pecán", "macadamia",
+        "almendra", "almendras",
+        "nuez", "nueces",
+        "avellana", "avellanas",
+        "pistacho", "pistachos",
+        # 'mani' = maní (Spanish, peanut). Listed WITHOUT trailing -s so
+        # 'manis' (Indonesian "sweet", as in "Ketjap Manis") does NOT match.
+        "mani",
+        "castana", "castañas",
+        "pecan",
+        "macadamia", "macadamias",
     ),
     "soy": (
-        "soja", "soya", "lecitina de soja", "tofu",
+        "soja",
+        "soya",
+        "lecitina de soja",
+        "tofu",
     ),
     "sesame": (
-        "sésamo", "sesamo", "ajonjolí", "ajonjoli",
+        "sesamo", "sesamos",  # both accented + unaccented handled by normalize
+        "ajonjoli", "ajonjolis",
     ),
     "sulfites": (
-        "sulfito", "sulfitos", "metabisulfito",
+        "sulfito", "sulfitos",
+        "metabisulfito", "metabisulfitos",
     ),
     # 2026-09-29: sugar is added as a disqualifier code (not a true allergen
     # per INAN). Used by sin-azúcar / keto to block recipes that contain
