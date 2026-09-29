@@ -20,7 +20,7 @@ from __future__ import annotations
 import secrets
 import uuid as _uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.rms.models import (
@@ -415,6 +415,12 @@ def make_pedido(
         payment_intent=kw.pop("payment_intent", "efectivo"),
         # Unique token — the unique index rejects duplicates when seeding N pedidos.
         public_token=kw.pop("public_token", None) or secrets.token_urlsafe(8)[:8],
+        # P1-2: default expiry 30 days from now so /p/{token} works in tests.
+        # Override with `public_token_expires_at=...` in kwargs for expiry tests.
+        public_token_expires_at=kw.pop(
+            "public_token_expires_at",
+            datetime.utcnow() + timedelta(days=30),
+        ),
         **kw,
     )
     s.add(ped)

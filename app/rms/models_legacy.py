@@ -1224,6 +1224,12 @@ class Pedido(Base):
     public_token: Mapped[str] = mapped_column(
         String(40), nullable=False, unique=True, index=True, default=""
     )
+    # P1-2: 30-day expiry for /p/{token} pickup links. NULL = legacy
+    # row pre-dating schema v67 (treated as expired — see
+    # _is_token_valid() in app/routers/pedidos.py).
+    public_token_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow
     )

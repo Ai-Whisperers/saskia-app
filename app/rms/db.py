@@ -2704,6 +2704,102 @@ def _migration_066_product_tablet_slug(conn: Any) -> None:
     _bump_schema_version(conn, 66)
 
 
+def _migration_067_pedido_public_token_expiry(conn: Any) -> None:
+    """P1-2: add pedido.public_token_expires_at for /p/{token} link expiry.
+
+    Security hardening (2026-09-29): previous tokens had no expiry, so
+    a leaked WhatsApp link worked forever. Now each pedido's public
+    link expires 30 days after creation. The lookup route in
+    ``app/routers/pedidos.py`` returns 410 Gone once the deadline
+    passes, prompting the customer to ask the bakery for a fresh link
+    instead of getting an obscure 404.
+
+    Why 30 days: long enough to cover the typical panificados pickup
+    window (a customer might forget a pedido for a week, then come
+    back), short enough that a leaked link has bounded blast radius.
+
+    Backfill: all existing pedidos get ``created_at + 30 days`` so the
+    legacy 8-char tokens continue to work for the rest of their
+    natural pickup window. This is a one-time grace period — operators
+    can rotate by running:
+        UPDATE pedido SET public_token_expires_at = ...;
+    if they need to.
+
+    Idempotent: ALTER try/except (matches _migration_066 pattern).
+    """
+    # 1. Add the column. SQLite ALTER TABLE doesn't support DEFAULT
+    # with expression backfill in older versions; safe to add nullable.
+    try:
+        conn.execute(
+            text(
+                "ALTER TABLE pedido "
+                "ADD COLUMN public_token_expires_at TIMESTAMP"
+            )
+        )
+    except Exception:  # noqa: BLE001, S110
+        pass
+
+    # 2. Backfill: existing rows get created_at + 30 days.
+    #
+    # SQLite returns created_at as a plain string, so we parse it back
+    # to a datetime before adding the offset. Python's datetime.fromisoformat
+    # handles the common SQLite formats ("2026-01-01 12:00:00").
+    try:
+        from datetime import datetime as _dt
+        rows = conn.execute(
+            text(
+                "SELECT id, created_at FROM pedido "
+                "WHERE public_token_expires_at IS NULL"
+            )
+        ).all()
+        from datetime import timedelta as _td
+
+        for row in rows:
+            created = row.created_at
+            if created is None:
+                expires = _dt.now(timezone.utc) + _td(days=30)
+            elif isinstance(created, str):
+                # SQLite returns datetime columns as str. Handle both
+                # "YYYY-MM-DD HH:MM:SS" and "YYYY-MM-DDTHH:MM:SS" forms.
+                normalized = created.replace("T", " ")
+                try:
+                    parsed = _dt.fromisoformat(normalized)
+                except ValueError:
+                    # Fallback: try the most common SQLite format.
+                    from datetime import datetime as _dt2
+                    parsed = _dt2.strptime(normalized, "%Y-%m-%d %H:%M:%S")
+                expires = parsed + _td(days=30)
+            else:
+                expires = created + _td(days=30)
+            conn.execute(
+                text(
+                    "UPDATE pedido SET public_token_expires_at = :exp "
+                    "WHERE id = :pid"
+                ),
+                {"exp": expires, "pid": row.id},
+            )
+    except Exception as exc:  # noqa: BLE001
+        from loguru import logger as _lg
+
+        _lg.warning(
+            "migration 067 backfill failed (column may already be populated): "
+            f"{exc}"
+        )
+
+    # 3. Index for fast "is this token still valid" lookups.
+    try:
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_pedido_token_expires "
+                "ON pedido (public_token, public_token_expires_at)"
+            )
+        )
+    except Exception:  # noqa: BLE001, S110
+        pass
+
+    _bump_schema_version(conn, 67)
+
+
 def _migration_065_suscripciones(conn: Any) -> None:
     """P1-B5 — add suscripcion table for recurring customer orders (no cron).
 
@@ -2890,6 +2986,7 @@ MIGRATIONS = {
     64: _migration_064_no_op,  # sibling migration claimed slot 64; tablet-slug is at 66
     65: _migration_065_suscripciones,
     66: _migration_066_product_tablet_slug,
+    67: _migration_067_pedido_public_token_expiry,
 }
 
 

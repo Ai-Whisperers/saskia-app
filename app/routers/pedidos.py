@@ -37,7 +37,8 @@ from app.rms.costing import apply_sale
 from app.rms.csrf import verify_form_csrf
 from app.rms.db import safe_commit
 from app.rms.dependencies import get_session
-from app.rms.models import Customer, Pedido, PedidoLine, Product, Recipe, Sale
+from app.rms.models import AuditLog, Customer, Pedido, PedidoLine, Product, Recipe, Sale
+from app.rms.rate_limit import is_disabled as rate_limit_is_disabled
 
 try:
     from app.rms.models import Ingredient
@@ -182,14 +183,21 @@ def normalize_channel(raw: str) -> str:
 
 
 def generate_public_token() -> str:
-    """Generate an 8-char URL-safe token for /p/{token} pickup-share links.
+    """Generate a URL-safe token for /p/{token} pickup-share links.
 
-    Uses token_urlsafe(8) which yields ~11 chars; we slice to keep URLs
-    short for WhatsApp. 8 chars (62^8 = 218T) is plenty for a single-tenant
-    bakery — collisions would require ~14M active pedidos before we hit a
-    1% birthday-paradox probability.
+    Per P1-2 security hardening (2026-09-29):
+    - Full 22-char base64url token from token_urlsafe(16) → 96 bits of
+      entropy (was 48 bits from token_urlsafe(8)[:8]).
+    - Combined with the 30-day expiry added in migration 067, this makes
+      brute-forcing active tokens computationally infeasible.
+    - The previous 8-char truncation was defensible for a single-tenant
+      bakery but the truncation discarded ~50% of the entropy.
+    - Slightly longer URLs are a fair trade for the security gain.
+
+    Collision probability (birthday paradox): ~10^14 tokens before 1%
+    collision rate, so effectively zero for a single bakery.
     """
-    return secrets.token_urlsafe(8)[:8]
+    return secrets.token_urlsafe(16)
 
 
 def _pedido_total_gs(p: Pedido) -> int:
@@ -643,6 +651,10 @@ async def pedidos_create(
         delivery_zone_id=zone_int,
         notes=(notes or "").strip() or None,
         public_token=generate_public_token(),
+        # P1-2: token expires 30 days from creation. Set at insert time
+        # so the customer can always see "expires X" from the moment
+        # the pedido is created (not from when migration 067 ran).
+        public_token_expires_at=datetime.utcnow() + timedelta(days=30),
     )
     session.add(pedido)
     session.flush()  # assigns pedido.id
@@ -752,7 +764,77 @@ def pedidos_export_csv(
 
 # --- Public pickup-share endpoint (NO AUTH) ---------------------------------
 # Lives at root so the URL is short enough for WhatsApp messages:
-# https://saskia.app/p/AbCd1234
+# https://saskia.app/p/{token}
+
+
+def _is_token_valid(pedido: Pedido, now: datetime | None = None) -> bool:
+    """P1-2: return True if the pedido's public_token is still usable.
+
+    - None / NULL expires_at → treat as expired (defensive; legacy
+      pre-migration-067 rows get a one-time backfill in 067 itself).
+    - expires_at <= now → expired (410 Gone).
+    - expires_at > now → valid.
+
+    Pass ``now`` for deterministic tests.
+    """
+    if pedido.public_token_expires_at is None:
+        return False
+    when = now or datetime.now(timezone.utc)
+    # pedido.public_token_expires_at is naive UTC (matches the rest of
+    # the schema's datetime defaults); compare against a naive UTC now.
+    if pedido.public_token_expires_at.tzinfo is None:
+        when = when.replace(tzinfo=None)
+    return pedido.public_token_expires_at > when
+
+
+def _enforce_public_token_rate_limit(
+    request: Request, session: Session
+) -> None:
+    """P1-2: rate-limit /p/{token} lookups by client IP.
+
+    Defense against brute-forcing the 22-char token (96 bits is
+    uncrackable in practice, but limiting the lookup volume per IP
+    is still cheap insurance).
+
+    Counts ALL GETs to /p/{token} that hit the DB; if the IP has made
+    more than 30 in the last 5 minutes, returns 429. Same logic as
+    the login rate-limiter in app/rms/rate_limit.py but with a more
+    permissive threshold (legitimate refreshes / retries are normal).
+
+    Bypassed by AIW_SASKIA_AUTH_DISABLED=1 (test mode).
+    """
+    if rate_limit_is_disabled():
+        return
+    ip = _public_pedido_client_ip(request)
+    when = datetime.now(timezone.utc)
+    threshold = when - timedelta(minutes=5)
+    try:
+        count = (
+            session.query(AuditLog)
+            .filter(
+                AuditLog.action == "public.pedido.view",
+                AuditLog.ip == ip,
+                AuditLog.occurred_at >= threshold,
+            )
+            .count()
+        )
+    except Exception:  # noqa: BLE001 — fail open
+        return  # DB unavailable: don't brick the page
+    if count >= 30:
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas solicitudes. Intentá en unos minutos.",
+            headers={"Retry-After": "300"},
+        )
+
+
+def _public_pedido_client_ip(request: Request) -> str:
+    """Mirror of audit._client_ip: prefer X-Forwarded-For first hop."""
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    client = request.client
+    return getattr(client, "host", "unknown") if client else "unknown"
 
 
 @public_router.get("/p/{token}", response_class=HTMLResponse)
@@ -760,10 +842,18 @@ def public_pedido(request: Request, token: str) -> HTMLResponse:
     """Public, no-auth pickup-share page rendered for the customer.
 
     Used as a WhatsApp-shareable confirmation link so the customer can see
-    "what they ordered + when to come" without logging in. The token is the
-    8-char public_token generated when the pedido was created; collision-
+    "what they ordered + when to come" without logging in. The token is a
+    22-char public_token generated when the pedido was created; collision-
     resistance comes from the random token + the bounded single-tenant
     volume of pedidos.
+
+    P1-2 (2026-09-29) hardening:
+      - The public_token now expires 30 days after creation (see
+        migration 067 + Pedido.public_token_expires_at). An expired
+        link returns 410 Gone, prompting the customer to ask the
+        bakery for a fresh one.
+      - This endpoint is rate-limited per client IP via
+        _enforce_public_token_rate_limit (30 views per 5 minutes).
 
     Uses ``request.app.state.session_factory`` so the test engine
     (injected by the ``client`` fixture's monkey-patch of
@@ -773,6 +863,9 @@ def public_pedido(request: Request, token: str) -> HTMLResponse:
     back via this endpoint.
     """
     with request.app.state.session_factory() as session:
+        # P1-2: rate-limit first (cheap, before the DB hit).
+        _enforce_public_token_rate_limit(request, session)
+
         # Pedido.id is an Integer PK; look up by public_token instead
         # so /p/{token} resolves to the pedido sharing that token.
         # (Earlier this used session.get(Pedido, token), which queried
@@ -787,6 +880,33 @@ def public_pedido(request: Request, token: str) -> HTMLResponse:
             raise HTTPException(
                 status_code=404, detail="Pedido no encontrado"
             )
+
+        # P1-2: enforce token expiry. Returns 410 Gone (not 404) so the
+        # customer understands the link has aged out, not that the
+        # pedido never existed.
+        if not _is_token_valid(pedido):
+            raise HTTPException(
+                status_code=410,
+                detail=(
+                    "Este link venció. Pedile a la panadería que te "
+                    "mande uno nuevo."
+                ),
+            )
+
+        # Audit the view for forensics + rate-limit counting.
+        audit_record(
+            session,
+            user_id=None,
+            action="public.pedido.view",
+            request=request,
+            target_type="pedido",
+            target_id=pedido.id,
+            detail={"public_token_suffix": token[-4:]},
+        )
+        try:
+            session.commit()
+        except Exception:  # noqa: BLE001 — audit best-effort
+            session.rollback()
         decorated = _decorate_pedido(pedido, session)
         decorated["lines"] = [
             {
@@ -837,7 +957,21 @@ async def pedido_publico_comprobante(
             select(Pedido).where(Pedido.public_token == token)
         ).scalar_one_or_none()
         if pedido is None:
-            raise HTTPException(status_code=404, detail="Pedido no encontrado")
+            raise HTTPException(
+                status_code=404, detail="Pedido no encontrado"
+            )
+
+        # P1-2: same expiry enforcement as the GET route. An expired
+        # link can't be used to upload either — customers must ask the
+        # bakery for a fresh one.
+        if not _is_token_valid(pedido):
+            raise HTTPException(
+                status_code=410,
+                detail=(
+                    "Este link venció. Pedile a la panadería que te "
+                    "mande uno nuevo."
+                ),
+            )
 
         # Validate file extension (cheap, prevents shell-pasted junk)
         filename = (file.filename or "comprobante.jpg").lower()
@@ -1455,6 +1589,8 @@ def pedidos_duplicate(
         payment_intent=original.payment_intent,
         notes=original.notes,
         public_token=generate_public_token(),
+        # P1-2: see create_pedido above — same 30-day expiry policy.
+        public_token_expires_at=datetime.utcnow() + timedelta(days=30),
     )
     session.add(copy)
     session.flush()

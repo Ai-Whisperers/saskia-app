@@ -15,7 +15,7 @@ Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m
 from __future__ import annotations
 
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -40,6 +40,9 @@ def _make_pedido(session, *, payment_intent: str = "transferencia") -> int:
         payment_intent=payment_intent,
         notes="",
         public_token=secrets.token_urlsafe(6)[:8],
+        # P1-2: tests must set a future expiry so the public_pedido
+        # route doesn't 410-expire the link. Default to "30 days from now".
+        public_token_expires_at=datetime.utcnow() + timedelta(days=30),
     )
     session.add(p)
     session.commit()

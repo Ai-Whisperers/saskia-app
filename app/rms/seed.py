@@ -280,9 +280,14 @@ class SeedReport:
 
 
 def _demo_public_token() -> str:
-    """8-char URL-safe token for /p/{token} pickup-share links (matches
-    the generator in app/routers/pedidos.py:generate_public_token)."""
-    return secrets.token_urlsafe(8)[:8]
+    """URL-safe token for /p/{token} pickup-share links (matches the
+    generator in app/routers/pedidos.py:generate_public_token).
+
+    P1-2 (2026-09-29): token length bumped from 8 to ~22 chars for
+    stronger entropy (96 bits vs 48). See generate_public_token()
+    docstring for rationale.
+    """
+    return secrets.token_urlsafe(16)
 
 
 def create_demo_pedido(session: Session) -> tuple[Pedido, PedidoLine] | None:
@@ -343,13 +348,15 @@ def create_demo_pedido(session: Session) -> tuple[Pedido, PedidoLine] | None:
     now = datetime.now(timezone.utc).replace(microsecond=0)
     promised = (now + timedelta(days=1)).date()
 
-    # Unique public_token (40-char column; pad/truncate the 8-char token).
+    # Unique public_token (40-char column; token_urlsafe(16) returns
+    # ~22 chars which fits well under the 40-char column ceiling).
     token = _demo_public_token()
-    token = (token + "0" * 40)[:40]
+    # Belt-and-braces: if any collision occurs (effectively zero for
+    # a single bakery), regenerate until unique.
     while session.execute(
         select(Pedido.id).where(Pedido.public_token == token)
     ).first() is not None:
-        token = (secrets.token_urlsafe(8)[:8] + "0" * 40)[:40]
+        token = _demo_public_token()
 
     pedido = Pedido(
         customer_id=customer.id,
@@ -362,6 +369,10 @@ def create_demo_pedido(session: Session) -> tuple[Pedido, PedidoLine] | None:
         payment_intent="efectivo",
         notes="Pedido demo: probá /stock-preview antes de cumplir.",
         public_token=token,
+        # P1-2: 30-day expiry for the demo link, same policy as
+        # production pedidos. Without this, the demo link would
+        # become invalid after migration 067 runs (NULL = expired).
+        public_token_expires_at=now + timedelta(days=30),
         created_at=now,
         updated_at=now,
     )
