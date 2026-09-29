@@ -266,10 +266,12 @@ def infer_dietary_tags(name: str) -> list[str]:
 
     if has_meat_fish:
         pass  # neither vegan nor vegetarian
-    elif has_dairy_egg_honey:
-        tags.append("vegetarian")
     else:
-        tags.append("vegan")
+        # Anything without meat (plants, dairy, eggs) is vegetarian.
+        tags.append("vegetarian")
+        if not has_dairy_egg_honey:
+            # Pure plant-based: also vegan.
+            tags.append("vegan")
 
     # Gluten check
     if "gluten" not in allergens:

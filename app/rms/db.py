@@ -2384,6 +2384,207 @@ def _migration_059_product_mayorista(conn: Any) -> None:
     _bump_schema_version(conn, 59)
 
 
+# Dictionary of EN→ES dietary tag normalization.  Mirrors what
+# app/rms/tag_algebra.py:_TAG_NORMALIZE does at read time; kept here so
+# the migration can rewrite stored English values to Spanish canonical.
+_EN_TO_ES_M60 = {
+    "vegan": "vegano",
+    "vegetarian": "vegetariano",
+    "gluten_free": "sin gluten",
+    "gluten-free": "sin gluten",
+    "sugar_free": "sin azúcar",
+    "sugar-free": "sin azúcar",
+    "keto_friendly": "keto",
+    "keto-friendly": "keto",
+    "lactose_free": "sin lactosa",
+    "dairy_free": "sin lactosa",
+    "egg_free": "sin huevo",
+    "nut_free": "sin frutos secos",
+    "whole_grain": "integral",
+    "organic": "orgánico",
+    "vegano": "vegano",
+    "vegetariano": "vegetariano",
+    "sin gluten": "sin gluten",
+    "sin-gluten": "sin gluten",
+    "sin tacc": "sin tacc",
+    "sin-tacc": "sin tacc",
+    "sin lactosa": "sin lactosa",
+    "sin-lactosa": "sin lactosa",
+    "sin huevo": "sin huevo",
+    "sin-huevo": "sin huevo",
+    "sin frutos secos": "sin frutos secos",
+    "sin-frutos-secos": "sin frutos secos",
+    "sin azúcar": "sin azúcar",
+    "sin-azucar": "sin azúcar",
+    "integral": "integral",
+    "orgánico": "orgánico",
+    "organico": "orgánico",
+    "keto": "keto",
+}
+
+
+def _to_canonical_m60(raw: str | None) -> str | None:
+    """Map English/snake_case dietary tags to canonical Spanish.
+
+    Drop unknown tags silently.  Returns comma-separated canonical string
+    or None when nothing is left.
+    """
+    if not raw:
+        return None
+    out: list[str] = []
+    for piece in raw.split(","):
+        key = piece.strip().lower()
+        if not key:
+            continue
+        mapped = _EN_TO_ES_M60.get(key)
+        if mapped and mapped not in out:
+            out.append(mapped)
+    return ",".join(out) if out else None
+
+
+def _clean_allergens_m60(raw: str | None) -> str | None:
+    """Strip the seed-time sentinel 'Ninguno' (Spanish for None) that was
+    incorrectly mixed into the comma-separated allergen list.  Also
+    canonicalize casing on known allergens.
+    """
+    if not raw:
+        return raw
+    drop = {"ninguno", "none", "null"}
+    canon_map = {
+        "gluten": "gluten", "dairy": "dairy", "eggs": "eggs",
+        "nuts": "nuts", "soy": "soy", "soja": "soy",
+    }
+    parts: list[str] = []
+    for p in raw.split(","):
+        k = p.strip().lower()
+        if not k or k in drop:
+            continue
+        if k in canon_map:
+            parts.append(canon_map[k])
+        else:
+            parts.append(p.strip())
+    return ",".join(parts) if parts else None
+
+
+def _migration_060_tag_normalization(conn: Any) -> None:
+    """Fix tag-algebra tag-language mismatch (2026-09-29 live bug).
+
+    Symptom: /recetas/<id> showed "CANCELADAS (14) — ver por qué" on every
+    page, with every canonical Spanish tag blocked by every ingredient.
+    Root cause split:
+      (a) ingredient_intel emits English tags ('vegan', 'vegetarian',
+          'gluten_free', 'keto_friendly') but tag_algebra's candidate set
+          is Spanish (CANONICAL_DIETARY_TAGS). Intersection therefore
+          matched nothing — fix at the read boundary in tag_algebra.py.
+      (b) Old seeded data had inconsistent values ('Ninguno' in allergens
+          column, English names on Spanish-named ingredients, etc.). We
+          rewrite them here.
+      (c) Recipe.derived_dietary_tags cache was stale on rows where the
+          English/Spanish normalization changed — refresh via cascade_refresh.
+
+    Idempotent: each UPDATE keys on the prior value so re-runs are no-ops.
+    """
+    # (1) Ingredient.dietary_tags English→Spanish.
+    rows = conn.execute(text(
+        "SELECT id, dietary_tags FROM ingredient WHERE dietary_tags IS NOT NULL"
+    )).all()
+    for r in rows:
+        iid, raw = r
+        canon = _to_canonical_m60(raw)
+        if canon != raw:
+            conn.execute(text(
+                "UPDATE ingredient SET dietary_tags = :v WHERE id = :i"
+            ), {"v": canon, "i": iid})
+
+    # (2) Recompute ingredient.dietary_tags from infer_dietary_tags(name)
+    #     so the canonical claims match what the operator UI form would
+    #     produce when they save an ingredient.  infer_dietary_tags
+    #     correctly handles meat/dairy/gluten/sugar logic so e.g. chicken
+    #     no longer claims vegetariano.
+    try:
+        from app.rms.ingredient_intel import infer_dietary_tags
+        have_intel = True
+    except Exception:
+        have_intel = False
+    if have_intel:
+        rows = conn.execute(text(
+            "SELECT id, name FROM ingredient"
+        )).all()
+        for r in rows:
+            iid, name = r
+            try:
+                tags = infer_dietary_tags(name or "")
+            except Exception:
+                continue
+            new_value = _to_canonical_m60(",".join(tags)) if tags else None
+            # SELECT prior value to skip no-op writes (Postgres triggers fire
+            # on every UPDATE otherwise).
+            prior = conn.execute(text(
+                "SELECT dietary_tags FROM ingredient WHERE id = :i"
+            ), {"i": iid}).scalar()
+            if prior != new_value:
+                conn.execute(text(
+                    "UPDATE ingredient SET dietary_tags = :v WHERE id = :i"
+                ), {"v": new_value, "i": iid})
+
+    # (3) Recipe.dietary_tags English→Spanish.
+    rows = conn.execute(text(
+        "SELECT id, dietary_tags FROM recipe WHERE dietary_tags IS NOT NULL"
+    )).all()
+    for r in rows:
+        rid, raw = r
+        canon = _to_canonical_m60(raw)
+        if canon != raw:
+            conn.execute(text(
+                "UPDATE recipe SET dietary_tags = :v WHERE id = :i"
+            ), {"v": canon, "i": rid})
+
+    # (4) recipe.allergens: strip 'Ninguno' + canonicalize casing.
+    rows = conn.execute(text(
+        "SELECT id, allergens FROM recipe WHERE allergens IS NOT NULL"
+    )).all()
+    for r in rows:
+        rid, raw = r
+        cleaned = _clean_allergens_m60(raw)
+        if cleaned is None:
+            conn.execute(text(
+                "UPDATE recipe SET allergens = NULL WHERE id = :i"
+            ), {"i": rid})
+        elif cleaned != raw:
+            conn.execute(text(
+                "UPDATE recipe SET allergens = :v WHERE id = :i"
+            ), {"v": cleaned, "i": rid})
+
+    # (5) ingredient.allergens: same canonicalization.
+    rows = conn.execute(text(
+        "SELECT id, allergens FROM ingredient WHERE allergens IS NOT NULL"
+    )).all()
+    for r in rows:
+        iid, raw = r
+        cleaned = _clean_allergens_m60(raw)
+        if cleaned != raw:
+            conn.execute(text(
+                "UPDATE ingredient SET allergens = :v WHERE id = :i"
+            ), {"v": cleaned, "i": iid})
+
+    # (6) Refresh every recipe's derived_dietary_tags cache.
+    from app.rms.db import make_engine as _make_engine
+    from app.rms.db import make_session_factory
+    from app.rms.models import Recipe
+
+    eng = _make_engine()
+    SessionLocal = make_session_factory(eng)
+    with SessionLocal() as s:
+        ids = [r.id for r in s.query(Recipe.id).all()]
+    for rid in ids:
+        with SessionLocal() as s:
+            from app.rms.tag_algebra import cascade_refresh
+            cascade_refresh(s, recipe_id=rid)
+            s.commit()  # without commit, with-exit rolls back the writes
+
+    _bump_schema_version(conn, 60)
+
+
 def _migration_005_customer(conn: Any) -> None:
     """Add Customer table + Sale.customer_id FK (E13).
 
@@ -2454,6 +2655,7 @@ MIGRATIONS = {
     57: _migration_057_recipe_instructions,
     58: _migration_058_ingredient_expiry,
     59: _migration_059_product_mayorista,
+    60: _migration_060_tag_normalization,
 }
 
 

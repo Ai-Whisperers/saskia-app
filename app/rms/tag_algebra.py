@@ -81,6 +81,62 @@ def _split_tags(raw: str | None) -> list[str]:
     return [t.strip() for t in raw.split(",") if t.strip()]
 
 
+# EN→ES normalization for dietary tags.  Some code paths
+# (ingredient_intel, recipe_intel, older seeds, xlsx imports) emit English
+# or snake_case labels; tag_algebra compares against the Spanish canonical
+# set in app/rms/constants.py:CANONICAL_DIETARY_TAGS, so we normalize at the
+# read boundary.  Keys are lowercase to match the case the data already has.
+_TAG_NORMALIZE: dict[str, str] = {
+    "vegan": "vegano",
+    "vegetarian": "vegetariano",
+    "gluten_free": "sin gluten",
+    "gluten-free": "sin gluten",
+    "sugar_free": "sin azúcar",
+    "sugar-free": "sin azúcar",
+    "keto_friendly": "keto",
+    "keto-friendly": "keto",
+    "lactose_free": "sin lactosa",
+    "dairy_free": "sin lactosa",
+    "egg_free": "sin huevo",
+    "nut_free": "sin frutos secos",
+    "whole_grain": "integral",
+    "organic": "orgánico",
+    # Spanish variants — pass through:
+    "vegano": "vegano",
+    "vegetariano": "vegetariano",
+    "sin gluten": "sin gluten",
+    "sin-gluten": "sin gluten",
+    "sin tacc": "sin tacc",
+    "sin-tacc": "sin tacc",
+    "sin lactosa": "sin lactosa",
+    "sin-lactosa": "sin lactosa",
+    "sin huevo": "sin huevo",
+    "sin-huevo": "sin huevo",
+    "sin frutos secos": "sin frutos secos",
+    "sin-frutos-secos": "sin frutos secos",
+    "sin azúcar": "sin azúcar",
+    "sin-azucar": "sin azúcar",
+    "integral": "integral",
+    "orgánico": "orgánico",
+    "organico": "orgánico",
+    "keto": "keto",
+}
+
+
+def _normalize_tag(raw: str) -> str | None:
+    """Map any common label form to the canonical Spanish tag.  Returns
+    None for unrecognized / empty input so the caller can drop it.
+    """
+    if not raw:
+        return None
+    key = raw.strip().lower()
+    if not key:
+        return None
+    if key in _TAG_NORMALIZE:
+        return _TAG_NORMALIZE[key]
+    return None
+
+
 def _is_neutral(name: str) -> bool:
     n = name.strip().lower()
     return any(n == kw or n.startswith(kw + " ") for kw in _NEUTRAL_KEYWORDS)
@@ -181,14 +237,20 @@ def _resolve(session: Session, line) -> object | None:
 
 def ingredient_dietary_set(ing) -> frozenset[str]:
     """(takes Ingredient lazily — see module header note)"""
-    """Dietary tags an ingredient qualifies for.
+    """Dietary tags an ingredient qualifies for (normalized to canonical Spanish).
 
-    Neutral ingredients (agua/sal/hielo) qualify for everything — they are
-    removed from the intersection domain by never blocking. We model that
-    by returning None from the blocker check instead of a full set, so this
-    function returns only the declared tags.
+    Tags from older seeds / ingredient_intel / xlsx imports may be English
+    or snake_case ("vegan", "gluten_free", "keto_friendly"); we map those
+    to the canonical Spanish vocabulary via _normalize_tag so downstream
+    intersection against CANONICAL_DIETARY_TAGS works as intended.
     """
-    return frozenset(_split_tags(ing.dietary_tags))
+    raw = _split_tags(ing.dietary_tags)
+    out: set[str] = set()
+    for tag in raw:
+        norm = _normalize_tag(tag)
+        if norm:
+            out.add(norm)
+    return frozenset(out)
 
 
 def ingredient_blocks(ing, tag: str) -> bool:
@@ -267,7 +329,13 @@ def derive_recipe_tags(
             declared_union.update(ingredient_dietary_set(t.target))
         elif isinstance(t.target, Recipe):
             allergen_set.update(_split_tags(t.target.allergens))
-            declared_union.update(_split_tags(t.target.dietary_tags))
+            # Sub-recipe dietary_tags may be English; normalize to Spanish
+            # canonical so the sub-recipe's own claim is comparable.
+            sub_declared = {
+                norm for raw in _split_tags(t.target.dietary_tags)
+                if (norm := _normalize_tag(raw)) is not None
+            }
+            declared_union.update(sub_declared)
 
     if candidate_tags is None:
         from app.rms.constants import CANONICAL_DIETARY_TAGS
@@ -287,7 +355,13 @@ def derive_recipe_tags(
                 if ingredient_blocks(t.target, tag_l):
                     blockers.append(t.target.name)
             elif isinstance(t.target, Recipe):
-                if tag_l not in {x.lower() for x in _split_tags(t.target.dietary_tags)}:
+                # Sub-recipe blocks tag T if T is not in its declared set.
+                # Normalize so English-named sub-recipes block correctly.
+                sub_tags_lc = {
+                    _normalize_tag(x)
+                    for x in _split_tags(t.target.dietary_tags)
+                }
+                if tag_l not in {x for x in sub_tags_lc if x}:
                     blockers.append(f"{t.target.name} (sub-receta)")
         if blockers:
             result.blocked[tag] = blockers
