@@ -582,7 +582,7 @@ async def recipe_edit(
             "line_ref_id": ln.line_ref_id,
             "qty": ln.qty,
             "line_unit": ln.line_unit,
-            "note": ln.note,
+            "note": ln.notes,
             "target_name": target.name if target else f"#{ln.line_ref_id}",
         })
     ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
