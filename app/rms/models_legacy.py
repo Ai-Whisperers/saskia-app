@@ -1109,10 +1109,19 @@ class BankTransaction(Base):
     source: Mapped[str] = mapped_column(String(32), nullable=False, default="tab")
     account_holder: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
 
+    # Reconciliation fields (added in migration 056)
+    reconciled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    reconciled_with_type: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    reconciled_with_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    reconciled_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    reconciled_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
     __table_args__ = (
         CheckConstraint("currency IN ('EUR', 'PYG', 'USD')", name="ck_bank_currency"),
         Index("ix_bank_date_account", "posted_at", "account_holder"),
         Index("ix_bank_category", "category", "posted_at"),
+        Index("ix_bank_reconciled", "reconciled", "posted_at"),
+        Index("ix_bank_reconciled_with", "reconciled_with_type", "reconciled_with_id"),
     )
 
 
