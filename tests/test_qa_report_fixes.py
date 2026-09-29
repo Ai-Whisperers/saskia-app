@@ -40,9 +40,7 @@ def test_inventory_search_endpoint_accepts_q_query_param(client, session_factory
     assert resp.status_code == 200
     body = resp.json()
     assert "results" in body
-    assert body["count"] >= 1, (
-        f"search 'Harina' must return at least one ingredient, got {body}"
-    )
+    assert body["count"] >= 1, f"search 'Harina' must return at least one ingredient, got {body}"
     for r in body["results"]:
         assert "harina" in r.get("name", "").lower()
 
@@ -70,9 +68,7 @@ def test_recipe_line_cost_uses_variant_price_not_just_parent(session_factory):
         # With no variants defined, current_variant_price falls back to
         # the parent's purchase_price_gs (backward compatible behaviour).
         vp = current_variant_price(session, ing.id)
-        assert vp is not None, (
-            f"current_variant_price must return a number, got None for {ing.id}"
-        )
+        assert vp is not None, f"current_variant_price must return a number, got None for {ing.id}"
         assert vp == 4500, (
             f"Without variants, current_variant_price must equal parent "
             f"purchase_price_gs=4500, got {vp}"
@@ -202,41 +198,53 @@ def test_ventas_inline_customer_picker_no_modal(client):
     )
 
 
-# ─── SALES-UX-002: SKU field no longer comes before Producto ─────────────────
+# ─── SALES-UX-002: top-level sku field was removed in the ventas-redesign ──
+#
+# Phase B removed the manual "Producto + SKU + Cantidad + Descuento" rows
+# from the sales form. Products now enter the cart exclusively via the
+# right-pane Productos grid (Phase C, renamed from "Venta rápida") or via
+# the new barcode-scan input. The SKU lookup still exists server-side at
+# /productos/api/search?sku=… (the scan input uses it directly). This
+# test now asserts the SKU lookup endpoint works for the scan flow.
 
 
-def test_ventas_product_field_renders_before_sku(client):
-    """SALES-UX-002: in /ventas, the Producto <select> markup must appear
-    before the SKU <input> in document order — users recall item names
-    faster than codes.
+def test_ventas_sku_search_endpoint_finds_product_by_sku(client, session_factory):
+    """SALES-UX-002 (after ventas-redesign): /productos/api/search?sku= must
+    still locate products by SKU — that's what powers the new scan input.
     """
-    resp = client.get("/ventas")
-    assert resp.status_code == 200
-    body = resp.text
-    product_pos = body.find('name="product_id"')
-    sku_pos = body.find('name="sku"')
-    assert product_pos != -1, "name=product_id not found in ventas form"
-    assert sku_pos != -1, "name=sku not found in ventas form"
-    assert product_pos < sku_pos, (
-        f"SALES-UX-002 regression: Producto must render before SKU. "
-        f"product_pos={product_pos}, sku_pos={sku_pos}"
+    from app.rms.models import Product
+
+    with session_factory() as s:
+        p = Product(
+            name="QA SKU Lookup Test",
+            sku="QA-SKU-LOOKUP-001",
+            sale_price_gs=12000,
+            is_available=True,
+        )
+        s.add(p)
+        s.commit()
+
+    resp = client.get("/productos/api/search?sku=QA-SKU-LOOKUP-001")
+    assert resp.status_code == 200, f"got {resp.status_code}: {resp.text[:300]}"
+    body = resp.json()
+    assert body.get("count", 0) >= 1, f"SKU search must find product by SKU; got body={body}"
+    assert any(r.get("sku") == "QA-SKU-LOOKUP-001" for r in body.get("results", [])), (
+        f"results should include the seeded SKU; got {body}"
     )
 
 
-# ─── Ventas qty field accepts only integers in the form ─────────────────────
-
-
-def test_ventas_qty_field_step_is_one(client):
-    """SALES-VAL-003: the `<input name=qty>` step attribute must be '1'
-    (integer-only), not '0.01' which would let the cashier type 1,5.
+def test_ventas_sku_search_empty_for_unknown(client):
+    """SALES-UX-002 (after ventas-redesign): unknown SKU returns empty results,
+    not a 500 — the scan UI relies on this to show its "not found" toast.
     """
-    resp = client.get("/ventas")
-    body = resp.text
-    m = re.search(r'<input[^>]*name="qty"[^>]*>', body)
-    assert m, "qty input not found in ventas form"
-    attrs = m.group(0)
-    assert 'step="1"' in attrs, f"SALES-VAL-003 regression: step must be '1', got: {attrs}"
-    assert 'min="1"' in attrs, f"SALES-VAL-003 regression: min must be '1', got: {attrs}"
+    resp = client.get("/productos/api/search?sku=NO-SUCH-SKU-XYZ")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body.get("count", 0) == 0
+    assert body.get("results", []) == []
+
+
+# ─── SALES-VAL-003: discrete baked goods — qty lives in the cart now ───────
 
 
 def test_ventas_cart_qty_input_step_is_one(client):

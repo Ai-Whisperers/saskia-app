@@ -12,88 +12,91 @@
 
 {# ═══════════════════════════════════════════════════
    POS LAYOUT
-   Left pane: form (top 50%) + cart (bottom 50%)
-   Right pane: quick-sale grid
+   Left pane: customer picker + customer card (top) + cart + metadata + submit
+   Right pane: Productos (sale grid + barcode scan)
    ═══════════════════════════════════════════════════ #}
 <div class="pos-layout">
 
   {# ── LEFT PANE ─────────────────────────────────── #}
   <div class="pos-form-pane">
 
-    {# ── Sale form (2-column compressed grid) ── #}
-    <div class="pos-form" id="pos-form">
-      <h2>Nueva venta</h2>
+    {# ── Sale form wrapper.
+       Per Phase B of the ventas-redesign plan, the manual "product +
+       SKU + qty + discount + add-to-cart" rows are gone — products
+       only enter the cart via the right-pane Productos grid (Phase C:
+       renamed from "Venta rápida") or via the barcode scan input.
+       The form still needs _cart_json + idempotency_key for serialization
+       and the customer picker + customer card (Phase A). All sale
+       metadata (date / channel / payment / total discount) lives in
+       the cart panel (compact 3-column row labeled "Venta"). #}
+    <form method="post" action="/ventas/nueva/multi" id="sale-form"
+          onsubmit="return handleFormSubmit(this)">
 
-      <form method="post" action="/ventas/nueva/multi" id="sale-form"
-            onsubmit="return handleFormSubmit(this)">
+      {# Hidden cart (serialised by JS) #}
+      <input type="hidden" name="_cart_json" id="cart-json" value="[]">
 
-        {# Hidden cart (serialised by JS) #}
-        <input type="hidden" name="_cart_json" id="cart-json" value="[]">
+      {# Hidden total-discount (Gs.). Kept as a hidden field so the
+         backend can still apply a top-level discount if needed; not
+         surfaced in the UI (the per-row discount % already covers the
+         usual flow and totals via cart-subtotal math). #}
+      <input type="hidden" name="discount_gs" id="discount-gs-total" value="0">
 
-        {# Idempotency key #}
-        {% set idem_key = idem_key if idem_key is defined else (now|string + '-fallback') %}
-        <input type="hidden" name="idempotency_key" id="idem-key" value="{{ idem_key }}">
+      {# Idempotency key #}
+      {% set idem_key = idem_key if idem_key is defined else (now|string + '-fallback') %}
+      <input type="hidden" name="idempotency_key" id="idem-key" value="{{ idem_key }}">
 
-        {# ── Row 1: Producto + SKU (SKU after, autofill optional) ── #}
-        <div class="form-grid-2col">
-          <div class="form-row">
-            <label for="product_id">Producto</label>
-            {{ ui.combo_field(
-              name='product_id',
-              placeholder='Buscá producto…',
-              endpoint='/productos/api/search/',
-              value_field='id',
-              label_field='name'
-            ) }}
-          </div>
-          <div class="form-row">
-            {# SALES-UX-002: SKU moved AFTER Producto so the primary
-                product lookup comes first; users recall names faster
-                than alphanumeric codes. Still available for barcode scans. #}
-            <label for="sku">SKU (opcional, escaneo)</label>
-            <input type="text" id="sku" name="sku" autocomplete="off"
-                   placeholder="Escaneá código de barras…"
-                   pattern="[A-Za-z0-9\-_]+"
-                   title="Códigos alfanuméricos">
-          </div>
+      {# ── Customer picker (inline, NOT a dialog). Phase A renders the
+         customer info card directly below this include. #}
+      <div class="pos-customer-block">
+        {% include "_components/_customer_picker.html" %}
+      </div>
+
+      {# ── Cart panel + sale metadata + submit ── #}
+      <div class="pos-cart" id="pos-cart">
+        <h2>
+          Carrito
+          <span id="cart-count" class="cart-badge" style="display:none">0</span>
+        </h2>
+
+        <div id="cart-empty" class="cart-empty">
+          <svg class="icon" aria-hidden="true" style="width:40px;height:40px;opacity:0.3"><use href="#icon-box"/></svg>
+          <p>Tocá un producto o escaneá un código para empezar.</p>
         </div>
 
-        {# ── Row 2: Cantidad + Descuento ── #}
-        <div class="form-grid-2col">
-          <div class="form-row">
-            <label for="qty">Cantidad</label>
-            {# SALES-VAL-003: discrete baked goods need integer quantities. step=1 + inputmode=numeric. JS also clamps on add-to-cart. #}
-            <input type="number" id="qty" name="qty" step="1" min="1" max="9999" value="1" inputmode="numeric" pattern="\d*">
-          </div>
-          <div class="form-row">
-            <label for="discount_gs">Descuento (Gs.)</label>
-            <input type="number" id="discount_gs" name="discount_gs" min="0" max="1000000" value="0" step="100">
+        <div id="cart-items" style="display:none">
+          <table class="cart-table" aria-label="Ítems del carrito">
+            <thead>
+              <tr>
+                <th style="width:44px"></th>
+                <th>Producto</th>
+                <th style="text-align:right;width:72px">Cant.</th>
+                <th style="text-align:center;width:80px">Dto. %</th>
+                <th style="text-align:right;width:110px">Subtotal</th>
+                <th style="width:36px"></th>
+              </tr>
+            </thead>
+            <tbody id="cart-tbody"></tbody>
+          </table>
+          <div class="cart-total-row">
+            <span>Total</span>
+            <strong id="cart-total">Gs. 0</strong>
           </div>
         </div>
+      </div>{# /pos-cart #}
 
-        {# ── Agregar al carrito ── #}
-        <div class="form-row" style="margin-bottom: var(--space-3);">
-          <button type="button" class="btn btn-secondary" id="add-to-cart-btn" onclick="addToCart()">
-            <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
-            Agregar al carrito
-          </button>
-        </div>
-
-        {# ── Row 3: Fecha + Cliente ── #}
-        <div class="form-grid-2col">
+      {# ── Sale metadata (compact 3-column "Venta" row).
+         Moved out of the manual form per Phase B. The customer picker +
+         customer card live above the cart; metadata lives below the cart
+         so it doesn't distract from the picking flow. #}
+      <div class="sale-meta" aria-label="Datos de la venta">
+        <h3 class="sale-meta-title">Venta</h3>
+        <div class="sale-meta-grid">
           <div class="form-row">
             <label for="sold_at">Fecha y hora</label>
             <input type="datetime-local" id="sold_at" name="sold_at" value="{{ now_local }}" style="color-scheme: dark;">
           </div>
           <div class="form-row">
-            {% include "_components/_customer_picker.html" %}
-          </div>
-        </div>
-
-        {# ── Row 4: Canal + Forma de pago ── #}
-        <div class="form-grid-2col">
-          <div class="form-row">
-            <label for="channel">Canal de venta</label>
+            <label for="channel">Canal</label>
             {% set _channels_src = [] %}
             {% for c in channels %}
               {% set _ = _channels_src.append({'label': c, 'value': c}) %}
@@ -119,112 +122,88 @@
             ) }}
           </div>
         </div>
+      </div>
 
-        {# ── Fiscal invoice ── #}
-        <fieldset class="form-row" style="border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-3); margin-top: var(--space-3);">
-          <legend style="font-weight: 600; padding: 0 var(--space-2);">Comprobante fiscal</legend>
+      {# ── Fiscal invoice + notas (compact) ── #}
+      <fieldset class="form-row" style="border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-3); margin-top: var(--space-3);">
+        <legend style="font-weight: 600; padding: 0 var(--space-2);">Comprobante fiscal</legend>
+        <div class="form-row" style="margin-bottom: var(--space-2);">
+          <label for="invoice_type">Tipo</label>
+          {{ ui.combo_field(
+              name='invoice_type',
+              value=('factura' if tax_regime == 'general' else 'boleta_resimple'),
+              display=('Factura (IVA General)' if tax_regime == 'general' else 'Boleta Resimple (IRE RESIMPLE)'),
+              placeholder='Tipo',
+              src=[
+                {'label': 'Boleta Resimple (IRE RESIMPLE)', 'value': 'boleta_resimple'},
+                {'label': 'Factura (IVA General)', 'value': 'factura'},
+                {'label': 'Sin comprobante (interno)', 'value': 'none'}
+              ]
+            ) }}
+        </div>
+        <div id="invoice-customer-fields" style="display: none;">
           <div class="form-row" style="margin-bottom: var(--space-2);">
-            <label for="invoice_type">Tipo</label>
-            {{ ui.combo_field(
-                name='invoice_type',
-                value=('factura' if tax_regime == 'general' else 'boleta_resimple'),
-                display=('Factura (IVA General)' if tax_regime == 'general' else 'Boleta Resimple (IRE RESIMPLE)'),
-                placeholder='Tipo',
-                src=[
-                  {'label': 'Boleta Resimple (IRE RESIMPLE)', 'value': 'boleta_resimple'},
-                  {'label': 'Factura (IVA General)', 'value': 'factura'},
-                  {'label': 'Sin comprobante (interno)', 'value': 'none'}
-                ]
-              ) }}
+            <label for="invoice_customer_ruc">RUC del cliente</label>
+            <input type="text" id="invoice_customer_ruc" name="invoice_customer_ruc"
+                   placeholder="80012345-6 o CI del cliente"
+                   pattern="[0-9-]+">
           </div>
-          <div id="invoice-customer-fields" style="display: none;">
-            <div class="form-row" style="margin-bottom: var(--space-2);">
-              <label for="invoice_customer_ruc">RUC del cliente</label>
-              <input type="text" id="invoice_customer_ruc" name="invoice_customer_ruc"
-                     placeholder="80012345-6 o CI del cliente"
-                     pattern="[0-9-]+">
-            </div>
-            <div class="form-row" style="margin-bottom: 0;">
-              <label for="invoice_customer_name">Razón social / Nombre</label>
-              <input type="text" id="invoice_customer_name" name="invoice_customer_name"
-                     placeholder="Cliente S.A.">
-            </div>
+          <div class="form-row" style="margin-bottom: 0;">
+            <label for="invoice_customer_name">Razón social / Nombre</label>
+            <input type="text" id="invoice_customer_name" name="invoice_customer_name"
+                   placeholder="Cliente S.A.">
           </div>
-        </fieldset>
-
-        {# ── Notas ── #}
-        <div class="form-row" style="margin-top: var(--space-3);">
-          <label for="notes">Notas</label>
-          <textarea id="notes" name="notes" rows="2" placeholder="Alias de transferencia, observaciones…"></textarea>
         </div>
+      </fieldset>
 
-      </form>
-    </div>{# /pos-form #}
-
-    {# ── Cart panel (bottom half of left pane) ── #}
-    <div class="pos-cart" id="pos-cart">
-      <h2>
-        Carrito
-        <span id="cart-count" class="cart-badge" style="display:none">0</span>
-      </h2>
-
-      <div id="cart-empty" class="cart-empty">
-        <svg class="icon" aria-hidden="true" style="width:40px;height:40px;opacity:0.3"><use href="#icon-box"/></svg>
-        <p>El carrito está vacío.<br>Agregá productos desde el formulario o la venta rápida.</p>
+      <div class="form-row" style="margin-top: var(--space-3);">
+        <label for="notes">Notas</label>
+        <textarea id="notes" name="notes" rows="2" placeholder="Alias de transferencia, observaciones…"></textarea>
       </div>
 
-      <div id="cart-items" style="display:none">
-        <table class="cart-table" aria-label="Ítems del carrito">
-          <thead>
-            <tr>
-              <th style="width:44px"></th>
-              <th>Producto</th>
-              <th style="text-align:right;width:72px">Cant.</th>
-              <th style="text-align:center;width:80px">Dto. %</th>
-              <th style="text-align:right;width:110px">Subtotal</th>
-              <th style="width:36px"></th>
-            </tr>
-          </thead>
-          <tbody id="cart-tbody"></tbody>
-        </table>
-        <div class="cart-total-row">
-          <span>Total</span>
-          <strong id="cart-total">Gs. 0</strong>
-        </div>
+      {# ── Sticky footer with submit button ── #}
+      <div class="pos-sticky-footer" id="pos-sticky-footer">
+        <button type="button" class="btn btn-ghost" onclick="clearCart()">
+          <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
+          Cancelar
+        </button>
+        <a href="/ventas/historial" class="btn btn-ghost">
+          <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
+          Ver historial
+        </a>
+        <button type="submit" form="sale-form" class="btn btn-primary" id="sale-submit-btn" disabled>
+          <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+          <span id="submit-label">Registrá venta</span>
+          <span id="submit-count" style="display:none"></span>
+        </button>
       </div>
-    </div>{# /pos-cart #}
 
-    {# ── Sticky footer ── #}
-    <div class="pos-sticky-footer" id="pos-sticky-footer">
-      <button type="button" class="btn btn-ghost" onclick="clearCart()">
-        <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
-        Cancelar
-      </button>
-      <a href="/ventas/historial" class="btn btn-ghost">
-        <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
-        Ver historial
-      </a>
-      <button type="submit" form="sale-form" class="btn btn-primary" id="sale-submit-btn" disabled>
-        <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-        <span id="submit-label">Registrá venta</span>
-        <span id="submit-count" style="display:none"></span>
-      </button>
-    </div>
-
+    </form>{# /sale-form #}
   </div>{# /pos-form-pane #}
 
 
-  {# ── RIGHT PANE: Quick-sale grid ─────────────── #}
+  {# ── RIGHT PANE: Productos (sale grid + scan input) ──── #}
   <div class="pos-quick">
-    {% if quick_sell %}
-    <h2>Venta rápida</h2>
-    <p class="hint">Tap para agregar al carrito.</p>
+    <h2>Productos</h2>
+    <p class="hint">Tocá un producto o escaneá un código para agregarlo al carrito.</p>
 
-    <div class="quick-sell-search-row">
-      <input type="search" id="quick-sell-search" placeholder="Buscar producto…"
-             aria-label="Buscar producto en venta rápida" autocomplete="off">
+    {# Barcode / SKU scan input (Phase C2 + C3).
+       The autofocus + change-event combo means a hardware scanner (which
+       sends Enter after the barcode) lands the product into the cart in
+       one motion. Manual SKU typing works the same way.
+
+       Always rendered (even on an empty catalog) so a cashier can scan
+       a brand-new barcode before any sale has been recorded — the
+       /productos/api/search?sku= endpoint searches the whole catalog,
+       not just quick-sell products. #}
+    <div class="quick-scan-row">
+      <input type="text" id="quick-scan"
+             placeholder="Escaneá código o tipeá SKU…"
+             autocomplete="off" inputmode="text"
+             aria-label="Escanear código" autofocus>
     </div>
 
+    {% if quick_sell %}
     {# Category filter pills #}
     <div class="quick-sell-filters" id="quick-sell-filters" role="group" aria-label="Filtrar por categoría">
       <button type="button" class="quick-sell-filter is-active" data-filter="all">Todos</button>
@@ -245,6 +224,7 @@
               data-is-favorite="{{ 'true' if q.is_favorite else 'false' }}"
               data-price="{{ q.sale_price_gs }}"
               data-product-name="{{ fmt.entity_name(q) }}"
+              data-sku="{{ q.sku or '' }}"
               onclick="quickAddToCart({{ q.id }}, '{{ fmt.entity_name(q)|e }}', {{ q.sale_price_gs }})"
               {% if not q.is_available %}disabled aria-disabled="true"{% endif %}
               aria-label="{{ fmt.entity_name(q) }} — {{ m.gs(q.sale_price_gs) }}">
@@ -259,6 +239,8 @@
       </button>
       {% endfor %}
     </div>
+    {% else %}
+    <p class="hint pos-quick-empty">El catálogo todavía no tiene productos con ventas recientes.</p>
     {% endif %}
   </div>{# /pos-quick #}
 
@@ -377,37 +359,12 @@
     return 'Gs. ' + Number(n).toLocaleString('es-PY');
   }
 
-  // ── Add from form (combo + qty input) ──────────────────────────────────
-  window.addToCart = function() {
-    var comboEl = document.querySelector('[name="product_id"]');
-    // The saskia-combo element IS the SaskiaCombo class instance
-    var selectedData = comboEl ? comboEl.getSelectedData() : null;
-
-    if (!selectedData || !selectedData.value) {
-      alert('Elegí un producto del listado.');
-      return;
-    }
-    var productId = parseInt(selectedData.value, 10);
-    var productName = selectedData.name || selectedData.label || selectedData.display || '';
-    var unitPriceGs = parseInt(selectedData.sale_price_gs || 0, 10);
-    var qtyEl = document.getElementById('qty');
-    var qtyRaw = qtyEl && qtyEl.value ? qtyEl.value : '1';
-    // SALES-VAL-003: discrete baked goods — force integer quantities.
-    // 1,5 / 1.5 / "1.0" all become 1 with a visible warning so the
-    // cashier sees why their decimal was dropped.
-    var qty = Math.floor(parseFloat(qtyRaw));
-    if (isNaN(qty) || qty <= 0) { alert('Cantidad debe ser un entero mayor a 0.'); return; }
-    if (String(qtyRaw).indexOf('.') !== -1 || String(qtyRaw).indexOf(',') !== -1) {
-      alert('Cantidad debe ser un número entero (sin decimales). Se ajustó a ' + qty + '.');
-    }
-
-    addItem(productId, productName, qty, unitPriceGs);
-    if (qtyEl) qtyEl.value = 1;
-  };
-
   // ── Add from quick-sale button (price passed directly) ────────────────────
   window.quickAddToCart = function(productId, productName, unitPriceGs) {
     addItem(parseInt(productId, 10), productName || 'Producto', 1, parseInt(unitPriceGs || 0, 10));
+    // After every successful add, re-focus the scan input so the cashier
+    // can keep scanning without lifting their hand from the scanner.
+    refocusScanInput();
   };
 
   // ── Core add (increment qty if duplicate product) ─────────────────────────
@@ -513,7 +470,7 @@
           '<td></td>' +
           '<td class="cart-product-name">' + escHtml(item.product_name) + '</td>' +
           '<td class="cart-qty-cell">' +
-            {# SALES-VAL-003: discrete baked goods → integer qty. step=1 forces whole units in the spinner and validated by setQtyDirect(). #}
+            // SALES-VAL-003: discrete baked goods → integer qty. step=1 forces whole units in the spinner and validated by setQtyDirect().
             '<input type="number" class="cart-qty-input" min="1" step="1" value="' + item.qty + '" ' +
             'onchange="setQtyDirect(' + idx + ', this.value)" aria-label="Cantidad" inputmode="numeric" pattern="\\d*"> ' +
           '</td>' +
@@ -670,6 +627,86 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
   }
+
+  // ── Barcode / SKU scan input (Phase C) ──────────────────────────────────
+  // The `<input id=quick-scan>` is at the top of the right pane.
+  // On change we hit /productos/api/search?sku=VALUE; if a row matches,
+  // call addItem() with the first hit's id/name/price, clear the input,
+  // re-focus it. If no row matches, flash a red border + toast.
+  function refocusScanInput() {
+    var scan = document.getElementById('quick-scan');
+    if (scan && typeof scan.focus === 'function') {
+      // Use a microtask so the click handler on the grid button
+      // finishes before we steal focus.
+      try { setTimeout(function() { scan.focus(); scan.select && scan.select(); }, 0); }
+      catch (e) { /* no-op */ }
+    }
+  }
+
+  function flashScanError(msg) {
+    var scan = document.getElementById('quick-scan');
+    if (!scan) { if (typeof alert === 'function') alert(msg); return; }
+    scan.classList.add('is-error');
+    var prev = scan.placeholder;
+    scan.placeholder = msg;
+    // Toast-style revert after 1.5s
+    setTimeout(function() {
+      scan.classList.remove('is-error');
+      scan.placeholder = prev;
+    }, 1500);
+    scan.focus();
+  }
+
+  function wireScanInput() {
+    var scan = document.getElementById('quick-scan');
+    if (!scan) return;
+    function onScan() {
+      var value = (scan.value || '').trim();
+      if (!value) return;
+      fetch('/productos/api/search?sku=' + encodeURIComponent(value), {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json' }
+      })
+        .then(function(res) {
+          if (!res.ok) throw new Error('Search failed (' + res.status + ')');
+          return res.json();
+        })
+        .then(function(payload) {
+          var rows = (payload && payload.results) || [];
+          if (!rows.length) {
+            flashScanError('No se encontró producto con SKU \u2018' + value + '\u2019');
+            scan.value = '';
+            return;
+          }
+          var hit = rows[0];
+          addItem(
+            parseInt(hit.id, 10),
+            hit.name || ('Producto #' + hit.id),
+            1,
+            parseInt(hit.sale_price_gs || 0, 10)
+          );
+          scan.value = '';
+          refocusScanInput();
+        })
+        .catch(function() {
+          flashScanError('No se encontró producto con SKU \u2018' + value + '\u2019');
+          scan.value = '';
+        });
+    }
+    // change fires on blur after Enter — that matches both barcode-scanner
+    // (Enter terminates the barcode) and human typing (Enter is the
+    // typical submit gesture).
+    scan.addEventListener('change', onScan);
+    // Also accept Enter explicitly while focused (some scanners don't
+    // trigger 'change' if the value matches the prior one).
+    scan.addEventListener('keydown', function(ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); onScan(); }
+    });
+  }
+
+  wireScanInput();
+  refocusScanInput();
 })();
 </script>
 {% endblock %}

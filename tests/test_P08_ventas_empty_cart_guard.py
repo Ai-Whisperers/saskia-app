@@ -8,6 +8,7 @@ The /ventas page must:
    somehow submitted with empty cart (defense in depth).
 5. (Server-side) Reject empty-cart POST with 422.
 """
+
 from __future__ import annotations
 
 import re
@@ -36,13 +37,21 @@ def test_ventas_submits_only_when_cart_has_items(client):
 
 
 def test_ventas_empty_state_visible(client):
-    """P-08-2: Page shows empty cart placeholder text on initial load."""
+    """P-08-2: Page shows empty cart placeholder text on initial load.
+
+    Phase D1 (ventas-redesign) updated the copy to a more action-oriented
+    hint: "Tocá un producto o escaneá un código para empezar." Either the
+    new copy or the legacy "carrito está vacío" must appear so the cashier
+    sees a clear empty state.
+    """
     r = client.get("/ventas")
     assert r.status_code == 200
+    body = r.text
     assert (
-        "El carrito está vacío" in r.text
-        or "carrito está vacío" in r.text
-        or "carrito vac" in r.text
+        "Tocá un producto o escaneá un código para empezar" in body
+        or "El carrito está vacío" in body
+        or "carrito está vacío" in body
+        or "carrito vac" in body
     ), "Empty-cart placeholder text missing from /ventas initial render"
 
 

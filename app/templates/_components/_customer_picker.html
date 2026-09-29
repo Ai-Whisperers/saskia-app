@@ -2,15 +2,20 @@
    Customer picker widget for the /ventas form.
 
    SALES-UX-001: replaced the previous `<dialog>` modal with an inline
-   `<saskia-combo>` + adjacent "+ Nuevo cliente" disclosure. The cashier
+   `<saskia-combo>` + adjacent "Nuevo cliente" disclosure. The cashier
    now sees the search results inline (no screen-dimming overlay) and the
    underlying sales form stays visible and clickable throughout the flow.
 
+   Phase A (ventas-redesign): added the inline customer info card that
+   renders below the picker with stats, tier, notes + allergen chip.
+   Inline `<section>` — never a `<dialog>` modal (per SALES-UX-001).
+
    Backed by:
      - GET /clientes/api/search  (returns {id, name, hint, ...})
-     - POST /clientes/api/create (creates customer from inline form)
+     - GET /clientes/api/{id}     (returns full payload incl. notes + stats + top_products)
+     - POST /clientes/api/create (creates customer from inline form; returns full payload)
      - <saskia-combo> web component (app/static/saskia-combo.js)
-     - vanilla JS inline below for "Nuevo cliente" disclosure
+     - vanilla JS inline below for "Nuevo cliente" disclosure + card population
 #}
 <div class="customer-picker" id="customer-picker">
   <span id="inline-new-client" aria-hidden="true"></span>
@@ -56,7 +61,7 @@
         </div>
       </div>
       <div class="form-row">
-        <label for="cp_new_notes">Notas</label>
+        <label for="cp_new_notes">Notas (alérgenos, preferencias)</label>
         <textarea id="cp_new_notes" name="notes" rows="2"></textarea>
       </div>
       <div id="cp_new_error" class="customer-picker-error" hidden></div>
@@ -70,19 +75,282 @@
   </details>
 </div>
 
+{# ── Customer info card (Phase A) ──
+   Inline <section>, hidden by default. Populated by the JS below when a
+   customer is picked from the combo (or after inline-create).
+   NOT a <dialog> modal — see SALES-UX-001. #}
+<section class="customer-card" id="customer-card" hidden aria-live="polite">
+  <header class="customer-card-head">
+    <h3 class="customer-card-name" id="customer-card-name">—</h3>
+    <button type="button" class="btn btn-ghost customer-card-quit" id="customer-card-quit">
+      <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
+      Quitar
+    </button>
+  </header>
+
+  <div class="customer-card-contact" id="customer-card-contact">—</div>
+
+  <div class="customer-card-stats">
+    <div class="customer-card-stat">
+      <span class="customer-card-stat-label">Visitas</span>
+      <strong class="customer-card-stat-value" id="customer-card-visits">—</strong>
+    </div>
+    <div class="customer-card-stat">
+      <span class="customer-card-stat-label">Última visita</span>
+      <strong class="customer-card-stat-value" id="customer-card-last-visit">—</strong>
+    </div>
+    <div class="customer-card-stat">
+      <span class="customer-card-stat-label">Gs. lifetime</span>
+      <strong class="customer-card-stat-value" id="customer-card-lifetime">—</strong>
+    </div>
+    <div class="customer-card-stat">
+      <span class="customer-card-stat-label">Puntos</span>
+      <strong class="customer-card-stat-value" id="customer-card-points">—</strong>
+    </div>
+  </div>
+
+  <div class="customer-card-tier-row">
+    <span class="customer-card-tier" id="customer-card-tier" data-tier="">—</span>
+  </div>
+
+  <div class="customer-card-top" id="customer-card-top" hidden>
+    <span class="customer-card-top-label">Compra habitual:</span>
+    <span class="customer-card-top-list" id="customer-card-top-list">—</span>
+  </div>
+
+  <div class="customer-card-allergen-chip" id="customer-card-allergen-chip" hidden role="status">
+    <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+    Atención: alérgenos registrados en notas
+  </div>
+
+  <div class="customer-card-notes" id="customer-card-notes" hidden>
+    <em><strong>Nota:</strong> <span id="customer-card-notes-text"></span></em>
+  </div>
+
+  <div class="customer-card-loading" id="customer-card-loading" hidden aria-hidden="true">
+    <span class="spinner"></span>
+  </div>
+
+  <div class="customer-card-error" id="customer-card-error" hidden role="alert"></div>
+</section>
+
 {# Inline script: keep the selected customer_id in sync with saskia-combo
-   selection, and wire up the inline "Nuevo cliente" form to the existing
-   POST /clientes/api/create endpoint. No more modal opening. #}
+   selection, wire the inline "Nuevo cliente" form to the existing POST
+   /clientes/api/create endpoint, and populate the customer info card.
+   No more modal opening. #}
 <script>
 (function() {
   'use strict';
+
+  // Allergen vocabulary. Closed list — do NOT add new allergens without
+  // updating the QA gate + the cashier training notes. Source of truth for
+  // the warning chip in the customer info card. Case-insensitive substring
+  // match against the customer's free-text notes.
+  var ALLERGENS = [
+    'gluten', 'lactosa', 'frutos secos', 'huevo', 'soja',
+    'maní', 'man\u00ed', 's\u00e9samo', 'leche', 'nuez', 'marisco'
+  ];
+
   var combo = document.getElementById('customer_id_combo');
   var hidden = document.getElementById('customer_id');
   var hint = document.getElementById('customer_picker_hint');
+
+  var card = document.getElementById('customer-card');
+  var cardName = document.getElementById('customer-card-name');
+  var cardContact = document.getElementById('customer-card-contact');
+  var cardVisits = document.getElementById('customer-card-visits');
+  var cardLastVisit = document.getElementById('customer-card-last-visit');
+  var cardLifetime = document.getElementById('customer-card-lifetime');
+  var cardPoints = document.getElementById('customer-card-points');
+  var cardTier = document.getElementById('customer-card-tier');
+  var cardTop = document.getElementById('customer-card-top');
+  var cardTopList = document.getElementById('customer-card-top-list');
+  var cardAllergenChip = document.getElementById('customer-card-allergen-chip');
+  var cardNotes = document.getElementById('customer-card-notes');
+  var cardNotesText = document.getElementById('customer-card-notes-text');
+  var cardLoading = document.getElementById('customer-card-loading');
+  var cardError = document.getElementById('customer-card-error');
+  var cardQuitBtn = document.getElementById('customer-card-quit');
+
+  // Tier label mapping (the LoyaltyTier enum has 'bronze|silver|gold|platinum';
+  // 'platinum' is renamed to 'VIP' for the cashier-facing label per the
+  // ventas-redesign phase A spec).
+  var TIER_LABELS = {
+    'bronze': 'Bronce',
+    'silver': 'Plata',
+    'gold': 'Oro',
+    'platinum': 'VIP'
+  };
+
+  // ── Card rendering ─────────────────────────────────────────────────────
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function relativeDate(iso) {
+    if (!iso) return '\u2014';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '\u2014';
+    var now = new Date();
+    var diffMs = now - d;
+    var diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return 'futuro';
+    if (diffDays === 0) return 'hoy';
+    if (diffDays === 1) return 'ayer';
+    if (diffDays < 7) return 'hace ' + diffDays + ' d\u00edas';
+    if (diffDays < 30) return 'hace ' + Math.floor(diffDays / 7) + ' sem';
+    if (diffDays < 365) return 'hace ' + Math.floor(diffDays / 30) + ' meses';
+    return 'hace ' + Math.floor(diffDays / 365) + ' a\u00f1o' + (diffDays >= 730 ? 's' : '');
+  }
+
+  function clearCard() {
+    if (!card) return;
+    card.hidden = true;
+    if (cardName) cardName.textContent = '\u2014';
+    if (cardContact) cardContact.textContent = '\u2014';
+    if (cardVisits) cardVisits.textContent = '\u2014';
+    if (cardLastVisit) cardLastVisit.textContent = '\u2014';
+    if (cardLifetime) cardLifetime.textContent = '\u2014';
+    if (cardPoints) cardPoints.textContent = '\u2014';
+    if (cardTier) { cardTier.textContent = '\u2014'; cardTier.dataset.tier = ''; }
+    if (cardTop) { cardTop.hidden = true; }
+    if (cardAllergenChip) cardAllergenChip.hidden = true;
+    if (cardNotes) cardNotes.hidden = true;
+    if (cardLoading) cardLoading.hidden = true;
+    if (cardError) { cardError.hidden = true; cardError.textContent = ''; }
+    card.classList.remove('is-loading');
+    card.style.cursor = '';
+  }
+
+  function showCardLoading(on) {
+    if (!card) return;
+    card.classList.toggle('is-loading', !!on);
+    if (cardLoading) cardLoading.hidden = !on;
+    card.style.cursor = on ? 'wait' : '';
+  }
+
+  function showCardError(msg) {
+    if (!cardError) return;
+    if (msg) {
+      cardError.textContent = msg;
+      cardError.hidden = false;
+    } else {
+      cardError.hidden = true;
+      cardError.textContent = '';
+    }
+  }
+
+  function hasAllergen(notes) {
+    if (!notes) return false;
+    var n = String(notes).toLowerCase();
+    for (var i = 0; i < ALLERGENS.length; i++) {
+      if (n.indexOf(ALLERGENS[i]) !== -1) return true;
+    }
+    return false;
+  }
+
+  function renderCard(data) {
+    if (!card || !data) return;
+    card.hidden = false;
+
+    if (cardName) cardName.textContent = data.name || '(sin nombre)';
+
+    // Contact row: phone · cedula · email
+    var bits = [];
+    if (data.phone) bits.push(escapeHtml(data.phone));
+    if (data.cedula) bits.push('CI ' + escapeHtml(data.cedula));
+    if (data.email) bits.push(escapeHtml(data.email));
+    if (cardContact) cardContact.textContent = bits.length ? bits.join(' \u00b7 ') : '\u2014';
+
+    if (cardVisits) cardVisits.textContent = data.n_sales != null ? String(data.n_sales) : '\u2014';
+    if (cardLastVisit) cardLastVisit.textContent = relativeDate(data.last_sale_at);
+    if (cardLifetime) cardLifetime.textContent = data.lifetime_label || '\u2014';
+    if (cardPoints) cardPoints.textContent = data.loyalty_points != null ? String(data.loyalty_points) : '\u2014';
+
+    var tierKey = (data.tier || '').toLowerCase();
+    if (cardTier) {
+      cardTier.textContent = TIER_LABELS[tierKey] || data.tier || '\u2014';
+      cardTier.dataset.tier = tierKey;
+    }
+
+    // Top products line
+    if (cardTop && cardTopList) {
+      var tops = data.top_products || [];
+      if (tops.length > 0) {
+        cardTopList.textContent = tops.map(function(t) {
+          return escapeHtml(t.name) + ' (\u00d7' + (t.count != null ? t.count : 0) + ')';
+        }).join(', ');
+        cardTop.hidden = false;
+      } else {
+        cardTop.hidden = true;
+      }
+    }
+
+    // Allergen chip
+    if (cardAllergenChip) {
+      cardAllergenChip.hidden = !hasAllergen(data.notes);
+    }
+
+    // Notes (only if non-empty)
+    if (cardNotes && cardNotesText) {
+      if (data.notes && String(data.notes).trim()) {
+        cardNotesText.textContent = data.notes;
+        cardNotes.hidden = false;
+      } else {
+        cardNotes.hidden = true;
+      }
+    }
+
+    showCardError('');
+  }
+
+  function fillCardFromData(data) {
+    if (!data) { clearCard(); return; }
+    renderCard(data);
+  }
+
+  function fetchAndFillCard(customerId) {
+    if (!customerId) { clearCard(); return; }
+    showCardLoading(true);
+    showCardError('');
+    // Card must be visible while loading so the spinner shows.
+    if (card) { card.hidden = false; card.classList.add('is-loading'); }
+    fetch('/clientes/api/' + customerId, {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(function(res) {
+        if (res.status === 404) {
+          if (hidden) hidden.value = '';
+          if (combo && typeof combo.setValue === 'function') combo.setValue('', '');
+          throw new Error('Cliente no encontrado.');
+        }
+        if (!res.ok) throw new Error('Error al cargar cliente (' + res.status + ').');
+        return res.json();
+      })
+      .then(function(data) { fillCardFromData(data); })
+      .catch(function(err) {
+        showCardError(err && err.message ? err.message : 'Error al cargar cliente.');
+      })
+      .then(function() { showCardLoading(false); });
+  }
+
+  // ── Quit button: clear hidden field, combo, and card ────────────────────
+  if (cardQuitBtn) {
+    cardQuitBtn.addEventListener('click', function() {
+      if (hidden) hidden.value = '';
+      if (combo && typeof combo.setValue === 'function') combo.setValue('', '');
+      clearCard();
+    });
+  }
+
+  // ── Combo change → fetch detail + populate card ────────────────────────
   if (combo && hidden) {
-    // saskia-combo fires 'change' on its host element when the user
-    // picks an item (or clears it). Keep the hidden field authoritative
-    // so the form serializes the right id.
     combo.addEventListener('change', function() {
       hidden.value = combo.value || '';
       if (hint) {
@@ -94,9 +362,16 @@
           hint.hidden = true;
         }
       }
+      var id = parseInt(combo.value, 10);
+      if (id) {
+        fetchAndFillCard(id);
+      } else {
+        clearCard();
+      }
     });
   }
 
+  // ── Inline "Nuevo cliente" form ────────────────────────────────────────
   var form = document.getElementById('customer_picker_new_form');
   var errBox = document.getElementById('cp_new_error');
   if (!form) return;
@@ -120,13 +395,14 @@
         return;
       }
       var data = await resp.json();
-      // Write the new id back to the hidden field + reflect into combo.
-      // Use setValue(value, display) since setSelectedData doesn't exist
-      // in saskia-combo.js — it only exposes clear() and setValue().
+      // New customer row + full detail payload (notes/stats/top_products)
+      // comes back from the server — no second fetch needed.
       hidden.value = data.id || '';
       if (combo && typeof combo.setValue === 'function') {
-        combo.setValue(data.id || '', data.name || '');
+        combo.setValue(data.id || '', data.customer && data.customer.name || data.name || '');
       }
+      // Populate the card from the create response.
+      fillCardFromData(data.customer || data);
       form.reset();
       var details = document.getElementById('customer_picker_new_panel');
       if (details) details.open = false;
