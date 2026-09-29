@@ -27,7 +27,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
@@ -393,7 +393,7 @@ class HealthCacheMiddleware(BaseHTTPMiddleware):
     + performance-research.md section 5 (Cloudflare caching).
     """
 
-    async def dispatch(self, request: Request, call_next: object):
+    async def dispatch(self, request: Request, call_next: object) -> Response:
         response = await call_next(request)
         if request.url.path.startswith("/healthz"):
             # s-maxage is for shared caches (Cloudflare); max-age is for browsers.
@@ -628,7 +628,7 @@ def _wants_html(request: Request) -> bool:
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Spanish 422 errors so /ventas/nueva etc. don't show English defaults.
 
     Translates the standard FastAPI 422 (English "Field required", "value is not a valid integer")
@@ -669,7 +669,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 
 @app.exception_handler(Exception)
-async def unhandled_exception_handler(request: Request, exc: Exception):
+async def unhandled_exception_handler(request: Request, exc: Exception) -> Response:
     """Global exception handler.
 
     Order of dispatch:
@@ -852,7 +852,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 @app.exception_handler(404)
-async def not_found_handler(request: Request, exc: Exception):
+async def not_found_handler(request: Request, exc: Exception) -> Response:
     """404 handler — HTML for browsers, JSON for API clients."""
     if _wants_html(request):
         from app.services.template_render import render as _render

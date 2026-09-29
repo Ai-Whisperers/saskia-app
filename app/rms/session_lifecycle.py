@@ -26,6 +26,7 @@ import logging
 import os
 
 from fastapi import Request
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -35,7 +36,7 @@ logger = logging.getLogger("app.rms.session_lifecycle")
 class SessionLifecycleMiddleware(BaseHTTPMiddleware):
     """Detect sessions opened during a request that weren't closed."""
 
-    async def dispatch(self, request: Request, call_next: object):
+    async def dispatch(self, request: Request, call_next: object) -> Response:
         # Skip entirely in production — gc.get_objects() is too expensive
         if not os.getenv("SASKIA_DEBUG"):
             return await call_next(request)
