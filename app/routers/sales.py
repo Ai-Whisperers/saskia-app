@@ -12,7 +12,7 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import require_login_or_disabled as require_login
@@ -95,7 +95,7 @@ def _generate_idem_key() -> str:
 PAGE_SIZE = 20
 
 
-def _get_tax_regime(session) -> str:
+def _get_tax_regime(session: Session) -> str:
     """Return the configured tax_regime from ComplianceInfo. Defaults to DEFAULT_TAX_REGIME."""
     from app.rms.constants import DEFAULT_TAX_REGIME
     from app.rms.models import ComplianceInfo
@@ -337,7 +337,12 @@ async def sales_history(
     return render(request, "ventas_historial.html", ctx)
 
 
-def _filter_summary(q, product_id, days, products):
+def _filter_summary(
+    q: str | None,
+    product_id: int | None,
+    days: int | None,
+    products: list[Product],
+) -> str:
     """Human-readable description of the active filter (shown in the summary card)."""
     parts = []
     if days is not None and days > 0:
@@ -353,7 +358,11 @@ def _filter_summary(q, product_id, days, products):
     return ", ".join(parts)
 
 
-def _build_filtered_sales_query(q, product_id, days):
+def _build_filtered_sales_query(
+    q: str | None,
+    product_id: int | None,
+    days: int | None,
+) -> Select:
     """Build a Sale query applying the same filters as sales_list.
 
     Used by both the HTML view and the CSV export so they stay
@@ -1023,8 +1032,8 @@ async def sale_create_multi(
 
 
 def _fire_printer_for_sale(
-    session,
-    request,
+    session: Session,
+    request: Request,
     product_id: int,
     qty: float,
     discount_gs: int,
