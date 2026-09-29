@@ -31,10 +31,10 @@ def _parse_date(val: str | None) -> datetime | None:
 
 def _date_presets() -> dict[str, tuple[str, str]]:
     """Return {label: (start, end)} for common date ranges."""
-    today = datetime.utcnow().date().isoformat()
-    yesterday = (datetime.utcnow() - timedelta(days=1)).date().isoformat()
-    week_start = (datetime.utcnow() - timedelta(days=7)).date().isoformat()
-    month_start = (datetime.utcnow() - timedelta(days=30)).date().isoformat()
+    today = datetime.now(timezone.utc).date().isoformat()
+    yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).date().isoformat()
+    week_start = (datetime.now(timezone.utc) - timedelta(days=7)).date().isoformat()
+    month_start = (datetime.now(timezone.utc) - timedelta(days=30)).date().isoformat()
     return {
         "today": (today, today),
         "yesterday": (yesterday, yesterday),
@@ -206,7 +206,7 @@ def auditoria_export_csv(
             ]
         )
 
-    filename = f"auditoria_{datetime.utcnow().date().isoformat()}.csv"
+    filename = f"auditoria_{datetime.now(timezone.utc).date().isoformat()}.csv"
     return Response(
         content=buf.getvalue(),
         media_type="text/csv; charset=utf-8",

@@ -313,7 +313,7 @@ async def excel_plantilla(
     from app.services.export_xlsx import patch_plantilla_bytes
 
     body = patch_plantilla_bytes(session)
-    today = datetime.utcnow().strftime("%Y%m%d")
+    today = datetime.now(timezone.utc).strftime("%Y%m%d")
     filename = f"saskia-import-{today}.xlsx"
     return Response(
         content=body,

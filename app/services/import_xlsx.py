@@ -666,7 +666,7 @@ def _import_patch_clientes(session: Session, wb, result: ImportResult) -> None:
                 existing.cedula = cedula
             if notes is not None:
                 existing.notes = notes
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now(timezone.utc)
         else:
             if not name:
                 warnings.append(
@@ -742,7 +742,7 @@ def _import_patch_ingredientes(session: Session, wb, result: ImportResult) -> No
             )
             if new_pp is not None:
                 ing.purchase_price_gs = new_pp
-                ing.purchase_price_updated_at = datetime.utcnow()
+                ing.purchase_price_updated_at = datetime.now(timezone.utc)
 
         lt_v = row.get("lead_time_days")
         if lt_v not in (None, ""):

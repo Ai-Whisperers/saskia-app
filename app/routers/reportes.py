@@ -55,7 +55,7 @@ def _parse_date(val: str | None) -> datetime | None:
 
 
 def _today_str() -> str:
-    return datetime.utcnow().date().isoformat()
+    return datetime.now(timezone.utc).date().isoformat()
 
 
 # ─── Index ─────────────────────────────────────────────────────────────────
@@ -219,7 +219,7 @@ def reportes_iva(
     """Monthly IVA breakdown (last 12 months) with year-to-date cumulative view."""
     rows = monthly_iva_breakdown(session)
     # YTD totals
-    current_year = datetime.utcnow().year
+    current_year = datetime.now(timezone.utc).year
     ytd_rows = [r for r in rows if r.year == current_year]
     ytd = {
         "n_sales": sum(r.n_sales for r in ytd_rows),
@@ -245,7 +245,7 @@ def reportes_libro_ventas(
 
     Supports date presets: ?preset=today, ?preset=week, ?preset=month, ?preset=last_month
     """
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc).date()
     if preset == "today":
         start_date = datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc)
         end_date = datetime.combine(today, datetime.max.time()).replace(tzinfo=timezone.utc)
@@ -438,7 +438,7 @@ def reportes_comparacion(
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Cross-period comparison (this month vs last month by default)."""
-    today = datetime.utcnow()
+    today = datetime.now(timezone.utc)
     today_date = today.date()
     first_this_month = today_date.replace(day=1)
     last_month_end = first_this_month - timedelta(days=1)
@@ -913,7 +913,7 @@ def reportes_iva_pdf(
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
     rows = monthly_iva_breakdown(session)
-    current_year = datetime.utcnow().year
+    current_year = datetime.now(timezone.utc).year
     ytd_rows = [r for r in rows if r.year == current_year]
     ytd_gross = sum(r.total_gross_gs for r in ytd_rows)
     ytd_iva = sum(r.total_iva_gs for r in ytd_rows)

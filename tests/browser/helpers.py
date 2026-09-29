@@ -83,7 +83,7 @@ def pw_page(browser, request):
         # quick-sell panel needs recent sales
         from tests.factories import make_sale
 
-        t0 = datetime.utcnow() - timedelta(hours=2)
+        t0 = datetime.now(timezone.utc) - timedelta(hours=2)
         for _ in range(3):
             make_sale(s, product=cat["product"], qty=1, at=t0)
             t0 += timedelta(minutes=10)
