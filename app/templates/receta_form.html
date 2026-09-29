@@ -129,7 +129,8 @@
                   placeholder='Buscar sub-receta…',
                   endpoint='/recetas/api/search/',
                   value_field='id',
-                  label_field='name'
+                  label_field='name',
+                  data_attrs={'data-cost-per-unit': line.price_per_kg_gs or 0}
                 ) }}
               {% else %}
                 {{ ui.combo_field(
@@ -139,7 +140,8 @@
                   placeholder='Buscar ingrediente…',
                   endpoint='/inventario/api/search/',
                   value_field='id',
-                  label_field='name'
+                  label_field='name',
+                  data_attrs={'data-cost-per-unit': line.price_per_kg_gs or 0}
                 ) }}
               {% endif %}
             </td>
@@ -163,7 +165,7 @@
             </td>
             <td class="line-col-cost">
               <span class="line-cost-display"
-                    data-cost-per-unit="{{ line.unit_cost_gs | default(0) }}"
+                    data-line-cost="{{ line.unit_cost_gs or 0 }}"
               >{{ "Gs. %d"|format(line.unit_cost_gs) if line.unit_cost_gs else 'Gs. 0' }}</span>
             </td>
             <td class="line-col-note">
@@ -832,6 +834,7 @@
         costCell.textContent = formatGs(lineCost);
         costCell.classList.toggle('has-cost', lineCost > 0);
         costCell.classList.toggle('missing-cost', kind === 'ingredient' && targetId && (!ingredientPrices[targetId] || ingredientPrices[targetId].purchase_price_gs === 0));
+        costCell.dataset.lineCost = Math.round(lineCost);
       }
 
       batchTotal += lineCost;

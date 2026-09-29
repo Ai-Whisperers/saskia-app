@@ -304,7 +304,8 @@
                      src=None, endpoint=None, required=False,
                      label=None, label_for=None,
                      value_field='value', label_field='label',
-                     allow_create=False, autosubmit=False) -%}
+                     allow_create=False, autosubmit=False,
+                     data_attrs=None) -%}
   {% set _vf = value_field %}
   {% set _lf = label_field %}
   {% if label -%}
@@ -318,6 +319,7 @@
                   {% if required %}required{% endif %}
                   {% if allow_create %}allow-create{% endif %}
                   {% if autosubmit %}autosubmit{% endif %}
+                  {% if data_attrs %}{% for k, v in data_attrs.items() %}{{ k }}="{{ v }}" {% endfor %}{% endif %}
                   src='{{ src | tojson }}'></saskia-combo>
   {%- elif endpoint -%}
     <saskia-combo name="{{ name }}"
@@ -327,6 +329,7 @@
                   {% if required %}required{% endif %}
                   {% if allow_create %}allow-create{% endif %}
                   {% if autosubmit %}autosubmit{% endif %}
+                  {% if data_attrs %}{% for k, v in data_attrs.items() %}{{ k }}="{{ v }}" {% endfor %}{% endif %}
                   endpoint="{{ endpoint }}"
                   {% if _vf != 'value' %}value-field="{{ _vf }}"{% endif %}
                   {% if _lf != 'label' %}label-field="{{ _lf }}"{% endif %}></saskia-combo>

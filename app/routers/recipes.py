@@ -598,16 +598,19 @@ async def recipe_edit(
     for ln in raw_lines:
         target = resolve_line_target(session, ln)
         lines.append({
-            "id": ln.id,
-            "line_kind": ln.line_kind,
-            "line_ref_id": ln.line_ref_id,
-            "qty": ln.qty,
-            "line_unit": ln.line_unit or "und",
-            "note": ln.notes,
-            "target_name": target.name if target else f"#{ln.line_ref_id}",
-            "target_unit": getattr(target, "unit", "und") if target else "und",
-            "unit_cost_gs": _line_cost(ln, target),
-        })
+                "id": ln.id,
+                "line_kind": ln.line_kind,
+                "line_ref_id": ln.line_ref_id,
+                "qty": ln.qty,
+                "line_unit": ln.line_unit,
+                "note": ln.notes,
+                "target_name": target.name if target else f"#{ln.line_ref_id}",
+                "target_unit": target.unit if target and hasattr(target, 'unit') else ln.line_unit,
+                # cost_per_kg_gs: the ingredient's purchase price per kg — what JS multiplies by qty_norm
+                "price_per_kg_gs": int(target.purchase_price_gs) if target and hasattr(target, 'purchase_price_gs') and target.purchase_price_gs else 0,
+                # unit_cost_gs: the normalized line total cost = qty_in_kg × price_per_kg_gs
+                "unit_cost_gs": _line_cost(ln, target),
+            })
     ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
     other_recipes = session.scalars(
         select(Recipe).where(Recipe.id != r_id).order_by(Recipe.name)
