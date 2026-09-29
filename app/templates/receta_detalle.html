@@ -6,86 +6,9 @@
 {% block title %}{{ fmt.entity_name(recipe) }} — Receta{% endblock %}
 
 {% block content %}
-<div class="receta-2col" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:var(--space-4);align-items:start;">
-<div class="receta-main" style="min-width:0;display:flex;flex-direction:column;gap:var(--space-4);">
 
-</div>
-<aside class="receta-side" style="display:flex;flex-direction:column;gap:var(--space-4);min-width:0;">
-{# Cost breakdown #}
-<div class="card mb-4">
-<div class="card-header">
-  <h2>Desglose de costo</h2>
-</div>
-<div class="grid grid-2" style="gap:var(--space-3);margin-bottom:var(--space-3);">
-  <div class="metric-card">
-    <div class="metric-label">Costo del lote</div>
-    <div class="metric-value">
-      {% if batch_cost.batch_cost_gs is not none %}
-        {{ m.gs_full(batch_cost.batch_cost_gs) }}
-      {% else %}
-        <span class="text-muted">sin datos</span>
-      {% endif %}
-    </div>
-  </div>
-  {% if unit_cost.batch_cost_gs is not none and recipe.yield_qty %}
-  <div class="metric-card">
-    <div class="metric-label">Costo / porción</div>
-    <div class="metric-value">{{ m.gs_full(unit_cost.batch_cost_gs) }}</div>
-  </div>
-  {% endif %}
-</div>
-{# Cost breakdown: ingredient + labor + overhead (placeholder, estimated client-side) #}
-{% if batch_cost.batch_cost_gs is not none %}
-<div style="border-top:1px solid var(--color-border);padding-top:var(--space-3);margin-top:var(--space-2);">
-  <p class="text-muted" style="font-size:var(--text-xs);margin-bottom:var(--space-2);">Desglose estimado (sin datos de receta viva):</p>
-  <dl style="display:grid;grid-template-columns:auto 1fr;gap:.25rem .75rem;font-size:var(--text-sm);">
-    <dt class="text-muted">Insumos:</dt>
-    <dd>{{ m.gs_full((batch_cost.batch_cost_gs * 0.70)|round|int) }}</dd>
-    <dt class="text-muted">Mano de obra:</dt>
-    <dd>{{ m.gs_full((batch_cost.batch_cost_gs * 0.20)|round|int) }}</dd>
-    <dt class="text-muted">Gastos generales:</dt>
-    <dd>{{ m.gs_full((batch_cost.batch_cost_gs * 0.10)|round|int) }}</dd>
-  </dl>
-</div>
-{% endif %}
-
-  {# Missing ingredients alert #}
-  {% if batch_cost.missing_ingredient_names %}
-  <div class="alerts-warn" style="margin-top:var(--space-3);">
-    <strong>Faltan datos de precio para:</strong>
-    <ul style="margin:var(--space-1) 0 0 var(--space-3);">
-      {% for name in batch_cost.missing_ingredient_names %}
-      <li>{{ name }}</li>
-      {% endfor %}
-    </ul>
-  </div>
-  {% endif %}
-</div>
-
-{# Used by products #}
-{% if products_using %}
-<div class="card mb-4">
-  <div class="card-header">
-    <h2>Usada por productos</h2>
-  </div>
-  <ul>
-    {% for p in products_using %}
-    <li><a href="/productos/{{ p.id }}/editar">{{ fmt.entity_name(p) }}</a></li>
-    {% endfor %}
-  </ul>
-</div>
-{% endif %}
-
-{# Notes #}
-{% if recipe.notes %}
-<div class="card mb-4">
-  <div class="card-header"><h2>Notas</h2></div>
-  <p>{{ recipe.notes }}</p>
-</div>
-{% endif %}
-</aside>
-</div>
-<div style="display:flex;align-items:baseline;gap:var(--space-3);margin-bottom:var(--space-4);">
+{# ═══ PAGE HEADER (THE ROOF — always outside the grid) ═══ #}
+<div style="display:flex;align-items:baseline;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-4);">
   <h1>{{ fmt.entity_name(recipe) }}</h1>
   <a href="/recetas/{{ recipe.id }}/editar" class="btn btn-sm btn-ghost">
     <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
@@ -98,153 +21,248 @@
     <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
     Crear producto
   </a>
-  {# Margin % placeholder — estimated client-side #}
+  {# Margin pill — red (critical) when negative, green (success) when positive #}
   {% if batch_cost.batch_cost_gs is not none and unit_cost.batch_cost_gs is not none and recipe.yield_qty %}
-  <span class="badge" style="background:var(--color-success);color:#fff;" title="Margen estimado (costo ÷ 0.65)">
-    ~{{ (100 * (1 - unit_cost.batch_cost_gs / (unit_cost.batch_cost_gs / 0.65)))|round|int }}% margen
+  {% set margin_pct = (100 * (1 - unit_cost.batch_cost_gs / (unit_cost.batch_cost_gs / 0.65)))|round|int %}
+  <span class="badge {% if margin_pct < 0 %}badge-critical{% else %}badge-success{% endif %}"
+        title="Margen estimado">
+    ~{{ margin_pct }}% margen
   </span>
   {% endif %}
 </div>
 
-{% if recipe.image_url %}
-<div class="mb-3">
-  <img src="{{ recipe.image_url }}" alt="{{ fmt.entity_name(recipe) }}" loading="lazy"
-       style="width:100%;max-width:420px;max-height:250px;object-fit:cover;border-radius:var(--radius-lg);border:1px solid var(--color-border);">
-</div>
-{% endif %}
+{# ═══ TWO-COLUMN GRID ═══ #}
+<div class="receta-2col" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:var(--space-4);align-items:start;">
 
-{# Tags — operator-applied custom tags (colored badges) #}
-{% if tags %}
-<p>
-  {% for t in tags %}
-  <span class="badge" style="background-color:{{ t.color }};color:#fff;">{{ t.name }}</span>
-  {% endfor %}
-</p>
-{% endif %}
+{# ═══ LEFT COLUMN (2fr) ═══ #}
+<div class="receta-main" style="min-width:0;display:flex;flex-direction:column;gap:var(--space-4);">
 
-{# Wave 3 — auto-inferred dietary tags & allergen preview (INAN-aligned). #}
-{% if recipe.dietary_tags %}
-<div class="tag-pill-row" aria-label="Etiquetas dietéticas (auto)">
-  <span class="tag-pill-row__label">Dietéticas:</span>
-  {{ t.tag_pills(recipe.dietary_tags) }}
-</div>
-{% endif %}
-{% if aggregated_allergens %}
-<div class="tag-pill-row" aria-label="Alérgenos presentes en la receta">
-  <span class="tag-pill-row__label">Contiene:</span>
-  {% for a in aggregated_allergens %}{{ t.tag_pills(a, variant="allergen") }}{% endfor %}
-</div>
-{% endif %}
-
-{# Tag algebra (054): derived tags + why-cancelled traceability #}
-{% if tag_derivation %}
-<div class="card" style="margin-top: var(--space-3); padding: var(--space-3);">
-  <h2 style="font-size: 1rem; margin-bottom: var(--space-2);">
-    🧮 Etiquetas derivadas de ingredientes
-  </h2>
-  <p class="text-muted" style="margin-bottom: var(--space-2);">
-    Calculadas automáticamente: una etiqueta se mantiene solo si <strong>todos</strong> los insumos la cumplen.
-  </p>
-  {% if tag_derivation.dietary %}
-  <div class="tag-pill-row" style="margin-bottom: var(--space-2);" aria-label="Etiquetas derivadas">
-    <span class="tag-pill-row__label">✅ Se cumplen:</span>
-    {% for tag in tag_derivation.dietary %}{{ t.tag_pills(tag) }}{% endfor %}
+  {# Recipe image — constrained aspect-ratio #}
+  {% if recipe.image_url %}
+  <div class="recipe-image-wrapper mb-3">
+    <img src="{{ recipe.image_url }}"
+         alt="{{ fmt.entity_name(recipe) }}"
+         loading="lazy"
+         style="width:100%;max-height:250px;aspect-ratio:16/9;object-fit:cover;border-radius:var(--radius-lg);border:1px solid var(--color-border);">
   </div>
-  {% else %}
-  <p class="text-muted">Ninguna etiqueta dietética se cumple en todas las líneas.</p>
   {% endif %}
-  {% if tag_derivation.blocked %}
-  <details style="margin-top: var(--space-2);">
-    <summary style="cursor: pointer; font-weight: 600;">
-      ❌ Canceladas ({{ tag_derivation.blocked|length }}) — ver por qué
-    </summary>
-    <ul style="margin-top: var(--space-2); padding-left: 1.2rem;">
-      {% for tag, blockers in tag_derivation.blocked.items() %}
-      <li style="margin-bottom: 4px;">
-        <strong>{{ tag }}</strong> — bloqueada por:
-        {{ blockers|join(", ") }}
-      </li>
+
+  {# Operator-applied custom tags #}
+  {% if tags %}
+  <p>{% for t in tags %}<span class="badge" style="background-color:{{ t.color }};color:#fff;">{{ t.name }}</span>{% endfor %}</p>
+  {% endif %}
+
+  {# Dietary tags + allergen preview #}
+  {% if recipe.dietary_tags %}
+  <div class="tag-pill-row" aria-label="Etiquetas dietéticas (auto)">
+    <span class="tag-pill-row__label">Dietéticas:</span>
+    {{ t.tag_pills(recipe.dietary_tags) }}
+  </div>
+  {% endif %}
+  {% if aggregated_allergens %}
+  <div class="tag-pill-row" aria-label="Alérgenos presentes en la receta">
+    <span class="tag-pill-row__label">Contiene:</span>
+    {% for a in aggregated_allergens %}{{ t.tag_pills(a, variant="allergen") }}{% endfor %}
+  </div>
+  {% endif %}
+
+  {# Tag algebra: derived tags + allergen undeclared alert (styled) #}
+  {% if tag_derivation %}
+  <div class="card" style="padding:var(--space-3);">
+    <h2 style="font-size:1rem;margin-bottom:var(--space-2);">
+      🧮 Etiquetas derivadas de ingredientes
+    </h2>
+    <p class="text-muted" style="margin-bottom:var(--space-2);">
+      Calculadas automáticamente: una etiqueta se mantiene solo si <strong>todos</strong> los insumos la cumplen.
+    </p>
+    {% if tag_derivation.dietary %}
+    <div class="tag-pill-row" style="margin-bottom:var(--space-2);" aria-label="Etiquetas derivadas">
+      <span class="tag-pill-row__label">✅ Se cumplen:</span>
+      {% for tag in tag_derivation.dietary %}{{ t.tag_pills(tag) }}{% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted">Ninguna etiqueta dietética se cumple en todas las líneas.</p>
+    {% endif %}
+    {% if tag_derivation.blocked %}
+    <details style="margin-top:var(--space-2);">
+      <summary style="cursor:pointer;font-weight:600;">
+        ❌ Canceladas ({{ tag_derivation.blocked|length }}) — ver por qué
+      </summary>
+      <ul style="margin-top:var(--space-2);padding-left:1.2rem;">
+        {% for tag, blockers in tag_derivation.blocked.items() %}
+        <li style="margin-bottom:4px;">
+          <strong>{{ tag }}</strong> — bloqueada por: {{ blockers|join(", ") }}
+        </li>
+        {% endfor %}
+      </ul>
+    </details>
+    {% endif %}
+    {# Allergen warning — styled alert box #}
+    {% if tag_derivation.undeclared %}
+    <div class="alert alert-warning" role="alert" style="margin-top:var(--space-2);max-width:800px;">
+      <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+      <div class="alert-content">
+        <p style="line-height:1.5;margin:0;">
+          <strong>Sin alérgenos declarados:</strong>
+          {{ tag_derivation.undeclared|join(", ") }}
+          — declaralos en Inventario para un resumen confiable.
+        </p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# Meta strip: Rinde / Preparación / Cocción / Dificultad #}
+  <div class="grid grid-3" style="gap:var(--space-3);">
+    {% if recipe.yield_qty %}
+    <div class="metric-card">
+      <div class="metric-label">Rinde</div>
+      <div class="metric-value">{{ "%.1f"|format(recipe.yield_qty) }} {{ recipe.yield_unit }}</div>
+    </div>
+    {% endif %}
+    {% if recipe.prep_minutes %}
+    <div class="metric-card">
+      <div class="metric-label">Preparación</div>
+      <div class="metric-value">{{ recipe.prep_minutes }} min</div>
+    </div>
+    {% endif %}
+    {% if recipe.cook_minutes %}
+    <div class="metric-card">
+      <div class="metric-label">Cocción</div>
+      <div class="metric-value">{{ recipe.cook_minutes }} min</div>
+    </div>
+    {% endif %}
+    {% if recipe.difficulty %}
+    <div class="metric-card">
+      <div class="metric-label">Dificultad</div>
+      <div class="metric-value" title="1=fácil, 5=experto">{{ "★" * recipe.difficulty }}{{ "☆" * (5 - recipe.difficulty) }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {# Ingredients & sub-recetas table #}
+  {% if resolved_lines %}
+  <div class="card mb-4">
+    <div class="card-header"><h2>Ingredientes y sub-recetas</h2></div>
+    <table class="table is-hoverable">
+      <thead>
+        <tr>
+          <th>Tipo</th>
+          <th>Nombre</th>
+          <th class="num">Cantidad</th>
+          <th>Unidad</th>
+          <th>Notas</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in resolved_lines %}
+        <tr>
+          <td>
+            {% if item.is_ingredient %}
+            {{ ui.status_pill("Ingrediente", sev="neutral") }}
+            {% else %}
+            {{ ui.status_pill("Sub-receta", sev="warn") }}
+            {% endif %}
+          </td>
+          <td>
+            {% if item.is_ingredient %}
+              {{ item.target_name }}
+            {% else %}
+              <a href="/recetas/{{ item.line.line_ref_id }}">{{ item.target_name }}</a>
+              <a href="/recetas/{{ item.line.line_ref_id }}" class="text-link" style="font-size:var(--text-sm);">↗ Ver sub-receta</a>
+            {% endif %}
+          </td>
+          <td class="num">{{ "%.3f"|format(item.line.qty) }}</td>
+          <td>{{ item.line.line_unit or (item.target.unit if item.target else '—') }}</td>
+          <td class="muted">{{ item.line.notes or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {# Missing ingredients alert #}
+  {% if batch_cost.missing_ingredient_names %}
+  <div class="alert alert-warning" role="alert" style="max-width:800px;">
+    <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+    <div class="alert-content">
+      <p style="margin:0;"><strong>Faltan datos de precio para:</strong></p>
+      <ul style="margin:var(--space-1) 0 0 var(--space-3);">
+        {% for name in batch_cost.missing_ingredient_names %}
+        <li>{{ name }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  {# Volvé — back link #}
+  <p><a href="/recetas" class="btn btn-ghost">&larr; Volvé a recetas</a></p>
+</div>{# end left column #}
+
+{# ═══ RIGHT COLUMN (1fr) ═══ #}
+<aside class="receta-side" style="display:flex;flex-direction:column;gap:var(--space-4);min-width:0;">
+
+  {# Cost breakdown #}
+  <div class="card mb-4">
+    <div class="card-header"><h2>Desglose de costo</h2></div>
+    <div class="grid grid-2" style="gap:var(--space-3);margin-bottom:var(--space-3);">
+      <div class="metric-card">
+        <div class="metric-label">Costo del lote</div>
+        <div class="metric-value">
+          {% if batch_cost.batch_cost_gs is not none %}
+            {{ m.gs_full(batch_cost.batch_cost_gs) }}
+          {% else %}
+            <span class="text-muted">sin datos</span>
+          {% endif %}
+        </div>
+      </div>
+      {% if unit_cost.batch_cost_gs is not none and recipe.yield_qty %}
+      <div class="metric-card">
+        <div class="metric-label">Costo / porción</div>
+        <div class="metric-value">{{ m.gs_full(unit_cost.batch_cost_gs) }}</div>
+      </div>
+      {% endif %}
+    </div>
+    {# Estimated breakdown placeholder #}
+    {% if batch_cost.batch_cost_gs is not none %}
+    <div style="border-top:1px solid var(--color-border);padding-top:var(--space-3);margin-top:var(--space-2);">
+      <p class="text-muted" style="font-size:var(--text-xs);margin-bottom:var(--space-2);">Desglose estimado:</p>
+      <dl style="display:grid;grid-template-columns:auto 1fr;gap:.25rem .75rem;font-size:var(--text-sm);">
+        <dt class="text-muted">Insumos:</dt>
+        <dd>{{ m.gs_full((batch_cost.batch_cost_gs * 0.70)|round|int) }}</dd>
+        <dt class="text-muted">Mano de obra:</dt>
+        <dd>{{ m.gs_full((batch_cost.batch_cost_gs * 0.20)|round|int) }}</dd>
+        <dt class="text-muted">Gastos generales:</dt>
+        <dd>{{ m.gs_full((batch_cost.batch_cost_gs * 0.10)|round|int) }}</dd>
+      </dl>
+    </div>
+    {% endif %}
+  </div>
+
+  {# Used by products #}
+  {% if products_using %}
+  <div class="card mb-4">
+    <div class="card-header"><h2>Usada por productos</h2></div>
+    <ul>
+      {% for p in products_using %}
+      <li><a href="/productos/{{ p.id }}/editar">{{ fmt.entity_name(p) }}</a></li>
       {% endfor %}
     </ul>
-  </details>
+  </div>
   {% endif %}
-  {% if tag_derivation.undeclared %}
-  <p class="text-muted" style="margin-top: var(--space-2); font-size: 0.85rem;">
-    ⚠️ Sin alérgenos declarados: {{ tag_derivation.undeclared|join(", ") }} — declaralos en Inventario para un resumen confiable.
-  </p>
-  {% endif %}
-</div>
-{% endif %}
 
-{# Meta #}
-<div class="grid grid-3 mb-4" style="gap:var(--space-3);">
-  {% if recipe.yield_qty %}
-  <div class="metric-card">
-    <div class="metric-label">Rinde</div>
-    <div class="metric-value">{{ "%.1f"|format(recipe.yield_qty) }} {{ recipe.yield_unit }}</div>
+  {# Notes #}
+  {% if recipe.notes %}
+  <div class="card mb-4">
+    <div class="card-header"><h2>Notas</h2></div>
+    <p>{{ recipe.notes }}</p>
   </div>
   {% endif %}
-  {% if recipe.prep_minutes %}
-  <div class="metric-card">
-    <div class="metric-label">Preparación</div>
-    <div class="metric-value">{{ recipe.prep_minutes }} min</div>
-  </div>
-  {% endif %}
-  {% if recipe.cook_minutes %}
-  <div class="metric-card">
-    <div class="metric-label">Cocción</div>
-    <div class="metric-value">{{ recipe.cook_minutes }} min</div>
-  </div>
-  {% endif %}
-  {% if recipe.difficulty %}
-  <div class="metric-card">
-    <div class="metric-label">Dificultad</div>
-    <div class="metric-value" title="1=fácil, 5=experto">{{ "★" * recipe.difficulty }}{{ "☆" * (5 - recipe.difficulty) }}</div>
-  </div>
-  {% endif %}
-</div>
 
-{# Recipe lines table #}
-{% if resolved_lines %}
-<div class="card mb-4">
-  <div class="card-header"><h2>Ingredientes y sub-recetas</h2></div>
-  <table class="table is-hoverable">
-    <thead>
-      <tr>
-        <th>Tipo</th>
-        <th>Nombre</th>
-        <th class="num">Cantidad</th>
-        <th>Unidad</th>
-        <th>Notas</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in resolved_lines %}
-      <tr>
-        <td>
-          {% if item.is_ingredient %}
-          {{ ui.status_pill("Ingrediente", sev="neutral") }}
-          {% else %}
-          {{ ui.status_pill("Sub-receta", sev="warn") }}
-          {% endif %}
-        </td>
-        <td>
-          {% if item.is_ingredient %}
-            {{ item.target_name }}
-          {% else %}
-            <a href="/recetas/{{ item.line.line_ref_id }}">{{ item.target_name }}</a>
-          {% endif %}
-        </td>
-        <td class="num">{{ "%.3f"|format(item.line.qty) }}</td>
-        <td>{{ item.line.line_unit or (item.target.unit if item.target else '—') }}</td>
-        <td class="muted">{{ item.line.notes or '—' }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% endif %}
-
-<p><a href="/recetas" class="btn btn-ghost">&larr; Volver a recetas</a></p>
+</aside>
+</div>{# end grid #}
 
 {% endblock %}
