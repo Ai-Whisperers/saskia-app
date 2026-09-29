@@ -16,6 +16,54 @@
   <p class="text-muted">Filter: <code>{{ active_category }}</code> · <a href="/bank">clear</a></p>
 {% endif %}
 
+<!-- Reconciliation Stats -->
+<div class="row mb-3">
+  <div class="col-md-4">
+    <div class="card text-center">
+      <div class="card-body">
+        <h5 class="card-title text-success">{{ reconciled_count }}</h5>
+        <p class="card-text text-muted">Conciliados</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card text-center">
+      <div class="card-body">
+        <h5 class="card-title text-warning">{{ unreconciled_count }}</h5>
+        <p class="card-text text-muted">Pendientes</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card text-center">
+      <div class="card-body">
+        <h5 class="card-title text-info">{{ reconciled_count + unreconciled_count }}</h5>
+        <p class="card-text text-muted">Total</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reconciliation Filter -->
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="btn-group" role="group" aria-label="Reconciliation filter">
+      <a href="/bank?{% for key, value in request.query_params.items() %}{% if key != 'reconciled' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" 
+         class="btn {% if not active_reconciled %}btn-primary{% else %}btn-outline-primary{% endif %}">
+        Todos
+      </a>
+      <a href="/bank?reconciled=yes&{% for key, value in request.query_params.items() %}{% if key != 'reconciled' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" 
+         class="btn {% if active_reconciled == 'yes' %}btn-success{% else %}btn-outline-success{% endif %}">
+        ✓ Conciliados
+      </a>
+      <a href="/bank?reconciled=no&{% for key, value in request.query_params.items() %}{% if key != 'reconciled' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" 
+         class="btn {% if active_reconciled == 'no' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+        ⏳ Pendientes
+      </a>
+    </div>
+  </div>
+</div>
+
 <!-- Currency Toggle -->
 <div class="card mb-3">
   <div class="card-body">
@@ -129,6 +177,7 @@
       <th>Categoría</th>
       <th>Counterparty</th>
       <th>Descripción</th>
+      <th>Conciliación</th>
     </tr>
   </thead>
   <tbody>
@@ -142,9 +191,29 @@
       <td><small class="text-muted">{{ tx.category or '—' }}</small></td>
       <td>{{ tx.counterparty_name or '—' }}</td>
       <td><small>{{ (tx.description or '')[:80] }}{% if (tx.description or '')|length > 80 %}…{% endif %}</small></td>
+      <td>
+        {% if tx.reconciled %}
+          <span class="badge bg-success" title="Conciliado con {{ tx.reconciled_with_type }} #{{ tx.reconciled_with_id }}">
+            ✓ {{ tx.reconciled_with_type }}#{{ tx.reconciled_with_id }}
+          </span>
+          <form method="post" action="/bank/{{ tx.id }}/unreconcile" style="display:inline;">
+            <button type="submit" class="btn btn-sm btn-link" title="Desconciliar">×</button>
+          </form>
+        {% else %}
+          <form method="post" action="/bank/{{ tx.id }}/reconcile" class="d-inline-flex">
+            <select name="with_type" class="form-select form-select-sm me-1" style="width:auto;">
+              <option value="pedido">Pedido</option>
+              <option value="gasto">Gasto</option>
+              <option value="ingreso">Ingreso</option>
+            </select>
+            <input type="number" name="with_id" placeholder="ID" class="form-control form-control-sm me-1" style="width:80px;" min="1">
+            <button type="submit" class="btn btn-sm btn-primary">✓</button>
+          </form>
+        {% endif %}
+      </td>
     </tr>
     {% else %}
-    <tr><td colspan="6" style="padding:0;">
+    <tr><td colspan="7" style="padding:0;">
       {{ ui.empty_state(
         title="Sin movimientos bancarios cargados",
         icon="icon-bank",
