@@ -838,6 +838,15 @@ async def sale_create_multi(
         raise HTTPException(status_code=400, detail=SALE_TOO_MANY_ITEMS)
 
     for item in items:
+        # SALES-VAL-003: discrete baked goods — reject fractional quantities
+        # server-side so even a hand-crafted POST can't sneak 1.5 in.
+        # Math.floor(parseFloat(...)) with a check on the raw int parses
+        # the float exactly — 1.0 == 1 is true, 1.5 != 1 so it rejects.
+        if item.qty != int(item.qty):
+            raise HTTPException(
+                status_code=400,
+                detail="Cantidad debe ser un número entero (sin decimales).",
+            )
         if item.qty > MAX_QTY:
             raise HTTPException(
                 status_code=400,

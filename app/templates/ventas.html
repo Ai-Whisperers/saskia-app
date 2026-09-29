@@ -34,15 +34,8 @@
         {% set idem_key = idem_key if idem_key is defined else (now|string + '-fallback') %}
         <input type="hidden" name="idempotency_key" id="idem-key" value="{{ idem_key }}">
 
-        {# ── Row 1: SKU + Producto ── #}
+        {# ── Row 1: Producto + SKU (SKU after, autofill optional) ── #}
         <div class="form-grid-2col">
-          <div class="form-row">
-            <label for="sku">SKU (opcional)</label>
-            <input type="text" id="sku" name="sku" autocomplete="off" autofocus
-                   placeholder="Escaneá o tipeá…"
-                   pattern="[A-Za-z0-9\-_]+"
-                   title="Códigos alfanuméricos">
-          </div>
           <div class="form-row">
             <label for="product_id">Producto</label>
             {{ ui.combo_field(
@@ -53,13 +46,24 @@
               label_field='name'
             ) }}
           </div>
+          <div class="form-row">
+            {# SALES-UX-002: SKU moved AFTER Producto so the primary
+                product lookup comes first; users recall names faster
+                than alphanumeric codes. Still available for barcode scans. #}
+            <label for="sku">SKU (opcional, escaneo)</label>
+            <input type="text" id="sku" name="sku" autocomplete="off"
+                   placeholder="Escaneá código de barras…"
+                   pattern="[A-Za-z0-9\-_]+"
+                   title="Códigos alfanuméricos">
+          </div>
         </div>
 
         {# ── Row 2: Cantidad + Descuento ── #}
         <div class="form-grid-2col">
           <div class="form-row">
             <label for="qty">Cantidad</label>
-            <input type="number" id="qty" name="qty" step="0.01" min="0.01" max="9999" value="1">
+            {# SALES-VAL-003: discrete baked goods need integer quantities. step=1 + inputmode=numeric. JS also clamps on add-to-cart. #}
+            <input type="number" id="qty" name="qty" step="1" min="1" max="9999" value="1" inputmode="numeric" pattern="\d*">
           </div>
           <div class="form-row">
             <label for="discount_gs">Descuento (Gs.)</label>
@@ -387,10 +391,15 @@
     var productName = selectedData.name || selectedData.label || selectedData.display || '';
     var unitPriceGs = parseInt(selectedData.sale_price_gs || 0, 10);
     var qtyEl = document.getElementById('qty');
-    var qty = parseFloat(qtyEl && qtyEl.value ? qtyEl.value : 1);
-
-    if (!productId || isNaN(productId)) { alert('Elegí un producto.'); return; }
-    if (!qty || isNaN(qty) || qty <= 0) { alert('Cantidad debe ser > 0.'); return; }
+    var qtyRaw = qtyEl && qtyEl.value ? qtyEl.value : '1';
+    // SALES-VAL-003: discrete baked goods — force integer quantities.
+    // 1,5 / 1.5 / "1.0" all become 1 with a visible warning so the
+    // cashier sees why their decimal was dropped.
+    var qty = Math.floor(parseFloat(qtyRaw));
+    if (isNaN(qty) || qty <= 0) { alert('Cantidad debe ser un entero mayor a 0.'); return; }
+    if (String(qtyRaw).indexOf('.') !== -1 || String(qtyRaw).indexOf(',') !== -1) {
+      alert('Cantidad debe ser un número entero (sin decimales). Se ajustó a ' + qty + '.');
+    }
 
     addItem(productId, productName, qty, unitPriceGs);
     if (qtyEl) qtyEl.value = 1;
@@ -439,9 +448,18 @@
   window.setQtyDirect = function(idx, val) {
     var item = POS_CART[idx];
     if (!item) return;
-    var qty = parseFloat(val);
-    if (!qty || qty <= 0) { removeItem(idx); }
-    else { item.qty = qty; renderCart(); }
+    // SALES-VAL-003: discrete baked goods — force integer quantities.
+    // If the cashier typed "1,5" or "1.5", drop the decimal to 1 and
+    // visually warn them so they know the input was clamped.
+    var rawStr = String(val);
+    var hasDecimal = rawStr.indexOf('.') !== -1 || rawStr.indexOf(',') !== -1;
+    var qty = Math.floor(parseFloat(val));
+    if (!qty || qty <= 0) { removeItem(idx); return; }
+    if (hasDecimal) {
+      alert('Cantidad debe ser un número entero (sin decimales). Se ajustó a ' + qty + '.');
+    }
+    item.qty = qty;
+    renderCart();
   };
 
   // ── Discount % per item (cart table) ─────────────────────────────────────
@@ -495,8 +513,9 @@
           '<td></td>' +
           '<td class="cart-product-name">' + escHtml(item.product_name) + '</td>' +
           '<td class="cart-qty-cell">' +
-            '<input type="number" class="cart-qty-input" min="0.25" step="0.25" value="' + item.qty + '" ' +
-            'onchange="setQtyDirect(' + idx + ', this.value)" aria-label="Cantidad"> ' +
+            {# SALES-VAL-003: discrete baked goods → integer qty. step=1 forces whole units in the spinner and validated by setQtyDirect(). #}
+            '<input type="number" class="cart-qty-input" min="1" step="1" value="' + item.qty + '" ' +
+            'onchange="setQtyDirect(' + idx + ', this.value)" aria-label="Cantidad" inputmode="numeric" pattern="\\d*"> ' +
           '</td>' +
           '<td style="text-align:center">' +
             '<input type="number" class="cart-discount-input" min="0" max="100" step="1" value="' + pct + '" ' +

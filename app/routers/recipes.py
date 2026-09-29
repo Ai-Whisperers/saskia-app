@@ -256,6 +256,13 @@ async def recipe_new(request: Request, session: Session = Depends(get_session)) 
     from app.rms.tags import list_tags_for_kind
 
     ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
+    # Variant-aware price so JS live cost matches server-side batch/unit
+    # totals. preferred_price_gs is what the costing walk uses via
+    # current_variant_price() — see app/rms/variants.py.
+    from app.rms.variants import current_variant_price as _cvp_new
+    for _ing in ingredients:
+        _vp = _cvp_new(session, _ing.id)
+        _ing.preferred_price_gs = int(_vp) if _vp else (_ing.purchase_price_gs or 0)
     other_recipes = session.scalars(select(Recipe).order_by(Recipe.name)).all()
     return render(
         request,
@@ -577,14 +584,34 @@ async def recipe_edit(
     ).all()
     # Resolve target names so the form shows "Harina" not "#34"
     from app.rms.costing import resolve_line_target
+    from app.rms.variants import current_variant_price
     # Unit conversion factors for same-family normalization
     _UF = {"g": 1, "kg": 1000, "ml": 1, "l": 1000, "und": 1, "u": 1, "porcion": 1}
 
-    def _line_cost(ln: RecipeLine, target: Ingredient | Recipe) -> int:
-        """ComputeGs. cost for a recipe line, or 0 if price unavailable."""
-        if target is None or not hasattr(target, "purchase_price_gs"):
+    def _variant_price_for_line(sess: Session, tgt: Ingredient | Recipe, ln: RecipeLine) -> int:
+        """Variant-aware ingredient price for a recipe line. Falls back to
+        parent purchase_price_gs when no variants exist (backward compat).
+        Returns 0 for sub-recipe lines or missing targets.
+        """
+        if tgt is None or ln.line_kind != "ingredient":
             return 0
-        price = getattr(target, "purchase_price_gs", None) or 0
+        price = current_variant_price(sess, tgt.id)
+        return int(price) if price else 0
+
+    def _line_cost(ln: RecipeLine, target: Ingredient | Recipe) -> int:
+        """ComputeGs. cost for a recipe line, or 0 if price unavailable.
+
+        Uses current_variant_price() so the displayed cost matches what
+        recipe_batch_cost_gs() computes server-side. Without this, an
+        ingredient whose parent has price=0 but whose preferred variant
+        has a real price would show as Gs. 0 here while the batch total
+        uses the variant price — that's the RECIPES-BUG-003 disconnect.
+        """
+        if target is None or ln.line_kind != "ingredient":
+            return 0
+        # Look up the variant-aware price; falls back to parent
+        # purchase_price_gs when no variants exist (backward compatible).
+        price = current_variant_price(session, target.id) or 0
         if price == 0:
             return 0
         lu = ln.line_unit or "und"
@@ -610,12 +637,21 @@ async def recipe_edit(
                 "note": ln.notes,
                 "target_name": target.name if target else f"#{ln.line_ref_id}",
                 "target_unit": target.unit if target and hasattr(target, 'unit') else ln.line_unit,
-                # cost_per_kg_gs: the ingredient's purchase price per kg — what JS multiplies by qty_norm
-                "price_per_kg_gs": int(target.purchase_price_gs) if target and hasattr(target, 'purchase_price_gs') and target.purchase_price_gs else 0,
+                # cost_per_kg_gs: the ingredient's variant-aware purchase price per kg — what JS multiplies by qty_norm
+                # Use current_variant_price so it matches the line cost above AND the
+                # recipe_batch_cost_gs() walk in app/rms/costing.py.
+                "price_per_kg_gs": _variant_price_for_line(session, target, ln),
                 # unit_cost_gs: the normalized line total cost = qty_in_kg × price_per_kg_gs
                 "unit_cost_gs": _line_cost(ln, target),
             })
     ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
+    # Attach variant-aware price so the JS live cost matches server-side
+    # batch/unit totals. preferred_price_gs is what the costing walk uses
+    # via current_variant_price() — see app/rms/variants.py.
+    from app.rms.variants import current_variant_price as _cvp
+    for _ing in ingredients:
+        _vp = _cvp(session, _ing.id)
+        _ing.preferred_price_gs = int(_vp) if _vp else (_ing.purchase_price_gs or 0)
     other_recipes = session.scalars(
         select(Recipe).where(Recipe.id != r_id).order_by(Recipe.name)
     ).all()

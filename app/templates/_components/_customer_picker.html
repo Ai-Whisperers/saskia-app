@@ -1,74 +1,43 @@
 {# app/templates/_components/_customer_picker.html
    Customer picker widget for the /ventas form.
 
-   Includes:
-   - Hidden `customer_id` field bound by JS on pick
-   - Visible trigger button that opens the modal
-   - Hint area that displays "Cliente: María T. — 12 visitas, Gs. 1.2M lifetime"
-   - Modal markup for search + results list + "+ Nuevo cliente" form
+   SALES-UX-001: replaced the previous `<dialog>` modal with an inline
+   `<saskia-combo>` + adjacent "+ Nuevo cliente" disclosure. The cashier
+   now sees the search results inline (no screen-dimming overlay) and the
+   underlying sales form stays visible and clickable throughout the flow.
 
-   Backed by app/routers/customers.py: GET /clientes/api/search, POST /clientes/api/create
-   Logic in app/static/customer-picker.js (vanilla JS, no framework).
+   Backed by:
+     - GET /clientes/api/search  (returns {id, name, hint, ...})
+     - POST /clientes/api/create (creates customer from inline form)
+     - <saskia-combo> web component (app/static/saskia-combo.js)
+     - vanilla JS inline below for "Nuevo cliente" disclosure
 #}
 <div class="customer-picker" id="customer-picker">
-  <label for="customer_picker_trigger">Cliente</label>
-  <div class="customer-picker-row">
-    <input type="hidden" id="customer_id" name="customer_id" value="">
-    <button type="button" id="customer_picker_trigger" class="btn"
-            aria-haspopup="dialog" aria-controls="customer_picker_modal">
-      <svg class="icon" aria-hidden="true"><use href="#icon-customer"/></svg>
-      <span id="customer_picker_label">Seleccionar cliente…</span>
-    </button>
-    <span id="customer_badge" class="customer-badge" hidden>
-      <svg class="icon" aria-hidden="true" style="width:0.9em;height:0.9em"><use href="#icon-tag"/></svg>
-      <span id="customer_badge_name"></span>
-    </span>
-    <button type="button" id="customer_picker_clear" class="btn btn-ghost btn-sm"
-            title="Quitar cliente" hidden>Quitar</button>
-  </div>
+  <span id="inline-new-client" aria-hidden="true"></span>
+  <label for="customer_id_combo">Cliente (opcional)</label>
+
+  {# Hidden field that the form posts. Picker.js writes here on selection. #}
+  <input type="hidden" id="customer_id" name="customer_id" value="">
+
+  {# Inline saskia-combo — search dropdown opens below the input,
+      not as an overlay. Keyboard navigation, scrollable, no backdrop. #}
+  {{ ui.combo_field(
+       name='customer_id_combo',
+       placeholder='Buscá por nombre, teléfono o CI/RUC…',
+       endpoint='/clientes/api/search/',
+       value_field='id',
+       label_field='name'
+     ) }}
+
   <small id="customer_picker_hint" class="customer-picker-hint" hidden></small>
-  <small class="hint">
-    Buscá por nombre, teléfono, CI/RUC, email o nota. Tocá "+ Nuevo cliente"
-    para crear uno desde la venta.
-  </small>
 
-  <dialog id="customer_picker_modal" class="customer-picker-modal"
-          aria-label="Buscar cliente">
-    <form method="dialog" class="customer-picker-modal-form">
-      <header class="customer-picker-modal-header">
-        <h3>Seleccionar cliente</h3>
-        <button type="button" id="customer_picker_close" class="btn btn-ghost btn-sm"
-                aria-label="Cerrar">✕</button>
-      </header>
-
-      <div class="customer-picker-search-row">
-        <input type="search" id="customer_picker_search"
-               placeholder="Buscar por nombre, teléfono, CI/RUC, email…"
-               autocomplete="off" autofocus>
-        <button type="button" id="customer_picker_new_btn" class="btn">
-          <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
-          Nuevo cliente
-        </button>
-      </div>
-
-      <div id="customer_picker_results" class="customer-picker-results"
-           role="listbox" aria-label="Resultados de búsqueda">
-        <p class="hint">Escribí arriba para buscar.</p>
-      </div>
-
-      <footer class="customer-picker-modal-footer">
-        <button type="button" id="customer_picker_cancel" class="btn btn-ghost">Cancelar</button>
-      </footer>
-    </form>
-
-    {# Inline "+ Nuevo cliente" sub-form, hidden until the "+ Nuevo" button is clicked. #}
-    <div id="customer_picker_new_panel" class="customer-picker-new-panel" hidden>
-      <header class="customer-picker-modal-header">
-        <h3>Nuevo cliente</h3>
-        <button type="button" id="customer_picker_new_close" class="btn btn-ghost btn-sm"
-                aria-label="Cerrar">✕</button>
-      </header>
-      <form id="customer_picker_new_form" autocomplete="off">
+  <details id="customer_picker_new_panel" class="customer-picker-new-panel">
+    <summary class="customer-picker-new-toggle">
+      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+      Crear nuevo cliente
+    </summary>
+    <form id="customer_picker_new_form" autocomplete="off" class="customer-picker-new-form">
+      <div class="form-grid-2col">
         <div class="form-row">
           <label for="cp_new_name">Nombre *</label>
           <input type="text" id="cp_new_name" name="name" required maxlength="120">
@@ -85,21 +54,86 @@
           <label for="cp_new_email">Email</label>
           <input type="email" id="cp_new_email" name="email" maxlength="120">
         </div>
-        <div class="form-row">
-          <label for="cp_new_notes">Notas</label>
-          <textarea id="cp_new_notes" name="notes" rows="2"></textarea>
-        </div>
-        <div id="cp_new_error" class="customer-picker-error" hidden></div>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">
-            <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-            Crear y seleccionar
-          </button>
-          <button type="button" id="cp_new_cancel" class="btn btn-ghost">Atrás</button>
-        </div>
-      </form>
-    </div>
-  </dialog>
+      </div>
+      <div class="form-row">
+        <label for="cp_new_notes">Notas</label>
+        <textarea id="cp_new_notes" name="notes" rows="2"></textarea>
+      </div>
+      <div id="cp_new_error" class="customer-picker-error" hidden></div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+          <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+          Crear y seleccionar
+        </button>
+      </div>
+    </form>
+  </details>
 </div>
 
-<script src="/static/customer-picker.js" defer></script>
+{# Inline script: keep the selected customer_id in sync with saskia-combo
+   selection, and wire up the inline "Nuevo cliente" form to the existing
+   POST /clientes/api/create endpoint. No more modal opening. #}
+<script>
+(function() {
+  'use strict';
+  var combo = document.getElementById('customer_id_combo');
+  var hidden = document.getElementById('customer_id');
+  var hint = document.getElementById('customer_picker_hint');
+  if (combo && hidden) {
+    // saskia-combo fires 'change' on its host element when the user
+    // picks an item (or clears it). Keep the hidden field authoritative
+    // so the form serializes the right id.
+    combo.addEventListener('change', function() {
+      hidden.value = combo.value || '';
+      if (hint) {
+        var data = combo.getSelectedData ? combo.getSelectedData() : null;
+        if (data && data.hint) {
+          hint.textContent = data.hint;
+          hint.hidden = false;
+        } else {
+          hint.hidden = true;
+        }
+      }
+    });
+  }
+
+  var form = document.getElementById('customer_picker_new_form');
+  var errBox = document.getElementById('cp_new_error');
+  if (!form) return;
+  form.addEventListener('submit', async function(ev) {
+    ev.preventDefault();
+    errBox.hidden = true;
+    var fd = new FormData(form);
+    var payload = {};
+    fd.forEach(function(v, k) { payload[k] = v; });
+    try {
+      var resp = await fetch('/clientes/api/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload),
+        credentials: 'same-origin',
+      });
+      if (!resp.ok) {
+        var err = await resp.json().catch(function() { return { detail: 'Error al crear cliente.' }; });
+        errBox.textContent = err.detail || 'Error al crear cliente.';
+        errBox.hidden = false;
+        return;
+      }
+      var data = await resp.json();
+      // Write the new id back to the hidden field + reflect into combo.
+      // Use setValue(value, display) since setSelectedData doesn't exist
+      // in saskia-combo.js — it only exposes clear() and setValue().
+      hidden.value = data.id || '';
+      if (combo && typeof combo.setValue === 'function') {
+        combo.setValue(data.id || '', data.name || '');
+      }
+      form.reset();
+      var details = document.getElementById('customer_picker_new_panel');
+      if (details) details.open = false;
+    } catch (e) {
+      errBox.textContent = 'Error de red al crear cliente.';
+      errBox.hidden = false;
+    }
+  });
+})();
+</script>

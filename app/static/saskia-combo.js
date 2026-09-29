@@ -298,7 +298,16 @@ TODOs (for tomorrow's full implementation):
       let results = [];
       if (this._endpoint) {
         try {
-          const url = this._endpoint + encodeURIComponent(query || '');
+          // Build URL: handle endpoints that already include a trailing
+          // slash vs. those that expect ?q= or /{q}/. Strip a single
+          // trailing slash from the endpoint, then if the endpoint has
+          // no `?`, append the query as a path segment; otherwise use
+          // it as a query-string parameter.
+          const base = this._endpoint.replace(/\/$/, '');
+          const hasQueryParam = base.includes('?');
+          const url = hasQueryParam
+            ? base + (base.endsWith('?') ? encodeURIComponent(query || '') : '&q=' + encodeURIComponent(query || ''))
+            : base + '/' + encodeURIComponent(query || '');
           const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
           const data = await resp.json();
           results = Array.isArray(data) ? data : (data.results || []);

@@ -18,10 +18,10 @@
       <svg class="icon" aria-hidden="true"><use href="#icon-excel"/></svg>
       Exportar CSV
     </a>
-    <button type="button" id="nuevo-cliente-btn" class="btn btn-primary">
+    <a id="nuevo-cliente-btn" class="btn btn-primary" href="#inline-new-client">
       <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
       Nuevo cliente
-    </button>
+    </a>
   </div>
 </div>
 
@@ -138,34 +138,17 @@
 ) }}
 {% endif %}
 
-{# Hidden include — loads the modal markup + customer-picker.js without showing anything #}
+{# Hidden include — loads the inline picker markup so saskia-combo
+   registers its custom element. (No more `<dialog>` modal.) #}
 <div hidden>{% include '_components/_customer_picker.html' %}</div>
 
 <script>
 (function () {
-  var nuevoBtn = document.getElementById('nuevo-cliente-btn');
-
-  // Wire up the standalone "Nuevo cliente" button to open the picker modal.
-  if (nuevoBtn && window.SaskiaCustomerPicker) {
-    nuevoBtn.addEventListener('click', function () {
-      window.SaskiaCustomerPicker.open();
-    });
-  }
-
-  // Override pickCustomer: redirect to /clientes with a flash message after
-  // a new customer is created via the picker.
-  if (window.SaskiaCustomerPicker) {
-    var _origPick = window.SaskiaCustomerPicker.pick;
-    window.SaskiaCustomerPicker.pick = function (c) {
-      if (c && c._isNew) {
-        // User just created a new customer — redirect to clientes list with flash.
-        window.location.href = '/clientes?flash=Cliente+creado';
-        return;
-      }
-      // All other picks (search select): keep the original behaviour.
-      _origPick.call(window.SaskiaCustomerPicker, c);
-    };
-  }
+  // SALES-UX-001: "Nuevo cliente" is now an in-page anchor that
+  // scrolls to the inline picker (also reused by /ventas). The
+  // legacy SaskiaCustomerPicker modal API has been removed since
+  // the inline picker handles the same flow without screen-dimming
+  // overlays.
 
   // Restore table checkbox / bulk-delete behaviour.
   var selAll = document.getElementById('select-all-clients');

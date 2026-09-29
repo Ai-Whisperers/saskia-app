@@ -809,12 +809,15 @@
   // ---------- Ingredient cost data (loaded from server context) ----------
   // The template provides ingredient prices as JSON so we can compute
   // batch/unit cost live as the user edits lines.
+  // purchase_price_gs uses the variant-aware price (preferred variant
+  // if any, else the parent ingredient) so the JS live cost matches
+  // what recipe_batch_cost_gs() shows on the server.
   var ingredientPrices = {
     {%- for ing in (ingredients or []) -%}
       "{{ ing.id }}": {
         name: {{ fmt.entity_name(ing) | tojson  }},
         unit: {{ ing.unit | tojson }},
-        purchase_price_gs: {{ ing.purchase_price_gs or 0 }},
+        purchase_price_gs: {{ (ing.preferred_price_gs if ing.preferred_price_gs is defined else ing.purchase_price_gs) or 0 }},
         stock_qty: {{ ing.stock_qty or 0 }},
         allergens: {{ (ing.allergens or '') | tojson }},
         dietary: {{ (ing.dietary_tags or '') | tojson }}
