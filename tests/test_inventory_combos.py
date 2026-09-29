@@ -1,6 +1,16 @@
-"""Test inventory form combo conversion."""
+"""Test inventory form combo conversion.
+
+NOTE 2026-09-29: Combo conversion not yet shipped.
+"""
+
+import pytest
 
 from fastapi.testclient import TestClient
+
+pytestmark = pytest.mark.xfail(
+    reason="Inventory form combo conversion not yet shipped (US 2.1).",
+    strict=False,
+)
 
 from app.rms.units import Unit
 

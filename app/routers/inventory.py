@@ -409,8 +409,8 @@ def inventory_new(request: Request, session: Session = Depends(get_session)) -> 
 @router.post("/nuevo")
 def inventory_create(
     request: Request,
-    name: str = Form(...),
-    unit: str = Form(...),
+    name: str = Form(""),
+    unit: str = Form(""),
     stock_qty: float = Form(0.0),
     min_stock_qty: float = Form(0.0),
     purchase_price_gs: str = Form(""),
@@ -423,6 +423,8 @@ def inventory_create(
 ) -> RedirectResponse:
     """Create new ingredient."""
     # BUG-00: empty name must yield a 400 with a Spanish error, not a 500.
+    # Use default "" instead of required Form(...) so FastAPI's auto-validation
+    # does not produce an English "name es obligatorio" before our handler runs.
     name = name.strip() if name else ""
     if not name:
         raise BadRequest(INGREDIENT_NAME_REQUIRED)

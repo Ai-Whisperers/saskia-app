@@ -313,9 +313,9 @@ def test_recipe_create_success(client, session_factory):
             "yield_qty": "10",
             "yield_unit": "und",
             "notes": "",
-            "lines-0-line_kind": "ingredient",
-            "lines-0-line_ref_id": str(flour_id),
-            "lines-0-qty": "1.0",
+            "line_kind": "ingredient",
+            "line_target_id": str(flour_id),
+            "line_qty": "1.0",
         },
         follow_redirects=False,
     )
