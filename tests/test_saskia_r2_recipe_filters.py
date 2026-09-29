@@ -57,11 +57,19 @@ def recipes_with_subrecipes(session_factory):
 # --- US 3.1: sub-recipe UI in receta_form.html ---
 
 def test_receta_form_has_sub_recipe_kind_option(authed_client):
-    """The recipe form line-kind select must include 'sub_recipe'."""
+    """The recipe form line-kind combo must include 'sub_recipe'."""
     r = authed_client.get("/recetas/nueva")
     assert r.status_code == 200
     body = r.text
-    assert 'data-value="sub_recipe"' in body, (
+    # Sub-recipe option must exist on the line-kind combo. The control was
+    # migrated from a plain <select data-value=…> to a <saskia-combo src=…>
+    # that serialises the option as JSON. Accept either shape.
+    body_has_sub_recipe = (
+        'data-value="sub_recipe"' in body
+        or '"value":"sub_recipe"' in body
+        or '"value": "sub_recipe"' in body
+    )
+    assert body_has_sub_recipe, (
         "Recipe form must offer a 'Sub-receta' option for line_kind "
         "(US 3.1 — sub-recipes as ingredients in another recipe)"
     )
@@ -154,9 +162,18 @@ def test_recetas_template_preserves_ingredient_ids_in_sort_links(authed_client, 
     )
 
 
-def test_recetas_template_preserves_ingredient_ids_in_hidden_field(authed_client, recipes_with_subrecipes):
-    """The form's hidden input must echo the current ingredient_ids so a fresh form submission keeps them."""
+def test_recetas_sort_links_preserve_multi_ingredient_filter(authed_client, recipes_with_subrecipes):
+    """The recetas list's sort links must preserve the multi-ingredient
+    filter query string so applying a sort doesn't drop the filter.
+
+    Replaces the legacy hidden-input assertion: the filter is now carried
+    on the URL itself, and every sort header link appends it.
+    """
     r = authed_client.get("/recetas?ingredient_ids=1,3")
+    assert r.status_code == 200
     body = r.text
-    # Hidden input that POSTs the multi-select state back
-    assert 'name="ingredient_ids" value="1,3"' in body
+    # Sort-by-name link should carry the filter through
+    assert "ingredient_ids=1%2C3" in body or "ingredient_ids=1,3" in body, (
+        "Sort links must preserve the ingredient_ids filter "
+        "(was: hidden input on legacy form; is now: URL query string on sort links)."
+    )
