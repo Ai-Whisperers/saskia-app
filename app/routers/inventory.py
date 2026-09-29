@@ -192,7 +192,7 @@ def inventory_list(
 ) -> HTMLResponse:
     """List all ingredients with stock badge. Paginated at 50/page."""
     PER_PAGE = 50
-    from datetime import date, timedelta
+    from datetime import timedelta
     today = datetime.now(ASUNCION_TZ).date()
     week_from_now = today + timedelta(days=7)
     month_from_now = today + timedelta(days=30)

@@ -265,7 +265,7 @@ def _migration_003_analytics_columns(conn: Any) -> None:
     for table, col, decl in _add_columns:
         try:
             conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {decl}"))
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             pass
 
     # Index on last_consumed_at so dead_stock reports stay fast.
@@ -320,7 +320,7 @@ def _migration_009_ingredient_intel(conn: Any) -> None:
     for col_name, col_type in cols:
         try:
             conn.execute(text(f"ALTER TABLE ingredient ADD COLUMN {col_name} {col_type}"))
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             # Column already exists — idempotent.
             pass
     _bump_schema_version(conn, 9)
@@ -340,7 +340,7 @@ def _migration_010_recipe_intel(conn: Any) -> None:
     for col_name, col_type in cols:
         try:
             conn.execute(text(f"ALTER TABLE recipe ADD COLUMN {col_name} {col_type}"))
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             # Column already exists — idempotent.
             pass
     _bump_schema_version(conn, 10)
@@ -361,7 +361,7 @@ def _migration_011_sale_payment_discount(conn: Any) -> None:
     for col_name, col_type in cols:
         try:
             conn.execute(text(f"ALTER TABLE sale ADD COLUMN {col_name} {col_type}"))
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             # Column already exists — idempotent.
             pass
     _bump_schema_version(conn, 11)
@@ -377,14 +377,14 @@ def _migration_012_sale_tz(conn: Any) -> None:
     dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     try:
         conn.execute(text("ALTER TABLE sale ADD COLUMN tz VARCHAR(64) DEFAULT 'America/Asuncion' NOT NULL"))
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         # Column already exists — idempotent.
         pass
     # SQLite ALTER TABLE doesn't support DEFAULT with NOT NULL; backfill explicitly.
     if dialect == "sqlite":
         try:
             conn.execute(text("UPDATE sale SET tz = 'America/Asuncion' WHERE tz IS NULL OR tz = ''"))
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             pass
     _bump_schema_version(conn, 12)
 
@@ -397,7 +397,7 @@ def _migration_013_ingredient_max_stock(conn: Any) -> None:
     """
     try:
         conn.execute(text("ALTER TABLE ingredient ADD COLUMN max_stock_qty FLOAT"))
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         pass  # already exists
     _bump_schema_version(conn, 13)
 
@@ -443,7 +443,7 @@ def _migration_015_sale_channel(conn: Any) -> None:
             conn.execute(text(f"ALTER TABLE sale ADD COLUMN channel {pg_type}"))
         else:
             conn.execute(text(f"ALTER TABLE sale ADD COLUMN channel {sqlite_type}"))
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         # Column already exists — idempotent.
         pass
 
@@ -452,7 +452,7 @@ def _migration_015_sale_channel(conn: Any) -> None:
     if dialect == "sqlite":
         try:
             conn.execute(text("UPDATE sale SET channel = 'mostrador' WHERE channel IS NULL OR channel = ''"))
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             pass
 
     _bump_schema_version(conn, 15)
@@ -717,7 +717,7 @@ def _migration_022_user_roles(conn: Any) -> None:
     col_type = "VARCHAR(32) NOT NULL DEFAULT 'admin'" if dialect == "postgresql" else "TEXT DEFAULT 'admin' NOT NULL"
     try:
         conn.execute(text(f"ALTER TABLE user ADD COLUMN role {col_type}"))
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         pass  # already exists
 
     _bump_schema_version(conn, 22)
@@ -777,7 +777,7 @@ def _migration_023_supplier(conn: Any) -> None:
             conn.execute(
                 text("ALTER TABLE ingredient ADD COLUMN supplier_id INTEGER REFERENCES supplier(id)")
             )
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         pass  # already exists
 
     _bump_schema_version(conn, 23)
@@ -798,7 +798,7 @@ def _migration_024_recipe_intel_extended(conn: Any) -> None:
     for col_name, col_type in cols:
         try:
             conn.execute(text(f"ALTER TABLE recipe ADD COLUMN {col_name} {col_type}"))
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             pass  # already exists
 
     _bump_schema_version(conn, 24)
@@ -822,7 +822,7 @@ def _migration_025_ingredient_opening_stock_reorder_point(conn: Any) -> None:
                 conn.execute(text(f"ALTER TABLE ingredient ADD COLUMN {col_name} {col_type}"))
             else:
                 conn.execute(text(f"ALTER TABLE ingredient ADD COLUMN {col_name} {col_type}"))
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             pass  # already exists
 
     _bump_schema_version(conn, 25)
@@ -849,7 +849,7 @@ def _migration_026_product_audit_columns(conn: Any) -> None:
     for col_name, col_type in cols:
         try:
             conn.execute(text(f"ALTER TABLE product ADD COLUMN {col_name} {col_type}"))
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             pass  # already exists
 
     _bump_schema_version(conn, 26)
@@ -970,7 +970,7 @@ def _migration_028_recipe_yield_qty_check(conn: Any) -> None:
                     SELECT RAISE(ABORT, 'recipe_line.qty must be > 0 (or NULL)');
                 END
             """))
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             # Older engine without trigger support — Python-level validation
             # in apply_sale() / recipe CRUD continues to enforce.
             pass
@@ -1009,7 +1009,7 @@ def _migration_029_herebus_integration(conn: Any) -> None:
     # Customer.zone — free-text label
     try:
         conn.execute(text("ALTER TABLE customer ADD COLUMN zone VARCHAR(64)"))
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         # Column may already exist on a partially-migrated DB
         pass
 
@@ -1019,7 +1019,7 @@ def _migration_029_herebus_integration(conn: Any) -> None:
             "ALTER TABLE pedido ADD COLUMN delivery_zone_id INTEGER "
             "REFERENCES delivery_zone(id)"
         ))
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         pass
 
     # Index for delivery_zone lookups
@@ -1028,7 +1028,7 @@ def _migration_029_herebus_integration(conn: Any) -> None:
             "CREATE INDEX IF NOT EXISTS ix_pedido_delivery_zone_id "
             "ON pedido(delivery_zone_id)"
         ))
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         pass
 
     _bump_schema_version(conn, 29)
@@ -1045,7 +1045,7 @@ def _migration_030_recipe_image_url(conn: Any) -> None:
         conn.execute(text(
             "ALTER TABLE recipe ADD COLUMN image_url VARCHAR(255)"
         ))
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         pass
 
     _bump_schema_version(conn, 30)
@@ -1122,7 +1122,7 @@ def _migration_033_ingredient_storage(conn: Any) -> None:
     col_type = "VARCHAR(16)"
     try:
         conn.execute(text(f"ALTER TABLE ingredient ADD COLUMN storage {col_type}"))
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         # Column already exists — idempotent.
         pass
     _bump_schema_version(conn, 33)
@@ -1570,7 +1570,7 @@ def _migration_039_category_table(conn: Any) -> None:
         for name, kind, color in STARTER_TAGS:
             try:
                 ensure_tag_with_conn(conn, name, kind, color)
-            except Exception:  # noqa: BLE001 — defensive default
+            except Exception:
                 pass  # Already exists, or transient — skip.
     except Exception as exc:
         # Tag seeding is best-effort — don't block schema migration.
@@ -2292,7 +2292,7 @@ def _migration_054_tag_algebra(conn: Any) -> None:
         # ORM model before migrations run; ALTER would then fail.
         try:
             conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             pass  # column already exists
     _add_column("recipe", "allergens", "TEXT")
     _add_column("recipe", "derived_dietary_tags", "TEXT")
@@ -2310,7 +2310,7 @@ def _migration_055_supplier_ruc(conn: Any) -> None:
     def _add_column(table: str, col: str, ddl: str) -> None:
         try:
             conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             pass  # column already exists
 
     _add_column("supplier", "ruc", "VARCHAR(20)")
@@ -2342,7 +2342,7 @@ def _migration_057_recipe_instructions(conn: Any) -> None:
     """
     try:
         conn.execute(text("ALTER TABLE recipe ADD COLUMN instructions TEXT"))
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         pass  # column already exists
 
     _bump_schema_version(conn, 57)
@@ -2358,7 +2358,7 @@ def _migration_058_ingredient_expiry(conn: Any) -> None:
     """
     try:
         conn.execute(text("ALTER TABLE ingredient ADD COLUMN expiry_date DATE"))
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         pass  # column already exists
 
     _bump_schema_version(conn, 58)
@@ -2374,7 +2374,7 @@ def _migration_059_product_mayorista(conn: Any) -> None:
     """
     try:
         conn.execute(text("ALTER TABLE product ADD COLUMN mayorista_price_gs INTEGER"))
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         pass  # column already exists
 
     _bump_schema_version(conn, 59)
@@ -2671,7 +2671,7 @@ def _bump_schema_version(conn: Any, version: int) -> None:
         # fail — so we do a ROLLBACK first to recover.
         try:
             conn.execute(text("ROLLBACK"))
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             pass
         try:
             conn.execute(
@@ -2844,7 +2844,7 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
                 # The migration calls _bump_schema_version which uses
                 # the same connection. We then commit the whole tx.
                 mig_conn.commit()
-        except Exception as exc:  # noqa: BLE001 — defensive default
+        except Exception as exc:
             # Don't fail the whole init_db — log and continue to next
             # migration. The lifespan will retry on next boot.
             logger.warning(
@@ -2862,7 +2862,7 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
             Session = sessionmaker(bind=engine)()
             _ = apply_postgres_indexes(Session)
             Session.close()
-        except Exception as exc:  # noqa: BLE001 — defensive default
+        except Exception as exc:
             # Indexes are an optimization, not a correctness fix.
             # Don't crash startup if the applier hiccups.
             logger.warning(f"apply_postgres_indexes failed (non-fatal): {exc!r}")
@@ -2912,7 +2912,7 @@ def safe_commit(session: Session) -> bool:
     except Exception as exc:
         try:
             session.rollback()
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             # If rollback itself fails, the connection pool will recycle
             # it on close. Log and continue.
             pass

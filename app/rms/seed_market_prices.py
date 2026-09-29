@@ -77,7 +77,6 @@ def refresh_market_prices_from_csv(session: object, csv_path: str, replace: bool
       - Returns {"matched": int, "skipped": int, "missing_ingredients": [...]}
     """
     import csv
-    from datetime import date
 
     from app.rms.models import Ingredient, MarketPriceReference
 

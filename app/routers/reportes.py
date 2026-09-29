@@ -626,7 +626,6 @@ def reportes_cierre_mensual(
     Defaults to the most recent month that has sales. Year + month query params
     override the default.
     """
-    from datetime import date
 
     from app.rms.cierre import compute_monthly_close
 
