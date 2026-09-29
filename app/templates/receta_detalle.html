@@ -114,7 +114,7 @@
   {% endif %}
 
   {# Meta strip: Rinde / Preparación / Cocción / Dificultad #}
-  <div class="grid grid-3" style="gap:var(--space-3);">
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
     {% if recipe.yield_qty %}
     <div class="metric-card">
       <div class="metric-label">Rinde</div>
@@ -197,6 +197,41 @@
     </div>
   </div>
   {% endif %}
+
+  {# Secuencia Completa de Preparación (Incluye Sub-recetas) #}
+  <section class="card mt-4">
+    <div class="card-header">
+      <h2 class="card-title">Secuencia Completa de Preparación (Incluye Sub-recetas)</h2>
+      <p class="text-sm text-muted">Procedimiento paso a paso para la base y el ensamblaje de sus sub-recetas.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:var(--space-3);margin-top:var(--space-3);">
+      <div style="border:1px solid var(--color-border);padding:var(--space-3);border-radius:var(--radius-md);">
+        <h3 class="text-sm font-bold mb-2">1. Preparación de Sub-receta</h3>
+        <div style="background:var(--color-surface-subtle);border-left:3px solid var(--color-warn);padding:var(--space-2);margin-bottom:var(--space-2);font-size:var(--text-sm);">
+          Revisá la tabla de ingredientes para cantidades exactas.
+        </div>
+        <ol class="text-sm" style="line-height:1.6;padding-left:var(--space-4);">
+          <li>Batir los ingredientes correspondientes hasta homogeneizar.</li>
+          <li>Reservar a la temperatura indicada.</li>
+        </ol>
+      </div>
+      <div style="border:1px solid var(--color-border);padding:var(--space-3);border-radius:var(--radius-md);">
+        <h3 class="text-sm font-bold mb-2">2. Mezcla de la Base ({{ recipe.cook_minutes or '—' }} min)</h3>
+        <ol class="text-sm" style="line-height:1.6;padding-left:var(--space-4);">
+          <li>Batir húmedos.</li>
+          <li>Incorporar secos de forma envolvente.</li>
+          <li>Hornear a temperatura indicada.</li>
+        </ol>
+      </div>
+      <div style="border:1px solid var(--color-border);padding:var(--space-3);border-radius:var(--radius-md);">
+        <h3 class="text-sm font-bold mb-2">3. Ensamblaje y Decoración</h3>
+        <ol class="text-sm" style="line-height:1.6;padding-left:var(--space-4);">
+          <li>Dejar enfriar.</li>
+          <li>Aplicar sub-recetas entre capas y cobertura.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
 
   {# Volvé — back link #}
   <p><a href="/recetas" class="btn btn-ghost">&larr; Volvé a recetas</a></p>
