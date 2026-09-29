@@ -2357,6 +2357,38 @@ def _migration_057_recipe_instructions(conn: Any) -> None:
     _bump_schema_version(conn, 57)
 
 
+def _migration_058_ingredient_expiry(conn: Any) -> None:
+    """Add ingredient.expiry_date (DATE, nullable) for HACCP lot tracking.
+
+    Closes the ORM↔DB gap: ``Ingredient.expiry_date`` was added to the
+    ORM during the P1 features merge (commit d8206f4) but the DB column
+    was missing. Every Ingredient SELECT in /recetas/ /inventario routes
+    raised OperationalError; same regression shape as 057. Idempotent.
+    """
+    try:
+        conn.execute(text("ALTER TABLE ingredient ADD COLUMN expiry_date DATE"))
+    except Exception:
+        pass  # column already exists
+
+    _bump_schema_version(conn, 58)
+
+
+def _migration_059_product_mayorista(conn: Any) -> None:
+    """Add product.mayorista_price_gs (INTEGER, nullable).
+
+    Closes the ORM↔DB gap from P1 features merge (commit c237c4c):
+    ``Product.mayorista_price_gs`` is referenced by every /productos
+    SELECT but the column was missing from the DB. Same shape as the
+    057 / 058 gaps. Idempotent.
+    """
+    try:
+        conn.execute(text("ALTER TABLE product ADD COLUMN mayorista_price_gs INTEGER"))
+    except Exception:
+        pass  # column already exists
+
+    _bump_schema_version(conn, 59)
+
+
 def _migration_005_customer(conn: Any) -> None:
     """Add Customer table + Sale.customer_id FK (E13).
 
@@ -2425,6 +2457,8 @@ MIGRATIONS = {
     55: _migration_055_supplier_ruc,
     56: _migration_056_bank_reconciliation,
     57: _migration_057_recipe_instructions,
+    58: _migration_058_ingredient_expiry,
+    59: _migration_059_product_mayorista,
 }
 
 
