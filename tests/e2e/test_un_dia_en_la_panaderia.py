@@ -27,7 +27,6 @@ from tests.factories import (
     make_product,
     make_recipe,
     make_supplier,
-    pedido_item,
 )
 
 pytestmark = [pytest.mark.smoke]
@@ -42,7 +41,6 @@ pytestmark = [pytest.mark.smoke]
 def test_full_day_happy_path_and_invariants(client, session_factory):
     """One continuous session through every core flow, asserting the
     invariants at the end."""
-    from datetime import date
 
     with session_factory() as s:
         sup = make_supplier(s)
@@ -52,7 +50,7 @@ def test_full_day_happy_path_and_invariants(client, session_factory):
         manteca = make_ingredient(s, name="Manteca", allergens="lacteos",
                                  stock_qty=0.0)
         s.commit()
-        sup_id, harina_id, manteca_id = sup.id, harina.id, manteca.id
+        _sup_id, harina_id, manteca_id = sup.id, harina.id, manteca.id
 
     # 1. Restock both ingredients (positive adjustments)
     assert flows.adjust_stock(client, harina_id, 10.0).ok
@@ -105,7 +103,6 @@ def test_full_day_happy_path_and_invariants(client, session_factory):
 
     # --- INVARIANT SWEEP ---
     with session_factory() as s:
-        from sqlalchemy import inspect as sa_inspect
 
         from app.rms.models import Ingredient, Sale
 
@@ -129,7 +126,6 @@ def test_allergen_guard_blocks_sale_for_allergic_customer(client, session_factor
     with session_factory() as s:
         harina = make_ingredient(s, allergens="gluten", stock_qty=10.0)
         rec = make_recipe(s, lines=[ing_line(harina, qty=1.0)])
-        from app.rms.models import Product
 
         prod = make_product(s, recipe=rec, sale_price_gs=15000)
         cust = make_customer(s, allergens="gluten")
@@ -157,7 +153,7 @@ def test_price_change_never_rewrites_sale_history(client, session_factory):
     assert flows.sell(client, pid, 1).ok
 
     with session_factory() as s:
-        from app.rms.models import Product, Sale
+        from app.rms.models import Sale
 
         first_sale = s.query(Sale).filter_by(product_id=pid).one()
         first_id = first_sale.id
@@ -243,7 +239,7 @@ def test_stock_never_negative_without_confirmation(client, session_factory):
         s.commit()
         iid = ing.id
 
-    r = flows.adjust_stock(client, iid, -1000.0)
+    flows.adjust_stock(client, iid, -1000.0)
     # Rejected without confirm_negative — either an error status or a
     # redirect that left stock untouched.
     with session_factory() as s:

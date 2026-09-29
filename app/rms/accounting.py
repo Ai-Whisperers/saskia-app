@@ -25,13 +25,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.rms.models import Customer, Ingredient, Product, Sale, SaleStockMove
 from app.rms.money import to_int_gs
-from decimal import Decimal
 
 # --- Tax config ---
 
@@ -531,20 +531,20 @@ def sales_by_payment_method(
 
 
 __all__ = [
-    "PARAGUAY_IVA_RATE",
     "IVA_DIVISOR",
-    "IVACalc",
-    "MonthlyIVA",
-    "LibroVentasRow",
+    "PARAGUAY_IVA_RATE",
     "DailySummary",
+    "IVACalc",
+    "LibroVentasRow",
+    "MonthlyIVA",
     "ProductMarginRow",
-    "extract_iva",
-    "monthly_iva_breakdown",
-    "libro_ventas",
-    "daily_summary",
-    "product_margin_summary",
-    "cross_period_comparison",
-    "top_products_report",
     "average_order_value",
+    "cross_period_comparison",
+    "daily_summary",
+    "extract_iva",
+    "libro_ventas",
+    "monthly_iva_breakdown",
+    "product_margin_summary",
     "sales_by_payment_method",
+    "top_products_report",
 ]

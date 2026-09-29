@@ -13,8 +13,6 @@ Phase B = shell; Phase D = week/month views + per-day plan + overrides.
 
 from __future__ import annotations
 
-from datetime import date
-
 import pytest
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 

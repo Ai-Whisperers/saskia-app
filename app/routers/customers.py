@@ -11,9 +11,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Path, Query, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from starlette.responses import RedirectResponse as StarletteRedirectResponse
-from sqlalchemy import func, or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
+from starlette.responses import RedirectResponse as StarletteRedirectResponse
 
 from app.auth import require_login_or_disabled as require_login
 from app.rms.customers import (
@@ -24,8 +24,8 @@ from app.rms.customers import (
     search_customers,
 )
 from app.rms.dependencies import get_session
-from app.rms.nav import status_es
 from app.rms.models import Customer
+from app.rms.nav import status_es
 from app.services.template_render import render
 
 router = APIRouter(prefix="/clientes", dependencies=[Depends(require_login)])
@@ -45,13 +45,13 @@ def clientes_list(
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Customer directory with loyalty tiers + points + filters."""
-    from app.rms.models import Customer
-    from starlette.responses import StreamingResponse
     import csv
     import io
 
+    from starlette.responses import StreamingResponse
+
     q = q or ""
-    like = f"%{q.lower()}%"
+    f"%{q.lower()}%"
 
     if tier:
         # Tier filter requires post-hoc filtering (stats needed per customer).
@@ -266,7 +266,10 @@ async def customer_create_api(
     # Use centralized validation for email/phone/cedula so we don't accept
     # garbage like "nope" as an email or "abc" as a phone.
     from app.rms.validation import (
-        optional_text, validate_email, validate_phone, validate_cedula,
+        optional_text,
+        validate_cedula,
+        validate_email,
+        validate_phone,
     )
     phone = validate_phone(str(data.get("phone") or ""))
     email = validate_email(str(data.get("email") or ""))
@@ -343,7 +346,11 @@ def cliente_update(
     """Update an existing customer's fields."""
     from app.rms.audit import record
     from app.rms.validation import (
-        require_text, optional_text, validate_email, validate_phone, validate_cedula,
+        optional_text,
+        require_text,
+        validate_cedula,
+        validate_email,
+        validate_phone,
     )
 
     customer = session.get(Customer, customer_id)

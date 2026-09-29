@@ -13,7 +13,6 @@ US 3.2 acceptance criteria (recetas list):
 """
 
 import pytest
-from sqlalchemy import select
 
 
 @pytest.fixture

@@ -17,11 +17,9 @@ These tests verify the fix holds under three scenarios:
 """
 from __future__ import annotations
 
-import os
 import uuid
 
 import pytest
-
 
 # ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -143,8 +141,8 @@ def test_retry_returns_to_original_sale(client, session_factory):
     product_id = _seed_minimal(session_factory)
     idem = uuid.uuid4().hex
 
-    r1 = _post_sale(client, product_id, idempotency_key=idem)
-    r2 = _post_sale(client, product_id, idempotency_key=idem)
+    _post_sale(client, product_id, idempotency_key=idem)
+    _post_sale(client, product_id, idempotency_key=idem)
 
     # Both responses go to /ventas. The retry's redirect URL should reference
     # the same sale_id from the AppMeta value (or, in current behavior, just

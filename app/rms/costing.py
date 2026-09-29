@@ -63,19 +63,16 @@ def resolve_line_target(session: Session, line: RecipeLine) -> Ingredient | Reci
 class CycleInRecipeTree(Exception):
     """Raised when a recipe tree has a cycle (A uses B uses A)."""
 
-    pass
 
 
 class RecipeWithoutYield(Exception):
     """Raised when apply_sale is called with a recipe whose yield_qty is NULL."""
 
-    pass
 
 
 class ProductWithoutRecipe(Exception):
     """Raised when a sale is attempted on a product with no recipe."""
 
-    pass
 
 
 # --- Recipe cost computation (polymorphic tree walk) ---
@@ -636,7 +633,6 @@ def void_sale(
     # to Asunción local time correctly. Naive datetimes are interpreted as
     # server-local time (UTC on Render), which is 4 hours off from the
     # Asunción bakery's wall clock and breaks "today's sales" queries.
-    from app.rms.config import ASUNCION_TZ
     now_utc = datetime.now(timezone.utc)
     for move in list(sale.stock_moves):  # copy to avoid mutating during iter
         # Reverse: qty_delta becomes positive (restored)
@@ -691,18 +687,18 @@ def void_sale(
 
 
 __all__ = [
-    "resolve_line_target",
-    "CycleInRecipeTree",
-    "RecipeWithoutYield",
-    "ProductWithoutRecipe",
-    "CostResult",
     "ApplySaleResult",
+    "CostResult",
+    "CycleInRecipeTree",
+    "ProductWithoutRecipe",
+    "RecipeWithoutYield",
     "VoidSaleResult",
+    "apply_sale",
+    "product_margin",
+    "product_unit_cost_gs",
     "recipe_batch_cost_gs",
     "recipe_unit_cost_gs",
-    "product_unit_cost_gs",
-    "product_margin",
-    "apply_sale",
+    "resolve_line_target",
     "void_sale",
 ]
 

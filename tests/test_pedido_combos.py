@@ -1,6 +1,5 @@
 """Tests for the pedidos combobox features."""
 
-import pytest
 
 
 def test_product_api_search_returns_matches(qseed, authed_client):
@@ -119,6 +118,7 @@ def test_pedido_nuevo_includes_pedido_combos_js(qseed, authed_client):
 def test_pedido_create_with_combobox_customer(qseed, authed_client):
     """Pedido creation accepts the new field shape (customer_name + customer_id hidden)."""
     from datetime import datetime, timedelta, timezone
+
     from app.rms.models import Customer, Ingredient, Pedido, Product
     sf = qseed.session_factory
     with sf() as s:

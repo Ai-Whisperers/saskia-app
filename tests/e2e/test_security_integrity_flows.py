@@ -127,7 +127,7 @@ def test_public_pedido_token_no_enumeration(client, session_factory):
         ped_id = ped.id
 
     # right token → 200
-    r = client.get(f"/p/AAAA1111")
+    r = client.get("/p/AAAA1111")
     assert r.status_code == 200, r.status_code
 
     # mutated tokens (the enumeration attempt) → 404, never other pedidos' data
@@ -168,8 +168,6 @@ def test_fk_clean_after_day(client, session_factory, app_engine):
 def test_cron_sqlite_backup_restores(tmp_db_path, session_factory, app_engine):
     """The nightly cron ships raw rms.sqlite.gz — the JSON drill doesn't
     cover it. Simulate: VACUUM INTO a copy, boot a new engine on it, write."""
-    import gzip as _gzip
-    import shutil
     import sqlite3
 
     with session_factory() as s:

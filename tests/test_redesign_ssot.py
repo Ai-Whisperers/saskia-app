@@ -5,16 +5,14 @@ rendered shell (sidebar from NAV_GROUPS, CSS/JS wired).
 """
 from __future__ import annotations
 
+from app.rms.display import delta, entity_name, fmt_date, fmt_money, fmt_pct, fmt_qty
 from app.rms.nav import (
-    CREATE_ACTIONS,
     CRUMBS,
     NAV_GROUPS,
     NAV_INDEX,
     crumbs_for,
     status_es,
 )
-from app.rms.display import delta, entity_name, fmt_date, fmt_money, fmt_pct, fmt_qty
-
 
 # ── SS-1 nav table ────────────────────────────────────────────────────
 
@@ -32,7 +30,7 @@ class TestNavTable:
         assert len(flat) == len(set(flat)), "duplicate routes in nav"
 
     def test_every_item_has_label_and_icon(self):
-        for g, items in NAV_GROUPS:
+        for _g, items in NAV_GROUPS:
             for i in items:
                 assert i.get("label"), f"{i} missing label"
                 assert i.get("icon"), f"{i['route']} missing icon"
@@ -68,7 +66,7 @@ class TestCrumbs:
         assert crumbs_for("/nope") == [("Inicio", "/")]
 
     def test_all_spanish(self):
-        for path, entries in CRUMBS.items():
+        for entries in CRUMBS.values():
             for label, _ in entries:
                 assert label == label.strip() and label
 
@@ -163,7 +161,7 @@ class TestShellRendersNav:
     def test_sidebar_from_nav_table(self, client):
         r = client.get("/ventas")
         assert r.status_code == 200
-        for group, items in NAV_GROUPS:
+        for group, _items in NAV_GROUPS:
             assert group in r.text, f"sidebar group {group} missing"
         # canonical labels present
         assert "Equipamiento" in r.text

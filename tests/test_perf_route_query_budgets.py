@@ -7,14 +7,13 @@ from __future__ import annotations
 
 import pytest
 from sqlalchemy import event
-from datetime import datetime, timezone
-from app.rms.models import Product, Sale
+
+from app.rms.models import Product
 
 
 @pytest.fixture
 def query_counter(session_factory):
     """Count SQL queries executed during a request."""
-    from sqlalchemy import create_engine
     engine = session_factory.kw["bind"]
 
     counts = []

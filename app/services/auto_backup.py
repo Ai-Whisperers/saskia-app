@@ -99,11 +99,11 @@ def prune_old_backups(folder: Path, keep_last_n: int = DEFAULT_KEEP_LAST_N) -> i
 
 __all__ = [
     "AUTO_BACKUP_THRESHOLD_HOURS",
-    "WARN_THRESHOLD_DAYS",
     "DEFAULT_KEEP_LAST_N",
+    "WARN_THRESHOLD_DAYS",
+    "backup_filename",
+    "last_backup_at",
     "needs_auto_backup",
     "needs_warning",
-    "last_backup_at",
-    "backup_filename",
     "prune_old_backups",
 ]

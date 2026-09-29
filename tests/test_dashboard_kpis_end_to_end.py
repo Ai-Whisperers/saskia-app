@@ -4,7 +4,8 @@ from __future__ import annotations
 import pytest
 
 pytestmark = pytest.mark.smoke
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
+
 from app.rms.models import Product, Sale
 
 
@@ -16,7 +17,6 @@ def test_dashboard_loads_empty(client):
 
 def test_dashboard_loads_with_sales(client, session_factory):
     """GET / must return 200 with sales data."""
-    from app.rms.models import Product, Sale
 
     with session_factory() as s:
         product = Product(
@@ -44,7 +44,6 @@ def test_dashboard_loads_with_sales(client, session_factory):
 
 def test_dashboard_loads_with_voided_sales(client, session_factory):
     """GET / must handle voided sales correctly."""
-    from app.rms.models import Product, Sale
 
     with session_factory() as s:
         product = Product(

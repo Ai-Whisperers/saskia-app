@@ -45,7 +45,7 @@ CASES = [
                          ids=[c[0] for c in CASES])
 def test_hostile_posts_rejected(client, session_factory, name, url, payload, mut, expect):
     pid, iid = _cat(session_factory)
-    base = {"product_id": str(pid), "qty": "1", "payment_method": "efectivo",
+    {"product_id": str(pid), "qty": "1", "payment_method": "efectivo",
             "ingredient_id": str(iid), "qty_unit": "kg",
             "promised_date": "2026-09-25"}
     data = dict(payload or {})
@@ -61,7 +61,7 @@ def test_hostile_posts_rejected(client, session_factory, name, url, payload, mut
 
 
 def test_oversized_input_rejected(client, session_factory):
-    pid, _ = _cat(session_factory)
+    _pid, _ = _cat(session_factory)
     r = client.post("/productos/nuevo", data={
         "name": "x" * 5000, "sale_price_gs": "1000", "portion_label": "1 unidad",
     }, follow_redirects=False)

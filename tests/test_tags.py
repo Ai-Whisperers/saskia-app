@@ -15,13 +15,12 @@ Covers:
 - filter_products respects category equivalent, tag, has_recipe
 """
 from __future__ import annotations
-from tests.factories import make_ingredient, make_product
 
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
-from app.rms.models import Ingredient, Product, Recipe, Sale, Tag, TagLink
+from app.rms.models import Recipe, Sale, Tag, TagLink
 from app.rms.tags import (
     STARTER_TAGS,
     InventoryFilter,
@@ -40,6 +39,7 @@ from app.rms.tags import (
     targets_with_tag,
     untag_target,
 )
+from tests.factories import make_ingredient, make_product
 
 
 def test_starter_tags_count():
@@ -299,7 +299,7 @@ def test_filter_inventory_by_stock_status(session_factory):
     range where ratio is >= 0.5 but stock < min — e.g. stock=6, min=10
     → ratio=0.6 → 'bajo_min'.
     """
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta, timezone
 
     s = session_factory()
     try:

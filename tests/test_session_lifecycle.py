@@ -1,8 +1,6 @@
 """Session lifecycle tests — verify auth gate behavior."""
 from __future__ import annotations
 
-import pytest
-
 
 def test_unauthenticated_get_dashboard_redirects_to_login(client):
     """GET /productos without auth must redirect (303) or 401."""
@@ -44,7 +42,6 @@ def test_session_cookie_name(client):
     """Session cookie must be named 'saskia_rms_session' (not generic 'session')."""
     # Get login page, check cookies set
     r = client.get("/login")
-    cookies = client.cookies
     # Session cookie should NOT be set yet on GET /login
     # (login is the first entry point)
     assert r.status_code == 200

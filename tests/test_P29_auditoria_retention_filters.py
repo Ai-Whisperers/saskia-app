@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import pytest
 
-
 pytestmark = [pytest.mark.smoke]
 
 
@@ -72,7 +71,6 @@ def test_auditoria_pagination_present(client):
     body = r.text.lower()
     # Either Anterior/Próxima pagination, OR a "No hay entradas" empty state.
     # Both are valid; just ensure something is rendered.
-    has_pagination = "anterior" in body or "siguiente" in body or "next" in body
     has_empty = "no hay" in body or "sin entradas" in body or "vacía" in body
     has_table_or_empty = (
         "<table" in body

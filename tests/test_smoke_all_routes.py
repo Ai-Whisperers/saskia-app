@@ -11,6 +11,7 @@ against template/runtime regressions.
 from __future__ import annotations
 
 import json
+
 import pytest
 
 pytestmark = pytest.mark.smoke

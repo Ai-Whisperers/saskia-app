@@ -22,7 +22,12 @@ import pytest
 def _seed_pedido_minimal(session_factory):
     """One pedido with 1 product (1 ingredient) ready to fulfill."""
     from app.rms.models import (
-        Ingredient, Pedido, PedidoLine, Product, Recipe, RecipeLine,
+        Ingredient,
+        Pedido,
+        PedidoLine,
+        Product,
+        Recipe,
+        RecipeLine,
     )
 
     with session_factory() as s:

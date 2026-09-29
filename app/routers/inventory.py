@@ -9,28 +9,35 @@ import csv
 import io
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, Form, Query, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from loguru import logger
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
+from app.rms.charts import sparkline
+from app.rms.dependencies import get_session
 from app.rms.errors import (
     AlreadyExists,
     BadRequest,
     Conflict,
     NotFound,
 )
+from app.rms.ingredient_intel import classify_ingredient
 from app.rms.messages import INGREDIENT_DUPLICATE_NAME, INGREDIENT_NAME_REQUIRED
+from app.rms.models import (
+    Ingredient,
+    IngredientPriceEvent,
+    IngredientVariant,
+    Recipe,
+    RecipeLine,
+    StockMovement,
+)
 from app.rms.observability import record_audit
-from app.rms.charts import sparkline
-from app.rms.dependencies import get_session
-from app.rms.models import Ingredient, IngredientPriceEvent, IngredientVariant, RecipeLine, Recipe, StockMovement, Supplier
 from app.rms.price_history import price_history, price_stats, record_price_event
 from app.rms.units import Unit
-from app.rms.ingredient_intel import classify_ingredient
 from app.services.template_render import render
 
 router = APIRouter(prefix="/inventario", dependencies=[Depends(require_login)])
@@ -211,7 +218,7 @@ def inventory_list(
     def _has_allergen(i, code):
         return code in (i.allergens or "").lower()
 
-    def _match(i):
+    def _match(i) -> bool:
         if q and q not in (i.name or "").lower():
             return False
         if estado == "bajo" and not (i.stock_qty <= (i.min_stock_qty or 0)):
@@ -612,8 +619,12 @@ def inventory_update(
     Centralized validation (app.rms.validation) replaces inline checks.
     """
     from app.rms.validation import (
-        require_text, parse_quantity, parse_money_gs, parse_unit,
-        parse_date_iso, optional_text,
+        optional_text,
+        parse_date_iso,
+        parse_money_gs,
+        parse_quantity,
+        parse_unit,
+        require_text,
     )
 
     ing = session.get(Ingredient, ing_id)
@@ -639,7 +650,7 @@ def inventory_update(
     if shelf_life_days.strip():
         try:
             ing.shelf_life_days = int(float(shelf_life_days)) or None
-        except (TypeError, ValueError) as exc:  # noqa: BLE001 — defensive parse; logged
+        except (TypeError, ValueError) as exc:
             logger.debug("inventory shelf_life_days parse failed: {}", exc)
     if allergens != "__unset__":
         # Empty string = explicitly cleared to "sin declarar" (None).
@@ -650,7 +661,7 @@ def inventory_update(
     if lead_time_days.strip():
         try:
             ing.lead_time_days = int(lead_time_days) or None
-        except (TypeError, ValueError) as exc:  # noqa: BLE001 — defensive parse; logged
+        except (TypeError, ValueError) as exc:
             logger.debug("inventory lead_time_days parse failed: {}", exc)
 
     # Wave 2 — auto-fill inference on update too.
@@ -719,7 +730,7 @@ def inventory_update(
     # Tag algebra (054): ingredient tags/allergens may have changed —
     # re-derive every recipe using it (transitively) and sync products.
     try:
-        from app.rms.tag_algebra import cascade_refresh, _product_inherit_sync
+        from app.rms.tag_algebra import _product_inherit_sync, cascade_refresh
         refreshed = cascade_refresh(session, ingredient_id=ing.id)
         for rid in refreshed:
             _product_inherit_sync(session, rid)

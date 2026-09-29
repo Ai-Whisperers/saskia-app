@@ -11,7 +11,6 @@ import os
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
 
 from app.services.template_render import render
 

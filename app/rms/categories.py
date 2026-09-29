@@ -15,7 +15,6 @@ from sqlalchemy.orm import Session
 
 from app.rms.models import Category
 
-
 # Scope constants
 SCOPE_PRODUCT = "product"
 SCOPE_RECIPE_FAMILY = "recipe_family"
@@ -89,7 +88,7 @@ def update_category(
 __all__ = [
     "SCOPE_PRODUCT",
     "SCOPE_RECIPE_FAMILY",
-    "list_categories",
     "get_or_create_category",
+    "list_categories",
     "update_category",
 ]

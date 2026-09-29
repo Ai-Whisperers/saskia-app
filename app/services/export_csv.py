@@ -187,4 +187,4 @@ def to_dir(session: Session, path: str | Path) -> list[Path]:
     return written
 
 
-__all__ = ["to_dir", "TABLE_EXPORTS"]
+__all__ = ["TABLE_EXPORTS", "to_dir"]

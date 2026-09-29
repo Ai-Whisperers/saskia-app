@@ -2,9 +2,8 @@
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import select
 
-from app.rms.invoicing import compute_invoice_snapshot, allocate_invoice_number
+from app.rms.invoicing import allocate_invoice_number, compute_invoice_snapshot
 from app.rms.models import ComplianceInfo, Product
 
 
@@ -212,8 +211,9 @@ class TestSaleInvoiceFieldsRoundTrip:
     """Sale model persists all Phase 1.B fields."""
 
     def test_sale_persists_invoice_snapshot(self, session_factory, seed_product):
-        from app.rms.models import Sale
         from datetime import datetime, timezone
+
+        from app.rms.models import Sale
 
         Session = session_factory
         product_id = seed_product(price=25000, iva_rate="10")

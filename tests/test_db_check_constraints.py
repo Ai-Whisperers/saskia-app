@@ -33,8 +33,9 @@ def test_recipe_yield_qty_zero_at_update_rejected(session_factory):
 
 def test_recipe_yield_qty_negative_at_update_rejected(session_factory):
     """recipe UPDATE with yield_qty=-5 is rejected."""
-    from app.rms.models import Recipe
     from sqlalchemy import update
+
+    from app.rms.models import Recipe
     sf = session_factory
     with sf() as s:
         r = Recipe(name="Receta Draft 2", yield_qty=None, yield_unit="und")
@@ -51,8 +52,9 @@ def test_recipe_yield_qty_negative_at_update_rejected(session_factory):
 
 def test_recipe_yield_qty_positive_at_update_allowed(session_factory):
     """recipe UPDATE with yield_qty=12 is allowed."""
-    from app.rms.models import Recipe
     from sqlalchemy import update
+
+    from app.rms.models import Recipe
     sf = session_factory
     with sf() as s:
         r = Recipe(name="Receta Draft OK", yield_qty=None, yield_unit="und")
@@ -93,8 +95,9 @@ def test_recipe_insert_with_positive_yield_allowed(session_factory):
 
 def test_recipe_line_qty_negative_at_update_rejected(session_factory):
     """recipe_line UPDATE with qty=-1 is rejected."""
-    from app.rms.models import Recipe, RecipeLine, Ingredient
     from sqlalchemy import update
+
+    from app.rms.models import Ingredient, Recipe, RecipeLine
     sf = session_factory
     with sf() as s:
         ing = Ingredient(name="test_rl", unit="kg", stock_qty=10, min_stock_qty=1, purchase_price_gs=3000)

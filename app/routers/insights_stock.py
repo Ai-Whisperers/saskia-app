@@ -18,7 +18,8 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
-from app.rms.analytics import all_stock_turnover, dead_stock as dead_stock_rows
+from app.rms.analytics import all_stock_turnover
+from app.rms.analytics import dead_stock as dead_stock_rows
 from app.rms.dependencies import get_session
 from app.rms.product_price_history import margin_drift_all, product_price_history
 from app.rms.sales_intel import top_pairs

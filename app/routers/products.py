@@ -8,15 +8,19 @@ from __future__ import annotations
 import csv
 import io
 import secrets as pysecrets
-import shutil
 from datetime import datetime, timezone
-from pathlib import Path as FPath
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from sqlalchemy import func, or_, select
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+)
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
@@ -26,7 +30,6 @@ from app.auth import require_login_or_disabled as require_login
 from app.rms.costing import batch_products_cost_margin, product_margin, product_unit_cost_gs
 from app.rms.dependencies import get_session
 from app.rms.models import Product, Recipe, Sale
-from app.rms.money import parse_gs
 from app.services.template_render import render
 
 router = APIRouter(prefix="/productos", dependencies=[Depends(require_login)])
@@ -237,7 +240,7 @@ def products_list(
 
     # Margin state filter (post-costing, in-memory): negativo <0, bajo <30%, ok 30-70%, alto >70%
     if margen_sel:
-        def _mstate(r):
+        def _mstate(r) -> str:
             if r["margin_ratio"] is None: return "sin-datos"
             pct = r["margin_ratio"] * 100
             if pct < 0: return "negativo"
@@ -364,8 +367,11 @@ def product_create(
     bad input. Tags are stored as a comma-separated string per the model.
     """
     from app.rms.validation import (
-        require_text, optional_text, parse_money_gs, parse_date_iso,
-        validate_url, parse_quantity,
+        optional_text,
+        parse_date_iso,
+        parse_money_gs,
+        require_text,
+        validate_url,
     )
 
     clean_name = require_text(name, field="nombre", max_len=120)
@@ -486,7 +492,11 @@ def product_update(
 ) -> RedirectResponse:
     """Update existing product."""
     from app.rms.validation import (
-        require_text, optional_text, parse_money_gs, validate_url, parse_date_iso,
+        optional_text,
+        parse_date_iso,
+        parse_money_gs,
+        require_text,
+        validate_url,
     )
 
     p = session.get(Product, p_id)
@@ -778,7 +788,6 @@ async def product_upload_image(
     Accepts: png, jpg, jpeg, webp, gif. Max 5 MB.
     Returns: {"url": "/static/uploads/", "filename": "..."}
     """
-    from app.auth import using_supabase, _supabase_enabled
 
     # Re-use the same auth as the rest of the products router
     _ = session  # keep signature; auth is enforced by router-level dependency

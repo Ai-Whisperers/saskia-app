@@ -1,14 +1,14 @@
 """Produccion override endpoint tests."""
 from __future__ import annotations
 
-import pytest
 from datetime import date, datetime, timezone
-from app.rms.models import Recipe, ProductionCompletion
+
+from app.rms.models import ProductionCompletion
 
 
 def test_produccion_override_updates_completion(authed_client, session_factory):
     """POST /produccion/override must update ProductionCompletion."""
-    from app.rms.models import ProductionCompletion, Product
+    from app.rms.models import Product
 
     with session_factory() as s:
         product = Product(

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-from decimal import Decimal
 
 # NAV-02: internal routes are mounted by default (2026-09-25 decision — the
 # 60-page critique called the audit log a must-have and real auth is live).
@@ -100,7 +99,6 @@ def test_pro_04_ver_receta_links_to_recipe_detail(client):
     # Find the IDs by scraping the rendered lists
     r = client.get("/productos")
     assert r.status_code == 200
-    body = r.text
     # If "Sin receta" appears, the production page is empty or shows the
     # empty-state copy. Just verify the production page renders.
     r = client.get("/produccion")
@@ -143,7 +141,7 @@ def test_pro_02_manual_override_not_rounded():
     """PRO-02: A manual operator-entered override stays as-typed (no rounding)."""
     # Manual overrides pass through; the production.py code only rounds
     # when source != "manual". This is verified by test_plan_production_with_manual_forecast_override.
-    pass  # covered by existing test
+    # covered by existing test
 
 
 def test_mer_03_merma_template_has_spanish_example(client):

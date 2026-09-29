@@ -13,17 +13,17 @@ from app.rms.models.core import Base
 
 class Customer(Base):
     """Customer entity for sales tracking."""
-    
+
     __tablename__ = "customer"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     email: Mapped[str] = mapped_column(String(100), nullable=True, unique=True)
     phone: Mapped[str] = mapped_column(String(20), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    
+
     # Relationships
     sales: Mapped[list["Sale"]] = relationship("Sale", back_populates="customer")
-    
-    def __repr__(self):
+
+    def __repr__(self) -> str:
         return f"Customer(id={self.id}, name='{self.name}', email='{self.email}')"

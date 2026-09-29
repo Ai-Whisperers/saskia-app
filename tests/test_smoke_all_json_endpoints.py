@@ -6,8 +6,8 @@ must return valid JSON with the expected shape.
 from __future__ import annotations
 
 import json
-import pytest
 
+import pytest
 
 # JSON endpoints from SASKIA_TEST_PLAN.md §1.3 + §5 #7
 JSON_ROUTES = [
@@ -125,6 +125,6 @@ def test_ventas_buscar_returns_json(client, session_factory):
     assert r.status_code in (200, 404)
     if r.status_code == 200:
         try:
-            data = r.json()
+            r.json()
         except json.JSONDecodeError:
             pytest.fail(f"/ventas/buscar returned non-JSON: {r.text[:200]}")

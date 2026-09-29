@@ -18,7 +18,7 @@ These four tests would have caught the two outage root causes from this session:
 """
 from __future__ import annotations
 
-from sqlalchemy import text, inspect
+from sqlalchemy import inspect, text
 
 
 def test_migration_026_adds_product_audit_columns(session_factory):
@@ -54,7 +54,6 @@ def test_lifespan_ready_false_if_migrations_pending(app_engine):
     This test forces a stale-DB state (manually sets schema_version=19)
     and asserts that /healthz returns 503, not 200.
     """
-    from app.rms.main import app as main_app
     from app.rms.db import CURRENT_SCHEMA_VERSION
 
     # Simulate a DB that's N versions behind code (e.g., 6 behind like the outage)
@@ -102,6 +101,7 @@ def test_supabase_auth_falls_back_when_env_missing(monkeypatch):
 
     # Re-import to pick up the new env state
     import importlib
+
     from app import auth_supabase
     importlib.reload(auth_supabase)
 
@@ -129,12 +129,12 @@ def test_get_session_returns_session_not_connection_when_fallback(app_engine, mo
     `session.execute(text("..."))` and ORM queries.
     """
     # Force the fallback path by clearing app.state.session_factory
-    from app.rms.main import app as main_app
-    from app.rms.dependencies import get_session
-    from fastapi.testclient import TestClient
 
     # Use the test app_engine, then verify fallback path
     from sqlalchemy.orm import Session
+
+    from app.rms.dependencies import get_session
+    from app.rms.main import app as main_app
 
     # Simulate missing session_factory
     if hasattr(main_app.state, "session_factory"):
@@ -180,7 +180,7 @@ def test_migrations_applied_count_matches_registered(tmp_db_path):
     Runs init_db() on a fresh SQLite and verifies the DB ends at
     CURRENT_SCHEMA_VERSION with zero pending.
     """
-    from app.rms.db import init_db, make_engine, schema_version, MIGRATIONS, CURRENT_SCHEMA_VERSION
+    from app.rms.db import CURRENT_SCHEMA_VERSION, MIGRATIONS, init_db, make_engine, schema_version
 
     db_path = f"{tmp_db_path}/parity_test.sqlite"
     engine = make_engine(f"sqlite:///{db_path}")

@@ -65,7 +65,7 @@ def compute_invoice_snapshot(
     rate_str = product.iva_rate if product and product.iva_rate else default_rate
 
     # Compute total sale (discount applied)
-    gross = int(round(float(qty) * float(unit_price_gs)))
+    gross = round(float(qty) * float(unit_price_gs))
     net = max(0, gross - int(discount_gs or 0))
 
     if rate_str == "exento":
@@ -119,4 +119,4 @@ def allocate_invoice_number(session: Session, invoice_type: str) -> int:
     raise ValueError(f"Cannot allocate invoice number for type {invoice_type!r}")
 
 
-__all__ = ["compute_invoice_snapshot", "allocate_invoice_number"]
+__all__ = ["allocate_invoice_number", "compute_invoice_snapshot"]

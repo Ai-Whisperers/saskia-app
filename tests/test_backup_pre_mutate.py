@@ -1,9 +1,6 @@
 """Backup pre-mutate tests."""
 from __future__ import annotations
 
-import pytest
-from pathlib import Path
-
 
 def test_backup_directory_exists_or_can_be_created(tmp_path):
     """Backup directory must be writable."""
@@ -17,9 +14,6 @@ def test_backup_directory_exists_or_can_be_created(tmp_path):
 
 def test_ventas_nueva_triggers_backup_check(authed_client):
     """POST /ventas/nueva must not crash (backup is automatic)."""
-    from app.rms.models import Product
-    from datetime import datetime, timezone
-    from app.rms.models import Sale
 
     # Backup pre-mutate is verified by the fact that the operation succeeds
     # (if backup failed, the operation would be aborted)
@@ -36,6 +30,7 @@ def test_ventas_nueva_triggers_backup_check(authed_client):
 def test_pedidos_fulfill_no_500_when_backup_missing(authed_client, session_factory):
     """Pedidos fulfill must succeed even if backup dir missing (degraded mode)."""
     from datetime import date
+
     from app.rms.models import Pedido, PedidoLine, Product
 
     with session_factory() as s:

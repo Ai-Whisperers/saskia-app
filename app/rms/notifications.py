@@ -276,13 +276,13 @@ def append_notification_log(result: NotifyResult) -> None:
 
 
 __all__ = [
+    "SPOOL_DIR",
     "NotifyKind",
     "NotifyResult",
-    "SPOOL_DIR",
+    "append_notification_log",
     "format_daily_summary_message",
-    "send_whatsapp_summary",
+    "notification_log_path",
     "send_email_summary",
     "send_notification",
-    "notification_log_path",
-    "append_notification_log",
+    "send_whatsapp_summary",
 ]

@@ -1,11 +1,12 @@
 """tests/test_prime_cost.py — Phase 1.D Prime Cost calculation."""
 from __future__ import annotations
 
-import pytest
 from decimal import Decimal
 
-from app.rms.prime_cost import compute_prime_cost, PrimeCostBreakdown, _round_half_up
-from app.rms.models import ComplianceInfo, Product, Recipe, RecipeLine, Ingredient
+import pytest
+
+from app.rms.models import ComplianceInfo, Ingredient, Product, Recipe, RecipeLine
+from app.rms.prime_cost import _round_half_up, compute_prime_cost
 
 
 @pytest.fixture

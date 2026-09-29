@@ -58,7 +58,10 @@ def supplier_create(
       - notes/address/contact_name max 500 chars
     """
     from app.rms.validation import (
-        require_text, optional_text, validate_email, validate_phone,
+        optional_text,
+        require_text,
+        validate_email,
+        validate_phone,
     )
 
     name_clean = require_text(name, field="nombre", max_len=120)
@@ -107,7 +110,10 @@ def supplier_update(
 ) -> RedirectResponse:
     """Update a supplier."""
     from app.rms.validation import (
-        require_text, optional_text, validate_email, validate_phone,
+        optional_text,
+        require_text,
+        validate_email,
+        validate_phone,
     )
 
     supplier = session.get(Supplier, s_id)
@@ -173,7 +179,7 @@ def supplier_orders(
         lines.append("No hay ingredientes bajo mínimo para reponer.")
     else:
         for item in supplier_items:
-            ing = session.get(Ingredient, item.ingredient_id)
+            session.get(Ingredient, item.ingredient_id)
             lines.append(f"• {item.name}: {item.suggested_qty:.2f} {item.unit} "
                          f"(stock: {item.current_stock:.2f}, mín: {item.min_stock:.2f})")
         lines.append("")

@@ -6,11 +6,12 @@ Business information, theme settings, fiscal configuration, and application sett
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from loguru import logger
 
 from app.auth import require_login_or_disabled as require_login
 from app.rms.constants import (
@@ -19,8 +20,13 @@ from app.rms.constants import (
     DEFAULT_OVERHEAD_MULTIPLIER_PCT,
     DEFAULT_TAX_REGIME,
 )
-from app.rms.models import AppMeta, ComplianceInfo, DeliveryZone, Sale, SaleStockMove, StockMovement, User
 from app.rms.dependencies import get_session
+from app.rms.models import (
+    AppMeta,
+    ComplianceInfo,
+    DeliveryZone,
+    User,
+)
 from app.services.template_render import render
 
 router = APIRouter(prefix="/settings", dependencies=[Depends(require_login)])
@@ -35,18 +41,18 @@ def settings_page(
     from app.auth import current_user_id
 
     user_id = current_user_id(request)
-    
+
     # Get business settings
     business_name = session.scalar(select(AppMeta).where(AppMeta.key == "business_name"))
     business_ruc = session.scalar(select(AppMeta).where(AppMeta.key == "business_ruc"))
     business_address = session.scalar(select(AppMeta).where(AppMeta.key == "business_address"))
     business_phone = session.scalar(select(AppMeta).where(AppMeta.key == "business_phone"))
-    
+
     # Get fiscal settings
     timbrado = session.scalar(select(AppMeta).where(AppMeta.key == "timbrado"))
     punto_expedicion = session.scalar(select(AppMeta).where(AppMeta.key == "punto_expedicion"))
     invoice_sequence = session.scalar(select(AppMeta).where(AppMeta.key == "invoice_sequence"))
-    
+
     # Get theme setting
     theme = session.scalar(select(AppMeta).where(AppMeta.key == "theme"))
 
@@ -117,7 +123,10 @@ def save_business_settings(
     (labor_cost_per_hour_gs + overhead_multiplier_pct).
     """
     from app.rms.validation import (
-        optional_text, validate_ruc, validate_phone, optional_int,
+        optional_int,
+        optional_text,
+        validate_phone,
+        validate_ruc,
     )
 
     name = optional_text(business_name, max_len=200)
@@ -194,11 +203,11 @@ def save_fiscal_settings(
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Save fiscal configuration settings."""
-    from app.rms.audit import record as audit_record
     from app.auth import current_user_id
+    from app.rms.audit import record as audit_record
 
     user_id = current_user_id(request)
-    
+
     # Upsert fiscal settings
     settings = [
         ("timbrado", timbrado),
@@ -233,8 +242,8 @@ def save_theme_settings(
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Save theme preference."""
-    from app.rms.audit import record as audit_record
     from app.auth import current_user_id
+    from app.rms.audit import record as audit_record
 
     user_id = current_user_id(request)
 

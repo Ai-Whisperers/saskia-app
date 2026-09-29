@@ -9,11 +9,11 @@ to ops in the logs (silent partial results were a debugging nightmare).
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from loguru import logger
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, func
 
 from app.rms.dependencies import get_session
-from app.rms.models import Customer, Product, Recipe, Pedido
+from app.rms.models import Customer, Pedido, Product, Recipe
 
 router = APIRouter(prefix="/api", tags=["search"])
 

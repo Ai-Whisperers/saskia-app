@@ -14,9 +14,9 @@ Properties:
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from decimal import Decimal
 
-from hypothesis import given, settings as hyp_settings
+from hypothesis import given
+from hypothesis import settings as hyp_settings
 from hypothesis import strategies as st
 
 from app.rms.db import init_db, make_engine, make_session_factory
@@ -24,7 +24,6 @@ from tests.factories import (
     ing_line,
     make_catalog,
     make_ingredient,
-    make_product,
     make_recipe,
     make_sale,
 )

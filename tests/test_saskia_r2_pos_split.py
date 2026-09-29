@@ -18,11 +18,7 @@ US 4.2 acceptance criteria (Quick-Sell search + customer multi-field):
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
-from fastapi.testclient import TestClient
-
 from app.rms.models import Customer, Product, Sale
-
 
 # =========================================================================
 # US 4.3 — Sales history split
@@ -154,7 +150,7 @@ def test_quick_sell_section_renders_on_pos(client, session_factory):
         s.add(p); s.flush()
         now = datetime.now(timezone.utc)
         # Add 5 sales across 3 products so Quick-Sell has data to surface
-        for i in range(3):
+        for _i in range(3):
             s.add(Sale(product_id=p.id, qty=1, unit_price_gs=10000, sold_at=now))
         s.commit()
 
@@ -202,7 +198,7 @@ def test_quick_sell_buttons_carry_product_id_and_qty(client, session_factory):
     resp = client.get("/ventas")
     assert resp.status_code == 200
     assert f'name="product_id" value="{pid}"' in resp.text
-    assert f'name="qty" value="1"' in resp.text
+    assert 'name="qty" value="1"' in resp.text
 
 
 def test_quick_sell_section_hidden_when_no_recent_sales(client):

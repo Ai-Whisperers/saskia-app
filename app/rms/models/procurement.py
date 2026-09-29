@@ -1,16 +1,23 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
-    Boolean, CheckConstraint, Date, DateTime, Float, JSON,
-    ForeignKey, Index, Integer, String, Text, UniqueConstraint,
+    JSON,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.rms.models.core import Base
-
 
 """
 app/rms/models/procurement.py — Buys, waste, stock ledger, imports: ImportBatch, Supplier, WasteLog, ShoppingListItem, StockMovement.

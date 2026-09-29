@@ -111,6 +111,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                 # handler will render them with the right status. We just
                 # re-raise without logging (the exception handler will log).
                 from fastapi import HTTPException
+
                 from app.rms.errors import AppError
                 if isinstance(exc, (AppError, HTTPException)):
                     raise

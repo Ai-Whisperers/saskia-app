@@ -14,12 +14,10 @@ Phase 3 of the 2026-09-17 prelaunch roadmap. Covers:
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
-
-from sqlalchemy import select
-
+from datetime import date, datetime, timedelta
 
 import pytest
+from sqlalchemy import select
 
 pytestmark = pytest.mark.crud
 
@@ -54,7 +52,7 @@ def _pedido_detail(client, pedido_id):
 
 def test_pedido_model_persists_with_lines(session_factory):
     """Creating a Pedido + PedidoLines persists them with correct totals."""
-    from app.rms.models import Pedido, PedidoLine, Product
+    from app.rms.models import Pedido, PedidoLine
 
     pid = _seed_product(session_factory, name="Croissant", price=12000)
     with session_factory() as s:
@@ -86,7 +84,6 @@ def test_schema_version_is_16(session_factory, tmp_db_path):
     """CURRENT_SCHEMA_VERSION bumped to 16 so init_db runs the pedidos migration."""
     from app.rms.config import CURRENT_SCHEMA_VERSION
     from app.rms.db import init_db, make_engine
-    from app.rms.models import AppMeta
 
     engine = make_engine(f"sqlite:///{tmp_db_path}/schema16.sqlite")
     init_db(engine)
@@ -101,7 +98,6 @@ def test_schema_version_is_16(session_factory, tmp_db_path):
 
 def test_public_token_unique_per_pedido(session_factory):
     """The DB unique constraint on public_token prevents two pedidos from sharing one."""
-    from sqlalchemy.exc import IntegrityError
 
     from app.rms.models import Pedido
 
@@ -237,7 +233,7 @@ def test_create_pedido_requires_at_least_one_line(client):
 
 def test_fulfill_creates_sales_and_decrements_stock(client, session_factory):
     """POST /pedidos/{id}/fulfill creates one Sale per line + applies stock drop."""
-    from app.rms.models import Ingredient, Pedido, PedidoLine, Product, Recipe, RecipeLine
+    from app.rms.models import Ingredient, Pedido, Product, Recipe, RecipeLine
 
     # Seed: ingredient + recipe (yield 1 muffin) + product
     with session_factory() as s:
@@ -386,7 +382,7 @@ def test_invalid_transition_fulfilled_to_ready_returns_error(client, session_fac
 
     pid = _seed_product(session_factory)
     pdate = (date.today() + timedelta(days=1)).isoformat()
-    resp = client.post(
+    client.post(
         "/pedidos/nuevo",
         data={
             "customer_name": "X",
@@ -419,7 +415,7 @@ def test_invalid_status_value_returns_422(client, session_factory):
     from app.rms.models import Pedido
 
     pid = _seed_product(session_factory)
-    resp = client.post(
+    client.post(
         "/pedidos/nuevo",
         data={
             "customer_name": "Y",
@@ -442,7 +438,7 @@ def test_cancel_from_pending(client, session_factory):
     from app.rms.models import Pedido
 
     pid = _seed_product(session_factory)
-    resp = client.post(
+    client.post(
         "/pedidos/nuevo",
         data={
             "customer_name": "CancelMe",
@@ -472,7 +468,7 @@ def test_public_pickup_page_works_without_login(client, session_factory):
     from app.rms.models import Pedido
 
     pid = _seed_product(session_factory)
-    resp = client.post(
+    client.post(
         "/pedidos/nuevo",
         data={
             "customer_name": "WhatsApp Customer",
@@ -515,7 +511,7 @@ def test_audit_log_records_pedido_create_and_fulfill(client, session_factory):
     from app.rms.models import AuditLog, Pedido
 
     pid = _seed_product(session_factory)
-    resp = client.post(
+    client.post(
         "/pedidos/nuevo",
         data={
             "customer_name": "AuditMe",

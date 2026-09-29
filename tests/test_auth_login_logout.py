@@ -13,7 +13,6 @@ from __future__ import annotations
 import pytest
 
 pytestmark = pytest.mark.auth
-from unittest.mock import patch
 
 
 def test_get_login_returns_200(client):

@@ -54,7 +54,7 @@ def test_resolve_line_target_ingredient(session_factory):
     from app.rms.costing import resolve_line_target
     from app.rms.models import RecipeLine
 
-    flour_id, _, muffin_id = _seed_polymorphic(session_factory)
+    flour_id, _, _muffin_id = _seed_polymorphic(session_factory)
     with session_factory() as s:
         line = s.query(RecipeLine).filter_by(line_kind="ingredient").first()
         target = resolve_line_target(s, line)
@@ -210,7 +210,6 @@ def test_recipe_line_defaults_line_unit_to_empty_string(session_factory):
 
 def test_costing_uses_line_unit_for_cross_unit_recipe(session_factory):
     """Roundtrip: 250 g of flour (ingredient in kg, Gs. 5000/kg) → Gs. 1250 cost."""
-    from decimal import Decimal
 
     from app.rms.costing import recipe_batch_cost_gs
     from app.rms.models import Ingredient, Recipe, RecipeLine

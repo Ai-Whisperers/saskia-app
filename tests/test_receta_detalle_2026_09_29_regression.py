@@ -19,7 +19,6 @@ import json
 
 import pytest
 
-
 # --- Inline seed data: a 6-line apple pie with priced catalog rows ---
 
 _INGREDIENT_FIXTURES = [

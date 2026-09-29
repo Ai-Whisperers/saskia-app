@@ -145,8 +145,8 @@ def product_hints_for_event(
 
 __all__ = [
     "ProductHint",
-    "serialize_event",
     "calendar_for_year",
-    "upcoming_calendar_json",
     "product_hints_for_event",
+    "serialize_event",
+    "upcoming_calendar_json",
 ]

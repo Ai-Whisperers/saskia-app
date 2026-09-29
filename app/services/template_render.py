@@ -81,7 +81,7 @@ def _asset_version() -> str:
 # templates can stay simple. Lazy-imported to keep template_render import-light.
 def _make_money_helper():
     """Build the `m` namespace exposed to templates."""
-    from app.rms.money import format_gs, to_decimal
+    from app.rms.money import format_gs
 
     def gs(value):
         """Format integer Gs. as 'Gs. 8.696.000' (Paraguayan convention).
@@ -102,13 +102,13 @@ def _make_money_helper():
         """Alias for gs() — kept for templates that already use this name."""
         return format_gs(value)
 
-    def margin_pct(margen_gs, ventas_gs):
+    def margin_pct(margen_gs, ventas_gs) -> str:
         """Compute gross margin percent (one decimal, Paraguayan style)."""
         if not ventas_gs:
             return "—"
         return f"{(margen_gs / ventas_gs * 100):.1f}%"
 
-    def stock_badge(stock_qty, min_stock_qty):
+    def stock_badge(stock_qty, min_stock_qty) -> str:
         """Tier-based stock badge.
 
         stock == 0         → Agotado (solid red badge)
@@ -129,7 +129,7 @@ def _make_money_helper():
             return '<span class="badge--stock-low" title="Stock bajo el mínimo">Bajo</span>'
         return '<span class="badge--stock-ok" title="Stock suficiente">OK</span>'
 
-    def top_list_card(title, items, currency_prefix="", icon_id=None):
+    def top_list_card(title, items, currency_prefix="", icon_id=None) -> str:
         """Render a top-N list as a compact card. Pure string builder
         because Jinja macros would need an extra import."""
         if not items:
@@ -164,8 +164,10 @@ templates.env.globals["asset_version"] = _asset_version
 templates.env.globals["m"] = _make_money_helper()
 
 # F-track formatters (redesign base layer — 02-REUSE-ABSTRACTION.md §2)
-from app.rms import display as _display  # noqa: E402
-from app.rms.nav import crumbs_for as _crumbs_for, status_es as _status_es  # noqa: E402
+from app.rms import display as _display
+from app.rms.nav import crumbs_for as _crumbs_for
+from app.rms.nav import status_es as _status_es
+
 templates.env.globals["fmt"] = SimpleNamespace(
     money=_display.fmt_money,
     qty=_display.fmt_qty,
@@ -219,7 +221,8 @@ def _csrf_token_for_request(request: Request | None) -> str:
     generates a fresh token so the form input still renders something
     the verify path can validate.
     """
-    from app.rms.csrf import _CSRF_COOKIE as cookie_name, generate_csrf_token
+    from app.rms.csrf import _CSRF_COOKIE as cookie_name
+    from app.rms.csrf import generate_csrf_token
 
     if request is not None:
         token = request.cookies.get(cookie_name)
@@ -266,7 +269,7 @@ def render(
     # Fail CLOSED: if we can't determine auth state, hide the chrome
     # rather than leak the entire app nav structure to anonymous users.
     try:
-        from app.auth import is_auth_disabled, get_current_user
+        from app.auth import get_current_user, is_auth_disabled
 
         if is_auth_disabled():
             # Test/dev bypass: auth is disabled, user is always logged in
@@ -287,7 +290,7 @@ def render(
 
     if "branding" not in ctx:
         try:
-            from app.rms.db import make_session_factory, get_db_session
+            from app.rms.db import get_db_session, make_session_factory
             from app.rms.settings_runtime import get_branding
             engine = request.app.state.engine if hasattr(request.app.state, "engine") else None
             if engine is not None:

@@ -27,7 +27,7 @@ import math
 import random
 import secrets
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 from loguru import logger
 from sqlalchemy import delete, select
@@ -39,6 +39,7 @@ from app.rms.models import (
     Customer,
     ImportBatch,
     Ingredient,
+    MarketBenchmark,
     Pedido,
     PedidoLine,
     Product,
@@ -49,7 +50,6 @@ from app.rms.models import (
     User,
 )
 from app.rms.models.channels import Channel
-from app.rms.models import MarketBenchmark
 from app.rms.tags import TagKind, ensure_starter_tags, ensure_tag, tag_target
 
 # Use UTC-naive datetime columns consistently with existing models.
@@ -640,9 +640,9 @@ def seed_demo_data(
         # Volume skew: weekends +40%, payday (1st, 15th) +60%, otherwise baseline
         base_count = sales_per_day
         if weekday >= 5:  # Sat-Sun
-            base_count = int(math.ceil(base_count * 1.4))
+            base_count = math.ceil(base_count * 1.4)
         if sale_date.day in (1, 15):
-            base_count = int(math.ceil(base_count * 1.6))
+            base_count = math.ceil(base_count * 1.6)
         # Mild noise
         count = max(1, int(base_count + rng.randint(-1, 1)))
 
@@ -693,7 +693,7 @@ def seed_demo_data(
     report.stock_moves = len(stock_move_rows)
 
     # --- One voided sale example (recent) ---
-    last_product = list(products_by_id.values())[0]
+    last_product = next(iter(products_by_id.values()))
     voided = Sale(
         sold_at=today - timedelta(days=2, hours=4),
         product_id=last_product.id,
@@ -853,16 +853,16 @@ def _delete_seeded_data(session: Session) -> None:
 
 
 __all__ = [
+    "BENCHMARKS",
     "DEMO_USER_EMAIL",
     "DEMO_USER_PASSWORD",
     "DEMO_USER_USERNAME",
     "INGREDIENTS",
+    "PRODUCTS",
     "RECIPES",
     "RECIPE_LINES",
-    "BENCHMARKS",
+    "SeedReport",
     "create_demo_benchmarks",
     "create_demo_pedido",
-    "PRODUCTS",
-    "SeedReport",
     "seed_demo_data",
 ]

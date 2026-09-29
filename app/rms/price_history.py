@@ -27,13 +27,11 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Iterable
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.rms.models import Ingredient, IngredientPriceEvent
-
 
 _ALLOWED_SOURCES = frozenset({"restock", "manual", "excel_import"})
 
@@ -142,7 +140,7 @@ def batch_price_stats(
 
     result: dict[int, dict] = {iid: {"current": None, "min": None, "max": None, "avg": None, "count": 0} for iid in ingredient_ids}
     for row in rows:
-        iid, price_gs, recorded_at = row
+        iid, price_gs, _recorded_at = row
         d = result[iid]
         d["count"] += 1
         p = int(price_gs)
@@ -198,8 +196,8 @@ def price_stats(
 
 
 __all__ = [
-    "record_price_event",
+    "batch_price_stats",
     "price_history",
     "price_stats",
-    "batch_price_stats",
+    "record_price_event",
 ]

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import pytest
 
-
 pytestmark = [pytest.mark.smoke]
 
 
@@ -37,7 +36,7 @@ def test_planner_get_returns_empty_state(client):
 
 def test_planner_compute_succeeds(client, session_factory):
     """P-15-1: POST with receta + batches=10 returns 200 with calc results."""
-    from tests.factories import make_recipe, make_ingredient, ing_line
+    from tests.factories import ing_line, make_ingredient, make_recipe
 
     with session_factory() as s:
         ing = make_ingredient(s, name=f"Harina-P15-{__import__('uuid').uuid4().hex[:6]}", stock_qty=50.0)
@@ -64,7 +63,7 @@ def test_planner_compute_succeeds(client, session_factory):
 
 def test_planner_compute_invalid_batches_redirects(client, session_factory):
     """P-15-5: POST with batches=0 redirects back to planner (router handles gracefully)."""
-    from tests.factories import make_recipe, make_ingredient, ing_line
+    from tests.factories import ing_line, make_ingredient, make_recipe
 
     with session_factory() as s:
         ing = make_ingredient(s, name=f"Harina-P15b-{__import__('uuid').uuid4().hex[:6]}")

@@ -109,7 +109,7 @@ def _start_pg_container() -> str | None:
     _PG_URL = raw_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
     # Stash container for cleanup.
-    _PG_URL_CONTAINER = container  # noqa: F841 — kept alive by the closure
+    _PG_URL_CONTAINER = container
     pytest._pg_container = container  # type: ignore[attr-defined]
     return _PG_URL
 

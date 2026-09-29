@@ -1,8 +1,6 @@
 """A11y (accessibility) form tests."""
 from __future__ import annotations
 
-import pytest
-
 
 def test_login_form_has_labels(client):
     """Login form inputs must have <label> or aria-label."""
@@ -22,7 +20,7 @@ def test_login_form_has_aria_live_region(client):
     # Look for aria-live in error flash messages (login template)
     # This is optional - just verify the page is parseable
     assert 'role="alert"' in r.text or 'aria-live' in r.text or 'declaracion' in r.text.lower(), (
-        f"Login page missing accessibility features"
+        "Login page missing accessibility features"
     )
 
 
@@ -49,7 +47,7 @@ def test_aria_haspopup_on_nav_dropdown(client):
     assert r.status_code == 200
     # Just verify HTML is parseable; specific a11y is in templates
     assert "aria-haspopup" in r.text or 'role="menu"' in r.text or "nav" in r.text.lower(), (
-        f"Nav missing a11y markers"
+        "Nav missing a11y markers"
     )
 
 

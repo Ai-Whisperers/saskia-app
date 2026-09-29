@@ -87,7 +87,7 @@ def test_ingredient_overlap_count():
 
 def test_product_ingredient_set_basic(session_factory):
     with session_factory() as s:
-        products, recipes = _setup_three_products(s)
+        products, _recipes = _setup_three_products(s)
         p1 = products["P1"]
         ing_set = product_ingredient_set(s, p1)
         assert len(ing_set) == 4
@@ -247,7 +247,7 @@ def test_find_clones_detects_high_sim(session_factory):
 
 def test_find_clones_high_threshold_excludes_partial(session_factory):
     with session_factory() as s:
-        products, _ = _setup_three_products(s)
+        _products, _ = _setup_three_products(s)
         clones = find_clones(s, threshold=0.9)
         # 0.6 < 0.9 → no clones detected.
         assert clones == []
@@ -255,7 +255,7 @@ def test_find_clones_high_threshold_excludes_partial(session_factory):
 
 def test_find_clones_includes_similarity_score(session_factory):
     with session_factory() as s:
-        products, _ = _setup_three_products(s)
+        _products, _ = _setup_three_products(s)
         clones = find_clones(s, threshold=0.5)
         # Each tuple has (product_a, product_b, similarity).
         assert len(clones) >= 1

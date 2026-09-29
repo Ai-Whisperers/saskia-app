@@ -15,7 +15,6 @@ Usage in a router:
 from __future__ import annotations
 
 from fastapi import Request
-from sqlalchemy.orm import Session
 
 
 def get_session(request: Request):
@@ -65,4 +64,4 @@ def get_app_state(request: Request):
     return request.app.state
 
 
-__all__ = ["get_session", "get_app_state"]
+__all__ = ["get_app_state", "get_session"]

@@ -22,8 +22,8 @@ from sqlalchemy.orm import Session
 
 from app.rms.models import (
     Ingredient,
-    Recipe,
     Product,
+    Recipe,
     RecipeLine,
     Sale,
 )
@@ -245,7 +245,7 @@ def plan_production(
 
 # --- PRO-01: Weekly repeating template + per-date overrides ---
 
-from app.rms.models import ProductionPlanTemplate, ProductionPlanOverride
+from app.rms.models import ProductionPlanOverride, ProductionPlanTemplate
 
 
 def get_weekly_template(session: Session) -> dict[int, dict[int, float]]:
@@ -349,13 +349,13 @@ def upsert_override(
 
 
 __all__ = [
-    "ProductionRow",
     "ProductionLine",
     "ProductionPlan",
+    "ProductionRow",
     "forecast_sales",
-    "plan_production",
-    "get_weekly_template",
     "get_overrides_for_date",
-    "upsert_template_row",
+    "get_weekly_template",
+    "plan_production",
     "upsert_override",
+    "upsert_template_row",
 ]

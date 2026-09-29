@@ -6,23 +6,23 @@ This module provides standardized response formats and contracts
 to ensure consistency across all API endpoints.
 """
 
-from typing import Any, Generic, List, Optional, TypeVar
-from pydantic import BaseModel, Field
 from datetime import datetime
+from typing import Any, Generic, List, Optional, TypeVar
 
+from pydantic import BaseModel, Field
 
 T = TypeVar("T")
 
 
 class APIResponse(BaseModel, Generic[T]):
     """Standard API response format."""
-    
+
     success: bool = True
     data: Optional[T] = None
     message: str = "Operation successful"
     timestamp: datetime = Field(default_factory=datetime.now)
     request_id: Optional[str] = None
-    
+
     class Config:
         json_encoders = {
             datetime: lambda v: v.isoformat()
@@ -31,7 +31,7 @@ class APIResponse(BaseModel, Generic[T]):
 
 class APIError(BaseModel):
     """Standard API error format."""
-    
+
     success: bool = False
     error: str
     message: str
@@ -39,7 +39,7 @@ class APIError(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.now)
     request_id: Optional[str] = None
     details: Optional[dict] = None
-    
+
     class Config:
         json_encoders = {
             datetime: lambda v: v.isoformat()
@@ -48,13 +48,13 @@ class APIError(BaseModel):
 
 class PaginatedResponse(BaseModel, Generic[T]):
     """Standard paginated response format."""
-    
+
     success: bool = True
     data: List[T]
     pagination: dict = Field(default_factory=dict)
     timestamp: datetime = Field(default_factory=datetime.now)
     request_id: Optional[str] = None
-    
+
     @classmethod
     def create(
         cls,
@@ -64,10 +64,10 @@ class PaginatedResponse(BaseModel, Generic[T]):
         total: Optional[int] = None
     ) -> "PaginatedResponse[T]":
         """Create a paginated response with metadata."""
-        
+
         if total is None:
             total = len(data)
-        
+
         pagination = {
             "page": page,
             "per_page": per_page,
@@ -76,7 +76,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
             "has_next": page < (total + per_page - 1) // per_page,
             "has_prev": page > 1,
         }
-        
+
         return cls(
             data=data,
             pagination=pagination,
@@ -86,7 +86,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
 # Common error types
 class ErrorCode:
     """Common error codes for API responses."""
-    
+
     VALIDATION_ERROR = "VALIDATION_ERROR"
     NOT_FOUND = "NOT_FOUND"
     UNAUTHORIZED = "UNAUTHORIZED"
@@ -105,7 +105,7 @@ def create_error(
     request_id: Optional[str] = None
 ) -> APIError:
     """Create a standardized API error response."""
-    
+
     return APIError(
         error=error,
         message=message,
@@ -121,7 +121,7 @@ def create_response(
     request_id: Optional[str] = None
 ) -> APIResponse:
     """Create a standardized API response."""
-    
+
     return APIResponse(
         data=data,
         message=message,

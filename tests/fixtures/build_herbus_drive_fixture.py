@@ -194,7 +194,7 @@ def build(path: Path) -> None:
     # import_xlsx reads by header-name not position; an unknown column simply
     # is not referenced. This mirrors what happens when Saskia adds her own
     # columns in Google Drive.
-    ing.append(INGREDIENT_HEADER + ["categoría"])
+    ing.append([*INGREDIENT_HEADER, "categoría"])
     for row in INGREDIENTS:
         ing.append(
             [
@@ -224,7 +224,7 @@ def build(path: Path) -> None:
     # --- Productos ----------------------------------------------------------
     prod = wb.create_sheet("Productos")
     # Drive-shape: extra "categoría" column on Productos. Importer ignores.
-    prod.append(PRODUCT_HEADER + ["categoría"])
+    prod.append([*PRODUCT_HEADER, "categoría"])
     for p in PRODUCTS:
         prod.append(
             [

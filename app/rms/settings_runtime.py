@@ -21,7 +21,6 @@ from sqlalchemy.orm import Session
 
 from app.rms.models import SettingsKV
 
-
 # Pricing defaults (legacy hardcoded values)
 DEFAULT_PRICING_MARKUP = {"multiplier": 3.0, "round_to_gs": 1000}
 
@@ -110,7 +109,7 @@ def compute_suggested_price(cost_gs: int, markup_cfg: dict | None = None) -> int
     mult = float(markup_cfg.get("multiplier", 3.0))
     rnd = int(markup_cfg.get("round_to_gs", 1000))
     if rnd <= 0:
-        return int(round(cost_gs * mult))
+        return round(cost_gs * mult)
     # Round up to the nearest round_to_gs step (mirrors Math.ceil behavior in JS)
     import math
     return int(math.ceil(cost_gs * mult / rnd) * rnd)
@@ -170,14 +169,14 @@ def set_branding(session, **fields) -> dict:
 
 
 __all__ = [
-    "DEFAULT_PRICING_MARKUP",
     "DEFAULT_BRANDING",
-    "settings_get",
-    "settings_set",
-    "get_pricing_markup",
-    "set_pricing_markup",
+    "DEFAULT_PRICING_MARKUP",
     "compute_suggested_price",
     "get_branding",
+    "get_pricing_markup",
     "set_branding",
+    "set_pricing_markup",
+    "settings_get",
+    "settings_set",
 ]
 

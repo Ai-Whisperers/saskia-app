@@ -15,9 +15,6 @@ The actual atomic fix is tracked separately.
 """
 from __future__ import annotations
 
-import pytest
-
-
 # ─── Existing behavior lock-in (RED for the proper fix) ──────────────────────
 
 
@@ -51,7 +48,7 @@ def test_is_write_rate_limited_counts_audit_rows(session_factory):
     with session_factory() as s:
         # Limit=5, count=3 → allowed
         result = is_write_rate_limited(s, req, max_per_minute=5, now=when)
-    assert result is False, f"expected allowed, got limited (count=3, limit=5)"
+    assert result is False, "expected allowed, got limited (count=3, limit=5)"
 
 
 def test_is_write_rate_limited_blocks_at_limit(session_factory):
@@ -82,7 +79,7 @@ def test_is_write_rate_limited_blocks_at_limit(session_factory):
     with session_factory() as s:
         # Limit=5, count=5 → blocked
         result = is_write_rate_limited(s, req, max_per_minute=5, now=when)
-    assert result is True, f"expected blocked, got allowed (count=5, limit=5)"
+    assert result is True, "expected blocked, got allowed (count=5, limit=5)"
 
 
 # ─── Documentation: the race itself ─────────────────────────────────────────

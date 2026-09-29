@@ -23,7 +23,6 @@ and PASS after.
 from __future__ import annotations
 
 import uuid
-
 from html.parser import HTMLParser
 
 from sqlalchemy.orm import sessionmaker
@@ -91,7 +90,7 @@ def test_reorder_template_renders_valid_html(client, session_factory):
             super().__init__()
             self.errors: list[str] = []
 
-        def error(self, message):  # noqa: D401
+        def error(self, message):
             self.errors.append(message)
 
     p = StrictParser()

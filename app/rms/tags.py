@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from decimal import Decimal
 from enum import Enum
 
 from sqlalchemy import select
@@ -39,7 +40,6 @@ from app.rms.models import (
     TagLink,
 )
 from app.rms.money import to_int_gs
-from decimal import Decimal
 
 # --- Tag kinds ---
 
@@ -320,7 +320,7 @@ def filter_inventory(session: Session, f: InventoryFilter) -> list[Ingredient]:
     if f.stock_status:
         # Phase 7 — thresholds come from stock_status_config table (with
         # DEFAULT_* constants fallback). See app/rms/stock_status.py.
-        from app.rms.stock_status import get_thresholds, categorize
+        from app.rms.stock_status import categorize, get_thresholds
 
         thresholds = get_thresholds(session)
         out: list[Ingredient] = []
@@ -395,21 +395,21 @@ def filter_products(session: Session, f: ProductFilter) -> list[Product]:
 
 
 __all__ = [
-    "TagKind",
     "STARTER_TAGS",
-    "ensure_tag",
+    "InventoryFilter",
+    "ProductFilter",
+    "RecipeFilter",
+    "SalesFilter",
+    "TagKind",
     "ensure_starter_tags",
+    "ensure_tag",
+    "filter_inventory",
+    "filter_products",
+    "filter_recipes",
+    "filter_sales",
     "list_tags_for_kind",
     "tag_target",
-    "untag_target",
     "tags_for_target",
     "targets_with_tag",
-    "SalesFilter",
-    "InventoryFilter",
-    "RecipeFilter",
-    "ProductFilter",
-    "filter_sales",
-    "filter_inventory",
-    "filter_recipes",
-    "filter_products",
+    "untag_target",
 ]

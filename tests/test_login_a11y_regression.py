@@ -10,8 +10,9 @@ These tests pin the fixes so they don't regress.
 
 from __future__ import annotations
 
-import pytest
 import re
+
+import pytest
 
 
 def test_login_error_renders_alert_error_class(client):

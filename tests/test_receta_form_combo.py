@@ -1,6 +1,5 @@
 """Tests for the recipe form combobox conversion (category picker + line items)."""
 
-import pytest
 
 
 def test_receta_form_category_uses_combobox(qseed, authed_client):

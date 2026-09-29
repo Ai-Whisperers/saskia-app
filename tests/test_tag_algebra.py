@@ -12,8 +12,6 @@ The core semantics under test:
 
 from __future__ import annotations
 
-import pytest
-
 from app.rms.models import Ingredient, Product, Recipe, RecipeLine
 from app.rms.tag_algebra import (
     cascade_refresh,
@@ -155,13 +153,13 @@ def test_walk_resolves_nested_subrecipes(session_factory):
 
 def test_cycle_guard_cuts_and_reports(session_factory):
     with session_factory() as s:
-        a = _ing(s, "Ing X", dietary=None)
+        _ing(s, "Ing X", dietary=None)
         r1 = _recipe(s, "Ciclo A", [])
         r2 = _recipe(s, "Ciclo B", [("sub_recipe", r1.id, 1)])
         # force A → B (cycle A→B→A)
         s.add(RecipeLine(recipe_id=r1.id, line_kind="sub_recipe", line_ref_id=r2.id, qty=1))
         s.commit()
-        targets, cycles = walk_recipe_tree(s, r1.id)
+        _targets, cycles = walk_recipe_tree(s, r1.id)
         # must terminate, not RecursionError
         assert isinstance(cycles, list)
 

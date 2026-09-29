@@ -17,7 +17,7 @@ from openpyxl import Workbook
 
 pytestmark = pytest.mark.browser
 
-from .pages import DashboardPage, ExcelPage, Page
+from .pages import DashboardPage, ExcelPage
 
 
 def _register_sale(page, product_select_value: str | None = None):

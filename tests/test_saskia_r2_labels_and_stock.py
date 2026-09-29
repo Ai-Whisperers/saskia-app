@@ -15,7 +15,6 @@ name="category" / name="unit", causing duplicate-name form submissions.
 These tests assert that only the hidden input carries the submit name.
 """
 
-import pytest
 
 
 def test_inventario_form_category_combo_supports_on_the_fly_create(authed_client):

@@ -3,21 +3,21 @@ price cascade, demand, freshness, substitutions."""
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from app.rms.config import ASUNCION_TZ
-from app.rms.derived_intel import (
-    check_customer_risk,
-    parse_customer_allergies,
-    price_change_impact,
-    theoretical_vs_actual,
-)
 from app.rms.demand_freshness import (
     cook_today_suggestions,
     forecast_demand,
     freshness_flags,
     shopping_list_from_forecast,
     substitutes_for,
+)
+from app.rms.derived_intel import (
+    check_customer_risk,
+    parse_customer_allergies,
+    price_change_impact,
+    theoretical_vs_actual,
 )
 from app.rms.models import (
     Customer,

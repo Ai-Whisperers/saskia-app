@@ -132,7 +132,7 @@ def list_status_configs(session: Session, include_inactive: bool = False) -> lis
 
 __all__ = [
     "Threshold",
-    "get_thresholds",
     "categorize",
+    "get_thresholds",
     "list_status_configs",
 ]

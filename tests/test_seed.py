@@ -113,7 +113,7 @@ def test_seed_overwrite_resets_data(session_factory):
     try:
         # Seed once
         seed_demo_data(session, seed=42)
-        pass  # report1 not needed - we just need the seed to populate
+        # report1 not needed - we just need the seed to populate
 
         # Wipe and reseed with different seed
         report2 = seed_demo_data(session, overwrite=True, seed=99)

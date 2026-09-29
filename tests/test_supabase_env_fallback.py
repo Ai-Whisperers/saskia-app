@@ -11,6 +11,7 @@ def test_supabase_disabled_when_env_missing(monkeypatch):
         monkeypatch.delenv(var, raising=False)
 
     import importlib
+
     from app import auth_supabase
     importlib.reload(auth_supabase)
 
@@ -26,6 +27,7 @@ def test_supabase_enabled_when_all_env_set(monkeypatch):
     monkeypatch.setenv("SUPABASE_SECRET_KEY", "fake-secret-key")
 
     import importlib
+
     from app import auth_supabase
     importlib.reload(auth_supabase)
 
@@ -41,7 +43,8 @@ def test_login_falls_back_to_local_when_supabase_disabled(monkeypatch, client):
 
     # Reload modules to pick up env changes
     import importlib
-    from app import auth_supabase, auth
+
+    from app import auth, auth_supabase
     importlib.reload(auth_supabase)
     importlib.reload(auth)
 

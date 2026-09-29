@@ -302,10 +302,10 @@ __all__ = [
     "BACKUP_TABLES",
     "BackupManifest",
     "BackupPruneResult",
-    "dump_full_state",
     "backup_database",
+    "dump_full_state",
     "load_archive",
-    "verify_backup",
-    "restore_database",
     "prune_old_backups",
+    "restore_database",
+    "verify_backup",
 ]

@@ -110,7 +110,7 @@ def batch_production_plans(
     plans = []
     for p in products:
         velocity = velocities.get(p.id, 0.0)
-        target = max(1, int(round(velocity * (1 + safety_pct))))
+        target = max(1, round(velocity * (1 + safety_pct)))
         yield_per_batch = max(1, _recipe_yield(session, p))
         batches = max(1, -(-target // yield_per_batch))
         reason = (
@@ -159,7 +159,7 @@ def production_plan_for_day(session: Session, product: Product,
     Rounded up to integer.
     """
     velocity = expected_daily_sales(session, product.id)
-    target = max(1, int(round(velocity * (1 + safety_pct))))
+    target = max(1, round(velocity * (1 + safety_pct)))
     # Determine yield_per_batch from product recipe yield_qty (10 default).
     yield_per_batch = max(1, _recipe_yield(session, product))
     batches = max(1, -(-target // yield_per_batch))  # ceil div
@@ -214,7 +214,7 @@ def production_calendar(session: Session,
         for p in session.scalars(select(Product)).all():
             base = expected_daily_sales(session, p.id)
             adj_velocity = base * mult
-            target = max(1, int(round(adj_velocity * (1 + safety_pct))))
+            target = max(1, round(adj_velocity * (1 + safety_pct)))
             yield_per_batch = max(1, _recipe_yield(session, p))
             batches = max(1, -(-target // yield_per_batch))
             plans.append(ProductionPlan(

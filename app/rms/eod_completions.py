@@ -72,4 +72,4 @@ def completions_for_date(
     return {r.product_id: r.completed_qty for r in rows}
 
 
-__all__ = ["upsert_completion", "completions_for_date"]
+__all__ = ["completions_for_date", "upsert_completion"]

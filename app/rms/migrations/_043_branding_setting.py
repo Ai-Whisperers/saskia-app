@@ -20,6 +20,6 @@ def _migration_043_branding_setting(conn):
         "accent_color": "#f97316",
         "logo_path": "",
     }
-    from app.rms.db import app_meta_write, _bump_schema_version
+    from app.rms.db import _bump_schema_version, app_meta_write
     app_meta_write(conn, "branding", _json.dumps(branding))
     _bump_schema_version(conn, 43)

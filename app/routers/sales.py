@@ -8,14 +8,20 @@ from __future__ import annotations
 import math
 import uuid
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
-from fastapi import Query
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import require_login_or_disabled as require_login
+from app.rms.catalogs import (
+    default_channel_code,
+    default_payment_method_code,
+    list_channels,
+    list_payment_methods,
+)
 from app.rms.config import ASUNCION_TZ
 from app.rms.costing import RecipeWithoutYield, apply_sale, void_sale
 from app.rms.db import safe_commit
@@ -24,12 +30,10 @@ from app.rms.errors import BadRequest, Conflict, NotFound, ValidationError
 from app.rms.messages import (
     SALE_BODY_INVALID,
     SALE_CUSTOMER_NOT_FOUND,
-    SALE_DELETED,
     SALE_DISCOUNT_TOO_HIGH,
     SALE_INVALID_CHANNEL,
     SALE_INVALID_DATE,
     SALE_INVALID_PAYMENT_METHOD,
-    SALE_NOT_FOUND,
     SALE_PRODUCT_OR_SKU_REQUIRED,
     SALE_QTY_TOO_HIGH,
     SALE_RATE_LIMITED,
@@ -38,17 +42,15 @@ from app.rms.messages import (
     SALE_TOO_MANY_ITEMS,
 )
 from app.rms.models import Customer, Product, Sale
-from app.rms.catalogs import list_channels, list_payment_methods, default_channel_code, default_payment_method_code
+from app.rms.money import to_int_gs
 from app.rms.schemas import (
     ALLOWED_CHANNELS,
-    CHANNELS_DISPLAY,
     CHANNEL_DEFAULT,
-    PAYMENT_METHODS_DISPLAY,
+    CHANNELS_DISPLAY,
     PAYMENT_METHOD_DEFAULT,
+    PAYMENT_METHODS_DISPLAY,
 )
 from app.services.template_render import render
-from app.rms.money import to_int_gs
-from decimal import Decimal
 
 router = APIRouter(prefix="/ventas", dependencies=[Depends(require_login)])
 
@@ -612,8 +614,8 @@ async def sale_create(
     # Phase 1.B — Compute fiscal invoice fields BEFORE apply_sale so we can
     # pass them as part of the Sale row creation.
     from app.rms.constants import DEFAULT_INVOICE_TYPE, INVOICE_TYPES
-    from app.rms.models import ComplianceInfo, Product as _Product
     from app.rms.invoicing import compute_invoice_snapshot
+    from app.rms.models import Product as _Product
 
     invoice_type_clean = (invoice_type or DEFAULT_INVOICE_TYPE).strip()
     if invoice_type_clean not in INVOICE_TYPES:
@@ -649,6 +651,7 @@ async def sale_create(
     # the primary key — duplicate INSERT raises IntegrityError.
     if idempotency_key:
         from sqlalchemy.exc import IntegrityError
+
         from app.rms.models import AppMeta as _AppMeta
         try:
             session.add(_AppMeta(
@@ -745,6 +748,7 @@ async def sale_create(
     # sees the idem record and aborts via IntegrityError.
     if idempotency_key:
         import json
+
         from app.rms.models import AppMeta as _AppMeta
         request_id = getattr(request.state, "request_id", None) or ""
         payload = json.dumps({
@@ -794,9 +798,8 @@ async def sale_create_multi(
     parent sale only. Each item gets its own SaleStockMove rows via
     repeated apply_sale() calls within one transaction.
     """
-    from fastapi import Body
     from pydantic import BaseModel, Field
-    from app.rms.barcode import get_product_by_sku
+
     from app.rms.schemas import ALLOWED_PAYMENT_METHODS, MAX_DISCOUNT_GS, MAX_QTY
 
     class _Item(BaseModel):
@@ -899,6 +902,7 @@ async def sale_create_multi(
     idempotency_key = body.idempotency_key
     if idempotency_key:
         from sqlalchemy.exc import IntegrityError
+
         from app.rms.models import AppMeta as _AppMeta
         try:
             session.add(_AppMeta(
@@ -989,6 +993,7 @@ async def sale_create_multi(
     # Update idempotency record
     if idempotency_key:
         import json
+
         from app.rms.models import AppMeta as _AppMeta
         request_id = getattr(request.state, "request_id", None) or ""
         session.execute(

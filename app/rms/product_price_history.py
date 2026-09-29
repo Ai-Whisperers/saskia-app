@@ -125,7 +125,7 @@ def margin_drift_all(
         entry = margins.get(product_id)
         current_cost: int | None = None
         if entry is not None:
-            _cost_result, (margin_gs, _ratio) = entry
+            _cost_result, (_margin_gs, _ratio) = entry
             if entry[0].batch_cost_gs is not None:
                 current_cost = int(entry[0].batch_cost_gs)
         first_margin = (int(first_sale) - current_cost) if current_cost is not None else None

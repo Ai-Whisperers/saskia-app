@@ -1,9 +1,9 @@
 """Pedidos bulk endpoints tests."""
 from __future__ import annotations
 
-import pytest
 from datetime import date
-from app.rms.models import Pedido, PedidoLine, Product
+
+from app.rms.models import Pedido
 
 
 def test_pedidos_bulk_fulfill_no_500(authed_client, session_factory):
@@ -36,7 +36,6 @@ def test_pedidos_nuevo_form_loads(authed_client):
 
 def test_pedidos_detail_page_loads(authed_client, session_factory):
     """GET /pedidos/{id} must return 200 for existing pedido."""
-    from app.rms.models import Pedido
 
     with session_factory() as s:
         pedido = Pedido(

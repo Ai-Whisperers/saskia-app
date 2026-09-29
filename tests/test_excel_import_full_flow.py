@@ -1,9 +1,6 @@
 """Excel import/export full flow tests."""
 from __future__ import annotations
 
-import pytest
-from pathlib import Path
-
 
 def test_excel_page_loads(authed_client):
     """GET /excel must return 200."""

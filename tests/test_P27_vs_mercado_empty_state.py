@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import pytest
 
-
 pytestmark = [pytest.mark.smoke]
 
 
@@ -77,7 +76,7 @@ def test_vs_mercado_csv_export_link(client):
     assert r.status_code == 200
     body = r.text
     assert (
-        "format=csv" in body or "vs-mercado" in body and ".csv" in body
+        "format=csv" in body or ("vs-mercado" in body and ".csv" in body)
     ), "Missing CSV export link on /vs-mercado"
 
 

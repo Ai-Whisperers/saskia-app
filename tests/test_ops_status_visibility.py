@@ -1,8 +1,6 @@
 """Ops status visibility tests."""
 from __future__ import annotations
 
-import pytest
-
 
 def test_ops_status_page_loads(authed_client):
     """GET /ops/status must return 200."""

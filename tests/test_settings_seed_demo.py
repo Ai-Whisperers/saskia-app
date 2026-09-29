@@ -83,7 +83,7 @@ def test_seed_demo_overwrite_clears_previous(
     # First seed
     authed_client.post("/settings/seed-demo", data={"overwrite": "0"}, follow_redirects=False)
     with sf() as s:
-        first_count = s.query(Ingredient).count()
+        s.query(Ingredient).count()
 
     # Overwrite
     authed_client.post("/settings/seed-demo", data={"overwrite": "1"}, follow_redirects=False)

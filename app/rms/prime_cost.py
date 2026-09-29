@@ -16,15 +16,15 @@ References:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy.orm import Session
 
-from app.rms.costing import recipe_batch_cost_gs, CostResult
 from app.rms.constants import (
     DEFAULT_LABOR_COST_PER_HOUR_GS,
     DEFAULT_OVERHEAD_MULTIPLIER_PCT,
 )
+from app.rms.costing import recipe_batch_cost_gs
 from app.rms.models import ComplianceInfo, Product, Recipe
 
 

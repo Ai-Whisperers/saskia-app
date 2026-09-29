@@ -8,7 +8,7 @@ from __future__ import annotations
 import pytest
 
 pytestmark = pytest.mark.crud
-from app.rms.models import Recipe, RecipeLine, Ingredient
+from app.rms.models import Ingredient, Recipe, RecipeLine
 
 
 def test_recetas_page_loads(authed_client):
@@ -25,7 +25,6 @@ def test_recetas_nueva_form_loads(authed_client):
 
 def test_recipe_with_ingredient_line(authed_client, session_factory):
     """Create recipe with line_kind='ingredient'. Must roundtrip."""
-    from app.rms.models import Recipe, RecipeLine, Ingredient
 
     with session_factory() as s:
         ing = Ingredient(
@@ -66,7 +65,6 @@ def test_recipe_with_ingredient_line(authed_client, session_factory):
 
 def test_recipe_with_sub_recipe_line(authed_client, session_factory):
     """Create recipe with line_kind='sub_recipe' (recursive)."""
-    from app.rms.models import Recipe, RecipeLine
 
     with session_factory() as s:
         # Create sub-recipe
@@ -99,7 +97,6 @@ def test_recipe_with_sub_recipe_line(authed_client, session_factory):
 
 def test_recipe_detail_page_shows_cost(authed_client, session_factory):
     """GET /recetas/{id} must render batch_cost + unit_cost."""
-    from app.rms.models import Recipe, RecipeLine, Ingredient
 
     with session_factory() as s:
         ing = Ingredient(
@@ -133,10 +130,6 @@ def test_recipe_detail_page_shows_cost(authed_client, session_factory):
 
 def test_recipe_yield_qty_validation(session_factory):
     """Recipe.yield_qty is OPTIONAL (nullable=True). Sales are rejected when NULL."""
-    from app.rms.models import Recipe
-    from app.rms.costing import apply_sale
-    from app.rms.models import Product
-    from datetime import datetime, timezone
 
     with session_factory() as s:
         # Recipe without yield_qty should succeed (NULL is allowed)
@@ -151,7 +144,6 @@ def test_recipe_yield_qty_validation(session_factory):
 
 def test_recipe_line_kind_validation(session_factory):
     """RecipeLine.line_kind must be 'ingredient' or 'sub_recipe' (Polymorphic)."""
-    from app.rms.models import Recipe, RecipeLine, Ingredient
     with session_factory() as s:
         ing = Ingredient(name="VK Test Ing", unit="kg", stock_qty=10.0, min_stock_qty=1.0)
         s.add(ing)

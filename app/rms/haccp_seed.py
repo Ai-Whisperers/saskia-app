@@ -33,7 +33,6 @@ from sqlalchemy.orm import Session
 
 from app.rms.models import Ingredient
 
-
 # Defaults by category. Tweak as the operator audits each ingredient.
 # Tuple order: (temp_min_c, temp_max_c, humidity_max_pct, water_activity_aw, lot_required)
 CATEGORY_HACCP: dict[str, tuple[float | None, float | None, float | None, float | None, bool]] = {

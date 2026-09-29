@@ -15,16 +15,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from enum import Enum
 
+from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.rms.models import Ingredient, Recipe, StockMovement, WasteLog
-from app.rms.units import Unit, can_convert, convert_qty
 from app.rms.money import to_int_gs
-from decimal import Decimal
-from fastapi import HTTPException
+from app.rms.units import Unit, can_convert, convert_qty
 
 
 class WasteReason(str, Enum):
@@ -326,12 +326,12 @@ def record_recipe_waste(
 
 
 __all__ = [
-    "WasteReason",
-    "WasteImpact",
     "RecipeWasteResult",
-    "record_waste",
-    "record_recipe_waste",
+    "WasteImpact",
+    "WasteReason",
     "list_waste",
-    "waste_impact",
+    "record_recipe_waste",
+    "record_waste",
     "waste_as_pct_of_revenue",
+    "waste_impact",
 ]

@@ -34,7 +34,6 @@ from app.rms.models import (
     Ingredient,
     Product,
     Recipe,
-    RecipeLine,
     Sale,
     SaleStockMove,
     WasteLog,
@@ -135,8 +134,8 @@ def theoretical_vs_actual(
     updates this drift is small; historical per-sale costing needs
     sale_stock_move.cost_gs which is out of scope here.
     """
-    from app.rms.costing import batch_products_cost_margin
     from app.rms.config import ASUNCION_TZ
+    from app.rms.costing import batch_products_cost_margin
 
     cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
 
@@ -282,9 +281,9 @@ __all__ = [
     "AllergenRisk",
     "FoodCostVariance",
     "PriceImpact",
-    "parse_customer_allergies",
-    "product_allergens",
     "check_customer_risk",
-    "theoretical_vs_actual",
+    "parse_customer_allergies",
     "price_change_impact",
+    "product_allergens",
+    "theoretical_vs_actual",
 ]

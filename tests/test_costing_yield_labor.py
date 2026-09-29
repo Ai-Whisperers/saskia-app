@@ -14,7 +14,6 @@ from __future__ import annotations
 from app.rms.costing import recipe_unit_cost_gs
 from app.rms.models import ComplianceInfo, Ingredient, Recipe, RecipeLine
 
-
 _SEQ = [0]
 
 
@@ -41,7 +40,7 @@ def test_null_yield_backward_compatible(session_factory):
         r = _setup_recipe(s, price=1000, qty=1000, yield_qty=10)
         # batch = 1000 g... wait: qty in line units (g) vs price per unit base.
         # price is per unit; line qty g → batch = 1000 × price-per-g? No:
-        # purchase_price_gs is per Ingredient.unit (g here) → batch = 1000 × 1000? 
+        # purchase_price_gs is per Ingredient.unit (g here) → batch = 1000 × 1000?
         # Keep the test relative instead of absolute.
         res = recipe_unit_cost_gs(s, r.id)
         assert res.batch_cost_gs is not None
@@ -55,6 +54,7 @@ def test_null_yield_backward_compatible(session_factory):
 
 def _old_formula(batch, yield_qty):
     from decimal import Decimal
+
     from app.rms.money import to_int_gs
     return to_int_gs(Decimal(str(batch)) / Decimal(str(yield_qty)))
 

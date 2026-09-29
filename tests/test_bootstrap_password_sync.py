@@ -4,10 +4,7 @@ Validates the idempotent first-boot behavior in app/rms/bootstrap.py.
 """
 from __future__ import annotations
 
-import os
 from datetime import datetime, timezone
-
-import pytest
 
 from app.rms.models import User
 
@@ -93,10 +90,10 @@ def test_no_op_when_env_var_matches_existing_hash(session_factory, monkeypatch):
         session.add(_make_user("admin", "stable-password"))
         session.commit()
         monkeypatch.setenv("SASKIA_ADMIN_PASSWORD", "stable-password")
-        original_hash = session.query(User).filter_by(username="admin").one().password_hash
+        session.query(User).filter_by(username="admin").one().password_hash
         run_password_sync(session)
         session.commit()
-        new_hash = session.query(User).filter_by(username="admin").one().password_hash
+        session.query(User).filter_by(username="admin").one().password_hash
         # bcrypt produces same hash for same input + same salt, but salt is random
         # so the test is: check_password still True.
         user = session.query(User).filter_by(username="admin").one()

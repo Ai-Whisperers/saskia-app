@@ -1,16 +1,22 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
-    Boolean, CheckConstraint, Date, DateTime, Float, JSON,
-    ForeignKey, Index, Integer, String, Text, UniqueConstraint,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.rms.models.core import Base
-
 
 """
 app/rms/models/inventory.py — Inventory + recipe + product catalog: Ingredient, Recipe, RecipeLine, Product, IngredientPriceEvent, PriceHistory.

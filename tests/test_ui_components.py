@@ -19,7 +19,6 @@ import urllib.request
 
 import pytest
 
-
 SERVER_URL = os.environ.get("SASKIA_TEST_URL", "http://127.0.0.1:8765")
 
 
@@ -278,7 +277,7 @@ def test_skeleton_present_on_slow_pages(client):
 
 def test_skeleton_macro_in_atoms(client):
     """ui.skeleton_section / ui.loading_state must be defined in atoms.html."""
-    rsp = client.get("/static/app.js")  # ensure server is up
+    client.get("/static/app.js")  # ensure server is up
     # Read atoms.html directly via the macro source
     import subprocess
     result = subprocess.run(

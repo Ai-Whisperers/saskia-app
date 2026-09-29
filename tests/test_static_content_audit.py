@@ -17,7 +17,6 @@ import pytest
 from app.rms import settings_runtime as sr
 from app.rms.db import CURRENT_SCHEMA_VERSION, init_db
 
-
 # ── Fixtures ───────────────────────────────────────────────────────
 # Re-uses fixtures from tests/conftest.py:
 #   - tmp_db_path: fresh temp SQLite file per test
@@ -358,7 +357,6 @@ def test_constants_module_has_required_values():
         DEFAULT_LABOR_COST_PER_HOUR_GS,
         DEFAULT_OVERHEAD_MULTIPLIER_PCT,
         DEFAULT_TAX_REGIME,
-        DEFAULT_YIELD_PERCENTAGE,
         INVOICE_TYPES,
         VALID_IVA_RATES,
         VALID_TAX_REGIMES,

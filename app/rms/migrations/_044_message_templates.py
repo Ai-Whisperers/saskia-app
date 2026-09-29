@@ -15,7 +15,7 @@ def _migration_044_message_templates(conn):
 
     Idempotent: INSERT OR IGNORE on (channel, key, locale) unique.
     """
-    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     text_type = "TEXT"
 
     conn.execute(text(
@@ -91,8 +91,8 @@ def _migration_044_message_templates(conn):
     for template in defaults:
         conn.execute(
             text(
-                f"""
-                INSERT OR IGNORE INTO message_template 
+                """
+                INSERT OR IGNORE INTO message_template
                 (channel, key, subject, body, locale, is_active, version)
                 VALUES (:channel, :key, :subject, :body, :locale, 1, 1)
                 """

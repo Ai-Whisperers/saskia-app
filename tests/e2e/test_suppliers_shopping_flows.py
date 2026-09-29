@@ -148,7 +148,7 @@ def test_supplier_ingredient_linkage_shows_on_page(client, session_factory):
         sup = make_supplier(s)
         ing = make_ingredient(s, supplier_id=sup.id)
         s.commit()
-        sid, ing_name = sup.id, ing.name
+        sid, _ing_name = sup.id, ing.name
 
     r = client.get(f"/suppliers/{sid}/ordenes")
     assert r.status_code == 200

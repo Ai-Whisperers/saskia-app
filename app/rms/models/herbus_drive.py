@@ -4,13 +4,20 @@ from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy import (
-    Boolean, CheckConstraint, Date, DateTime, Float, JSON,
-    ForeignKey, Index, Integer, String, Text, UniqueConstraint,
+    Boolean,
+    CheckConstraint,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.rms.models.core import Base
-
 
 """
 app/rms/models/herbus_drive.py — Operational / HEREBUS-imported tables: WishlistItem, RiskItem, MarketBenchmark, BankTransaction, ComplianceInfo, MarketPriceReference.
@@ -206,42 +213,42 @@ class ComplianceInfo(Base):
 
 
 __all__ = [
-    "Base",
     "AppMeta",
     "AuditLog",
+    "BankTransaction",
+    "Base",
+    "ComplianceInfo",
+    "Customer",
+    # HEREBUS Drive integration — migration 029
+    "DeliveryZone",
+    "ImportBatch",
     "Ingredient",
     "IngredientPriceEvent",
+    "MarketBenchmark",
+    "Pedido",
+    "PedidoLine",
+    "PriceHistory",
+    "Product",
+    "ProductionCompletion",
+    "ProductionPlan",
+    "ProductionPlanOverride",
+    "ProductionPlanTemplate",
     "Recipe",
     "RecipeLine",
-    "Product",
+    "RecipePricing",
+    "RiskItem",
     "Sale",
     "SaleStockMove",
-    "ImportBatch",
-    "User",
+    "SettingsKV",
+    "ShoppingListItem",
+    "StockMovement",
+    "Supplier",
     "Tag",
     "TagLink",
     "Tenant",
-    "Customer",
+    "User",
     "WasteLog",
-    "Pedido",
-    "PedidoLine",
-    "StockMovement",
-    "Supplier",
-    "ProductionCompletion",
-    "ProductionPlanTemplate",
-    "ProductionPlanOverride",
-    # HEREBUS Drive integration — migration 029
-    "DeliveryZone",
     "WishlistItem",
-    "RiskItem",
-    "RecipePricing",
-    "PriceHistory",
-    "ProductionPlan",
-    "ShoppingListItem",
-    "MarketBenchmark",
-    "BankTransaction",
-    "SettingsKV",
-    "ComplianceInfo",
 ]
 
 class MarketPriceReference(Base):

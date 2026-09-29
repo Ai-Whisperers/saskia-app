@@ -54,11 +54,8 @@ def pw_page(browser, request):
     from app.rms.db import make_session_factory
     from app.rms.main import app as fastapi_app
     from tests.factories import (
-        ing_line,
         make_catalog,
         make_customer,
-        make_ingredient,
-        make_pedido,
         make_product,
     )
 

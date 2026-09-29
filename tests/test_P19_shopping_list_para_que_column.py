@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import pytest
 
-
 pytestmark = [pytest.mark.smoke]
 
 
@@ -45,7 +44,7 @@ def test_shopping_list_has_para_que_column(client, session_factory):
 
     Insert a real item so the table renders and the header is visible.
     """
-    from app.rms.models import ShoppingListItem, Ingredient
+    from app.rms.models import Ingredient, ShoppingListItem
     with session_factory() as s:
         ing = s.query(Ingredient).first()
         if ing is None:

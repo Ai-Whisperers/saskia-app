@@ -1,6 +1,7 @@
 """Test the Shopping List + Production Planner pipeline + Benchmark form."""
 
 import json
+
 import pytest
 from fastapi.testclient import TestClient
 

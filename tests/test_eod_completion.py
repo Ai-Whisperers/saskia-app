@@ -35,8 +35,7 @@ def test_upsert_creates_then_updates(session_factory, product_id):
 
     with session_factory() as s:
         from app.rms.models import Product
-        prod = s.execute(select(Product)).scalars().first()
-        pid = prod.id
+        s.execute(select(Product)).scalars().first()
 
     with session_factory() as s:
         upsert_completion(s, product_id=product_id, for_date=date.today(), completed_qty=5.0)
@@ -56,8 +55,7 @@ def test_upsert_rejects_negative(session_factory, product_id):
 
     with session_factory() as s:
         from app.rms.models import Product
-        prod = s.execute(select(Product)).scalars().first()
-        pid = prod.id
+        s.execute(select(Product)).scalars().first()
 
     with session_factory() as s:
         with pytest.raises(ValueError):

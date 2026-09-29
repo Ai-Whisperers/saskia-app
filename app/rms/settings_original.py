@@ -403,14 +403,14 @@ def settings_by_group(session: Session) -> dict[str, list[dict]]:
 
 
 __all__ = [
-    "Setting",
-    "SettingGroup",
     "SETTINGS",
     "VALIDATORS",
+    "Setting",
+    "SettingGroup",
     "get_setting",
     "get_setting_value",
-    "set_setting",
     "list_settings",
     "reset_setting_to_default",
+    "set_setting",
     "settings_by_group",
 ]

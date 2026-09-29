@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import pytest
 
-
 # Full inventory of HTML routes (per SASKIA_TEST_PLAN.md §1.3)
 HTML_ROUTES = [
     "/",

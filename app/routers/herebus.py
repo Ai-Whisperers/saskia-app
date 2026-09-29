@@ -19,7 +19,6 @@ import io
 import json
 from collections import defaultdict
 from datetime import datetime, timezone
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
@@ -33,23 +32,8 @@ from app.rms.errors import (
     BadRequest,
     NotFound,
 )
-from app.rms.messages import (
-    BANK_ADDED,
-    BANK_CATEGORY_UPDATED,
-    BANK_TX_NOT_FOUND,
-    BENCHMARK_NOT_FOUND,
-    BENCHMARK_UPDATED,
-    SHOPPING_LIST_DELETED,
-    SHOPPING_LIST_ITEM_NOT_FOUND,
-    SHOPPING_LIST_PURCHASED,
-    SHOPPING_LIST_UNMARKED,
-    WISHLIST_ITEM_NOT_FOUND,
-    WISHLIST_ITEM_PURCHASED,
-)
-from app.rms.observability import record_audit
 from app.rms.models import (
     BankTransaction,
-    Customer,
     DeliveryZone,
     Ingredient,
     MarketBenchmark,
@@ -61,10 +45,10 @@ from app.rms.models import (
     Sale,
     SettingsKV,
     ShoppingListItem,
-    Supplier,
     WasteLog,
     WishlistItem,
 )
+from app.rms.observability import record_audit
 from app.services.template_render import render
 
 # Stub routers; each is a real prefix-based router for its module
@@ -150,13 +134,13 @@ async def wishlist_send_to_shopping_list(
         return RedirectResponse(url="/wishlist", status_code=303)
     if item.purchased:
         return RedirectResponse(
-            url=f"/wishlist?msg=Ya%20comprado",
+            url="/wishlist?msg=Ya%20comprado",
             status_code=303,
         )
     # Create a shopping list entry for the equipment.
     # Equipment items don't have an Ingredient row, so we create an
     # "[EQUIPMENT] {name}" pseudo-ingredient on the fly.
-    from app.rms.models import ShoppingListItem, Ingredient
+    from app.rms.models import Ingredient, ShoppingListItem
     eq_ing = session.execute(
         select(Ingredient).where(Ingredient.name == f"[EQUIPMENT] {item.name}")
     ).scalars().first()
@@ -387,37 +371,37 @@ async def bank_export_csv(
 ) -> Response:
     """CSV export of bank transactions."""
     query = select(BankTransaction).order_by(BankTransaction.posted_at.desc())
-    
+
     # Apply date range filter if provided
     if start_date:
         try:
             start_dt = datetime.fromisoformat(start_date)
             query = query.where(BankTransaction.posted_at >= start_dt)
-        except (ValueError, TypeError) as exc:  # noqa: BLE001 — bad user input, logged
+        except (ValueError, TypeError) as exc:
             # User-supplied date filter; bad input → just skip the filter.
             logger.debug("herebus start_dt filter dropped: {}", exc)
-            
+
     if end_date:
         try:
             end_dt = datetime.fromisoformat(end_date)
             query = query.where(BankTransaction.posted_at <= end_dt)
-        except (ValueError, TypeError) as exc:  # noqa: BLE001 — bad user input, logged
+        except (ValueError, TypeError) as exc:
             # User-supplied date filter; bad input → just skip the filter.
             logger.debug("herebus start_dt filter dropped: {}", exc)
-    
+
     if category:
         query = query.where(BankTransaction.category == category)
-    
+
     if currency:
         query = query.where(BankTransaction.currency == currency)
-    
+
     transactions = session.execute(query).scalars().all()
-    
+
     # Create CSV
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(["Fecha", "Cuenta", "Importe", "Categoría", "Contraparte", "Descripción"])
-    
+
     for tx in transactions:
         writer.writerow([
             tx.posted_at.strftime("%Y-%m-%d"),
@@ -427,14 +411,14 @@ async def bank_export_csv(
             tx.counterparty_name or "",
             tx.description or ""
         ])
-    
+
     # Create response
     response = Response(
         content=output.getvalue(),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=bank_transactions.csv"}
     )
-    
+
     return response
 
 
@@ -451,23 +435,23 @@ async def bank_reconcile(
     tx = session.execute(
         select(BankTransaction).where(BankTransaction.id == tx_id)
     ).scalar_one_or_none()
-    
+
     if not tx:
         return RedirectResponse(url="/bank", status_code=303)
-    
+
     # Validate with_type
     if with_type not in ("pedido", "gasto", "ingreso"):
         return RedirectResponse(url="/bank", status_code=303)
-    
+
     # Mark as reconciled
     tx.reconciled = True
     tx.reconciled_with_type = with_type
     tx.reconciled_with_id = with_id
     tx.reconciled_at = datetime.now(timezone.utc)
     tx.reconciled_by = "system"  # TODO: get from session
-    
+
     session.commit()
-    
+
     return RedirectResponse(url="/bank", status_code=303)
 
 
@@ -481,19 +465,19 @@ async def bank_unreconcile(
     tx = session.execute(
         select(BankTransaction).where(BankTransaction.id == tx_id)
     ).scalar_one_or_none()
-    
+
     if not tx:
         return RedirectResponse(url="/bank", status_code=303)
-    
+
     # Mark as unreconciled
     tx.reconciled = False
     tx.reconciled_with_type = None
     tx.reconciled_with_id = None
     tx.reconciled_at = None
     tx.reconciled_by = None
-    
+
     session.commit()
-    
+
     return RedirectResponse(url="/bank", status_code=303)
 
 
@@ -510,64 +494,64 @@ def bank_list(
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     query = select(BankTransaction).order_by(BankTransaction.posted_at.desc())
-    
+
     # Apply date range filter if provided
     if start_date:
         try:
             start_dt = datetime.fromisoformat(start_date)
             query = query.where(BankTransaction.posted_at >= start_dt)
-        except (ValueError, TypeError) as exc:  # noqa: BLE001 — bad user input, logged
+        except (ValueError, TypeError) as exc:
             # User-supplied date filter; bad input → just skip the filter.
             logger.debug("herebus start_dt filter dropped: {}", exc)
-            
+
     if end_date:
         try:
             end_dt = datetime.fromisoformat(end_date)
             query = query.where(BankTransaction.posted_at <= end_dt)
-        except (ValueError, TypeError) as exc:  # noqa: BLE001 — bad user input, logged
+        except (ValueError, TypeError) as exc:
             # User-supplied date filter; bad input → just skip the filter.
             logger.debug("herebus start_dt filter dropped: {}", exc)
-    
+
     if category:
         query = query.where(BankTransaction.category == category)
-    
+
     if currency:
         query = query.where(BankTransaction.currency == currency)
-    
+
     # Apply reconciliation filter
     if reconciled == "yes":
-        query = query.where(BankTransaction.reconciled == True)
+        query = query.where(BankTransaction.reconciled)
     elif reconciled == "no":
-        query = query.where(BankTransaction.reconciled == False)
-    
+        query = query.where(not BankTransaction.reconciled)
+
     # Get total count for pagination
     from sqlalchemy import func
     total_count = session.execute(
         select(func.count()).select_from(query.subquery())
     ).scalar() or 0
-    
+
     # Apply pagination
     offset = (page - 1) * per_page
     transactions = session.execute(
         query.limit(per_page).offset(offset)
     ).scalars().all()
-    
+
     # Calculate pagination info
     total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
     has_prev = page > 1
     has_next = page < total_pages
-    
+
     # Get reconciliation stats
     reconciled_count = session.execute(
-        select(func.count()).select_from(BankTransaction).where(BankTransaction.reconciled == True)
+        select(func.count()).select_from(BankTransaction).where(BankTransaction.reconciled)
     ).scalar() or 0
-    
+
     unreconciled_count = session.execute(
-        select(func.count()).select_from(BankTransaction).where(BankTransaction.reconciled == False)
+        select(func.count()).select_from(BankTransaction).where(not BankTransaction.reconciled)
     ).scalar() or 0
 
     # Compute aggregates
-    stats = session.execute(
+    session.execute(
         select(
             BankTransaction.currency,
             BankTransaction.count,
@@ -714,7 +698,7 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
     No data entry required — the dashboard is purely a query view.
     """
     # Revenue this month
-    from datetime import datetime, timedelta
+    from datetime import datetime
     now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
@@ -778,16 +762,15 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
 
     # Shopping list + wishlist + risks KPIs (batched: one query per entity).
     # Total ~6 queries — see test_dashboard_perf.py budget.
+    # Shopping list: count + total estimated ₲ in one query
+    from sqlalchemy import func as sa_func
+
     from app.rms.models import (
-        ProductionPlan,
+        Ingredient,
         RiskItem,
         ShoppingListItem,
         WishlistItem,
     )
-
-    # Shopping list: count + total estimated ₲ in one query
-    from sqlalchemy import func as sa_func
-    from app.rms.models import Ingredient
     sl_agg = session.execute(
         select(
             sa_func.count(ShoppingListItem.id),
@@ -914,7 +897,6 @@ def planner_compute(
     }
 
     results = []
-    total_needed_gs = 0
     total_shortage_gs = 0
 
     for line in lines:
@@ -950,7 +932,7 @@ def planner_compute(
             recipe_id=recipe_id,
             batches_qty=batches,
             planned_at=datetime.now(timezone.utc),
-            notes=f"Created from /produccion-planner form",
+            notes="Created from /produccion-planner form",
         )
         session.add(plan)
         session.flush()
@@ -1028,12 +1010,12 @@ def delivery_zones_api(
 
 
 __all__ = [
-    "wishlist_router",
-    "risks_router",
-    "pricing_router",
     "bank_router",
     "benchmarks_router",
     "dashboard_router",
-    "planner_router",
     "delivery_router",
+    "planner_router",
+    "pricing_router",
+    "risks_router",
+    "wishlist_router",
 ]

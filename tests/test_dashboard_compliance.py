@@ -3,11 +3,8 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-import pytest
-from sqlalchemy import select
-
-from app.routers.dashboard import _compliance_alerts
 from app.rms.models import ComplianceInfo, Product
+from app.routers.dashboard import _compliance_alerts
 
 
 class TestComplianceAlertsEmpty:

@@ -10,9 +10,9 @@ from __future__ import annotations
 import pytest
 
 pytestmark = pytest.mark.smoke
-from datetime import datetime, timezone, timedelta
-from app.rms.models import Product, Sale
+from datetime import datetime, timezone
 
+from app.rms.models import Product, Sale
 
 CSV_ROUTES = [
     "/inventario/export.csv",
@@ -41,7 +41,6 @@ def test_csv_endpoint_returns_csv_content_type(client, route):
 def test_csv_endpoint_returns_nonempty_body_when_data_exists(client, route, session_factory):
     """CSV export with seeded data must return non-empty body."""
     # Seed minimal data so the CSV has at least headers
-    from app.rms.models import Product
     with session_factory() as s:
         # Only add if no products
         existing = s.execute(Product.__table__.select().limit(1)).first()
@@ -66,7 +65,6 @@ def test_csv_endpoint_returns_nonempty_body_when_data_exists(client, route, sess
 
 def test_ventas_export_csv_contains_money_columns(client, session_factory):
     """Ventas CSV must have integer money columns (Gs.)."""
-    from app.rms.models import Product, Sale
     with session_factory() as s:
         p = Product(
             name="CSV Ventas Test",
@@ -98,7 +96,6 @@ def test_ventas_export_csv_contains_money_columns(client, session_factory):
 
 def test_productos_export_csv_includes_headers(client, session_factory):
     """Productos CSV must include header row with column names."""
-    from app.rms.models import Product
     with session_factory() as s:
         p = Product(
             name="CSV Header Test",

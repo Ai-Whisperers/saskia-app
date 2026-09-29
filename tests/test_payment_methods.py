@@ -6,8 +6,6 @@ reject unknown values, and default the form-select to 'efectivo'.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 
 def test_payment_methods_includes_qr():
     """The set must include qr alongside the 4 legacy values."""

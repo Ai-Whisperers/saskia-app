@@ -1,16 +1,13 @@
 """Test migrations registry before and after refactor to pkgutil discovery."""
 
-import sys
-from unittest.mock import patch
 
-import pytest
 
 from app.rms.db import MIGRATIONS, init_db
 
 
 def test_migrations_dict_exists_and_has_at_least_44_entries():
     """Current behavior: MIGRATIONS dict is present and has at least 44 entries.
-    
+
     After refactor: should have exactly 44 entries (since we moved one out).
     """
     assert isinstance(MIGRATIONS, dict)

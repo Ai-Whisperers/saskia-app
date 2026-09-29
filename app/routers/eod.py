@@ -109,6 +109,7 @@ def eod_check_save(
     app_meta).
     """
     from datetime import datetime, timezone
+
     from app.rms.models import AppMeta
 
     today = datetime.now().date().isoformat()

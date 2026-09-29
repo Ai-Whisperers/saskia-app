@@ -29,7 +29,6 @@ from app.rms.models import (
     Recipe,
     RecipeLine,
     Sale,
-    ShoppingListItem,
 )
 
 # ───────────────────────────────────────────────────────────────────────────
@@ -329,11 +328,11 @@ def substitutes_for(
 
 __all__ = [
     "DemandForecast",
-    "forecast_demand",
-    "shopping_list_from_forecast",
     "FreshnessFlag",
-    "freshness_flags",
-    "cook_today_suggestions",
     "SubstituteOption",
+    "cook_today_suggestions",
+    "forecast_demand",
+    "freshness_flags",
+    "shopping_list_from_forecast",
     "substitutes_for",
 ]

@@ -76,6 +76,7 @@ def refresh_market_prices_from_csv(session, csv_path: str, replace: bool = True)
     """
     import csv
     from datetime import date
+
     from app.rms.models import Ingredient, MarketPriceReference
 
     if not os.path.exists(csv_path):

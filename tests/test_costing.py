@@ -12,18 +12,18 @@ Covers:
 """
 
 from __future__ import annotations
-from tests.factories import make_ingredient, make_product
-
-from sqlalchemy import select
 
 import pytest
+from sqlalchemy import select
+
+from tests.factories import make_ingredient, make_product
 
 pytestmark = pytest.mark.analytics
 
 
 def _seed_basic(session_factory):
     """3 ingredients + 1 recipe (Muffin, 12 und) with known prices."""
-    from app.rms.models import Ingredient, Recipe, RecipeLine
+    from app.rms.models import Recipe, RecipeLine
 
     with session_factory() as s:
         flour = make_ingredient(s, name="Harina", unit="kg", stock_qty=2.0, purchase_price_gs=5000)
@@ -64,7 +64,7 @@ def _seed_basic(session_factory):
 
 def _seed_sub_recipe(session_factory):
     """1 base (Masa) + 1 sub-recipe (Muffin uses Masa) + 1 product."""
-    from app.rms.models import Ingredient, Product, Recipe, RecipeLine
+    from app.rms.models import Product, Recipe, RecipeLine
 
     with session_factory() as s:
         flour = make_ingredient(s, name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
@@ -153,7 +153,7 @@ def test_recipe_batch_cost_sub_recipe(session_factory):
 def test_recipe_batch_cost_cycle(session_factory):
     """A uses B uses A → cycle detected, batch_cost_gs=None, cycle_detected=True."""
     from app.rms.costing import recipe_batch_cost_gs
-    from app.rms.models import Ingredient, Recipe, RecipeLine
+    from app.rms.models import Recipe, RecipeLine
 
     with session_factory() as s:
         ing = make_ingredient(s, name="Harina", unit="kg", stock_qty=2.0, purchase_price_gs=5000)
@@ -188,7 +188,7 @@ def test_recipe_batch_cost_cycle(session_factory):
 def test_recipe_batch_cost_missing_price(session_factory):
     """One ingredient has purchase_price_gs=None → batch_cost_gs=None, has_missing=True."""
     from app.rms.costing import recipe_batch_cost_gs
-    from app.rms.models import Ingredient, Recipe, RecipeLine
+    from app.rms.models import Recipe, RecipeLine
 
     with session_factory() as s:
         flour = make_ingredient(s, name="Harina", unit="kg", stock_qty=2.0, purchase_price_gs=5000)
@@ -241,7 +241,7 @@ def test_recipe_batch_cost_missing_recipe(session_factory):
 def test_recipe_batch_cost_no_yield(session_factory):
     """Recipe with yield_qty=NULL → batch_cost_gs=None, has_missing=True."""
     from app.rms.costing import recipe_batch_cost_gs
-    from app.rms.models import Ingredient, Recipe, RecipeLine
+    from app.rms.models import Recipe, RecipeLine
 
     with session_factory() as s:
         flour = make_ingredient(s, name="Harina", unit="kg", stock_qty=2.0, purchase_price_gs=5000)
@@ -302,7 +302,7 @@ def test_recipe_unit_cost_no_yield(session_factory):
 def test_recipe_unit_cost_propagates_missing(session_factory):
     """Missing price propagates: unit cost is also None."""
     from app.rms.costing import recipe_unit_cost_gs
-    from app.rms.models import Ingredient, Recipe, RecipeLine
+    from app.rms.models import Recipe, RecipeLine
 
     with session_factory() as s:
         ing = make_ingredient(s, name="X", unit="kg", stock_qty=1.0, purchase_price_gs=None)
@@ -337,7 +337,6 @@ def test_product_unit_cost_normal(session_factory):
 def test_product_unit_cost_no_recipe(session_factory):
     """Product with recipe_id=NULL → batch_cost_gs=None, 'product sin receta' in missing."""
     from app.rms.costing import product_unit_cost_gs
-    from app.rms.models import Product
 
     with session_factory() as s:
         s.add(make_product(s, name="Mystery", portion_label="1", sale_price_gs=5000, recipe_id=None))
@@ -378,7 +377,6 @@ def test_product_margin_normal(session_factory):
 def test_product_margin_no_cost(session_factory):
     """Product without recipe → margin None, ratio None."""
     from app.rms.costing import product_margin
-    from app.rms.models import Product
 
     with session_factory() as s:
         s.add(make_product(s, name="Mystery", portion_label="1", sale_price_gs=5000, recipe_id=None))
@@ -393,7 +391,7 @@ def test_product_margin_no_cost(session_factory):
 def test_product_margin_zero_sale_price(session_factory):
     """sale_price_gs=0 with valid cost → ratio is None (division-by-zero guard)."""
     from app.rms.costing import product_margin
-    from app.rms.models import Ingredient, Product, Recipe, RecipeLine
+    from app.rms.models import Product, Recipe, RecipeLine
 
     with session_factory() as s:
         ing = make_ingredient(s, name="X", unit="kg", stock_qty=1.0, purchase_price_gs=100)

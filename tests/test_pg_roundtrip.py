@@ -20,8 +20,6 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-import pytest
-
 # Register the PG fixtures from tests/conftest_pg.py. Pytest only auto-loads
 # conftest.py; the _pg suffix would otherwise be ignored. This plugin line
 # is the documented pytest way to expose fixtures from a non-conftest module.

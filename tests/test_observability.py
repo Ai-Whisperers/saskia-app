@@ -1,6 +1,5 @@
 """Tests for the new error/observability/logging infrastructure."""
 
-import pytest
 
 from app.rms.errors import (
     AlreadyExists,
@@ -15,7 +14,6 @@ from app.rms.errors import (
     ValidationError,
     to_http_exception,
 )
-
 
 # ─── Cleanup fixture ─────────────────────────────────────────────
 #
@@ -315,13 +313,13 @@ def test_bad_request_api_client_still_gets_json(client):
 def test_messages_catalog_imports():
     """All message constants importable."""
     from app.rms.messages import (
+        BANK_ADDED,
+        BENCHMARK_UPDATED,
+        INGREDIENT_NOT_FOUND,
         PEDIDO_NOT_FOUND,
         RECIPE_NOT_FOUND,
-        INGREDIENT_NOT_FOUND,
-        BANK_ADDED,
-        WISHLIST_ITEM_PURCHASED,
         SHOPPING_LIST_DELETED,
-        BENCHMARK_UPDATED,
+        WISHLIST_ITEM_PURCHASED,
     )
     assert isinstance(PEDIDO_NOT_FOUND, str)
     assert isinstance(RECIPE_NOT_FOUND, str)
@@ -337,7 +335,6 @@ def test_observability_helpers_importable():
     from app.rms.observability import (
         RequestContextMiddleware,
         generate_request_id,
-        record_audit,
     )
     rid = generate_request_id()
     assert len(rid) == 12

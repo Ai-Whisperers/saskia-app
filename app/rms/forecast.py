@@ -14,10 +14,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from sqlalchemy import select, func
+
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.rms.models import Ingredient, Sale, SaleStockMove, IngredientPriceEvent
+from app.rms.models import Ingredient, IngredientPriceEvent, Sale, SaleStockMove
 
 
 @dataclass
@@ -190,7 +191,6 @@ def batch_forecast_ingredients(
 
     # Recent consumption per ingredient (single GROUP BY query, joined to Sale
     # to use sold_at timestamp — SaleStockMove has no recorded_at column).
-    from sqlalchemy import and_
     recent_rows = dict(session.execute(
         select(SaleStockMove.ingredient_id, func.coalesce(func.sum(-SaleStockMove.qty_delta), 0.0))
         .join(Sale, Sale.id == SaleStockMove.sale_id)
@@ -222,7 +222,6 @@ def batch_forecast_ingredients(
             select(IngredientPriceEvent).where(IngredientPriceEvent.ingredient_id.in_(last_price_rows.keys()))
         ).all()
         for e in evts:
-            key = (e.ingredient_id, e.recorded_at)
             cur = last_price_evts.get(e.ingredient_id)
             if cur is None or e.recorded_at > cur.recorded_at:
                 last_price_evts[e.ingredient_id] = e

@@ -130,9 +130,9 @@ def suggest_sku(product_name: str) -> str:
 
 __all__ = [
     "ScanResult",
-    "normalize_sku",
-    "validate_sku",
-    "get_product_by_sku",
     "assign_sku",
+    "get_product_by_sku",
+    "normalize_sku",
     "suggest_sku",
+    "validate_sku",
 ]

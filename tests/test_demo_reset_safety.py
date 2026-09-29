@@ -17,7 +17,6 @@ def test_demo_reset_endpoint_no_500(authed_client):
 
 def test_demo_reset_with_data_does_not_lose_other_products(authed_client, session_factory):
     """Demo reset should only affect demo data, not real products."""
-    from app.rms.models import Product
 
     # Create a "real" product
     with session_factory() as s:

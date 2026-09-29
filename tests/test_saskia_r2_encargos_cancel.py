@@ -32,7 +32,6 @@ from app.rms.models import (
     StockMovement,
 )
 
-
 # =========================================================================
 # US 4.4 — pedidos surface in /produccion day view
 # =========================================================================
@@ -337,7 +336,7 @@ def test_void_endpoint_already_voided_returns_409(client, session_factory):
 def test_void_sale_restores_stock_with_reason(session_factory):
     """CIE-01 — void_sale still restores stock correctly when a reason is
     provided (the audit trail must not break the core reversal semantics)."""
-    from app.rms.costing import apply_sale, void_sale
+    from app.rms.costing import void_sale
 
     # Set up: 1 ingredient, product with recipe, sale decrements stock
     with session_factory() as s:

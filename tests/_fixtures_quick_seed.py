@@ -22,10 +22,7 @@ from app.rms.models import (
     Product,
     Recipe,
     RecipeLine,
-    Sale,
-    SaleStockMove,
     Supplier,
-    User,
     WasteLog,
 )
 
@@ -95,6 +92,7 @@ def quick_seed(session_factory, scenario: str = "basic",
         'with_complex_recipe' — recipe with 5+ ingredients
     """
     from datetime import datetime, timedelta, timezone
+
     from app.rms.costing import apply_sale
 
     sf = session_factory

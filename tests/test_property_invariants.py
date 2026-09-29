@@ -147,7 +147,7 @@ def test_property_extract_iva_roundtrip(gross: int, tax_mode: str) -> None:
     # gross round-trip: stored as int, must equal input (we passed an int)
     assert calc.gross_gs == gross
     # base + iva == implied total (gross in "included", gross*1.10 in "excluded")
-    implied_total = gross if tax_mode == "included" else int(round(gross * 1.10))
+    implied_total = gross if tax_mode == "included" else round(gross * 1.10)
     diff = (calc.base_gs + calc.iva_gs) - implied_total
     assert abs(diff) <= 2, (
         f"base({calc.base_gs}) + iva({calc.iva_gs}) drifted from "
@@ -159,7 +159,7 @@ def test_property_extract_iva_roundtrip(gross: int, tax_mode: str) -> None:
     # Sanity: for "included", iva should be ~9.09% of gross; for "excluded",
     # iva should be ~10% of gross (give or take a Gs of rounding).
     expected_iva = (
-        int(round(gross * 0.10 / 1.10)) if tax_mode == "included" else int(round(gross * 0.10))
+        round(gross * 0.10 / 1.10) if tax_mode == "included" else round(gross * 0.10)
     )
     assert abs(calc.iva_gs - expected_iva) <= 1, (
         f"iva({calc.iva_gs}) deviated from expected_iva({expected_iva}) "

@@ -1,8 +1,6 @@
 """Nav dropdown ARIA tests."""
 from __future__ import annotations
 
-import pytest
-
 
 def test_nav_has_aria_haspopup(client):
     """Nav dropdown must use aria-haspopup attribute."""

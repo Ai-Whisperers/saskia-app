@@ -183,7 +183,7 @@ __all__ = [
     "DEFAULT_LIMIT",
     "DEFAULT_WINDOW_MINUTES",
     "RateLimitDecision",
+    "is_disabled",
     "is_rate_limited",
     "is_write_rate_limited",
-    "is_disabled",
 ]

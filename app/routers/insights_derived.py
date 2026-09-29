@@ -17,18 +17,18 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
-from app.rms.derived_intel import (
-    check_customer_risk,
-    price_change_impact,
-    theoretical_vs_actual,
-)
-from app.rms.dependencies import get_session
 from app.rms.demand_freshness import (
     cook_today_suggestions,
     forecast_demand,
     freshness_flags,
     shopping_list_from_forecast,
     substitutes_for,
+)
+from app.rms.dependencies import get_session
+from app.rms.derived_intel import (
+    check_customer_risk,
+    price_change_impact,
+    theoretical_vs_actual,
 )
 from app.services.template_render import render
 

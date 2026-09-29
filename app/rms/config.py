@@ -79,15 +79,15 @@ def ensure_dirs() -> None:
 
 __all__ = [
     "ASUNCION_TZ",
+    "BACKUP_DIR",
+    "BACKUP_THRESHOLD_HOURS",
     "BIND_HOST",
-    "PORT",
+    "CURRENT_SCHEMA_VERSION",
     "DATA_DIR",
     "DB_PATH",
-    "BACKUP_DIR",
-    "LOG_DIR",
-    "R2_CONFIG_PATH",
-    "BACKUP_THRESHOLD_HOURS",
     "KEEP_LOCAL_BACKUPS_DAYS",
-    "CURRENT_SCHEMA_VERSION",
+    "LOG_DIR",
+    "PORT",
+    "R2_CONFIG_PATH",
     "ensure_dirs",
 ]

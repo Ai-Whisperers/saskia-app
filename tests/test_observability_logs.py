@@ -1,9 +1,6 @@
 """Observability tests — verify logging and error counters."""
 from __future__ import annotations
 
-import pytest
-from sqlalchemy import text
-
 
 def test_healthz_errors_endpoint_returns_counts(client):
     """/healthz/errors must return error counts."""

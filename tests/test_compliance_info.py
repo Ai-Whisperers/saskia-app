@@ -1,11 +1,6 @@
 """tests/test_compliance_info.py — Phase 1.A ComplianceInfo model + form."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
-import pytest
-from sqlalchemy import select
-
 from app.rms.models import ComplianceInfo, Product
 
 
@@ -179,8 +174,6 @@ class TestSettingsRouteAcceptsComplianceFields:
     def test_post_business_saves_compliance(self, session_factory):
         """The save_business_settings route should write both AppMeta and ComplianceInfo."""
         # Use the FastAPI test client to actually exercise the route
-        from fastapi.testclient import TestClient
-        from app.rms.main import app
         # Skip login: directly hit the endpoint with a valid session
         # For this unit test, we'll call the underlying logic via a small refactor.
         # The route handler depends on form parsing; instead, verify the model

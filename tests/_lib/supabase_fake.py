@@ -27,7 +27,7 @@ def _FakeSupabaseForIntegration():
             return self._tokens[uid]
 
         def refresh_session(self, refresh_token):
-            for uid, data in self._tokens.items():
+            for data in self._tokens.values():
                 if data["refresh_token"] == refresh_token:
                     return data
             raise Exception("Invalid refresh token")

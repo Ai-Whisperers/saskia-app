@@ -76,8 +76,8 @@ def filter_recipes_by_tier(
 
 __all__ = [
     "TierMatch",
-    "list_margin_tiers",
-    "get_margin_tier",
-    "recipe_matches_tier",
     "filter_recipes_by_tier",
+    "get_margin_tier",
+    "list_margin_tiers",
+    "recipe_matches_tier",
 ]

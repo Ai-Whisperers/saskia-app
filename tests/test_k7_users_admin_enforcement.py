@@ -13,10 +13,6 @@ as valid "blocked" responses. The ONLY unacceptable response is 500 (crash).
 """
 from __future__ import annotations
 
-import pytest
-from app.rms.models import User
-from app.auth import hash_password
-
 
 def test_users_page_does_not_crash(client):
     """K7 #1: GET /users must return non-500 status (any blocked status OK)."""

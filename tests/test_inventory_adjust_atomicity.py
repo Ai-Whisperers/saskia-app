@@ -7,13 +7,11 @@ Per SASKIA_TEST_PLAN.md §5 #11 — POST /inventario/{id}/ajustar must atomicall
 """
 from __future__ import annotations
 
-import pytest
-from app.rms.models import Ingredient, StockMovement, AuditLog
+from app.rms.models import Ingredient, StockMovement
 
 
 def test_inventory_adjust_writes_stock_movement(authed_client, session_factory):
     """P1 #1: POST /inventario/{id}/ajustar must create a StockMovement row."""
-    from app.rms.models import Ingredient
 
     with session_factory() as s:
         ing = Ingredient(
@@ -29,11 +27,10 @@ def test_inventory_adjust_writes_stock_movement(authed_client, session_factory):
 
     # Need CSRF token
     r_get = authed_client.get(f"/inventario/{ing_id}/ajustar")
-    csrf = None
     import re
     m = re.search(r'name="_csrf_token" value="([^"]+)"', r_get.text)
     if m:
-        csrf = m.group(1)
+        m.group(1)
 
     r = authed_client.post(
         f"/inventario/{ing_id}/ajustar",
@@ -51,7 +48,6 @@ def test_inventory_adjust_writes_stock_movement(authed_client, session_factory):
 
 def test_inventory_adjust_updates_stock_qty(authed_client, session_factory):
     """P1 #2: POST /inventario/{id}/ajustar must update Ingredient.stock_qty."""
-    from app.rms.models import Ingredient
 
     with session_factory() as s:
         ing = Ingredient(
@@ -78,7 +74,6 @@ def test_inventory_adjust_updates_stock_qty(authed_client, session_factory):
 
 def test_inventory_adjust_bad_qty_returns_validation_error(authed_client, session_factory):
     """P1 #3: POST /inventario/{id}/ajustar with bad qty must return 422/400, not 500."""
-    from app.rms.models import Ingredient
 
     with session_factory() as s:
         ing = Ingredient(
@@ -104,7 +99,6 @@ def test_inventory_adjust_bad_qty_returns_validation_error(authed_client, sessio
 
 def test_inventory_adjust_writes_audit_log(authed_client, session_factory):
     """P1 #4: POST /inventario/{id}/ajustar must write an AuditLog entry."""
-    from app.rms.models import Ingredient
 
     with session_factory() as s:
         ing = Ingredient(

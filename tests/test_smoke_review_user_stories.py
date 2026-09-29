@@ -6,7 +6,7 @@ The build fails if any step returns 500.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 import pytest
 
@@ -15,8 +15,9 @@ pytestmark = pytest.mark.smoke
 
 def _seed_min_catalog(session_factory):
     """Seed: 1 product (with recipe), 1 ingredient, 1 client."""
-    from app.rms.models import Product, Recipe, RecipeLine, Ingredient, Customer
     from sqlalchemy.orm import sessionmaker
+
+    from app.rms.models import Customer, Ingredient, Product, Recipe, RecipeLine
     sf = sessionmaker(bind=session_factory.kw["bind"])
     s = sf()
     try:
@@ -51,9 +52,9 @@ def test_smoke_1_create_product_ingredient_recipe(client, session_factory):
 
 def test_smoke_2_monday_plan_opens_correct_day(client, session_factory):
     """2. Set a Monday plan of 12 muffins and open the next Mon (PRO-01, PRO-02)."""
-    from app.rms.models import Product, ProductionPlanTemplate
-    from app.rms.production import upsert_template_row
     from sqlalchemy.orm import sessionmaker
+
+    from app.rms.production import upsert_template_row
 
     _, _, prod_id, _ = _seed_min_catalog(session_factory)
 
@@ -64,7 +65,6 @@ def test_smoke_2_monday_plan_opens_correct_day(client, session_factory):
         s.commit()
 
     # Open /produccion on any Monday
-    from datetime import date
     r = client.get("/produccion?for_date=2026-09-07")  # Monday
     assert r.status_code == 200
     assert "Muffin smoke" in r.text
@@ -128,8 +128,9 @@ def test_smoke_6_buy_low_ingredient_from_reorder(client, session_factory):
     """6. Buy the low ingredient from Reponer with a unit price (INV-02, INV-01)."""
     ing_id, _, _, _ = _seed_min_catalog(session_factory)
     # The seeded ingredient has stock_qty=10, min=2 so it's not low. Mark it low.
-    from app.rms.models import Ingredient
     from sqlalchemy.orm import sessionmaker
+
+    from app.rms.models import Ingredient
     sf = sessionmaker(bind=session_factory.kw["bind"])
     with sf() as s:
         ing = s.get(Ingredient, ing_id)
@@ -159,7 +160,7 @@ def test_smoke_7_close_day_with_below_plan_completion(client, session_factory):
 
 def test_smoke_8_dashboard_matches_ventas_total(client, session_factory):
     """8. Open Inicio and compare the Gs. total to Ventas (DATA-01)."""
-    _, _, prod_id, _ = _seed_min_catalog(session_factory)
+    _, _, _prod_id, _ = _seed_min_catalog(session_factory)
     # At least GET / must work
     r = client.get("/")
     assert r.status_code == 200

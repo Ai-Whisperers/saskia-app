@@ -21,7 +21,6 @@ from sqlalchemy.orm import DeclarativeBase
 class Base(DeclarativeBase):
     """SQLAlchemy declarative base. All models inherit from this."""
 
-    pass
 
 
 __all__ = ["Base"]

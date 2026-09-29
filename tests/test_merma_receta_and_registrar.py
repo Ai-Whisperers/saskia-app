@@ -1,9 +1,6 @@
 """Merma (waste) and produccion (production) endpoint tests."""
 from __future__ import annotations
 
-import pytest
-from app.rms.models import WasteLog, Product, ProductionCompletion
-
 
 def test_merma_page_loads(authed_client):
     """GET /merma must return 200."""
@@ -57,7 +54,6 @@ def test_produccion_page_loads(authed_client):
 
 def test_produccion_override_no_500(authed_client, session_factory):
     """POST /produccion/override must not 500."""
-    from app.rms.models import ProductionCompletion
 
     r = authed_client.post(
         "/produccion/override",

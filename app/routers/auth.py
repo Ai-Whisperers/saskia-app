@@ -116,7 +116,8 @@ def _login_supabase(
     request: Request, email: str, password: str, safe_next: str, stay_logged_in: bool = False
 ) -> RedirectResponse:
     """Sign in via Supabase Auth."""
-    from app.auth_supabase import store_session, sign_in_with_password as supabase_sign_in
+    from app.auth_supabase import sign_in_with_password as supabase_sign_in
+    from app.auth_supabase import store_session
 
     session_data = supabase_sign_in(email, password)
     if session_data is None:
@@ -131,7 +132,6 @@ def _login_supabase(
         user_id=session_data["user_id"],
         email=session_data["email"],
     )
-    from fastapi import Response
 
     resp = RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
     # Remember username for next login
@@ -150,8 +150,8 @@ def _login_local(
     stay_logged_in: bool = False,
 ) -> RedirectResponse:
     """Sign in via local bcrypt (test/dev path)."""
+
     from app.auth import get_user_model, verify_password
-    from fastapi import Response
 
     User = get_user_model()
     user = (

@@ -1,6 +1,5 @@
 """Test combo caching and performance improvements."""
 
-import re
 from pathlib import Path
 
 

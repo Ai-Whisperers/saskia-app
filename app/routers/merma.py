@@ -270,18 +270,18 @@ def merma_register_recipe(
 @router.get("/api/reasons", response_class=JSONResponse)
 def waste_reasons_api() -> JSONResponse:
     """List all waste reasons.
-    
+
     Used by the combo system on /merma forms for reason selection.
     """
     from app.rms.waste import WasteReason
-    
+
     payload = []
     for reason in WasteReason:
         payload.append({
             "value": reason.value,
             "display": reason.value,
         })
-    
+
     return JSONResponse({
         "results": payload,
         "count": len(payload)

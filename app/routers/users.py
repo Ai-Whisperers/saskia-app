@@ -6,7 +6,8 @@ CRUD for local-bcrypt users. Supabase-auth deployments use the Supabase dashboar
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -15,6 +16,8 @@ from app.auth import (
     get_current_user,
     get_user_model,
     hash_password,
+)
+from app.auth import (
     require_login_or_disabled as require_login,
 )
 from app.rms.audit import record as audit_record
@@ -51,10 +54,10 @@ def users_list(
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """User management page (admin only)."""
-    admin_user = _require_admin(request, session)
+    _require_admin(request, session)
     User = get_user_model()
     users = session.query(User).order_by(User.id).all()
-    
+
     return render(request, "users.html", {
         "users": users,
         "current_user_id": current_user_id(request),
@@ -73,9 +76,9 @@ def users_create(
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Create a new user (admin only)."""
-    from app.rms.validation import require_text, optional_text
+    from app.rms.validation import require_text
 
-    admin_user = _require_admin(request, session)
+    _require_admin(request, session)
 
     clean_username = require_text(username, field="nombre de usuario", max_len=120)
     clean_password = require_text(password, field="contraseña", max_len=200)
@@ -88,7 +91,7 @@ def users_create(
             url="/users?flash=La+contraseña+debe+tener+al+menos+6+caracteres",
             status_code=303,
         )
-    
+
     User = get_user_model()
 
     # Check username uniqueness
@@ -114,7 +117,7 @@ def users_create(
         detail={"username": clean_username, "role": role},
     )
     session.commit()
-    
+
     return RedirectResponse(url="/users?flash=Usuario+creado", status_code=303)
 
 
@@ -129,7 +132,7 @@ def users_edit(
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Edit an existing user (admin only)."""
-    from app.rms.validation import require_text, optional_text
+    from app.rms.validation import require_text
 
     admin_user = _require_admin(request, session)
 
@@ -172,7 +175,7 @@ def users_edit(
             action="user.password_change",
             detail={"target_user": clean_username, "changed_by": admin_user.username if hasattr(admin_user, 'username') else str(admin_user)},
         )
-    
+
     audit_record(
         session,
         user_id=current_user_id(request),
@@ -180,7 +183,7 @@ def users_edit(
         detail={"username": username, "role": role, "is_active": is_active},
     )
     session.commit()
-    
+
     return RedirectResponse(url="/users?flash=Usuario+actualizado", status_code=303)
 
 
@@ -191,21 +194,21 @@ def users_delete(
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Delete a user (admin only). Cannot delete yourself."""
-    admin_user = _require_admin(request, session)
-    
+    _require_admin(request, session)
+
     User = get_user_model()
     user = session.get(User, user_id)
-    
+
     if user is None:
         return RedirectResponse(url="/users?flash=Usuario+no+encontrado", status_code=303)
-    
+
     current_uid = current_user_id(request)
     if user.id == current_uid:
         return RedirectResponse(
             url="/users?flash=No+puedes+eliminarte+a+ti+mismo",
             status_code=303,
         )
-    
+
     username = user.username
     session.delete(user)
     audit_record(
@@ -215,14 +218,14 @@ def users_delete(
         detail={"deleted_username": username},
     )
     session.commit()
-    
+
     return RedirectResponse(url="/users?flash=Usuario+eliminado", status_code=303)
 
 
 @router.get("/api/roles", response_class=JSONResponse)
 def user_roles_api() -> JSONResponse:
     """List all available user roles.
-    
+
     Used by the combo system on /users form for role selection.
     """
     payload = []
@@ -235,7 +238,7 @@ def user_roles_api() -> JSONResponse:
             "value": value,
             "display": display,
         })
-    
+
     return JSONResponse({
         "results": payload,
         "count": len(payload)

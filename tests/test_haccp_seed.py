@@ -1,9 +1,7 @@
 """tests/test_haccp_seed.py — Phase 1.C HACCP defaults per category."""
 from __future__ import annotations
 
-import pytest
-
-from app.rms.haccp_seed import apply_haccp_defaults, CATEGORY_HACCP
+from app.rms.haccp_seed import CATEGORY_HACCP, apply_haccp_defaults
 from app.rms.models import Ingredient
 
 
@@ -33,25 +31,25 @@ class TestHacpCategoryTable:
     def test_perishable_categories_need_lot_tracking(self):
         """Lácteos, carnes, huevos, frutas require FIFO lot tracking."""
         for cat in ("lácteos", "carnes", "huevos", "frutas"):
-            t_min, t_max, hum, aw, lot = CATEGORY_HACCP[cat]
+            _t_min, _t_max, _hum, _aw, lot = CATEGORY_HACCP[cat]
             assert lot is True, f"{cat} should require lot tracking"
 
     def test_dry_goods_dont_need_lot_tracking(self):
         """Dry categories (flour, sugar, salt, spices) don't need lot tracking."""
         for cat in ("harinas", "endulzantes", "grasas", "leudantes", "especias"):
-            t_min, t_max, hum, aw, lot = CATEGORY_HACCP[cat]
+            _t_min, _t_max, _hum, _aw, lot = CATEGORY_HACCP[cat]
             assert lot is False, f"{cat} should NOT require lot tracking"
 
     def test_refrigerated_temp_range(self):
         """Refrigerated categories must have temp_max_c <= 8°C."""
         for cat in ("lácteos", "carnes", "huevos", "frutas"):
-            t_min, t_max, hum, aw, lot = CATEGORY_HACCP[cat]
+            _t_min, t_max, _hum, _aw, _lot = CATEGORY_HACCP[cat]
             assert t_max <= 8.0, f"{cat} refrigerated threshold > 8°C: {t_max}"
 
     def test_ambient_temp_range(self):
         """Ambient categories must have temp_min_c >= 10°C."""
         for cat in ("harinas", "endulzantes", "grasas", "leudantes", "especias", "decoración"):
-            t_min, t_max, hum, aw, lot = CATEGORY_HACCP[cat]
+            t_min, _t_max, _hum, _aw, _lot = CATEGORY_HACCP[cat]
             assert t_min >= 10.0, f"{cat} ambient temp_min should be >= 10°C: {t_min}"
 
 
@@ -71,7 +69,7 @@ class TestApplyHaccpDefaults:
         Session = session_factory
         with Session() as s:
             ing = _make_ingredient(s, "Huevos de gallina", category=None)
-            n = apply_haccp_defaults(s)
+            apply_haccp_defaults(s)
             s.refresh(ing)
             assert ing.category == "huevos"
             assert ing.lot_required is True

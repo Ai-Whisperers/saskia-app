@@ -24,7 +24,7 @@ def test_form_rejects_unprimed_post(client, route, data):
     # Parse data string into dict
     from urllib.parse import parse_qsl
     form_data = dict(parse_qsl(data))
-    
+
     r = client.post(route, data=form_data, follow_redirects=False)
     # 401 = CSRF or auth gate; 403 = CSRF blocked; 422 = validation rejected
     # 400 = our new BUG-00 Spanish 400 with field error; 404 = route gone

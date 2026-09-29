@@ -26,7 +26,6 @@ def test_settings_post_updates_value(client, session_factory):
     NOTE: There's no generic POST /settings — settings are grouped into
     /business, /fiscal, /theme. The test uses /business as the closest match.
     """
-    from app.rms.settings import get_setting
     from app.rms.models import AppMeta
 
     resp = client.post(

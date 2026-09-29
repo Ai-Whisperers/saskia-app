@@ -72,9 +72,7 @@ async def csrf_cookie_middleware(request: Request, call_next):
 
     # Exempt paths bypass both priming and verification.
     is_exempt = (
-        path in _EXEMPT_PATHS
-        or path.startswith("/static/")
-        or path.startswith("/api/docs")
+        path in _EXEMPT_PATHS or path.startswith(("/static/", "/api/docs"))
     )
 
     if not is_exempt and method in ("POST", "PUT", "DELETE", "PATCH"):
@@ -126,10 +124,10 @@ def csrf_form_input() -> str:
 
 
 __all__ = [
-    "generate_csrf_token",
-    "verify_csrf_token",
-    "csrf_cookie_middleware",
-    "csrf_form_input",
     "_CSRF_COOKIE",
     "_CSRF_FORM_FIELD",
+    "csrf_cookie_middleware",
+    "csrf_form_input",
+    "generate_csrf_token",
+    "verify_csrf_token",
 ]

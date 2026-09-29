@@ -11,7 +11,6 @@ the column exists.
 """
 from __future__ import annotations
 
-import pytest
 from sqlalchemy import text
 
 
@@ -70,8 +69,8 @@ def test_product_category_groups_in_dashboard(session_factory, client):
 
 def test_product_tags_roundtrip(session_factory):
     """P2 #3: Product.tags stores comma-separated string and roundtrips via ORM."""
+
     from app.rms.models import Product
-    from sqlalchemy.orm import Session
 
     with session_factory() as s:
         # Create product via ORM with tags
@@ -124,8 +123,8 @@ def test_product_image_url_stores_and_retrieves(session_factory):
 
 def test_product_is_available_default_true(session_factory):
     """P2 #5: New products default to is_available=True (visible in POS)."""
+
     from app.rms.models import Product
-    from sqlalchemy.orm import Session
 
     with session_factory() as s:
         p = Product(

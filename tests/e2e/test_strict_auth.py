@@ -22,7 +22,6 @@ def strict_client(session_factory, monkeypatch, tmp_db_path):
     Seeds the admin user via the same bootstrap prod uses
     (SASKIA_ADMIN_PASSWORD → bcrypt hash).
     """
-    import os
 
     monkeypatch.delenv("SASKIA_TEST_AUTH_DISABLED", raising=False)
     monkeypatch.setenv("SASKIA_ADMIN_PASSWORD", "pytest-admin-pw-123")

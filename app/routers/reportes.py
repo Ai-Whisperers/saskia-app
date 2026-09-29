@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import csv
 import io
-import json
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -324,7 +323,7 @@ def libro_ventas_set_pdf(
 
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle("title", parent=styles["Heading1"], fontSize=14, spaceAfter=12)
-    bold_style = ParagraphStyle("bold", parent=styles["Normal"], fontName="Helvetica-Bold")
+    ParagraphStyle("bold", parent=styles["Normal"], fontName="Helvetica-Bold")
 
     elements = []
 
@@ -505,6 +504,7 @@ def reportes_retencion(
     # buyers — so the page doesn't show 0 when customers exist but had no
     # sales in the chosen window. Use it as the denominator for %s.
     from sqlalchemy import func as _sa_func
+
     from app.rms.models import Customer as _Customer
     total_in_db = session.execute(_sa_func.count(_Customer.id)).scalar_one()
     stats["total"] = int(total_in_db or 0)
@@ -557,9 +557,9 @@ def reportes_metricas(
     )
 
     # Revenue & sales in window
-    from app.rms.accounting import sales_in_window
-    from app.rms.models import Sale
     from sqlalchemy import func
+
+    from app.rms.accounting import sales_in_window
 
     sales = list(sales_in_window(session, start=start_dt, end=end_dt))
     n_sales = len(sales)
@@ -624,8 +624,9 @@ def reportes_cierre_mensual(
     Defaults to the most recent month that has sales. Year + month query params
     override the default.
     """
-    from app.rms.cierre import compute_monthly_close
     from datetime import date
+
+    from app.rms.cierre import compute_monthly_close
 
     # Default to current month if no params
     today = date.today()
@@ -789,7 +790,7 @@ def reportes_precios(
                 .where(IngredientPriceEvent.ingredient_id == ingredient_id)
                 .where(IngredientPriceEvent.recorded_at >= datetime.now(timezone.utc) - timedelta(days=days))
                 .order_by(IngredientPriceEvent.recorded_at.asc())
-            ).all(),
+            ).all(), strict=False,
         )
     ]
     return render(request, "reportes_precios.html", {

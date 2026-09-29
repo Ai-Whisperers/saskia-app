@@ -40,7 +40,6 @@ from __future__ import annotations
 # Re-export the full Base from models so Postgres create_all sees all tables.
 # This was a separate DeclarativeBase in the old code; the old 9-model
 # snapshot is no longer used.
-from app.rms.models import Base  # noqa: F401  (re-export)
-
+from app.rms.models import Base
 
 __all__ = ["Base"]

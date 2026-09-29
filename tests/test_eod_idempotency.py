@@ -7,14 +7,13 @@ Per SASKIA_TEST_PLAN.md §5 #13 — POST /eod/completar must:
 """
 from __future__ import annotations
 
-import pytest
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 
 def test_eod_completar_first_call_succeeds(authed_client):
     """P2 #1: POST /eod/completar for current date must return 303 or 200."""
     today = date.today().isoformat()
-    r = authed_client.post(f"/eod/completar", data={"fecha": today})
+    r = authed_client.post("/eod/completar", data={"fecha": today})
     assert r.status_code in (200, 303, 400, 422), (
         f"EOD completar returned {r.status_code}: {r.text[:200]}"
     )
@@ -23,7 +22,7 @@ def test_eod_completar_first_call_succeeds(authed_client):
 def test_eod_completar_future_date_rejected(authed_client):
     """P2 #2: POST /eod/completar with future date must return 422/400."""
     future = (date.today() + timedelta(days=30)).isoformat()
-    r = authed_client.post(f"/eod/completar", data={"fecha": future})
+    r = authed_client.post("/eod/completar", data={"fecha": future})
     assert r.status_code in (200, 303, 400, 422), (
         f"Future EOD date returned {r.status_code}: {r.text[:200]}"
     )
@@ -32,7 +31,7 @@ def test_eod_completar_future_date_rejected(authed_client):
 
 def test_eod_completar_invalid_date_rejected(authed_client):
     """P2 #3: POST /eod/completar with invalid date must return 422 (validation)."""
-    r = authed_client.post(f"/eod/completar", data={"fecha": "not-a-date"})
+    r = authed_client.post("/eod/completar", data={"fecha": "not-a-date"})
     assert r.status_code in (200, 303, 400, 422), (
         f"Invalid EOD date returned {r.status_code}: {r.text[:200]}"
     )
@@ -40,7 +39,7 @@ def test_eod_completar_invalid_date_rejected(authed_client):
 
 def test_eod_completar_missing_date_rejected(authed_client):
     """P2 #4: POST /eod/completar with no fecha must return 422."""
-    r = authed_client.post(f"/eod/completar", data={})
+    r = authed_client.post("/eod/completar", data={})
     assert r.status_code < 500, f"Missing EOD fecha returned {r.status_code}: {r.text[:200]}"
 
 
@@ -54,9 +53,9 @@ def test_eod_completar_double_call_idempotent(authed_client):
     """P2 #6: Second POST /eod/completar same date must not crash."""
     today = date.today().isoformat()
     # First call
-    r1 = authed_client.post(f"/eod/completar", data={"fecha": today})
+    r1 = authed_client.post("/eod/completar", data={"fecha": today})
     # Second call (same date)
-    r2 = authed_client.post(f"/eod/completar", data={"fecha": today})
+    r2 = authed_client.post("/eod/completar", data={"fecha": today})
     # Both must NOT be 500
     assert r1.status_code < 500, f"First EOD call returned {r1.status_code}"
     assert r2.status_code < 500, f"Second EOD call returned {r2.status_code}"

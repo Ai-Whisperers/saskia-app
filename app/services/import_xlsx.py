@@ -266,7 +266,7 @@ def _validate_workbook(wb, mode: str) -> tuple[list[dict], list[dict]]:
             _err(row_num, "product_id", "product_id requerido")
         qty = _opt_float(row.get("qty"))
         if qty is not None and qty <= 0:
-            _err(row_num, "qty", f"qty debe ser > 0")
+            _err(row_num, "qty", "qty debe ser > 0")
 
     return errors, warnings
 
@@ -903,4 +903,4 @@ def from_workbook(
     return result
 
 
-__all__ = ["from_file", "from_workbook", "ImportResult", "ImportMode"]
+__all__ = ["ImportMode", "ImportResult", "from_file", "from_workbook"]

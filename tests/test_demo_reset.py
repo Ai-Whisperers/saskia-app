@@ -21,7 +21,6 @@ def _seed_synthetic(session, *, n_sales: int = 3):
     assert the cleanup wipes it.
     """
     from app.rms.models import (
-        AuditLog,
         Ingredient,
         Product,
         Recipe,
@@ -240,7 +239,6 @@ def test_reset_does_not_touch_users(client, session_factory):
 
 def test_reset_endpoint_anonymous_call_is_rejected(client):
     """Without a session, the endpoint must NOT wipe data."""
-    from app.rms.models import Sale
 
     # The TestClient fixture uses SASKIA_TEST_AUTH_DISABLED=1, so we
     # can't test the auth gate directly here. Instead, verify the
@@ -256,7 +254,6 @@ def test_reset_endpoint_anonymous_call_is_rejected(client):
 
 def test_reset_endpoint_returns_deleted_counts(client, session_factory):
     """POST /ops/reset-demo-data returns JSON with deleted-row counts."""
-    from app.services.demo_reset import reset_demo_data
 
     with session_factory() as s:
         _seed_synthetic(s, n_sales=2)
@@ -308,7 +305,6 @@ def test_reset_endpoint_audit_recorded_for_real_user(client, session_factory):
     from sqlalchemy import select
 
     from app.rms.models import AuditLog
-    from app.services.demo_reset import reset_demo_data
 
     with session_factory() as s:
         _seed_synthetic(s, n_sales=1)

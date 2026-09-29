@@ -526,7 +526,7 @@ def test_drive_fixture_sub_recipe_line_resolves(session_factory):
 
 def test_drive_fixture_voided_sale_persists(session_factory):
     """A sale with voided_at set must persist with voided_at populated (datetime)."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     s = session_factory()
     try:

@@ -79,7 +79,7 @@ def test_inventario_has_filter_dropdowns(client):
 def test_inventario_no_python_errors(client):
     """P-05: No Python errors on inventario."""
     r = client.get("/inventario")
-    assert r.status_code != 500, f"Got 500"
+    assert r.status_code != 500, "Got 500"
 
 
 def test_inventario_filter_combinations(client):

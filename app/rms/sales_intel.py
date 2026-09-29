@@ -104,7 +104,7 @@ def product_affinity(session: Session,
     # Group sales into baskets.
     baskets: list[set[int]] = []
     current_basket: list[tuple[datetime, int]] = []
-    for sold_at, product_id, customer_id in sales:
+    for sold_at, product_id, _customer_id in sales:
         if current_basket:
             prev_time, _ = current_basket[-1]
             if (sold_at - prev_time) > timedelta(hours=_BASKET_WINDOW_HOURS):

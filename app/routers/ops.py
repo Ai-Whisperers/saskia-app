@@ -11,8 +11,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from app.auth import current_user_id, require_login_or_disabled as require_login
-from loguru import logger
+from app.auth import current_user_id
+from app.auth import require_login_or_disabled as require_login
 from app.services.demo_reset import reset_demo_data
 from app.services.template_render import render
 
@@ -58,9 +58,8 @@ async def ops_reset_demo_data(request: Request) -> JSONResponse:
     always return JSON regardless of Accept header.
     """
     user_id = current_user_id(request) or "anonymous"
-    from app.rms.dependencies import get_session  # late import: avoids circular
-    from sqlalchemy.orm import Session
     from fastapi import HTTPException
+    from sqlalchemy.orm import Session
 
     # Re-derive session from app.state (avoids Depends(get_session)
     # which would tie us into the global sessionmaker; we want the
@@ -75,7 +74,7 @@ async def ops_reset_demo_data(request: Request) -> JSONResponse:
         logger.info(
             f"demo_reset invoked by user_id={user_id} counts={counts}"
         )
-    except Exception as exc:  # noqa: BLE001 - surface to caller, no rollback needed
+    except Exception as exc:
         session.close()
         raise HTTPException(
             status_code=500, detail=f"reset_demo_data failed: {exc}"

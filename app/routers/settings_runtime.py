@@ -23,8 +23,6 @@ from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled
 from app.rms.categories import (
-    SCOPE_PRODUCT,
-    SCOPE_RECIPE_FAMILY,
     get_or_create_category,
     list_categories,
     update_category,
@@ -35,7 +33,6 @@ from app.rms.settings_runtime import (
     get_pricing_markup,
     set_pricing_markup,
 )
-
 
 router = APIRouter(prefix="/api", tags=["settings"])
 
@@ -424,8 +421,9 @@ def update_template_endpoint(
 
     Bumps the `version` on body change so callers can invalidate caches.
     """
-    from app.rms.models import MessageTemplate as MT
     from datetime import datetime, timezone
+
+    from app.rms.models import MessageTemplate as MT
 
     row = session.get(MT, template_id)
     if row is None:
@@ -607,8 +605,8 @@ def get_tax_config_endpoint(
     effective values. Future tax law changes touch only this endpoint.
     """
     from app.rms.constants import (
-        DEFAULT_IVA_RATE,
         DEFAULT_INVOICE_TYPE,
+        DEFAULT_IVA_RATE,
         DEFAULT_TAX_REGIME,
         INVOICE_TYPES,
         VALID_IVA_RATES,

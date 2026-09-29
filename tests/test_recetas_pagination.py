@@ -5,7 +5,6 @@ per request. When there are more than 50 recipes, the UI shows a Siguiente
 button that goes to ?page=2.
 """
 
-import pytest
 
 
 def test_recetas_paginates_above_50(qseed, authed_client, session_factory):

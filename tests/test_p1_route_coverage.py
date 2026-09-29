@@ -79,7 +79,7 @@ def test_users_list_returns_existing_users(auth_client, session_factory):
         result = s.execute(
             text("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%user%'")
         ).fetchall()
-    table_names = [r[0] for r in result]
+    [r[0] for r in result]
     # Try both common names
     users = []
     for table_name in ["user", "users"]:

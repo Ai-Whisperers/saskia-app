@@ -1,6 +1,5 @@
 """tests/test_creditos_route.py — /creditos photo-credits page (CC-BY attribution)."""
 
-import os
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,8 +9,8 @@ from fastapi.testclient import TestClient
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path/'cred.sqlite'}")
     monkeypatch.setenv("SASKIA_TEST_AUTH_DISABLED", "1")
-    from app.rms.main import app
     from app.rms import db as dbmod
+    from app.rms.main import app
 
     dbmod.engine = dbmod.create_engine(f"sqlite:///{tmp_path/'cred.sqlite'}")
     with TestClient(app, raise_server_exceptions=False) as c:

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -28,21 +29,18 @@ from app.rms.messages import (
     RECIPE_INVALID_UNIT,
     RECIPE_LINES_REQUIRED,
     RECIPE_NAME_REQUIRED,
-    RECIPE_NOT_FOUND,
 )
 from app.rms.models import Ingredient, Product, Recipe, RecipeLine
-from app.rms.units import Unit
 from app.rms.recipe_intel import (
+    estimate_cook_minutes,
+    estimate_prep_minutes,
+    infer_difficulty,
     infer_recipe_dietary,
     infer_recipe_family_from_name,
-    infer_difficulty,
-    estimate_prep_minutes,
-    estimate_cook_minutes,
     recipe_ingredient_count,
 )
+from app.rms.units import Unit
 from app.services.template_render import render
-
-from loguru import logger
 
 router = APIRouter(prefix="/recetas", dependencies=[Depends(require_login)])
 
@@ -100,7 +98,7 @@ async def recipes_list(
     if ingredient_id and ingredient_id.strip():
         try:
             ing_id_ints.append(int(ingredient_id))
-        except (TypeError, ValueError) as exc:  # noqa: BLE001 — bad URL param; logged
+        except (TypeError, ValueError) as exc:
             # Bad URL param — skip this id but keep parsing the rest.
             logger.debug("recipes filter: bad ingredient_id: {}", exc)
     # Parse multi-id list. Strip whitespace, ignore empties, validate as int, dedupe.
@@ -129,7 +127,7 @@ async def recipes_list(
     if dif_sel:
         try:
             count_stmt = count_stmt.where(Recipe.difficulty == int(dif_sel))
-        except ValueError as exc:  # noqa: BLE001 — bad query param; logged
+        except ValueError as exc:
             # Bad difficulty query param — just don't filter.
             logger.debug("recipes difficulty filter dropped: {}", exc)
     if diet_sel:
@@ -163,7 +161,7 @@ async def recipes_list(
     if dif_sel:
         try:
             stmt = stmt.where(Recipe.difficulty == int(dif_sel))
-        except ValueError as exc:  # noqa: BLE001 — bad query param; logged
+        except ValueError as exc:
             # Bad difficulty query param — just don't filter.
             logger.debug("recipes difficulty filter dropped: {}", exc)
     if diet_sel:
@@ -214,7 +212,6 @@ async def recipes_list(
     # Ingredient list for filter dropdown
     all_ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
 
-    from app.rms.categories import list_categories
     from app.rms.tags import list_tags_for_kind
     all_families = sorted({f for f, in session.execute(select(Recipe.family).where(Recipe.family.is_not(None)).distinct()) if f})
     all_tags = [t.name for t in list_tags_for_kind(session, "recipe")]
@@ -370,7 +367,7 @@ async def recipe_create(
     cycle = _detect_sub_recipe_cycle(session, recipe.id)
     if cycle:
         session.rollback()
-        cycle_names = session.execute(
+        session.execute(
             select(Recipe.name).where(Recipe.id.in_(cycle))
         ).scalars().all()
         raise HTTPException(
@@ -408,7 +405,7 @@ async def recipe_create(
     # Tag algebra (054): refresh this recipe's cached derived tags + allergens,
     # cascade to parents, and update linked products' inherited tags.
     try:
-        from app.rms.tag_algebra import cascade_refresh, _product_inherit_sync
+        from app.rms.tag_algebra import _product_inherit_sync, cascade_refresh
         cascade_refresh(session, recipe_id=recipe.id)
         _product_inherit_sync(session, recipe.id)
         session.commit()
@@ -428,7 +425,6 @@ async def recipe_set_photo(
     session: Session = Depends(get_session),
 ):
     """Show a picker of all photos in /static/recipes/."""
-    from pathlib import Path
 
     from app.rms import static_paths
 
@@ -705,7 +701,7 @@ async def recipe_update(
     cycle = _detect_sub_recipe_cycle(session, r.id)
     if cycle:
         session.rollback()
-        cycle_names = session.execute(
+        session.execute(
             select(Recipe.name).where(Recipe.id.in_(cycle))
         ).scalars().all()
         raise HTTPException(
@@ -716,7 +712,7 @@ async def recipe_update(
     # Tag algebra (054): re-derive after line changes; cascade to parents
     # and sync linked products' inherited tags.
     try:
-        from app.rms.tag_algebra import cascade_refresh, _product_inherit_sync
+        from app.rms.tag_algebra import _product_inherit_sync, cascade_refresh
         refreshed = cascade_refresh(session, recipe_id=r.id)
         for rid in refreshed:
             _product_inherit_sync(session, rid)
@@ -748,7 +744,7 @@ async def recipe_create_product_redirect(
 
     # Compute suggested price: cost × SettingsKV-configured markup (default 3.0)
     from app.rms.costing import recipe_unit_cost_gs
-    from app.rms.settings_runtime import get_pricing_markup, compute_suggested_price
+    from app.rms.settings_runtime import compute_suggested_price, get_pricing_markup
     unit = recipe_unit_cost_gs(session, r_id)
     suggested_price = ""
     if unit.batch_cost_gs:
@@ -890,7 +886,7 @@ def recipe_search_api(
     session: Session = Depends(get_session),
 ) -> JSONResponse:
     """Search recipes by name/description (case-insensitive).
-    
+
     Used by the combo system on /merma form for recipe selection.
     """
     # Basic search by name
@@ -900,12 +896,12 @@ def recipe_search_api(
         .order_by(Recipe.name)
         .limit(limit)
     )
-    
+
     recipes = session.scalars(query).all()
-    
+
     if not recipes:
         return JSONResponse({"results": [], "count": 0})
-    
+
     # Format results for combo
     payload = []
     for r in recipes:
@@ -915,7 +911,7 @@ def recipe_search_api(
             "yield_qty": r.yield_qty,
             "yield_unit": r.yield_unit,
         })
-    
+
     return JSONResponse({
         "results": payload,
         "count": len(payload)
@@ -925,18 +921,18 @@ def recipe_search_api(
 @router.get("/api/units", response_class=JSONResponse)
 def units_api() -> JSONResponse:
     """List all available units.
-    
+
     Used by the combo system on /merma form for unit selection.
     """
     from app.rms.units import Unit
-    
+
     payload = []
     for unit in Unit:
         payload.append({
             "value": unit.value,
             "display": unit.display,
         })
-    
+
     return JSONResponse({
         "results": payload,
         "count": len(payload)
@@ -952,6 +948,7 @@ def recipes_export_csv(
     import csv
     from datetime import datetime, timezone
     from io import StringIO
+
     from starlette.responses import Response
 
     recipes = session.scalars(select(Recipe).order_by(Recipe.name)).all()

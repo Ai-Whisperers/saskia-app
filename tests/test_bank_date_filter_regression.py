@@ -1,7 +1,5 @@
 """Test bank date range filter feature."""
 
-import pytest
-from tests.conftest import client
 
 def test_bank_page_renders(client):
     """Bank page renders normally."""
@@ -53,7 +51,6 @@ def test_bank_retains_filters_on_manual_entry(client):
     """Date filters are preserved in form when filters applied."""
     r = client.get('/bank?start_date=2025-09-01&end_date=2025-09-30')
     assert r.status_code == 200
-    body = r.text
     assert "value=\"2025-09-01\"", "Start date not persisted in form"
     assert "value=\"2025-09-30\"", "End date not persisted in form"
 

@@ -47,8 +47,8 @@ def is_valid_storage_code(session: Session, code: str) -> bool:
 
 
 __all__ = [
-    "list_storage_types",
-    "valid_storage_codes",
     "fallback_storage_codes",
     "is_valid_storage_code",
+    "list_storage_types",
+    "valid_storage_codes",
 ]

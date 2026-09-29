@@ -18,7 +18,6 @@ from datetime import date, datetime, timedelta, timezone
 from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale
 from app.rms.production import plan_production
 
-
 # --- Shared helpers ---
 
 
@@ -121,7 +120,7 @@ def test_production_math_multiplication(session_factory):
 
 
 def test_day_view_backward_compat(client, session_factory):
-    pid = _seed_product_with_recipe_and_sales(session_factory)
+    _seed_product_with_recipe_and_sales(session_factory)
     r = client.get("/produccion")
     assert r.status_code == 200
     assert "Muffin" in r.text

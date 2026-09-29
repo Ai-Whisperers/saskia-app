@@ -11,9 +11,7 @@ in an inconsistent state for the next pooled connection checkout.
 """
 from __future__ import annotations
 
-import pytest
 from sqlalchemy.exc import IntegrityError
-
 
 # ─── safe_commit behavior tests ─────────────────────────────────────────────
 

@@ -1,9 +1,5 @@
 """Test bank reconciliation feature."""
 
-import pytest
-from datetime import datetime, timezone
-from sqlalchemy import select
-from tests.conftest import client
 
 
 def test_bank_page_renders(client):
@@ -137,7 +133,7 @@ def test_bank_no_python_errors_on_reconciliation(client):
         '/bank?reconciled=no',
         '/bank/1/unreconcile',
     ]
-    
+
     for url in test_urls:
         if '/unreconcile' in url:
             r = client.post(url)

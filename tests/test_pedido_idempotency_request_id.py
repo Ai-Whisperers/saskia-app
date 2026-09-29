@@ -8,15 +8,18 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import date, datetime, timezone
-
-import pytest
+from datetime import date
 
 
 def _seed_pedido(session_factory):
     """Minimal pedido ready to fulfill."""
     from app.rms.models import (
-        Ingredient, Pedido, PedidoLine, Product, Recipe, RecipeLine,
+        Ingredient,
+        Pedido,
+        PedidoLine,
+        Product,
+        Recipe,
+        RecipeLine,
     )
 
     with session_factory() as s:
@@ -96,8 +99,9 @@ def test_pedido_idempotency_generates_request_id_when_missing(client, session_fa
     r = _post_fulfill(client, pedido_id, idem)  # no header
     assert r.status_code in (303, 302)
 
-    from app.rms.models import AppMeta
     import json
+
+    from app.rms.models import AppMeta
 
     with session_factory() as s:
         row = s.scalar(

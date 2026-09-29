@@ -13,16 +13,16 @@ from app.rms.models.core import Base
 
 class SaleStockMove(Base):
     """Tracks stock movement for sales transactions."""
-    
+
     __tablename__ = "sale_stock_move"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     sale_id: Mapped[str] = mapped_column(String(32), ForeignKey("sale.sale_id"), nullable=False)
     product_id: Mapped[int] = mapped_column(Integer, ForeignKey("product.id"), nullable=False)
     quantity: Mapped[float] = mapped_column(Integer, nullable=False)
-    
+
     # Relationships
     sale: Mapped["Sale"] = relationship("Sale", back_populates="stock_moves")
-    
-    def __repr__(self):
+
+    def __repr__(self) -> str:
         return f"SaleStockMove(id={self.id}, sale_id='{self.sale_id}', quantity={self.quantity})"

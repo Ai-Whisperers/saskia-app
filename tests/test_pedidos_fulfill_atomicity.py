@@ -9,14 +9,13 @@ Per SASKIA_TEST_PLAN.md §5 #12 — POST /pedidos/{id}/fulfill must atomically:
 """
 from __future__ import annotations
 
-import pytest
-from datetime import date, datetime, timezone, timedelta
+from datetime import date
+
 from app.rms.models import Pedido, PedidoLine, Product, Sale
 
 
 def test_pedidos_fulfill_creates_sale(authed_client, session_factory):
     """P2 #1: POST /pedidos/{id}/fulfill must create a Sale row."""
-    from app.rms.models import Product, Pedido, PedidoLine
 
     with session_factory() as s:
         product = Product(
@@ -62,7 +61,6 @@ def test_pedidos_fulfill_creates_sale(authed_client, session_factory):
 
 def test_pedidos_double_fulfill_returns_409(authed_client, session_factory):
     """P2 #2: Second POST /pedidos/{id}/fulfill must return 409 (already fulfilled)."""
-    from app.rms.models import Product, Pedido, PedidoLine
 
     with session_factory() as s:
         product = Product(
@@ -109,7 +107,6 @@ def test_pedidos_double_fulfill_returns_409(authed_client, session_factory):
 
 def test_pedidos_fulfill_updates_status(authed_client, session_factory):
     """P2 #3: POST /pedidos/{id}/fulfill must update pedido.status to 'fulfilled'."""
-    from app.rms.models import Product, Pedido, PedidoLine
 
     with session_factory() as s:
         product = Product(

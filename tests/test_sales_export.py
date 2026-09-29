@@ -12,12 +12,12 @@ Covers:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 import pytest
 
 from app.rms.config import ASUNCION_TZ
-from app.rms.models import Customer, Ingredient, Product, Recipe, RecipeLine, Sale
+from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale
 
 
 @pytest.fixture

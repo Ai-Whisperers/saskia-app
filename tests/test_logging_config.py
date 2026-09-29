@@ -26,7 +26,7 @@ def test_production_log_format_string():
     assert "loguru" in sys.modules or True  # loguru was imported transitively
     # Real test of the configured behavior is in main.py; here we just
     # confirm there's no import-time crash.
-    import app.rms.main as m  # noqa: F401
+    import app.rms.main as m
     assert m is not None
 
 

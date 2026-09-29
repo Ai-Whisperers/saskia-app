@@ -6,23 +6,21 @@ Per dev plan §9 Task 7 + v2 §11 (timezone).
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
-from loguru import logger
-from app.rms.constants import DEFAULT_TAX_REGIME
 from app.rms.analytics import (
     batch_stock_turnover,
     day_of_week_heatmap,
     ingredient_concentration,
     margin_erosion_alerts,
     recipe_complexity,
-    stock_turnover,
-    stock_turnover as _unused_turnover,
     top_margin_products,
 )
 from app.rms.charts import (
@@ -31,13 +29,13 @@ from app.rms.charts import (
     pie_donut,
 )
 from app.rms.config import ASUNCION_TZ
+from app.rms.constants import DEFAULT_TAX_REGIME
 from app.rms.costing import batch_products_cost_margin, batch_recipes_cost
 from app.rms.dependencies import get_session
 from app.rms.insights import build_insights
 from app.rms.models import Ingredient, Recipe, RiskItem, Sale, ShoppingListItem, WishlistItem
-from app.services.template_render import render
 from app.rms.money import to_int_gs
-from decimal import Decimal
+from app.services.template_render import render
 
 router = APIRouter(dependencies=[Depends(require_login)])
 
@@ -174,6 +172,7 @@ def _compliance_alerts(session) -> list[dict]:
     Empty list means everything is in order.
     """
     from datetime import date, datetime
+
     from app.rms.models import ComplianceInfo
 
     today = date.today()
@@ -364,9 +363,9 @@ async def dashboard(
     prior_label = period_labels.get(period, "período anterior")
 
     # ── Acciones del día (mockup plan 2026-09-25) ──────────────────────
-    from app.rms.models import Pedido, WasteLog  # local import: avoid cycles
-    from app.rms.eod_completions import completions_for_date as _eod_for_date
     from app.rms.demand_freshness import freshness_flags as _freshness_flags
+    from app.rms.eod_completions import completions_for_date as _eod_for_date
+    from app.rms.models import Pedido, WasteLog  # local import: avoid cycles
 
     today_d = datetime.now(ASUNCION_TZ).date()
     tomorrow_d = today_d + timedelta(days=1)

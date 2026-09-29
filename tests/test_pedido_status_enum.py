@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import pytest
 
-
 # ─── Behavior locks — must hold both before and after refactor ──────────────
 
 

@@ -12,7 +12,6 @@ Covers:
 - _MODEL_BY_NAME maps all expected models
 """
 from __future__ import annotations
-from tests.factories import make_ingredient, make_product
 
 import pytest
 
@@ -27,9 +26,9 @@ from app.rms.backup import (
     verify_backup,
 )
 from app.rms.models import (
-    Ingredient,
     Product,
 )
+from tests.factories import make_ingredient, make_product
 
 
 def test_dump_full_state_includes_all_tables(session_factory):

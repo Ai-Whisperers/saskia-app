@@ -33,7 +33,6 @@ from sqlalchemy import select
 from app.rms.models import Ingredient, IngredientPriceEvent
 from app.rms.production import plan_production
 
-
 # --------------------------------------------------------------------------
 # UC3 / G4 — restock → price event → strip + reporte + insight card, one pass
 # --------------------------------------------------------------------------

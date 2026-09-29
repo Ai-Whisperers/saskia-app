@@ -11,16 +11,12 @@ item 1): routes that had NO test of any kind until now.
 
 from __future__ import annotations
 
-import io
-
 import pytest
 
-from app.rms.models import MarketBenchmark, Pedido, ShoppingListItem, WishlistItem
+from app.rms.models import MarketBenchmark, ShoppingListItem, WishlistItem
 from tests.factories import (
     ing_line,
-    make_catalog,
     make_ingredient,
-    make_pedido,
     make_product,
     make_recipe,
 )
@@ -154,7 +150,7 @@ def test_wishlist_mark_purchased_flow(client, session_factory):
         s.add(w)
         s.commit()
         wid = w.id
-    r = client.post(f"/wishlist/{wid}/mark-purchased")
+    client.post(f"/wishlist/{wid}/mark-purchased")
     with session_factory() as s:
         assert s.get(WishlistItem, wid).purchased is True
     # purchased item refuses re-send
@@ -177,9 +173,8 @@ def _upload(client, path, content, ctype, filename="img.png"):
 
 def test_product_upload_image_happy_path(client, session_factory):
     with session_factory() as s:
-        p = make_product(s, name="Subida img")
+        make_product(s, name="Subida img")
         s.commit()
-        pid = p.id
     r = _upload(client, "/productos/upload-image", PNG_1X1, "image/png")
     assert r.status_code == 200
     assert r.json()["url"].startswith("/static/uploads/")

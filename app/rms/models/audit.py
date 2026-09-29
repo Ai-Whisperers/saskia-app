@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-from datetime import date, datetime
-from typing import Optional
-
 from sqlalchemy import (
-    Boolean, CheckConstraint, Date, DateTime, Float, JSON,
-    ForeignKey, Index, Integer, String, Text, UniqueConstraint,
+    Text,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.rms.models.core import Base
-
 
 """
 app/rms/models/audit.py — Audit + system-state tables: AppMeta, AuditLog, SettingsKV, User, Tenant.

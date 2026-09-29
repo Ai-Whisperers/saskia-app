@@ -1,7 +1,5 @@
 """Test bank currency toggle and pagination features."""
 
-import pytest
-from tests.conftest import client
 
 def test_bank_page_renders(client):
     """Bank page renders normally."""
@@ -127,7 +125,7 @@ def test_bank_no_python_errors(client):
         '/bank?currency=EUR&page=1',
         '/bank?start_date=2025-09-01&currency=EUR',
     ]
-    
+
     for url in test_urls:
         r = client.get(url)
         assert r.status_code != 500, f"500 error on {url}"

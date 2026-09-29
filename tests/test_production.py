@@ -11,15 +11,15 @@ Covers:
 - plan_production surfaces seasonal notes
 """
 from __future__ import annotations
-from tests.factories import make_ingredient, make_product
 
 from datetime import date, datetime, timedelta, timezone
 
-from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale
+from app.rms.models import Recipe, RecipeLine, Sale
 from app.rms.production import (
     forecast_sales,
     plan_production,
 )
+from tests.factories import make_ingredient, make_product
 
 
 def test_forecast_sales_zero_when_no_history(session_factory):

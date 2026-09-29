@@ -35,7 +35,7 @@ def test_migration_idempotency(tmp_db_path):
     The 'pass on already-exists' pattern is fragile. If a migration
     breaks idempotency, redeploys can crash.
     """
-    from app.rms.db import init_db, make_engine, schema_version, CURRENT_SCHEMA_VERSION
+    from app.rms.db import CURRENT_SCHEMA_VERSION, init_db, make_engine, schema_version
 
     db_path = f"{tmp_db_path}/idempotent_test.sqlite"
     engine = make_engine(f"sqlite:///{db_path}")
@@ -73,8 +73,8 @@ def test_csrf_allows_primed_post(client):
     r = client.post("/products/99999/editar", data={"name": "Test"}, follow_redirects=False)
     # Should NOT be 403 (CSRF rejection). 404 (product not found) or 303/200 are fine.
     assert r.status_code != 403, (
-        f"POST with CSRF cookie should pass CSRF check, got 403. "
-        f"CSRF middleware too strict."
+        "POST with CSRF cookie should pass CSRF check, got 403. "
+        "CSRF middleware too strict."
     )
 
 
@@ -97,7 +97,7 @@ def test_healthz_deps_fingerprint_works(client):
 
 def test_schema_drift_detection_underlying(app_engine):
     """P3 #3 (refactored): schema_version_mismatch() must detect drift."""
-    from app.rms.db import schema_version_mismatch, CURRENT_SCHEMA_VERSION
+    from app.rms.db import CURRENT_SCHEMA_VERSION, schema_version_mismatch
 
     # Set DB version behind code
     with app_engine.connect() as conn:

@@ -18,13 +18,12 @@ import os
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
 
-from sqlalchemy.exc import IntegrityError
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Form
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from loguru import logger
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
@@ -297,7 +296,7 @@ async def excel_export(request: Request, session: Session = Depends(get_session)
     except Exception:
         try:
             tmp_path.unlink()
-        except OSError as exc:  # noqa: BLE001 — best-effort cleanup
+        except OSError as exc:
             # Temp file cleanup; if the OS already removed it, not an error.
             logger.debug("excel_io tmp cleanup skipped: {}", exc)
         raise

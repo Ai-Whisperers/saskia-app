@@ -10,14 +10,13 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import current_user_id
 from app.auth import require_login_or_disabled as require_login
 from app.rms.audit import record as audit_record
 from app.rms.dependencies import get_session
-from app.rms.models import Ingredient, Supplier
+from app.rms.models import Ingredient
 from app.rms.price_history import batch_price_stats, record_price_event
 from app.rms.rate_limit import is_write_rate_limited
 from app.rms.reorder import compute_reorder_list

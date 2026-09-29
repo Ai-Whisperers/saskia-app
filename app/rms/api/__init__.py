@@ -6,12 +6,12 @@ This package provides standardized API contracts and response formats
 to ensure consistency across all endpoints and improve performance.
 """
 
-from .contracts import APIResponse, APIError, PaginatedResponse
+from .contracts import APIError, APIResponse, PaginatedResponse
 from .performance import query_optimizer, response_caching
 
 __all__ = [
+    "APIError",
     "APIResponse",
-    "APIError", 
     "PaginatedResponse",
     "query_optimizer",
     "response_caching",

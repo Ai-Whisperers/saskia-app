@@ -4,9 +4,8 @@ for a typical seed dataset.
 """
 from __future__ import annotations
 
-from sqlalchemy import event
-
 import pytest
+from sqlalchemy import event
 
 pytestmark = pytest.mark.perf
 

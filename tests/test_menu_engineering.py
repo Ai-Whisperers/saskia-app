@@ -10,7 +10,7 @@ from app.rms.menu_engineering import (
     classify_products,
     menu_engineering_report,
 )
-from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale
+from app.rms.models import Product, Recipe, RecipeLine, Sale
 from tests.factories import make_ingredient, make_product
 
 # ---------------------------------------------------------------------------
@@ -128,7 +128,7 @@ def test_report_has_all_four_buckets(session_factory):
         qty_per_sale = [5, 1, 1, 1]
         sale_counts = [30, 5, 5, 1]
         products = []
-        for i, (price, qty, n) in enumerate(zip(prices, qty_per_sale, sale_counts)):
+        for i, (price, qty, n) in enumerate(zip(prices, qty_per_sale, sale_counts, strict=False)):
             p = Product(name=f"prod_{i}_xyz", portion_label="und",
                         sale_price_gs=price, recipe_id=r.id)
             s.add(p)
@@ -236,5 +236,5 @@ def test_volume_excludes_voided_sales(session_factory):
         s.commit()
 
         result = classify_products(s)
-        c = [r for r in result if r.product_id == p.id][0]
+        c = next(r for r in result if r.product_id == p.id)
         assert c.volume == 5  # voided excluded

@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import pytest
 
-
 # --- require_text ---
 
 def test_require_text_returns_stripped_value():
@@ -30,8 +29,9 @@ def test_require_text_returns_stripped_value():
 
 
 def test_require_text_rejects_empty_with_spanish_error():
-    from app.rms.validation import require_text
     from fastapi import HTTPException
+
+    from app.rms.validation import require_text
     with pytest.raises(HTTPException) as exc:
         require_text("", field="nombre", max_len=120)
     assert exc.value.status_code == 400
@@ -39,8 +39,9 @@ def test_require_text_rejects_empty_with_spanish_error():
 
 
 def test_require_text_rejects_too_long():
-    from app.rms.validation import require_text
     from fastapi import HTTPException
+
+    from app.rms.validation import require_text
     with pytest.raises(HTTPException) as exc:
         require_text("a" * 200, field="nombre", max_len=120)
     assert exc.value.status_code == 400
@@ -48,8 +49,9 @@ def test_require_text_rejects_too_long():
 
 
 def test_require_text_whitespace_only_is_blank():
-    from app.rms.validation import require_text
     from fastapi import HTTPException
+
+    from app.rms.validation import require_text
     with pytest.raises(HTTPException) as exc:
         require_text("   \t  ", field="campo", max_len=120)
     assert exc.value.status_code == 400
@@ -84,8 +86,9 @@ def test_parse_money_gs_with_currency_symbol():
 
 
 def test_parse_money_gs_rejects_negative():
-    from app.rms.validation import parse_money_gs
     from fastapi import HTTPException
+
+    from app.rms.validation import parse_money_gs
     with pytest.raises(HTTPException) as exc:
         parse_money_gs("-100")
     assert exc.value.status_code == 400
@@ -93,8 +96,9 @@ def test_parse_money_gs_rejects_negative():
 
 
 def test_parse_money_gs_rejects_zero_when_disallowed():
-    from app.rms.validation import parse_money_gs
     from fastapi import HTTPException
+
+    from app.rms.validation import parse_money_gs
     with pytest.raises(HTTPException) as exc:
         parse_money_gs("0", allow_zero=False)
     assert exc.value.status_code == 400
@@ -102,8 +106,9 @@ def test_parse_money_gs_rejects_zero_when_disallowed():
 
 
 def test_parse_money_gs_rejects_garbage():
-    from app.rms.validation import parse_money_gs
     from fastapi import HTTPException
+
+    from app.rms.validation import parse_money_gs
     with pytest.raises(HTTPException) as exc:
         parse_money_gs("abc")
     assert exc.value.status_code == 400
@@ -118,8 +123,9 @@ def test_parse_quantity_basic():
 
 
 def test_parse_quantity_rejects_zero_when_disallowed():
-    from app.rms.validation import parse_quantity
     from fastapi import HTTPException
+
+    from app.rms.validation import parse_quantity
     with pytest.raises(HTTPException) as exc:
         parse_quantity("0", field="qty")
     assert exc.value.status_code == 400
@@ -127,8 +133,9 @@ def test_parse_quantity_rejects_zero_when_disallowed():
 
 
 def test_parse_quantity_rejects_negative():
-    from app.rms.validation import parse_quantity
     from fastapi import HTTPException
+
+    from app.rms.validation import parse_quantity
     with pytest.raises(HTTPException) as exc:
         parse_quantity("-5", field="qty")
     assert "negativa" in exc.value.detail
@@ -142,8 +149,9 @@ def test_parse_unit_valid():
 
 
 def test_parse_unit_invalid_raises_spanish():
-    from app.rms.validation import parse_unit
     from fastapi import HTTPException
+
+    from app.rms.validation import parse_unit
     with pytest.raises(HTTPException) as exc:
         parse_unit("stones")
     assert "Unidad inválida" in exc.value.detail
@@ -168,8 +176,9 @@ def test_validate_email_blank_is_none():
 
 
 def test_validate_email_rejects_garbage():
-    from app.rms.validation import validate_email
     from fastapi import HTTPException
+
+    from app.rms.validation import validate_email
     with pytest.raises(HTTPException) as exc:
         validate_email("nope")
     assert "Email inválido" in exc.value.detail
@@ -193,8 +202,9 @@ def test_validate_phone_international():
 
 
 def test_validate_phone_rejects_letters():
-    from app.rms.validation import validate_phone
     from fastapi import HTTPException
+
+    from app.rms.validation import validate_phone
     with pytest.raises(HTTPException) as exc:
         validate_phone("0981abc234")
     assert "Teléfono inválido" in exc.value.detail
@@ -218,8 +228,9 @@ def test_validate_ruc_juridica_format():
 
 
 def test_validate_ruc_rejects_letters():
-    from app.rms.validation import validate_ruc
     from fastapi import HTTPException
+
+    from app.rms.validation import validate_ruc
     with pytest.raises(HTTPException) as exc:
         validate_ruc("ABC")
     assert "RUC inválido" in exc.value.detail
@@ -233,8 +244,9 @@ def test_validate_cedula_paraguay_format():
 
 
 def test_validate_cedula_rejects_garbage():
-    from app.rms.validation import validate_cedula
     from fastapi import HTTPException
+
+    from app.rms.validation import validate_cedula
     with pytest.raises(HTTPException) as exc:
         validate_cedula("not-a-cedula")
     assert "Cédula inválida" in exc.value.detail
@@ -248,8 +260,9 @@ def test_validate_url_valid():
 
 
 def test_validate_url_rejects_non_http():
-    from app.rms.validation import validate_url
     from fastapi import HTTPException
+
+    from app.rms.validation import validate_url
     with pytest.raises(HTTPException) as exc:
         validate_url("ftp://example.com/file")
     assert "URL inválida" in exc.value.detail
@@ -273,8 +286,9 @@ def test_parse_date_iso_blank_is_none():
 
 
 def test_parse_date_iso_rejects_garbage():
-    from app.rms.validation import parse_date_iso
     from fastapi import HTTPException
+
+    from app.rms.validation import parse_date_iso
     with pytest.raises(HTTPException) as exc:
         parse_date_iso("not-a-date", field="fecha")
     assert "fecha inválida" in exc.value.detail
@@ -483,8 +497,9 @@ def test_producto_nuevo_accepts_tags_field(client, session_factory):
 
 def test_reorder_registrar_accepts_qty_unit(client, app_engine):
     """E1: reorder accepts a qty_unit (g/kg/ml/l) and converts to ingredient stock unit."""
-    from app.rms.models import Ingredient
     from sqlalchemy.orm import sessionmaker
+
+    from app.rms.models import Ingredient
     sf = sessionmaker(bind=app_engine)
     with sf() as s:
         ing = Ingredient(name="reorder unit test", unit="kg",

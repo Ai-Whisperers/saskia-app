@@ -29,21 +29,24 @@ from loguru import logger
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, selectinload
 
-from app.auth import current_user_id, require_login_or_disabled as require_login
+from app.auth import current_user_id
+from app.auth import require_login_or_disabled as require_login
 from app.rms.audit import record as audit_record
 from app.rms.config import ASUNCION_TZ
 from app.rms.costing import apply_sale
 from app.rms.db import safe_commit
 from app.rms.dependencies import get_session
 from app.rms.models import Customer, Pedido, PedidoLine, Product, Recipe, Sale
+
 try:
     from app.rms.models import Ingredient
 except ImportError:
     Ingredient = None
+from decimal import Decimal
+
+from app.rms.money import to_int_gs
 from app.rms.schemas import ALLOWED_PAYMENT_METHODS
 from app.services.template_render import render
-from app.rms.money import to_int_gs
-from decimal import Decimal
 
 router = APIRouter(prefix="/pedidos", dependencies=[Depends(require_login)])
 
@@ -518,7 +521,7 @@ async def pedidos_create(
     lines: list[dict[str, Any]] = []
     skipped: list[str] = []  # human-readable reasons for ignored lines
     for idx, (pid_raw, qty_raw, price_raw) in enumerate(
-        zip(product_ids, qtys, unit_prices), start=1
+        zip(product_ids, qtys, unit_prices, strict=False), start=1
     ):
         # BUG-00: surface WHY a line was rejected, not silently drop it.
         pid_s = str(pid_raw).strip()
@@ -618,7 +621,7 @@ async def pedidos_create(
         if zone and zone.min_order_gs > 0:
             # Compute pedido total
             pedido_total_gs = sum(
-                int(round((ln["qty"] or 0) * (ln["price"] or 0)))
+                round((ln["qty"] or 0) * (ln["price"] or 0))
                 for ln in lines
             )
             if pedido_total_gs < zone.min_order_gs:
@@ -719,7 +722,7 @@ def pedidos_export_csv(
         "Razón cancelación", "Creado", "Cumplido",
     ])
     for p in pedidos:
-        decorated = _decorate_pedido(p, session)
+        _decorate_pedido(p, session)
         writer.writerow([
             p.id,
             p.promised_date.strftime("%d/%m/%Y"),
@@ -804,7 +807,7 @@ def public_pedido(request: Request, token: str) -> HTMLResponse:
         )
 
 
-__all__ = ["router", "public_router"]
+__all__ = ["public_router", "router"]
 
 
 @router.get("/{pedido_id}", response_class=HTMLResponse)
@@ -944,6 +947,7 @@ def pedidos_fulfill(
     # SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md §F3.
     if idempotency_key:
         from sqlalchemy.exc import IntegrityError
+
         from app.rms.models import AppMeta as _AppMeta
         try:
             # Use JSON shape (forward-compatible) so we can store
@@ -1103,6 +1107,7 @@ def pedidos_fulfill(
     # real first_sale_id while preserving the JSON shape (pedido_id, request_id).
     if idempotency_key and first_sale_id is not None:
         import json as _json
+
         from app.rms.models import AppMeta as _AppMeta
 
         # Re-read current value to preserve pedido_id + request_id, then
@@ -1146,8 +1151,9 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
     # Falls back to the legacy hardcoded copy if the template row is missing.
     msg = None
     try:
-        from app.rms.models import MessageTemplate as MT
         from sqlalchemy import select as _select
+
+        from app.rms.models import MessageTemplate as MT
         template_key = "pedido_listo" if pedido.channel == "WhatsApp" else "generic"
         template_channel = "whatsapp" if pedido.channel == "WhatsApp" else "email"
         row = session.execute(
@@ -1174,7 +1180,8 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
             else f"Tu pedido #{pedido.id} esta listo para retirar. Gracias!"
         )
 
-    import logging, os
+    import logging
+    import os
     twilio_sid     = os.getenv("TWILIO_ACCOUNT_SID",     "").strip()
     twilio_token   = os.getenv("TWILIO_AUTH_TOKEN",       "").strip()
     twilio_from_wa = os.getenv("TWILIO_WHATSAPP_FROM",   "").strip()
@@ -1250,7 +1257,7 @@ def pedidos_stock_preview(
         except Exception as exc:
             logger.warning(f"pedidos.stock_preview: _compute_stock_moves failed for product {product.id}: {exc!r}")
             continue
-        for affected_recipe_id, ingredient_id, qty_delta in moves:
+        for _affected_recipe_id, ingredient_id, qty_delta in moves:
             ing = session.get(Ingredient, ingredient_id) if Ingredient else None
             ing_name = ing.name if ing else f"# {ingredient_id}"
             current = ing.stock_qty if ing else 0
@@ -1356,8 +1363,9 @@ def pedidos_bulk_fulfill(
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Mark multiple pending pedidos as fulfilled in one click."""
-    from app.rms.models import Pedido
     from sqlalchemy import update
+
+    from app.rms.models import Pedido
 
     fulfilled = 0
     for pid in ids.split(","):

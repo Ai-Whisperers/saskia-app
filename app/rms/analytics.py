@@ -503,19 +503,19 @@ def recipe_complexity(session: Session) -> list[RecipeComplexity]:
 
 
 __all__ = [
-    "StockTurnover",
-    "DeadStockRow",
-    "MarginErosionAlert",
     "DayOfWeekBucket",
-    "TopMarginProduct",
+    "DeadStockRow",
     "IngredientConcentration",
+    "MarginErosionAlert",
     "RecipeComplexity",
-    "stock_turnover",
+    "StockTurnover",
+    "TopMarginProduct",
     "all_stock_turnover",
-    "dead_stock",
-    "margin_erosion_alerts",
     "day_of_week_heatmap",
-    "top_margin_products",
+    "dead_stock",
     "ingredient_concentration",
+    "margin_erosion_alerts",
     "recipe_complexity",
+    "stock_turnover",
+    "top_margin_products",
 ]

@@ -249,10 +249,10 @@ def action_for(product_class: ProductClassification) -> str:
 
 
 __all__ = [
+    "RECOMMENDATIONS",
     "MenuEngineeringReport",
     "ProductClassification",
     "Quadrant",
-    "RECOMMENDATIONS",
     "action_for",
     "classify_products",
     "menu_engineering_report",

@@ -4,9 +4,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy import select
 
-from app.rms.cierre import compute_monthly_close, _month_range
+from app.rms.cierre import _month_range, compute_monthly_close
 from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale
 
 
@@ -17,11 +16,11 @@ class TestMonthRange:
         assert e == __import__('datetime').date(2026, 1, 31)
 
     def test_february_non_leap(self):
-        s, e = _month_range(2025, 2)
+        _s, e = _month_range(2025, 2)
         assert e == __import__('datetime').date(2025, 2, 28)
 
     def test_february_leap(self):
-        s, e = _month_range(2024, 2)
+        _s, e = _month_range(2024, 2)
         assert e == __import__('datetime').date(2024, 2, 29)
 
     def test_december(self):

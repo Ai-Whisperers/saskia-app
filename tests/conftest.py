@@ -355,7 +355,7 @@ def _FakeSupabaseForIntegration():
             return self._tokens[uid]
 
         def refresh_session(self, refresh_token):
-            for uid, data in self._tokens.items():
+            for data in self._tokens.values():
                 if data["refresh_token"] == refresh_token:
                     return data
             raise Exception("Invalid refresh token")
@@ -399,6 +399,7 @@ def supabase_auth_env(monkeypatch):
 
     # Reload to pick up new env vars FIRST
     import importlib
+
     import app.auth_supabase as au
     importlib.reload(au)
 

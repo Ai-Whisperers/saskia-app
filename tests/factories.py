@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import secrets
 import uuid as _uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
@@ -169,7 +169,8 @@ def make_user(s, *, username: str | None = None, role: str = "operator",
               is_active: bool = True, password_hash: str | None = None, **kw) -> User:
     """Local-backend user (G3 groundwork: role param ready for authz matrix).
     password_hash None = unusable-by-password probe account."""
-    from datetime import datetime, timezone as _tz
+    from datetime import datetime
+    from datetime import timezone as _tz
     u = User(username=username or _uniq("user"), role=role, is_active=is_active,
              password_hash=password_hash or "!",
              created_at=kw.pop("created_at", None) or datetime.now(_tz.utc), **kw)

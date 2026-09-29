@@ -551,7 +551,7 @@ def test_sale_create_success(client, session_factory):
         sales = s.query(Sale).all()
         # 1 seeded + 1 new = 2
         assert len(sales) == 2
-        new = [x for x in sales if x.qty == 1.5][0]
+        new = next(x for x in sales if x.qty == 1.5)
         assert new.product_id == product_id
 
 

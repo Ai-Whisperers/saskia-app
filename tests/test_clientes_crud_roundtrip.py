@@ -24,7 +24,6 @@ def test_clientes_create_form_loads(authed_client):
 
 def test_clientes_api_search_returns_json(authed_client, session_factory):
     """GET /clientes/api/search?q= must return JSON."""
-    from app.rms.models import Customer
     with session_factory() as s:
         c = Customer(name="CRUD Test Customer", phone="+595991000000")
         s.add(c)
@@ -33,7 +32,6 @@ def test_clientes_api_search_returns_json(authed_client, session_factory):
     r = authed_client.get("/clientes/api/search?q=CRUD")
     assert r.status_code < 500
     if r.status_code == 200:
-        import json
         data = r.json()
         assert isinstance(data, (list, dict))
 
@@ -54,7 +52,6 @@ def test_clientes_api_create_creates_customer(authed_client, session_factory):
 
 def test_clientes_detail_page_loads(authed_client, session_factory):
     """GET /clientes/{id} must return 200 for existing customer."""
-    from app.rms.models import Customer
     with session_factory() as s:
         c = Customer(name="Detail Test Customer", phone="+595999111222")
         s.add(c)
@@ -68,7 +65,6 @@ def test_clientes_detail_page_loads(authed_client, session_factory):
 
 def test_clientes_edit_form_loads(authed_client, session_factory):
     """GET /clientes/{id}/editar must return 200 for existing customer."""
-    from app.rms.models import Customer
     with session_factory() as s:
         c = Customer(name="Edit Test Customer", phone="+595999333444")
         s.add(c)

@@ -11,8 +11,8 @@ users see the broken page.
 from __future__ import annotations
 
 import re
-import pytest
 
+import pytest
 
 # All routes reachable from the sidebar / template hrefs. Keep this list
 # explicit so a broken link in the sidebar is immediately visible.

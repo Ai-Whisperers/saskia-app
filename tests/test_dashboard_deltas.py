@@ -13,7 +13,7 @@ from pathlib import Path
 # Make app package importable when running pytest from project root.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -26,7 +26,6 @@ from app.routers.dashboard import (
     _period_window,
     _prior_period_window,
 )
-
 
 # ---- window helper tests --------------------------------------------------
 
@@ -58,7 +57,7 @@ def test_prior_period_month_is_previous_full_month():
     # If we're mid-month, prior window is a complete previous calendar month.
     now = datetime.now(ZoneInfo("America/Asuncion"))
     if now.day > 5:  # safe to check full prior month
-        expected_last = (start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(
+        (start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(
             days=1
         )
         # end is the 1st of the current month
@@ -158,8 +157,9 @@ def test_inicio_renders_period_label_in_dashboard(client):
 
 def test_compute_window_totals_returns_six_tuple():
     """Tuple must include batch_costs so the ranking loop can reuse it."""
-    from app.rms.db import make_engine, init_db
     from sqlalchemy.orm import sessionmaker
+
+    from app.rms.db import init_db, make_engine
 
     engine = make_engine("sqlite:///:memory:")
     init_db(engine)
@@ -172,7 +172,7 @@ def test_compute_window_totals_returns_six_tuple():
     )
     s.close()
     assert len(result) == 6, "_compute_window_totals must return 6-tuple (incl. batch_costs)"
-    ventas_gs, cogs_gs, margen_gs, sales_no_recipe, sales, batch_costs = result
+    ventas_gs, cogs_gs, margen_gs, _sales_no_recipe, sales, batch_costs = result
     assert ventas_gs == 0
     assert cogs_gs == 0
     assert margen_gs == 0

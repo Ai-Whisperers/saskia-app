@@ -7,6 +7,7 @@ a free-tier Render instance.
 Markers: perf. Run nightly, not on every commit.
 """
 import time
+
 import pytest
 
 

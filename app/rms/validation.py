@@ -212,7 +212,7 @@ def validate_url(value: str | None) -> str | None:
     cleaned = (value or "").strip()
     if not cleaned:
         return None
-    if not (cleaned.startswith("http://") or cleaned.startswith("https://")):
+    if not (cleaned.startswith(("http://", "https://"))):
         raise HTTPException(
             status_code=400,
             detail=f"URL inválida: {cleaned!r}. Debe empezar con http:// o https://",
@@ -236,15 +236,15 @@ def parse_date_iso(value: str | None, *, field: str = "fecha") -> str | None:
 
 
 __all__ = [
-    "require_text",
     "optional_text",
+    "parse_date_iso",
     "parse_money_gs",
     "parse_quantity",
     "parse_unit",
+    "require_text",
+    "validate_cedula",
     "validate_email",
     "validate_phone",
     "validate_ruc",
-    "validate_cedula",
     "validate_url",
-    "parse_date_iso",
 ]

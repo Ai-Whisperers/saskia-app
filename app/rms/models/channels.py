@@ -13,7 +13,7 @@ from typing import Annotated
 
 class Channel(str, Enum):
     """Unified sales channel enum for both Pedido and Sale models.
-    
+
     Replaces string constants in app/rms/schemas.py to ensure
     consistency between domain models and validation.
     """
@@ -28,7 +28,7 @@ class Channel(str, Enum):
     def allowed_values(cls) -> set[str]:
         """Return all allowed channel values."""
         return {member.value for member in cls}
-    
+
     @classmethod
     def default(cls) -> str:
         """Return default channel value."""
@@ -48,7 +48,7 @@ class Channel(str, Enum):
 
 # SQLAlchemy enum type for migrations and model definitions
 CHANNEL_ENUM_TYPE = Annotated[
-    Channel, 
+    Channel,
     "Channel enum ensuring only valid channels are accepted"
 ]
 

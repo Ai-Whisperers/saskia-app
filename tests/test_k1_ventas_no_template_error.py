@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-import pytest
 from sqlalchemy import text
 
 
@@ -53,7 +52,8 @@ def test_ventas_loads_with_many_products_and_sales(client, session_factory):
 
     Mimics the live DB: many products, many sales, some voided.
     """
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
+
     from app.rms.models import Product, Sale
 
     with session_factory() as s:
@@ -133,7 +133,7 @@ def test_ventas_loads_with_customer_attached_to_sale(client, session_factory):
     set, payment_method set, discount non-zero, voided sale present),
     /ventas still renders 200.
     """
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     from app.rms.models import Customer, Product, Sale
 
@@ -209,7 +209,7 @@ def test_ventas_recibo_loads_with_full_data(client, session_factory):
     Catches the same regression as test_5 but at the recibo endpoint that
     also feeds on _decorated.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from app.rms.models import Customer, Product, Sale
 
@@ -288,7 +288,7 @@ def test_decorated_covers_every_template_attribute_reference():
                 if end_pct == -1:
                     break
                 tag = html[i + 2:end_pct].strip()
-                if tag.startswith("for ") or tag.startswith("if "):
+                if tag.startswith(("for ", "if ")):
                     depth += 1
                 elif tag in ("endfor", "endif"):
                     depth -= 1

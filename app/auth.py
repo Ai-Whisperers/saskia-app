@@ -139,7 +139,6 @@ def get_user_model():
 
     With Supabase Auth, user metadata lives in Supabase — not in our DB.
     """
-    from app.rms.db_dialect import _is_postgres
 
     # schema_postgres re-exports the canonical Base (2026-09-23 refactor),
     # so both dialects use the same User model now.
@@ -269,9 +268,10 @@ def get_db_session(request: Request) -> Session:
     if sf is None:
         # Server is still starting or running old code without lifespan.
         # Create an ephemeral engine just for this request — no pooling, no persist.
+        import os
+
         from sqlalchemy import create_engine
         from sqlalchemy.orm import Session as SQLASession
-        import os
         db_url = os.getenv("DATABASE_URL")
         if not db_url:
             raise RuntimeError("DATABASE_URL env var not set")
@@ -326,17 +326,17 @@ def _redirect_to_login(request: Request) -> None:
 
 __all__ = [
     "SESSION_SECRET",
-    "using_supabase",
-    "is_auth_disabled",
-    "hash_password",
-    "verify_password",
+    "current_user_id",
+    "get_current_user",
+    "get_db_session",
     "get_user_model",
+    "hash_password",
+    "is_auth_disabled",
     "login_user",
     "login_user_local",
     "logout_user",
-    "current_user_id",
     "require_login",
     "require_login_or_disabled",
-    "get_db_session",
-    "get_current_user",
+    "using_supabase",
+    "verify_password",
 ]

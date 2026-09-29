@@ -9,11 +9,10 @@ Asunción evening/new day).
 from __future__ import annotations
 
 from contextlib import contextmanager
-from datetime import date, datetime, time, timezone
+from datetime import date
 
 import pytest
 
-from app.rms.models import Pedido
 from tests.factories import (
     make_customer,
     make_ingredient,
@@ -42,7 +41,7 @@ def frozen(d: date, monkeypatch_target="app.routers.produccion._asuncion_today")
 
 def _pedido_today(s, *, promised_date):
     cust = make_customer(s)
-    ing = make_ingredient(s)
+    make_ingredient(s)
     prod = make_product(s, recipe_id=None, sale_price_gs=9000)
     return make_pedido(s, customer=cust, items=[pedido_item(prod, qty=1)],
                        promised_date=promised_date)
@@ -60,19 +59,17 @@ def test_produccion_matches_pedidos_on_boundary_dates(
     """A pedido promised for boundary-date must appear in /produccion exactly
     when Asunción-today == boundary — regardless of UTC wall clock."""
     import uuid
-
     from zoneinfo import ZoneInfo
 
-    asuncion = ZoneInfo("America/Asuncion")
+    ZoneInfo("America/Asuncion")
     with session_factory() as s:
         # unique customer per param to avoid cross-test name reuse
         cust = make_customer(s, name=f"Borde {boundary} {uuid.uuid4().hex[:6]}")
-        ing = make_ingredient(s)
+        make_ingredient(s)
         prod = make_product(s, sale_price_gs=9000)
         ped = make_pedido(s, customer=cust, items=[pedido_item(prod)],
                           promised_date=boundary)
         s.commit()
-        pid = ped.id
 
     with frozen(boundary):
         r = client.get("/produccion")

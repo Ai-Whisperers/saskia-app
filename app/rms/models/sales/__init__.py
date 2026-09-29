@@ -7,15 +7,15 @@ Sales domain entities organized by sub-concerns for better maintainability.
 
 from .core import Sale
 from .customer import Customer
+from .pricing import RecipePricing
 from .stock import SaleStockMove
 from .tags import Tag, TagLink
-from .pricing import RecipePricing
 
 __all__ = [
+    "Customer",
+    "RecipePricing",
     "Sale",
-    "Customer", 
     "SaleStockMove",
     "Tag",
     "TagLink",
-    "RecipePricing",
 ]

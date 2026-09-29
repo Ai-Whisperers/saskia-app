@@ -135,7 +135,7 @@ def produccion_worksheet(
         next_week = (week_start + timedelta(days=7)).isoformat()
 
         # Sales data for this week (actual sales in the period)
-        from datetime import datetime as dt_cls, timezone as tz_cls
+        from datetime import timezone as tz_cls
         week_end_dt = datetime.combine(week_start + timedelta(days=6), datetime.max.time()).replace(tzinfo=tz_cls.utc)
         week_start_dt = datetime.combine(week_start, datetime.min.time()).replace(tzinfo=tz_cls.utc)
         sales_rows = session.execute(
@@ -205,7 +205,7 @@ def produccion_worksheet(
         next_month = date(year, mon, ndays) + timedelta(days=1)
 
         # Sales data for this month (actual sales)
-        from datetime import datetime as dt_cls, timezone as tz_cls
+        from datetime import timezone as tz_cls
         month_end_dt = datetime(year, mon, ndays, 23, 59, 59).replace(tzinfo=tz_cls.utc)
         month_start_dt = datetime(year, mon, 1, 0, 0, 0).replace(tzinfo=tz_cls.utc)
         sales_rows = session.execute(
@@ -286,7 +286,8 @@ def produccion_worksheet(
     daily_target = sum(
         r.qty_to_produce for r in plan.rows if r.qty_to_produce > 0
     )
-    from datetime import datetime as _dt_cls, timezone as _tz_cls
+    from datetime import datetime as _dt_cls
+    from datetime import timezone as _tz_cls
     target_start = datetime.combine(target_date, _dt_cls.min.time()).replace(tzinfo=_tz_cls.utc)
     target_end = datetime.combine(target_date, _dt_cls.max.time()).replace(tzinfo=_tz_cls.utc)
     daily_actual = session.execute(
@@ -457,7 +458,8 @@ def produccion_template_fork_week(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
         )
-    from datetime import date as _date, datetime as _dt, timedelta as _td
+    from datetime import datetime as _dt
+    from datetime import timedelta as _td
     try:
         src = _dt.strptime(from_date, "%Y-%m-%d").date()
     except (TypeError, ValueError):
@@ -484,13 +486,13 @@ def produccion_template_fork_week(
         wd = ov.for_date.weekday()  # 0=Mon .. 6=Sun
         bucket[(wd, ov.product_id)] += float(ov.qty or 0.0)
 
-    from app.rms.production import upsert_template_row
     from app.auth import current_user_id
     from app.rms.audit import record as audit_record
+    from app.rms.production import upsert_template_row
 
     user_id = current_user_id(request) or "operator"
     user_id = str(user_id)
-    now = datetime.now()
+    datetime.now()
     rows_written = 0
     for (wd, pid), qty in bucket.items():
         if qty <= 0:

@@ -12,7 +12,6 @@ distinguish "we don't track expenses yet" from "expenses = 0".
 """
 from __future__ import annotations
 
-import pytest
 from datetime import datetime, timezone
 
 

@@ -335,19 +335,19 @@ def customer_purchase_history(
 
 
 __all__ = [
-    "batch_customer_stats",
-    "LoyaltyTier",
-    "TIER_THRESHOLDS",
     "POINTS_PER_GS",
+    "TIER_THRESHOLDS",
     "CustomerStats",
+    "LoyaltyTier",
+    "award_points",
+    "batch_customer_stats",
+    "customer_purchase_history",
+    "customer_stats",
     "ensure_customer",
-    "get_customer",
     "find_customer_by_phone",
+    "get_customer",
     "list_customers",
     "points_for_sale",
-    "award_points",
     "redeem_points",
     "tier_for_spend",
-    "customer_stats",
-    "customer_purchase_history",
 ]

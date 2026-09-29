@@ -20,12 +20,12 @@ crédito / IRP) is computed separately in /reportes/iva.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.rms.models import Product, Recipe, Sale, SaleStockMove
+from app.rms.models import Product, Sale
 
 
 @dataclass
@@ -109,7 +109,7 @@ def compute_monthly_close(session: Session, year: int, month: int) -> MonthlyClo
                 "overhead_gs": 0,
             }
         agg = by_product[pid]
-        gross = int(round(sale.qty * sale.unit_price_gs)) - (sale.discount_gs or 0)
+        gross = round(sale.qty * sale.unit_price_gs) - (sale.discount_gs or 0)
         agg["qty"] += sale.qty
         agg["ventas_gs"] += gross
         agg["iva_ventas_gs"] += sale.iva_amount_gs or 0
@@ -137,12 +137,12 @@ def compute_monthly_close(session: Session, year: int, month: int) -> MonthlyClo
             # If yield/labor/overhead not configured, prime = materials × qty
             # (since compute_prime_cost returns prime=None in that case).
             if pc.prime_cost_gs is not None:
-                mat_total = int(round(mat * factor))
-                lab_total = int(round((lab or 0) * factor))
-                ovh_total = int(round((ovh or 0) * factor))
+                mat_total = round(mat * factor)
+                lab_total = round((lab or 0) * factor)
+                ovh_total = round((ovh or 0) * factor)
                 prime_total = mat_total + lab_total + ovh_total
             else:
-                mat_total = int(round(mat * factor))
+                mat_total = round(mat * factor)
                 lab_total = 0
                 ovh_total = 0
                 prime_total = mat_total

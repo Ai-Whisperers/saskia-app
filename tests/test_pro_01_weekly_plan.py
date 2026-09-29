@@ -6,9 +6,10 @@ from datetime import date
 
 def test_weekly_template_repeats_across_weeks(app_engine):
     """PRO-01: A Monday template row applies to every Monday."""
-    from app.rms.models import Product
-    from app.rms.production import upsert_template_row, plan_production
     from sqlalchemy.orm import sessionmaker
+
+    from app.rms.models import Product
+    from app.rms.production import plan_production, upsert_template_row
 
     sf = sessionmaker(bind=app_engine)
     with sf() as s:
@@ -45,11 +46,10 @@ def test_weekly_template_repeats_across_weeks(app_engine):
 
 def test_override_only_affects_one_date(app_engine):
     """PRO-01: A per-date override does NOT change the template or other dates."""
-    from app.rms.models import Product
-    from app.rms.production import (
-        upsert_template_row, upsert_override, plan_production
-    )
     from sqlalchemy.orm import sessionmaker
+
+    from app.rms.models import Product
+    from app.rms.production import plan_production, upsert_override, upsert_template_row
 
     sf = sessionmaker(bind=app_engine)
     with sf() as s:
@@ -91,10 +91,12 @@ def test_override_only_affects_one_date(app_engine):
 def test_template_plus_auto_forecast_coexist(app_engine):
     """PRO-01: When the template has product A but not B, A comes from the
     template and B from auto-forecast."""
-    from app.rms.models import Product, Sale
-    from app.rms.production import upsert_template_row, plan_production
+    from datetime import datetime, timedelta, timezone
+
     from sqlalchemy.orm import sessionmaker
-    from datetime import datetime, timezone, timedelta
+
+    from app.rms.models import Product, Sale
+    from app.rms.production import plan_production, upsert_template_row
 
     sf = sessionmaker(bind=app_engine)
     with sf() as s:
@@ -134,8 +136,9 @@ def test_template_plus_auto_forecast_coexist(app_engine):
 
 def test_override_endpoint_persists_to_db(client, app_engine):
     """PRO-01: POST /produccion/override saves to production_plan_override."""
-    from app.rms.models import ProductionPlanOverride, Product
     from sqlalchemy.orm import sessionmaker
+
+    from app.rms.models import Product, ProductionPlanOverride
 
     # First create a product via the public API
     client.post("/productos/nuevo", data={
@@ -168,8 +171,9 @@ def test_override_endpoint_persists_to_db(client, app_engine):
 
 def test_override_endpoint_qty_zero_deletes_row(client, app_engine):
     """PRO-01: POST /produccion/override with qty=0 deletes the override."""
-    from app.rms.models import ProductionPlanOverride, Product
     from sqlalchemy.orm import sessionmaker
+
+    from app.rms.models import Product, ProductionPlanOverride
 
     client.post("/productos/nuevo", data={
         "name": "Muffin zero test",
@@ -205,8 +209,9 @@ def test_override_endpoint_qty_zero_deletes_row(client, app_engine):
 
 def test_template_endpoint_persists_to_db(client, app_engine):
     """PRO-01: POST /produccion/template saves to production_plan_template."""
-    from app.rms.models import ProductionPlanTemplate, Product
     from sqlalchemy.orm import sessionmaker
+
+    from app.rms.models import Product, ProductionPlanTemplate
 
     client.post("/productos/nuevo", data={
         "name": "Muffin template test",
@@ -250,9 +255,10 @@ def test_template_endpoint_invalid_weekday_returns_400(client):
 
 def test_get_weekly_template_returns_empty_for_unset_days(app_engine):
     """PRO-01: get_weekly_template returns empty dict for weekdays with no rows."""
-    from app.rms.models import Product
-    from app.rms.production import upsert_template_row, get_weekly_template
     from sqlalchemy.orm import sessionmaker
+
+    from app.rms.models import Product
+    from app.rms.production import get_weekly_template, upsert_template_row
 
     sf = sessionmaker(bind=app_engine)
     with sf() as s:

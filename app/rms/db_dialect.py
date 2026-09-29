@@ -149,4 +149,4 @@ def get_metadata():
     return models.Base.metadata
 
 
-__all__ = ["get_database_url", "make_engine", "get_metadata", "_is_postgres"]
+__all__ = ["_is_postgres", "get_database_url", "get_metadata", "make_engine"]

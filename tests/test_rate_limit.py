@@ -81,7 +81,7 @@ def test_block_writes_audit_row(session_factory):
     ip = "203.0.113.30"
     req = _make_request(ip)
     with session_factory() as s:
-        for i in range(DEFAULT_LIMIT):
+        for _i in range(DEFAULT_LIMIT):
             audit_record(s, user_id=None, action="login.failure", request=req)
         s.commit()
 
@@ -107,7 +107,7 @@ def test_sliding_window_expires_old_failures(session_factory):
 
     # Insert LIMIT-1 old failures (10 min ago) + 1 fresh failure (just now)
     with session_factory() as s:
-        for i in range(5):
+        for _i in range(5):
             audit_record(s, user_id=None, action="login.failure", request=req)
         s.commit()
 
@@ -134,7 +134,7 @@ def test_different_ips_tracked_separately(session_factory):
 
     with session_factory() as s:
         # Alice hits the limit
-        for i in range(DEFAULT_LIMIT):
+        for _i in range(DEFAULT_LIMIT):
             audit_record(s, user_id=None, action="login.failure", request=alice)
         s.commit()
 
@@ -203,7 +203,7 @@ def test_login_returns_429_after_failures(session_factory, monkeypatch):
         s.commit()
 
         # Simulate 5 failed login attempts writing audit rows
-        for i in range(5):
+        for _i in range(5):
             audit_record(s, user_id=None, action="login.failure", request=req)
         s.commit()
 

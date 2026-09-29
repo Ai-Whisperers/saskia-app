@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from app.rms.models import Product, Sale
+from app.rms.models import Sale
 from app.rms.sales_intel import (
     churning_products,
     peak_day_of_week,
@@ -17,7 +17,7 @@ from app.rms.sales_intel import (
     sales_summary,
     top_pairs,
 )
-from tests.factories import make_ingredient, make_product
+from tests.factories import make_product
 
 
 def _make_sale(session, sold_at, product_id, qty=1, unit_price=1000):

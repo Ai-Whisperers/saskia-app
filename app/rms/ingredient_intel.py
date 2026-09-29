@@ -46,7 +46,7 @@ _CATEGORY_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
         "miel", "stevia", "dextrosa", "glucosa", "jarabe",
         "melaza", "panela", "rapadura", "eritritol",
     ),
-    
+
     "leudantes": (
         "levadura", "polvo de hornear", "bicarbonato", "royal",
         "polvo para hornear", "cremor tártaro",
@@ -73,7 +73,7 @@ _CATEGORY_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
         "almendra", "nuez", "nueces", "avellana", "pistacho", "maní",
         "castaña", "coco",
     ),
-    
+
     "frutas": (
         "fruta", "limón", "naranja", "manzana", "banana", "frutilla",
         "arándano", "ciruela", "pera", "uva",
@@ -304,7 +304,9 @@ def infer_storage(name: str, session: Session | None = None) -> str:
     for the no-session case (tests, one-off scripts).
     """
     from app.rms.constants import (
-        STORAGE_AMBIENT, STORAGE_FROZEN, STORAGE_REFRIGERATED,
+        STORAGE_AMBIENT,
+        STORAGE_FROZEN,
+        STORAGE_REFRIGERATED,
     )
 
     norm = _normalize(name)
@@ -312,6 +314,7 @@ def infer_storage(name: str, session: Session | None = None) -> str:
     # When a session is provided, use DB-driven keywords.
     if session is not None:
         from sqlalchemy import select as _select
+
         from app.rms.models import StorageKeyword
 
         rows = session.execute(

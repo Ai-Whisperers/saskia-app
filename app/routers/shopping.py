@@ -25,12 +25,12 @@ from sqlalchemy.orm import Session
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.errors import NotFound
-from app.rms.observability import record_audit
 from app.rms.models import (
     Ingredient,
     ProductionPlan,
     ShoppingListItem,
 )
+from app.rms.observability import record_audit
 from app.services.template_render import render
 
 router = APIRouter(prefix="/shopping-list", dependencies=[Depends(require_login)])
@@ -158,7 +158,7 @@ def sync_low_stock(
     Idempotent: skips ingredients already in an open shopping list item.
     """
     from app.rms.models import Ingredient
-    
+
     low_stock = session.execute(
         select(Ingredient).where(
             Ingredient.min_stock_qty > 0,
@@ -175,11 +175,11 @@ def sync_low_stock(
     for ing in low_stock:
         if ing.id in existing_ing_ids:
             continue
-        
+
         # For now, use a simple descriptive format instead of looking up recipes
         # This avoids circular import issues while still being more meaningful than "Auto: stock"
         purpose_text = f"Reposición: {ing.name}"
-        
+
         needed = (ing.min_stock_qty - ing.stock_qty) * 2
         if needed <= 0:
             continue

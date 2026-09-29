@@ -14,7 +14,6 @@ restock form surface and the dashboard sparkline.
 """
 
 from __future__ import annotations
-from tests.factories import make_ingredient, make_product
 
 from datetime import datetime, timedelta, timezone
 
@@ -22,14 +21,14 @@ import pytest
 from sqlalchemy import create_engine, text
 
 from app.rms.db import init_db
-
+from tests.factories import make_ingredient
 
 # --- record_price_event ---
 
 
 def test_record_price_event_inserts_row(session_factory):
     """record_price_event adds a row to ingredient_price_event."""
-    from app.rms.models import Ingredient, IngredientPriceEvent
+    from app.rms.models import IngredientPriceEvent
     from app.rms.price_history import record_price_event
 
     with session_factory() as s:
@@ -93,7 +92,6 @@ def test_record_price_event_default_source_is_restock(session_factory):
     from app.rms.price_history import record_price_event
 
     with session_factory() as s:
-        from app.rms.models import Ingredient
 
         ing = make_ingredient(s, name="X", unit="kg", stock_qty=0.0)
         s.add(ing)
@@ -109,7 +107,6 @@ def test_record_price_event_validates_source(session_factory):
     from app.rms.price_history import record_price_event
 
     with session_factory() as s:
-        from app.rms.models import Ingredient
 
         ing = make_ingredient(s, name="X", unit="kg", stock_qty=0.0)
         s.add(ing)
@@ -123,7 +120,6 @@ def test_record_price_event_validates_source(session_factory):
 
 def test_price_history_returns_chronological_order(session_factory):
     """price_history returns events oldest → newest."""
-    from app.rms.models import Ingredient
     from app.rms.price_history import price_history, record_price_event
 
     with session_factory() as s:
@@ -152,7 +148,6 @@ def test_price_history_returns_chronological_order(session_factory):
 
 def test_price_history_filters_by_days(session_factory):
     """price_history only includes events within the last N days."""
-    from app.rms.models import Ingredient
     from app.rms.price_history import price_history, record_price_event
 
     with session_factory() as s:
@@ -164,7 +159,6 @@ def test_price_history_filters_by_days(session_factory):
         # Old event (120 days ago) — should NOT appear in 90-day window
         old_event = record_price_event(s, ing_id, 1000, source="manual")
         s.commit()
-        old_ts = old_event.recorded_at
         # Backdate the timestamp so the days window excludes it
         old_event.recorded_at = datetime.now(timezone.utc) - timedelta(days=120)
         s.commit()
@@ -178,13 +172,12 @@ def test_price_history_filters_by_days(session_factory):
     assert 5000 in prices
     assert 1000 not in prices
     # ts is a datetime
-    for ts, p in history:
+    for ts, _p in history:
         assert isinstance(ts, datetime)
 
 
 def test_price_history_empty_when_no_events(session_factory):
     """No events → empty list (not None)."""
-    from app.rms.models import Ingredient
     from app.rms.price_history import price_history
 
     with session_factory() as s:
@@ -200,7 +193,6 @@ def test_price_history_empty_when_no_events(session_factory):
 
 def test_price_stats_current_is_latest_event(session_factory):
     """price_stats['current'] is the most recent event's price."""
-    from app.rms.models import Ingredient
     from app.rms.price_history import price_stats, record_price_event
 
     with session_factory() as s:
@@ -223,7 +215,6 @@ def test_price_stats_current_is_latest_event(session_factory):
 
 def test_price_stats_min_max_avg(session_factory):
     """price_stats returns min/max/avg across the window."""
-    from app.rms.models import Ingredient
     from app.rms.price_history import price_stats, record_price_event
 
     with session_factory() as s:
@@ -245,7 +236,6 @@ def test_price_stats_min_max_avg(session_factory):
 
 def test_price_stats_empty_window(session_factory):
     """price_stats with no events returns current=None + count=0."""
-    from app.rms.models import Ingredient
     from app.rms.price_history import price_stats
 
     with session_factory() as s:
@@ -267,7 +257,6 @@ def test_inventory_create_writes_manual_price_event(session_factory):
     # We test the wiring directly via the helper rather than driving the HTTP
     # form — the router calls record_price_event(..., source='manual').
     with session_factory() as s:
-        from app.rms.models import Ingredient
 
         ing = make_ingredient(s, name="Harina", unit="kg", stock_qty=5.0)
         s.add(ing)

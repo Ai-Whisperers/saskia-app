@@ -1,17 +1,25 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
-    Boolean, CheckConstraint, Date, DateTime, Enum, Float, JSON,
-    ForeignKey, Index, Integer, String, Text, UniqueConstraint,
+    CheckConstraint,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
 )
-from .channels import Channel
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.rms.models.core import Base
 
+from .channels import Channel
 
 """
 app/rms/models/sales.py — Sales + customer + tags + channel pricing: Sale, SaleStockMove, Customer, Tag, TagLink, RecipePricing.

@@ -1,20 +1,17 @@
 """Rate limit write endpoints tests."""
 from __future__ import annotations
 
-import pytest
-
 
 def test_inventory_adjust_no_rate_limit_in_test(authed_client):
     """In test environment, repeated inventory adjusts should not 429."""
-    from app.rms.models import Ingredient
+    import tempfile
 
     # Create ingredient
-    from sqlalchemy import text
     from sqlalchemy.orm import sessionmaker
 
     # Use the test engine
-    from app.rms.db import make_engine, init_db
-    import tempfile
+    from app.rms.db import init_db, make_engine
+    from app.rms.models import Ingredient
     tmpdir = tempfile.mkdtemp()
     engine = make_engine(f"sqlite:///{tmpdir}/test_rate.sqlite")
     init_db(engine)

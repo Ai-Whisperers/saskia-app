@@ -8,10 +8,7 @@ without coverage. Exemptions are explicit and reviewed.
 
 from __future__ import annotations
 
-import re
 import pathlib
-
-import pytest
 
 
 def _all_routes():
@@ -23,7 +20,7 @@ def _all_routes():
             m for m in getattr(r, "methods", []) if m in ("GET", "POST", "PUT", "DELETE", "PATCH")
         )
         path = getattr(r, "path", "")
-        if not path or path.startswith("/openapi") or path.startswith("/docs"):
+        if not path or path.startswith(("/openapi", "/docs")):
             continue
         for m in methods:
             out.append((m, path))

@@ -68,7 +68,7 @@ def test_upgrade_from_populated_version_reaches_head(
     tmp_db_path, session_factory, app_engine, start_v
 ):
     """DB populated at start_v upgrades to head with sentinels intact."""
-    from app.rms.db import init_db, schema_version
+    from app.rms.db import init_db
 
     # app_engine already created tables + ran to head; rewind the version
     # marker so init_db replays the chain from start_v over the data.

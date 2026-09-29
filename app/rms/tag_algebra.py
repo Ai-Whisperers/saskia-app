@@ -29,7 +29,6 @@ Design notes:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Iterator
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -123,12 +122,12 @@ def walk_recipe_tree(
     cycles: list[str] = []
     path: list[str] = []
 
-    from app.rms.models import RecipeLine, Ingredient
+    from app.rms.models import Ingredient, RecipeLine
 
     def _walk(rid: int, depth: int) -> None:
         label = f"#{rid}"
         if label in path:
-            cycles.append(" -> ".join(path + [label]))
+            cycles.append(" -> ".join([*path, label]))
             return
         path.append(label)
         try:
@@ -352,7 +351,6 @@ def cascade_refresh(session: Session, ingredient_id: int | None = None,
     the loop terminates because parent chains form a DAG in practice and we
     track visited sets.
     """
-    from app.rms.models import RecipeLine  # lazy: sys.modules-purge-safe
 
     start: set[int] = set()
     if ingredient_id is not None:
@@ -400,15 +398,15 @@ def _product_inherit_sync(session: Session, recipe_id: int) -> list[int]:
 
 
 __all__ = [
-    "TagDerivation",
     "LineTarget",
-    "walk_recipe_tree",
-    "derive_recipe_tags",
-    "refresh_recipe_tag_cache",
+    "TagDerivation",
+    "_product_inherit_sync",
     "cascade_refresh",
+    "derive_recipe_tags",
+    "ingredient_blocks",
+    "ingredient_dietary_set",
     "recipes_using_ingredient",
     "recipes_using_recipe",
-    "ingredient_dietary_set",
-    "ingredient_blocks",
-    "_product_inherit_sync",
+    "refresh_recipe_tag_cache",
+    "walk_recipe_tree",
 ]

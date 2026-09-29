@@ -139,6 +139,7 @@ def _seed_one_sale(session_factory):
     """Charts row now collapses to an empty-state when ventas_gs == 0;
     seed a sale so chart tests exercise the chart branch."""
     from datetime import datetime, timezone
+
     from tests.factories import make_catalog, make_sale
     with session_factory() as s:
         cat = make_catalog(s, price_gs=10000)

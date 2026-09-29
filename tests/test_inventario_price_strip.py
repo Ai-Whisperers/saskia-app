@@ -7,8 +7,6 @@ a sparkline SVG (charts.sparkline).
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-
 from app.rms.models import Ingredient
 from app.rms.price_history import record_price_event
 
@@ -37,7 +35,7 @@ def test_single_event_no_strip(client, session_factory):
 
 
 def test_three_events_show_strip_and_sparkline(client, session_factory):
-    ing_id = _seed_with_events(session_factory, "Tres precios", [5000, 5500, 6000])
+    _seed_with_events(session_factory, "Tres precios", [5000, 5500, 6000])
     r = client.get("/inventario")
     assert r.status_code == 200
     body = r.text

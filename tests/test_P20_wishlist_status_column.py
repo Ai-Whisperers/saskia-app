@@ -21,7 +21,6 @@ import pytest
 
 from app.rms.models import WishlistItem
 
-
 pytestmark = [pytest.mark.smoke]
 
 
@@ -89,7 +88,6 @@ def test_purchased_item_renders_with_is_purchased_class(client, session_factory)
             purchased=True,
         )
         s.commit()
-        item_id = item.id
         item_code = item.code
 
     r = client.get("/wishlist")
@@ -105,7 +103,6 @@ def test_purchased_item_renders_with_is_purchased_class(client, session_factory)
     # (the template only renders it when purchased=False).
     # Use a tight check: search for the form-action that targets *this* item's mark-purchased —
     # it should be absent for purchased items.
-    pending_form_pattern = f'/wishlist/{item_id}/mark-purchased'
     # The pending form action would appear if this item is pending. Since it's
     # purchased, the form must not exist for THIS item. (Other pending items
     # might exist.)
@@ -115,7 +112,7 @@ def test_purchased_item_renders_with_is_purchased_class(client, session_factory)
     # Use a substring check: there must be an is-purchased tr for this code:
     assert (
         f'<code>{item_code}</code>' in body
-        and (f"is-purchased" in body)
+        and ("is-purchased" in body)
     ), (
         "Purchased item rendered without 'is-purchased' class on its row"
     )
@@ -123,7 +120,6 @@ def test_purchased_item_renders_with_is_purchased_class(client, session_factory)
 
 def test_mark_purchased_endpoint_persists(client, session_factory):
     """P-20: POST /wishlist/{id}/mark-purchased flips the item to purchased state."""
-    from datetime import datetime, timezone
 
     with session_factory() as s:
         item = _make_wishlist(
@@ -147,7 +143,8 @@ def test_mark_purchased_endpoint_persists(client, session_factory):
         assert item.purchased is True, "item should now be purchased"
         assert item.purchased_at is not None, "purchased_at must be set on mark"
         # sqlite stores naive datetimes; tolerate either naive or aware.
-        from datetime import datetime as _dt, timezone as _tz
+        from datetime import datetime as _dt
+        from datetime import timezone as _tz
         now_aware = _dt.now(_tz.utc)
         pa = item.purchased_at
         if pa.tzinfo is None:

@@ -16,7 +16,6 @@ from pathlib import Path
 
 import pytest
 
-
 DOCKERFILE = Path(__file__).resolve().parents[1] / "Dockerfile"
 
 

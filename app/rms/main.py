@@ -33,18 +33,18 @@ from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+
 try:
     from starlette.middleware.sessions import Session
 except ImportError:
     # Newer starlette versions removed Session; provide a minimal stub.
     class Session(dict):
         pass
-from starlette.requests import HTTPConnection
-from starlette.datastructures import MutableHeaders
-from itsdangerous.exc import BadSignature
-from base64 import b64decode
 import json
-from starlette.responses import Response
+from base64 import b64decode
+
+from itsdangerous.exc import BadSignature
+from starlette.requests import HTTPConnection
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.auth import SESSION_SECRET
@@ -58,18 +58,18 @@ from app.rms.security_headers import SecurityHeadersMiddleware
 from app.rms.session_lifecycle import SessionLifecycleMiddleware
 from app.routers import (
     analisis,
-    insights_derived,
-    insights_stock,
     auditoria,
     auth,
+    credits,
     customers,
     dashboard,
     eod,
     excel_io,
     health,
     help,
-    credits,
     herebus,
+    insights_derived,
+    insights_stock,
     inventory,
     merma,
     ops,
@@ -88,7 +88,6 @@ from app.routers import (
     users,
     validation,
 )
-from app.services.template_render import templates
 
 
 def _configure_logging() -> None:
@@ -277,7 +276,6 @@ async def lifespan(app: FastAPI):
         # Don't crash the app on backup failures; the request handlers
         # are independent of this. (Errors are recorded in app_meta.)
         logger.warning(f"backup scheduler failed: {exc!r}")
-        pass
     yield
 
 
@@ -325,7 +323,6 @@ class StaticCacheMiddleware:
             return
 
         path = scope["path"]
-        is_immutable = path not in self._REVALIDATE_PATHS
         vary_stripped = False
 
         async def wrapped_send(message: Message) -> None:
@@ -605,6 +602,7 @@ app.include_router(pedidos.router)
 
 # Dev-only routes (gated by env var, never enabled in production)
 import os as _os
+
 if _os.getenv("DEV_COMBO_SMOKE"):
     from app.routers import dev as _dev_router
     app.include_router(_dev_router.router)
@@ -684,8 +682,9 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
       3. Anything else: 500 handler. HTML for browsers, JSON for clients.
          Always logs full traceback; never leaks internal text to the user.
     """
-    from app.rms.errors import AppError
     from fastapi import HTTPException
+
+    from app.rms.errors import AppError
 
     rid = getattr(request.state, "request_id", None) or _request_id()
 

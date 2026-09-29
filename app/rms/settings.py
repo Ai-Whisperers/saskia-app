@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.rms.models import AppMeta
 
 if TYPE_CHECKING:
-    from . import main
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -341,7 +341,7 @@ def fetch_all_settings_once(session: Session) -> dict[str, str]:
 def list_settings_optimized(session: Session) -> list[dict]:
     """Return all settings with current value, using 1 DB query."""
     all_settings = fetch_all_settings_once(session)  # 1 query total
-    
+
     out: list[dict] = []
     for spec in SETTINGS:
         stored = all_settings.get(spec.key)  # No DB call, use cache
@@ -450,19 +450,19 @@ def get_setting_cached(session: Session, key: str) -> str | None:
 
 
 __all__ = [
-    "Setting",
-    "SettingGroup",
     "SETTINGS",
     "VALIDATORS",
+    "Setting",
+    "SettingGroup",
+    "fetch_all_settings_once",
     "get_setting",
+    "get_setting_cached",
+    "get_setting_optimized",
     "get_setting_value",
-    "set_setting",
     "list_settings",
     "list_settings_optimized",
-    "fetch_all_settings_once",
-    "get_setting_optimized",
-    "get_setting_cached",
     "reset_setting_to_default",
+    "set_setting",
     "settings_by_group",
     "settings_by_group_optimized",
 ]

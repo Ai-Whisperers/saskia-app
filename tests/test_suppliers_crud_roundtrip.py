@@ -21,7 +21,6 @@ def test_suppliers_nuevo_form_loads(authed_client):
 
 def test_supplier_create_then_delete(authed_client, session_factory):
     """Create supplier via ORM, then DELETE via POST. Must work without 500."""
-    from app.rms.models import Supplier
 
     with session_factory() as s:
         sup = Supplier(
@@ -50,7 +49,6 @@ def test_supplier_create_then_delete(authed_client, session_factory):
 
 def test_supplier_editar_form_loads(authed_client, session_factory):
     """GET /suppliers/{id}/editar must return 200."""
-    from app.rms.models import Supplier
 
     with session_factory() as s:
         sup = Supplier(
@@ -71,7 +69,6 @@ def test_supplier_editar_form_loads(authed_client, session_factory):
 
 def test_supplier_orders_page_loads(authed_client, session_factory):
     """GET /suppliers/{id}/ordenes must return 200 (orders list)."""
-    from app.rms.models import Supplier
 
     with session_factory() as s:
         sup = Supplier(name="Orders Supplier", is_active=True)

@@ -265,7 +265,7 @@ def _migration_003_analytics_columns(conn: Any) -> None:
     for table, col, decl in _add_columns:
         try:
             conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {decl}"))
-        except Exception:  # noqa: BLE001 - column already exists; that's fine
+        except Exception:
             pass
 
     # Index on last_consumed_at so dead_stock reports stay fast.
@@ -788,7 +788,7 @@ def _migration_024_recipe_intel_extended(conn):
 
     prep_minutes already exists from migration 003.
     """
-    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     cols = [
         ("cook_minutes", "INTEGER"),
         ("difficulty", "INTEGER"),
@@ -839,7 +839,7 @@ def _migration_026_product_audit_columns(conn):
     - category: str — product category (audit item 160)
     - tags: str — comma-separated tags (audit item 161)
     """
-    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     cols = [
         ("is_available", "BOOLEAN NOT NULL DEFAULT TRUE"),
         ("image_url", "VARCHAR(256)"),
@@ -1118,7 +1118,7 @@ def _migration_033_ingredient_storage(conn):
     Inferred on POST /inventario/nuevo from ingredient name (see
     app.rms.ingredient_intel.infer_storage). Operator can override.
     """
-    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     col_type = "VARCHAR(16)"
     try:
         conn.execute(text(f"ALTER TABLE ingredient ADD COLUMN storage {col_type}"))
@@ -1139,7 +1139,6 @@ def _migration_034_market_price_reference(conn):
     """
     dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     pk_type = "INTEGER PRIMARY KEY" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
-    int_type = "INTEGER"
     float_type = "FLOAT"
     str16 = "VARCHAR(16)"
     str32 = "VARCHAR(32)"
@@ -1194,7 +1193,6 @@ def _migration_035_compliance_info(conn):
     str60 = "VARCHAR(60)"
     str120 = "VARCHAR(120)"
     str255 = "VARCHAR(255)"
-    text_type = "TEXT"
     bool_t = "BOOLEAN" if dialect != "sqlite" else "INTEGER"
     dt = "TIMESTAMP" if dialect == "sqlite" else "TIMESTAMP"
 
@@ -1572,7 +1570,7 @@ def _migration_039_category_table(conn):
     # ensure_starter_tags is a no-op on rows already present.
     try:
         # Use the same connection as the migration so it's in the same transaction.
-        from app.rms.tags import STARTER_TAGS, ensure_tag
+        from app.rms.tags import STARTER_TAGS
         for name, kind, color in STARTER_TAGS:
             try:
                 ensure_tag_with_conn(conn, name, kind, color)
@@ -1647,12 +1645,10 @@ def _migration_041_channel_catalog(conn):
       - pedidosya
       - monchis
     """
-    from app.rms.db import ensure_tag_with_conn
 
     dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
     bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
-    float_t = "FLOAT" if dialect == "sqlite" else "DOUBLE PRECISION"
 
     conn.execute(text(
         f"""
@@ -1802,8 +1798,7 @@ def _migration_044_message_templates(conn):
 
     Idempotent: INSERT OR IGNORE on (channel, key, locale) unique.
     """
-    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
-    text_type = "TEXT"
+    conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
 
 
 def _migration_044_message_templates(conn):
@@ -1818,7 +1813,7 @@ def _migration_044_message_templates(conn):
 
     Idempotent: INSERT OR IGNORE on (channel, key, locale) unique.
     """
-    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     text_type = "TEXT"
 
     conn.execute(text(
@@ -2716,7 +2711,7 @@ def safe_commit(session: Session) -> bool:
     try:
         session.commit()
         return True
-    except Exception as exc:  # noqa: BLE001 — see docstring
+    except Exception as exc:
         try:
             session.rollback()
         except Exception:
@@ -2739,13 +2734,13 @@ def safe_commit(session: Session) -> bool:
 
 
 __all__ = [
-    "make_engine",
-    "init_db",
-    "make_session_factory",
-    "get_db_session",
-    "safe_commit",
     "MIGRATIONS",
     "MigrationFn",
+    "get_db_session",
+    "init_db",
+    "make_engine",
+    "make_session_factory",
+    "safe_commit",
 ]
 
 

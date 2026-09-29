@@ -15,8 +15,6 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-import pytest
-
 
 def _seed_minimal_sale(session_factory):
     from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale
@@ -100,8 +98,9 @@ def test_idempotency_value_works_without_request_id_header(client, session_facto
     )
     assert r.status_code in (303, 302)
 
-    from app.rms.models import AppMeta
     import json
+
+    from app.rms.models import AppMeta
 
     with session_factory() as s:
         row = s.scalar(
@@ -137,8 +136,9 @@ def test_existing_idempotency_record_reads_sale_id_back(client, session_factory)
     )
     assert r.status_code in (303, 302)
 
-    from app.rms.models import AppMeta
     import json
+
+    from app.rms.models import AppMeta
 
     with session_factory() as s:
         row = s.scalar(

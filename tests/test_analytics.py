@@ -20,6 +20,7 @@ import pytest
 
 pytestmark = pytest.mark.analytics
 
+import itertools
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
@@ -163,7 +164,7 @@ def test_top_margin_products_returns_ranked_list(session_factory):
         assert len(top) <= 5
         if len(top) >= 2:
             # Sorted descending by margin_gs
-            for a, b in zip(top, top[1:]):
+            for a, b in itertools.pairwise(top):
                 assert a.margin_gs >= b.margin_gs
         # Each row has the right shape
         for row in top:

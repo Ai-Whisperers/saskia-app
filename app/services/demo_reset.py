@@ -75,7 +75,6 @@ def reset_demo_data(session: Session) -> dict[str, int]:
 
     # Record the cleanup itself BEFORE commit so the audit row joins
     # the same transaction.
-    from datetime import datetime, timezone
 
     from app.rms.audit import record as audit_record
 

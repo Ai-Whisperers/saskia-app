@@ -167,11 +167,11 @@ def count_models(session: Session) -> dict[str, int]:
 
 
 __all__ = [
+    "INDEX_HINTS",
     "PaginationInfo",
     "PaginationResult",
-    "paginate",
-    "INDEX_HINTS",
-    "query_timer",
     "apply_postgres_indexes",
     "count_models",
+    "paginate",
+    "query_timer",
 ]

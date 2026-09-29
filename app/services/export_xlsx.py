@@ -365,7 +365,7 @@ def to_bytes(session: Session) -> bytes:
     return path.getvalue()
 
 
-__all__ = ["to_file", "to_bytes", "write_patch_plantilla", "patch_plantilla_bytes"]
+__all__ = ["patch_plantilla_bytes", "to_bytes", "to_file", "write_patch_plantilla"]
 
 
 # ---------------------------------------------------------------------------

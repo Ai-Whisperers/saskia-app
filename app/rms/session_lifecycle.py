@@ -42,7 +42,7 @@ class SessionLifecycleMiddleware(BaseHTTPMiddleware):
 
         # Skip for /static/* and /healthz* — they never open DB sessions
         path = request.url.path
-        if path.startswith("/static/") or path.startswith("/healthz"):
+        if path.startswith(("/static/", "/healthz")):
             return await call_next(request)
 
         # Snapshot open sessions before request.

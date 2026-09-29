@@ -6,8 +6,6 @@ turnover, complexity).
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
-
 import pytest
 
 pytestmark = pytest.mark.analytics
@@ -20,9 +18,9 @@ def _seed_min_sales(session_factory, days_back: int = 14):
     (concentration, turnover). apply_sale() creates those rows; we call it
     directly so the seed produces real analytics.
     """
-    from app.rms.models import Product, Ingredient, Recipe, RecipeLine, Sale
+
     from app.rms.costing import apply_sale
-    from decimal import Decimal
+    from app.rms.models import Ingredient, Product, Recipe, RecipeLine
     sf = session_factory
     with sf() as s:
         ing = Ingredient(
@@ -42,10 +40,10 @@ def _seed_min_sales(session_factory, days_back: int = 14):
         s.add(p); s.flush()
         # Multiple sales across the last 30 days, going through apply_sale
         # so SaleStockMove rows are created (drives concentration + turnover).
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
         now = datetime.now(timezone.utc)
         for i in range(days_back):
-            sale = apply_sale(
+            apply_sale(
                 s, product_id=p.id, qty=2.0,
                 sold_at=now - timedelta(days=i),
                 notes=None, customer_id=None,

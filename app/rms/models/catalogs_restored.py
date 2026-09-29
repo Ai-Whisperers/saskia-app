@@ -7,11 +7,18 @@ them and migrations 039-049 create their tables.
 from __future__ import annotations
 
 from datetime import datetime
+
 from sqlalchemy import (
-    Boolean, CheckConstraint, DateTime, Float, ForeignKey, Index,
-    Integer, String, Text, UniqueConstraint,
+    Boolean,
+    DateTime,
+    Float,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.rms.models.core import Base
 
@@ -53,58 +60,58 @@ class Category(Base):
 
 
 __all__ = [
-    "Base",
     "AppMeta",
     "AuditLog",
-    "Ingredient",
-    "IngredientPriceEvent",
-    "Recipe",
-    "RecipeLine",
-    "Product",
-    "Sale",
-    "SaleStockMove",
-    "ImportBatch",
-    "User",
-    "Tag",
-    "TagLink",
-    "Tenant",
-    "Customer",
-    "WasteLog",
-    "Pedido",
-    "PedidoLine",
-    "StockMovement",
-    "Supplier",
-    "ProductionCompletion",
-    "ProductionPlanTemplate",
-    "ProductionPlanOverride",
-    # HEREBUS Drive integration — migration 029
-    "DeliveryZone",
-    "WishlistItem",
-    "RiskItem",
-    "RecipePricing",
-    "PriceHistory",
-    "ProductionPlan",
-    "ShoppingListItem",
-    "MarketBenchmark",
     "BankTransaction",
-    "SettingsKV",
-    "ComplianceInfo",
+    "Base",
     # Static-content-audit fix — migration 039
     "Category",
     # Static-content-audit Phase 4 — migrations 041, 042
     "Channel",
-    "PaymentMethod",
-    # Static-content-audit Phase 6 — migration 044
-    "MessageTemplate",
-    # Static-content-audit Phase 7 — migrations 045, 046
-    "MarginTier",
-    "StockStatusConfig",
-    # Static-content-audit Phase 8 — migration 047
-    "StorageType",
+    "ComplianceInfo",
+    "Customer",
     # Static-content-audit Phase 9 — migration 048
     "DateRangePreset",
+    # HEREBUS Drive integration — migration 029
+    "DeliveryZone",
+    "ImportBatch",
+    "Ingredient",
+    "IngredientPriceEvent",
+    # Static-content-audit Phase 7 — migrations 045, 046
+    "MarginTier",
+    "MarketBenchmark",
+    # Static-content-audit Phase 6 — migration 044
+    "MessageTemplate",
+    "PaymentMethod",
+    "Pedido",
+    "PedidoLine",
+    "PriceHistory",
+    "Product",
+    "ProductionCompletion",
+    "ProductionPlan",
+    "ProductionPlanOverride",
+    "ProductionPlanTemplate",
+    "Recipe",
+    "RecipeLine",
+    "RecipePricing",
+    "RiskItem",
+    "Sale",
+    "SaleStockMove",
+    "SettingsKV",
+    "ShoppingListItem",
+    "StockMovement",
+    "StockStatusConfig",
     # Static-content-audit Phase 11 — migration 049
     "StorageKeyword",
+    # Static-content-audit Phase 8 — migration 047
+    "StorageType",
+    "Supplier",
+    "Tag",
+    "TagLink",
+    "Tenant",
+    "User",
+    "WasteLog",
+    "WishlistItem",
 ]
 
 

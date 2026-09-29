@@ -10,14 +10,12 @@ Covers:
 - waste_as_pct_of_revenue computes percentage
 """
 from __future__ import annotations
-from tests.factories import make_ingredient, make_product
 
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.rms.models import Ingredient
-from app.rms.models import Recipe, RecipeLine
+from app.rms.models import Ingredient, Recipe, RecipeLine
 from app.rms.waste import (
     WasteReason,
     list_waste,
@@ -26,6 +24,7 @@ from app.rms.waste import (
     waste_as_pct_of_revenue,
     waste_impact,
 )
+from tests.factories import make_ingredient
 
 
 def test_record_waste_creates_row_and_decrements_stock(session_factory):

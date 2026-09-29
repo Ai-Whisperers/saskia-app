@@ -113,8 +113,7 @@ def test_migration_017_backfills_existing_rows(tmp_path):
     """Existing recipe_line rows get line_unit = linked ingredient's unit."""
     from sqlalchemy import text
 
-    from app.rms.db import _migration_017_recipe_line_unit
-    from app.rms.db import init_db
+    from app.rms.db import _migration_017_recipe_line_unit, init_db
 
     db = tmp_path / "test.db"
     engine = create_engine(f"sqlite:///{db}")

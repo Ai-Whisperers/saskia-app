@@ -91,7 +91,7 @@ def _find_silent_passes(source: str) -> list[tuple[int, str]]:
                 if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
                     func = stmt.value.func
                     ftext = ast.unparse(func) if hasattr(ast, "unparse") else ""
-                    if ftext.endswith("logger") or ftext.endswith("logging"):
+                    if ftext.endswith(("logger", "logging")):
                         has_log = True
             if first_pass_line is not None and not has_log and not has_raise:
                 window = textwrap.dedent(

@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import pytest
 
-
 pytestmark = [pytest.mark.smoke]
 
 
@@ -73,8 +72,8 @@ def test_retencion_counters_populate_with_data(client, session_factory):
     clientes existing'. With the current metric scheme, 'Total clientes'
     must reflect the count after seeding.
     """
-    from tests.factories import make_customer
     from app.rms.models import Customer
+    from tests.factories import make_customer
 
     with session_factory() as s:
         n_before = s.query(Customer).count()

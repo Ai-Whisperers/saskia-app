@@ -46,7 +46,7 @@ def test_referrer_policy_present(client):
     """Referrer-Policy header must be present."""
     r = client.get("/login")
     assert "referrer-policy" in {k.lower() for k in r.headers.keys()}, (
-        f"No Referrer-Policy header"
+        "No Referrer-Policy header"
     )
 
 
@@ -54,7 +54,7 @@ def test_permissions_policy_present(client):
     """Permissions-Policy header must be present."""
     r = client.get("/login")
     assert "permissions-policy" in {k.lower() for k in r.headers.keys()}, (
-        f"No Permissions-Policy header"
+        "No Permissions-Policy header"
     )
 
 

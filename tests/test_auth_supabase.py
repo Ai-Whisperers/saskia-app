@@ -26,7 +26,7 @@ class FakeSupabaseClient:
         self.auth = FakeAuth(self)
         self.admin = FakeAuth(self)  # admin uses same interface for our purposes
 
-    def add_user(self, email: str, password: str, user_id: str = None):
+    def add_user(self, email: str, password: str, user_id: str | None = None):
         """Register a user for testing."""
         from uuid import uuid4
 
@@ -260,7 +260,7 @@ def test_get_session_user_refreshes_expired_token(fake_supabase):
 
     fake_request = MagicMock()
     fake_request.session = {}
-    uid, jwt, refresh = fake_supabase.add_user("user@x.com", "pw")
+    _uid, jwt, refresh = fake_supabase.add_user("user@x.com", "pw")
 
     # Simulate: JWT is now invalid (deleted from valid_jwts), but refresh still works
     fake_supabase.valid_jwts.pop(jwt, None)

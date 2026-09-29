@@ -1,8 +1,6 @@
 """tests/test_inference_autofill.py — Wave 2: server-side auto-fill tests."""
 from __future__ import annotations
 
-import pytest
-
 
 class TestIngredientAutoFill:
     """When operator creates/updates an ingredient with just a name, the server

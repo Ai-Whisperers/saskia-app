@@ -1,5 +1,4 @@
 """Tests for the HEREBUS integration (Wave 1-4)."""
-import pytest
 
 
 class TestWave1NavReorg:

@@ -57,10 +57,10 @@ def default_payment_method_code(session: Session) -> str:
 
 
 __all__ = [
-    "list_channels",
-    "list_payment_methods",
     "channel_codes",
-    "payment_method_codes",
     "default_channel_code",
     "default_payment_method_code",
+    "list_channels",
+    "list_payment_methods",
+    "payment_method_codes",
 ]

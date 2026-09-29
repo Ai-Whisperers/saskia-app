@@ -55,12 +55,12 @@ CHANNEL_DEFAULT = "mostrador"
 
 # Re-export common constants. Routers import these for validation.
 __all__ = [
-    "MAX_QTY",
-    "MAX_DISCOUNT_GS",
-    "ALLOWED_PAYMENT_METHODS",
-    "PAYMENT_METHODS_DISPLAY",
-    "PAYMENT_METHOD_DEFAULT",
     "ALLOWED_CHANNELS",
+    "ALLOWED_PAYMENT_METHODS",
     "CHANNELS_DISPLAY",
     "CHANNEL_DEFAULT",
+    "MAX_DISCOUNT_GS",
+    "MAX_QTY",
+    "PAYMENT_METHODS_DISPLAY",
+    "PAYMENT_METHOD_DEFAULT",
 ]

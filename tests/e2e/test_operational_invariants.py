@@ -104,8 +104,6 @@ def test_audit_trail_covers_a_days_mutations(client, session_factory):
 def test_concurrent_sales_reconcile_stock(client, session_factory):
     """N sales fired from two threads against finite stock: final stock must
     equal initial − consumed×N, exactly (the database-locked class)."""
-    import requests
-    import secrets
 
     with session_factory() as s:
         ing = make_ingredient(s, stock_qty=1000.0)
@@ -151,7 +149,6 @@ def test_demand_report_reflects_observed_span(client, session_factory):
         rec = make_recipe(s, lines=[ing_line(ing, qty=0.1)], yield_qty=2.0)
         prod = make_product(s, recipe=rec, sale_price_gs=7000)
         s.commit()
-        pid = prod.id
 
         # Sales spread over 3 distinct days (DB-seeded timestamps — the
         # report reads sold_at, not wall clock).

@@ -18,7 +18,7 @@ Tests:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
 
@@ -158,7 +158,7 @@ def test_stockout_report_lists_below_min(session_factory):
     """flour (stock 2 > min 1) NOT listed; sugar (stock 0.5 < min 1) IS."""
     from app.services.reports import monthly_stockout_report
 
-    flour_id, sugar_id, _, _ = _seed_catalog(session_factory)
+    _flour_id, _sugar_id, _, _ = _seed_catalog(session_factory)
     with session_factory() as s:
         rows = monthly_stockout_report(s, 2026, 9)
     names = [r.name for r in rows]

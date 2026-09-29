@@ -1,17 +1,23 @@
 from __future__ import annotations
 
-from datetime import date, datetime
-from typing import Optional
+from datetime import datetime
 
 from sqlalchemy import (
-    Boolean, CheckConstraint, Date, DateTime, Enum, Float, JSON,
-    ForeignKey, Index, Integer, String, Text, UniqueConstraint,
+    CheckConstraint,
+    Date,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
 )
-from .channels import Channel
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.rms.models.core import Base
 
+from .channels import Channel
 
 """
 app/rms/models/orders.py — Pre-orders / pickup workflow: Pedido, PedidoLine.

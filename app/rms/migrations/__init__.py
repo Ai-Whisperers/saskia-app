@@ -20,23 +20,23 @@ MIGRATIONS: dict[int, Callable[[Any], None]] = {}
 
 def _discover_migrations() -> dict[int, Callable[[Any], None]]:
     """Auto-discover migration functions via pkgutil.
-    
+
     Looks for functions named `_migration_NNN_description` in all modules
     in this package, where NNN is the version number.
-    
+
     Returns:
         Dict mapping version numbers to migration functions
     """
     migrations = {}
-    
+
     # Walk all modules in this package
     for _, name, _ in pkgutil.walk_packages(__path__, __name__ + "."):
         try:
             module = importlib.import_module(name)
-        except ImportError as exc:
+        except ImportError:
             # Skip modules that can't be imported (missing dependencies)
             continue
-        
+
         # Find all migration functions in the module
         for attr_name in dir(module):
             if attr_name.startswith("_migration_"):
@@ -47,11 +47,11 @@ def _discover_migrations() -> dict[int, Callable[[Any], None]]:
                 except (IndexError, ValueError):
                     # Skip malformed names
                     continue
-                
+
                 func = getattr(module, attr_name)
                 if callable(func):
                     migrations[version] = func
-    
+
     # Sort by version number
     return dict(sorted(migrations.items()))
 
@@ -62,13 +62,13 @@ MIGRATIONS.update(_discover_migrations())
 
 def get_migration(version: int) -> Callable[[Any], None]:
     """Get a specific migration function by version.
-    
+
     Args:
         version: The migration version number
-        
+
     Returns:
         The migration function
-        
+
     Raises:
         RuntimeError: If migration version is not found
     """

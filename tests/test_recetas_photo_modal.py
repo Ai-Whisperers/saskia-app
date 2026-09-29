@@ -132,8 +132,8 @@ def test_recetas_without_photo_row_shows_dash(
     assert 'aria-label="Sin foto"' in body
     # Button elements (not the JS querySelector that references the same
     # attribute) — count occurrences of `<button ... data-recipe-photo`.
-    button_count = body.count("<button") - body.count("<button type=\"submit\"")
-    photo_buttons = body.count(" data-recipe-photo")
+    body.count("<button") - body.count("<button type=\"submit\"")
+    body.count(" data-recipe-photo")
     # The opener script also references the attribute once, but it's inside
     # a JS string (querySelectorAll('[data-recipe-photo]')). We count
     # button elements specifically by looking for the full button pattern.

@@ -19,10 +19,8 @@ Covers:
 from __future__ import annotations
 
 import io
-from pathlib import Path
 
 import openpyxl
-import pytest
 from openpyxl import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 from sqlalchemy import select
@@ -360,7 +358,7 @@ def test_patch_ingredientes_updates_stock_qty(session_factory):
 
 def test_patch_ingredientes_price_update_sets_timestamp(session_factory):
     """Purchase price update → automatic purchase_price_updated_at = now."""
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta
 
     from app.rms.models import Ingredient
     from app.services.import_xlsx import from_workbook
@@ -590,7 +588,7 @@ def test_end_to_end_plantilla_edit_upload_updates_price(session_factory):
         p = s.get(Product, p_id)
         assert p.sale_price_gs == 12345
         # Spot-check the OTHER product survived the round-trip unchanged
-        other_id = [pid for (n, pid, _) in seeds["products"] if pid != p_id][0]
+        other_id = next(pid for (n, pid, _) in seeds["products"] if pid != p_id)
         other = s.get(Product, other_id)
         assert other.sale_price_gs == 6000
 

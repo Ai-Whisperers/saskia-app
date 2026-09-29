@@ -23,9 +23,9 @@ This test locks in the contract:
 """
 from __future__ import annotations
 
-import pytest
 import re
 
+import pytest
 
 pytestmark = [pytest.mark.smoke]
 

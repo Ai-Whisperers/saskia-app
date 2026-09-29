@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import pytest
 
-
 pytestmark = [pytest.mark.smoke]
 
 
@@ -32,7 +31,9 @@ def test_bank_requires_auth(client):
     exactly the scenario the audit was concerned about.
     """
     import os
+
     from fastapi.testclient import TestClient
+
     from app.rms.main import app
 
     # Clear auth bypass for this one request
@@ -41,7 +42,6 @@ def test_bank_requires_auth(client):
         # Use a brand-new client (the cached `client` fixture still has
         # bypassed auth in its app context). We instantiate a fresh
         # TestClient so the app sees no bypass.
-        from app.auth import is_auth_disabled  # ensure module reload
         anon = TestClient(app, headers={"Accept": "text/html"})
         r = anon.get("/bank", follow_redirects=True)
         body = r.text if r.status_code == 200 else ""
