@@ -71,17 +71,19 @@ def infer_recipe_family_from_name(name: str) -> str:
     """
     name = (name or "").lower()
     ordered_keywords = [
-        ("frituras", ("oliebollen", "donut", "buñuelo")),
+        ("frituras", ("oliebollen", "donut", "buñuelo", "frikandel")),
         ("salados", ("empanada", "quiche", "sandwich", "tostado",
-                    "chipá", "scon")),
+                    "chipá", "scon", "pasta fresca", "pasta")),
         ("panadería", ("pan ", "pan de", "pan_", "medialuna", "croissant",
                        "baguette", "brioche", "hojaldre", "factura",
-                       "rosca", "alfajor")),
+                       "rosca", "alfajor", "ciabatta", "bagel")),
         ("fríos", ("cheesecake", "tiramisu", "mousse", "pavlova")),
         ("dulces regionales", ("rosca", "alfajor")),
         ("pastelería", ("torta", "muffin", "cupcake", "brownie", "galleta",
-                        "cookie", "macaron", "tart", "pie", "roll",
-                        "rolls", "budín", "budin", "cake")),
+                        "cookie", "macaron", "tart", "pie", "appeltaart",
+                        "tarta", "roll", "rolls", "budín", "budin", "cake",
+                        "bizcocho", "queque", "crêpes", "crepes",
+                        "waffle", "chocolate")),
     ]
     for family, keywords in ordered_keywords:
         for kw in keywords:
@@ -99,17 +101,19 @@ def infer_recipe_family(recipe: Recipe) -> str:
     # Family keyword order matters: specific words before generic ones
     # to avoid "empanada" matching "pan" in panadería.
     ordered_keywords = [
-        ("frituras", ("oliebollen", "donut", "buñuelo")),
+        ("frituras", ("oliebollen", "donut", "buñuelo", "frikandel")),
         ("salados", ("empanada", "quiche", "sandwich", "tostado",
-                    "chipá", "scon")),
+                    "chipá", "scon", "pasta fresca", "pasta")),
         ("panadería", ("pan ", "pan de", "pan_", "medialuna", "croissant",
                        "baguette", "brioche", "hojaldre", "factura",
-                       "rosca", "alfajor")),
+                       "rosca", "alfajor", "ciabatta", "bagel")),
         ("fríos", ("cheesecake", "tiramisu", "mousse", "pavlova")),
         ("dulces regionales", ("rosca", "alfajor")),
         ("pastelería", ("torta", "muffin", "cupcake", "brownie", "galleta",
-                        "cookie", "macaron", "tart", "pie", "roll",
-                        "rolls", "budín", "budin", "cake")),
+                        "cookie", "macaron", "tart", "pie", "appeltaart",
+                        "tarta", "roll", "rolls", "budín", "budin", "cake",
+                        "bizcocho", "queque", "crêpes", "crepes",
+                        "waffle", "chocolate")),
     ]
     for family, keywords in ordered_keywords:
         for kw in keywords:
