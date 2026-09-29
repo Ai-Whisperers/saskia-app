@@ -15,8 +15,8 @@
 {% if request.query_params.get('recipe_id') %}
   <div id="prefill-banner" style="margin-bottom: var(--space-4);">
     {{ ui.alert_row(
-         'info',
-         'Pre-llenado desde la receta. Ajustá los valores según necesites.'
+         'warn',
+         'Pre-llenado desde receta — revisá que el nombre no exista ya en Productos.'
        ) }}
   </div>
 {% endif %}
