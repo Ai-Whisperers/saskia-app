@@ -844,6 +844,8 @@
     // Yield and divide
     var yieldQty = parseFloat((document.getElementById('yield_qty') || {}).value) || 1;
     var unitCost = yieldQty > 0 ? batchTotal / yieldQty : 0;
+    // DEBUG
+    console.log('computeCosts: batchTotal=' + batchTotal + ' yieldQty=' + yieldQty + ' unitCost=' + unitCost);
     // Fetch pricing markup config from API (configurable in /settings/pricing)
     var markupCfg = { multiplier: 3.0, round_to_gs: 1000 };
     fetch('/api/settings/pricing-markup').then(function(r){return r.json()}).then(function(cfg){
