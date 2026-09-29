@@ -12,7 +12,7 @@ def test_setup_dry_run():
     r = subprocess.run(
         ["uv", "run", "python", "scripts/uptimerobot_setup.py", "--dry-run"],
         capture_output=True, text=True, timeout=60,
-        cwd="/opt/data/profiles/ivan/scratch/saskia-app-work",
+        cwd="/opt/data/work/saskia-app",
     )
     assert r.returncode == 0, f"stderr={r.stderr}"
     out = r.stdout.lower()
@@ -24,7 +24,7 @@ def test_setup_dry_run():
 
 def test_default_monitors_contain_required_endpoints():
     """Script must declare all 3 production endpoints."""
-    sys_path = "/opt/data/profiles/ivan/scratch/saskia-app-work/scripts/uptimerobot_setup.py"
+    sys_path = "/opt/data/work/saskia-app/scripts/uptimerobot_setup.py"
     from importlib.util import module_from_spec, spec_from_file_location
 
     spec = spec_from_file_location("uptime_setup", sys_path)

@@ -31,7 +31,7 @@ def test_excel_io_router_does_not_import_openpyxl_at_module_level():
     from pathlib import Path
 
     src = Path(
-        "/opt/data/profiles/ivan/scratch/saskia-app-work/app/routers/excel_io.py"
+        "/opt/data/work/saskia-app/app/routers/excel_io.py"
     ).read_text()
     tree = ast.parse(src)
     # Walk top-level imports

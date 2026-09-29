@@ -270,16 +270,18 @@ def render(
     # Fail CLOSED: if we can't determine auth state, hide the chrome
     # rather than leak the entire app nav structure to anonymous users.
     try:
-        from app.auth import get_current_user, is_auth_disabled
+        from app.auth import current_user_id, is_auth_disabled
 
         if is_auth_disabled():
             # Test/dev bypass: auth is disabled, user is always logged in
-            ctx.setdefault("is_logged_in", True)
+            ctx["is_logged_in"] = True
         else:
-            # Production: call get_current_user (may raise if no session)
-            ctx.setdefault("is_logged_in", get_current_user(request) is not None)
+            # Use current_user_id (returns Optional[int]) instead of
+            # get_current_user (which raises/redirects on unauthenticated).
+            # This way we get a True/False signal, not a redirect.
+            ctx["is_logged_in"] = current_user_id(request) is not None
     except Exception:  # noqa: BLE001 — defensive default
-        ctx.setdefault("is_logged_in", False)
+        ctx["is_logged_in"] = False
 
     # SS-1: sidebar/nav renders from the nav table (app/rms/nav.py)
     if "nav_groups" not in ctx:

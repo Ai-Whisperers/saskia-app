@@ -7,7 +7,7 @@ class TestWave1NavReorg:
     def test_no_operacion_herbus_label_anywhere(self):
         """The 'Operación HEREBUS' label must NOT appear in base.html anymore."""
         from pathlib import Path
-        base = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/base.html")
+        base = Path("/opt/data/work/saskia-app/app/templates/base.html")
         content = base.read_text()
         assert "Operación HEREBUS" not in content, "Old 'Operación HEREBUS' bucket label still present"
 
@@ -44,7 +44,7 @@ class TestWave2PlannerIntegration:
     def test_produccion_has_recipes_context(self):
         """The /produccion day-view must include 'recipes' in the render context."""
         from pathlib import Path
-        router = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/routers/produccion.py")
+        router = Path("/opt/data/work/saskia-app/app/routers/produccion.py")
         content = router.read_text()
         assert "select(Recipe)" in content, "/produccion router doesn't fetch recipes"
         assert '"recipes"' in content, "'recipes' key not in /produccion render context"
@@ -52,7 +52,7 @@ class TestWave2PlannerIntegration:
     def test_produccion_html_has_planner_form(self):
         """The day-view of /produccion must embed the planner form."""
         from pathlib import Path
-        template = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/produccion.html")
+        template = Path("/opt/data/work/saskia-app/app/templates/produccion.html")
         content = template.read_text()
         assert "produccion-planner/compute" in content, "Planner form action not embedded"
         assert "Plan manual" in content, "Plan manual section header missing"
@@ -61,7 +61,7 @@ class TestWave2PlannerIntegration:
     def test_planner_html_has_back_link(self):
         """The standalone /produccion-planner page should link back to /produccion."""
         from pathlib import Path
-        template = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/planner.html")
+        template = Path("/opt/data/work/saskia-app/app/templates/planner.html")
         content = template.read_text()
         assert "Volver a Producción" in content, "Back-link to /produccion missing"
 
@@ -72,7 +72,7 @@ class TestWave3DashboardKPIs:
     def test_dashboard_router_passes_herbus_kpis(self):
         """The main / dashboard router should pass HEREBUS KPIs (sl, wishlist, risk)."""
         from pathlib import Path
-        router = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/routers/dashboard.py")
+        router = Path("/opt/data/work/saskia-app/app/routers/dashboard.py")
         content = router.read_text()
         for key in ['"sl_open_count"', '"sl_total_gs"', '"wishlist_count"',
                     '"wishlist_total_gs"', '"risk_count"', '"risk_severity_gs"']:
@@ -81,7 +81,7 @@ class TestWave3DashboardKPIs:
     def test_dashboard_router_imports_herbus_models(self):
         """The main / dashboard router must import the HEREBUS models."""
         from pathlib import Path
-        router = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/routers/dashboard.py")
+        router = Path("/opt/data/work/saskia-app/app/routers/dashboard.py")
         content = router.read_text()
         for model in ["WishlistItem", "ShoppingListItem", "RiskItem"]:
             assert model in content, f"Missing model import: {model}"
@@ -89,7 +89,7 @@ class TestWave3DashboardKPIs:
     def test_inicio_has_operacion_card(self):
         """The home / page must render the new Operación card with HEREBUS KPIs."""
         from pathlib import Path
-        template = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/inicio.html")
+        template = Path("/opt/data/work/saskia-app/app/templates/inicio.html")
         content = template.read_text()
         for key in ["sl_open_count", "wishlist_count", "risk_count",
                     "Lista de compras abierta", "Equipamiento pendiente",
@@ -103,7 +103,7 @@ class TestWave4DeliveryZonesFolded:
     def test_delivery_zones_redirects(self):
         """The /delivery-zones GET must redirect to /settings#zonas-delivery."""
         from pathlib import Path
-        router = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/routers/herebus.py")
+        router = Path("/opt/data/work/saskia-app/app/routers/herebus.py")
         content = router.read_text()
         # Find the GET "" handler
         idx = content.find('def delivery_zones_list(')
@@ -115,14 +115,14 @@ class TestWave4DeliveryZonesFolded:
     def test_settings_has_delivery_zones_context(self):
         """The settings.py handler must include delivery_zones in context."""
         from pathlib import Path
-        router = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/routers/settings.py")
+        router = Path("/opt/data/work/saskia-app/app/routers/settings.py")
         content = router.read_text()
         assert '"delivery_zones"' in content, "delivery_zones missing from /settings context"
 
     def test_settings_html_has_zonas_section(self):
         """settings.html must have a Zonas de Delivery section."""
         from pathlib import Path
-        template = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/settings.html")
+        template = Path("/opt/data/work/saskia-app/app/templates/settings.html")
         content = template.read_text()
         assert 'id="zonas-delivery"' in content, "Anchor id missing"
         assert "Zonas de Delivery" in content, "Section heading missing"

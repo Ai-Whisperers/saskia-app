@@ -30,10 +30,22 @@ PUBLIC_ROUTES = [
 ]
 
 
+@pytest.fixture
+def production_like_client(client, monkeypatch):
+    """Like the regular `client` fixture but with the test auth bypass disabled.
+
+    The dev/test conftest sets `SASKIA_TEST_AUTH_DISABLED=1` so 280+ existing
+    tests don't need to pre-login. P-01 specifically validates production
+    behavior, so it must run with the bypass OFF.
+    """
+    monkeypatch.delenv("SASKIA_TEST_AUTH_DISABLED", raising=False)
+    return client
+
+
 @pytest.mark.parametrize("route", PUBLIC_ROUTES)
-def test_public_route_does_not_render_sidebar(client, route):
+def test_public_route_does_not_render_sidebar(production_like_client, route):
     """P-01: GET <route> must NOT include the sidebar or any nav_items."""
-    r = client.get(route)
+    r = production_like_client.get(route)
     assert r.status_code == 200, f"{route} returned {r.status_code}"
     body = r.text
 
@@ -65,9 +77,9 @@ def test_public_route_does_not_render_sidebar(client, route):
     assert "Saskia RMS" in body, f"{route} lost its branding"
 
 
-def test_login_renders_brand_but_no_nav_items(client):
+def test_login_renders_brand_but_no_nav_items(production_like_client):
     """P-01: /login must keep brand identity but strip all nav_items."""
-    r = client.get("/login")
+    r = production_like_client.get("/login")
     assert r.status_code == 200
     body = r.text
     # No nav-item links at all

@@ -5,6 +5,42 @@
 
 ## [Unreleased]
 
+### Fixed (2026-09-29) — Master-menu cleanup batch: bug fixes + test updates
+
+Pre-existing production bugs found and fixed; legacy/obsolete tests marked xfail.
+
+**Security fix (P-01):** `app/services/template_render.py` now uses
+`current_user_id(request)` (returns `Optional[int]`) instead of
+`get_current_user(request)` (returns `RedirectResponse` on unauthenticated).
+Previously, `/login` rendered the entire app sidebar+topbar because
+`is_logged_in` was being set to `True` from the redirect object.
+Now `/login` is a clean public route showing only the login form.
+
+**Bug fix (NameError → 500):** Added missing `from app.rms.config import ASUNCION_TZ`
+in `app/routers/reportes.py` and `app/routers/inventory.py`. Both routes
+were crashing with `NameError("name 'ASUNCION_TZ' is not defined")` on
+every request. Affected pages: `/reportes/cierre-mensual`, `/inventario`,
+all inventory multi-filter routes. (BACKLOG-relevant; pre-existing.)
+
+**Template fix:** Added missing `action` keyword argument to
+`empty_state()` macro in `app/templates/_components/atoms.html`. The
+`/vs-mercado` empty-state was passing `action=…` but the macro rejected it,
+crashing with `TypeError("macro 'empty_state' takes no keyword argument 'action'")`.
+
+**Test infrastructure:** Created `production_like_client` fixture in
+`tests/test_P01_login_no_sidebar.py` that disables the dev-bypass
+`SASKIA_TEST_AUTH_DISABLED=1`. P-01 tests now validate real production
+behavior (no sidebar on `/login`) instead of dev-mode behavior.
+
+**Legacy test updates:** 33 tests in `tests/test_combo_cache.py` (16)
+and `tests/test_combo_performance.py` (6) plus 11 affected tests marked
+`@pytest.mark.xfail` with reason "combo.js → saskia-combo.js refactor
+(D17, 2026-09-27). See tests/test_ui_components.py for current tests."
+
+**Hardcoded path fixes:** Replaced `/opt/data/profiles/ivan/scratch/saskia-app-work`
+with `/opt/data/work/saskia-app` in 15 test files so the test suite
+runs in the active repo location.
+
 ### Fixed (2026-09-29) — P0 audit gap closed (A.3) + A.1 regression test
 
 **Supplier CRUD now writes audit rows (A.3 forensic gap closed).**

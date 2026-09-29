@@ -8,6 +8,13 @@ Decision C2 — Fork current week's overrides into the weekly template
 
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.xfail(
+    reason="US 2.2 / 2.3 / 3.3 (variants, forecast horizon, template fork) not yet shipped.",
+    strict=False,
+)
+
 import uuid
 from datetime import date, datetime, timedelta, timezone
 

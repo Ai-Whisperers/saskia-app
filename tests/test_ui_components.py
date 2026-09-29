@@ -225,7 +225,7 @@ def test_lint_tier1_passes():
     import subprocess
     result = subprocess.run(
         [".venv/bin/python", "scripts/lint_tier1.py"],
-        capture_output=True, text=True, cwd="/opt/data/profiles/ivan/scratch/saskia-app-work",
+        capture_output=True, text=True, cwd="/opt/data/work/saskia-app",
     )
     assert "✅" in result.stdout, f"lint failed:\n{result.stdout}\n{result.stderr}"
 
@@ -282,7 +282,7 @@ def test_skeleton_macro_in_atoms(client):
     import subprocess
     result = subprocess.run(
         ["grep", "-c", "skeleton_section\\|loading_state",
-         "/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/_components/atoms.html"],
+         "/opt/data/work/saskia-app/app/templates/_components/atoms.html"],
         capture_output=True, text=True,
     )
     assert int(result.stdout.strip()) >= 2, "skeleton macros not in atoms.html"
@@ -346,7 +346,7 @@ def test_combo_field_macro_defined(client):
     import subprocess
     result = subprocess.run(
         ["grep", "-c", "macro combo_field",
-         "/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/_components/atoms.html"],
+         "/opt/data/work/saskia-app/app/templates/_components/atoms.html"],
         capture_output=True, text=True,
     )
     assert int(result.stdout.strip()) >= 1, "ui.combo_field macro missing from atoms.html"
@@ -537,13 +537,13 @@ def test_d17_static_combo_reorder_migrated(client):
 def test_d17_static_combo_package_unit_migrated():
     """D17: ingrediente_detalle.html source uses ui.combo_field() for package_unit."""
     import pathlib
-    src = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/ingrediente_detalle.html").read_text()
+    src = pathlib.Path("/opt/data/work/saskia-app/app/templates/ingrediente_detalle.html").read_text()
     assert "ui.combo_field(" in src
     assert "package_unit" in src
     assert '\"und\"' in src and '\"kg\"' in src
     # Template compiles
     from jinja2 import Environment, FileSystemLoader
-    env = Environment(loader=FileSystemLoader("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates"))
+    env = Environment(loader=FileSystemLoader("/opt/data/work/saskia-app/app/templates"))
     env.get_template("ingrediente_detalle.html")
 
 
@@ -552,7 +552,7 @@ def test_d17_static_combo_package_unit_migrated():
 def test_d17_receta_form_line_rows_migrated():
     """D17: receta_form.html line rows (line_kind, line_target_id, line_unit) use <saskia-combo>."""
     import pathlib
-    src = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/receta_form.html").read_text()
+    src = pathlib.Path("/opt/data/work/saskia-app/app/templates/receta_form.html").read_text()
     # All 3 line-row combos migrated
     assert ("name='line_kind'" in src or 'name="line_kind"' in src)
     assert ("name='line_target_id'" in src or 'name="line_target_id"' in src)
@@ -561,27 +561,27 @@ def test_d17_receta_form_line_rows_migrated():
     assert 'class="saskia-combo line-target-combo"' not in src
     # Template compiles
     from jinja2 import Environment, FileSystemLoader
-    env = Environment(loader=FileSystemLoader("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates"))
+    env = Environment(loader=FileSystemLoader("/opt/data/work/saskia-app/app/templates"))
     env.get_template("receta_form.html")
 
 
 def test_d17_receta_form_family_and_scale_migrated():
     """D17: receta_form.html family_combo + scale_combo use <saskia-combo>."""
     import pathlib
-    src = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/receta_form.html").read_text()
+    src = pathlib.Path("/opt/data/work/saskia-app/app/templates/receta_form.html").read_text()
     assert ("name='family'" in src or 'name="family"' in src) and "allow_create=True" in src
     assert ("name='scale'" in src or 'name="scale"' in src) and "autosubmit" in src
     # No legacy scale_combo
     assert 'id="scale_combo"' not in src or src.count('<div class="saskia-combo"') == 0
     from jinja2 import Environment, FileSystemLoader
-    env = Environment(loader=FileSystemLoader("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates"))
+    env = Environment(loader=FileSystemLoader("/opt/data/work/saskia-app/app/templates"))
     env.get_template("receta_form.html")
 
 
 def test_d17_no_legacy_saskia_combo_divs_anywhere():
     """D17: Zero legacy <div class="saskia-combo"> divs remain across all templates."""
     import pathlib
-    tpl_dir = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates")
+    tpl_dir = pathlib.Path("/opt/data/work/saskia-app/app/templates")
     total = 0
     for f in tpl_dir.glob("*.html"):
         text = f.read_text()
@@ -595,7 +595,7 @@ def test_d17_no_legacy_saskia_combo_divs_anywhere():
 def test_d17_saskia_combo_supports_endpoint_attribute_change():
     """D17: <saskia-combo> re-fetches when endpoint attribute changes at runtime."""
     import pathlib
-    src = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/saskia-combo.js").read_text()
+    src = pathlib.Path("/opt/data/work/saskia-app/app/static/saskia-combo.js").read_text()
     # attributeChangedCallback must re-fetch on endpoint change
     assert "endpoint" in src and "_filterAndRender" in src
     # The change handler should clear stale value
@@ -605,7 +605,7 @@ def test_d17_saskia_combo_supports_endpoint_attribute_change():
 def test_d17_saskia_combo_mirrors_value_to_hidden_input():
     """D17: <saskia-combo> auto-creates hidden mirror input for form serialization."""
     import pathlib
-    src = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/saskia-combo.js").read_text()
+    src = pathlib.Path("/opt/data/work/saskia-app/app/static/saskia-combo.js").read_text()
     # _emitChange should create hidden mirror with the same name
     assert "data-saskia-combo-mirror" in src
     assert 'type = \'hidden\'' in src or 'type: "hidden"' in src or 'type = "hidden"' in src
@@ -614,7 +614,7 @@ def test_d17_saskia_combo_mirrors_value_to_hidden_input():
 def test_d17_saskia_combo_supports_allow_create():
     """D17: <saskia-combo> with allow-create dispatches create-option event on Enter."""
     import pathlib
-    src = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/saskia-combo.js").read_text()
+    src = pathlib.Path("/opt/data/work/saskia-app/app/static/saskia-combo.js").read_text()
     assert "allow-create" in src
     assert "create-option" in src
 
@@ -622,7 +622,7 @@ def test_d17_saskia_combo_supports_allow_create():
 def test_d17_saskia_combo_supports_autosubmit():
     """D17: <saskia-combo> with autosubmit submits closest form on selection."""
     import pathlib
-    src = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/saskia-combo.js").read_text()
+    src = pathlib.Path("/opt/data/work/saskia-app/app/static/saskia-combo.js").read_text()
     assert "autosubmit" in src
     assert "form.submit()" in src
 
@@ -630,7 +630,7 @@ def test_d17_saskia_combo_supports_autosubmit():
 def test_d17_receta_form_line_kind_bridge_present():
     """D17: receta_form.html has post-migration bridge that swaps line_target endpoint when line_kind changes."""
     import pathlib
-    src = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/receta_form.html").read_text()
+    src = pathlib.Path("/opt/data/work/saskia-app/app/templates/receta_form.html").read_text()
     assert "bridgeLineKindCombos" in src
     assert "/recetas/api/search/" in src
     assert "/inventario/api/search/" in src
@@ -640,7 +640,7 @@ def test_d17_receta_form_line_kind_bridge_present():
 def test_inline_color_violations_removed():
     """Real color violations (color:red/green/#hex) should not appear in critical templates."""
     import pathlib
-    templates_dir = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates")
+    templates_dir = pathlib.Path("/opt/data/work/saskia-app/app/templates")
     # These are the files we explicitly cleaned up
     targets = ["benchmarks.html", "planner.html", "dashboard.html", "reportes_retencion.html"]
     for fname in targets:
@@ -658,7 +658,7 @@ def test_inline_color_violations_removed():
 def test_pedido_board_no_autoplay():
     """Audio should NOT autoplay. Only play on user click of sound-toggle."""
     import pathlib
-    src = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/pedido_board.html").read_text()
+    src = pathlib.Path("/opt/data/work/saskia-app/app/templates/pedido_board.html").read_text()
     # No top-level audio.play() call outside the IIFE
     # The toggle handler does call play() but only inside the toggle function (user-initiated)
     assert "STORAGE_KEY = 'saskia:board-sound-enabled'" in src
@@ -672,7 +672,7 @@ def test_pedido_board_no_autoplay():
 def test_stock_preview_tr_alert_danger_has_css():
     """tr.alert-danger must have a CSS rule in app.css."""
     import pathlib
-    css = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/app.css").read_text()
+    css = pathlib.Path("/opt/data/work/saskia-app/app/static/app.css").read_text()
     assert "tr.alert-danger" in css, "tr.alert-danger rule missing from app.css"
     assert "background:var(--color-danger-soft)" in css or "var(--color-danger-soft)" in css
 
@@ -680,7 +680,7 @@ def test_stock_preview_tr_alert_danger_has_css():
 def test_users_html_extracted_assets_exist():
     """users.html should reference external users.js and users.css, not inline them."""
     import pathlib
-    src = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/users.html").read_text()
+    src = pathlib.Path("/opt/data/work/saskia-app/app/templates/users.html").read_text()
     # No more inline <script>...</script> blocks in users.html
     assert "<script>" not in src, "users.html still has inline <script> block"
     assert "<style>" not in src, "users.html still has inline <style> block"
@@ -689,7 +689,7 @@ def test_users_html_extracted_assets_exist():
     assert "users.js" in src
 
     # Files exist
-    js_path = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/users.js")
-    css_path = pathlib.Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/users.css")
+    js_path = pathlib.Path("/opt/data/work/saskia-app/app/static/users.js")
+    css_path = pathlib.Path("/opt/data/work/saskia-app/app/static/users.css")
     assert js_path.exists() and js_path.stat().st_size > 100
     assert css_path.exists() and css_path.stat().st_size > 100

@@ -15,14 +15,14 @@ def test_daily_summary_dryrun():
     conn.close()
     env = os.environ.copy()
     env["AIW_SASKIA_DB_PATH"] = db_path
-    env["PATH"] = "/opt/data/profiles/ivan/scratch/saskia-app-work/.venv/bin:" + env.get("PATH", "")
+    env["PATH"] = "/opt/data/work/saskia-app/.venv/bin:" + env.get("PATH", "")
     env.pop("DATABASE_URL", None)
     result = subprocess.run(
         [
             "uv", "run", "python", "scripts/daily_summary.py", "--backend", "dryrun",
         ],
         capture_output=True, text=True, timeout=60,
-        cwd="/opt/data/profiles/ivan/scratch/saskia-app-work",
+        cwd="/opt/data/work/saskia-app",
         env=env,
     )
     assert "ok=True" in result.stdout, f"stdout: {result.stdout}\nstderr: {result.stderr}"
@@ -48,7 +48,7 @@ def test_daily_summary_with_yesterday_flag():
             "--yesterday", "--backend", "dryrun",
         ],
         capture_output=True, text=True, timeout=60,
-        cwd="/opt/data/profiles/ivan/scratch/saskia-app-work",
+        cwd="/opt/data/work/saskia-app",
         env=env,
     )
     assert "(ayer)" in result.stdout or "yesterday" in result.stdout.lower() or result.returncode == 0

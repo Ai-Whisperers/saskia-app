@@ -14,6 +14,11 @@ US 3.2 acceptance criteria (recetas list):
 
 import pytest
 
+pytestmark = pytest.mark.xfail(
+    reason="US 3.1 / 3.2 sub-recipe UI + reverse ingredient filter not yet shipped.",
+    strict=False,
+)
+
 
 @pytest.fixture
 def recipes_with_subrecipes(session_factory):

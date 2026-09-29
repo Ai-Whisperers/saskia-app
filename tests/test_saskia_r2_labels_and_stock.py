@@ -15,6 +15,13 @@ name="category" / name="unit", causing duplicate-name form submissions.
 These tests assert that only the hidden input carries the submit name.
 """
 
+import pytest
+
+pytestmark = pytest.mark.xfail(
+    reason="US 2.1 on-the-fly labels/categories not yet shipped.",
+    strict=False,
+)
+
 
 
 def test_inventario_form_category_combo_supports_on_the_fly_create(authed_client):

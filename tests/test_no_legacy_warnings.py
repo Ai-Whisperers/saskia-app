@@ -24,7 +24,7 @@ def test_clean_run_reports_zero_warnings():
             "tests/test_daily_summary.py",
         ],
         capture_output=True, text=True, timeout=60,
-        cwd="/opt/data/profiles/ivan/scratch/saskia-app-work",
+        cwd="/opt/data/work/saskia-app",
     )
     # Should pass.
     assert result.returncode == 0, f"Test failures:\n{result.stdout[-1000:]}"

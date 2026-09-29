@@ -79,7 +79,7 @@ def test_minify_css_script_works():
         ["uv", "run", "python", "scripts/minify_css.py", "--check"],
         capture_output=True,
         text=True,
-        cwd=Path("/opt/data/profiles/ivan/scratch/saskia-app-work"),
+        cwd=Path("/opt/data/work/saskia-app"),
     )
     # If app.css is already minified, --check returns 0. Otherwise it returns 1.
     # Either way, the script should run without crashing.

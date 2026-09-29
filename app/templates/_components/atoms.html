@@ -78,7 +78,7 @@
 {%- endmacro %}
 
 {# ── A-4 empty_state ───────────────────────────────────────────────── #}
-{% macro empty_state(title, icon='icon-search', hint=None, cta_href=None, cta_label=None, compact=False, count_of=None, total_label=None) -%}
+{% macro empty_state(title, icon='icon-search', hint=None, cta_href=None, cta_label=None, compact=False, count_of=None, total_label=None, action=None) -%}
 <div class="empty-state{% if compact %} empty-state--compact{% endif %}">
   <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
   <p class="empty-state__title">{{ title }}</p>
@@ -86,6 +86,7 @@
   <p class="empty-state__count muted">{{ count_of }} de {{ total_label or '0' }} cargados.</p>
   {% endif %}
   {% if hint %}<p class="empty-state__hint">{{ hint }}</p>{% endif %}
+  {% if action %}{{ action|safe }}{% endif %}
   {% if cta_href %}<a class="btn btn-primary" href="{{ cta_href }}">{{ cta_label or 'Empezar' }}</a>{% endif %}
 </div>
 {%- endmacro %}
