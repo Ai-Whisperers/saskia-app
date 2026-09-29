@@ -34,7 +34,7 @@
 
 <form method="post" action="/recetas{{ '/nueva' if mode == 'new' else '/' ~ recipe.id ~ '/editar' }}"
       id="recipe-form"
-      class="recipe-form-layout">
+      class="recipe-form-layout recipe-form-page">
   <input type="hidden" name="_csrf_token" value="{{ csrf_token or '' }}">
 
   {# ═══════════════════════════════════════════════════════════════ #}
@@ -377,9 +377,13 @@
 /* ── Layout: 70/30 split ── */
 .recipe-form-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
-  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
+  gap: var(--space-6);
   align-items: start;
+  /* Grow to fill viewport on wide screens (default container is 1100px) */
+  max-width: min(100%, 1600px);
+  margin: 0 auto;
+  padding: 0 var(--space-3);
 }
 @media (max-width: 1100px) {
   .recipe-form-layout {
@@ -393,6 +397,27 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+}
+
+/* ── Override base.html's .container (1100px) for this page ──────── */
+/* The recipe edit form needs horizontal room for the ingredient table */
+/* (8 columns). Without this the Tipo/Unidad combos truncate their */
+/* labels to ellipsis like "Insu…" / "kg" overflow. */
+.recipe-form-page {
+  /* Override the parent .container's 1100px max-width.            */
+  /* CSS custom property cascade: any descendant reading          */
+  /* --max-width won't help, but we can override the rule below.   */
+}
+/* Target the closest ancestor .app-main and re-constrain it to a  */
+/* wider max-width when this page is active. The page-header inside */
+/* already has its own background so the visual container stays.    */
+.app-main:has(.recipe-form-page) {
+  max-width: 1400px;
+}
+@media (max-width: 1100px) {
+  .app-main:has(.recipe-form-page) {
+    max-width: var(--max-width);
+  }
 }
 
 /* ── Section card (kept from previous version) ── */
@@ -538,19 +563,19 @@
   font-size: var(--text-sm);
   table-layout: fixed;
 }
-.recipe-lines-table col.line-col-type { width: 130px; }
+.recipe-lines-table col.line-col-type { width: 150px; }
 .recipe-lines-table col.line-col-item { width: auto; }
-.recipe-lines-table col.line-col-qty { width: 96px; }
-.recipe-lines-table col.line-col-unit { width: 90px; }
-.recipe-lines-table col.line-col-cost { width: 110px; }
+.recipe-lines-table col.line-col-qty { width: 110px; }
+.recipe-lines-table col.line-col-unit { width: 110px; }
+.recipe-lines-table col.line-col-cost { width: 130px; }
 .recipe-lines-table col.line-col-note { width: auto; }
-.recipe-lines-table col.line-col-action { width: 44px; }
-.recipe-lines-table thead th.line-col-type { width: 130px; }
-.recipe-lines-table thead th.line-col-qty { width: 96px; }
-.recipe-lines-table thead th.line-col-unit { width: 90px; }
-.recipe-lines-table saskia-combo { min-width: 90px; }
-.recipe-lines-table thead th.line-col-cost { width: 110px; }
-.recipe-lines-table thead th.line-col-action { width: 44px; }
+.recipe-lines-table col.line-col-action { width: 50px; }
+.recipe-lines-table thead th.line-col-type { width: 150px; }
+.recipe-lines-table thead th.line-col-qty { width: 110px; }
+.recipe-lines-table thead th.line-col-unit { width: 110px; }
+.recipe-lines-table saskia-combo { min-width: 100px; }
+.recipe-lines-table thead th.line-col-cost { width: 130px; }
+.recipe-lines-table thead th.line-col-action { width: 50px; }
 .recipe-lines-table thead th {
   text-align: left;
   padding: var(--space-2) var(--space-2);
