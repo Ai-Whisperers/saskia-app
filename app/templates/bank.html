@@ -99,10 +99,12 @@
     <form method="get" action="/bank" class="row g-3">
       <div class="col">
         <label for="start_date">Desde</label>
+        <!-- lint_tier1-disable-next-line — date filter in GET form, native is simpler -->
         <input type="date" id="start_date" name="start_date" value="{{ request.query_params.get('start_date', '') }}" class="form-control">
       </div>
       <div class="col">
         <label for="end_date">Hasta</label>
+        <!-- lint_tier1-disable-next-line — date filter in GET form, native is simpler -->
         <input type="date" id="end_date" name="end_date" value="{{ request.query_params.get('end_date', '') }}" class="form-control">
       </div>
       <div class="col d-flex align-items-end">

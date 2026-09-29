@@ -68,12 +68,13 @@
     </tr>
     {% endfor %}
     {% else %}
-    <tr><td colspan="7" style="padding:0;">
-      <div class="empty-state">
-        <p class="empty-state__title">Sin datos de mercado cargados</p>
-        <p class="empty-state__hint">Importá <code>HEREBUS_Benchmarks_Market</code> o agregá el primer benchmark con el botón de abajo.</p>
-        <a href="/vs-mercado/nuevo" class="btn btn-primary" style="margin-top:var(--space-2);">+ Agregar primer benchmark</a>
-      </div>
+    <tr><td colspan="7">
+      {{ ui.empty_state(
+           title="Sin datos de mercado cargados",
+           icon="icon-trend",
+           hint="Importá <code>HEREBUS_Benchmarks_Market</code> o agregá el primer benchmark con el botón de abajo.",
+           action=("<a href='/vs-mercado/nuevo' class='btn btn-primary'>+ Agregar primer benchmark</a>")|safe
+         ) }}
     </td></tr>
     {% endif %}
   </tbody>

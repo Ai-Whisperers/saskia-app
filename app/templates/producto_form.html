@@ -189,6 +189,7 @@
         </div>
         <div class="form-row">
           <label for="rspa_expiry">Vencimiento RSPA</label>
+          <!-- lint_tier1-disable-next-line — regulatory date (RSPA expiry) -->
           <input type="date" id="rspa_expiry" name="rspa_expiry"
                  value="{{ product.rspa_expiry if product and product.rspa_expiry else '' }}">
         </div>

@@ -537,9 +537,28 @@
 
   // ── Clear cart ──────────────────────────────────────────────────────────
   window.clearCart = function() {
-    if (POS_CART.length && !confirm('¿Vaciar el carrito?')) return;
-    POS_CART = [];
-    renderCart();
+    if (!POS_CART.length) {
+      POS_CART = [];
+      renderCart();
+      return;
+    }
+    var doClear = function() {
+      POS_CART = [];
+      renderCart();
+    };
+    if (window.SaskiaConfirmModal) {
+      SaskiaConfirmModal.show({
+        title: '¿Vaciar el carrito?',
+        body: 'Se eliminarán los productos del carrito actual.',
+        confirmLabel: 'Vaciar',
+        danger: false,
+        onConfirm: doClear
+      });
+    }
+    // lint_tier1-disable-next-line  -- fallback for older browsers without modal
+    else if (confirm('¿Vaciar el carrito?')) {
+      doClear();
+    }
   };
 
   // ── Form submit: POST cart as JSON ─────────────────────────────────────

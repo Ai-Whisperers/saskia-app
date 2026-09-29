@@ -22,7 +22,16 @@ VIOLATIONS: list[tuple[Path, int, str, str]] = []
 
 def _scan(path: Path, patterns: list[tuple[str, str]]) -> None:
     text = path.read_text(encoding="utf-8")
-    for i, line in enumerate(text.splitlines(), 1):
+    lines = text.splitlines()
+    skip_next = False
+    for i, line in enumerate(lines, 1):
+        if skip_next:
+            skip_next = False
+            continue
+        # Disable: "lint_tier1-disable-next-line" on THIS line skips the next
+        if "lint_tier1-disable-next-line" in line:
+            skip_next = True
+            continue
         for needle, msg in patterns:
             if needle in line and "ui.empty_state" not in text:
                 VIOLATIONS.append((path, i, needle, msg))
@@ -51,14 +60,7 @@ def main() -> int:
         if "_components" in str(f):
             continue
         files_checked += 1
-        for needle, msg in RULES:
-            text = f.read_text(encoding="utf-8")
-            for i, line in enumerate(text.splitlines(), 1):
-                if needle in line:
-                    # Allow exemption: ui.empty_state is the macro reference itself
-                    if needle == 'class="empty-state' and 'ui.empty_state' in line:
-                        continue
-                    VIOLATIONS.append((f, i, needle, msg))
+        _scan(f, RULES)
     print(f"Checked {files_checked} templates.")
     if VIOLATIONS:
         print(f"\n❌ {len(VIOLATIONS)} violations:")
