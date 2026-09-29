@@ -777,14 +777,41 @@ def _is_token_valid(pedido: Pedido, now: datetime | None = None) -> bool:
 
     Pass ``now`` for deterministic tests.
     """
-    if pedido.public_token_expires_at is None:
+    expires_at = getattr(pedido, "public_token_expires_at", None)
+    if expires_at is None:
         return False
+
+    # The ORM may hand back either a datetime or a string depending on
+    # what the underlying DB returned (SQLite is loose about TIMESTAMP).
+    # Normalize to datetime so the comparison below doesn't crash on
+    # either type.
+    if isinstance(expires_at, str):
+        from datetime import datetime as _dt
+
+        # Handle "YYYY-MM-DD" and "YYYY-MM-DD HH:MM:SS" and the
+        # "T"-separated ISO variant. Fall back to date-only comparison
+        # if all parsers fail.
+        for fmt in (
+            "%Y-%m-%d %H:%M:%S.%f",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d",
+        ):
+            try:
+                expires_at = _dt.strptime(expires_at, fmt)
+                break
+            except ValueError:
+                continue
+        else:
+            # Unparseable → treat as expired (safer than allowing
+            # access via a stale token).
+            return False
+
     when = now or datetime.now(timezone.utc)
     # pedido.public_token_expires_at is naive UTC (matches the rest of
     # the schema's datetime defaults); compare against a naive UTC now.
-    if pedido.public_token_expires_at.tzinfo is None:
+    if expires_at.tzinfo is None:
         when = when.replace(tzinfo=None)
-    return pedido.public_token_expires_at > when
+    return expires_at > when
 
 
 def _enforce_public_token_rate_limit(

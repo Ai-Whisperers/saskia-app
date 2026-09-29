@@ -76,6 +76,33 @@ def test_is_token_valid_with_now_override() -> None:
     assert _is_token_valid(p, now=datetime(2026, 10, 15, 12, 0, 1)) is False
 
 
+def test_is_token_valid_handles_string_datetime_from_sqlite() -> None:
+    """SQLite sometimes returns TIMESTAMP columns as raw strings.
+
+    When the ORM (via str_to_datetime processor) or our own _is_token_valid
+    encounters a string, it must handle it without crashing. Test both
+    the date-only format (the most common mistake when hand-typing) and
+    the full timestamp format.
+    """
+    p = Pedido()
+    # Date-only string (e.g. from a manual UPDATE SET expires_at='2025-01-01')
+    p.public_token_expires_at = "2025-01-01"
+    # 2025-01-01 is in the past → invalid
+    assert _is_token_valid(p) is False
+
+    # Future date-only string
+    p.public_token_expires_at = "2099-12-31"
+    assert _is_token_valid(p) is True
+
+    # Full timestamp string (ISO variant with T separator)
+    p.public_token_expires_at = "2025-01-01T00:00:00"
+    assert _is_token_valid(p) is False
+
+    # Garbage string → invalid (defensive)
+    p.public_token_expires_at = "not a date"
+    assert _is_token_valid(p) is False
+
+
 def _build_expired_pedido(session_factory) -> tuple[int, str]:
     """Create a pedido whose public_token already expired."""
     with session_factory() as s:
