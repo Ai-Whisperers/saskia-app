@@ -22,7 +22,7 @@ def _now_year() -> int:
     return datetime.now(ASUNCION_TZ).year
 
 
-def _now():
+def _now() -> datetime:
     """Jinja global `now()` — current Asuncion-local time, **naive**.
 
     Returns a NEW datetime on each call so templates using `{{ now }}`
@@ -47,7 +47,7 @@ def _now():
     return datetime.now(ASUNCION_TZ)
 
 
-def _now_local():
+def _now_local() -> str:
     """Jinja global `now_local()` — current local-time formatted for
     `<input type="datetime-local">` (`YYYY-MM-DDTHH:MM`)."""
     return _now().strftime("%Y-%m-%dT%H:%M")
@@ -81,18 +81,18 @@ def _asset_version() -> str:
 # The dashboard and several other templates call these as `m.gs`, `m.gs_full`,
 # `m.margin_pct`, and `m.top_list_card`. We bind them as Jinja globals so the
 # templates can stay simple. Lazy-imported to keep template_render import-light.
-def _make_money_helper():
+def _make_money_helper() -> SimpleNamespace:  # noqa: ANN401 — returns namespace for template use
     """Build the `m` namespace exposed to templates."""
     from app.rms.money import format_gs
 
-    def gs(value: object):
+    def gs(value: object) -> str:
         """Format integer Gs. as 'Gs. 8.696.000' (Paraguayan convention).
 
         Use {{ m.gs(x) }} — the result already includes the 'Gs. ' prefix.
         """
         return format_gs(value)
 
-    def gs_plain(value: object):
+    def gs_plain(value: object) -> str:
         """Format integer Gs. as '8.696.000' WITHOUT the 'Gs.' prefix.
         Use in table cells where the column header already says 'Gs.'.
         """
@@ -100,7 +100,7 @@ def _make_money_helper():
             return "—"
         return f"{value:,}".replace(",", ".") if value >= 0 else f"-{abs(value):,}".replace(",", ".")
 
-    def gs_full(value: object):
+    def gs_full(value: object) -> str:  # noqa: ANN401 — alias for gs()
         """Alias for gs() — kept for templates that already use this name."""
         return format_gs(value)
 

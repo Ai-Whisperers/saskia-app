@@ -281,7 +281,7 @@ _ALLERGEN_ORDER = [
 ]
 
 
-def _allergen_sort_key(a: str):
+def _allergen_sort_key(a: str) -> tuple[int, int, str]:
     """Canonical allergens first (in _ALLERGEN_ORDER), unknown ones after,
     alphabetically. Ingredients carry free-text Spanish allergens (e.g.
     'lacteos', 'mani') — .index() raised ValueError on any unknown string,

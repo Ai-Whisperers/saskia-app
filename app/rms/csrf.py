@@ -61,7 +61,7 @@ def verify_csrf_token(token: str | None) -> bool:
         return False
 
 
-async def csrf_cookie_middleware(request: Request, call_next: object):
+async def csrf_cookie_middleware(request: Request, call_next: object) -> Response:
     """Set the csrf cookie on GET responses; verify it on POST/PUT/DELETE.
 
     This is a single middleware so we can both prime the cookie AND
