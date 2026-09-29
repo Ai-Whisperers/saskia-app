@@ -42,10 +42,12 @@ def yesterday() -> date:
 def mark_yesterday_closed(session_factory, yesterday: date) -> None:
     """Persist AppMeta rows making yesterday's EOD checklist 100% done."""
     items = fresh_eod_checklist()
-    assert len(items) >= 9, f"Expected at least 9 EOD items, got {len(items)}"
+    # Skip notes_for_tomorrow — it's a text input, not a checkbox.
+    checkable_items = [item for item in items if item.key != "notes_for_tomorrow"]
+    assert len(checkable_items) >= 9, f"Expected at least 9 checkable EOD items, got {len(checkable_items)}"
     now_iso = datetime.now(timezone.utc).isoformat()
     with session_factory() as s:
-        for item in items:
+        for item in checkable_items:
             key = f"eod_check_{yesterday.isoformat()}_{item.key}"
             existing = s.scalar(select(AppMeta).where(AppMeta.key == key))
             if existing:
@@ -95,8 +97,9 @@ def test_eod_is_day_closed_returns_false_when_no_rows(session_factory, yesterday
 def test_eod_is_day_closed_returns_false_with_partial_checklist(session_factory, yesterday: date) -> None:
     """A day with only some checklist items is not closed."""
     items = fresh_eod_checklist()
+    checkable_items = [item for item in items if item.key != "notes_for_tomorrow"]
     with session_factory() as s:
-        for item in items[:-1]:  # Skip the last one
+        for item in checkable_items[:-1]:  # Skip the last checkable item
             key = f"eod_check_{yesterday.isoformat()}_{item.key}"
             s.add(AppMeta(key=key, value="1", updated_at=datetime.now(timezone.utc).isoformat()))
         s.commit()
@@ -108,6 +111,22 @@ def test_eod_is_day_closed_returns_true_when_all_done(
 ) -> None:
     """All checklist items checked off → day is closed."""
     with session_factory() as s:
+        assert eod_is_day_closed(s, yesterday) is True
+
+
+def test_eod_is_day_closed_ignores_notes_for_tomorrow(session_factory, yesterday: date) -> None:
+    """notes_for_tomorrow is a text input, not a checkbox — its absence
+    doesn't block the day from being closed."""
+    from app.rms.workflow import fresh_eod_checklist
+    checkable_items = [item for item in fresh_eod_checklist() if item.key != "notes_for_tomorrow"]
+    assert len(checkable_items) >= 9, f"Expected ≥9 checkable items, got {len(checkable_items)}"
+    now_iso = datetime.now(timezone.utc).isoformat()
+    with session_factory() as s:
+        for item in checkable_items:
+            key = f"eod_check_{yesterday.isoformat()}_{item.key}"
+            s.add(AppMeta(key=key, value="1", updated_at=now_iso))
+        # notes_for_tomorrow deliberately NOT added
+        s.commit()
         assert eod_is_day_closed(s, yesterday) is True
 
 

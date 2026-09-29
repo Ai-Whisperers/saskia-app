@@ -52,9 +52,13 @@ def _today_local() -> date:
 def eod_is_day_closed(session: Session, day: date) -> bool:
     """Return True iff ALL mandatory EOD checklist items for `day` are checked off.
 
-    A day is considered "closed" (accounting-final) when every item in
+    A day is considered "closed" (accounting-final) when every *checkable* item in
     `fresh_eod_checklist()` has an `eod_check_<iso-date>_<key>` AppMeta row with
     value="1".
+
+    Notes-only items (e.g. `notes_for_tomorrow`) are text inputs, not checkboxes,
+    and are intentionally excluded from the closed-day gate — operators may
+    legitimately skip them.
 
     Future dates are never closed.
     Dates with no checklist rows in AppMeta are NOT closed.
@@ -63,16 +67,19 @@ def eod_is_day_closed(session: Session, day: date) -> bool:
         return False  # Future — never closed.
 
     items = fresh_eod_checklist()
-    if not items:
+    # Exclude text-only fields (notes) — they're not checkboxes, so they
+    # never appear in eod_check_<date>_<key> AppMeta rows.
+    checkable_items = [item for item in items if item.key != "notes_for_tomorrow"]
+    if not checkable_items:
         return False  # Defensive: empty checklist can't be closed.
 
     prefix = f"eod_check_{day.isoformat()}_"
-    keys = [prefix + item.key for item in items]
+    keys = [prefix + item.key for item in checkable_items]
     rows = session.scalars(
         select(AppMeta).where(AppMeta.key.in_(keys))
     ).all()
     completed_keys = {row.key for row in rows if row.value == "1"}
-    return all(prefix + item.key in completed_keys for item in items)
+    return all(prefix + item.key in completed_keys for item in checkable_items)
 
 
 def eod_get_open_days(session: Session, since: date) -> list[date]:

@@ -100,7 +100,7 @@ def eod_check_save(
     tomorrow_prep: str = Form(""),
     cash_deposit: str = Form(""),
     equipment_cleaned: str = Form(""),
-    receipts_filed: str = Form(""),
+    receipts_archived: str = Form(""),
     notes_for_next: str = Form(""),
 ) -> RedirectResponse:
     """Persist the operator's EOD checklist progress.
@@ -125,7 +125,7 @@ def eod_check_save(
         "tomorrow_prep": tomorrow_prep,
         "cash_deposit": cash_deposit,
         "equipment_cleaned": equipment_cleaned,
-        "receipts_filed": receipts_filed,
+        "receipts_archived": receipts_archived,
     }
     for key, value in checkboxes.items():
         is_done = value in ("on", "true", "1", "yes")
@@ -161,6 +161,36 @@ def eod_check_save(
         target_id=today,
         detail={"items_done": items_done},
     )
+
+    # P0 cerrar-puertas (B8 backup): when ALL EOD checklist items are done
+    # for the day, fire a backup. backup_scheduler.run_backup is idempotent
+    # — re-running for a day that already backed up is a no-op. We wrap in
+    # try/except because a backup failure must NOT block the operator from
+    # saving the checklist (audit trail takes priority over backup scheduling).
+    if len(items_done) == len(checkboxes):
+        try:
+            from app.rms.config import DB_PATH
+            from app.services.backup_scheduler import run_backup
+            backup_result = run_backup(session, DB_PATH)
+            if not backup_result.skipped:
+                record_audit(
+                    request,
+                    session=session,
+                    action="write.backup.triggered",
+                    target_type="backup",
+                    target_id=0,
+                    detail={
+                        "trigger": "eod_checklist_complete",
+                        "local_path": str(backup_result.local_path) if backup_result.local_path else None,
+                        "r2_uploaded": backup_result.r2_uploaded,
+                        "local_pruned": backup_result.local_pruned,
+                    },
+                )
+        except Exception as exc:  # noqa: BLE001 — never block EOD on backup failure
+            from loguru import logger as _logger
+
+            _logger.warning("Backup after EOD close failed: {}", exc)
+
     session.commit()
     return RedirectResponse(url="/eod?flash=Cierre+guardado", status_code=303)
 
