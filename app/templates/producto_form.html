@@ -27,7 +27,10 @@
     <label for="name">Nombre</label>
     <input type="text" id="name" name="name" required maxlength="120"
            value="{{ request.query_params.get('name', product.name if product else '') }}"
-           placeholder="Ej: Muffin de chocolate">
+           placeholder="Ej: Muffin de chocolate"
+           hx-post="/api/validate/product" hx-trigger="blur" hx-include="closest form"
+           onhtmx:after-request="handleProductValidation(this, event)">
+    <span class="field-error" id="name-error" style="color:var(--color-danger);font-size:var(--text-xs);display:block;margin-top:.25rem;"></span>
   </div>
 
   <div class="form-row">
@@ -75,10 +78,13 @@
   <div class="form-row">
     <label for="sale_price_gs">Precio de venta (Gs.)</label>
     <div class="currency-input-wrap">
-      <input type="number" id="sale_price_gs" name="sale_price_gs" required step="1" min="0" inputmode="numeric" class="currency-input">
+      <input type="number" id="sale_price_gs" name="sale_price_gs" required step="1" min="0" inputmode="numeric" class="currency-input"
+             value="{{ request.query_params.get('sale_price_gs', product.sale_price_gs if product else '0') }}"
+             placeholder="8000"
+             hx-post="/api/validate/product" hx-trigger="blur" hx-include="closest form"
+             onhtmx:after-request="handleProductValidation(this, event)">
     </div>
-           value="{{ request.query_params.get('sale_price_gs', product.sale_price_gs if product else '0') }}"
-           placeholder="8000">
+    <span class="field-error" id="sale_price_gs-error" style="color:var(--color-danger);font-size:var(--text-xs);display:block;margin-top:.25rem;"></span>
     <small class="muted" id="price-suggestion"></small>
   </div>
 
@@ -467,6 +473,35 @@
     });
   }
 })();
+
+// ── Unsaved changes warning ──
+(function() {
+  var form = document.getElementById('product-form');
+  if (!form) return;
+  var formDirty = false;
+  form.querySelectorAll('input, select, textarea').forEach(function(el) {
+    el.addEventListener('input', function() { formDirty = true; });
+  });
+  window.addEventListener('beforeunload', function(e) {
+    if (formDirty) { e.preventDefault(); e.returnValue = ''; }
+  });
+  form.addEventListener('submit', function() { formDirty = false; });
+})();
+
+// ── Inline validation handler ──
+function handleProductValidation(inputEl, event) {
+  var response = event.detail.xhr.responseText;
+  try {
+    var data = JSON.parse(response);
+  } catch(e) { return; }
+  var errors = data.errors || {};
+  var fieldName = inputEl.name;
+  var errorEl = document.getElementById(fieldName + '-error');
+  if (errorEl) {
+    errorEl.textContent = errors[fieldName] || '';
+    errorEl.style.display = errors[fieldName] ? '' : 'none';
+  }
+}
 </script>
 
 {% endblock %}
