@@ -142,7 +142,7 @@ def merma_register(
     reason: str = Form(...),
     notes: str = Form(""),
     session: Session = Depends(get_session),
-):
+) -> object:
     """Record a new waste event.
 
     MER-01: qty_unit lets the operator enter 50 g of harina instead of 0.05 kg.
@@ -208,7 +208,7 @@ def merma_register_recipe(
     reason: str = Form(...),
     notes: str = Form(""),
     session: Session = Depends(get_session),
-):
+) -> object:
     """Record a whole-batch waste event (Saskia review T6).
 
     Expands the recipe into per-ingredient WasteLog rows and decrements

@@ -423,7 +423,7 @@ async def recipe_set_photo(
     request: Request,
     r_id: int,
     session: Session = Depends(get_session),
-):
+) -> HTMLResponse:
     """Show a picker of all photos in /static/recipes/."""
 
     from app.rms import static_paths
@@ -444,7 +444,7 @@ async def recipe_save_photo(
     r_id: int,
     photo: str = Form(...),
     session: Session = Depends(get_session),
-):
+) -> RedirectResponse:
     """Persist the recipe's image_url."""
     recipe = session.get(Recipe, r_id)
     if recipe:
@@ -576,7 +576,7 @@ async def recipe_edit(
     # Unit conversion factors for same-family normalization
     _UF = {"g": 1, "kg": 1000, "ml": 1, "l": 1000, "und": 1, "u": 1, "porcion": 1}
 
-    def _line_cost(ln, target) -> int:
+    def _line_cost(ln: RecipeLine, target: Ingredient | Recipe) -> int:
         """ComputeGs. cost for a recipe line, or 0 if price unavailable."""
         if target is None or not hasattr(target, "purchase_price_gs"):
             return 0
@@ -809,7 +809,7 @@ async def recipe_create_product_redirect(
     return RedirectResponse(url=f"/productos/nuevo?{qs}", status_code=303)
 
 
-def _apply_lines_from_form(session: Session, recipe_id: int, form) -> list[str]:
+def _apply_lines_from_form(session: Session, recipe_id: int, form: "object") -> list[str]:
     """Parse repeated form fields for recipe lines and persist them.
 
     Expected form keys (each repeated for N lines):

@@ -642,7 +642,7 @@ def benchmarks_edit(
     request: Request,
     bench_id: int,
     session: Session = Depends(get_session),
-):
+) -> object:
     """Render the edit form for a single benchmark."""
     bench = session.get(MarketBenchmark, bench_id)
     if not bench:
@@ -665,7 +665,7 @@ def benchmarks_save(
     market_avg_gs: int = Form(0),
     source: str = Form(""),
     session: Session = Depends(get_session),
-):
+) -> object:
     """Save edited competitor prices."""
     bench = session.get(MarketBenchmark, bench_id)
     if not bench:
@@ -870,7 +870,7 @@ def planner_compute(
     recipe_id: int = Form(...),
     batches: int = Form(...),
     session: Session = Depends(get_session),
-):
+) -> object:
     """Compute ingredient needs vs current stock for the given recipe × batches.
 
     Output: list of {ingredient_name, qty_needed, qty_available, shortage,

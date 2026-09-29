@@ -50,7 +50,7 @@ def read_pricing_markup(
     request: Request,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Return the current suggested-pricing markup config.
 
     Public to any logged-in user (cashiers see suggested prices on the POS).
@@ -63,7 +63,7 @@ def write_pricing_markup(
     payload: PricingMarkupIn,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Update the suggested-pricing markup config.
 
     Permission: any logged-in user today; tighten to admin role when role
@@ -80,7 +80,7 @@ def preview_pricing(
     cost_gs: int = Query(..., gt=0, description="Cost in integer Gs"),
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Preview what the suggested price would be for a given cost.
 
     Used by the JS live-calc on the product form to show "Sugerido: Gs. X".
@@ -113,7 +113,7 @@ def list_categories_endpoint(
     scope: str = Query(..., pattern="^(product|recipe_family)$"),
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Return active categories for the given scope."""
     cats = list_categories(session, scope)
     return [
@@ -127,7 +127,7 @@ def create_category_endpoint(
     payload: CategoryIn,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Create a new category. Idempotent on (scope, name)."""
     cat = get_or_create_category(session, payload.name, payload.scope, payload.sort_order)
     session.commit()
@@ -143,7 +143,7 @@ def update_category_endpoint(
     payload: CategoryUpdateIn,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Update fields on an existing category."""
     cat = update_category(
         session,
@@ -170,7 +170,7 @@ def update_category_endpoint(
 def list_channels_endpoint(
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Return active channels sorted by sort_order."""
     from app.rms.catalogs import list_channels
     cats = list_channels(session)
@@ -197,7 +197,7 @@ def create_channel_endpoint(
     payload: ChannelIn,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Create a new channel. Idempotent on code."""
     from app.rms.models import Channel as ChannelModel
 
@@ -241,7 +241,7 @@ def create_channel_endpoint(
 def list_payment_methods_endpoint(
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Return active payment methods sorted by sort_order."""
     from app.rms.catalogs import list_payment_methods
     methods = list_payment_methods(session)
@@ -270,7 +270,7 @@ def create_payment_method_endpoint(
     payload: PaymentMethodIn,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Create a new payment method. Idempotent on code."""
     from app.rms.models import PaymentMethod as PMModel
 
@@ -314,7 +314,7 @@ def create_payment_method_endpoint(
 def read_branding(
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Return the branding config dict.
 
     Public to any logged-in user (the login page itself reads this to
@@ -338,7 +338,7 @@ def write_branding(
     payload: BrandingIn,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Update branding. Only non-None fields are written (partial update)."""
     from app.rms.settings_runtime import set_branding
     fields = {k: v for k, v in payload.model_dump().items() if v is not None}
@@ -358,7 +358,7 @@ def list_templates_endpoint(
     channel: str | None = Query(default=None, pattern="^(email|whatsapp|sms)$"),
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Return active message templates, optionally filtered by channel."""
     from app.rms.models import MessageTemplate as MT
     q = select(MT).where(MT.is_active.is_(True))
@@ -382,7 +382,7 @@ def get_template_endpoint(
     channel: str = Query("whatsapp", pattern="^(email|whatsapp|sms)$"),
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Return a single template by channel+key. Renders with provided vars if 'vars' param present."""
     from app.rms.models import MessageTemplate as MT
 
@@ -416,7 +416,7 @@ def update_template_endpoint(
     payload: TemplateUpdateIn,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Update a message template. Only non-None fields are written.
 
     Bumps the `version` on body change so callers can invalidate caches.
@@ -474,7 +474,7 @@ def render_template(template_body: str, vars: dict) -> str:
 def list_margin_tiers_endpoint(
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Return all margin tiers (operator-tunable thresholds)."""
     from app.rms.margin_tier import list_margin_tiers
     tiers = list_margin_tiers(session)
@@ -503,7 +503,7 @@ def update_margin_tier_endpoint(
     payload: MarginTierUpdateIn,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Update a margin tier. Operators use this to adjust thresholds."""
     from app.rms.models import MarginTier
 
@@ -535,7 +535,7 @@ def update_margin_tier_endpoint(
 def list_stock_status_config_endpoint(
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Return all stock status thresholds."""
     from app.rms.stock_status import list_status_configs
     configs = list_status_configs(session)
@@ -565,7 +565,7 @@ def update_stock_status_config_endpoint(
     payload: StockStatusConfigUpdateIn,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Update a stock status threshold. Operators tune ratios/days here."""
     from app.rms.models import StockStatusConfig
 
@@ -598,7 +598,7 @@ def update_stock_status_config_endpoint(
 def get_tax_config_endpoint(
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Return current tax config from ComplianceInfo + constants fallback.
 
     Centralizes the tax/invoice defaults so all callers see the same
@@ -637,7 +637,7 @@ def get_tax_config_endpoint(
 def list_storage_types_endpoint(
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Return HACCP storage codes."""
     from app.rms.storage_types import list_storage_types
     types_ = list_storage_types(session)
@@ -667,7 +667,7 @@ def create_storage_type_endpoint(
     payload: StorageTypeIn,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Create a new HACCP storage code. Idempotent on code."""
     from app.rms.models import StorageType as STModel
 
@@ -702,7 +702,7 @@ def create_storage_type_endpoint(
 def list_date_presets_endpoint(
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Return all date range presets."""
     from app.rms.date_presets import list_presets
     presets = list_presets(session)
@@ -729,7 +729,7 @@ def create_date_preset_endpoint(
     payload: DatePresetIn,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Create a new date range preset. Idempotent on code."""
     from app.rms.models import DateRangePreset as DRP
 
@@ -767,7 +767,7 @@ def create_date_preset_endpoint(
 def list_iva_rates_endpoint(
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Return valid IVA rates.
 
     Static today (Paraguayan law), but exposed as an endpoint so future
@@ -800,7 +800,7 @@ def update_channel_endpoint(
     payload: ChannelUpdateIn,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Update an existing channel."""
     from app.rms.models import Channel as Ch
 
@@ -825,7 +825,7 @@ def delete_channel_endpoint(
     channel_id: int,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Soft-delete a channel (sets is_active=False)."""
     from app.rms.models import Channel as Ch
 
@@ -853,7 +853,7 @@ def update_payment_method_endpoint(
     payload: PaymentMethodUpdateIn,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Update an existing payment method."""
     from app.rms.models import PaymentMethod as PM
 
@@ -882,7 +882,7 @@ def delete_payment_method_endpoint(
     method_id: int,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Soft-delete a payment method (sets is_active=False)."""
     from app.rms.models import PaymentMethod as PM
 
@@ -909,7 +909,7 @@ def delete_category_endpoint(
     category_id: int,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Soft-delete a category (sets is_active=False)."""
     from app.rms.models import Category
 
@@ -939,7 +939,7 @@ def update_storage_type_endpoint(
     payload: StorageTypeUpdateIn,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Update an existing storage type."""
     from app.rms.models import StorageType as STModel
 
@@ -967,7 +967,7 @@ def delete_storage_type_endpoint(
     type_id: int,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Soft-delete a storage type (sets is_active=False)."""
     from app.rms.models import StorageType as STModel
 
@@ -993,7 +993,7 @@ def update_date_preset_endpoint(
     payload: DatePresetUpdateIn,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Update an existing date preset."""
     from app.rms.models import DateRangePreset as DRP
 
@@ -1020,7 +1020,7 @@ def delete_date_preset_endpoint(
     preset_id: int,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Soft-delete a date preset (sets is_active=False)."""
     from app.rms.models import DateRangePreset as DRP
 
@@ -1041,7 +1041,7 @@ def delete_margin_tier_endpoint(
     tier_id: int,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Soft-delete a margin tier."""
     from app.rms.models import MarginTier
 
@@ -1058,7 +1058,7 @@ def delete_stock_status_endpoint(
     config_id: int,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Soft-delete a stock status config."""
     from app.rms.models import StockStatusConfig
 
@@ -1078,7 +1078,7 @@ def delete_template_endpoint(
     template_id: int,
     session: Session = Depends(get_session),
     _user=Depends(require_login_or_disabled),
-):
+) -> object:
     """Soft-delete a message template (sets is_active=False)."""
     from app.rms.models import MessageTemplate as MT
 

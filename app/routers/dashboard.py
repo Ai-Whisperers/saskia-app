@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
@@ -165,7 +166,7 @@ def _delta_pct(current: int, prior: int) -> dict[str, float | str | None]:
     return {"pct": pct, "direction": direction, "label": label}
 
 
-def _compliance_alerts(session) -> list[dict]:
+def _compliance_alerts(session: Session) -> list[dict]:
     """Phase 1.A — Return list of expiring / missing regulatory IDs.
 
     Returns a list of dicts with 'severity', 'icon', 'message', 'days_remaining'.
@@ -395,7 +396,7 @@ async def dashboard(
     _prior_same_weekday = _today_start - timedelta(days=7)
     _prior_end = _prior_same_weekday + timedelta(days=1)
 
-    def _is_naive(dt):
+    def _is_naive(dt: datetime) -> bool:
         return dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
 
     _prev_ops = 0
@@ -580,7 +581,7 @@ __all__ = ["router"]
 # ---- Phase 3 visual dashboard helpers --------------------------------------
 
 
-def _build_hourly_sales_chart(sales: list[Sale], tz) -> str:
+def _build_hourly_sales_chart(sales: list[Sale], tz: ZoneInfo) -> str:
     """Build an SVG bar chart of sales by hour for the current period.
 
     Returns an empty-state message if no sales.

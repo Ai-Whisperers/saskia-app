@@ -215,10 +215,10 @@ def inventory_list(
     alergenos = [a for a in request.query_params.getlist("alergeno") if a]
     almacen = request.query_params.get("almacen") or ""
 
-    def _has_allergen(i, code):
+    def _has_allergen(i: Ingredient, code: str) -> bool:
         return code in (i.allergens or "").lower()
 
-    def _match(i) -> bool:
+    def _match(i: Ingredient) -> bool:
         if q and q not in (i.name or "").lower():
             return False
         if estado == "bajo" and not (i.stock_qty <= (i.min_stock_qty or 0)):
@@ -568,7 +568,7 @@ def inventory_detail(
     )
 
 
-def _price_stats_safe(session, ing_id: int):
+def _price_stats_safe(session: Session, ing_id: int) -> object:
     try:
         from app.rms.price_history import price_stats
         return price_stats(session, ing_id, days=90)

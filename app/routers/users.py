@@ -40,7 +40,7 @@ def _is_admin(user) -> bool:
     return getattr(user, "role", "admin") == "admin"
 
 
-def _require_admin(request: Request, session: Session = Depends(get_session)):
+def _require_admin(request: Request, session: Session = Depends(get_session)) -> object:
     """Dependency: require admin role, else 403."""
     user = get_current_user(request, session)
     if not _is_admin(user):

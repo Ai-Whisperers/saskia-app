@@ -88,7 +88,7 @@ def mark_purchased(
     request: Request,
     item_id: int,
     session: Session = Depends(get_session),
-):
+) -> object:
     item = session.get(ShoppingListItem, item_id)
     if not item:
         raise NotFound("ShoppingListItem", id=item_id)
@@ -112,7 +112,7 @@ def unmark_purchased(
     request: Request,
     item_id: int,
     session: Session = Depends(get_session),
-):
+) -> object:
     """Allow marking unpurchased (undo)."""
     item = session.get(ShoppingListItem, item_id)
     if not item:
@@ -134,7 +134,7 @@ def delete_item(
     request: Request,
     item_id: int,
     session: Session = Depends(get_session),
-):
+) -> object:
     item = session.get(ShoppingListItem, item_id)
     if not item:
         raise NotFound("ShoppingListItem", id=item_id)
@@ -152,7 +152,7 @@ def delete_item(
 @router.post("/sync-low-stock")
 def sync_low_stock(
     session: Session = Depends(get_session),
-):
+) -> object:
     """Bulk-add all ingredients where stock < min to the shopping list.
 
     Idempotent: skips ingredients already in an open shopping list item.
@@ -206,7 +206,7 @@ def add_item(
     unit: str = Form(...),
     purpose_text: str = Form(""),
     session: Session = Depends(get_session),
-):
+) -> object:
     """Manual addition to the shopping list."""
     ing = session.get(Ingredient, ingredient_id)
     if not ing or qty_to_buy <= 0:
@@ -231,7 +231,7 @@ def add_item(
 def save_plan_as_shopping_list(
     plan_id: int,
     session: Session = Depends(get_session),
-):
+) -> object:
     """Convert a ProductionPlan's ingredient shortage into ShoppingListItem rows.
 
     Triggered from /produccion-planner — the planning flow ends here.
