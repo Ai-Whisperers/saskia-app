@@ -27,7 +27,7 @@ class QueryOptimizer:
 
         def decorator(func: Callable) -> Callable:
             @wraps(func)
-            def wrapper(*args, **kwargs) -> Any:
+            def wrapper(*args: object, **kwargs: object) -> Any:
                 result = []
                 items = kwargs.get('items', args[0] if args else [])
 
@@ -59,7 +59,7 @@ class QueryOptimizer:
 
         def decorator(func: Callable) -> Callable:
             @wraps(func)
-            def wrapper(*args, **kwargs) -> Any:
+            def wrapper(*args: object, **kwargs: object) -> Any:
                 # Apply field selection to query if it's a query
                 query = kwargs.get('query') or (args[0] if args else None)
                 if query and hasattr(query, 'options'):
@@ -111,7 +111,7 @@ def cache_response(key_prefix: str = "api", ttl: int = 300) -> Callable:
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args: object, **kwargs: object) -> Any:
             # Generate cache key
             cache_key = f"{key_prefix}:{func.__name__}:{hash(str(args) + str(kwargs))}"
 
@@ -157,7 +157,7 @@ def measure_query_performance(query_func: Callable) -> Callable:
     """Decorator to measure and log query performance."""
 
     @wraps(query_func)
-    def wrapper(*args, **kwargs) -> object:  # noqa: ANN401 — generic decorator wrapper
+    def wrapper(*args: object, **kwargs: object) -> object:
         start_time = time.time()
         result = query_func(*args, **kwargs)
         end_time = time.time()

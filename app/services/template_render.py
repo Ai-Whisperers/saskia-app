@@ -81,7 +81,7 @@ def _asset_version() -> str:
 # The dashboard and several other templates call these as `m.gs`, `m.gs_full`,
 # `m.margin_pct`, and `m.top_list_card`. We bind them as Jinja globals so the
 # templates can stay simple. Lazy-imported to keep template_render import-light.
-def _make_money_helper() -> SimpleNamespace:  # noqa: ANN401 — returns namespace for template use
+def _make_money_helper() -> SimpleNamespace:
     """Build the `m` namespace exposed to templates."""
     from app.rms.money import format_gs
 
@@ -100,7 +100,7 @@ def _make_money_helper() -> SimpleNamespace:  # noqa: ANN401 — returns namespa
             return "—"
         return f"{value:,}".replace(",", ".") if value >= 0 else f"-{abs(value):,}".replace(",", ".")
 
-    def gs_full(value: object) -> str:  # noqa: ANN401 — alias for gs()
+    def gs_full(value: object) -> str:
         """Alias for gs() — kept for templates that already use this name."""
         return format_gs(value)
 

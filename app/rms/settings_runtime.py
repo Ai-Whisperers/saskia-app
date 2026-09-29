@@ -149,7 +149,7 @@ def get_branding(session: object) -> dict:
     return out
 
 
-def set_branding(session: object, **fields) -> dict:
+def set_branding(session: object, **fields: object) -> dict:
     """Update branding fields. Returns the new full dict.
 
     Allowed keys: business_name, tagline, footer, accent_color, logo_path.
