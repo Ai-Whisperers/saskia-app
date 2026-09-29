@@ -625,6 +625,7 @@ async def recipe_update(
     notes = str(form.get("notes", "")).strip()
     prep_minutes_raw = str(form.get("prep_minutes", "")).strip()
     cook_minutes_raw = str(form.get("cook_minutes", "")).strip()
+    difficulty_raw = str(form.get("difficulty", "")).strip()
     family = str(form.get("family", "")).strip() or None
     dietary_tags = str(form.get("dietary_tags", "")).strip() or None
 
@@ -634,6 +635,12 @@ async def recipe_update(
         y_unit = Unit.coerce(yield_unit_raw)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Unidad inválida: {e}") from e
+    difficulty_val: int | None = None
+    if difficulty_raw:
+        try:
+            difficulty_val = max(1, min(5, int(difficulty_raw)))
+        except ValueError:
+            difficulty_val = None
 
     r.name = name
     r.yield_qty = float(yield_qty_raw) if yield_qty_raw else None
@@ -641,6 +648,7 @@ async def recipe_update(
     r.notes = notes or None
     r.prep_minutes = int(prep_minutes_raw) if prep_minutes_raw else None
     r.cook_minutes = int(cook_minutes_raw) if cook_minutes_raw else None
+    r.difficulty = difficulty_val
     r.family = family
     r.dietary_tags = dietary_tags
 
