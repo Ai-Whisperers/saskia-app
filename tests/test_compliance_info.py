@@ -6,6 +6,7 @@ from app.rms.models import ComplianceInfo, Product
 
 class TestComplianceInfoModel:
     """The single-row ComplianceInfo table holds all tax / regulatory IDs."""
+# allow-hardcoded-dates: fiscal compliance needs fixed period boundaries
 
     def test_default_row_is_id_1(self, session_factory):
         Session = session_factory

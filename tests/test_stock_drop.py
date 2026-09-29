@@ -10,6 +10,7 @@ Covers:
 - apply_sale zero/negative qty: raises ValueError
 - stock decrement is persisted (re-read after commit)
 """
+# allow-hardcoded-dates: stock drop fixture uses a fixed sold_at
 
 from __future__ import annotations
 

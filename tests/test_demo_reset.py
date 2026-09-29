@@ -9,6 +9,7 @@ Stream A prelaunch cleanup. Verifies:
 - family users can call (real user call works)
 - dashboard empty-state shows "Sin ventas todavía" copy after reset
 """
+# allow-hardcoded-dates: demo seed timestamps are stable for snapshot diffs
 from __future__ import annotations
 
 from datetime import datetime, timezone

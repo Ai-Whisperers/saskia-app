@@ -6,6 +6,7 @@ the same window+voided filter is repeated 9 times across accounting.py.
 If we ever need to honor tz or change the void semantics, we have to
 edit 9 functions. Centralize into one helper.
 """
+# allow-hardcoded-dates: window helper tests use fixed date ranges
 
 from __future__ import annotations
 

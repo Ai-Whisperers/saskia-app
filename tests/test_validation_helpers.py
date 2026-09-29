@@ -17,6 +17,7 @@ Also covers BUG-00 fixes:
   - Sales: English error messages → Spanish
   - Settings: invalid RUC/phone → 400 Spanish
 """
+# allow-hardcoded-dates: validation edge cases (leap year, month-end)
 from __future__ import annotations
 
 import pytest

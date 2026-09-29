@@ -14,6 +14,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import require_login_or_disabled as require_login
 from app.rms.analytics import (
     batch_stock_turnover,
     day_of_week_heatmap,
@@ -28,7 +29,7 @@ from app.rms.insights import build_insights
 from app.rms.models import Ingredient
 from app.services.template_render import render
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_login)])
 
 
 @router.get("/analisis", response_class=HTMLResponse)

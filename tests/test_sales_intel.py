@@ -1,3 +1,4 @@
+# allow-hardcoded-dates: sales-intel window uses a fixed anchor date
 """tests/test_sales_intel.py — E30 sales intelligence tests."""
 
 from __future__ import annotations

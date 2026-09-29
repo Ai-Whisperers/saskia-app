@@ -12,6 +12,7 @@ Tests cover:
   table was checked)
 - Filename includes a shared timestamp prefix so all 8 files can be grouped
 """
+# allow-hardcoded-dates: CSV export column for date column needs fixed value
 
 from __future__ import annotations
 

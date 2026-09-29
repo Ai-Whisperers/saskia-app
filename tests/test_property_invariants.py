@@ -17,6 +17,7 @@ Targets:
 Tagged with ``pytest.mark.analytics`` so the suite is gated under the
 ``analytics`` marker and runs in the pre-deploy analytics job.
 """
+# allow-hardcoded-dates: property test uses fixed date for the invariant
 from __future__ import annotations
 
 from datetime import datetime, timezone

@@ -3,6 +3,7 @@
 
 def test_bank_page_renders(client):
     """Bank page renders normally."""
+# allow-hardcoded-dates: date-range filter assertions must be deterministic
     r = client.get('/bank')
     assert r.status_code == 200
 

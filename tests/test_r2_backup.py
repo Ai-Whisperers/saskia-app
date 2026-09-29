@@ -19,6 +19,7 @@ Tests cover:
 - load_r2_settings: returns Settings when config present
 - load_r2_settings: raises on missing required keys
 """
+# allow-hardcoded-dates: R2 backup filename includes a fixed timestamp
 
 from __future__ import annotations
 

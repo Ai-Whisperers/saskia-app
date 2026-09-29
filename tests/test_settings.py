@@ -11,6 +11,7 @@ Covers:
 - settings_by_group groups by SettingGroup
 - reset_setting_to_default reverts to default
 """
+# allow-hardcoded-dates: settings snapshot uses a fixed timestamp
 from __future__ import annotations
 
 import json

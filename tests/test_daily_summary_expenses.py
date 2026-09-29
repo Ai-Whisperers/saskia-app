@@ -10,6 +10,7 @@ not a real number.
 Fix: rename to expenses_placeholder_gs so callers + dashboards can
 distinguish "we don't track expenses yet" from "expenses = 0".
 """
+# allow-hardcoded-dates: daily rollups over a specific date range
 from __future__ import annotations
 
 from datetime import datetime, timezone

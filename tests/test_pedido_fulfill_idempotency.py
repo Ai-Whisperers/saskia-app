@@ -12,6 +12,7 @@ Reproduction:
   3. BUG (pre-fix): two sets of Sales, double stock deduction, two pings.
   4. EXPECTED: exactly one fulfill, one set of Sales, single stock hit.
 """
+# allow-hardcoded-dates: idempotency key derives from fixed date
 from __future__ import annotations
 
 import uuid

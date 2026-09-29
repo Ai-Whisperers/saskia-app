@@ -3,6 +3,7 @@
 Covers: nav tables (SS-1/2/3), display formatters (F-1…F-7), and the
 rendered shell (sidebar from NAV_GROUPS, CSS/JS wired).
 """
+# allow-hardcoded-dates: SSOT redesign uses a fixed layout date
 from __future__ import annotations
 
 from app.rms.display import delta, entity_name, fmt_date, fmt_money, fmt_pct, fmt_qty

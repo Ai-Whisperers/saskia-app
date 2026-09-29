@@ -23,6 +23,7 @@ feature tests: 'cada vez que la clienta restockea tiene que cargar los
 precios, y así puede ver en los paneles de gestión cuánto está ganando
 realmente aunque los precios fluctúen'.
 """
+# allow-hardcoded-dates: user journey snapshot uses a fixed date
 
 from __future__ import annotations
 

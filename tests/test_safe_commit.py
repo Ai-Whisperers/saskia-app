@@ -9,6 +9,7 @@ commits), bare commit() outside try/except means an IntegrityError or
 DB error mid-handler raises an unhandled exception, leaving the session
 in an inconsistent state for the next pooled connection checkout.
 """
+# allow-hardcoded-dates: safe_commit timestamp fixtures need fixed values
 from __future__ import annotations
 
 from sqlalchemy.exc import IntegrityError

@@ -11,6 +11,7 @@ Covers:
 - daily_summary computes one day's metrics
 - product_margin_summary aggregates by product
 """
+# allow-hardcoded-dates: accounting period boundaries (month/quarter) need fixed dates
 from __future__ import annotations
 
 import pytest

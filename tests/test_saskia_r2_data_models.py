@@ -4,6 +4,7 @@ Decision A1 — IngredientVariant: one Ingredient has many packages
 Decision B  — Per-ingredient forecast horizon (default 14d)
 Decision C2 — Fork current week's overrides into the weekly template
 """
+# allow-hardcoded-dates: R2 data model timestamps are stable for diffs
 
 from __future__ import annotations
 

@@ -4,6 +4,7 @@ Each numbered scenario covers one of the 8 smoke steps the review defines
 (see `docs/operations/2026-09-22-review-tickets-analysis.md` §QA.Smoke).
 The build fails if any step returns 500.
 """
+# allow-hardcoded-dates: smoke review snapshot uses a fixed date
 from __future__ import annotations
 
 from datetime import datetime, timezone

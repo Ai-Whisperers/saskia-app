@@ -12,6 +12,7 @@ This test loads /ventas with three different DB states:
 
 Each must return 200 with no TemplateRuntimeError.
 """
+# allow-hardcoded-dates: sale fixture uses fixed sold_at to avoid drift
 from __future__ import annotations
 
 from datetime import datetime, timezone

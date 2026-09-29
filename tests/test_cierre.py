@@ -32,6 +32,7 @@ class TestMonthRange:
 @pytest.fixture
 def seed_month_data(session_factory):
     """Seed: 1 product + 1 recipe + 5 sales in Sept 2026 + 1 voided sale."""
+# allow-hardcoded-dates: cierre day-of-month / month-end / leap-year edge cases
     Session = session_factory
 
     def _seed():

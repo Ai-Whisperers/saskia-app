@@ -15,6 +15,7 @@ Tests:
 - month_label: returns Spanish month name
 - days_in_month: returns correct day count (incl. leap year)
 """
+# allow-hardcoded-dates: report period boundaries (year/quarter/month)
 
 from __future__ import annotations
 

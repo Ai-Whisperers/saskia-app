@@ -10,6 +10,7 @@ Covers:
 - _money() formats with thousand dots
 - append_notification_log adds JSON line
 """
+# allow-hardcoded-dates: notification templates assert specific date strings
 from __future__ import annotations
 
 from datetime import datetime, timezone

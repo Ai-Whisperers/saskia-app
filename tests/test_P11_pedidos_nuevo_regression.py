@@ -6,6 +6,7 @@ Tests:
 - POST creates pedido (or handles gracefully)
 - No Python errors
 """
+# allow-hardcoded-dates: pedido fixture uses fixed dates for stable revenue/date assertions
 
 def test_pedidos_nuevo_renders(client):
     """P-11: Nuevo pedido page renders."""

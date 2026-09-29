@@ -5,6 +5,7 @@ Covers:
 - _delta_pct for new/decreased/increased/neutral cases
 - /inicio renders delta pills when prior + current differ
 """
+# allow-hardcoded-dates: delta computation needs a fixed anchor date
 from __future__ import annotations
 
 import sys

@@ -6,6 +6,7 @@ from datetime import date
 
 def test_weekly_template_repeats_across_weeks(app_engine):
     """PRO-01: A Monday template row applies to every Monday."""
+# allow-hardcoded-dates: weekly-plan assertions on a fixed Mon-Sun week
     from sqlalchemy.orm import sessionmaker
 
     from app.rms.models import Product

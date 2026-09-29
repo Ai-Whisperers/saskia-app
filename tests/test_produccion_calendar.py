@@ -11,6 +11,7 @@ Covers:
 
 Refs: Saskia review round 1 (Thu 18-sep) — Q2 (c) calendar dashboard.
 """
+# allow-hardcoded-dates: production calendar asserts on a fixed week
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone

@@ -10,6 +10,7 @@ Covers:
 - plan_production handles empty DB (returns empty plan)
 - plan_production surfaces seasonal notes
 """
+# allow-hardcoded-dates: production batch fixture uses fixed dates
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone

@@ -12,6 +12,7 @@ Covers:
 - upcoming_events returns events in the next 14 days
 - demand_multiplier is 1.0 when no events active
 """
+# allow-hardcoded-dates: workflow step timestamps are fixed for replay
 from __future__ import annotations
 
 from datetime import date, datetime, timezone

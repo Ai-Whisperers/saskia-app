@@ -8,6 +8,7 @@ Covers:
 - void_sale double-void: raises ValueError ("ya anulada")
 - void_sale unknown: raises ValueError
 """
+# allow-hardcoded-dates: void-sale fixture uses a fixed sold_at
 
 from __future__ import annotations
 

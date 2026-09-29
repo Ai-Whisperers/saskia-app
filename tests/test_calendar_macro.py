@@ -10,6 +10,7 @@ CSS class hooks — no DB access, no router logic.
 Refs: Saskia review round 1 (Thu 18-sep) — Q2 (c) calendar dashboard.
 Phase B = shell; Phase D = week/month views + per-day plan + overrides.
 """
+# allow-hardcoded-dates: calendar grid layout asserts on a fixed Mon-Sun week
 
 from __future__ import annotations
 

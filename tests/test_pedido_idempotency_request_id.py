@@ -4,6 +4,7 @@ idempotency records carry request_id.
 Companion to tests/test_idempotency_request_id.py (which covers sales).
 Same JSON shape: {pedido_id, sale_id, request_id}.
 """
+# allow-hardcoded-dates: request id includes a fixed timestamp
 from __future__ import annotations
 
 import json

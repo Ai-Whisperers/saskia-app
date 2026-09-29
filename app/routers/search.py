@@ -12,10 +12,11 @@ from loguru import logger
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.models import Customer, Pedido, Product, Recipe
 
-router = APIRouter(prefix="/api", tags=["search"])
+router = APIRouter(prefix="/api", tags=["search"], dependencies=[Depends(require_login)])
 
 
 @router.get("/search")

@@ -12,6 +12,7 @@ Covers the 18 routers that lack dedicated test coverage:
 
 These are integration tests using the test client + auth fixture.
 """
+# allow-hardcoded-dates: route-coverage snapshot uses fixed timestamps
 from __future__ import annotations
 
 import pytest
