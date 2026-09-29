@@ -2326,6 +2326,37 @@ def _migration_055_supplier_ruc(conn: Any) -> None:
     _bump_schema_version(conn, 55)
 
 
+def _migration_056_bank_reconciliation(conn: Any) -> None:
+    """Wire the bank_reconciliation migration that ships in
+    ``app/rms/migrations/_056_bank_reconciliation.py`` into the
+    MIGRATIONS registry. The function is defined there; we just
+    re-export it here so init_db can call it by name.
+    """
+    from app.rms.migrations._056_bank_reconciliation import (
+        _migration_056_bank_reconciliation as _impl,
+    )
+    _impl(conn)
+    _bump_schema_version(conn, 56)
+
+
+def _migration_057_recipe_instructions(conn: Any) -> None:
+    """Add recipe.instructions (TEXT) for JSON phase storage.
+
+    Closes the ORM↔DB gap: ``Recipe.instructions`` was added to the ORM
+    during the receta_detalle UX work (branch fix/receta-detalle-ux) but
+    the DB column was missing. Every Recipe SELECT in production raised
+    ``OperationalError``; the route handler rendered an empty context, so
+    every /recetas/<id> page looked broken. Idempotent — column may
+    already exist from create_all.
+    """
+    try:
+        conn.execute(text("ALTER TABLE recipe ADD COLUMN instructions TEXT"))
+    except Exception:
+        pass  # column already exists
+
+    _bump_schema_version(conn, 57)
+
+
 def _migration_005_customer(conn: Any) -> None:
     """Add Customer table + Sale.customer_id FK (E13).
 
@@ -2392,6 +2423,8 @@ MIGRATIONS = {
     53: _migration_053_sale_packaging,
     54: _migration_054_tag_algebra,
     55: _migration_055_supplier_ruc,
+    56: _migration_056_bank_reconciliation,
+    57: _migration_057_recipe_instructions,
 }
 
 
