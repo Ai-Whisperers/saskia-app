@@ -126,6 +126,28 @@
       </label>
     </div>
 
+    {# ── Validation banner (2026-09-29 tagging/ refactor) ── #}
+    {% if ingredient and ingredient.tag_validation_issues %}
+    <div class="alert alert-warn" role="alert" style="margin-top:var(--space-3);">
+      <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+      <div>
+        <strong>Contradicciones detectadas en este ingrediente:</strong>
+        <ul style="margin:var(--space-1) 0 0;padding-left:1.2rem;">
+          {% for issue in ingredient.tag_validation_issues.split('\n') if issue.strip() %}
+          <li>{{ issue }}</li>
+          {% endfor %}
+        </ul>
+        <p class="text-muted" style="font-size:var(--text-xs);margin:var(--space-2) 0 0;">
+          El sistema <strong>no</strong> corrige esto automáticamente. Verificá
+          que los alérgenos y las etiquetas sean correctos antes de guardar.
+          {% if 'sin gluten' in ingredient.tag_validation_issues or 'vegano' in ingredient.tag_validation_issues %}
+            <a href="/inventario/auditoria-etiquetas">Ver auditoría completa →</a>
+          {% endif %}
+        </p>
+      </div>
+    </div>
+    {% endif %}
+
     <div class="form-row">
       <label for="lead_time_days">Lead time proveedor (días)</label>
       <input type="number" id="lead_time_days" name="lead_time_days" min="0" max="90"

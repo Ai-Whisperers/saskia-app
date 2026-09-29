@@ -483,6 +483,22 @@ def inventory_create(
             cause=e,
         ) from e
 
+    # Tag validation (061): populate tag_validation_issues column on the
+    # newly-created ingredient so the audit banner catches any issues
+    # immediately (e.g. operator claimed 'vegano' but allergens include dairy).
+    try:
+        from app.rms.tagging.classify import validate_ingredient
+        issues = validate_ingredient(ing)
+        if issues:
+            ing.tag_validation_issues = "\n".join(issues)
+            session.commit()
+    except Exception:  # noqa: BLE001 — defensive default
+        logger.warning(
+            "tag validation refresh failed for new ingredient ing_id=%s", ing.id,
+            exc_info=True,
+        )
+        session.rollback()
+
     # Audit + info log
     logger.info(
         "ingredient_created id={} name={!r} unit={} stock={}",
@@ -525,6 +541,128 @@ def inventory_create(
             )
 
     return RedirectResponse(url="/inventario", status_code=303)
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Tag audit (2026-09-29 tagging/ refactor)
+# ─────────────────────────────────────────────────────────────────────────
+# Endpoint: GET /inventario/auditoria-etiquetas
+#
+# Shows every ingredient that has tag_validation_issues populated, plus a
+# fresh run of audit_all_ingredients() to catch anything added since the
+# last backfill. Renders as a sortable table with one-click navigation to
+# the ingredient edit form so the operator can fix data-entry errors
+# surfaced by the tagging system.
+#
+# Why an explicit page (vs inlining into /inventario):
+#   - Some issues are subtle (e.g. "Jengibre fresco" categorized as
+#     'carnes'). Easy to miss in a long inventory list.
+#   - Operators should fix all issues in one batch, then re-run the audit.
+#   - Auditors / external reviewers need a stable URL to verify compliance.
+#
+# Route ordering: this is registered BEFORE the /{ing_id} routes so it
+# matches /inventario/auditoria-etiquetas literally instead of being
+# captured as ing_id='auditoria-etiquetas' (which fails int parsing).
+# ─────────────────────────────────────────────────────────────────────────
+
+
+@router.get("/auditoria-etiquetas", response_class=HTMLResponse)
+def inventory_tag_audit(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Page listing every ingredient with a tag-validation issue.
+
+    Two-phase audit:
+      1. Read the pre-computed Ingredient.tag_validation_issues column
+         (populated by migration 061 + audit.backfill_validation_issues).
+      2. Run audit_all_ingredients() to catch anything added since.
+
+    The two sources can differ when ingredients were created after the
+    last backfill. We display both (tagged 'fresh' vs 'cached') so the
+    operator knows which need re-running.
+    """
+    from app.rms.tagging.audit import audit_all_ingredients
+
+    # Phase 1 — fresh audit
+    fresh_issues = audit_all_ingredients(session)
+
+    # Phase 2 — read cached column
+    cached_rows = session.execute(
+        select(Ingredient.id, Ingredient.name, Ingredient.tag_validation_issues)
+        .where(Ingredient.tag_validation_issues.isnot(None))
+        .where(Ingredient.tag_validation_issues != "")
+    ).all()
+
+    # Merge: by ingredient id
+    rows: list[dict] = []
+    seen_ids: set[int] = set()
+
+    # First pass: fresh audit (more authoritative)
+    for iid, issues in sorted(fresh_issues.items()):
+        ing = session.get(Ingredient, iid)
+        if ing is None:
+            continue
+        seen_ids.add(iid)
+        rows.append(
+            {
+                "id": iid,
+                "name": ing.name,
+                "category": ing.category,
+                "allergens": ing.allergens,
+                "dietary_tags": ing.dietary_tags,
+                "issues": issues,
+                "source": "fresh",
+            }
+        )
+
+    # Second pass: cached only (not in fresh — ingredient changed since
+    # the last save that didn't trigger a re-audit)
+    for rid, name, cached in cached_rows:
+        if rid in seen_ids:
+            continue
+        ing = session.get(Ingredient, rid)
+        if ing is None:
+            continue
+        seen_ids.add(rid)
+        rows.append(
+            {
+                "id": rid,
+                "name": name,
+                "category": ing.category,
+                "allergens": ing.allergens,
+                "dietary_tags": ing.dietary_tags,
+                "issues": (cached or "").split("\n") if cached else [],
+                "source": "cached",
+            }
+        )
+
+    # Sort by issue count (most issues first)
+    rows.sort(key=lambda r: -len(r["issues"]))
+
+    return render(
+        request,
+        "inventario_auditoria_etiquetas.html",
+        {
+            "rows": rows,
+            "total": len(rows),
+            "fresh_count": len(fresh_issues),
+        },
+    )
+
+
+@router.post("/auditoria-etiquetas/rerun", response_class=JSONResponse)
+def inventory_tag_audit_rerun(
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Re-run backfill_validation_issues() in case data changed since
+    the last migration. Returns the count of ingredients updated.
+    """
+    from app.rms.tagging.audit import backfill_validation_issues
+
+    count = backfill_validation_issues(session)
+    session.commit()
+    return JSONResponse({"updated": count})
 
 
 @router.get("/{ing_id}", response_class=HTMLResponse)
@@ -749,6 +887,25 @@ def inventory_update(
     except Exception:  # noqa: BLE001 — defensive default
         logger.warning(
             "tag cascade failed for ingredient ing_id=%s update", ing.id,
+            exc_info=True,
+        )
+        session.rollback()
+
+    # Tag validation (061): refresh this ingredient's tag_validation_issues
+    # column so the warning banner on the inventory list + ingredient edit
+    # form stays current. The audit is pure (no DB writes except the
+    # column), so it's safe to run inline after the save commit.
+    try:
+        from app.rms.tagging.classify import validate_ingredient
+        issues = validate_ingredient(ing)
+        # Re-fetch in case the previous session.commit() reset the binding.
+        ing_row = session.get(Ingredient, ing.id)
+        if ing_row is not None:
+            ing_row.tag_validation_issues = "\n".join(issues) if issues else None
+            session.commit()
+    except Exception:  # noqa: BLE001 — defensive default
+        logger.warning(
+            "tag validation refresh failed for ing_id=%s", ing.id,
             exc_info=True,
         )
         session.rollback()
@@ -1216,124 +1373,6 @@ def _parse_price(raw: str) -> int | None:
         return parse_gs(raw)
     except (ValueError, TypeError) as e:
         raise BadRequest(f"Precio inválido: {raw!r}", context={"raw": raw}, cause=e) from e
-
-
-# ─────────────────────────────────────────────────────────────────────────
-# Tag audit (2026-09-29 tagging/ refactor)
-# ─────────────────────────────────────────────────────────────────────────
-# Endpoint: GET /inventario/auditoria-etiquetas
-#
-# Shows every ingredient that has tag_validation_issues populated, plus a
-# fresh run of audit_all_ingredients() to catch anything added since the
-# last backfill. Renders as a sortable table with one-click navigation to
-# the ingredient edit form so the operator can fix data-entry errors
-# surfaced by the tagging system.
-#
-# Why an explicit page (vs inlining into /inventario):
-#   - Some issues are subtle (e.g. "Jengibre fresco" categorized as
-#     'carnes'). Easy to miss in a long inventory list.
-#   - Operators should fix all issues in one batch, then re-run the audit.
-#   - Auditors / external reviewers need a stable URL to verify compliance.
-# ─────────────────────────────────────────────────────────────────────────
-
-
-@router.get("/auditoria-etiquetas", response_class=HTMLResponse)
-def inventory_tag_audit(
-    request: Request,
-    session: Session = Depends(get_session),
-) -> HTMLResponse:
-    """Page listing every ingredient with a tag-validation issue.
-
-    Two-phase audit:
-      1. Read the pre-computed Ingredient.tag_validation_issues column
-         (populated by migration 061 + audit.backfill_validation_issues).
-      2. Run audit_all_ingredients() to catch anything added since.
-
-    The two sources can differ when ingredients were created after the
-    last backfill. We display both (tagged 'fresh' vs 'cached') so the
-    operator knows which need re-running.
-    """
-    from app.rms.tagging.audit import audit_all_ingredients
-
-    # Phase 1 — fresh audit
-    fresh_issues = audit_all_ingredients(session)
-
-    # Phase 2 — read cached column
-    cached_rows = session.execute(
-        select(Ingredient.id, Ingredient.name, Ingredient.tag_validation_issues)
-        .where(Ingredient.tag_validation_issues.isnot(None))
-        .where(Ingredient.tag_validation_issues != "")
-    ).all()
-
-    # Merge: by ingredient id
-    rows: list[dict] = []
-    seen_ids: set[int] = set()
-
-    # First pass: fresh audit (more authoritative)
-    for iid, issues in sorted(fresh_issues.items()):
-        ing = session.get(Ingredient, iid)
-        if ing is None:
-            continue
-        seen_ids.add(iid)
-        rows.append(
-            {
-                "id": iid,
-                "name": ing.name,
-                "category": ing.category,
-                "allergens": ing.allergens,
-                "dietary_tags": ing.dietary_tags,
-                "issues": issues,
-                "source": "fresh",
-            }
-        )
-
-    # Second pass: cached only (not in fresh — ingredient changed since
-    # the last save that didn't trigger a re-audit)
-    for rid, name, cached in cached_rows:
-        if rid in seen_ids:
-            continue
-        ing = session.get(Ingredient, rid)
-        if ing is None:
-            continue
-        seen_ids.add(rid)
-        rows.append(
-            {
-                "id": rid,
-                "name": name,
-                "category": ing.category,
-                "allergens": ing.allergens,
-                "dietary_tags": ing.dietary_tags,
-                "issues": (cached or "").split("\n") if cached else [],
-                "source": "cached",
-            }
-        )
-
-    # Sort by issue count (most issues first)
-    rows.sort(key=lambda r: -len(r["issues"]))
-
-    return render(
-        request,
-        "inventario_auditoria_etiquetas.html",
-        {
-            "rows": rows,
-            "total": len(rows),
-            "fresh_count": len(fresh_issues),
-        },
-    )
-
-
-@router.post("/auditoria-etiquetas/rerun", response_class=JSONResponse)
-def inventory_tag_audit_rerun(
-    session: Session = Depends(get_session),
-) -> JSONResponse:
-    """Re-run backfill_validation_issues() in case data changed since
-    the last migration. Returns the count of ingredients updated.
-    """
-    from app.rms.tagging.audit import backfill_validation_issues
-
-    count = backfill_validation_issues(session)
-    session.commit()
-    return JSONResponse({"updated": count})
 
 
 __all__ = ["router"]
