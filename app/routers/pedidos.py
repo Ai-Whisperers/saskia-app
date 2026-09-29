@@ -508,7 +508,7 @@ async def pedidos_create(
             raise HTTPException(
                 status_code=400,
                 detail=f"customer_id inválido: {cust_id_str!r}",
-            )
+            ) from None
     # Build list of lines from the form
     product_ids = form.getlist("line_product_id")
     qtys = form.getlist("line_qty")

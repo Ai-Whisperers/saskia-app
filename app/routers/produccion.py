@@ -463,7 +463,7 @@ def produccion_template_fork_week(
     try:
         src = _dt.strptime(from_date, "%Y-%m-%d").date()
     except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="from_date debe ser YYYY-MM-DD")
+        raise HTTPException(status_code=400, detail="from_date debe ser YYYY-MM-DD") from None
     # Source week: Monday-of(src.date()) .. Monday+6
     monday = src - _td(days=src.weekday())
     end_exclusive = monday + _td(days=7)

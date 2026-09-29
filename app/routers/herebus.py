@@ -303,7 +303,7 @@ async def bank_add(
         raise BadRequest(
             "Fecha inválida.",
             context={"posted_at": posted_at, "expected_format": "YYYY-MM-DD"},
-        )
+        ) from None
 
     tx = BankTransaction(
         posted_at=posted_at_dt,

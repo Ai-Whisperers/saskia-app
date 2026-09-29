@@ -418,7 +418,7 @@ def inventory_create(
     try:
         unit_enum = Unit.coerce(unit)
     except ValueError as e:
-        raise BadRequest(f"Unidad inválida: {e}", context={"unit": str(unit)}, cause=e)
+        raise BadRequest(f"Unidad inválida: {e}", context={"unit": str(unit)}, cause=e) from e
 
     price = _parse_price(purchase_price_gs)
     if stock_qty < 0:
@@ -470,7 +470,7 @@ def inventory_create(
             f"Ya existe un ingrediente con nombre {name!r}",
             context={"name": name},
             cause=e,
-        )
+        ) from e
 
     # Audit + info log
     logger.info(
@@ -948,7 +948,7 @@ def ingredient_variant_create(
         raise BadRequest(
             f"Tamaño de paquete inválido: {package_size!r}",
             context={"raw": package_size},
-        )
+        ) from None
     if package_unit not in ("g", "kg", "ml", "l", "und"):
         raise BadRequest(f"Unidad inválida: {package_unit!r}")
 
@@ -958,7 +958,7 @@ def ingredient_variant_create(
         raise BadRequest(
             f"Precio inválido: {purchase_price_gs!r}",
             context={"raw": purchase_price_gs},
-        )
+        ) from None
     if price is not None and price < 0:
         raise BadRequest("El precio no puede ser negativo.")
 
@@ -970,12 +970,12 @@ def ingredient_variant_create(
             raise BadRequest(
                 f"ID de proveedor inválido: {supplier_id!r}",
                 context={"raw": supplier_id},
-            )
+            ) from None
 
     try:
         stock = float(stock_qty.replace(",", "."))
     except ValueError:
-        raise BadRequest(f"Stock inválido: {stock_qty!r}", context={"raw": stock_qty})
+        raise BadRequest(f"Stock inválido: {stock_qty!r}", context={"raw": stock_qty}) from None
     if stock < 0:
         raise BadRequest("El stock no puede ser negativo.")
 
@@ -1110,23 +1110,23 @@ def ingredient_variant_edit(
         if size <= 0:
             raise ValueError
     except ValueError:
-        raise BadRequest(f"Tamaño inválido: {package_size!r}")
+        raise BadRequest(f"Tamaño inválido: {package_size!r}") from None
     if package_unit not in ("g", "kg", "ml", "l", "und"):
         raise BadRequest(f"Unidad inválida: {package_unit!r}")
     try:
         price = int(purchase_price_gs.replace(".", "").replace(",", "")) if purchase_price_gs else None
     except ValueError:
-        raise BadRequest(f"Precio inválido: {purchase_price_gs!r}")
+        raise BadRequest(f"Precio inválido: {purchase_price_gs!r}") from None
     sup_id: int | None = None
     if supplier_id:
         try:
             sup_id = int(supplier_id)
         except ValueError:
-            raise BadRequest(f"Proveedor inválido: {supplier_id!r}")
+            raise BadRequest(f"Proveedor inválido: {supplier_id!r}") from None
     try:
         stock = float(stock_qty.replace(",", "."))
     except ValueError:
-        raise BadRequest(f"Stock inválido: {stock_qty!r}")
+        raise BadRequest(f"Stock inválido: {stock_qty!r}") from None
     if stock < 0:
         raise BadRequest("El stock no puede ser negativo.")
 
@@ -1180,7 +1180,7 @@ def ingredient_forecast_horizon_set(
             raise BadRequest(
                 f"Horizonte inválido: {forecast_horizon_days!r}",
                 context={"raw": forecast_horizon_days},
-            )
+            ) from None
     ing.forecast_horizon_days = val
     record_audit(
         request,
@@ -1204,7 +1204,7 @@ def _parse_price(raw: str) -> int | None:
 
         return parse_gs(raw)
     except (ValueError, TypeError) as e:
-        raise BadRequest(f"Precio inválido: {raw!r}", context={"raw": raw}, cause=e)
+        raise BadRequest(f"Precio inválido: {raw!r}", context={"raw": raw}, cause=e) from e
 
 
 __all__ = ["router"]

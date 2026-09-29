@@ -832,7 +832,7 @@ async def sale_create_multi(
     try:
         body = _Body.model_validate(await request.json())
     except Exception:  # noqa: BLE001
-        raise HTTPException(status_code=400, detail=SALE_BODY_INVALID)
+        raise HTTPException(status_code=400, detail=SALE_BODY_INVALID) from None
 
     items = body.items
     if len(items) > 50:
