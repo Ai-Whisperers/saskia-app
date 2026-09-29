@@ -347,7 +347,52 @@ def test_validate_detects_vegetariano_with_meat_name():
     assert any("vegetariano" in i for i in issues)
 
 
-def test_validate_no_issue_for_meat_with_vegetariano_unset():
+def test_no_issue_for_meat_with_vegetariano_unset():
     """Not declaring vegetariano = no validation issue, even though it's meat."""
     ing = _ing("Pechuga de pollo", allergens="eggs")
     assert validate_ingredient(ing) == []
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Sugar / sin-azúcar / keto (2026-09-29 regression)
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_azucar_blanca_blocks_sin_azucar_via_name_inference():
+    """Sugar ingredients with allergens=None must still block sin-azúcar.
+
+    Regression: previously sin-azúcar was never blocked because the
+    allergen-blocker list for it was empty. The user saw 'Sin azúcar' on
+    a recipe that contained Azúcar blanca.
+    """
+    ing = _ing("Azúcar blanca", allergens=None)
+    assert ingredient_blocks(ing, "sin azúcar") is True
+    assert ingredient_blocks(ing, "keto") is True
+
+
+def test_azucar_impalpable_blocks_sin_azucar():
+    ing = _ing("azúcar impalpable")
+    assert ingredient_blocks(ing, "sin azúcar") is True
+
+
+def test_miel_blocks_sin_azucar():
+    ing = _ing("Miel")
+    assert ingredient_blocks(ing, "sin azúcar") is True
+
+
+def test_stevia_does_not_block_sin_azucar():
+    """Stevia is a non-sugar sweetener, OK for sin-azúcar."""
+    ing = _ing("Stevia")
+    assert ingredient_blocks(ing, "sin azúcar") is False
+    assert ingredient_blocks(ing, "keto") is False
+
+
+def test_jarabe_de_maiz_blocks_sin_azucar():
+    ing = _ing("Jarabe de maíz")
+    assert ingredient_blocks(ing, "sin azúcar") is True
+
+
+def test_zanahoria_does_not_block_sin_azucar():
+    """Carrots should not block sin-azúcar — they're not sweet."""
+    ing = _ing("Zanahoria")
+    assert ingredient_blocks(ing, "sin azúcar") is False

@@ -66,6 +66,12 @@ CANONICAL_ALLERGENS: frozenset[str] = frozenset({
     "soy",
     "sesame",
     "sulfites",
+    # 2026-09-29: added to surface sin-azúcar / keto contradictions that
+    # were silently allowed because sugar wasn't recognized as a blocker.
+    # Treat as a "disqualifier code" used by the same infer/blocker
+    # machinery. NOT a real allergen (INAN doesn't list it), but
+    # functionally behaves identically from the recipe-derivation side.
+    "sugar",
 })
 
 
@@ -130,10 +136,10 @@ TAG_ALLERGEN_BLOCKERS: dict[str, tuple[str, ...]] = {
     "sin lactosa":      ("dairy",),
     "sin huevo":        ("eggs",),
     "sin frutos secos": ("nuts",),
+    "sin azúcar":       ("sugar",),        # 2026-09-29: was () — see research notes
+    "keto":             ("sugar",),        # 2026-09-29: simplified — sugar is the only keto-relevant blocker
     "vegano":           ("dairy", "eggs"), # excludes animal-derived; honey = debated
     "vegetariano":      (),                # only meat disqualifies (detected via name keyword)
-    "sin azúcar":       (),                # sugar/flour detected via name keyword
-    "keto":             (),                # sugar/flour/gluten detected via name keyword
     "integral":         (),                # whole-grain certification, not allergen-driven
     "orgánico":         (),                # certification, not allergen-driven
 }
@@ -172,6 +178,25 @@ ALLERGEN_KEYWORDS: dict[str, tuple[str, ...]] = {
     ),
     "sulfites": (
         "sulfito", "sulfitos", "metabisulfito",
+    ),
+    # 2026-09-29: sugar is added as a disqualifier code (not a true allergen
+    # per INAN). Used by sin-azúcar / keto to block recipes that contain
+    # any sweetener. Same mechanism as allergen blocking but conceptually
+    # different — see vocabulary.CANONICAL_ALLERGENS note.
+    "sugar": (
+        "azúcar", "azucar",
+        "miel",
+        "jarabe", "jarabe de maíz", "jarabe de glucosa",
+        "glucosa", "dextrosa",
+        "fructosa",
+        "panela", "rapadura",
+        "melaza",
+        "edulcorante", "stevia (azúcar)",  # explicit "sugar stevia" only — stevia alone OK
+        "azúcar impalpable", "azúcar glas", "azúcar glass",
+        "azúcar mascabado", "azúcar morena", "azúcar moreno",
+        "azúcar blanca", "azúcar blanco",
+        "azúcar negra", "azúcar negro",
+        "azúcar rubia",
     ),
 }
 
