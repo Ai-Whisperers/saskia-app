@@ -132,16 +132,23 @@ def test_kpi_card_adoptions_use_format_gs(template):
 
 def test_kpi_card_host_is_block_in_grid():
     """<saskia-kpi-card> custom elements default to display:inline, which
-    breaks CSS Grid row-height alignment. The fix: force display:block +
-    height:100% on the host so it stretches to the row track like a real
-    grid item. Flagged by the Session A screenshot subagent."""
+    breaks CSS Grid row-height alignment. The fix is two layered rules:
+      (1) host: display:block + height:100% so the custom element participates
+          as a real block-level grid item and fills the row track.
+      (2) inner card div (.metric-card--kpi): height:100% so its visible
+          surface (background, border, padding) fills the host.
+    Without (2), hosts align but inner cards still vary in height.
+    Flagged by the Session A screenshot subagent on the second pass."""
     css = (REPO / "app/static/app-components.css").read_text(encoding="utf-8")
-    # The host element rule must exist
+    # Layer 1: host rule
     assert "saskia-kpi-card" in css, \
         "custom-element host rule missing — grid rows will misalign"
-    # Verify it's display:block (not just any rule)
     assert "saskia-kpi-card {" in css and "display: block" in css, \
         "host must be display:block (not inline)"
-    # Verify height:100% so it fills the grid track
-    assert "height: 100%" in css, \
-        "host needs height:100% to stretch in the grid row"
+    # Layer 2: inner card fills host
+    assert ".metric-card--kpi {" in css, "inner card rule missing"
+    # The inner card rule must include height:100% — verify it's there
+    # even if other declarations follow it on the same selector.
+    inner_block = css.split(".metric-card--kpi {", 1)[1].split("}", 1)[0]
+    assert "height: 100%" in inner_block, \
+        "inner .metric-card--kpi must fill its host (height:100%) — otherwise host stretches but visible card stays at content height"

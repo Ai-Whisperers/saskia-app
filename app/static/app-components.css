@@ -33,7 +33,11 @@
 /* Custom elements default to display:inline — without this they sit inside
    a CSS Grid cell as inline, which breaks row-height alignment. */
 saskia-kpi-card { display: block; height: 100%; }
-.metric-card--kpi { position: relative; transition: transform 150ms ease, box-shadow 150ms ease; }
+/* The inner visible card is a child div of the host — must also fill the host
+   so the card surface (background, border, padding) stretches to the row track
+   rather than only to its content. Without this, hosts align but inner cards
+   still vary in height. */
+.metric-card--kpi { position: relative; transition: transform 150ms ease, box-shadow 150ms ease; height: 100%; }
 .metric-card--kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 .metric-card__head { display: flex; align-items: center; gap: var(--space-2); }
 .metric-card__icon svg { width: 16px; height: 16px; fill: currentColor; color: var(--color-text-muted); }

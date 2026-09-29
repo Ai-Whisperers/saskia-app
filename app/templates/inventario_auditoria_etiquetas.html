@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{# Tag-audit page (2026-09-29). Surfaces operator-fixable data-entry errors
+   caught by app.rms.tagging.classify.validate_ingredient(). #}
+
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% import "_components/tags.html" as t %}
+
+{% block title %}Auditoría de etiquetas · Inventario{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:1200px;">
+
+  <header style="margin-bottom:var(--space-4);">
+    <a href="/inventario" class="btn btn-ghost" style="margin-bottom:var(--space-2);">← Volver a inventario</a>
+    <h1>🧪 Auditoría de etiquetas</h1>
+    <p class="text-muted" style="max-width:60ch;">
+      Esta página muestra los ingredientes con contradicciones lógicas en sus
+      etiquetas (ej. declara <em>sin gluten</em> pero su columna de alérgenos
+      incluye <em>gluten</em>). Cada problema requiere confirmación del operador;
+      la auditoría no modifica datos automáticamente.
+    </p>
+  </header>
+
+  {# ── Summary stats ── #}
+  <section class="kpi-strip" style="display:flex;gap:var(--space-3);margin-bottom:var(--space-4);flex-wrap:wrap;">
+    <div class="kpi-card">
+      <div class="kpi-card__value">{{ total }}</div>
+      <div class="kpi-card__label">ingredientes con problemas</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-card__value">{{ fresh_count }}</div>
+      <div class="kpi-card__label">detectados en este run</div>
+    </div>
+    <div class="kpi-card" style="flex:1;min-width:240px;">
+      <button type="button" id="btn-rerun" class="btn btn-primary" style="height:36px;">
+        🔄 Re-correr auditoría
+      </button>
+      <p class="text-muted" style="font-size:var(--text-xs);margin:var(--space-2) 0 0;">
+        Persiste el resultado en la columna <code>tag_validation_issues</code>.
+      </p>
+    </div>
+  </section>
+
+  {# ── Results table ── #}
+  {% if not rows %}
+  <div class="alert alert-success" role="status">
+    <svg class="icon" aria-hidden="true"><use href="#icon-ok"/></svg>
+    <div>
+      <strong>Sin problemas detectados.</strong>
+      Todos los ingredientes pasan la validación de etiquetas. Si esperás ver
+      un ingrediente aquí, verificá que su columna <code>dietary_tags</code>
+      no esté vacía y que <code>allergens</code> refleje la realidad.
+    </div>
+  </div>
+
+  {% else %}
+  <div class="card" style="padding:var(--space-3);">
+    <table class="data-table" style="margin:0;">
+      <thead>
+        <tr>
+          <th style="width:30%;">Ingrediente</th>
+          <th style="width:15%;">Categoría</th>
+          <th style="width:35%;">Problemas detectados</th>
+          <th style="width:20%;">Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>
+            <strong><a href="/inventario/{{ row.id }}/editar">{{ row.name }}</a></strong>
+            <div style="font-size:var(--text-xs);color:var(--muted-foreground);">
+              #{{ row.id }}
+              {% if row.source == "cached" %}
+                <span class="badge badge-neutral" title="Detectado por migración 061 pero no en este run — posible que el dato haya cambiado.">
+                  cached
+                </span>
+              {% endif %}
+            </div>
+            {% if row.allergens %}
+            <div class="tag-pill-row tag-pill-row--compact" style="margin-top:4px;">
+              <span class="tag-pill-row__label">Alérgenos:</span>
+              {{ t.tag_pills(row.allergens, variant="allergen") }}
+            </div>
+            {% endif %}
+            {% if row.dietary_tags %}
+            <div class="tag-pill-row tag-pill-row--compact" style="margin-top:2px;">
+              <span class="tag-pill-row__label">Declara:</span>
+              {{ t.tag_pills(row.dietary_tags) }}
+            </div>
+            {% endif %}
+          </td>
+          <td>
+            {% if row.category %}
+              <span class="badge">{{ row.category }}</span>
+            {% else %}
+              <em class="text-muted">sin categoría</em>
+            {% endif %}
+          </td>
+          <td>
+            <ul style="margin:0;padding-left:1rem;">
+              {% for issue in row.issues %}
+              <li style="margin-bottom:4px;">{{ issue }}</li>
+              {% endfor %}
+            </ul>
+          </td>
+          <td>
+            <a href="/inventario/{{ row.id }}/editar"
+               class="btn btn-ghost"
+               style="display:inline-flex;align-items:center;gap:4px;">
+              ✏️ Corregir
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="text-muted" style="font-size:var(--text-xs);margin-top:var(--space-3);">
+    Mostrando los <strong>{{ total }}</strong> ingredientes con al menos un
+    problema. La auditoría se ejecuta automáticamente al guardar un ingrediente;
+    este endpoint es para re-validar el catálogo entero después de cambios masivos.
+  </p>
+  {% endif %}
+
+</div>
+
+{# ── Re-run button handler ── #}
+<script>
+(function() {
+  const btn = document.getElementById('btn-rerun');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳ Re-corriendo…';
+    try {
+      const r = await fetch('/inventario/auditoria-etiquetas/rerun', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const data = await r.json();
+      btn.innerHTML = '✓ ' + data.updated + ' actualizados';
+      // Reload to show the new state
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err) {
+      console.error(err);
+      btn.innerHTML = '✗ Error';
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+{% endblock %}

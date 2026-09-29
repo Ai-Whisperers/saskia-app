@@ -141,6 +141,16 @@
   </div>
 </div>
 {% endif %}
+{% if tag_audit_count %}
+<div class="alert alert-warn" role="alert" style="margin-bottom:var(--space-3);">
+  <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+  <div>
+    <strong>Etiquetas con contradicciones ({{ tag_audit_count }}):</strong>
+    {{ tag_audit_count }} ingredientes declaran etiquetas incompatibles con sus
+    alérgenos o nombre. <a href="/inventario/auditoria-etiquetas">Ver auditoría completa →</a>
+  </div>
+</div>
+{% endif %}
 <div  class="inv-result-count text-muted" style="font-size:var(--text-xs); margin-bottom:var(--space-3)">
   {{ total_filtered }} de {{ total_all }} ingredientes{% if q %} · búsqueda “{{ q }}”{% endif %}
 </div>
