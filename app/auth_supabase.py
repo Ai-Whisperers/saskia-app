@@ -56,7 +56,7 @@ _client = None  # anon key client (for sign-in)
 _admin_client = None  # service role client (for admin operations)
 
 
-def get_supabase_client():
+def get_supabase_client() -> object:
     """Return the anon-key Supabase client (lazy init)."""
     global _client
     if _client is None:
@@ -66,7 +66,7 @@ def get_supabase_client():
     return _client
 
 
-def get_supabase_admin():
+def get_supabase_admin() -> object:
     """Return the service-role Supabase client (lazy init)."""
     global _admin_client
     if _admin_client is None:

@@ -137,7 +137,7 @@ def can_convert(from_unit: Unit, to_unit: Unit) -> bool:
     return (from_unit, to_unit) in _CONVERSION_FACTORS
 
 
-def convert_qty(qty, from_unit: Unit, to_unit: Unit):
+def convert_qty(qty, from_unit: Unit, to_unit: Unit) -> object:
     """Convert quantity from one unit to another within the same family.
 
     Examples:

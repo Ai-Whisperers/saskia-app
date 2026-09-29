@@ -129,7 +129,7 @@ def make_engine(url: str | None = None, *, for_tests: bool = False) -> Engine:
 
 
 @lru_cache(maxsize=1)
-def get_metadata():
+def get_metadata() -> object:
     """Return the right Base.metadata for the configured DATABASE_URL.
 
     Production Postgres → app.rms.schema_postgres.Base.metadata

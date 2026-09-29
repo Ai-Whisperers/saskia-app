@@ -22,7 +22,7 @@ def get_products_optimized(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     search: Optional[str] = None
-):
+) -> object:
     """Get products with pagination and caching.
 
     This demonstrates:
@@ -74,7 +74,7 @@ def get_products_optimized(
 @router.post("/products/bulk-update")
 def bulk_update_products(
     product_updates: List[dict]
-):
+) -> object:
     """Bulk update products with optimized batch processing.
 
     This demonstrates:
@@ -105,7 +105,7 @@ def bulk_update_products(
 
 
 @router.get("/products/stats", response_model=APIResponse[dict])
-def get_product_stats():
+def get_product_stats() -> object:
     """Get product statistics with optimized queries.
 
     This demonstrates:
@@ -137,7 +137,7 @@ def get_product_stats():
 
 
 @router.get("/slow-operation")
-def demonstrate_performance_timer():
+def demonstrate_performance_timer() -> object:
     """Demonstrate performance timing.
 
     This demonstrates:
@@ -164,7 +164,7 @@ def demonstrate_performance_timer():
 
 
 @router.get("/error-handling")
-def demonstrate_error_handling():
+def demonstrate_error_handling() -> object:
     """Demonstrate standardized error handling.
 
     This demonstrates:

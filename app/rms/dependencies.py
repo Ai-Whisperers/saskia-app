@@ -17,7 +17,7 @@ from __future__ import annotations
 from fastapi import Request
 
 
-def get_session(request: Request):
+def get_session(request: Request) -> object:
     """YIELD a SQLAlchemy session bound to the request-scoped engine.
 
     Generator dependency: FastAPI runs the code after ``yield`` at request
@@ -59,7 +59,7 @@ def get_session(request: Request):
         session.close()
 
 
-def get_app_state(request: Request):
+def get_app_state(request: Request) -> object:
     """Return app.state — for accessing engine, ready flag, etc."""
     return request.app.state
 

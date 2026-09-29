@@ -183,7 +183,7 @@ def _compliance_alerts(session: Session) -> list[dict]:
     if ci is None:
         return alerts
 
-    def _parse_iso(s: str | None):
+    def _parse_iso(s: str | None) -> datetime | date | None:
         if not s:
             return None
         try:

@@ -589,7 +589,7 @@ app.include_router(settings_runtime.router)
 # Operators see "proveedores" in UI copy. Accepting both URLs means
 # external links/bookmarks work regardless of which word was used.
 @app.get("/proveedores", include_in_schema=False)
-def proveedores_alias():
+def proveedores_alias() -> object:
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/suppliers", status_code=303)
 app.include_router(users.router)

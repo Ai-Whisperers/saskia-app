@@ -51,7 +51,7 @@ def needs_warning(last_backup_at, threshold_days: int = WARN_THRESHOLD_DAYS) -> 
     return datetime.now(ASUNCION_TZ) - last_backup_at > timedelta(days=threshold_days)
 
 
-def last_backup_at(folder: Path):
+def last_backup_at(folder: Path) -> object:
     """Return the mtime of the most recent .xlsx in folder, or None.
 
     Only counts files matching the backup naming pattern

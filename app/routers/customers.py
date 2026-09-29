@@ -324,7 +324,7 @@ def cliente_edit(
     request: Request,
     customer_id: int = Path(...),
     session: Session = Depends(get_session),
-):
+) -> object:
     """Edit form for an existing customer."""
     customer = session.get(Customer, customer_id)
     if customer is None:

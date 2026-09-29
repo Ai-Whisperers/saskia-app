@@ -18,7 +18,7 @@ router = APIRouter(prefix="/dev", tags=["dev"])
 
 
 @router.get("/combo-smoke", response_class=HTMLResponse)
-def combo_smoke(request: Request):
+def combo_smoke(request: Request) -> object:
     """Renders the saskia-combo smoke test page. Dev-only."""
     if not os.getenv("DEV_COMBO_SMOKE"):
         return HTMLResponse("<h1>404</h1>", status_code=404)
@@ -59,7 +59,7 @@ def combo_smoke(request: Request):
     )
 
 
-def _find_label(items, value):
+def _find_label(items, value) -> object:
     if not value:
         return None
     for item in items or []:
@@ -73,7 +73,7 @@ api_router = APIRouter(prefix="/api/lookup", tags=["dev-api"])
 
 
 @api_router.get("/products")
-def lookup_products(q: str = Query(default=""), limit: int = 25):
+def lookup_products(q: str = Query(default=""), limit: int = 25) -> object:
     """Mock server-side lookup endpoint for saskia-combo.
 
     Real implementation tomorrow: query the products table by name/CRE.

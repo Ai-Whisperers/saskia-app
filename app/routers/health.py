@@ -283,7 +283,7 @@ def healthz_schema(request: Request) -> JSONResponse:
 
 
 @router.post("/healthz/migrate")
-def healthz_migrate(request: Request):
+def healthz_migrate(request: Request) -> object:
     """Unauthenticated migration trigger (operator escape hatch).
 
     Same effect as /admin/migrate but without auth — intended for
@@ -332,7 +332,7 @@ def healthz_migrate(request: Request):
 
 
 @router.post("/admin/migrate")
-def admin_migrate(request: Request):
+def admin_migrate(request: Request) -> object:
     """Operator escape hatch: trigger init_db() to apply pending migrations.
     Required when Render is slow to redeploy OR when the lifespan
     auto-init failed silently on Postgres (JSONB bug pre-a6843b9).

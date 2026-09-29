@@ -134,7 +134,7 @@ def _verify_password_unsafe(plain: str, hashed: str) -> bool:
 # --- User model selector (dialect-agnostic, bcrypt path only) ---
 
 
-def get_user_model():
+def get_user_model() -> object:
     """Return User model matching the active dialect (bcrypt backend only).
 
     With Supabase Auth, user metadata lives in Supabase — not in our DB.
@@ -196,7 +196,7 @@ def current_user_id(request: Request) -> Optional[int]:
     return request.session.get(LOCAL_SESSION_KEY_USER_ID)
 
 
-def require_login(request: Request):
+def require_login(request: Request) -> object:
     """FastAPI dependency: returns user_id if logged in, else raises 401/redirect.
 
     Production auth gate. Always enforced (no bypass).
@@ -230,7 +230,7 @@ def require_login(request: Request):
     return user_id
 
 
-def require_login_or_disabled(request: Request):
+def require_login_or_disabled(request: Request) -> object:
     """FastAPI dependency: enforces auth UNLESS the test bypass is on.
 
     Routers use this instead of `require_login` so tests can opt out of
@@ -283,7 +283,7 @@ def get_db_session(request: Request) -> Session:
 def get_current_user(
     request: Request,
     session: Session = Depends(get_db_session),
-):
+) -> object:
     """FastAPI dependency: return the logged-in User, or raise 401.
 
     For Supabase backend: returns a SupabaseUser (id + email + claims).

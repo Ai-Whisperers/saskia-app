@@ -137,7 +137,7 @@ def search_by_target(
     target_type: str,
     target_id: str,
     limit: int = 100,
-):
+) -> object:
     """Find all audit entries for a specific record (e.g. product #42)."""
     from sqlalchemy import desc, select
 
@@ -159,7 +159,7 @@ def list_recent(
     limit: int = 100,
     action_filter: Optional[str] = None,
     user_filter: Optional[str] = None,
-):
+) -> object:
     """Return the most recent audit rows (newest first).
 
     Used by the /audit admin view.

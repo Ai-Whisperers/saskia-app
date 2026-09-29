@@ -1583,7 +1583,7 @@ def _migration_039_category_table(conn):
     _bump_schema_version(conn, 39)
 
 
-def ensure_tag_with_conn(conn, name: str, kind: str, color: str = "#757575"):
+def ensure_tag_with_conn(conn, name: str, kind: str, color: str = "#757575") -> object:
     """INSERT OR IGNORE a tag by (name, kind). Used inside migrations.
 
     Mirrors app.rms.tags.ensure_tag but takes a raw connection instead of

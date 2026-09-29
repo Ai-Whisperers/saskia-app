@@ -130,7 +130,7 @@ def cache_response(key_prefix: str = "api", ttl: int = 300) -> Callable:
 
 
 @contextmanager
-def performance_timer(operation_name: str):
+def performance_timer(operation_name: str) -> object:
     """Context manager for timing operations."""
     start_time = time.time()
     yield

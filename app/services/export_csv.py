@@ -35,11 +35,11 @@ from sqlalchemy.orm import Session
 
 from app.rms.models import (
     AppMeta,
-    ComplianceInfo,
-    Customer,
+    ComplianceInfo,  # noqa: F401 — re-exported
+    Customer,  # noqa: F401 — re-exported
     ImportBatch,
     Ingredient,
-    Pedido,
+    Pedido,  # noqa: F401 — re-exported
     Product,
     Recipe,
     RecipeLine,

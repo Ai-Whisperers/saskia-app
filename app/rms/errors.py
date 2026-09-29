@@ -182,7 +182,7 @@ class AppInternalError(AppError):
 # ─── Mapping helpers ──────────────────────────────────────────────
 
 
-def to_http_exception(err: AppError):
+def to_http_exception(err: AppError) -> object:
     """Convert an AppError to a FastAPI HTTPException with our extended payload."""
     from fastapi import HTTPException
     return HTTPException(
