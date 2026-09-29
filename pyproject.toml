@@ -35,6 +35,7 @@ dependencies = [
     "supabase>=2.31.0",
     "sentry-sdk[fastapi]>=2.10,<3",   # Error tracking (optional via SENTRY_DSN env var; free tier)
     "pyyaml>=6.0.3",
+    "reportlab>=4.0,<5",           # PDF generation for /reportes/iva/pdf + /reportes/diario/pdf
 ]
 
 # Development dependencies

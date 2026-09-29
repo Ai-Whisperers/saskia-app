@@ -221,3 +221,174 @@ def test_upload_overwrites_previous(client, session_factory) -> None:
     # Cleanup
     (DATA_DIR / first_path).unlink()
     (DATA_DIR / second_path).unlink()
+
+
+# ════════════════════════════════════════════════════════════════════
+# P0-1: CSRF gap coverage for the public comprobante upload endpoint.
+#
+# The endpoint is reachable by an unauthenticated customer from
+# WhatsApp. Without CSRF protection, an attacker on evil.com could
+# craft a form that POSTs to /p/{token}/comprobante using the token
+# captured from a referer header. The fix adds a form-field CSRF
+# check (verify_form_csrf dependency) that requires the form to
+# include a hidden _csrf_token whose signed value matches the
+# cookie's signed value.
+# ════════════════════════════════════════════════════════════════════
+
+
+def _make_pedido_with_csrf_token(session) -> tuple[int, str, str]:
+    """Create a pedido and return (pedido_id, public_token, csrf_cookie)."""
+    from app.rms.models import Pedido
+
+    pid = _make_pedido(session, payment_intent="qr")
+    token = session.execute(
+        __import__("sqlalchemy").select(Pedido.public_token).where(Pedido.id == pid)
+    ).scalar_one()
+
+    # Hit a non-exempt GET to prime the CSRF cookie via the middleware.
+    from starlette.testclient import TestClient
+    from app.rms.main import app
+
+    with TestClient(app, raise_server_exceptions=False) as tmp:
+        tmp.get("/")
+        csrf = tmp.cookies.get("csrf_token") or ""
+
+    return pid, token, csrf
+
+
+def test_comprobante_rejects_post_without_csrf_cookie(client, session_factory) -> None:
+    """POST without a CSRF cookie → 403 (middleware blocks)."""
+    from starlette.testclient import TestClient
+    from app.rms.main import app
+
+    with session_factory() as s:
+        pid = _make_pedido(s, payment_intent="qr")
+        from app.rms.models import Pedido
+        token = s.execute(
+            __import__("sqlalchemy").select(Pedido.public_token).where(Pedido.id == pid)
+        ).scalar_one()
+
+    # Fresh client (no cookie jar)
+    fresh = TestClient(app, raise_server_exceptions=False)
+    r = fresh.post(
+        f"/p/{token}/comprobante",
+        files={"file": ("x.jpg", io.BytesIO(b"x"), "image/jpeg")},
+        data={"_csrf_token": "doesnt_matter"},
+    )
+    assert r.status_code == 403, f"Expected 403 without cookie, got {r.status_code}"
+
+
+def test_comprobante_rejects_post_with_mismatched_csrf_form_field(client, session_factory) -> None:
+    """POST with valid cookie but WRONG _csrf_token form field → 403.
+
+    The verify_form_csrf dependency compares the signed payloads, not
+    raw nonces. A wrong token fails the signature check.
+    """
+    from starlette.testclient import TestClient
+    from app.rms.main import app
+
+    with session_factory() as s:
+        pid = _make_pedido(s, payment_intent="qr")
+        from app.rms.models import Pedido
+        token = s.execute(
+            __import__("sqlalchemy").select(Pedido.public_token).where(Pedido.id == pid)
+        ).scalar_one()
+
+    fresh = TestClient(app, raise_server_exceptions=False)
+    fresh.get("/")  # prime cookie
+    csrf = fresh.cookies.get("csrf_token")
+    assert csrf
+
+    r = fresh.post(
+        f"/p/{token}/comprobante",
+        files={"file": ("x.jpg", io.BytesIO(b"x"), "image/jpeg")},
+        data={"_csrf_token": csrf + "tampered"},
+    )
+    assert r.status_code == 403, f"Expected 403 with tampered token, got {r.status_code}"
+
+
+def test_comprobante_rejects_post_missing_csrf_form_field(client, session_factory) -> None:
+    """POST with valid cookie but NO _csrf_token field → 403.
+
+    The verify_form_csrf dependency requires the form field explicitly.
+    """
+    from starlette.testclient import TestClient
+    from app.rms.main import app
+
+    with session_factory() as s:
+        pid = _make_pedido(s, payment_intent="qr")
+        from app.rms.models import Pedido
+        token = s.execute(
+            __import__("sqlalchemy").select(Pedido.public_token).where(Pedido.id == pid)
+        ).scalar_one()
+
+    fresh = TestClient(app, raise_server_exceptions=False)
+    fresh.get("/")  # prime cookie
+    assert fresh.cookies.get("csrf_token")
+
+    r = fresh.post(
+        f"/p/{token}/comprobante",
+        files={"file": ("x.jpg", io.BytesIO(b"x"), "image/jpeg")},
+        # intentionally NO data= kwarg
+    )
+    assert r.status_code == 403, f"Expected 403 with no _csrf_token field, got {r.status_code}"
+
+
+def test_comprobante_accepts_post_with_matching_csrf_form_field(client, session_factory) -> None:
+    """POST with valid cookie AND matching _csrf_token → 200 (happy path)."""
+    from starlette.testclient import TestClient
+    from app.rms.main import app
+
+    with session_factory() as s:
+        pid = _make_pedido(s, payment_intent="qr")
+        from app.rms.models import Pedido
+        token = s.execute(
+            __import__("sqlalchemy").select(Pedido.public_token).where(Pedido.id == pid)
+        ).scalar_one()
+
+    fresh = TestClient(app, raise_server_exceptions=False)
+    fresh.get("/")
+    csrf = fresh.cookies.get("csrf_token")
+    assert csrf
+
+    fake = b"valid jpg bytes"
+    r = fresh.post(
+        f"/p/{token}/comprobante",
+        files={"file": ("comprobante.jpg", io.BytesIO(fake), "image/jpeg")},
+        data={"_csrf_token": csrf},
+    )
+    assert r.status_code == 200, f"Expected 200 with valid CSRF, got {r.status_code}: {r.text[:300]}"
+    assert "Comprobante recibido" in r.text
+
+    # Cleanup
+    from app.rms.config import DATA_DIR
+    from app.rms.models import Pedido
+    with session_factory() as s:
+        path = s.get(Pedido, pid).payment_receipt_path
+    if path:
+        (DATA_DIR / path).unlink(missing_ok=True)
+
+
+def test_pedido_publico_form_includes_csrf_field(client, session_factory) -> None:
+    """The /p/{token} page MUST render the _csrf_token hidden input.
+
+    Belt-and-braces: even though verify_form_csrf is enforced server-side,
+    verify the template actually emits the field so a non-JS user can
+    submit a valid form.
+    """
+    with session_factory() as s:
+        pid = _make_pedido(s, payment_intent="qr")
+        from app.rms.models import Pedido
+        token = s.execute(
+            __import__("sqlalchemy").select(Pedido.public_token).where(Pedido.id == pid)
+        ).scalar_one()
+
+    r = client.get(f"/p/{token}")
+    assert r.status_code == 200
+    assert 'name="_csrf_token"' in r.text, (
+        "pedido_publico.html must include hidden _csrf_token field on every "
+        "upload form (P0-1 fix). Without it, the verify_form_csrf dependency "
+        "rejects all uploads with 403."
+    )
+    # The value attribute should also be populated with a token from the cookie
+    assert 'value="' in r.text

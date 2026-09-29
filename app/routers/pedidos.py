@@ -34,6 +34,7 @@ from app.auth import require_login_or_disabled as require_login
 from app.rms.audit import record as audit_record
 from app.rms.config import ASUNCION_TZ
 from app.rms.costing import apply_sale
+from app.rms.csrf import verify_form_csrf
 from app.rms.db import safe_commit
 from app.rms.dependencies import get_session
 from app.rms.models import Customer, Pedido, PedidoLine, Product, Recipe, Sale
@@ -819,6 +820,7 @@ async def pedido_publico_comprobante(
     request: Request,
     token: str,
     file: UploadFile = File(...),
+    _csrf_check: None = Depends(verify_form_csrf),
 ) -> HTMLResponse:
     """Receive a payment receipt uploaded from /p/{token}.
 

@@ -92,8 +92,8 @@ def test_full_journey_validate_import_lands_idempotent(client, session_factory):
     with session_factory() as s:
         from app.rms.models import AuditLog
 
-        n = s.query(AuditLog).filter_by(action="excel.import").count()
-        assert n == 2, f"expected 2 excel.import audit rows, got {n}"
+        n = s.query(AuditLog).filter_by(action="write.excel.import").count()
+        assert n == 2, f"expected 2 write.excel.import audit rows, got {n}"
 
 
 def test_validation_catches_bad_rows_before_db(client, session_factory):

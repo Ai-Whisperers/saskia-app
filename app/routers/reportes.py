@@ -289,17 +289,19 @@ def libro_ventas_set_pdf(
     Format: A4 book/ledger with chronological entries, totals per page,
     and a summary footer. This is the format required for tax filing.
     """
-    from reportlab.lib import colors
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-    from reportlab.lib.units import cm
-    from reportlab.platypus import (
-        Paragraph,
-        SimpleDocTemplate,
-        Spacer,
-        Table,
-        TableStyle,
-    )
+    from app.services.pdf_reportlab import import_reportlab
+
+    rl = import_reportlab()
+    colors = rl["colors"]
+    A4 = rl["A4"]
+    ParagraphStyle = rl["ParagraphStyle"]
+    getSampleStyleSheet = rl["getSampleStyleSheet"]
+    cm = rl["cm"]
+    Paragraph = rl["Paragraph"]
+    SimpleDocTemplate = rl["SimpleDocTemplate"]
+    Spacer = rl["Spacer"]
+    Table = rl["Table"]
+    TableStyle = rl["TableStyle"]
 
     if start:
         start_date = datetime.fromisoformat(start)
@@ -853,11 +855,19 @@ def reportes_diario_pdf(
     session: Session = Depends(get_session),
 ) -> Response:
     """PDF export of the daily summary."""
-    from reportlab.lib import colors
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-    from reportlab.lib.units import cm
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from app.services.pdf_reportlab import import_reportlab
+
+    rl = import_reportlab()
+    colors = rl["colors"]
+    A4 = rl["A4"]
+    ParagraphStyle = rl["ParagraphStyle"]
+    getSampleStyleSheet = rl["getSampleStyleSheet"]
+    cm = rl["cm"]
+    Paragraph = rl["Paragraph"]
+    SimpleDocTemplate = rl["SimpleDocTemplate"]
+    Spacer = rl["Spacer"]
+    Table = rl["Table"]
+    TableStyle = rl["TableStyle"]
 
     if for_date:
         d = datetime.fromisoformat(for_date)
@@ -908,11 +918,19 @@ def reportes_iva_pdf(
     session: Session = Depends(get_session),
 ) -> Response:
     """PDF export of the IVA report."""
-    from reportlab.lib import colors
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-    from reportlab.lib.units import cm
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from app.services.pdf_reportlab import import_reportlab
+
+    rl = import_reportlab()
+    colors = rl["colors"]
+    A4 = rl["A4"]
+    ParagraphStyle = rl["ParagraphStyle"]
+    getSampleStyleSheet = rl["getSampleStyleSheet"]
+    cm = rl["cm"]
+    Paragraph = rl["Paragraph"]
+    SimpleDocTemplate = rl["SimpleDocTemplate"]
+    Spacer = rl["Spacer"]
+    Table = rl["Table"]
+    TableStyle = rl["TableStyle"]
 
     rows = monthly_iva_breakdown(session)
     current_year = datetime.now(timezone.utc).year

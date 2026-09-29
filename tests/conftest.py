@@ -291,6 +291,40 @@ def client(session_factory, monkeypatch):
                 c.cookies.set("csrf_token", generate_csrf_token())
         except Exception:
             pass
+
+        # Wrap POST so the X-CSRF-Token header is auto-injected to match
+        # the cookie (for JS-driven endpoints), AND the _csrf_token form
+        # field is added to form data when data is a dict (for endpoints
+        # that use verify_form_csrf dependency, like file uploads).
+        #
+        # Tests that explicitly want to verify rejection can use the
+        # ``_orig_post`` reference (or call c.post.__wrapped__).
+        _orig_post = c.post
+
+        def _post_with_csrf(url, **kw):
+            csrf_cookie = c.cookies.get("csrf_token")
+            if not csrf_cookie:
+                return _orig_post(url, **kw)
+
+            # 1. Header for middleware cookie+header check
+            headers = kw.get("headers") or {}
+            if "X-CSRF-Token" not in headers and "X-CSRFToken" not in headers:
+                kw["headers"] = {**headers, "X-CSRF-Token": csrf_cookie}
+
+            # 2. Form field for verify_form_csrf dependency
+            data = kw.get("data")
+            files = kw.get("files")
+            if isinstance(data, dict) and "_csrf_token" not in data:
+                kw["data"] = {**data, "_csrf_token": csrf_cookie}
+            elif data is None and files is not None:
+                # multipart with files but no data dict — Starlette accepts
+                # data alongside files. Add the form field.
+                kw["data"] = {"_csrf_token": csrf_cookie}
+
+            return _orig_post(url, **kw)
+
+        c.post = _post_with_csrf
+
         yield c
 
 

@@ -61,6 +61,52 @@ def verify_csrf_token(token: str | None) -> bool:
         return False
 
 
+async def verify_form_csrf(request: Request) -> None:
+    """FastAPI dependency: verify form-field CSRF for endpoints without JS.
+
+    Use this on routes that accept form POSTs from regular browser submits
+    (no JS available to set X-CSRF-Token header). The middleware can't
+    read the request body (would consume multipart streams before the
+    route's File(...) dependency reads them), so the form-field check
+    must run AFTER FastAPI has parsed the body.
+
+    The form MUST include a hidden input ``_csrf_token`` whose signed
+    value matches the cookie's signed value. Raises 403 on mismatch.
+    """
+    cookie_token = request.cookies.get(_CSRF_COOKIE, "")
+    if not cookie_token or not verify_csrf_token(cookie_token):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="missing_or_invalid_csrf_token",
+        )
+    try:
+        form = await request.form()
+    except Exception:  # noqa: BLE001 — defensive: malformed body
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="csrf_form_unreadable",
+        )
+    form_token = form.get("_csrf_token") or form.get("csrf_token")
+    if not form_token or not isinstance(form_token, str):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="missing_or_invalid_csrf_token",
+        )
+    try:
+        cookie_payload = _serializer.loads(cookie_token)
+        form_payload = _serializer.loads(form_token)
+    except BadSignature:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="missing_or_invalid_csrf_token",
+        )
+    if not secrets.compare_digest(cookie_payload, form_payload):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="missing_or_invalid_csrf_token",
+        )
+
+
 async def csrf_cookie_middleware(request: Request, call_next: object) -> Response:
     """Set the csrf cookie on GET responses; verify it on POST/PUT/DELETE.
 
@@ -76,19 +122,51 @@ async def csrf_cookie_middleware(request: Request, call_next: object) -> Respons
     )
 
     if not is_exempt and method in ("POST", "PUT", "DELETE", "PATCH"):
-        # Verify a token was submitted in the form.
-        # Using content-type=application/x-www-form-urlencoded, the body
-        # is parsed by FastAPI's form machinery — but at this middleware
-        # point we don't have parsed form data. So check the cookie itself
-        # as a sanity: the request must carry the cookie matching what
-        # we'll check on the server side. The real defense is SameSite=lax
-        # preventing cross-site form POSTs from carrying the cookie.
+        # Defense in depth:
+        #   1. The request must carry a valid signed cookie (cookie-only
+        #      check, sufficient when combined with SameSite=lax on the
+        #      cookie)
+        #   2. If an X-CSRF-Token header is present (typical for JS-driven
+        #      fetch calls), its signed value must match the cookie's
+        #      signed value (true double-submit). The browser refuses to
+        #      let a cross-origin form POST set custom headers without
+        #      CORS, so an attacker on evil.com can't forge X-CSRF-Token.
+        #
+        # We deliberately do NOT read the request body here. Reading the
+        # multipart body in middleware would consume the stream before
+        # the route's File(...) dependency gets to read it, breaking file
+        # uploads. The form-field CSRF check is implemented in the route
+        # dependencies (verify_form_csrf) for endpoints that need it.
         cookie_token = request.cookies.get(_CSRF_COOKIE, "")
         if not cookie_token or not verify_csrf_token(cookie_token):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="missing_or_invalid_csrf_token",
             )
+
+        # Header can be sent as X-CSRF-Token (preferred) or the legacy
+        # X-CSRFToken (kept for backwards-compat with any existing JS).
+        # If the header is absent (regular form POST), skip the header
+        # comparison — the route's verify_form_csrf dependency handles
+        # the form-field check after the body is parsed.
+        header_token = (
+            request.headers.get("X-CSRF-Token")
+            or request.headers.get("X-CSRFToken")
+        )
+        if header_token:
+            try:
+                cookie_payload = _serializer.loads(cookie_token)
+                header_payload = _serializer.loads(header_token)
+            except BadSignature:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="missing_or_invalid_csrf_token",
+                )
+            if not secrets.compare_digest(cookie_payload, header_payload):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="missing_or_invalid_csrf_token",
+                )
 
     response: Response = await call_next(request)
 
@@ -130,4 +208,5 @@ __all__ = [
     "csrf_form_input",
     "generate_csrf_token",
     "verify_csrf_token",
+    "verify_form_csrf",
 ]
