@@ -2,225 +2,248 @@
 {% import "_components/atoms.html" as ui %}
 {% import "_components/macros.html" as m %}
 
-{% block title %}Pedidos
-<script>
-(function () {
-  var tabs = document.querySelectorAll('.pedidos-tab');
-  if (!tabs.length) return;
-  var groups = document.querySelectorAll('.pedidos-group');
-  // hide all but the first group on load
-  var first = true;
-  groups.forEach(function (g) { g.style.display = first ? '' : 'none'; first = false; });
-  tabs.forEach(function (t) {
-    t.addEventListener('click', function () {
-      tabs.forEach(function (o) { o.classList.remove('btn-primary'); o.setAttribute('aria-selected', 'false'); });
-      t.classList.add('btn-primary'); t.setAttribute('aria-selected', 'true');
-      groups.forEach(function (g) {
-        g.style.display = (g.dataset.group === t.dataset.tab) ? '' : 'none';
-      });
-    });
-  });
-})();
-</script>
-
-{% endblock %}
+{% block title %}Pedidos · Saskia RMS{% endblock %}
 
 {% block content %}
-<h1>
-  <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
-  Pedidos
-</h1>
-<p class="hint">
-  Pedidos pre-cargados para pickup. La mayoría entran por WhatsApp el día anterior o la mañana.
-  Los grupos son <strong>Hoy/Mañana</strong>, <strong>Esta semana</strong> y <strong>Pendientes viejos</strong>
-  (status <code>pending</code> con fecha pasada — flag para hacer follow-up).
-</p>
-
-<div class="card mb-4">
-  <a href="/pedidos/nuevo" class="btn btn-primary">
+{# ─────────────────────────────────────────────────────────────────────
+   PAGE ROOF — title + primary action.
+   The `+ Nuevo pedido` button is anchored here, NOT in a filter card,
+   so its operational priority is unmistakable to a cashier.
+   ───────────────────────────────────────────────────────────────────── #}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); flex-wrap: wrap; gap: var(--space-3);">
+  <div>
+    <h1 style="display: flex; align-items: center; gap: var(--space-2); margin: 0;">
+      <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
+      Pedidos
+    </h1>
+    <p class="hint" style="margin: var(--space-1) 0 0 0;">
+      Pedidos pre-cargados para pickup. La mayoría entran por WhatsApp — flag para hacer follow-up.
+    </p>
+  </div>
+  <a href="/pedidos/nuevo" class="btn btn-primary"
+     aria-label="Cargar un nuevo pedido">
     <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
     Nuevo pedido
   </a>
-  <span class="text-muted" style="margin-left: var(--space-3); font-size: var(--text-xs);">
-    Hoy es <strong>{{ today_human }}</strong>
-  </span>
-  <nav class="status-filter" aria-label="Filtrar por estado" style="display: inline-flex; gap: var(--space-1); margin-left: var(--space-4); padding: 2px; background: var(--color-surface-subtle); border-radius: var(--radius);">
-    {% set opts = [
-        ("pendientes", "Pendientes"),
-        ("terminados", "Terminados"),
-        ("todos", "Todos"),
-      ] %}
-    {% for value, label in opts %}
-    <a href="/pedidos?status_filter={{ value }}&search={{ search }}"
-       class="btn btn-sm {% if status_filter == value %}btn-primary{% else %}btn-ghost{% endif %}"
-       {% if status_filter == value %}aria-current="page"{% endif %}>{{ label }}</a>
-    {% endfor %}
-  </nav>
 </div>
 
-{# Search + export bar #}
-<div class="card mb-4" style="display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap;">
-  <form method="get" action="/pedidos" style="display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap;">
+{# ─────────────────────────────────────────────────────────────────────
+   UNIFIED FILTER RAIL — one cohesive sticky card, not three.
+   Search + state segmented tabs + period chips + CSV export all share
+   one row, saving ~200px of vertical real estate and unifying the
+   mental model: "this is the lens through which I'm viewing pedidos".
+   ───────────────────────────────────────────────────────────────────── #}
+<div class="card pedidos-filter-bar"
+     style="display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; position: sticky; top: 0; z-index: 10; background: var(--color-surface); margin-bottom: var(--space-4);">
+  <form method="get" action="/pedidos"
+        style="display: flex; gap: var(--space-2); align-items: center; flex-grow: 1; min-width: 220px;"
+        role="search"
+        aria-label="Buscar pedidos">
     <input type="hidden" name="status_filter" value="{{ status_filter }}">
-    <input type="text" id="search-pedidos" name="search" value="{{ search }}"
+    <input type="search"
+           id="pedidos-search"
+           name="search"
+           value="{{ search }}"
            placeholder="Buscar por nombre o teléfono…"
-           aria-label="Buscar pedidos"
-           style="padding: .3rem .6rem; border: 1px solid var(--color-border); border-radius: var(--radius); min-width: 200px;">
+           aria-label="Buscar por nombre o teléfono"
+           style="padding: .4rem .6rem; border: 1px solid var(--color-border); border-radius: var(--radius); min-width: 220px; flex-grow: 1;">
     <button type="submit" class="btn btn-sm">Buscar</button>
     {% if search %}
-    <a href="/pedidos?status_filter={{ status_filter }}" class="btn btn-sm btn-ghost">✕</a>
+    <a href="/pedidos?status_filter={{ status_filter }}"
+       class="btn btn-sm btn-ghost"
+       aria-label="Limpiar búsqueda">✕</a>
     {% endif %}
   </form>
+
+  {# State segmented tabs — Pendientes / Terminados / Todos #}
+  <nav class="status-filter"
+       aria-label="Filtrar por estado"
+       style="display: inline-flex; gap: 2px; padding: 2px; background: var(--color-surface-subtle); border-radius: var(--radius);">
+    {% set state_opts = [
+        ("pendientes", "Pendientes"),
+        ("terminados", "Terminados"),
+        ("todos",       "Todos"),
+      ] %}
+    {% for value, label in state_opts %}
+    <a href="/pedidos?status_filter={{ value }}&search={{ search }}"
+       class="btn btn-sm {% if status_filter == value %}btn-primary{% else %}btn-ghost{% endif %}"
+       role="tab"
+       aria-selected="{{ 'true' if status_filter == value else 'false' }}"
+       data-state="{{ value }}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+
+  {# Period chips — Hoy / Mañana · Esta semana · Viejos (replaces the 3 split cards) #}
+  <div class="period-chips"
+       role="group"
+       aria-label="Filtrar por período"
+       style="display: inline-flex; gap: var(--space-2);">
+    {% set period_opts = [
+        ("all",    "Todos",        "neutral"),
+        ("hoy_manana",          "Hoy / Mañana",  "danger"),
+        ("esta_semana",         "Esta semana",   "info"),
+        ("pendientes_viejos",   "Pendientes viejos", "warn"),
+      ] %}
+    {% for value, label, severity in period_opts %}
+    <button type="button"
+            class="btn btn-sm period-chip"
+            data-period="{{ value }}"
+            aria-pressed="{{ 'true' if value == 'all' else 'false' }}">
+      {{ label }}
+      <span class="badge badge-{{ severity }}" style="margin-left: var(--space-1);">
+        {{ groups[value]|length if value in groups else total_pedidos }}
+      </span>
+    </button>
+    {% endfor %}
+  </div>
+
   <a href="/pedidos/export-csv?status_filter={{ status_filter }}&search={{ search }}"
-     class="btn btn-sm btn-ghost" style="margin-left: auto;">
+     class="btn btn-sm btn-ghost"
+     aria-label="Exportar pedidos a CSV"
+     style="margin-left: auto;">
     <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
-    CSV
+    Exportar CSV
   </a>
 </div>
 
-{% set groups_ordered = [
-  ("hoy_manana", "Hoy / Mañana", "danger"),
-  ("esta_semana", "Esta semana", "info"),
-  ("pendientes_viejos", "Pendientes viejos", "warn"),
-] %}
+{# ─────────────────────────────────────────────────────────────────────
+   MASTER DATA TABLE — single card, single table, single empty state.
+   Rows carry `data-period=` so the period chips filter client-side
+   without a server round-trip. The bulk-action toolbar below is shown
+   only when at least one pedido checkbox is ticked.
+   ───────────────────────────────────────────────────────────────────── #}
+{{ ui.flash_toast(request) }}
 
 {% set total_pedidos = groups["hoy_manana"]|length + groups["esta_semana"]|length + groups["pendientes_viejos"]|length %}
-{% if total_pedidos %}
-<div class="pedidos-tabs" role="tablist" style="display:flex;gap:.5rem;margin-bottom:var(--space-4);flex-wrap:wrap;">
-  {% for key, label, severity in groups_ordered %}
-  <button type="button" role="tab" data-tab="{{ key }}" aria-selected="{{ 'true' if loop.first else 'false' }}"
-          class="btn pedidos-tab {{ 'btn-primary' if loop.first else '' }}"
-          style="border-radius:var(--radius-pill);">
-    {{ label }} <span class="badge badge-{{ severity }}">{{ groups[key]|length }}</span>
-  </button>
-  {% endfor %}
-</div>
-{% endif %}
-{% for key, label, severity in groups_ordered %}
-<section class="card mb-4 pedidos-group" id="grupo-{{ key }}" data-group="{{ key }}" aria-label="{{ label }}">
-  <h2 style="display: flex; align-items: center; gap: var(--space-2);">
-    <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
-    {{ label }}
-    <span class="badge badge-{{ severity }}" style="margin-left: auto;">
-      {{ groups[key] | length }}
+
+<div class="card" style="margin-bottom: var(--space-4);">
+  <div style="display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3);">
+    <h2 style="margin: 0; display: flex; align-items: center; gap: var(--space-2);">
+      <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
+      Todos los pedidos
+    </h2>
+    <span class="text-muted" style="font-size: var(--text-sm);">
+      · {{ total_pedidos }} {{ 'pedido' if total_pedidos == 1 else 'pedidos' }}
     </span>
-  </h2>
+  </div>
 
-  {{ ui.flash_toast(request) }}
-
-  {% if groups[key] %}
-  {% set has_pending = groups[key] | selectattr('status', 'equalto', 'pending') | list %}
-  {% if has_pending %}
-  <div id="bulk-pedidos-actions-{{ key }}" style="display:none;margin-bottom:.5rem;padding:.5rem .75rem;background:var(--color-surface-raised);border-radius:var(--card-radius);border:1px solid var(--color-border);display:flex;gap:var(--space-3);align-items:center;flex-wrap:wrap;">
-    <span style="font-size:var(--text-sm);"><span id="selected-count-{{ key }}">0</span> seleccionado(s)</span>
-    <form method="post" action="/pedidos/bulk-fulfill" style="display:inline;">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <input type="hidden" name="ids" id="bulk-ids-{{ key }}">
-      <button type="submit" class="btn btn-sm btn-primary">✓ Marcar completado(s)</button>
+  {% if total_pedidos %}
+  {# Bulk-action toolbar — hidden until a checkbox is ticked #}
+  <div id="bulk-pedidos-actions"
+       style="display:none; margin-bottom: var(--space-3); padding: var(--space-2) var(--space-3); background: var(--color-surface-raised); border-radius: var(--radius); border: 1px solid var(--color-border); display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap;">
+    <span style="font-size: var(--text-sm);"><span id="selected-count">0</span> seleccionado(s)</span>
+    <form method="post" action="/pedidos/bulk-fulfill" style="display: inline;">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="ids" id="bulk-ids">
+      <button type="submit" class="btn btn-sm btn-primary">✓ Cumplir</button>
     </form>
-    <form method="post" action="/pedidos/bulk-cancel" style="display:inline;"
-          class="js-confirm-form" data-confirm-title="¿Cancelar pedidos?" data-confirm-body="Los pedidos seleccionados se marcarán como cancelados." data-confirm-danger="true">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <input type="hidden" name="ids" id="bulk-cancel-ids-{{ key }}">
+    <form method="post" action="/pedidos/bulk-cancel" style="display: inline;"
+          class="js-confirm-form"
+          data-confirm-title="¿Cancelar pedidos?"
+          data-confirm-body="Los pedidos seleccionados se marcarán como cancelados."
+          data-confirm-danger="true">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="ids" id="bulk-cancel-ids">
       <button type="submit" class="btn btn-sm btn-ghost">✕ Cancelar</button>
     </form>
+    <a href="#" id="bulk-link" class="btn btn-sm btn-ghost">🔗 Enlace</a>
   </div>
-  {% endif %}
 
-  <div class="table-sticky-wrap" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);">
-{{ ui.skeleton_section(id="pedidos-table", variant="line", count=12, label="Cargando pedidos") }}
-<div data-loaded-section="pedidos-table">
-<table class="table is-hoverable is-striped" style="margin-bottom:0;">
-    <thead>
-      <tr>
-        {% if has_pending %}
-        <th style="width:2rem;"><input type="checkbox" id="select-all-{{ key }}" aria-label="Seleccionar todos"></th>
-        {% endif %}
-        <th>Cliente</th>
-        <th>Fecha / hora</th>
-        <th>Canales</th>
-        <th class="num">Líneas</th>
-        <th class="num">Total Gs.</th>
-        <th>Estado</th>
-        <th>Edad</th>
-        <th class="actions"></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for p in groups[key] %}
-      <tr>
-        {% if p.status == 'pending' %}
-        <td style="width:2rem;"><input type="checkbox" name="pedido_ids" value="{{ p.id }}" data-group="{{ key }}" class="pedido-check"></td>
-        {% endif %}
-        <td data-copy="{{ p.id }}">
-          <strong>{{ p.customer_name }}</strong>
-          {% if p.customer_phone %}<br><small class="text-muted">{{ p.customer_phone }}</small>{% endif %}
-          {% if p.spend_30d_gs and p.spend_30d_gs > 0 %}
-          <br><small class="text-muted" title="Compras últimos 30 días">últ. 30d: {{ m.gs(p.spend_30d_gs) }}</small>
-          {% endif %}
-        </td>
-        <td>
-          {{ p.promised_date.strftime("%d/%m") }}
-          {% if p.promised_time %}<br><small class="text-muted">{{ p.promised_time }}</small>{% endif %}
-        </td>
-        <td>
-          <span class="badge badge-neutral">{{ p.channel }}</span>
-        </td>
-        <td class="num">{{ p.n_lines }}</td>
-        <td class="num">{{ m.gs(p.total_gs) }}</td>
-        <td>
-          {% if p.status == "pending" %}
-            {{ ui.status_pill("Pendiente", sev="warn") }}
-          {% elif p.status == "confirmed" %}
-            {{ ui.status_pill("Confirmado", sev="info") }}
-          {% elif p.status == "ready" %}
-            {{ ui.status_pill("Listo", sev="ok") }}
-          {% elif p.status == "fulfilled" %}
-            <span class="badge badge-good">Entregado</span>
-          {% elif p.status == "cancelled" %}
-            {{ ui.status_pill("Cancelado", sev="neutral") }}
-          {% endif %}
-        </td>
-        <td>
-          {% if p.age_days == 0 %}
-            <small class="text-muted">hoy</small>
-          {% elif p.age_days == 1 %}
-            <small class="text-muted">mañana</small>
-          {% elif p.age_days > 1 %}
-            <small class="text-muted">+{{ p.age_days }}d</small>
-          {% elif p.age_days < 0 %}
-            <span class="badge badge-danger">¡{{ -p.age_days }}d atrasado!</span>
-          {% endif %}
-        </td>
-        <td class="actions">
-          <a href="/pedidos/{{ p.id }}" class="btn btn-sm">Ver</a>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-</div>
-  </table>
-</div>
+  <div class="table-sticky-wrap"
+       style="max-height: 70vh; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius);">
+    <table class="table is-hoverable is-striped" style="margin-bottom: 0;">
+      <thead>
+        <tr>
+          <th style="width: 2rem;"><input type="checkbox" id="select-all" aria-label="Seleccionar todos"></th>
+          <th>Estado</th>
+          <th>Cliente</th>
+          <th>Fecha prometida</th>
+          <th>Canal</th>
+          <th>Pago</th>
+          <th class="num">Líneas</th>
+          <th class="num">Total</th>
+          <th class="actions">Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="pedidos-tbody">
+        {# Render rows from all three groups; tag each with its period so
+           the period chips can show/hide client-side. We render in the
+           urgency order: Hoy/Mañana → Esta semana → Viejos. #}
+        {% for key in ["hoy_manana", "esta_semana", "pendientes_viejos"] %}
+          {% for p in groups[key] %}
+        <tr data-period="{{ key }}" data-status="{{ p.status }}" data-id="{{ p.id }}">
+          <td style="width: 2rem;">
+            {% if p.status == 'pending' %}
+            <input type="checkbox" name="pedido_ids" value="{{ p.id }}" class="pedido-check" aria-label="Seleccionar pedido {{ p.customer_name }}">
+            {% endif %}
+          </td>
+          <td>
+            {% if p.status == "pending" %}
+              {{ ui.status_pill("Pendiente",   sev="warn") }}
+            {% elif p.status == "confirmed" %}
+              {{ ui.status_pill("Confirmado",  sev="info") }}
+            {% elif p.status == "ready" %}
+              {{ ui.status_pill("Listo",       sev="ok") }}
+            {% elif p.status == "fulfilled" %}
+              <span class="badge badge-good">Entregado</span>
+            {% elif p.status == "cancelled" %}
+              {{ ui.status_pill("Cancelado",   sev="neutral") }}
+            {% endif %}
+          </td>
+          <td data-copy="{{ p.id }}">
+            <strong>{{ p.customer_name }}</strong>
+            {% if p.customer_phone %}<br><small class="text-muted">{{ p.customer_phone }}</small>{% endif %}
+            {% if p.spend_30d_gs and p.spend_30d_gs > 0 %}
+            <br><small class="text-muted" title="Compras últimos 30 días">últ. 30d: {{ m.gs(p.spend_30d_gs) }}</small>
+            {% endif %}
+          </td>
+          <td>
+            <strong>{{ p.promised_date.strftime("%d/%m") }}</strong>
+            {% if p.promised_time %}<br><small class="text-muted">{{ p.promised_time }}</small>{% endif %}
+            {% if p.age_days is defined and p.age_days > 0 %}
+            <br><span class="badge badge-danger" title="atrasado">Atrasado {{ p.age_days }}d</span>
+            {% elif p.age_days is defined and p.age_days == 0 %}
+            <br><span class="badge badge-warn">Hoy</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge badge-neutral">{{ p.channel }}</span>
+          </td>
+          <td><small class="text-muted">{{ p.payment_method or '—' }}</small></td>
+          <td class="num">{{ p.n_lines }}</td>
+          <td class="num"><strong>{{ m.gs(p.total_gs) }}</strong></td>
+          <td class="actions">
+            <a href="/pedidos/{{ p.id }}" class="btn btn-sm">Ver</a>
+            <a href="/pedidos/{{ p.id }}/fulfill" class="btn btn-sm btn-primary js-confirm"
+               data-confirm-title="¿Cumplir pedido?" data-confirm-body="Marcá este pedido como entregado.">Cumplir</a>
+            <a href="/pedidos/{{ p.id }}/cancel" class="btn btn-sm btn-ghost js-confirm"
+               data-confirm-title="¿Cancelar pedido?" data-confirm-body="Esta acción no se puede deshacer."
+               data-confirm-danger="true">Cancelar</a>
+            <a href="/pedidos/{{ p.id }}/compartir" class="btn btn-sm btn-ghost"
+               title="Compartir enlace público">🔗</a>
+          </td>
+        </tr>
+          {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
   {% if pagination.total_count > 0 %}
-  <div class="table-info">
+  <div class="table-info" style="margin-top: var(--space-2);">
     <span>Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ pagination.total_count }}</strong> pedidos</span>
   </div>
   {% endif %}
-{% else %}
-  {% if key == "hoy_manana" %}{% set _msg = "No hay pedidos para hoy ni mañana. Cargá uno cuando entre por WhatsApp." %}
-  {% elif key == "esta_semana" %}{% set _msg = "Sin pedidos para los próximos 7 días." %}
-  {% else %}{% set _msg = "Nada pendiente atrasado. ¡Bien!" %}
-  {% endif %}
+  {% else %}
   {{ ui.empty_state(
-    title="Sin pedidos en este segmento",
-    icon="icon-pedido",
-    hint=_msg,
-    count_of=0,
-    total_label='pedidos en este segmento'
-  ) }}
-{% endif %}
-</section>
-{% endfor %}
+      title="No hay pedidos pendientes",
+      icon="icon-box",
+      hint="No encontramos pedidos para Hoy / Mañana, Esta semana, ni Viejos. Cargá uno nuevo cuando entre por WhatsApp.",
+      count_of=0,
+      total_label='pedidos en este segmento'
+    ) }}
+  {% endif %}
+</div>
 
 {# Pagination #}
 {% if pagination and pagination.total_pages > 1 %}
@@ -230,9 +253,7 @@
   {% endif %}
   {% for p in pagination.pages %}
   <a href="/pedidos?status_filter={{ status_filter }}&search={{ search }}&page={{ p }}"
-     class="btn btn-sm {% if p == pagination.page %}btn-primary{% else %}btn-ghost{% endif %}">
-    {{ p }}
-  </a>
+     class="btn btn-sm {% if p == pagination.page %}btn-primary{% else %}btn-ghost{% endif %}">{{ p }}</a>
   {% endfor %}
   {% if pagination.has_next %}
   <a href="{{ pagination.next_url }}" class="btn btn-sm">Siguiente →</a>
@@ -243,58 +264,60 @@
 </div>
 {% endif %}
 
+{# ─────────────────────────────────────────────────────────────────────
+   Client-side period chip filter + bulk-action counter.
+   No server round-trip; period chips show/hide rows by `data-period=`
+   attribute. The "Todos" chip resets to show every row.
+   ───────────────────────────────────────────────────────────────────── #}
 <script>
 (function () {
-  document.querySelectorAll('.pedido-check').forEach(function (check) {
-    check.addEventListener('change', updateBulk);
-  });
-  document.querySelectorAll('[id^="select-all-"]').forEach(function (selAll) {
-    selAll.addEventListener('change', function () {
-      var key = this.id.replace('select-all-', '');
-      var checks = document.querySelectorAll('input.pedido-check[data-group="' + key + '"]');
-      checks.forEach(function (c) { c.checked = selAll.checked; });
-      updateBulk();
+  var chips = document.querySelectorAll('.period-chip');
+  var rows  = document.querySelectorAll('#pedidos-tbody tr[data-period]');
+  if (!chips.length || !rows.length) return;
+
+  // Filter rows by period when a chip is clicked.
+  function applyPeriod(period) {
+    rows.forEach(function (r) {
+      r.style.display = (period === 'all' || r.dataset.period === period) ? '' : 'none';
+    });
+  }
+
+  chips.forEach(function (c) {
+    c.addEventListener('click', function () {
+      chips.forEach(function (o) { o.classList.remove('btn-primary'); o.setAttribute('aria-pressed', 'false'); });
+      c.classList.add('btn-primary');
+      c.setAttribute('aria-pressed', 'true');
+      applyPeriod(c.dataset.period);
     });
   });
+
+  // Bulk-action checkbox counter
+  var checks   = document.querySelectorAll('.pedido-check');
+  var bulkDiv  = document.getElementById('bulk-pedidos-actions');
+  var countEl  = document.getElementById('selected-count');
+  var idsInput = document.getElementById('bulk-ids');
+  var cancelIdsInput = document.getElementById('bulk-cancel-ids');
+  var selectAll = document.getElementById('select-all');
+
   function updateBulk() {
-    document.querySelectorAll('[id^="bulk-pedidos-actions-"]').forEach(function (div) {
-      var key = div.id.replace('bulk-pedidos-actions-', '');
-      var checks = document.querySelectorAll('input.pedido-check[data-group="' + key + '"]:checked');
-      var count = checks ? checks.length : 0;
-      div.style.display = count > 0 ? 'flex' : 'none';
-      var countEl = document.getElementById('selected-count-' + key);
-      if (countEl) countEl.textContent = count;
-      var ids = [];
-      checks.forEach(function (c) { ids.push(c.value); });
-      var idsInput = document.getElementById('bulk-ids-' + key);
-      if (idsInput) idsInput.value = ids.join(',');
-      var cancelIdsInput = document.getElementById('bulk-cancel-ids-' + key);
-      if (cancelIdsInput) cancelIdsInput.value = ids.join(',');
+    var checked = document.querySelectorAll('.pedido-check:checked');
+    var n = checked.length;
+    if (bulkDiv) bulkDiv.style.display = n > 0 ? 'flex' : 'none';
+    if (countEl) countEl.textContent = n;
+    var ids = [];
+    checked.forEach(function (c) { ids.push(c.value); });
+    if (idsInput) idsInput.value = ids.join(',');
+    if (cancelIdsInput) cancelIdsInput.value = ids.join(',');
+  }
+
+  checks.forEach(function (c) { c.addEventListener('change', updateBulk); });
+  if (selectAll) {
+    selectAll.addEventListener('change', function () {
+      checks.forEach(function (c) { c.checked = selectAll.checked; });
+      updateBulk();
     });
   }
   updateBulk();
 })();
 </script>
-
-
-<script>
-(function () {
-  var tabs = document.querySelectorAll('.pedidos-tab');
-  if (!tabs.length) return;
-  var groups = document.querySelectorAll('.pedidos-group');
-  // hide all but the first group on load
-  var first = true;
-  groups.forEach(function (g) { g.style.display = first ? '' : 'none'; first = false; });
-  tabs.forEach(function (t) {
-    t.addEventListener('click', function () {
-      tabs.forEach(function (o) { o.classList.remove('btn-primary'); o.setAttribute('aria-selected', 'false'); });
-      t.classList.add('btn-primary'); t.setAttribute('aria-selected', 'true');
-      groups.forEach(function (g) {
-        g.style.display = (g.dataset.group === t.dataset.tab) ? '' : 'none';
-      });
-    });
-  });
-})();
-</script>
-
 {% endblock %}

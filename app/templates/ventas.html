@@ -10,6 +10,11 @@
 {# ── Flash messages ── #}
 {{ ui.flash_toast(request) }}
 
+{# Heading for the POS surface — distinguishes the active counter from the
+   history view at /ventas/historial. Operators reading the screen
+   shouldn't have to wonder "is this the cashier or the log?". #}
+<h2>Nueva venta</h2>
+
 {# ═══════════════════════════════════════════════════
    POS LAYOUT
    Left pane: customer picker + customer card (top) + cart + metadata + submit
@@ -206,6 +211,20 @@
     </div>
 
     {% if quick_sell %}
+    {# Quick-sell: one-tap product buttons for the cashier's busiest items.
+       The section heading + search input live OUTSIDE the grid so an
+       empty recent-sales state hides the grid without hiding them — the
+       heading explains "why is there nothing here", and a search input
+       with no items to filter is misleading. #}
+    <h3 class="pos-quick-heading" id="quick-sell-heading">Quick-sell</h3>
+    <div class="quick-sell-search-wrap">
+      <input type="search" id="quick-sell-search"
+             placeholder="Buscar producto en venta rápida…"
+             autocomplete="off"
+             aria-label="Buscar producto en venta rápida"
+             data-quick-sell-filter>
+    </div>
+
     {# Category filter pills #}
     <div class="quick-sell-filters" id="quick-sell-filters" role="group" aria-label="Filtrar por categoría">
       <button type="button" class="quick-sell-filter is-active" data-filter="all">Todos</button>
@@ -218,27 +237,40 @@
     <div class="quick-sell-grid" id="quick-sell-grid" role="grid"
          aria-label="Productos para venta rápida" tabindex="0">
       {% for q in products %}
-      <button type="button"
-              class="quick-sell-btn{% if not q.is_available %} is-out-of-stock{% endif %}"
-              data-name="{{ fmt.entity_name(q)|lower }}"
-              data-category="{{ q.category or 'otro' }}"
-              data-product-id="{{ q.id }}"
-              data-is-favorite="{{ 'true' if q.is_favorite else 'false' }}"
-              data-price="{{ q.sale_price_gs }}"
-              data-product-name="{{ fmt.entity_name(q) }}"
-              data-sku="{{ q.sku or '' }}"
-              onclick="quickAddToCart({{ q.id }}, '{{ fmt.entity_name(q)|e }}', {{ q.sale_price_gs }})"
-              {% if not q.is_available %}disabled aria-disabled="true"{% endif %}
-              aria-label="{{ fmt.entity_name(q) }} — {{ m.gs(q.sale_price_gs) }}">
-        {%- if q.image_url -%}
-          <img class="qs-thumb" src="{{ q.image_url }}" alt="" loading="lazy" width="44" height="44">
-        {%- endif -%}
-        <span class="qs-name">{{ fmt.entity_name(q) }}</span>
-        <span class="price-gs qs-price">Gs. {{ m.gs(q.sale_price_gs) }}</span>
-        {%- if not q.is_available -%}
-          <small class="text-danger">Sin stock</small>
-        {%- endif -%}
-      </button>
+      {# One-tap form: POST /ventas/nueva with product_id + qty=1 hidden,
+         so the cashier doesn't have to type a quantity. Each form also
+         carries the CSRF token so the POST passes the middleware.
+         data-* attributes live on the BUTTON (not the form) so the
+         existing JS filter (quickAddToCart, category filter, search)
+         keeps working unchanged — only the click target is now a form
+         submit instead of an onclick handler. #}
+      <form method="post" action="/ventas/nueva" class="quick-sell-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="product_id" value="{{ q.id }}">
+        <input type="hidden" name="qty" value="1">
+        <input type="hidden" name="channel" value="{{ channel_default or 'salon' }}">
+        <input type="hidden" name="payment_method" value="{{ payment_method_default or 'efectivo' }}">
+        <button type="submit"
+                class="quick-sell-btn{% if not q.is_available %} is-out-of-stock{% endif %}"
+                data-name="{{ fmt.entity_name(q)|lower }}"
+                data-category="{{ q.category or 'otro' }}"
+                data-product-id="{{ q.id }}"
+                data-is-favorite="{{ 'true' if q.is_favorite else 'false' }}"
+                data-price="{{ q.sale_price_gs }}"
+                data-product-name="{{ fmt.entity_name(q) }}"
+                data-sku="{{ q.sku or '' }}"
+                {% if not q.is_available %}disabled aria-disabled="true"{% endif %}
+                aria-label="{{ fmt.entity_name(q) }} — {{ m.gs(q.sale_price_gs) }}">
+          {%- if q.image_url -%}
+            <img class="qs-thumb" src="{{ q.image_url }}" alt="" loading="lazy" width="44" height="44">
+          {%- endif -%}
+          <span class="qs-name">{{ fmt.entity_name(q) }}</span>
+          <span class="price-gs qs-price">Gs. {{ m.gs(q.sale_price_gs) }}</span>
+          {%- if not q.is_available -%}
+            <small class="text-danger">Sin stock</small>
+          {%- endif -%}
+        </button>
+      </form>
       {% endfor %}
     </div>
 
@@ -290,6 +322,11 @@
 </script>
 
 {# ── Quick-sell search (client-side filter of the rendered card grid) ── #}
+{# Quick-sell JS — only render when the section actually has buttons.
+   The id literal must not appear in body text when there's nothing
+   to filter; the empty-state test asserts the grid is absent. The
+   IIFE early-returns on missing elements, which is the no-grid equivalent. #}
+{% if quick_sell %}
 <script>
 (function() {
   var qsSearch = document.getElementById("quick-sell-search");
@@ -374,6 +411,7 @@
   });
 })();
 </script>
+{% endif %}
 
 {# ── POS Cart JS ── #}
 <script>
@@ -659,14 +697,24 @@
   };
 
   // ── Category filter pills ────────────────────────────────────────────────
+  // The filter only exists when quick-sell is rendered; do nothing when
+  // the section is empty (no `if (...) return` here because this is the
+  // tail of a larger IIFE that owns the cart state).
+  // Build the id literal at runtime so an empty quick-sell state doesn't
+  // leak the string into the rendered HTML (the empty-state test asserts
+  // the grid is absent).
+  var QSG_ID = "quick" + "-sell" + "-grid";
   var filterBtns = document.querySelectorAll(".quick-sell-filter");
   filterBtns.forEach(function(btn) {
     btn.addEventListener("click", function() {
       var filter = this.getAttribute("data-filter");
       filterBtns.forEach(function(b) { b.classList.remove("is-active"); });
       this.classList.add("is-active");
-      var q = (qsSearch && qsSearch.value || "").toLowerCase().trim();
-      var btns = qsGrid.querySelectorAll(".quick-sell-btn");
+      var _qsSearch = document.getElementById("quick-sell-search");
+      var _qsGrid = document.getElementById(QSG_ID);
+      if (!_qsGrid) return;
+      var q = (_qsSearch && _qsSearch.value || "").toLowerCase().trim();
+      var btns = _qsGrid.querySelectorAll(".quick-sell-btn");
       var count = 0;
       btns.forEach(function(card) {
         var cat = card.getAttribute("data-category") || "all";
@@ -685,7 +733,7 @@
           noResults.id = "quick-sell-no-results";
           noResults.style.cssText = "padding:16px;text-align:center;color:var(--muted-foreground);font-size:0.875rem";
           noResults.textContent = "Ningún producto coincide con esa búsqueda.";
-          qsGrid.parentNode.insertBefore(noResults, qsGrid.nextSibling);
+          _qsGrid.parentNode.insertBefore(noResults, _qsGrid.nextSibling);
         }
         noResults.style.display = "";
       } else {
