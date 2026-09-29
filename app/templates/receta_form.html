@@ -798,57 +798,24 @@
     return 'Gs. ' + Math.round(n).toLocaleString('es-PY');
   }
 
-  // ---------- Compute and render the live cost summary ----------
-  // Reads data-line-cost via getAttribute() so it pierces shadow DOM
-  // without needing to query() into closed components.
   function computeCosts() {
     var batchTotal = 0;
     var warnings = [];
     var lines = document.querySelectorAll('#lines .line-row');
+    var _debug = [];
 
     lines.forEach(function(row) {
-      // Read values: getAttribute pierces shadow DOM; saskia-combo has no internal <input>
-      // so we call getAttribute on the element directly (not on a child input).
-      var kindEl = row.querySelector('.line-kind-select');
-      var kind = kindEl ? (kindEl.getAttribute ? kindEl.getAttribute('value') : kindEl.value) : '';
       var targetCombo = row.querySelector('saskia-combo[name="line_target_id"]');
       var targetId = targetCombo ? (targetCombo.getAttribute ? targetCombo.getAttribute('value') : targetCombo.value) : '';
-      var qtyInput = row.querySelector('input[name="line_qty"]');
-      var qty = parseFloat(qtyInput ? qtyInput.value : '0') || 0;
       var costCell = row.querySelector('.line-cost-display');
-      var lineCost = 0;
-
-      if (kind === 'ingredient' && targetId && ingredientPrices[targetId]) {
-        var ing = ingredientPrices[targetId];
-        var pricePerUnit = ing.purchase_price_gs || 0;
-        var _F = {g: 1, kg: 1000, ml: 1, l: 1000, und: 1, u: 1, porcion: 1};
-        var lineUnitEl = row.querySelector('input[name="line_unit"]');
-        var lineUnit = (lineUnitEl && lineUnitEl.value) || ing.unit;
-        var f = _F[lineUnit] || 1, fi = _F[ing.unit] || 1;
-        var compat = _F[lineUnit] !== undefined && _F[ing.unit] !== undefined &&
-                     ((lineUnit === 'und' || lineUnit === 'u' || lineUnit === 'porcion') === (ing.unit === 'und' || ing.unit === 'u' || ing.unit === 'porcion'));
-        var qtyNorm = compat ? qty * f / fi : qty;
-        lineCost = qtyNorm * pricePerUnit;
-        if (pricePerUnit === 0) { warnings.push(ing.name); }
-        // Update cost cell text (querySelector can't pierce shadow DOM — use getAttribute)
-        if (costCell) {
-          costCell.textContent = formatGs(lineCost);
-          costCell.dataset.lineCost = Math.round(lineCost);
-        }
-      } else {
-        // Sub-recipe or unknown: read pre-computed server value via getAttribute
-        var preCost = parseFloat(costCell ? costCell.getAttribute('data-line-cost') : '0') || 0;
-        lineCost = preCost;
-        if (costCell) { costCell.textContent = formatGs(preCost); }
-      }
-
-      batchTotal += lineCost;
+      var preCost = costCell ? parseFloat(costCell.getAttribute('data-line-cost') || '0') : 0;
+      _debug.push('row: targetId=' + targetId + ' preCost=' + preCost);
+      batchTotal += preCost;
     });
 
-    // Yield and divide
+    console.log('computeCosts: lineCosts=' + JSON.stringify(_debug) + ' batchTotal=' + batchTotal);
     var yieldQty = parseFloat((document.getElementById('yield_qty') || {}).value) || 1;
     var unitCost = yieldQty > 0 ? batchTotal / yieldQty : 0;
-    // Fetch pricing markup config from API (configurable in /settings/pricing)
     var markupCfg = { multiplier: 3.0, round_to_gs: 1000 };
     fetch('/api/settings/pricing-markup').then(function(r){return r.json()}).then(function(cfg){
       markupCfg = cfg;
@@ -862,17 +829,6 @@
     if (batchEl) batchEl.textContent = formatGs(batchTotal);
     if (unitEl) unitEl.textContent = formatGs(unitCost);
     if (sugEl) sugEl.textContent = formatGs(suggestedPrice);
-
-    var warnEl = document.getElementById('cost-warnings');
-    var listEl = document.getElementById('cost-warnings-list');
-    if (warnEl && listEl) {
-      if (warnings.length > 0) {
-        warnEl.hidden = false;
-        listEl.innerHTML = warnings.map(function(w) { return '<li>' + w + '</li>'; }).join('');
-      } else {
-        warnEl.hidden = true;
-      }
-    }
   }
 
   // ---------- Add line button ----------
