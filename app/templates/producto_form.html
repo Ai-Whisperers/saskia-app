@@ -83,6 +83,26 @@
   </div>
 
   <div class="form-row">
+    <label for="mayorista_price_gs">Precio mayorista (Gs.)</label>
+    <div class="currency-input-wrap">
+      <input type="number" id="mayorista_price_gs" name="mayorista_price_gs" step="0.01" min="0" inputmode="numeric" class="currency-input"
+             value="{{ product.mayorista_price_gs if product and product.mayorista_price_gs is not none else '' }}"
+             placeholder="Mayorista (opcional)">
+    </div>
+    <small class="muted">Precio B2B para ventas por cantidad. Dejá en blanco si no aplica.</small>
+  </div>
+
+  <div class="form-row">
+    <label for="iva_rate">IVA%</label>
+    <select id="iva_rate" name="iva_rate" class="form-control" style="max-width:200px;">
+      <option value="10" {% if (product and product.iva_rate=='10') or (not product) %}selected{% endif %}>10%</option>
+      <option value="5" {% if product and product.iva_rate=='5' %}selected{% endif %}>5%</option>
+      <option value="0" {% if product and product.iva_rate=='0' %}selected{% endif %}>0%</option>
+      <option value="exento" {% if product and product.iva_rate=='exento' %}selected{% endif %}>Exento</option>
+    </select>
+  </div>
+
+  <div class="form-row">
     <label for="recipe_id_combo">Receta</label>
     {{ ui.combo_field(
       name='recipe_id',
