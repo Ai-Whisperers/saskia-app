@@ -95,6 +95,39 @@ def _decorate(session: Session, p: Product) -> dict:
     }
 
 
+@router.get("/api/tags", response_class=JSONResponse)
+def products_api_tags(
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Return distinct non-empty tags across all products."""
+    rows = session.scalars(
+        select(Product.tags)
+        .where(Product.tags.is_not(None))
+        .where(Product.tags != "")
+        .distinct()
+    ).all()
+    all_tags: set[str] = set()
+    for row in rows:
+        for t_ in (t__.strip() for t__ in row.split(",")):
+            if t_:
+                all_tags.add(t_)
+    return JSONResponse({"tags": sorted(all_tags)})
+
+
+@router.get("/api/categories", response_class=JSONResponse)
+def products_api_categories(
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Return distinct non-empty categories across all products."""
+    rows = session.scalars(
+        select(Product.category)
+        .where(Product.category.is_not(None))
+        .where(Product.category != "")
+        .distinct()
+    ).all()
+    return JSONResponse({"categories": sorted(r for r in rows if r)})
+
+
 @router.get("", response_class=HTMLResponse)
 def products_list(
     request: Request,
