@@ -115,16 +115,16 @@ def produccion_worksheet(
                 day_idx = (d - week_start).days
                 product_rows[r.product_id]["daily_qtys"][day_idx] = r.qty_to_produce
             # Aggregate ingredients
-            for l in plan.lines:
-                if l.ingredient_id not in ing_required:
-                    ing_required[l.ingredient_id] = {
-                        "ingredient_name": l.ingredient_name,
-                        "unit": l.unit,
+            for ln in plan.lines:
+                if ln.ingredient_id not in ing_required:
+                    ing_required[ln.ingredient_id] = {
+                        "ingredient_name": ln.ingredient_name,
+                        "unit": ln.unit,
                         "qty_required": 0.0,
-                        "stock_on_hand": l.stock_on_hand,
-                        "ingredient_id": l.ingredient_id,
+                        "stock_on_hand": ln.stock_on_hand,
+                        "ingredient_id": ln.ingredient_id,
                     }
-                ing_required[l.ingredient_id]["qty_required"] += l.qty_required
+                ing_required[ln.ingredient_id]["qty_required"] += ln.qty_required
 
         week_plan_rows = [
             {"product_name": v["product_name"], "product_id": pid,
@@ -183,16 +183,16 @@ def produccion_worksheet(
                         "daily_qtys": [0.0] * ndays,
                     }
                 product_rows[r.product_id]["daily_qtys"][d.day - 1] = r.qty_to_produce
-            for l in plan.lines:
-                if l.ingredient_id not in ing_required:
-                    ing_required[l.ingredient_id] = {
-                        "ingredient_name": l.ingredient_name,
-                        "unit": l.unit,
+            for ln in plan.lines:
+                if ln.ingredient_id not in ing_required:
+                    ing_required[ln.ingredient_id] = {
+                        "ingredient_name": ln.ingredient_name,
+                        "unit": ln.unit,
                         "qty_required": 0.0,
-                        "stock_on_hand": l.stock_on_hand,
-                        "ingredient_id": l.ingredient_id,
+                        "stock_on_hand": ln.stock_on_hand,
+                        "ingredient_id": ln.ingredient_id,
                     }
-                ing_required[l.ingredient_id]["qty_required"] += l.qty_required
+                ing_required[ln.ingredient_id]["qty_required"] += ln.qty_required
 
         month_plan_rows = [
             {"product_name": v["product_name"], "product_id": pid,

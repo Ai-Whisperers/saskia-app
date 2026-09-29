@@ -418,7 +418,7 @@ def pedidos_board(
             {"id": p.id, "label": f"#{p.id}", "status": p.status,
              "customer": p.customer.name if p.customer else None,
              "promised": f"{p.promised_date} {p.promised_time or ''}".strip(),
-             "lines": [f"{l.qty:g} × {(l.product.name if l.product else '#' + str(l.product_id))}" for l in (p.lines or [])][:6],
+             "lines": [f"{ln.qty:g} × {(ln.product.name if ln.product else '#' + str(ln.product_id))}" for ln in (p.lines or [])][:6],
              "created_at": p.created_at}
             for p in pedidos if p.status == col
         ]
@@ -667,7 +667,7 @@ async def pedidos_create(
             "n_lines": len(lines),
             "channel": channel_normalized,
             "promised_date": pedido.promised_date.isoformat(),
-            "total_gs": sum(l["qty"] * l["unit_price_gs"] for l in lines),
+            "total_gs": sum(ln["qty"] * ln["unit_price_gs"] for ln in lines),
         },
         request=request,
     )

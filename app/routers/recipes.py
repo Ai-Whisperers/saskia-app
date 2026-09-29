@@ -519,7 +519,7 @@ async def recipe_detail(
         for ing in session.scalars(
             select(_Ingredient).where(
                 _Ingredient.id.in_([
-                    l.line_ref_id for l in r.lines if l.line_kind == "ingredient"
+                    ln.line_ref_id for ln in r.lines if ln.line_kind == "ingredient"
                 ])
             )
         ).all()

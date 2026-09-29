@@ -660,37 +660,6 @@ def product_bulk_edit(
 
 # ─── API helpers ───────────────────────────────────────────────────────────────
 
-@router.get("/api/tags", response_class=JSONResponse)
-def products_api_tags(session: Session = Depends(get_session)) -> JSONResponse:
-    """Return distinct tag values across all products."""
-    rows = session.scalars(
-        select(Product.tags)
-        .where(Product.tags.isnot(None))
-        .where(Product.tags != "")
-        .distinct()
-    ).all()
-    all_tags: set[str] = set()
-    for raw in rows:
-        for t in raw.split(","):
-            t = t.strip()
-            if t:
-                all_tags.add(t)
-    return JSONResponse({"tags": sorted(all_tags)})
-
-
-@router.get("/api/categories", response_class=JSONResponse)
-def products_api_categories(session: Session = Depends(get_session)) -> JSONResponse:
-    """Return distinct category values across all products."""
-    rows = session.scalars(
-        select(Product.category)
-        .where(Product.category.isnot(None))
-        .where(Product.category != "")
-        .distinct()
-    ).all()
-    return JSONResponse({"categories": sorted(r for r in rows if r)})
-
-
-# ─── CSV Import ────────────────────────────────────────────────────────────────
 
 @router.get("/importar", response_class=HTMLResponse)
 def products_import_page(request: Request) -> HTMLResponse:

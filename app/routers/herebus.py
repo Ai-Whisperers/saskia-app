@@ -889,7 +889,7 @@ def planner_compute(
     ).scalars().all()
 
     # Build ingredient lookup
-    ing_ids = [l.line_ref_id for l in lines]
+    ing_ids = [ln.line_ref_id for ln in lines]
     ings = {
         i.id: i
         for i in session.execute(

@@ -48,7 +48,16 @@ _UNION_TAGS: frozenset[str] = frozenset()
 # definition). Keeping this explicit (rather than inferring) so operators
 # can audit it.
 _NEUTRAL_KEYWORDS: tuple[str, ...] = (
+    # Water / salt / ice
     "agua", "sal", "sal fina", "sal gruesa", "hielo",
+    # Common spices — never disqualify a recipe from any dietary tag
+    "canela", "jengibre", "nuez moscada", "vainilla", "esencia",
+    # Leaveners / acids / chemical inputs
+    "bicarbonato", "polvo de hornear", "levadura", "vinagre",
+    # Fats / oils — oil is universally vegan/keto/sugar-free
+    "aceite",
+    # Sugars and flours are NOT neutral — they're the actual blockers.
+    # Operator must declare their allergens (e.g. Harina de trigo → gluten).
 )
 
 
@@ -253,23 +262,76 @@ def ingredient_dietary_set(ing: object) -> frozenset[str]:
     return frozenset(out)
 
 
+# Map of dietary tag → allergen keywords that block it.
+# An ingredient blocks "sin X" if any of its allergens match the keywords
+# for X.  This makes ingredient.allergens the source of truth for blocking,
+# and dietary_tags becomes a redundant cross-check / claim.
+# Order matters only for readability; .intersection() handles membership.
+_TAG_ALLERGEN_BLOCKERS: dict[str, tuple[str, ...]] = {
+    "sin gluten":   ("gluten",),
+    "sin tacc":     ("gluten",),       # sin tacc ≡ sin gluten (Argentina/Py)
+    "sin lactosa":  ("dairy",),
+    "sin huevo":    ("eggs",),
+    "sin frutos secos": ("nuts",),
+    "vegano":       ("dairy", "eggs", "honey"),  # vegan excludes animal products
+    "vegetariano":  (),                # vegetarian only excludes meat; dairy/eggs OK
+    "sin azúcar":   ("sugar", "azúcar"),  # explicit sugar ingredient (rare)
+    "keto":         ("sugar", "azúcar", "gluten"),  # keto = low-carb, no flour
+    "integral":     (),                # integral = whole-grain — derived, not blocked
+    "orgánico":     (),                # orgánico = ingredient-level certification
+}
+
+
 def ingredient_blocks(ing: object, tag: str) -> bool:
     """True if this ingredient DISQUALIFIES the recipe from `tag`.
 
-    An ingredient blocks tag T unless T is in its declared dietary set.
-    Neutral ingredients never block. Sin TACC additionally requires
-    may_contain_gluten to be False (when the flag is set, the ingredient
-    blocks sin_tacc even if tagged sin_gluten — SINACLA cross-contamination).
+    Blocking rules (allergen-driven — dietary_tags is a cross-check claim):
+
+    1. **Neutral keywords** — `agua`, `sal`, `hielo`, common spices, leaveners
+       never block any tag (they're pantry staples that don't disqualify).
+
+    2. **Allergen-driven blocking** — the canonical truth.  An ingredient
+       blocks `sin X` if its `allergens` column contains any keyword that
+       disqualifies X (per `_TAG_ALLERGEN_BLOCKERS`).  Example:
+       Zanahoria has allergens=None → does NOT block sin_gluten, sin_huevo,
+       sin_lactosa, sin_azúcar.  Harina de trigo has allergens='gluten' →
+       blocks sin_gluten and sin_tacc.
+
+    3. **sin tacc + may_contain_gluten** — even with empty allergens,
+       `may_contain_gluten=True` still blocks `sin tacc` (SINACLA cross-
+       contamination rule for shared equipment).
+
+    4. **Inverse dietary claim** — if an ingredient's `dietary_tags` column
+       explicitly negates the tag (e.g. a sub-recipe whose derived tags
+       exclude `vegano`), trust that claim.
+
+    5. **Default: don't block.**  An ingredient with allergens=None and no
+       inverse claim is treated as not blocking.  The UI marks these
+       ingredients "sin declarar" so the operator knows to fill them in.
+       This avoids the absurd situation where carrots block sin_gluten
+       just because the operator hasn't yet recorded their allergens.
     """
     if _is_neutral(ing.name or ""):
         return False
-    declared = ingredient_dietary_set(ing)
-    if tag in declared:
-        # Declared sin_gluten + may_contain_gluten still blocks sin_tacc.
-        if tag == "sin tacc" and ing.may_contain_gluten:
-            return True
-        return False
-    return True
+
+    allergens_raw = getattr(ing, "allergens", None)
+    may_contain_gluten = getattr(ing, "may_contain_gluten", False)
+
+    # (1) allergens column populated → use as source of truth
+    if allergens_raw:
+        allergens = {a.strip().lower() for a in allergens_raw.split(",") if a.strip()}
+        blockers = _TAG_ALLERGEN_BLOCKERS.get(tag, ())
+        if blockers and any(b in allergens for b in blockers):
+            return True  # allergen column says this ingredient disqualifies X
+
+    # (2) sin tacc cross-contamination (separate from allergen list)
+    if tag == "sin tacc" and may_contain_gluten:
+        return True
+
+    # (3) allergens undeclared → default-allow (don't block).
+    #     The UI will show the ingredient as "sin declarar alérgenos"
+    #     so the operator can fill in inventory.
+    return False
 
 
 # ---------------------------------------------------------------------------
