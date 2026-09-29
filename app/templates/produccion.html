@@ -172,18 +172,42 @@
 </div>
 {% endif %}
 
-{# ── Shift Execution Layer ── "Ya salió del horno" tracker ── #}
-{% if plan.rows %}
-<form method="post" action="/produccion/override" id="shift-form">
+{# ────────────────────────────────────────────────────────────────
+   SHIFT EXECUTION LAYER — "Ya salió del horno" tracker
+   Sprint 1: persist via /produccion/shift-execute (writes
+   ProductionCompletion, the actual production row, not the plan).
+   Sprint 3: demand fusion — surface "+N por pedidos" inline so the
+   cook knows the plan number is a baseline, not the final bake count.
+   Sprint 4: ad-hoc entry — "+ Horneado extra" button below the table.
+   ──────────────────────────────────────────────────────────────── #}
+<div style="background: var(--color-surface-muted); padding: var(--space-2) var(--space-3); margin-bottom: var(--space-3); border-radius: 4px;">
+  <small class="text-muted">
+    <strong>Cómo se calcula:</strong> "Sugerido por ventas" = promedio rolling 14d · "Plantilla semanal" = override recurrente por día de la semana · "Ajuste del día" = lo que vos decidiste hoy.
+  </small>
+</div>
+{% if shift_saved %}
+<div class="card mb-4" style="background: var(--color-success-soft); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-success);">
+  <small><strong>✓ Turno guardado:</strong> {{ shift_saved }} producto{{ '' if shift_saved == 1 else 's' }} registrado{{ '' if shift_saved == 1 else 's' }} en producción real.</small>
+</div>
+{% endif %}
+{% if adhoc_added %}
+<div class="card mb-4" style="background: var(--color-info-soft); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-info);">
+  <small><strong>✓ Horneado extra agregado.</strong> Aparece abajo con badge naranja.</small>
+</div>
+{% endif %}
+
+{% if plan_rows_view %}
+<form method="post" action="/produccion/shift-execute" id="shift-form">
   <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
   <input type="hidden" name="for_date" value="{{ for_date }}">
 
   <section class="card mb-4">
-    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3);">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3); gap: var(--space-3); flex-wrap: wrap;">
       <div>
         <h2 class="card-title" style="margin: 0;">Ejecución del turno</h2>
         <p class="text-muted" style="font-size: var(--text-xs); margin: var(--space-1) 0 0 0;">
-          Marcá a medida que sale del horno. Las cantidades alimentan el cierre EOD.
+          Marcá a medida que sale del horno. Las cantidades se guardan en producción real
+          (no en el plan). El cierre EOD usa estos números.
         </p>
       </div>
     </div>
@@ -194,48 +218,70 @@
           <th style="width: 3rem;">Listo</th>
           <th>Producto</th>
           <th class="num">Meta</th>
+          <th class="num">+ Pedidos</th>
+          <th class="num">Total a hornear</th>
           <th class="num">Progreso</th>
-          <th class="num">Cómo se calcula</th>
+          <th>Origen <small class="text-muted">(cómo se calcula)</small></th>
           <th>Receta</th>
         </tr>
       </thead>
       <tbody>
-        {% for r in plan.rows %}
-        <tr class="production-row" data-product-id="{{ r.product_id }}">
+        {% for r in plan_rows_view %}
+        <tr class="production-row {% if r.is_ad_hoc %}production-row--adhoc{% endif %}"
+            data-product-id="{{ r.product_id }}">
           <td>
             <input type="checkbox" name="done_{{ r.product_id }}" value="1"
                    class="shift-checkbox"
+                   {% if r.completed_qty > 0 %}checked{% endif %}
                    onchange="toggleRowComplete(this)"
                    aria-label="Marcar {{ r.product_name }} como hecho">
           </td>
-          <td class="font-bold product-name">{{ r.product_name }}</td>
+          <td class="font-bold product-name">
+            {{ r.product_name }}
+            {% if r.is_ad_hoc %}<span class="badge badge-warning" title="Horneado no planeado">Extra</span>{% endif %}
+          </td>
           <td class="num">
-            <span class="qty-target">{{ "%.0f"|format(r.qty_to_produce) }}</span>
+            {% if r.is_ad_hoc %}
+              <span class="text-muted">—</span>
+            {% else %}
+              <span class="qty-target">{{ "%.0f"|format(r.qty_to_produce) }}</span>
+            {% endif %}
+          </td>
+          <td class="num">
+            {% if r.pending_pedido_qty > 0 %}
+              <span class="badge badge-info" title="Unidades comprometidas por pedidos para hoy">+{{ "%.0f"|format(r.pending_pedido_qty) }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="num">
+            {% set total_bake = (r.qty_to_produce or 0) + (r.pending_pedido_qty or 0) %}
+            {% if total_bake > 0 %}
+              <strong>{{ "%.0f"|format(total_bake) }}</strong>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
           </td>
           <td class="num">
             <input type="number" name="completed_{{ r.product_id }}"
                    class="progress-input"
-                   value="{{ r.completed_qty | default(0) }}"
-                   min="0" max="{{ (r.qty_to_produce * 2) | int }}"
-                   step="0.5"
+                   value="{{ "%.1f"|format(r.completed_qty or 0) }}"
+                   min="0" step="0.5"
                    style="width: 70px; padding: var(--space-1) var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;"
                    aria-label="Cantidad hecha de {{ r.product_name }}">
           </td>
           <td>
-            {# Bug 5 fix: semantic source badges. Use the canonical
-               labels from the router's FORECAST_SOURCE_LABELS dict so
-               tests that assert "Ajuste del día" / "Plantilla semanal"
-               keep passing. The router label is shown verbatim; we only
-               remap colour severity. #}
-            {% set src_label = source_labels.get(r.forecast_source, 'Sugerido') %}
-            {% if r.forecast_source == 'override' %}
-              <span class="badge badge-warning">{{ src_label }}</span>
+            {# Sprint 1: semantic source badges. Ad-hoc is its own badge. #}
+            {% if r.is_ad_hoc %}
+              <span class="badge badge-warning">Ad-hoc</span>
+            {% elif r.forecast_source == 'override' %}
+              <span class="badge badge-warning">{{ source_labels.get(r.forecast_source, 'Ajuste') }}</span>
             {% elif r.forecast_source == 'template' %}
-              <span class="badge badge-info">{{ src_label }}</span>
+              <span class="badge badge-info">{{ source_labels.get(r.forecast_source, 'Plantilla') }}</span>
             {% elif r.forecast_source == 'manual' %}
-              <span class="badge badge-primary">{{ src_label }}</span>
+              <span class="badge badge-primary">{{ source_labels.get(r.forecast_source, 'Manual') }}</span>
             {% else %}
-              <span class="badge badge-muted">{{ src_label }}</span>
+              <span class="badge badge-muted">{{ source_labels.get(r.forecast_source, 'Sugerido') }}</span>
             {% endif %}
           </td>
           <td>
@@ -250,13 +296,11 @@
       </tbody>
     </table>
 
-    {# Single unified submit (replaces row-by-row "Usar" button fatigue).
-       NOTE: shift-update / shift-notes / quick-merma endpoints are
-       scheduled for a future sprint — today we fall back to the
-       existing /produccion/override route so the row data still
-       persists as daily overrides. #}
     <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center; padding-top: var(--space-3); border-top: 1px solid var(--color-border); margin-top: var(--space-3); gap: var(--space-3); flex-wrap: wrap;">
-      <small class="text-muted">Se guarda como override del {{ for_date }} y alimenta el cierre EOD.</small>
+      <small class="text-muted">
+        Se guarda como <strong>producción real</strong> (no override del plan). Aparece en
+        <a href="/eod">/eod</a> y en el reporte de cierre.
+      </small>
       <button type="submit" class="btn btn-primary">
         <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
         Guardá ejecución del turno
@@ -264,6 +308,55 @@
     </div>
   </section>
 </form>
+
+{# ── Ad-hoc bake entry (Sprint 4) ── #}
+<section class="card mb-4">
+  <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3); gap: var(--space-3); flex-wrap: wrap;">
+    <div>
+      <h2 class="card-title" style="margin: 0; font-size: var(--text-lg);">Horneado extra</h2>
+      <p class="text-muted" style="font-size: var(--text-xs); margin: var(--space-1) 0 0 0;">
+        Para cuando horneás algo no planeado: un walk-in, una decisión de último momento,
+        sobras que decidiste usar. Aparece abajo en la tabla con badge naranja.
+      </p>
+    </div>
+    <button type="button" class="btn btn-secondary" onclick="document.getElementById('adhoc-modal').showModal()">
+      + Agregá horneado extra
+    </button>
+  </div>
+</section>
+
+<dialog id="adhoc-modal" style="border: none; border-radius: 8px; padding: 0; max-width: 480px; box-shadow: var(--shadow-lg);">
+  <form method="post" action="/produccion/ad-hoc" style="padding: var(--space-4);">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="for_date" value="{{ for_date }}">
+    <h3 style="margin: 0 0 var(--space-3) 0;">Horneado extra</h3>
+    <div class="form-row" style="margin-bottom: var(--space-3);">
+      <label for="adhoc-product" style="display: block; margin-bottom: var(--space-1); font-weight: bold;">Producto</label>
+      <select name="product_id" id="adhoc-product" required class="combo-input"
+              style="width: 100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;">
+        <option value="">— Elegí producto —</option>
+        {% for p in products_for_adhoc %}
+          <option value="{{ p.id }}">{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row" style="margin-bottom: var(--space-3);">
+      <label for="adhoc-qty" style="display: block; margin-bottom: var(--space-1); font-weight: bold;">Cantidad horneada</label>
+      <input type="number" name="qty" id="adhoc-qty" required min="0.5" step="0.5"
+             style="width: 100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;">
+    </div>
+    <div class="form-row" style="margin-bottom: var(--space-3);">
+      <label for="adhoc-notes" style="display: block; margin-bottom: var(--space-1); font-weight: bold;">Nota (opcional)</label>
+      <input type="text" name="notes" id="adhoc-notes" maxlength="200"
+             placeholder="ej: walk-in cumpleañero, sobrantes de masa"
+             style="width: 100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;">
+    </div>
+    <div style="display: flex; gap: var(--space-2); justify-content: flex-end;">
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('adhoc-modal').close()">Cancelar</button>
+      <button type="submit" class="btn btn-primary">Guardá horneado</button>
+    </div>
+  </form>
+</dialog>
 {% else %}
 <p class="empty">No hay producción planificada. Verificá que haya ventas registradas en los últimos 14 días.</p>
 {% endif %}
@@ -407,30 +500,7 @@
 <p class="empty">No hay producción planificada para esta semana.</p>
 {% endif %}
 
-{# Sales summary for the week #}
-{% if week_sales %}
-<div class="card mb-4">
-  <div class="card-header"><h3>Ventas reales de la semana</h3></div>
-  <table class="table is-hoverable is-striped">
-    <thead>
-      <tr>
-        <th>Producto</th>
-        <th class="num">Unidades vendidas</th>
-        <th class="num">Operaciones</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for s in week_sales %}
-      <tr>
-        <td>{{ s.product_name }}</td>
-        <td class="num"><strong>{{ "%.1f"|format(s.total_qty) }}</strong></td>
-        <td class="num">{{ s.n_sales }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% endif %}
+{# Sales summary for the week — moved to /reportes. #}
 
 {% if week_ingredients %}
 <section class="card mb-4">
@@ -481,117 +551,64 @@
 
 
 {# ════════════════════════════════════════════════════════════════════
-   MONTH VIEW
+   MONTH VIEW — vista panorámica (heatmap). Las secciones de
+   ventas/ingresos/ingredientes del mes viven en /reportes.
    ════════════════════════════════════════════════════════════════════ #}
 {% if view == 'month' %}
-<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4);">
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4); gap: var(--space-3); flex-wrap: wrap;">
   <a href="/produccion?view=month&month={{ prev_month_iso }}" class="btn btn-sm">← Mes anterior</a>
-  <strong>{{ month_name }} {{ year }}</strong>
+  <strong style="font-size: var(--text-lg);">{{ month_name }} {{ year }}</strong>
   <a href="/produccion?view=month&month={{ next_month_iso }}" class="btn btn-sm">Mes siguiente →</a>
 </div>
 
-{% if month_plan and month_plan.rows %}
-<h3>Producción por día</h3>
-<table class="table is-hoverable is-striped">
+<div class="card mb-4" style="background: var(--color-surface-muted); padding: var(--space-2) var(--space-3);">
+  <small class="text-muted">
+    Vista panorámica. Las celdas vacías indican días sin plan; los números muestran la
+    cantidad planificada (override del día, plantilla semanal, o sugerencia del forecast).
+    Los datos de <strong>ventas</strong>, <strong>ingresos</strong> e
+    <strong>ingredientes del mes</strong> viven en
+    <a href="/reportes">/reportes</a>.
+  </small>
+</div>
+
+{# Sprint 2: month grid (always render header so day-count renders even with empty rows) #}
+<div style="overflow-x: auto;">
+<table class="table is-hoverable is-striped production-month-grid">
   <thead>
     <tr>
-      <th>Producto</th>
+      <th class="num">Producto</th>
       {% for d in month_days %}<th class="num">{{ d }}</th>{% endfor %}
     </tr>
   </thead>
   <tbody>
+    {% if month_plan and month_plan.rows %}
     {% for r in month_plan.rows %}
     <tr>
       <td><strong>{{ r.product_name }}</strong></td>
       {% for day_qty in r.daily_qtys %}
-      <td class="num">{{ "%.1f"|format(day_qty) if day_qty else '—' }}</td>
+        {% set q = day_qty or 0 %}
+        {% if q == 0 %}
+          <td class="num month-cell month-cell--empty" title="Sin plan">—</td>
+        {% elif q < 1 %}
+          <td class="num month-cell month-cell--light" title="{{ '%.1f'|format(q) }}">{{ '%.0f'|format(q) }}</td>
+        {% elif q < 3 %}
+          <td class="num month-cell month-cell--mid" title="{{ '%.1f'|format(q) }}">{{ '%.0f'|format(q) }}</td>
+        {% else %}
+          <td class="num month-cell month-cell--full" title="{{ '%.1f'|format(q) }}">{{ '%.0f'|format(q) }}</td>
+        {% endif %}
       {% endfor %}
     </tr>
     {% endfor %}
+    {% else %}
+    <tr><td colspan="{{ month_days|length + 1 }}" style="text-align: center; color: var(--color-fg-muted); padding: var(--space-4);">
+      No hay producción planificada para este mes. Los días sin plan se ven como celdas vacías (—).
+      Para planear, usá <a href="/produccion?view=day">la vista del día</a> o
+      <a href="/produccion?view=week">la vista semanal</a>.
+    </td></tr>
+    {% endif %}
   </tbody>
 </table>
-{% else %}
-<p class="empty">No hay producción planificada para este mes.</p>
-{% endif %}
-
-{# Sales summary for the month #}
-{% if month_sales %}
-<div class="card mb-4">
-  <div class="card-header"><h3>Ventas reales del mes</h3></div>
-  {% if month_revenue_gs %}
-  <div class="metric-card mb-3" style="display: inline-flex; gap: var(--space-4); padding: var(--space-2) var(--space-3);">
-    <div>
-      <div class="metric-label">Ingresos del mes</div>
-      <div class="metric-value">{{ m.gs_full(month_revenue_gs) }}</div>
-    </div>
-  </div>
-  {% endif %}
-  <table class="table is-hoverable is-striped">
-    <thead>
-      <tr>
-        <th>Producto</th>
-        <th class="num">Unidades vendidas</th>
-        <th class="num">Operaciones</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for s in month_sales %}
-      <tr>
-        <td>{{ s.product_name }}</td>
-        <td class="num"><strong>{{ "%.1f"|format(s.total_qty) }}</strong></td>
-        <td class="num">{{ s.n_sales }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
 </div>
-{% endif %}
-
-{% if month_ingredients %}
-<section class="card mb-4">
-  <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3);">
-    <h3 style="margin: 0;">Ingredientes del mes</h3>
-    <a href="/reorder" class="btn btn-secondary btn-sm">
-      <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
-      Ir a Reponer stock →
-    </a>
-  </div>
-  <table class="table is-hoverable">
-    <thead>
-      <tr>
-        <th>Ingrediente</th>
-        <th class="num">Requerido</th>
-        <th class="num">Stock actual</th>
-        <th class="num">A comprar</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for l in month_ingredients %}
-      {% set _delta = l.stock_on_hand - l.qty_required %}
-      <tr {% if _delta < 0 %}title="Stock insuficiente"{% endif %}>
-        <td>
-          <strong>{{ l.ingredient_name }}</strong>
-          {% if _delta < 0 %}{{ ui.status_pill("Falta", sev="danger") }}
-          {% elif _delta < l.qty_required * 0.2 %}{{ ui.status_pill("Justo", sev="warn") }}
-          {% else %}{{ ui.status_pill("Suficiente", sev="ok") }}
-          {% endif %}
-        </td>
-        <td class="num">{{ fmt_qty(l.qty_required, l.unit) }}</td>
-        <td class="num">{{ fmt_qty(l.stock_on_hand, l.unit) }}</td>
-        <td class="num">
-          {% if l.stock_on_hand < l.qty_required %}
-            <span class="badge badge-danger" style="margin-right: var(--space-1);">¡Falta!</span>
-            <strong>{{ fmt_qty(l.qty_required - l.stock_on_hand, l.unit) }}</strong>
-          {% else %}
-            <span class="text-muted">—</span>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</section>
-{% endif %}
-{% endif %}{# end month view #}
+{% endif %}{# end view == month #}
 
 {% endblock %}
