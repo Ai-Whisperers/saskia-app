@@ -94,11 +94,54 @@ line-length = 100
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "BLE", "PERF"]  # pycodestyle errors/warnings, pyflakes, isort, blind-except, perf
-ignore = ["E501"]  # line-too-long (we use 100, ruff default is 88)
+# Rule families enabled:
+# E/F/W/I    — pycodestyle errors/warnings, pyflakes, isort (baseline)
+# BLE        — blind-except (BACKLOG #53 silent-fail guard)
+# PERF       — perf lint family (PERF401 list-comp, PERF102 dict-iterator)
+# ANN        — flake8-annotations (P0 #1 — push type hints)
+# S          — flake8-bandit (P0 #2 — SQL injection S608, secrets S105/S106)
+# DTZ        — flake8-datetimez (P0 #3 — datetime.utcnow ban, TZ enforcement)
+# B          — flake8-bugbear (default-arg, duplicate-except, etc.)
+# PIE        — flake8-pie (misc correctness: unused-noqa, redundant-# noqa)
+# RUF        — ruff-specific (mutable class attrs, implicit Optional)
+# ASYNC      — async-correctness (async-def returning non-awaitable, blocking IO)
+select = [
+    "E", "F", "W", "I",
+    "BLE", "PERF",
+    "ANN", "S", "DTZ",
+    "B", "PIE", "RUF", "ASYNC",
+]
+ignore = [
+    "E501",     # line-too-long (we use 100, ruff default is 88)
+    "ANN401",   # dynamically typed expressions (Any) — too noisy
+    "S101",     # assert statements (we use pytest assertions everywhere; runtime cost OK)
+    "S104",     # hardcoded-bind-all-interfaces (we do bind 0.0.0.0 intentionally)
+    "S311",     # pseudo-random generators (we use random for non-crypto seeding)
+    "B008",     # default-arg function calls (FastAPI Depends() in defaults is correct)
+    "RUF012",   # mutable class attrs (legacy SQLAlchemy model pattern)
+    "E402",     # module-level import not at top (we have many intentional late imports)
+]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["E402"]  # test files may have non-top imports
+"tests/*" = [
+    "E402",    # test files may have non-top imports
+    "ANN",     # test ergonomics — don't annotate every helper
+    "S",       # bandit relaxed for tests
+    "DTZ005",  # tests use datetime.now() without TZ for "today" arithmetic
+    "B011",    # tests assert on raises(NotImplementedError) sometimes
+]
+"app/migrations/**/*.py" = [
+    "E402", "ANN", "S608",   # migration SQL is hand-rolled
+    "BLE001",                # migrations swallow known schema errors
+]
+"app/routers/dev.py" = [
+    "S105", "S106",    # dev-only mock data
+    "ANN",             # dev routes are throwaway
+]
+"app/rms/db.py" = [
+    "S608",            # SQL builder helpers (text() calls are intentional)
+    "BLE001",          # migrations use try/except ALTER TABLE
+]
 
 # Backlog #53: ban silent except: pass in routers. Use BadRequest /
 # logger.warning / explicit re-raise. Migration scripts (app/rms/migrations/)
@@ -106,6 +149,13 @@ ignore = ["E501"]  # line-too-long (we use 100, ruff default is 88)
 # ruff rule BLE001 fires on every bare `except Exception:` that re-raises
 # nothing. Combined with our `tests/test_no_silent_excepts.py` test, this
 # closes the door on silent failures.
+
+[tool.ruff.lint.flake8-annotations]
+suppress-dummy-args = true
+suppress-none-returning = true
+
+[tool.ruff.lint.flake8-bandit]
+hardcoded-tmp-directory = ["/tmp", "/var/tmp"]
 
 # Hypothesis profile
 [tool.hypothesis]
