@@ -64,6 +64,26 @@
   <a href="/recetas" class="btn" style="height:36px;">Limpiar todo</a>
   {% endif %}
 </form>
+{# Active filter chips #}
+{% set rec_active_filters = [] %}
+{% if q %}{% do rec_active_filters.append({'key': 'q', 'label': 'Búsqueda', 'value': q})%}{% endif %}
+{% if familias_sel %}{% do rec_active_filters.append({'key': 'familia', 'label': 'Familia', 'value': familias_sel|join(', ')})%}{% endif %}
+{% if dif_sel %}{% do rec_active_filters.append({'key': 'dificultad', 'label': 'Dificultad', 'value': dif_sel})%}{% endif %}
+{% if diet_sel %}{% do rec_active_filters.append({'key': 'dieteticas', 'label': 'Dietéticas', 'value': diet_sel|join(', ')})%}{% endif %}
+{% if ingredient_id %}{% do rec_active_filters.append({'key': 'ingredient_id', 'label': 'Ingrediente', 'value': ingredient_id})%}{% endif %}
+
+{% if rec_active_filters %}
+<div class="active-filters" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:var(--space-3);">
+  {% for f in rec_active_filters %}
+    {% set rec_remove_params = [] %}
+    {% for k, v in request.query_params.multi_items() %}
+      {% if k != f.key %}{% do rec_remove_params.append(k ~ '=' ~ v) %}{% endif %}
+    {% endfor %}
+    <span class="filter-chip">{{ f.label }}: {{ f.value }} <a href="{{ request.url.path }}{% if rec_remove_params %}?{{ rec_remove_params | join('&') }}{% endif %}">×</a></span>
+  {% endfor %}
+</div>
+{% endif %}
+
 <div  class="inv-result-count text-muted" style="font-size:var(--text-xs); margin-bottom:var(--space-3)">
   {{ total }} de {{ total_all }} recetas{% if q %} · búsqueda “{{ q }}”{% endif %}
 </div>
@@ -87,6 +107,7 @@
           {% if sort == 'yield_qty' %}<strong>{% endif %}{% if sort == 'yield_qty' and dir == 'desc' %}▼{% elif sort == 'yield_qty' %}▲{% else %}⇅{% endif %}{% if sort == 'yield_qty' %}</strong>{% endif %}
         </a>
       </th>
+      <th style="text-align:center;">Dificultad</th>
       <th class="col-prep" style="text-align:center;">Prep</th>
       <th class="col-cook" style="text-align:center;">Cocción</th>
       <th>Líneas</th>
@@ -128,6 +149,13 @@
           <em class="muted">sin rinde</em>
         {% else %}
           {{ r.yield_qty|round(2) }} {{ r.yield_unit }}
+        {% endif %}
+      </td>
+      <td style="text-align:center;">
+        {% if r.difficulty %}
+          <span aria-label="Dificultad {{ r.difficulty }}">{{ '⭐' * r.difficulty }}</span>
+        {% else %}
+          <span class="muted">—</span>
         {% endif %}
       </td>
       <td>{{ r.line_count }}</td>
@@ -220,6 +248,23 @@
 
 <style>
 .col-prep, .col-cook { text-align: center; }
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  background: #333;
+  color: white;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+.filter-chip a {
+  color: white;
+  text-decoration: none;
+  margin-left: 2px;
+}
+.filter-chip a:hover { text-decoration: underline; }
 </style>
 
 {% endblock %}
