@@ -701,13 +701,38 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
         # pollute the "internal server error" bucket.
         payload = exc.to_dict()
         payload["request_id"] = rid
-        if _wants_html(request) and exc.status_code in (404,):
+        if _wants_html(request):
             from app.services.template_render import render as _render
-            return _render(
-                request, "errors/404.html",
-                {"path": request.url.path, "reason": exc.reason_code},
-                status_code=404,
-            )
+            # BACKLOG #48: render a styled 4xx page (or 404 fallback)
+            # for browser requests, with reason_code + request_id
+            # surfaced so support can grep one identifier.
+            resp = None
+            if exc.status_code == 404:
+                resp = _render(
+                    request, "errors/404.html",
+                    {"path": request.url.path, "reason": exc.reason_code},
+                    status_code=404,
+                )
+            elif 400 <= exc.status_code < 500:
+                from app.rms.errors import _ERROR_TITLES  # local import
+                title, default_msg = _ERROR_TITLES.get(
+                    exc.status_code, ("Error", "Algo salió mal.")
+                )
+                resp = _render(
+                    request, "errors/4xx.html",
+                    {
+                        "status_code": exc.status_code,
+                        "title": title,
+                        "message": exc.message or default_msg,
+                        "reason": exc.reason_code,
+                        "request_id": rid,
+                    },
+                    status_code=exc.status_code,
+                )
+            if resp is not None:
+                resp.headers["X-Request-Id"] = rid
+                resp.headers["X-Reason-Code"] = exc.reason_code
+                return resp
         return JSONResponse(
             status_code=exc.status_code,
             content=payload,
@@ -720,13 +745,36 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
             "http_exception request_id={} status={} detail={!r}",
             rid, exc.status_code, exc.detail,
         )
-        if _wants_html(request) and exc.status_code == 404:
+        if _wants_html(request):
             from app.services.template_render import render as _render
-            return _render(
-                request, "errors/404.html",
-                {"path": request.url.path},
-                status_code=404,
-            )
+            resp = None
+            if exc.status_code == 404:
+                resp = _render(
+                    request, "errors/404.html",
+                    {"path": request.url.path},
+                    status_code=404,
+                )
+            elif 400 <= exc.status_code < 500:
+                from app.rms.errors import _ERROR_TITLES
+                title, default_msg = _ERROR_TITLES.get(
+                    exc.status_code, ("Error", "Algo salió mal.")
+                )
+                detail_msg = exc.detail if isinstance(exc.detail, str) else default_msg
+                resp = _render(
+                    request, "errors/4xx.html",
+                    {
+                        "status_code": exc.status_code,
+                        "title": title,
+                        "message": detail_msg,
+                        "request_id": rid,
+                    },
+                    status_code=exc.status_code,
+                )
+            if resp is not None:
+                resp.headers["X-Request-Id"] = rid
+                if "X-Reason-Code" not in (resp.headers or {}):
+                    resp.headers["X-Reason-Code"] = "http_error"
+                return resp
         return JSONResponse(
             status_code=exc.status_code,
             content={

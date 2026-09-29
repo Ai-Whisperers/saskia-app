@@ -47,6 +47,19 @@ class AppError(Exception):
     status_code: int = 400
     reason_code: str = "app_error"
 
+    # Map HTTP status codes → (Spanish title, default Spanish message)
+    # used by the 4xx.html error template (BACKLOG #48). The exception's
+    # own `message` field overrides the default when present.
+    _STATUS_TITLES: dict[int, tuple[str, str]] = {
+        400: ("Solicitud inválida", "La solicitud tiene datos incorrectos."),
+        401: ("No autenticado", "Iniciá sesión para continuar."),
+        403: ("Sin permiso", "No tenés permiso para hacer esto."),
+        404: ("No encontrado", "El recurso que buscás no existe."),
+        409: ("Conflicto", "La operación entra en conflicto con el estado actual."),
+        422: ("Datos inválidos", "Revisá los campos marcados."),
+        429: ("Demasiadas solicitudes", "Esperá un momento antes de volver a intentar."),
+    }
+
     def __init__(
         self,
         message: str,
@@ -177,3 +190,10 @@ def to_http_exception(err: AppError):
         detail=err.to_dict(),
         headers={"X-Reason-Code": err.reason_code},
     )
+
+
+# Module-level alias for the status title map (BACKLOG #48). The 4xx
+# error template looks up a (Spanish title, default message) tuple by
+# HTTP status code; raising the class attribute to module scope keeps
+# the global exception handler importable as a single name.
+_ERROR_TITLES: dict[int, tuple[str, str]] = AppError._STATUS_TITLES

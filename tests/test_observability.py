@@ -201,6 +201,114 @@ def test_unauthenticated_error_returns_401(client):
         ]
 
 
+# ─── BACKLOG #48: HTML 4xx error template ────────────────────────────
+#
+# Browser requests with Accept: text/html get a styled 4xx page; API
+# clients (Accept: application/json) keep the JSON payload. The page
+# must surface the reason_code + request_id so support can grep the
+# log without asking the user to copy/paste anything.
+
+
+def test_4xx_html_template_exists():
+    """The shared 4xx.html template is in place at the canonical path."""
+    import os
+    p = os.path.join(os.path.dirname(__file__), "..", "app", "templates", "errors", "4xx.html")
+    assert os.path.isfile(p), f"missing 4xx.html at {p}"
+    with open(p, encoding="utf-8") as f:
+        body = f.read()
+    assert "status_code" in body
+    assert "message" in body
+    assert "Volver al inicio" in body, "must include 'Volver al inicio' CTA"
+
+
+def test_error_titles_module_alias_complete():
+    """_ERROR_TITLES covers every common 4xx code (BACKLOG #48)."""
+    from app.rms.errors import _ERROR_TITLES
+
+    for code in (400, 401, 403, 404, 409, 422, 429):
+        assert code in _ERROR_TITLES, f"missing title for status {code}"
+        title, msg = _ERROR_TITLES[code]
+        assert title, f"empty title for {code}"
+        assert msg, f"empty default message for {code}"
+
+
+def test_bad_request_renders_html_for_browser(client):
+    """Browser request → 4xx.html template; reason_code + request_id surfaced."""
+    from app.rms.errors import BadRequest
+
+    path = _add_test_route(
+        client.app, "/__test_bad_html",
+        lambda: BadRequest("Dato inválido en el campo X"),
+    )
+    try:
+        r = client.get(path, headers={"Accept": "text/html"})
+        assert r.status_code == 400
+        body = r.text
+        assert "400" in body, "status code not rendered"
+        # Spanish title — match by token to avoid UTF-8 quoting.
+        assert "Solicitud" in body and "inv" in body.lower(), \
+            "Spanish title not rendered"
+        # User-supplied message is the source of truth.
+        assert "Dato" in body and "campo X" in body, "user message not rendered"
+        # request_id is surfaced both in the body and as a header.
+        assert "x-request-id" in {h.lower() for h in r.headers.keys()}, \
+            "X-Request-Id header must be set so a copy-paste by user includes it"
+        assert "ID de seguimiento" in body, \
+            "request_id is not visible in the body — support can't grep it"
+    finally:
+        client.app.router.routes = [
+            r for r in client.app.router.routes
+            if not getattr(r, "path", "").startswith("/__test_")
+        ]
+
+
+def test_unauthorized_renders_html_for_browser(client):
+    """401 → styled 4xx page with reason_code + user message."""
+    from app.rms.errors import Unauthenticated
+
+    path = _add_test_route(
+        client.app, "/__test_unauth_html",
+        lambda: Unauthenticated("Tu sesión expiró."),
+    )
+    try:
+        r = client.get(path, headers={"Accept": "text/html"})
+        assert r.status_code == 401
+        body = r.text
+        assert "No autenticado" in body, "401 title missing"
+        assert "unauthenticated" in body, "reason_code missing"
+        assert "Tu" in body and "expir" in body, "user message missing"
+    finally:
+        client.app.router.routes = [
+            r for r in client.app.router.routes
+            if not getattr(r, "path", "").startswith("/__test_")
+        ]
+
+
+def test_bad_request_api_client_still_gets_json(client):
+    """API client (Accept: application/json) keeps the structured JSON payload.
+
+    BACKLOG #48 must NOT regress API consumers — the HTML template is
+    only used when the request signals browser intent.
+    """
+    from app.rms.errors import BadRequest
+
+    path = _add_test_route(
+        client.app, "/__test_bad_json",
+        lambda: BadRequest("test bad input"),
+    )
+    try:
+        r = client.get(path, headers={"Accept": "application/json"})
+        assert r.status_code == 400
+        body = r.json()
+        assert body["reason"] == "bad_request"
+        assert body["error"] == "test bad input"
+    finally:
+        client.app.router.routes = [
+            r for r in client.app.router.routes
+            if not getattr(r, "path", "").startswith("/__test_")
+        ]
+
+
 # ─── Messages catalog ───────────────────────────────────────────
 
 
