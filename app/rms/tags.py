@@ -86,25 +86,10 @@ STARTER_TAGS: list[tuple[str, str, str]] = [
     ("alergeno-frutos-secos", TagKind.INGREDIENT.value, "#ff6f00"),
     ("precio-volatil", TagKind.INGREDIENT.value, "#d84315"),
     ("organico", TagKind.INGREDIENT.value, "#33691e"),
-    ("keto", TagKind.INGREDIENT.value, "#7b1fa2"),
     # Recipes
     ("sub-receta", TagKind.RECIPE.value, "#7e57c2"),
     ("temporada", TagKind.RECIPE.value, "#43a047"),
     ("alto-costo", TagKind.RECIPE.value, "#b71c1c"),
-    # Recipe-kind canonical dietary tags (mirror the constants.CANONICAL_DIETARY_TAGS
-    # vocabulary so the operator can filter / label recipes by what their
-    # derived_intersection engine computed).
-    ("vegano", TagKind.RECIPE.value, "#558b2f"),
-    ("vegetariano", TagKind.RECIPE.value, "#7cb342"),
-    ("sin gluten", TagKind.RECIPE.value, "#ff9800"),
-    ("sin tacc", TagKind.RECIPE.value, "#f57c00"),
-    ("sin lactosa", TagKind.RECIPE.value, "#03a9f4"),
-    ("sin huevo", TagKind.RECIPE.value, "#0288d1"),
-    ("sin frutos secos", TagKind.RECIPE.value, "#5d4037"),
-    ("sin azúcar", TagKind.RECIPE.value, "#e91e63"),
-    ("integral", TagKind.RECIPE.value, "#795548"),
-    ("orgánico", TagKind.RECIPE.value, "#33691e"),
-    ("keto", TagKind.RECIPE.value, "#7b1fa2"),
 ]
 
 

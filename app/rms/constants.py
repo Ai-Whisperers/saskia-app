@@ -185,5 +185,4 @@ CANONICAL_DIETARY_TAGS: tuple[str, ...] = (
     "sin azúcar",
     "integral",
     "orgánico",
-    "keto",
 )
