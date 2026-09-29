@@ -67,7 +67,7 @@ class SessionLifecycleMiddleware(BaseHTTPMiddleware):
                 if id(obj) in leaked and isinstance(obj, Session):
                     try:
                         obj.close()
-                    except Exception:  # noqa: BLE001 — defensive default
+                    except Exception:  # noqa: BLE001, S110 — intentional cleanup, db errors ignored
                         pass
         return response
 

@@ -59,7 +59,7 @@ def packaging_api_search(
     like = f"%{q.strip().lower()}%"
     rows = session.execute(
         select(Ingredient)
-        .where(Ingredient.is_packaging == True)
+        .where(Ingredient.is_packaging.is_(True))
         .where(func.lower(Ingredient.name).like(like))
         .order_by(Ingredient.name)
         .limit(limit)

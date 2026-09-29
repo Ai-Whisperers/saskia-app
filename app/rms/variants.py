@@ -156,7 +156,7 @@ def current_variant_price(
     v = session.scalars(
         select(IngredientVariant)
         .where(IngredientVariant.ingredient_id == ingredient_id)
-        .where(IngredientVariant.preferred == True)
+        .where(IngredientVariant.preferred.is_(True))
         .limit(1)
     ).first()
     if v is not None:

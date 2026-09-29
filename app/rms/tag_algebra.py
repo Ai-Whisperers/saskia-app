@@ -285,31 +285,39 @@ _TAG_ALLERGEN_BLOCKERS: dict[str, tuple[str, ...]] = {
 def ingredient_blocks(ing: object, tag: str) -> bool:
     """True if this ingredient DISQUALIFIES the recipe from `tag`.
 
-    Blocking rules (allergen-driven — dietary_tags is a cross-check claim):
+    Blocking rules — hierarchical, allergen-driven, dietary_tags is a claim:
 
     1. **Neutral keywords** — `agua`, `sal`, `hielo`, common spices, leaveners
        never block any tag (they're pantry staples that don't disqualify).
 
-    2. **Allergen-driven blocking** — the canonical truth.  An ingredient
-       blocks `sin X` if its `allergens` column contains any keyword that
-       disqualifies X (per `_TAG_ALLERGEN_BLOCKERS`).  Example:
-       Zanahoria has allergens=None → does NOT block sin_gluten, sin_huevo,
-       sin_lactosa, sin_azúcar.  Harina de trigo has allergens='gluten' →
-       blocks sin_gluten and sin_tacc.
+    2. **Allergens column populated** → use it as source of truth.
+       An ingredient blocks `sin X` if its `allergens` column contains any
+       keyword that disqualifies X (per `_TAG_ALLERGEN_BLOCKERS`).
+       Example: Harina de trigo has allergens='gluten' → blocks sin_gluten
+       and sin_tacc; manteca has allergens='dairy' → blocks sin_lactosa.
 
-    3. **sin tacc + may_contain_gluten** — even with empty allergens,
-       `may_contain_gluten=True` still blocks `sin tacc` (SINACLA cross-
-       contamination rule for shared equipment).
+    3. **Allergens column empty/null** → fall back to `infer_allergens(name)`
+       heuristic.  This handles operators who haven't yet populated the
+       allergens column (the UI shows these as "sin declarar").  Zanahoria
+       has no allergens and no name-keyword matches → does NOT block sin_x.
+       Harina de trigo (no allergens, but name matches `trigo`) → blocks
+       sin_gluten.
 
-    4. **Inverse dietary claim** — if an ingredient's `dietary_tags` column
-       explicitly negates the tag (e.g. a sub-recipe whose derived tags
-       exclude `vegano`), trust that claim.
+    4. **sin tacc cross-contamination** — even with empty allergens,
+       `may_contain_gluten=True` still blocks `sin tacc` (SINACLA rule for
+       shared equipment).
 
-    5. **Default: don't block.**  An ingredient with allergens=None and no
-       inverse claim is treated as not blocking.  The UI marks these
-       ingredients "sin declarar" so the operator knows to fill them in.
-       This avoids the absurd situation where carrots block sin_gluten
-       just because the operator hasn't yet recorded their allergens.
+    5. **dietary_tags cross-check** — if the ingredient CLAIMS the tag T
+       (e.g. `vegano`, `sin gluten`) in its declared dietary set, that claim
+       overrides a heuristic match.  e.g. `Harina de almendras` matches the
+       `almendra` nut keyword for infer_allergens, but if it declares
+       `sin frutos secos`, trust the claim and don't block sin_frutos_secos.
+
+    6. **Default: don't block.**  If neither allergens nor name-heuristic
+       yields a disqualifier, the ingredient is treated as not blocking.
+       The UI shows it as "sin declarar" so the operator can fill inventory.
+       This prevents the broken legacy behavior where carrots blocked
+       sin_gluten because their allergens column was simply unpopulated.
     """
     if _is_neutral(ing.name or ""):
         return False
@@ -317,20 +325,41 @@ def ingredient_blocks(ing: object, tag: str) -> bool:
     allergens_raw = getattr(ing, "allergens", None)
     may_contain_gluten = getattr(ing, "may_contain_gluten", False)
 
-    # (1) allergens column populated → use as source of truth
-    if allergens_raw:
-        allergens = {a.strip().lower() for a in allergens_raw.split(",") if a.strip()}
-        blockers = _TAG_ALLERGEN_BLOCKERS.get(tag, ())
-        if blockers and any(b in allergens for b in blockers):
-            return True  # allergen column says this ingredient disqualifies X
-
-    # (2) sin tacc cross-contamination (separate from allergen list)
+    # (4) sin tacc cross-contamination takes priority (operator-set flag)
     if tag == "sin tacc" and may_contain_gluten:
         return True
 
-    # (3) allergens undeclared → default-allow (don't block).
-    #     The UI will show the ingredient as "sin declarar alérgenos"
-    #     so the operator can fill in inventory.
+    # Resolve which allergens disqualify this tag, from most-trusted to least.
+    blockers = _TAG_ALLERGEN_BLOCKERS.get(tag, ())
+    if not blockers:
+        # No allergen → tag rule defined; tags like 'integral', 'orgánico'
+        # aren't blocked by allergens (they're derived/cert claims).
+        return False
+
+    # (2) allergens column is the preferred source of truth.
+    if allergens_raw:
+        allergens = {a.strip().lower() for a in allergens_raw.split(",") if a.strip()}
+        if any(b in allergens for b in blockers):
+            return True
+        # Allergens declared and don't include any blocker → don't block.
+        return False
+
+    # (3) Allergens column unpopulated → heuristic from ingredient name.
+    #     Lazily import to avoid circular module-load (ingredient_intel
+    #     imports models from here indirectly).
+    from app.rms.ingredient_intel import infer_allergens
+
+    inferred = set(infer_allergens(getattr(ing, "name", "") or ""))
+    if any(b in inferred for b in blockers):
+        # (5) dietary_tags claim can override a heuristic match
+        declared = ingredient_dietary_set(ing)
+        if tag in declared:
+            return False
+        return True
+
+    # (6) No allergens + no name-heuristic match → don't block.
+    #     UI marks the ingredient "sin declarar alérgenos" so the operator
+    #     knows to fill inventory.
     return False
 
 
