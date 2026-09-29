@@ -562,6 +562,29 @@ def seed_demo_data(
         report.products += 1
     session.flush()
 
+    # E13.S2 — "Venta libre" so the cashier can sell a custom-name item at
+    # a cashier-typed price. Stock-free; sale_price starts at 0 and is
+    # overridden per-sale via the cart price input. Idempotent by SKU.
+    existing_sku = session.execute(
+        select(Product).where(Product.sku == "VAR-001")
+    ).scalar_one_or_none()
+    if existing_sku is None:
+        venta_libre = Product(
+            name="Venta libre",
+            sku="VAR-001",
+            sale_price_gs=0,
+            is_available=True,
+            notes="Venta libre — definí el precio en el carrito.",
+            category="varios",
+        )
+        session.add(venta_libre)
+        session.flush()
+        report.products += 1
+    else:
+        report.skipped_existing["products_existing"] = (
+            report.skipped_existing.get("products_existing", 0) + 1
+        )
+
     # --- Demo user ---
     user = session.execute(select(User).where(User.username == DEMO_USER_USERNAME)).scalar_one_or_none()
     if user is None:

@@ -29,3 +29,53 @@
 .tab { display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4); background: transparent; color: var(--color-text-muted); border: 1px solid transparent; border-bottom: 2px solid transparent; border-radius: 0; font-family: inherit; font-size: var(--text-sm); cursor: pointer; transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
 .tab:hover { color: var(--color-text); border-bottom-color: var(--color-border-strong); }
 button.tab.is-active { color: var(--color-accent); border-bottom-color: var(--color-accent); font-weight: 600; }
+
+/* E13.S2 — Venta libre tile (cashier-typed price).
+   Visually distinct from real products: dashed border + muted bg + "+"
+   icon, so the cashier can tell at a glance it's a special path. */
+.quick-sell-btn--varios {
+  grid-column: 1 / -1;
+  background: var(--color-surface-subtle);
+  border: 2px dashed var(--color-border-strong);
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  min-height: 64px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.quick-sell-btn--varios:hover {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.quick-sell-btn--varios .icon {
+  width: 1.4em;
+  height: 1.4em;
+}
+.quick-sell-btn--varios .quick-sell-name {
+  font-weight: 600;
+}
+.quick-sell-btn--varios .quick-sell-meta {
+  color: var(--color-text-subtle);
+  font-size: var(--text-sm);
+}
+:root[data-theme="dark"] .quick-sell-btn--varios {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--color-border-strong);
+}
+
+/* E13.S2 — per-row price input in the cart table.
+   Mirrors the qty input styling but with a slightly wider hit area for
+   the cashier's finger on touch screens. */
+.cart-price-cell { text-align: right; }
+.cart-price-input {
+  width: 96px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 6px;
+  height: auto;
+}

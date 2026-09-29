@@ -69,6 +69,7 @@
               <tr>
                 <th style="width:44px"></th>
                 <th>Producto</th>
+                <th style="text-align:right;width:110px">Precio</th>
                 <th style="text-align:right;width:72px">Cant.</th>
                 <th style="text-align:center;width:80px">Dto. %</th>
                 <th style="text-align:right;width:110px">Subtotal</th>
@@ -239,8 +240,35 @@
       </button>
       {% endfor %}
     </div>
+
+    {# E13.S2 — Venta libre tile. ALWAYS rendered (outside the quick_sell
+       guard above) so the cashier can use it on a fresh DB before any
+       sale history exists. Hidden only when the seed row is missing
+       (venta_libre_id is NULL). #}
+    {% if venta_libre_id %}
+    <button type="button" class="quick-sell-btn quick-sell-btn--varios"
+            id="venta-libre-btn"
+            data-product-id="{{ venta_libre_id }}"
+            aria-label="Venta libre — precio manual">
+      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+      <span class="quick-sell-name">Venta libre</span>
+      <span class="quick-sell-meta">Precio a definir</span>
+    </button>
+    {% endif %}
     {% else %}
     <p class="hint pos-quick-empty">El catálogo todavía no tiene productos con ventas recientes.</p>
+    {# Same venta libre button after the empty-state message so the cashier
+       can still use it on a brand-new DB. #}
+    {% if venta_libre_id %}
+    <button type="button" class="quick-sell-btn quick-sell-btn--varios"
+            id="venta-libre-btn"
+            data-product-id="{{ venta_libre_id }}"
+            aria-label="Venta libre — precio manual">
+      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+      <span class="quick-sell-name">Venta libre</span>
+      <span class="quick-sell-meta">Precio a definir</span>
+    </button>
+    {% endif %}
     {% endif %}
   </div>{# /pos-quick #}
 
@@ -380,6 +408,10 @@
         product_name: productName || ('Producto #' + productId),
         qty: parseFloat(qty),
         unit_price_gs: unitPriceGs,
+        // E13.S2 — remember the catalog default so the POST can send
+        // unit_price_gs ONLY when it differs from the default (keeps
+        // payloads small + server logic unchanged for normal sales).
+        default_unit_price_gs: unitPriceGs,
         discount_pct: discount,
       });
     }
@@ -416,6 +448,28 @@
       alert('Cantidad debe ser un número entero (sin decimales). Se ajustó a ' + qty + '.');
     }
     item.qty = qty;
+    renderCart();
+  };
+
+  // ── Direct price input (cart table) — E13.S2 ────────────────────────────
+  // Cashier can edit the per-row price (venta libre, manual override).
+  // Strip non-digits so paste/copy can't inject currency symbols or commas.
+  window.setPriceDirect = function(idx, val) {
+    var item = POS_CART[idx];
+    if (!item) return;
+    var cleaned = String(val).replace(/[^0-9]/g, '');
+    var price = parseInt(cleaned, 10);
+    if (!price || price < 100) {
+      alert('Precio mínimo Gs. 100.');
+      renderCart();
+      return;
+    }
+    if (price > 9999999) {
+      alert('Precio demasiado alto (máx. Gs. 9.999.999).');
+      renderCart();
+      return;
+    }
+    item.unit_price_gs = price;
     renderCart();
   };
 
@@ -469,6 +523,14 @@
         tr.innerHTML =
           '<td></td>' +
           '<td class="cart-product-name">' + escHtml(item.product_name) + '</td>' +
+          '<td class="cart-price-cell">' +
+            // E13.S2 — per-row price input. The cashier can override the
+            // catalog price for venta libre / odd-lot sales. Re-rendering
+            // on blur keeps the input value in sync with state.
+            '<input type="number" class="cart-price-input" min="100" step="100" ' +
+            'value="' + item.unit_price_gs + '" ' +
+            'onchange="setPriceDirect(' + idx + ', this.value)" aria-label="Precio unitario" inputmode="numeric">' +
+          '</td>' +
           '<td class="cart-qty-cell">' +
             // SALES-VAL-003: discrete baked goods → integer qty. step=1 forces whole units in the spinner and validated by setQtyDirect().
             '<input type="number" class="cart-qty-input" min="1" step="1" value="' + item.qty + '" ' +
@@ -549,7 +611,19 @@
     var fd = new FormData(form);
     var payload = {
       items:  POS_CART.map(function(i) {
-        return { product_id: i.product_id, qty: i.qty, discount_pct: i.discount_pct || 0 };
+        var out = { product_id: i.product_id, qty: i.qty, discount_pct: i.discount_pct || 0 };
+        // E13.S2 — send unit_price_gs ONLY when the cashier changed it
+        // away from the catalog default. Keeps the payload small for the
+        // common (normal-priced) case AND keeps server logic backwards-
+        // compatible: server falls back to product.sale_price_gs when
+        // unit_price_gs is missing.
+        if (
+          i.unit_price_gs && i.unit_price_gs > 0 &&
+          i.unit_price_gs !== i.default_unit_price_gs
+        ) {
+          out.unit_price_gs = i.unit_price_gs;
+        }
+        return out;
       }),
       customer_id:            fd.get('customer_id') || null,
       payment_method:         fd.get('payment_method') || '',
@@ -707,6 +781,39 @@
 
   wireScanInput();
   refocusScanInput();
+
+  // ── Venta libre — cashier-typed price (E13.S2) ─────────────────────────
+  // Cashier clicks the special "+ Venta libre" tile, types a price in a
+  // small modal, and the row enters the cart with that price as
+  // unit_price_gs. The form POST then sends unit_price_gs to the server
+  // which falls back to product.sale_price_gs when missing.
+  (function wireVentaLibre() {
+    var btn = document.getElementById('venta-libre-btn');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+      var pid = parseInt(btn.getAttribute('data-product-id') || '0', 10);
+      if (!pid) {
+        alert('Venta libre no está configurada.');
+        return;
+      }
+      var raw = window.prompt(
+        'Precio de venta libre (Gs.):\nMínimo 100, múltiplos de 100.',
+        ''
+      );
+      if (raw === null) return;  // cashier cancelled
+      var cleaned = String(raw).replace(/[^0-9]/g, '');
+      var price = parseInt(cleaned, 10);
+      if (!price || price < 100) {
+        alert('Precio inválido. Mínimo Gs. 100.');
+        return;
+      }
+      if (price > 9999999) {
+        alert('Precio demasiado alto (máx. Gs. 9.999.999).');
+        return;
+      }
+      addItem(pid, 'Venta libre', 1, price);
+    });
+  })();
 })();
 </script>
 {% endblock %}

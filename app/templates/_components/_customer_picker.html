@@ -45,7 +45,13 @@
       <div class="form-grid-2col">
         <div class="form-row">
           <label for="cp_new_name">Nombre *</label>
-          <input type="text" id="cp_new_name" name="name" required maxlength="120">
+          {# `required` removed 2026-09-29: the input lives inside a
+              collapsed <details> panel. When the parent form submits,
+              the browser tries to focus the required input to validate
+              but the panel is closed → "invalid form control is not
+              focusable" error. The submit handler (customer-picker.js
+              + inline script below) already validates name manually. #}
+          <input type="text" id="cp_new_name" name="name" maxlength="120">
         </div>
         <div class="form-row">
           <label for="cp_new_phone">Teléfono</label>
@@ -151,7 +157,12 @@
     'maní', 'man\u00ed', 's\u00e9samo', 'leche', 'nuez', 'marisco'
   ];
 
-  var combo = document.getElementById('customer_id_combo');
+  // 2026-09-29 fix: saskia-combo doesn't expose its `name` as `id`, so
+  // getElementById('customer_id_combo') returns null. Use the [name=...]
+  // attribute selector instead. (Also: saskia-combo's `value` is the
+  // native HTMLElement.value which returns undefined for custom elements —
+  // use the JS getter `getValue()`.)
+  var combo = document.querySelector('saskia-combo[name="customer_id_combo"]');
   var hidden = document.getElementById('customer_id');
   var hint = document.getElementById('customer_picker_hint');
 
@@ -350,9 +361,15 @@
   }
 
   // ── Combo change → fetch detail + populate card ────────────────────────
+  // 2026-09-29 fix: saskia-combo's `value` is the native HTMLElement.value
+  // (returns attribute value, not the JS _value). The getter we want is
+  // `getValue()`. Without this fix, hidden.value is set to '' on every
+  // selection → customer_id never reaches the backend → no client attached
+  // to the sale. Symptom: customer info card stays hidden after selection.
   if (combo && hidden) {
     combo.addEventListener('change', function() {
-      hidden.value = combo.value || '';
+      var selectedId = combo.getValue ? combo.getValue() : combo.value;
+      hidden.value = selectedId || '';
       if (hint) {
         var data = combo.getSelectedData ? combo.getSelectedData() : null;
         if (data && data.hint) {
@@ -362,7 +379,7 @@
           hint.hidden = true;
         }
       }
-      var id = parseInt(combo.value, 10);
+      var id = parseInt(selectedId, 10);
       if (id) {
         fetchAndFillCard(id);
       } else {

@@ -226,6 +226,16 @@ def _build_sales_context(
                 "image_url": getattr(p, "image_url", None) or "",
             })
 
+    # E13.S2 — Venta libre: pass the cashier-custom-price product id so
+    # the ventas template can render a "+ Venta libre" tile that opens
+    # a price prompt. NULL when the row hasn't been seeded yet (e.g.
+    # brand-new DB before the operator runs seed); the button is
+    # hidden in that case.
+    venta_libre = session.execute(
+        select(Product).where(Product.sku == "VAR-001")
+    ).scalar_one_or_none()
+    venta_libre_id = venta_libre.id if venta_libre is not None else None
+
     return {
         "products": products,
         "sales": [_decorated(s) for s in sales_page],
@@ -258,6 +268,8 @@ def _build_sales_context(
         "page_start": start_offset + 1,
         "page_end": min(start_offset + PAGE_SIZE, total_count),
         "total_count": total_count,
+        # E13.S2 — venta libre (cashier-typed price) plumbing
+        "venta_libre_id": venta_libre_id,
     }
 
 
@@ -814,6 +826,7 @@ async def sale_create_multi(
         product_id: int = Field(..., gt=0)
         qty: float = Field(..., gt=0)
         discount_pct: float = Field(0, ge=0, le=100)  # per-item % discount
+        unit_price_gs: int | None = Field(None, ge=0, le=999_999_999)  # E13.S2 cashier override
 
     class _Body(BaseModel):
         items: list[_Item] = Field(..., min_length=1)
@@ -955,7 +968,16 @@ async def sale_create_multi(
 
             # Fetch product price for discount calculation
             product = session.get(Product, item.product_id)
-            unit_price = product.sale_price_gs if product else 0
+            catalog_price = product.sale_price_gs if product else 0
+            # E13.S2 — accept cashier price override for venta libre / misc
+            # sales. Falls back to the catalog price when the client doesn't
+            # send one. Sale.unit_price_gs is already a snapshot column so
+            # the override is safe to persist.
+            unit_price = (
+                item.unit_price_gs
+                if item.unit_price_gs is not None and item.unit_price_gs > 0
+                else catalog_price
+            )
 
             # All items in the cart share the same metadata (customer, payment, channel)
             result = apply_sale(
@@ -968,6 +990,7 @@ async def sale_create_multi(
                 payment_method=payment_method_clean,
                 discount_gs=math.ceil(item.qty * unit_price * (item.discount_pct or 0) / 100),
                 channel=channel_clean,
+                unit_price_gs_override=unit_price if item.unit_price_gs else None,
             )
             if first_product_id is None:
                 first_product_id = item.product_id
@@ -976,12 +999,14 @@ async def sale_create_multi(
             if idx == 0:
                 from app.rms.invoicing import allocate_invoice_number, compute_invoice_snapshot
                 product = session.get(Product, item.product_id)
-                unit_price_gs = product.sale_price_gs if product else 0
+                # E13.S2 — invoice snapshot must reflect the cashier-typed
+                # price (when present) so the IVA base matches what the
+                # cashier sold at.
                 snapshot = compute_invoice_snapshot(
                     session,
                     product_id=item.product_id,
                     qty=item.qty,
-                    unit_price_gs=unit_price_gs,
+                    unit_price_gs=unit_price,
                     discount_gs=discount_gs,
                     invoice_type=invoice_type_clean,
                 )

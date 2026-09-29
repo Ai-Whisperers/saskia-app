@@ -178,6 +178,13 @@ TODOs (for tomorrow's full implementation):
     }
 
     getValue() { return this._value; }
+    /** Property getter that mirrors _value to the native HTMLElement.value.
+     *  2026-09-29 fix: without this, `combo.value` returns undefined (custom
+     *  elements extending HTMLElement don't reflect the `value` attribute the
+     *  way form elements do). Callers can still use getValue(), but external
+     *  code that does `combo.value` now works. */
+    get value() { return this._value; }
+    set value(v) { this.setValue(v, this._display); }
     getDisplay() { return this._display; }
     /** Returns the full selected item object (value, display, plus any extra
      *  fields like sale_price_gs that were stored via setOptionsData). */
@@ -427,9 +434,11 @@ TODOs (for tomorrow's full implementation):
         const form = this.closest('form');
         if (form) form.submit();
       }
-      // Fire DOM change event on the host element so legacy scripts that
-      // listen for `change` (or form serialize) keep working
-      this.dispatchEvent(new Event('change', { bubbles: true }));
+      // No explicit change dispatch here — setValue() above already
+      // calls _emitChange() which fires a CustomEvent('change', {detail})
+      // with bubbles:true. Dispatching another plain Event('change')
+      // here caused double-fire and a stale event.detail. Removed
+      // 2026-09-29.
     }
 
     _emitChange() {
