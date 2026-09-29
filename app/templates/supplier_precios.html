@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Comparación de precios — {{ fmt.entity_name(supplier) }}{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:baseline;gap:var(--space-3);margin-bottom:var(--space-4);">
+  <h1>Comparación de precios</h1>
+  <span class="muted">· {{ fmt.entity_name(supplier) }}</span>
+  <a href="/suppliers/{{ supplier.id }}/editar" class="btn btn-sm btn-ghost">
+    <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+    Editar proveedor
+  </a>
+</div>
+
+<p class="muted">
+  Vista por ingrediente: cada fila muestra cuánto cobra
+  <strong>{{ fmt.entity_name(supplier) }}</strong> comparado con los demás
+  proveedores del catálogo. Verde = más barato, rojo = más caro.
+</p>
+
+{% if comparison %}
+<div class="card mb-4">
+  <div class="card-header">
+    <h2>Resumen</h2>
+    <div class="metric-value">{{ ingredient_count }} ingredientes</div>
+  </div>
+  <div class="card-body" style="display:flex;gap:var(--space-4);flex-wrap:wrap;">
+    <div>
+      <div class="muted">Proveedores comparados</div>
+      <div style="font-size:1.25rem;font-weight:600;">{{ supplier_count }}</div>
+    </div>
+    <div>
+      <div class="muted">Ingredientes con más de un proveedor</div>
+      <div style="font-size:1.25rem;font-weight:600;">{{ multi_supplier_count }}</div>
+    </div>
+    <div>
+      <div class="muted">Ahorro potencial por unidad</div>
+      <div style="font-size:1.25rem;font-weight:600;color:var(--color-ok,#2c7a3e);">
+        {{ m.gs(savings_per_unit_gs) }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header"><h2>Precios por ingrediente</h2></div>
+  <table class="table is-hoverable is-striped">
+    <thead>
+      <tr>
+        <th>Ingrediente</th>
+        <th>Unidad</th>
+        <th class="num">Proveedor más barato</th>
+        <th class="num">Precio {{ fmt.entity_name(supplier) }}</th>
+        <th class="num">Diferencia</th>
+        <th class="num">Ahorro / unidad</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for g in comparison %}
+      <tr data-ingredient-id="{{ g.ingredient_id }}">
+        <td><strong data-copy="{{ g.ingredient_id }}">{{ fmt.entity_name(g) }}</strong></td>
+        <td>{{ g.unit }}</td>
+        <td class="num">
+          {% set cheapest = g.suppliers[0] %}
+          <span class="is-cheapest">
+            {{ fmt.entity_name(cheapest) }} · {{ m.gs(cheapest.price_gs) }}
+          </span>
+        </td>
+        {% set this_price = g.suppliers | selectattr("supplier_id", "equalto", supplier.id) | first %}
+        <td class="num {% if this_price and not this_price.is_cheapest %}is-overpriced{% endif %}">
+          {% if this_price %}
+            {{ m.gs(this_price.price_gs) }}
+            {% if this_price.is_cheapest %}
+              <span class="badge badge-ok">el más barato</span>
+            {% else %}
+              <span class="badge badge-danger">+{{ "%.1f"|format(this_price.delta_pct) }}%</span>
+            {% endif %}
+          {% else %}
+            <em class="muted">—</em>
+          {% endif %}
+        </td>
+        <td class="num">
+          {% if this_price and not this_price.is_cheapest %}
+            +{{ m.gs(this_price.delta_gs) }}
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td class="num">
+          {% if g.savings_gs_per_unit > 0 %}
+            <strong>{{ m.gs(g.savings_gs_per_unit) }}</strong>
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% if g.suppliers|length > 1 %}
+      <tr>
+        <td colspan="6" style="padding:0 1rem 0.75rem 1rem;background:rgba(0,0,0,0.02);">
+          <details>
+            <summary class="muted" style="cursor:pointer;">
+              Ver todos los proveedores ({{ g.suppliers|length }})
+            </summary>
+            <table class="table is-narrow" style="margin-top:var(--space-2);">
+              <thead>
+                <tr>
+                  <th>Proveedor</th>
+                  <th class="num">Precio</th>
+                  <th class="num">vs. más barato</th>
+                  <th class="num">%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for sp in g.suppliers %}
+                <tr class="{% if sp.is_cheapest %}is-cheapest{% elif sp.delta_gs == g.savings_gs_per_unit %}is-overpriced{% endif %}">
+                  <td>
+                    {% if sp.supplier_id == supplier.id %}<strong>{{ fmt.entity_name(sp) }} (este)</strong>{% else %}{{ fmt.entity_name(sp) }}{% endif %}
+                  </td>
+                  <td class="num">{{ m.gs(sp.price_gs) }}</td>
+                  <td class="num">
+                    {% if sp.is_cheapest %}
+                      <span class="badge badge-ok">el más barato</span>
+                    {% else %}
+                      +{{ m.gs(sp.delta_gs) }}
+                    {% endif %}
+                  </td>
+                  <td class="num">
+                    {% if sp.is_cheapest %}—{% else %}+{{ "%.1f"|format(sp.delta_pct) }}%{% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </details>
+        </td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <th colspan="5" class="num">Ahorro potencial si comprás al más barato</th>
+        <th class="num">{{ m.gs(savings_per_unit_gs) }}</th>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+{% if selected_view %}
+<div class="card mb-4">
+  <div class="card-header">
+    <h2>¿Cómo está posicionado {{ fmt.entity_name(supplier) }}?</h2>
+  </div>
+  <p class="muted" style="padding:0 1rem;">
+    Posición del proveedor en cada ingrediente que vende.
+  </p>
+  <table class="table is-striped">
+    <thead>
+      <tr>
+        <th>Ingrediente</th>
+        <th class="num">Precio</th>
+        <th class="num">Posición</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for sv in selected_view %}
+      <tr>
+        <td>{{ fmt.entity_name(sv.group) }}</td>
+        <td class="num">{{ m.gs(sv.this_price.price_gs) }}</td>
+        <td class="num">{{ sv.rank }} de {{ sv.total_suppliers }}</td>
+        <td>
+          {% if sv.this_price.is_cheapest %}
+            <span class="badge badge-ok">el más barato</span>
+          {% else %}
+            <span class="badge badge-danger">
+              pagás +{{ m.gs(sv.this_price.delta_gs) }} sobre el más barato
+            </span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% else %}
+{{ ui.empty_state(
+  title="Sin datos de comparación todavía",
+  icon="icon-tag",
+  hint="Este proveedor todavía no tiene precios cargados para comparar. Cargá variantes de ingredientes con distintos proveedores para activar la comparación."
+) }}
+{% endif %}
+
+<p><a href="/suppliers" class="btn btn-ghost">&larr; Volver a proveedores</a></p>
+
+<style>
+  .is-cheapest { background-color: rgba(44, 122, 62, 0.12); }
+  .is-overpriced { background-color: rgba(200, 60, 60, 0.12); }
+  table.table.is-narrow { font-size: 0.9rem; }
+</style>
+
+{% endblock %}

@@ -150,6 +150,77 @@ def supplier_delete(s_id: int, request: Request, session: Session = Depends(get_
     return RedirectResponse(url="/suppliers", status_code=303)
 
 
+@router.get("/{s_id}/precios", response_class=HTMLResponse)
+def supplier_precios(
+    s_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """P1-B9: side-by-side price comparison per ingredient for this supplier.
+
+    For each ingredient that this supplier sells, lists every other supplier's
+    price (sorted ASC) and surfaces the delta vs the cheapest — so Saskia can
+    spot when she's paying Gs. 500/kg more than Proveedor B for harina.
+
+    When ``?supplier_id=N`` is present, that supplier's column is highlighted
+    and a "Estás pagando Gs. Y más caro que el promedio" badge appears if their
+    price isn't the cheapest.
+    """
+    supplier = session.get(Supplier, s_id)
+    if supplier is None:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+
+    from app.rms.supplier_prices import (
+        get_price_comparison,
+        total_potential_savings,
+    )
+
+    comparison = get_price_comparison(session, supplier_id=s_id)
+
+    # Build supplier-set for the header summary.
+    supplier_ids: set[int] = set()
+    for g in comparison:
+        for s in g.suppliers:
+            supplier_ids.add(s.supplier_id)
+
+    savings_per_unit = total_potential_savings(comparison)
+
+    # Compute the highlight supplier's per-ingredient position.
+    # selected_view: list of dicts with {group, this_price, other_count, is_cheapest, rank}.
+    selected_view: list[dict] = []
+    for g in comparison:
+        this_row = next((s for s in g.suppliers if s.supplier_id == s_id), None)
+        if this_row is None:
+            continue
+        selected_view.append(
+            {
+                "group": g,
+                "this_price": this_row,
+                "rank": next(
+                    i for i, s in enumerate(g.suppliers) if s.supplier_id == s_id
+                )
+                + 1,
+                "total_suppliers": len(g.suppliers),
+            }
+        )
+
+    return render(
+        request,
+        "supplier_precios.html",
+        {
+            "supplier": supplier,
+            "comparison": comparison,
+            "selected_view": selected_view,
+            "savings_per_unit_gs": savings_per_unit,
+            "supplier_count": len(supplier_ids),
+            "ingredient_count": len(comparison),
+            "multi_supplier_count": sum(
+                1 for g in comparison if len(g.suppliers) > 1
+            ),
+        },
+    )
+
+
 @router.get("/{s_id}/ordenes", response_class=HTMLResponse)
 def supplier_orders(
     s_id: int,
