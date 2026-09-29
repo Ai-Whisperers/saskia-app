@@ -13,6 +13,7 @@
     <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
     Nueva receta
   </a>
+  <a href="/recetas/export" class="btn" download>Exportar CSV</a>
 </p>
 
 {# --- Filter toolbar (mf-pop pattern, same as inventario) --- #}
@@ -86,6 +87,8 @@
           {% if sort == 'yield_qty' %}<strong>{% endif %}{% if sort == 'yield_qty' and dir == 'desc' %}▼{% elif sort == 'yield_qty' %}▲{% else %}⇅{% endif %}{% if sort == 'yield_qty' %}</strong>{% endif %}
         </a>
       </th>
+      <th class="col-prep" style="text-align:center;">Prep</th>
+      <th class="col-cook" style="text-align:center;">Cocción</th>
       <th>Líneas</th>
       <th class="num">
         Costo del lote (Gs.)
@@ -128,6 +131,8 @@
         {% endif %}
       </td>
       <td>{{ r.line_count }}</td>
+      <td class="num col-prep" style="text-align:center;">{% if r.prep_minutes %}{{ r.prep_minutes }} min{% endif %}</td>
+      <td class="num col-cook" style="text-align:center;">{% if r.cook_minutes %}{{ r.cook_minutes }} min{% endif %}</td>
       <td class="num">{% if r.batch_cost_gs is none %}<em class="muted">falta precio</em>{% else %}{{ m.gs(r.batch_cost_gs) }}{% endif %}</td>
       <td class="num">{% if r.unit_cost_gs is none %}<em class="muted">—</em>{% else %}{{ m.gs(r.unit_cost_gs) }}{% endif %}</td>
       <td class="num">{% if r.batch_cost_gs is none %}<span class="badge badge-warn">⚠️ sin costo</span>{% else %}{{ m.gs(r.batch_cost_gs) }}{% endif %}</td>
@@ -212,5 +217,9 @@
   });
 })();
 </script>
+
+<style>
+.col-prep, .col-cook { text-align: center; }
+</style>
 
 {% endblock %}
