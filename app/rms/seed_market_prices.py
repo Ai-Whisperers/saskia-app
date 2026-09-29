@@ -17,6 +17,9 @@ When operator updates this file, run:
 """
 
 import os
+from datetime import datetime
+
+from app.rms.config import ASUNCION_TZ
 
 # Mapping: ingredient_name (lowercase, exact match with seed.py) → (unit, price_gs_per_unit, source, notes)
 # Verified Sept 2026 against 3+ sources where available.

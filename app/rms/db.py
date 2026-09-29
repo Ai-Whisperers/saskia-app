@@ -2510,7 +2510,7 @@ def _migration_060_tag_normalization(conn: Any) -> None:
             iid, name = r
             try:
                 tags = infer_dietary_tags(name or "")
-            except Exception:
+            except Exception:  # noqa: S112 — skip rows with bad data, log elsewhere
                 continue
             new_value = _to_canonical_m60(",".join(tags)) if tags else None
             # SELECT prior value to skip no-op writes (Postgres triggers fire

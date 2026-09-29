@@ -295,7 +295,7 @@ async def excel_export(request: Request, session: Session = Depends(get_session)
         )
     except Exception:
         try:
-            tmp_path.unlink()
+            tmp_path.unlink()  # noqa: ASYNC240 — fast cleanup of known temp file
         except OSError as exc:
             # Temp file cleanup; if the OS already removed it, not an error.
             logger.debug("excel_io tmp cleanup skipped: {}", exc)

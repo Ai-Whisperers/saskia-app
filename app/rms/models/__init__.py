@@ -8,7 +8,7 @@ redone properly, this package re-exports the last known-good monolithic
 models.py (commit b9b5288) which the entire app + 2140-test suite runs
 green against. The domain submodules remain on disk for the redo.
 """
-from app.rms.models_legacy import *
+from app.rms.models_legacy import *  # noqa: F403 — legacy compatibility layer, all names re-exported intentionally
 
 # Also export names legacy __all__ may miss
 from app.rms.models_legacy import (

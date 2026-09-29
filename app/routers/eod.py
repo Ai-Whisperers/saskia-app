@@ -4,7 +4,7 @@ Built on app/rms/workflow.py which has fresh_eod_checklist() + eod_progress().
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse

@@ -153,6 +153,15 @@ def optimize_bulk_operations(items: List[T], operation_func: Callable, batch_siz
 
 
 # Common performance utilities
+def log_slow_query(func_name: str, duration: float, message: str) -> None:
+    """Log a slow query for monitoring.
+
+    Best-effort helper used by the measure_query_performance decorator.
+    Uses print() since loguru isn't a dependency of this module.
+    """
+    print(message)
+
+
 def measure_query_performance(query_func: Callable) -> Callable:
     """Decorator to measure and log query performance."""
 

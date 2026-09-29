@@ -24,6 +24,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.rms.config import ASUNCION_TZ
 from app.rms.models import Ingredient, IngredientVariant, Sale, SaleStockMove
 from app.rms.money import to_decimal
 from app.rms.units import Unit, can_convert, convert_qty

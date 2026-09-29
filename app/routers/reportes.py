@@ -25,6 +25,7 @@ from app.rms.accounting import (
     top_products_report,
 )
 from app.rms.charts import fmt_short_date, line_chart
+from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
 from app.rms.models import Ingredient, IngredientPriceEvent, Sale
 from app.rms.price_history import batch_price_stats, price_history, price_stats

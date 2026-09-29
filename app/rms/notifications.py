@@ -149,7 +149,7 @@ def send_whatsapp_summary(body: str, *, to: str | None = None) -> NotifyResult:
     request.add_header("Content-Type", "application/x-www-form-urlencoded")
 
     try:
-        with urllib.request.urlopen(request, timeout=10.0) as resp:
+        with urllib.request.urlopen(request, timeout=10.0) as resp:  # noqa: S310 — WhatsApp webhook URL configured by ops, validated upstream
             _ = resp.read().decode()  # drain body for connection reuse
             spool = _spool_message("whatsapp", body)
             return NotifyResult(
