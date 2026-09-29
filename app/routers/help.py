@@ -43,7 +43,7 @@ def _md_to_html(md_text: str) -> str:
     code_buf: list[str] = []
     table_buf: list[str] = []
 
-    def flush_table():
+    def flush_table() -> str:
         if not table_buf:
             return ""
         rows = [r for r in table_buf if r.strip() and not re.match(r"^\s*\|[\s\-:|]+\|\s*$", r)]

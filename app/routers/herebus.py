@@ -103,7 +103,7 @@ async def wishlist_mark_purchased(
     request: Request,
     item_id: int,
     session: Session = Depends(get_session),
-):
+) -> RedirectResponse:
     item = session.get(WishlistItem, item_id)
     if not item:
         raise NotFound("WishlistItem", id=item_id)
@@ -127,7 +127,7 @@ async def wishlist_send_to_shopping_list(
     request: Request,
     item_id: int,
     session: Session = Depends(get_session),
-):
+) -> RedirectResponse:
     """Send wishlist equipment item to the shopping list (so user can
     buy it through the standard shopping-list flow)."""
     item = session.get(WishlistItem, item_id)
@@ -292,7 +292,7 @@ async def bank_add(
     category: str = Form("manual"),
     source: str = Form("manual_entry"),
     session: Session = Depends(get_session),
-):
+) -> dict:
     """Manually add a bank transaction (e.g. for the PY savings statement).
 
     Parse the date and insert.

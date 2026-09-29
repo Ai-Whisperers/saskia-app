@@ -1,13 +1,26 @@
 # Saskia RMS — Complete UX/UI Upgrade Plan
 
-**Generated:** 2026-09-29
+**Generated:** 2026-09-29 (revised — full catalog sweep)
 **Author:** UX/UI Principal review (multi-hat analysis + cross-page consolidation)
-**Source audits:**
-- `/tmp/designer-drop/audit-batch2-prod.md` (78 KB · 948 lines · 14 pages — Inventario/Producción/Pedidos/Receta)
-- `/tmp/designer-drop/audit-batch3-reports.md` (69 KB · 950 lines · 14 pages — Compras/Reportes/Admin/Bank/Riesgos/Auditoría)
-- `/tmp/designer-drop/cross-page-wishlist-consolidation.md` (37 KB · 602 lines — top 30 patterns + top 10 macros)
-- `/tmp/designer-drop/cross-cutting-consistency-audit.md` (38 KB · 544 lines — 12 naming/consistency dimensions)
-- `/tmp/designer-drop/ux-audit-2026-09-27.md` (34 KB — 6 universal defects, 12 cross-cutting patterns)
+**Source audits (complete list — 14 files in `/tmp/designer-drop/`):**
+- `audit-batch2-prod.md` (78 KB · 948 lines · 14 pages — Inventario/Producción/Pedidos/Receta)
+- `audit-batch3-reports.md` (69 KB · 950 lines · 14 pages — Compras/Reportes/Admin/Bank/Riesgos/Auditoría)
+- `cross-page-wishlist-consolidation.md` (37 KB · 602 lines — top 30 patterns + top 10 macros + top 10 defects)
+- `cross-cutting-consistency-audit.md` (38 KB · 544 lines — 12 naming/consistency dimensions)
+- `ux-audit-2026-09-27.md` (34 KB — 18 P0 defects categorized)
+- **`design-plans-2026-09-27.md`** (340 KB · 9,463 lines · **17 pages × 5-hat analysis + wishlist + QoL + defects**)
+- **`macro-contracts-2026-09-27.md`** (68 KB · 2,363 lines · **10 atomic macro contracts with full args/HTML/behavior/a11y/locale/per-page usage/anti-patterns**)
+- **`qol-touches-catalog.md`** (40 KB · 358 lines · **219 QoL items in 16 categories** with effort estimates)
+- **`state-machines-2026-09-27.md`** (32 KB · 769 lines · **4 state machines** — Pedido, Stock Ledger, Cierre de Caja, Bake-loss math)
+- **`role-wireframes-2026-09-27.md`** (44 KB · 932 lines · **5 personas** with ASCII wireframes + keyboard maps + cognitive-load targets)
+- **`implementation-status-2026-09-27.md`** + **`implementation-status-2026-09-27-evening.md`** (9 KB + 9 KB · what got shipped 2026-09-27)
+- `REPORT.md` (52 KB · route → router → template → context-keys reference)
+- `README.md` (overview)
+- `saskia-ux-audit-drop-2026-09-27.zip` (9.5 MB · full bundle + 82 screenshots)
+
+**Counts:** 30 patterns + 10 macros + 10 cross-page defects + 12 naming dimensions + **219 QoL items in 16 categories** + 17 fully-analyzed pages (5-hat) + 28 per-page audits + 4 state machines + 5 personas + 18 P0 defects.
+
+**Status of what's already shipped** (from session 20260927_182227 — 9 commits, ~165 files, 7/18 P0 defects closed):
 - `/tmp/designer-drop/REPORT.md` (52 KB — route → router → template → context-keys reference)
 - `/tmp/saskia-ux-audit-drop-2026-09-27.zip` (9.5 MB — full bundle + 82 screenshots)
 

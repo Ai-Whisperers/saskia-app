@@ -413,7 +413,7 @@ def pedidos_board(
     semana = [p for p in pedidos if p.promised_date > today + timedelta(days=1)]
 
     # Kanban columns (redesign F5): group active pedidos by status
-    def _kanban(col: object):
+    def _kanban(col: object) -> list[dict]:
         return [
             {"id": p.id, "label": f"#{p.id}", "status": p.status,
              "customer": p.customer.name if p.customer else None,

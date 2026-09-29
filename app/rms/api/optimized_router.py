@@ -148,7 +148,7 @@ def demonstrate_performance_timer() -> object:
 
     from app.rms.api.performance import performance_timer
 
-    def slow_operation():
+    def slow_operation() -> object:
         """Simulate a slow operation."""
         time.sleep(1)  # Simulate slow operation
         return {"result": "completed", "items_processed": 100}

@@ -157,14 +157,18 @@ def measure_query_performance(query_func: Callable) -> Callable:
     """Decorator to measure and log query performance."""
 
     @wraps(query_func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, **kwargs) -> object:  # noqa: ANN401 — generic decorator wrapper
         start_time = time.time()
         result = query_func(*args, **kwargs)
         end_time = time.time()
         duration = end_time - start_time
 
         if duration > 1.0:  # Log queries taking longer than 1 second
-            print(f"Slow query detected: {query_func.__name__} took {duration:.3f}s")
+            log_slow_query(
+                query_func.__name__,
+                duration,
+                f"Slow query: {query_func.__name__} took {duration:.2f}s"
+            )
 
         return result
     return wrapper
