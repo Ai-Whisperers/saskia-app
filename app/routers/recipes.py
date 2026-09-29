@@ -1055,6 +1055,33 @@ def units_api() -> JSONResponse:
     })
 
 
+@router.get("/api/families", response_class=JSONResponse)
+def recipe_families_api(
+    q: str = Query("", description="Search query"),
+    limit: int = Query(50, ge=1, le=200),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Distinct recipe families for the recipe form category combobox.
+
+    Returns ``[{"label": family, "value": family}]`` ordered alphabetically.
+    Empty `q` returns every distinct family. The combo `allow-create` flag
+    lets users type a brand-new family on the fly.
+    """
+    stmt = (
+        select(Recipe.family)
+        .where(Recipe.family.isnot(None))
+        .where(Recipe.family != "")
+        .distinct()
+        .order_by(Recipe.family)
+    )
+    fams = [f for f in session.scalars(stmt).all() if f]
+    if q:
+        needle = q.strip().lower()
+        fams = [f for f in fams if needle in f.lower()]
+    fams = fams[:limit]
+    return JSONResponse([{"label": f, "value": f} for f in fams])
+
+
 @router.get("/export")
 def recipes_export_csv(
     request: Request,

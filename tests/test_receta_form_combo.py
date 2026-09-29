@@ -1,15 +1,29 @@
 """Tests for the recipe form combobox conversion (category picker + line items).
 
-NOTE 2026-09-29: These tests describe US 3.1 sub-recipe UI wiring that
-is in-progress. Marked xfail; remove when shipped.
+NOTE 2026-09-29: US 3.1 sub-recipe UI partially shipped. Inventory form
+conversion (this file's last test) is done; recipe line conversion is
+still pending.
 """
 
 import pytest
 
-pytestmark = pytest.mark.xfail(
-    reason="US 3.1 sub-recipe UI + line kind switching not yet shipped.",
-    strict=False,
-)
+# Inventory form conversion is SHIPPED. Recipe line conversion still pending.
+_RECIPE_LINE_TESTS = {
+    "test_receta_form_category_uses_combobox",
+    "test_receta_form_line_uses_combobox_for_items",
+    "test_receta_form_has_line_kind_switching_js",
+    "test_receta_form_dynamic_line_creation",
+}
+
+
+def pytest_collection_modifyitems(config, items):
+    """Mark only the not-yet-shipped recipe line tests as xfail."""
+    for item in items:
+        if item.name in _RECIPE_LINE_TESTS:
+            item.add_marker(pytest.mark.xfail(
+                reason="US 3.1 recipe line conversion still pending",
+                strict=False,
+            ))
 
 
 

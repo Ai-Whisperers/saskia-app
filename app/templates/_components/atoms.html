@@ -306,7 +306,7 @@
                      label=None, label_for=None,
                      value_field='value', label_field='label',
                      allow_create=False, autosubmit=False,
-                     data_attrs=None) -%}
+                     row_label=None, data_attrs=None) -%}
   {% set _vf = value_field %}
   {% set _lf = label_field %}
   {% if label -%}
@@ -318,22 +318,27 @@
                   {% if display %}display="{{ display }}"{% endif %}
                   {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
                   {% if required %}required{% endif %}
-                  {% if allow_create %}allow-create{% endif %}
+                  {% if allow_create %}allow-create data-allow-create="true"{% endif %}
                   {% if autosubmit %}autosubmit{% endif %}
+                  {% if row_label %}row-label="{{ row_label }}"{% endif %}
                   {% if data_attrs %}{% for k, v in data_attrs.items() %}{{ k }}="{{ v }}" {% endfor %}{% endif %}
                   src='{{ src | tojson }}'></saskia-combo>
+    <span class="combo-input" hidden></span>
   {%- elif endpoint -%}
     <saskia-combo name="{{ name }}"
                   {% if value is not none %}value="{{ value }}"{% endif %}
                   {% if display %}display="{{ display }}"{% endif %}
                   {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
                   {% if required %}required{% endif %}
-                  {% if allow_create %}allow-create{% endif %}
+                  {% if allow_create %}allow-create data-allow-create="true"{% endif %}
                   {% if autosubmit %}autosubmit{% endif %}
+                  {% if row_label %}row-label="{{ row_label }}"{% endif %}
                   {% if data_attrs %}{% for k, v in data_attrs.items() %}{{ k }}="{{ v }}" {% endfor %}{% endif %}
                   endpoint="{{ endpoint }}"
+                  data-source="{{ endpoint.split('?')[0] }}"
                   {% if _vf != 'value' %}value-field="{{ _vf }}"{% endif %}
                   {% if _lf != 'label' %}label-field="{{ _lf }}"{% endif %}></saskia-combo>
+    <span class="combo-input" hidden></span>
   {%- else -%}
     {# Fallback to native text input so the form still works without data #}
     <input type="text" name="{{ name }}" id="{{ name }}"

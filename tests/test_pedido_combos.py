@@ -1,5 +1,7 @@
 """Tests for the pedidos combobox features."""
 
+import pytest
+
 
 
 def test_product_api_search_returns_matches(qseed, authed_client):

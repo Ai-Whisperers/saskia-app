@@ -399,10 +399,23 @@ def inventory_list(
 @router.get("/nuevo", response_class=HTMLResponse)
 def inventory_new(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     """Show the new-ingredient form."""
+    cats = session.scalars(
+        select(Ingredient.category)
+        .where(Ingredient.category.isnot(None))
+        .where(Ingredient.category != "")
+        .distinct()
+        .order_by(Ingredient.category)
+    ).all()
     return render(
         request,
         "inventario_form.html",
-        {"mode": "new", "ingredient": None, "action": "Nuevo", "units": [u.value for u in Unit]},
+        {
+            "mode": "new",
+            "ingredient": None,
+            "action": "Nuevo",
+            "units": [u.value for u in Unit],
+            "existing_categories": [{"label": c, "value": c} for c in cats],
+        },
     )
 
 
@@ -682,6 +695,31 @@ def inventory_tag_audit_rerun(
         "tags_removed": tags_removed,
         "validation_issues": issues_count,
     })
+@router.get("/api/categories", response_class=JSONResponse)
+def ingredients_api_categories(
+    q: str = Query("", description="Search query"),
+    limit: int = Query(50, ge=1, le=200),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Distinct ingredient categories for the category combobox.
+
+    Returns rows of ``{"label": <category>, "value": <category>}`` so the
+    picker shows the existing categories and can filter them by `q`.
+    Empty `q` returns every distinct category ordered alphabetically.
+    """
+    stmt = (
+        select(Ingredient.category)
+        .where(Ingredient.category.isnot(None))
+        .where(Ingredient.category != "")
+        .distinct()
+        .order_by(Ingredient.category)
+    )
+    cats = [c for c in session.scalars(stmt).all() if c is not None]
+    if q:
+        needle = q.strip().lower()
+        cats = [c for c in cats if needle in c.lower()]
+    cats = cats[:limit]
+    return JSONResponse([{"label": c, "value": c} for c in cats])
 
 
 @router.get("/{ing_id}", response_class=HTMLResponse)
@@ -754,10 +792,23 @@ def inventory_edit(
     ing = session.get(Ingredient, ing_id)
     if ing is None:
         raise NotFound("Ingredient", id=ing_id)
+    cats = session.scalars(
+        select(Ingredient.category)
+        .where(Ingredient.category.isnot(None))
+        .where(Ingredient.category != "")
+        .distinct()
+        .order_by(Ingredient.category)
+    ).all()
     return render(
         request,
         "inventario_form.html",
-        {"mode": "edit", "ingredient": ing, "action": "Editar", "units": [u.value for u in Unit]},
+        {
+            "mode": "edit",
+            "ingredient": ing,
+            "action": "Editar",
+            "units": [u.value for u in Unit],
+            "existing_categories": [{"label": c, "value": c} for c in cats],
+        },
     )
 
 

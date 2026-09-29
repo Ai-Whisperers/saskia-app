@@ -21,13 +21,16 @@
   </div>
   <div class="form-row">
     <label for="category_combo">Categoría</label>
-    {# Combo supports creating new categories. No API — just creates on submit. #}
+    {# Combo supports creating new categories. Endpoint lists existing
+       distinct categories; allow-create lets users type a brand-new one. #}
     {{ ui.combo_field(
       name='category',
       value=(ingredient.category if ingredient and ingredient.category else ''),
       display=(ingredient.category if ingredient and ingredient.category else ''),
       placeholder='Ej: Harinas, Lácteos, Aceites',
-      allow_create=True
+      allow_create=True,
+      row_label='categoryRowLabel',
+      endpoint='/inventario/api/categories?q='
     ) }}
     <small class="muted">Opcional. Para agrupar ingredientes en el inventario.</small>
   </div>

@@ -62,17 +62,14 @@
 
         <div class="form-row">
           <label for="family_combo">Familia / Categoría</label>
-          {% set _family_src = [] %}
-          {% for fam in recipe_families %}
-            {% set _ = _family_src.append({'label': fmt.entity_name(fam), 'value': fmt.entity_name(fam)}) %}
-          {% endfor %}
           {{ ui.combo_field(
             name='family',
             value=(recipe.family if recipe and recipe.family else ''),
             display=(recipe.family if recipe and recipe.family else ''),
             placeholder='Elegí o escribí una familia…',
-            src=_family_src,
-            allow_create=True
+            allow_create=True,
+            row_label='categoryRowLabel',
+            endpoint='/recetas/api/families?q='
           ) }}
         </div>
       </div>
@@ -128,7 +125,7 @@
                   value=line.line_ref_id,
                   display=line.target_name,
                   placeholder='Buscar sub-receta…',
-                  endpoint='/recetas/api/search/',
+                  endpoint='/recetas/api/search?q=',
                   value_field='id',
                   label_field='name',
                   data_attrs={'data-cost-per-unit': line.price_per_kg_gs or 0}
@@ -139,7 +136,7 @@
                   value=line.line_ref_id,
                   display=line.target_name,
                   placeholder='Buscar ingrediente…',
-                  endpoint='/inventario/api/search/',
+                  endpoint='/inventario/api/search?q=',
                   value_field='id',
                   label_field='name',
                   data_attrs={'data-cost-per-unit': line.price_per_kg_gs or 0}
@@ -880,7 +877,8 @@
         </td>
         <td class="line-col-item">
           <saskia-combo name="line_target_id" placeholder="Buscar ingrediente…"
-            endpoint="/inventario/api/search/"
+            endpoint="/inventario/api/search?q="
+            data-source="/inventario/api/search"
             value-field="id" label-field="name"></saskia-combo>
         </td>
         <td class="line-col-qty">
@@ -906,7 +904,24 @@
         </td>
       `;
       tbody.appendChild(row);
-      initLineRow(row);
+      // Web Components register themselves on connectedCallback. Force-
+      // upgrade any combos already in the DOM (e.g. from innerHTML) by
+      // re-creating them with `new SaskiaCombo()` so each gets its
+      // attributes parsed and event handlers attached.
+      // Force-upgrade combos in the freshly-appended row by re-creating them
+      // with `new SaskiaCombo()` so each gets its attributes parsed and
+      // event handlers attached on the new instance.
+      // (See /static/saskia-combo.js for the class definition.)
+      var newCombos = row.querySelectorAll('saskia-combo');
+      newCombos.forEach(function(oldCombo) {
+        var newSaskiaCombo = document.createElement('saskia-combo');
+        for (var i = 0; i < oldCombo.attributes.length; i++) {
+          var a = oldCombo.attributes[i];
+          newSaskiaCombo.setAttribute(a.name, a.value);
+        }
+        oldCombo.replaceWith(newSaskiaCombo);
+      });
+      initLineRow && initLineRow(row);
       // Web Components auto-init on connectedCallback; wire change handlers for cost calc
       var combos = row.querySelectorAll('saskia-combo');
       combos.forEach(function(c) {
@@ -1014,7 +1029,30 @@
   // After migrating from legacy .saskia-combo divs to <saskia-combo> elements,
   // the Web Component dispatches 'change' on selection. Wire line-kind combos
   // to swap target endpoint (sub_recipe ↔ ingrediente) via attribute.
-  function bridgeLineKindCombos() {
+
+  // kindHidden — the hidden input that the combo writes its value into.
+  // Tests and JS query it via [name="line_kind"] to read the current kind.
+  function kindHidden(row) {
+    return row.querySelector('input[name="line_kind"]');
+  }
+
+  // updateLineSource — recompute the line_target_id endpoint + placeholder
+  // depending on the row's current line_kind. Called by wireLineKindHandlers
+  // on every kind change, and by row initialization.
+  function updateLineSource(row, kind) {
+    var targetCombo = row.querySelector('saskia-combo[name="line_target_id"]');
+    if (!targetCombo) return;
+    if (kind === 'sub_recipe') {
+      targetCombo.setAttribute('endpoint', '/recetas/api/search?q=');
+      targetCombo.setAttribute('placeholder', 'Buscar sub-receta…');
+    } else {
+      targetCombo.setAttribute('endpoint', '/inventario/api/search?q=');
+      targetCombo.setAttribute('placeholder', 'Buscar ingrediente…');
+    }
+    targetCombo.clear();
+  }
+
+  function wireLineKindHandlers() {
     var rows = document.querySelectorAll('#lines .line-row');
     rows.forEach(function(row) {
       var kindCombo = row.querySelector('saskia-combo[name="line_kind"]');
@@ -1024,21 +1062,14 @@
       kindCombo._saskiaBridged = true;
       kindCombo.addEventListener('change', function() {
         var kind = kindCombo.getValue();
-        if (kind === 'sub_recipe') {
-          targetCombo.setAttribute('endpoint', '/recetas/api/search/');
-          targetCombo.setAttribute('placeholder', 'Buscar sub-receta…');
-        } else {
-          targetCombo.setAttribute('endpoint', '/inventario/api/search/');
-          targetCombo.setAttribute('placeholder', 'Buscar ingrediente…');
-        }
-        targetCombo.clear();
+        updateLineSource(row, kind);
       });
     });
   }
-  bridgeLineKindCombos();
+  wireLineKindHandlers();
   // Also bridge when new rows are added
   document.getElementById('add-line').addEventListener('click', function() {
-    setTimeout(bridgeLineKindCombos, 10);
+    setTimeout(wireLineKindHandlers, 10);
   });
 
   // ---------- Initial compute on page load ----------
