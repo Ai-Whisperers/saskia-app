@@ -493,8 +493,17 @@ async def recipe_detail(
                 aggregated_allergens.append(a_clean)
 
     from app.rms.tag_algebra import derive_recipe_tags as _derive_tags
+    # Parse instructions JSON for template
+    recipe_phases = None
+    try:
+        if r.instructions:
+            import json as _json
+            recipe_phases = _json.loads(r.instructions)
+    except Exception:
+        recipe_phases = None
     return render(request, "receta_detalle.html", {
         "recipe": r,
+        "recipe_phases": recipe_phases,
         "tag_derivation": _derive_tags(session, r_id),
         "derived_tags": [t for t in (r.derived_dietary_tags or "").split(",") if t],
         "resolved_lines": resolved_lines,
