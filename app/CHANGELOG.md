@@ -5,6 +5,17 @@
 
 ## [Unreleased]
 
+### Added (2026-09-30) — PRO-MERMA + PRO-PED: hábito con menos fricción
+
+- **Merma en 1 tap desde /inventario**: botón en cada fila → modal que
+  postea a /merma/registrar con qty_unit (g/ml si la unidad base es kg/l).
+  Antes: 2 páginas y 4 clics. Componente: _components/merma_modal.html.
+- **Card "Pedidos para mañana" en /produccion/manana**: pedidos
+  pending/confirmed/ready con entrega mañana (cliente, hora, canal, total,
+  link) en la misma pantalla del plan. Router: produccion.py PRO-PED.
+- Tests: tests/test_pro_merma_pedidos.py (3: botón+modal, POST merma,
+  card pedidos). La card de cumpleaños en Inicio ya existía (P3).
+
 ### Fixed (2026-09-30) — PRO-POS: toda venta lleva forma de pago
 
 `/ventas/nueva/multi` guardaba `payment_method=NULL` cuando el operador no
