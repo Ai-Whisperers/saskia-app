@@ -233,6 +233,10 @@
         {{ m.stock_badge(i.stock_qty, i.min_stock_qty, never_loaded=(i.id in never_loaded_ids)) }}
       </td>
       <td class="actions">
+        <button type="button" class="btn btn-sm btn-ghost" aria-label="Registrar merma de {{ fmt.entity_name(i) }}"
+                onclick="openMermaModal('{{ i.id }}', '{{ fmt.entity_name(i) }}', '{{ i.unit }}')">
+          <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+        </button>
         <a href="/inventario/{{ i.id }}" class="btn btn-sm btn-ghost" aria-label="Ver detalle de {{ fmt.entity_name(i) }}">
           <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
         </a>
@@ -285,6 +289,7 @@
 
 {# ── Stock adjustment modal ── #}
 {% include "_components/adjust_modal.html" %}
+{% include "_components/merma_modal.html" %}
 
 <style>
 .row-negative td { background-color: rgba(220, 38, 38, 0.07); }

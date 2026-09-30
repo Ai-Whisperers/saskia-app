@@ -897,10 +897,32 @@ def produccion_manana(
     from app.rms.production import get_overrides_for_date
     overrides_tomorrow = get_overrides_for_date(session, tomorrow)
 
+    # PRO-PED (2026-09-30): pedidos confirmados con entrega/retiro mañana —
+    # el planificador ve los encargos reales en la misma pantalla donde
+    # planifica (antes solo vivían en Pedidos y en el card de Inicio).
+    from app.rms.models import Pedido
+    from app.routers.pedidos import _pedido_total_gs
+    pedidos_manana = []
+    for p_ in session.execute(
+        select(Pedido).where(
+            Pedido.promised_date == tomorrow,
+            Pedido.status.in_(["pending", "confirmed", "ready"]),
+        ).order_by(Pedido.promised_time.nulls_last(), Pedido.id)
+    ).scalars():
+        pedidos_manana.append({
+            "id": p_.id,
+            "customer_name": p_.customer_name,
+            "promised_time": p_.promised_time,
+            "channel": p_.channel,
+            "status": p_.status,
+            "total_gs": _pedido_total_gs(p_),
+        })
+
     return render(
         request,
         "produccion_manana.html",
         {
+            "pedidos_manana": pedidos_manana,
             "today": today.isoformat(),
             "tomorrow": tomorrow.isoformat(),
             "rows": rows,

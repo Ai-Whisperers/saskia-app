@@ -62,6 +62,33 @@
     href="/produccion"></saskia-kpi-card>
 </div>
 
+{# PRO-PED: pedidos confirmados para mañana, en la misma pantalla del plan #}
+{% if pedidos_manana %}
+<div class="card" style="padding: var(--space-4) var(--space-6); margin-bottom: var(--space-4);">
+  <h2 style="margin: 0 0 var(--space-2) 0; font-size: 1.05rem;">
+    🧾 Pedidos para mañana ({{ pedidos_manana|length }})
+  </h2>
+  <table class="table" style="margin: 0;">
+    <thead><tr><th>Cliente</th><th>Retiro/entrega</th><th>Canal</th><th class="num">Total</th><th></th></tr></thead>
+    <tbody>
+    {% for pe in pedidos_manana %}
+      <tr>
+        <td><strong>{{ pe.customer_name }}</strong></td>
+        <td>{{ pe.promised_time or '—' }}</td>
+        <td><span class="tag-pill tag-pill--muted">{{ pe.channel }}</span></td>
+        <td class="num">{{ m.gs_full(pe.total_gs) }}</td>
+        <td><a href="/pedidos/{{ pe.id }}" class="btn btn-sm btn-ghost">Ver</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted" style="margin: var(--space-2) 0 0 0; font-size: .85rem;">
+    Estos encargos ya están incluidos en la demanda — producí además de esto solo si el plan lo indica.
+  </p>
+</div>
+{% endif %}
+
+
 {% if rows|length == 0 %}
 <div class="card" style="padding: var(--space-6); text-align: center;">
   <p class="text-muted">No hay productos con venta en los últimos 14 días.

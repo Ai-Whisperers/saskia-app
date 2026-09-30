@@ -1,0 +1,77 @@
+<!-- Shared quick-waste modal + controller: included by inventario.html.
+     PRO-MERMA (2026-09-30): registrar una merma tomaba 2 páginas y 4 clics
+     (/inventario → detalle → /merma → form). Ahora: botón en cada fila del
+     inventario → modal → POST /merma/registrar (misma ruta del módulo merma,
+     con qty_unit para que Gaby escriba "50" g en vez de 0.05 kg). -->
+<dialog id="merma-modal" class="modal" aria-labelledby="merma-title" aria-modal="true">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h2 id="merma-title">
+        <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+        Registrar merma
+      </h2>
+      <button type="button" class="btn btn-ghost modal-close-btn" onclick="this.closest('dialog').close()" aria-label="Cerrar">
+        <svg class="icon icon-md" aria-hidden="true"><use href="#icon-close"/></svg>
+      </button>
+    </div>
+    <form method="post" action="/merma/registrar" id="merma-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="ingredient_id" id="merma-ing-id" value="">
+      <div class="modal-body">
+        <p><strong id="merma-ing-name"></strong></p>
+        <div class="form-row">
+          <label for="merma-qty">Cantidad</label>
+          <input type="number" step="0.01" min="0.01" id="merma-qty" name="qty" required placeholder="Ej: 50">
+          <select name="qty_unit" id="merma-qty-unit" aria-label="Unidad" style="max-width:9rem">
+            <option value="">— unidad —</option>
+          </select>
+          <small id="merma-unit-hint" class="muted"></small>
+        </div>
+        <div class="form-row">
+          <label for="merma-reason">Motivo</label>
+          <select name="reason" id="merma-reason" required>
+            <option value="vencida">Vencida</option>
+            <option value="quemada">Quemada</option>
+            <option value="derrame">Derrame</option>
+            <option value="robo">Robo</option>
+            <option value="danio_despacho">Daño en despacho</option>
+            <option value="receta_incompleta">Receta incompleta</option>
+            <option value="otra" selected>Otra</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="merma-notes">Nota (opcional)</label>
+          <input type="text" id="merma-notes" name="notes" maxlength="200" placeholder="Ej: se humedeció la bolsa">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Registrar merma</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<script>
+function openMermaModal(id, name, unit) {
+  document.getElementById('merma-ing-id').value = id;
+  document.getElementById('merma-ing-name').textContent = name;
+  var sel = document.getElementById('merma-qty-unit');
+  sel.innerHTML = '';
+  // Unidad propia + conversiones amigables (igual criterio que merma.py: g/ml si la unidad base es kg/l)
+  var opts = [[unit, unit]];
+  if (unit === 'kg') { opts.push(['g', 'g']); }
+  if (unit === 'l') { opts.push(['ml', 'ml']); }
+  if (unit === 'g') { opts.push(['kg', 'kg']); }
+  if (unit === 'ml') { opts.push(['l', 'l']); }
+  opts.forEach(function(o) {
+    var op = document.createElement('option');
+    op.value = o[0]; op.textContent = o[1];
+    sel.appendChild(op);
+  });
+  sel.value = unit;
+  document.getElementById('merma-unit-hint').textContent = 'unidad de stock: ' + unit;
+  document.getElementById('merma-modal').showModal();
+  document.getElementById('merma-qty').focus();
+}
+</script>
