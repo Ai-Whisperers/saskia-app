@@ -858,6 +858,76 @@ def api_smoke_prod_loop(request: Request) -> JSONResponse:
     )
 
 
+@router.get("/api/smoke/waste-source-mix", response_model=None)
+def api_smoke_waste_source_mix(request: Request) -> JSONResponse:
+    """PROD-MERMA-2 (Batch I follow-up): waste-log source mix.
+
+    Returns a 14-day window of waste events split by entrypoint
+    (`manual` vs `production`). Operators and the watchbrief cron
+    use this to track whether the new /produccion quick-merma modal
+    is being used or whether entries are still going through /merma
+    manually.
+
+    Auth: open like the other /api/smoke/* endpoints (read-only
+    aggregate, no PII — each row is `count, cost_gs` per source).
+    """
+    from datetime import datetime, timedelta, timezone
+    from sqlalchemy import text
+
+    # Reuse the lifespan-installed engine so we don't open a second
+    # SQLite connection per request (and so we hit the same DB the
+    # rest of the app is reading/writing).
+    engine = getattr(request.app.state, "engine", None)
+    if engine is None:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "error", "error": "server_not_ready"},
+        )
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=14)
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    "SELECT COALESCE(source, 'manual') AS src, "
+                    "COUNT(*) AS n_events, "
+                    "COALESCE(SUM(cost_gs), 0) AS cost_gs "
+                    "FROM waste_log "
+                    "WHERE recorded_at >= :start AND recorded_at <= :end "
+                    "GROUP BY src "
+                    "ORDER BY src"
+                ),
+                {"start": start, "end": end},
+            ).all()
+    except Exception as exc:  # noqa: BLE001 — defensive default
+        logger.exception("api_smoke_waste_source_mix failed")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "error": str(exc)[:500]},
+        )
+
+    mix = {
+        str(r[0]): {"n_events": int(r[1]), "cost_gs": int(r[2])}
+        for r in rows
+    }
+    # Total + share for the dashboard without recomputing.
+    n_total = sum(v["n_events"] for v in mix.values())
+    n_production = mix.get("production", {}).get("n_events", 0)
+    share_production = (
+        round(100.0 * n_production / n_total, 1) if n_total else 0.0
+    )
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "ok",
+            "window_days": 14,
+            "mix": mix,
+            "n_total": n_total,
+            "production_share_pct": share_production,
+        },
+    )
+
+
 @router.post("/admin/migrate")
 def admin_migrate(request: Request) -> object:
     """Operator escape hatch: trigger init_db() to apply pending migrations.
