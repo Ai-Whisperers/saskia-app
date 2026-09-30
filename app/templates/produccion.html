@@ -404,10 +404,21 @@
         Cálculo de insumos basado en el plan del día versus stock disponible.
       </p>
     </div>
-    <a href="/reorder" class="btn btn-secondary btn-sm">
-      <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
-      Ir a Reponer stock →
-    </a>
+    <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+      <a href="/reorder" class="btn btn-secondary btn-sm">
+        <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
+        Ir a Reponer stock →
+      </a>
+      {# Sprint shopping-list: one click — all qty_to_buy > 0 rows of this
+         day's plan become ShoppingListItem rows (deduped on the server). #}
+      <form method="post" action="/shopping-list/from-production-plan" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="for_date" value="{{ plan.for_date.isoformat() }}">
+        <button type="submit" class="btn btn-primary btn-sm">
+          🛒 Enviar faltantes a lista de compras
+        </button>
+      </form>
+    </div>
   </div>
 
   <table class="table is-hoverable">

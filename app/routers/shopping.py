@@ -14,9 +14,9 @@ or derived from Production Planner shortfalls.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
-from fastapi import APIRouter, Depends, Form, Query, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from loguru import logger
 from sqlalchemy import select
@@ -44,6 +44,31 @@ def price_field(p: float) -> int:
         return 0
 
 
+def _whatsapp_href(supplier, rows) -> str | None:
+    """Prefilled wa.me link for a supplier's open items (Py py-side so no
+    custom Jinja filter is needed). Normalizes PY phones: 9-digit local
+    numbers get 595 prefix; already-international (starts with +) keep."""
+    from urllib.parse import quote
+
+    if supplier is None or not supplier.phone:
+        return None
+    open_rows = [r for r in rows if not r.purchased]
+    if not open_rows:
+        return None
+    digits = "".join(c for c in supplier.phone if c.isdigit())
+    if digits.startswith("595"):
+        pass
+    elif len(digits) == 9:  # PY mobile without country code
+        digits = "595" + digits
+    names = "\n".join(
+        f"• {r.ingredient.name} ({r.qty_to_buy:g} {r.unit})"
+        for r in open_rows
+        if r.ingredient is not None
+    )
+    text = f"Hola! Quiero hacer un pedido:\n{names}\nGracias!"
+    return f"https://wa.me/{digits}?text={quote(text)}"
+
+
 @router.get("", response_class=HTMLResponse)
 def shopping_list_index(
     request: Request,
@@ -69,6 +94,33 @@ def shopping_list_index(
     for i in items:
         by_ingredient[i.ingredient_id] = by_ingredient.get(i.ingredient_id, 0) + i.qty_to_buy
 
+    # Sprint shopping-list: group open items by the ingredient's supplier so
+    # Saskia can call each proveedor once. Open (unpurchased) items group
+    # first (that's the calling list); purchased items land in "Comprados".
+    supplier_groups: list[dict] = []
+    if items:
+        groups: dict[tuple, dict] = {}
+        for i in items:
+            sup = i.ingredient.supplier if i.ingredient else None
+            key = ("none", None) if sup is None else (sup.id, sup.name)
+            g = groups.setdefault(key, {"supplier": sup, "rows": []})
+            g["rows"].append(i)
+        # Named suppliers first (alphabetical), "Sin proveedor" last.
+        for g in groups.values():
+            g["open_total_gs"] = sum(
+                (i.ingredient.purchase_price_gs or 0) * (i.qty_to_buy or 0)
+                for i in g["rows"]
+                if not i.purchased
+            )
+            g["wa_href"] = _whatsapp_href(g["supplier"], g["rows"])
+        supplier_groups = sorted(
+            groups.values(),
+            key=lambda g: (
+                g["supplier"] is None,
+                g["supplier"].name if g["supplier"] else "",
+            ),
+        )
+
     return render(
         request,
         "shopping_list.html",
@@ -77,6 +129,7 @@ def shopping_list_index(
             "total_gs": total_gs,
             "show_purchased": show_purchased,
             "by_ingredient": by_ingredient,
+            "supplier_groups": supplier_groups,
             "open_count": sum(1 for i in items if not i.purchased),
             "purchased_count": sum(1 for i in items if i.purchased),
         },
@@ -147,6 +200,83 @@ def delete_item(
         target_id=item_id,
     )
     return RedirectResponse(url="/shopping-list", status_code=303)
+
+
+@router.post("/from-production-plan")
+def from_production_plan(
+    request: Request,
+    for_date: date = Form(...),
+    session: Session = Depends(get_session),
+) -> object:
+    """One click: today's production plan shortages → shopping list.
+
+    Takes plan_production(for_date).lines (sub-recipes exploded via
+    explode_recipe), keeps only rows with qty_to_buy > 0, and appends
+    them as ShoppingListItem rows (deduped against open items — an
+    ingredient already on the open list is topped up to the max of the
+    two quantities, never duplicated).
+
+    purpose_text carries the date so Saskia can see WHY she's buying
+    ("Plan producción 2026-09-30"). Items are NOT tied to a
+    ProductionPlan row because the day plan is computed on the fly, not
+    persisted; the FK stays for the recipe-planner flow.
+    """
+    from app.rms.rate_limit import is_write_rate_limited
+    from app.rms.production import plan_production
+
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
+        )
+
+    plan = plan_production(session, for_date=for_date)
+    shortages = [ln for ln in plan.lines if ln.qty_to_buy > 0]
+    if not shortages:
+        return RedirectResponse(
+            url=f"/shopping-list?from_plan=0&for_date={for_date.isoformat()}",
+            status_code=303,
+        )
+
+    existing = session.execute(
+        select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False))
+    ).scalars().all()
+    existing_by_ing = {}
+    for i in existing:
+        existing_by_ing[i.ingredient_id] = existing_by_ing.get(
+            i.ingredient_id, 0
+        ) + float(i.qty_to_buy)
+
+    purpose = f"Plan producción {for_date.isoformat()}"
+    added = 0
+    for ln in shortages:
+        have = existing_by_ing.get(ln.ingredient_id, 0.0)
+        need = float(ln.qty_to_buy)
+        if ln.ingredient_id in existing_by_ing:
+            # Top up the open item if the plan needs more than already listed.
+            if need > have:
+                delta = need - have
+                for i in existing:
+                    if i.ingredient_id == ln.ingredient_id:
+                        i.qty_to_buy += delta
+                        break
+                added += 1
+            continue
+        session.add(
+            ShoppingListItem(
+                ingredient_id=ln.ingredient_id,
+                qty_to_buy=need,
+                unit=ln.unit,
+                purpose_text=purpose,
+            )
+        )
+        existing_by_ing[ln.ingredient_id] = need
+        added += 1
+    session.commit()
+    return RedirectResponse(
+        url=f"/shopping-list?from_plan={added}&for_date={for_date.isoformat()}",
+        status_code=303,
+    )
 
 
 @router.post("/sync-low-stock")

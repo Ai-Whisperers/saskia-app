@@ -8,8 +8,8 @@
 {% if request.query_params.get('from_plan') %}
 <div class="card mb-3" style="background: #d1fae5; border-color: #10b981;">
   <div class="card-body">
-    ✅ <strong>Plan #{{ request.query_params.get('from_plan') }}</strong> guardado en lista:
-    {{ request.query_params.get('n_added', 0) }} items añadidos.
+    ✅ <strong>Plan de producción</strong> ({{ request.query_params.get('for_date', '') }}):
+    {{ request.query_params.get('from_plan') }} items añadidos/agregados a la lista.
   </div>
 </div>
 {% elif request.query_params.get('from_wishlist') %}
@@ -51,23 +51,50 @@
 </div>
 
 {% if items %}
-{{ ui.skeleton_section(id="shopping-list", variant="line", count=10, label="Cargando lista de compras") }}
-<div data-loaded-section="shopping-list">
-<table class="table is-hoverable">
-  <thead>
-    <tr>
-      <th>Ingrediente</th>
-      <th class="num">Cant a comprar</th>
-      <th>Unidad</th>
-      <th>Para qué</th>
-      <th class="num">Precio unit</th>
-      <th class="num">Subtotal Gs.</th>
-      <th>Status</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for item in items %}
+{# Sprint shopping-list: supplier-grouped sections. Named suppliers first
+   (one call each), "Sin proveedor" last. Each group shows its subtotal
+   and, when the supplier has a phone, a WhatsApp prefilled order link. #}
+{% for group in supplier_groups %}
+{% set g_open = group.rows | selectattr('purchased', 'equalto', false) | list %}
+<section class="card mb-3" style="overflow:hidden;">
+  <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); flex-wrap:wrap; padding:var(--space-3); border-bottom:1px solid var(--border);">
+    <div>
+      <h2 style="margin:0; font-size:1.05rem;">
+        🏪 {% if group.supplier %}{{ group.supplier.name }}{% else %}Sin proveedor asignado{% endif %}
+        <span class="badge {% if g_open %}badge-warn{% else %}badge-success{% endif %}" style="margin-left:var(--space-2);">
+          {{ g_open | length }} pendiente{{ 's' if g_open|length != 1 else '' }}
+        </span>
+      </h2>
+      {% if group.supplier and (group.supplier.contact_name or group.supplier.phone) %}
+      <small class="muted">
+        {% if group.supplier.contact_name %}{{ group.supplier.contact_name }}{% endif %}
+        {% if group.supplier.phone %}· {{ group.supplier.phone }}{% endif %}
+      </small>
+      {% endif %}
+    </div>
+    <div style="display:flex; gap:var(--space-2); align-items:center; flex-wrap:wrap;">
+      <strong>{{ m.gs(group.open_total_gs|int) }}</strong>
+      {% if group.wa_href %}
+      <a class="btn btn-sm btn-success" target="_blank" rel="noopener"
+         href="{{ group.wa_href }}">
+        💬 Pedir por WhatsApp
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  <table class="table is-hoverable" style="margin:0;">
+    <thead>
+      <tr>
+        <th>Ingrediente</th>
+        <th class="num">Cant a comprar</th>
+        <th>Unidad</th>
+        <th>Para qué</th>
+        <th class="num">Subtotal Gs.</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for item in group.rows %}
     <tr {% if item.purchased %}style="opacity:0.45;"{% endif %}>
       <td>
         <span class="item-name">{{ fmt.entity_name(item.ingredient) if item.ingredient else '(sin nombre)' }}</span>
@@ -78,19 +105,11 @@
       <td class="num">{{ item.qty_to_buy|round(2) }}</td>
       <td>{{ item.unit }}</td>
       <td><small>{{ item.purpose_text or '' }}</small></td>
-      <td class="num">{% if item.ingredient.purchase_price_gs %}{{ m.gs(item.ingredient.purchase_price_gs) }}{% else %}<span class="muted">?</span>{% endif %}</td>
       <td class="num"><strong>
         {% if item.ingredient.purchase_price_gs %}
           {{ m.gs((item.ingredient.purchase_price_gs or 0) * (item.qty_to_buy or 0))|int }}
         {% else %}—{% endif %}
       </strong></td>
-      <td>
-        {% if item.purchased %}
-          <span class="badge badge-success">✓ Comprado</span>
-        {% else %}
-          {{ ui.status_pill("Pendiente", sev="warn") }}
-        {% endif %}
-      </td>
       <td>
         {% if not item.purchased %}
           <form method="post" action="/shopping-list/{{ item.id }}/mark-purchased" style="display:inline;">
@@ -110,15 +129,16 @@
         </form>
       </td>
     </tr>
-  {% endfor %}
-  </tbody>
-</div>
-</table>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endfor %}
 {% else %}
 <div class="card"><div class="card-body muted text-center">
   <p style="font-size:1.5rem;">📭</p>
   <p><strong>Lista vacía.</strong></p>
-  <p>Ve a <a href="/produccion-planner">Plan Producción</a> y creá un plan; los faltantes aparecerán acá automáticamente.</p>
+  <p>Ve a <a href="/produccion">Plan Producción</a> y tocá "Enviar a lista de compras"; los faltantes aparecerán acá agrupados por proveedor.</p>
 </div></div>
 {% endif %}
 

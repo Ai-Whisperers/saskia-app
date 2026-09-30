@@ -249,38 +249,27 @@ def plan_production(
         if recipe is None or recipe.yield_qty is None or recipe.yield_qty <= 0:
             continue  # no yield -> can't scale batches (guarded upstream too)
         batches = qty_to_produce / recipe.yield_qty  # portions -> batches
-        recipe_lines = list(
-            session.execute(
-                select(RecipeLine).where(RecipeLine.recipe_id == prod.recipe_id)
-            ).scalars()
-        )
-        for line in recipe_lines:
-            if line.line_kind != "ingredient":
+        # Sprint shopping-list: use explode_recipe() so SUB-RECIPES are
+        # included. The old loop read only direct `line_kind == "ingredient"`
+        # lines — a Carrot Cake with cream-cheese glaze never showed the
+        # glaze's ingredients in the day's needs. explode_recipe() scales
+        # sub-recipes by (line_qty / sub.yield_qty), normalizes units and
+        # sums duplicates; scale = batches (this product's batch multiplier).
+        from app.rms.recipes_consolidated import explode_recipe
+
+        for cl in explode_recipe(session, prod.recipe_id, scale=batches):
+            if cl.error:
+                # Unconvertible line (density missing / missing ingredient):
+                # surface it as a plan note instead of silently dropping it.
+                notes.append(f"{cl.name}: {cl.error}")
                 continue
-            ing = session.get(Ingredient, line.line_ref_id)
-            if ing is None:
+            if cl.ingredient_id is None:
                 continue
-            # Phase B — T1: line_unit is the unit Saskia typed the qty in.
-            # Convert qty → ingredient.unit (cross-family raises — we fall
-            # back to legacy "same-unit" assumption so the production sheet
-            # still renders; the recipe form will surface the real error).
-            line_qty_dec = Decimal(str(line.qty))
-            line_unit = line.line_unit if line.line_unit else ing.unit
-            try:
-                qty_in_ingredient_unit = normalize_recipe_line_qty(
-                    line_qty_dec, line_unit, ing.unit
-                )
-            except ValueError:
-                # Cross-family: keep the raw qty so the production sheet at
-                # least shows something. The recipe form is where this gets
-                # fixed (visual error message + missing list from costing).
-                qty_in_ingredient_unit = line_qty_dec
-            qty_needed = float(qty_in_ingredient_unit) * batches
             entry = ingredient_requirements.setdefault(
-                ing.id,
-                {"qty": 0.0, "unit": ing.unit, "name": ing.name},
+                cl.ingredient_id,
+                {"qty": 0.0, "unit": cl.unit, "name": cl.name},
             )
-            entry["qty"] += qty_needed
+            entry["qty"] += cl.qty
 
     # 3. Add stock-on-hand + qty_to_buy
     lines: list[ProductionLine] = []
