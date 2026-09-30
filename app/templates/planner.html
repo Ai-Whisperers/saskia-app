@@ -39,7 +39,7 @@
   <div class="card-header">
     <h2>{{ batches }}× {{ fmt.entity_name(recipe) }}</h2>
     {% if total_shortage_gs > 0 %}
-      <span class="badge badge-error">Falta {{ m.gs(total_shortage_gs) }} de ingredientes</span>
+      <span class="badge badge-error">Faltan Gs. {{ m.gs(total_shortage_gs) }} en ingredientes</span>
     {% else %}
       <span class="badge badge-success">✓ Stock suficiente</span>
     {% endif %}
@@ -60,10 +60,17 @@
     </thead>
     <tbody>
     {% for r in results %}
-      <tr {% if not r.sufficient %}style="background:#fef2f2;"{% endif %}>
+      <tr {% if not r.sufficient %}style="background: rgba(220, 38, 38, 0.08);"{% endif %}>
         <td>{{ r.ingredient_name }}</td>
         <td class="num">{{ "%.1f"|format(r.qty_needed) }} {{ r.unit }}</td>
-        <td class="num">{{ "%.1f"|format(r.qty_available) }} {{ r.unit }}</td>
+        <td class="num">
+          {%- if r.qty_available < 0 %}
+            <span title="Stock negativo — revisar ventas sin reposición">0 {{ r.unit }}</span>
+            <span class="badge badge-danger" style="font-size:0.65rem;">⚠ negativo</span>
+          {%- else %}
+            {{ "%.1f"|format(r.qty_available) }} {{ r.unit }}
+          {%- endif %}
+        </td>
         <td class="num">
           {% if r.shortage > 0 %}
             <strong class="is-down">⚠ {{ "%.1f"|format(r.shortage) }} {{ r.unit }}</strong>
@@ -87,14 +94,14 @@
   </table>
 
   {% if plan_id %}
-  <div class="card-footer" style="padding:1rem;background:#ecfdf5;">
+  <div class="card-footer" style="padding:1rem;background: rgba(16, 185, 129, 0.08);">
     <strong>✓ Plan #{{ plan_id }} guardado</strong> — los ingredientes faltantes están en la
     <a href="/shopping-list" class="btn btn-primary">Lista de Compras</a>
     {% set open_count = 0 %}
     {% for r in results %}
       {% if r.sufficient == false %}{% set open_count = open_count + 1 %}{% endif %}
     {% endfor %}
-    ({{ results|length }} líneas · {{ m.gs(total_shortage_gs) }} Gs. total).
+    ({{ results|length }} ítems · Gs. {{ m.gs(total_shortage_gs) }} total).
     <a href="/produccion-planner" class="btn btn-ghost">Otro plan</a>
   </div>
   {% elif total_shortage_gs > 0 %}

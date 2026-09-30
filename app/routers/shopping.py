@@ -44,6 +44,62 @@ def price_field(p: float) -> int:
         return 0
 
 
+_FLOAT_LONG = __import__("re").compile(r"\d+\.\d{3,}")
+
+
+def _clean_purpose(text: str | None) -> str | None:
+    """Round long floats in purpose text (0.253333333333326 → 0.25)."""
+    if not text:
+        return text
+    return _FLOAT_LONG.sub(lambda m: f"{float(m.group(0)):.2f}", text)
+
+
+def consolidate_open_items(session: Session) -> int:
+    """Merge open items sharing (ingredient_id, unit) into one row.
+
+    Three flows create items (planner save, sync-low-stock, plan→list) and
+    each used to write its own row — the list showed the same ingredient
+    2-3×. Idempotent: merges are only possible while duplicates exist.
+    Returns the number of rows deleted.
+
+    Merged purpose keeps short keys: 'Plan #1 (1× Carrot Cake...)' →
+    'Plan #1'; 'Auto: stock ...' → 'Auto'; joined with ' + '.
+    """
+    import re as _re
+
+    open_items = session.execute(
+        select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False))
+    ).scalars().all()
+    buckets: dict[tuple, list] = {}
+    for it in open_items:
+        buckets.setdefault((it.ingredient_id, it.unit), []).append(it)
+
+    deleted = 0
+    for (ing_id, _unit), rows in buckets.items():
+        if len(rows) < 2:
+            # Still clean float garbage in single rows.
+            for it in rows:
+                clean = _clean_purpose(it.purpose_text)
+                if clean != it.purpose_text:
+                    it.purpose_text = clean
+            continue
+        keep = rows[0]  # newest (ordered by created_at desc)
+        keep.qty_to_buy = sum(float(r.qty_to_buy or 0) for r in rows)
+        keys: list[str] = []
+        for r in rows:
+            p = r.purpose_text or ""
+            m = _re.match(r"(Plan #\d+[^+]*)", p)
+            key = m.group(1).strip() if m else ("Auto" if p.startswith("Auto") else p[:40])
+            if key and key not in keys:
+                keys.append(key)
+        keep.purpose_text = " + ".join(keys) if keys else None
+        for r in rows[1:]:
+            session.delete(r)
+            deleted += 1
+    session.commit()
+    return deleted
+
+
 def _whatsapp_href(supplier, rows) -> str | None:
     """Prefilled wa.me link for a supplier's open items (Py py-side so no
     custom Jinja filter is needed). Normalizes PY phones: 9-digit local
@@ -75,7 +131,14 @@ def shopping_list_index(
     show_purchased: bool = Query(False),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    """Show the shopping list. Default = open only (purchased=0)."""
+    """Show the shopping list. Default = open only (purchased=0).
+
+    Starts by consolidating duplicate open items (planner + auto-sync +
+    plan→list flows each wrote their own rows) so Saskia always sees one
+    row per ingredient.
+    """
+    consolidate_open_items(session)
+
     stmt = select(ShoppingListItem).order_by(
         ShoppingListItem.purchased,
         ShoppingListItem.created_at.desc(),

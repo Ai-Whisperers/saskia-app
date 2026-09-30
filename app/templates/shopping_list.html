@@ -9,7 +9,7 @@
 <div class="card mb-3" style="background: #d1fae5; border-color: #10b981;">
   <div class="card-body">
     ✅ <strong>Plan de producción</strong> ({{ request.query_params.get('for_date', '') }}):
-    {{ request.query_params.get('from_plan') }} items añadidos/agregados a la lista.
+    {{ request.query_params.get('from_plan') }} ítems añadidos/agregados a la lista.
   </div>
 </div>
 {% elif request.query_params.get('from_wishlist') %}
@@ -79,6 +79,8 @@
          href="{{ group.wa_href }}">
         💬 Pedir por WhatsApp
       </a>
+      {% elif group.supplier %}
+      <a class="text-muted" style="font-size:0.8rem;" href="/proveedores">Agregar teléfono →</a>
       {% endif %}
     </div>
   </div>
@@ -114,9 +116,10 @@
         {% if not item.purchased %}
           <form method="post" action="/shopping-list/{{ item.id }}/mark-purchased" style="display:inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button class="btn btn-sm btn-success">✓ Comprado</button>
+            <button class="btn btn-sm btn-ghost" title="Marcar como comprado">☐ Comprar</button>
           </form>
         {% else %}
+          <span class="badge badge-success" style="margin-right:var(--space-1);">✓</span>
           <form method="post" action="/shopping-list/{{ item.id }}/unmark" style="display:inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button class="btn btn-sm btn-ghost">↺</button>

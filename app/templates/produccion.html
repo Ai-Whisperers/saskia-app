@@ -433,7 +433,7 @@
     <tbody>
       {% for l in plan.lines %}
       {% set _delta = l.stock_on_hand - l.qty_required %}
-      <tr {% if _delta < 0 %}title="Stock insuficiente" style="background: rgba(220, 38, 38, 0.04);"{% endif %}>
+      <tr {% if _delta < 0 %}title="Stock insuficiente" style="background: rgba(220, 38, 38, 0.08);"{% endif %}>
         {# Bug 2 fix: clean ingredient name, NO inline ¡Falta! badge. #}
         <td>
           <strong>{{ l.ingredient_name }}</strong>

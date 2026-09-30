@@ -234,3 +234,38 @@ def test_produccion_page_has_send_to_list_button(client, subrecipe_world):
     assert resp.status_code == 200
     assert "/shopping-list/from-production-plan" in resp.text
     assert "Enviar faltantes a lista de compras" in resp.text
+
+
+def test_consolidate_merges_duplicate_ingredients(session_factory, subrecipe_world):
+    """consolidate_open_items merges open rows sharing (ingredient, unit)."""
+    from app.routers.shopping import consolidate_open_items
+    from app.rms.models import ShoppingListItem
+
+    with session_factory() as session:
+        queso = session.merge(subrecipe_world["queso"])
+        s1 = ShoppingListItem(
+            ingredient_id=queso.id, qty_to_buy=300.0, unit="g",
+            purpose_text="Plan #1 (1× Carrot Cake)",
+        )
+        s2 = ShoppingListItem(
+            ingredient_id=queso.id, qty_to_buy=20.0, unit="g",
+            purpose_text="Auto: stock 0.253333333333326 < min 0.3",
+        )
+        session.add_all([s1, s2])
+        session.commit()
+        id1, id2 = s1.id, s2.id
+
+    with session_factory() as session:
+        deleted = consolidate_open_items(session)
+        assert deleted >= 1
+
+    with session_factory() as session:
+        rows = session.query(ShoppingListItem).filter(
+            ShoppingListItem.ingredient_id == queso.id,
+            ShoppingListItem.purchased.is_(False),
+        ).all()
+        assert len(rows) == 1
+        assert rows[0].qty_to_buy == pytest.approx(320.0)
+        assert "Plan #1" in rows[0].purpose_text
+        assert "Auto" in rows[0].purpose_text
+        assert "0.253333" not in rows[0].purpose_text
