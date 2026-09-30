@@ -597,11 +597,17 @@
   function openQuickMerma(btn) {
     var recipeId = btn.getAttribute('data-recipe-id') || '';
     var productName = btn.getAttribute('data-product-name') || 'producto';
+    var batchQty = btn.getAttribute('data-batch-qty') || '';
     var modal = document.getElementById('quick-merma-modal');
     document.getElementById('qm-recipe-id').value = recipeId;
     document.getElementById('qm-product-label').value = productName;
     document.getElementById('qm-product-name').textContent = productName;
     document.getElementById('qm-recipe-label').textContent = productName + ' (receta #' + recipeId + ')';
+    // Pre-fill the batch-qty input when a deficit was passed.
+    if (batchQty) {
+      var bq = document.getElementById('qm-batch-qty');
+      if (bq) bq.value = batchQty;
+    }
     // Enable / disable recipe tab based on whether the row has a recipe.
     var recipeBtn = document.getElementById('qm-tab-recipe-btn');
     if (recipeId) {
@@ -611,7 +617,14 @@
       recipeBtn.disabled = true;
       recipeBtn.title = 'Esta fila no tiene receta cargada. Usá Ingrediente suelto.';
     }
-    qmSwitchTab('ingredient');
+    // When the trigger button had data-recipe-id AND a batch qty, default to
+    // the "Lote entero" tab so the operator registers the whole missing batch.
+    // Otherwise default to "Ingrediente suelto" (single-ingredient loss).
+    if (recipeId && batchQty) {
+      qmSwitchTab('recipe');
+    } else {
+      qmSwitchTab('ingredient');
+    }
     modal.showModal();
   }
   function qmSwitchTab(tab) {
@@ -667,10 +680,11 @@
       var target = parseFloat(targetEl.textContent || '0');
       var completed = parseFloat(completedEl.value || '0');
       if (target > 0 && completed < target) {
+        var mermaBtn = row.querySelector('[data-quick-merma]');
         deficits.push({
           product_name: (row.querySelector('.product-name') || {}).textContent || '',
           missing: target - completed,
-          recipe_id: row.querySelector('[data-quick-merma]')?.getAttribute('data-recipe-id') || ''
+          recipe_id: mermaBtn ? (mermaBtn.getAttribute('data-recipe-id') || '') : '',
         });
       }
     });
@@ -687,7 +701,10 @@
       btn.setAttribute('data-quick-merma', '');
       btn.setAttribute('data-recipe-id', d.recipe_id);
       btn.setAttribute('data-product-name', d.product_name);
-      btn.textContent = '🔥 Registrar merma';
+      // PROD-MERMA-2: pass the deficit qty so openQuickMerma() pre-fills the
+      // batch_qty input AND auto-switches to the "Lote entero" tab.
+      btn.setAttribute('data-batch-qty', String(d.missing));
+      btn.textContent = '🔥 Registrar ' + d.missing + ' como merma';
       btn.addEventListener('click', function() { openQuickMerma(btn); });
       li.innerHTML = '<strong>' + d.product_name + '</strong>: faltan ' + d.missing + ' unidades ';
       li.appendChild(btn);
