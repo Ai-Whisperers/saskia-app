@@ -484,3 +484,33 @@ button.tab.is-active { color: var(--color-accent); border-bottom-color: var(--co
   border: none;
   color: var(--color-info-strong, #1e40af);
 }
+
+
+/* Preset switcher for dashboard 30d chart (E4.S2). */
+.chart-preset-switcher {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+  flex-wrap: wrap;
+}
+.chart-preset-switcher .chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 999px;
+  font-size: 0.875rem;
+  text-decoration: none;
+  color: var(--color-text, inherit);
+  background: var(--color-surface, #fff);
+  transition: background 120ms;
+}
+.chart-preset-switcher .chip:hover {
+  background: var(--color-surface-hover, #f5f5f5);
+}
+.chart-preset-switcher .chip--active {
+  background: var(--color-accent, #4f46e5);
+  color: white;
+  border-color: transparent;
+}

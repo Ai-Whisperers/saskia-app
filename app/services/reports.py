@@ -27,8 +27,9 @@ from __future__ import annotations
 
 from calendar import monthrange
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -256,4 +257,154 @@ __all__ = [
     "month_label",
     "monthly_close_summary",
     "monthly_stockout_report",
+]
+
+
+
+# --- Daily sales series (E4.S2) ---
+
+
+@dataclass
+class DailySalesRow:
+    """One day's sales summary for the dashboard 30-day chart."""
+
+    date: date
+    total_gs: int
+    sale_count: int
+    top_product_id: int | None
+    top_product_name: str | None
+
+    def to_dict(self) -> dict:
+        return {
+            "date": self.date.isoformat(),
+            "total_gs": self.total_gs,
+            "sale_count": self.sale_count,
+            "top_product_id": self.top_product_id,
+            "top_product_name": self.top_product_name,
+        }
+
+
+def _resolve_daily_range(
+    preset: str,
+    today: date | None = None,
+) -> tuple[date, date]:
+    """Map a preset name to (start_date, end_date) inclusive.
+
+    Presets: "7d" | "30d" | "90d" | "current_month" | "last_month".
+    ``today`` is a test seam; production callers pass nothing.
+    """
+    today = today or date.today()
+    if preset == "7d":
+        return today - timedelta(days=6), today
+    if preset == "30d":
+        return today - timedelta(days=29), today
+    if preset == "90d":
+        return today - timedelta(days=89), today
+    if preset == "current_month":
+        return today.replace(day=1), today
+    if preset == "last_month":
+        first_this = today.replace(day=1)
+        last_prev = first_this - timedelta(days=1)
+        return last_prev.replace(day=1), last_prev
+    raise ValueError(f"unknown preset: {preset!r}")
+
+
+def daily_sales_series(
+    session: Session,
+    preset: str = "30d",
+    today: date | None = None,
+) -> list[DailySalesRow]:
+    """Per-day sales totals for the dashboard chart.
+
+    Returns ``[DailySalesRow]`` with one entry per day in the range
+    (zero-fill for days with no sales). ``preset`` accepts the values
+    documented in ``_resolve_daily_range``.
+
+    The top-product for each day is the one with the most sales-by-qty
+    on that day; ties broken by name. This is best-effort — for weeks
+    with no sales, ``top_product_id`` and ``top_product_name`` are None.
+    """
+    start, end = _resolve_daily_range(preset, today=today)
+
+    # Convert Asunción-local dates to UTC-naive for the Sale.sold_at column.
+    tz = ZoneInfo("America/Asuncion")
+    start_utc = (
+        datetime.combine(start, time.min)
+        .replace(tzinfo=tz)
+        .astimezone(timezone.utc)
+        .replace(tzinfo=None)
+    )
+    end_utc = (
+        datetime.combine(end, time.max)
+        .replace(tzinfo=tz)
+        .astimezone(timezone.utc)
+        .replace(tzinfo=None)
+    )
+
+    sales = session.scalars(
+        select(Sale)
+        .where(Sale.sold_at >= start_utc, Sale.sold_at <= end_utc)
+        .where(Sale.voided_at.is_(None))
+        .order_by(Sale.sold_at.asc())
+    ).all()
+
+    # Bucket totals + product counts per local-date.
+    totals: dict[date, int] = {}
+    counts: dict[date, int] = {}
+    prod_qty: dict[date, dict[int, int]] = {}
+    prod_name: dict[int, str] = {}
+    for s in sales:
+        if s.sold_at is None:
+            continue
+        local = (
+            s.sold_at.replace(tzinfo=timezone.utc)
+            .astimezone(tz)
+            .date()
+        )
+        totals[local] = totals.get(local, 0) + to_int_gs(
+            Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))
+        )
+        counts[local] = counts.get(local, 0) + 1
+        if s.product_id is not None:
+            prod_qty.setdefault(local, {})
+            prod_qty[local][s.product_id] = (
+                prod_qty[local].get(s.product_id, 0) + int(s.qty)
+            )
+            prod_name[s.product_id] = s.product.name if s.product else None
+
+    out: list[DailySalesRow] = []
+    cur = start
+    while cur <= end:
+        # Pick the top product (most qty; ties broken by name).
+        top_pid: int | None = None
+        top_pname: str | None = None
+        if cur in prod_qty and prod_qty[cur]:
+            best_pid = max(
+                prod_qty[cur].items(),
+                key=lambda kv: (kv[1], prod_name.get(kv[0]) or ""),
+            )[0]
+            top_pid = best_pid
+            top_pname = prod_name.get(best_pid)
+        out.append(
+            DailySalesRow(
+                date=cur,
+                total_gs=totals.get(cur, 0),
+                sale_count=counts.get(cur, 0),
+                top_product_id=top_pid,
+                top_product_name=top_pname,
+            )
+        )
+        cur += timedelta(days=1)
+    return out
+
+
+__all__ = [
+    "DailySalesRow",
+    "StockoutRow",
+    "MonthlySummary",
+    "daily_sales_series",
+    "monthly_close_summary",
+    "monthly_stockout_report",
+    "month_label",
+    "days_in_month",
 ]

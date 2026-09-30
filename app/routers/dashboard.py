@@ -272,6 +272,9 @@ async def dashboard(
     period: str = Query("today", pattern="^(today|week|month|custom)$"),
     start: str | None = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     end: str | None = Query(None, description="End date for custom range (YYYY-MM-DD)"),
+    chart_preset: str = Query(
+        "30d", pattern="^(7d|30d|90d|current_month|last_month)$"
+    ),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     if period == "custom" and start and end:
@@ -639,7 +642,8 @@ async def dashboard(
             "insights": build_insights(session),
             # Phase 3 visual dashboard — charts + freshness
             "chart_hourly": _build_hourly_sales_chart(sales, ASUNCION_TZ),
-            "chart_30day": _build_30day_sales_chart(session),
+            "chart_30day": _build_30day_sales_chart(session, preset=chart_preset),
+            "chart_preset": chart_preset,
             "chart_payment_methods": _build_payment_methods_donut(sales),
             "top_products_revenue": _build_top_products_revenue(ranking),
             # P1-B7: actionable insights for dashboard
@@ -743,51 +747,54 @@ def _build_hourly_sales_chart(sales: list[Sale], tz: ZoneInfo) -> str:
     )
 
 
-def _build_30day_sales_chart(session: Session) -> str:
-    """Build an SVG line chart of sales over the last 30 days."""
-    end = datetime.now(ASUNCION_TZ).replace(hour=23, minute=59, second=59)
-    start = (end - timedelta(days=29)).replace(hour=0, minute=0, second=0)
+def _build_30day_sales_chart(
+    session: Session, preset: str = "30d"
+) -> dict:
+    """Build an SVG line chart for the dashboard over the given preset.
 
-    # Query sales in the range
-    start_utc = start.astimezone(timezone.utc).replace(tzinfo=None)
-    end_utc = end.astimezone(timezone.utc).replace(tzinfo=None)
+    Returns a dict ``{"html": str, "preset": str, "rows": list[dict]}``
+    so the template can render the chart plus a small top-product
+    summary table and the preset switcher.
 
-    sales_30d = session.scalars(
-        select(Sale).where(
-            Sale.sold_at >= start_utc,
-            Sale.sold_at <= end_utc,
-        )
-    ).all()
+    Delegates the heavy lifting to ``app.services.reports.daily_sales_series``
+    (E4.S2) so the same numbers power any future surface (toolbar widget,
+    export, etc).
+    """
+    from app.services.reports import daily_sales_series
 
-    if not sales_30d:
-        return '<p class="text-muted">Sin ventas en los últimos 30 días</p>'
+    rows = daily_sales_series(session, preset=preset)
+    if not rows or all(r.total_gs == 0 for r in rows):
+        return {
+            "html": '<p class="text-muted">Sin ventas en el período seleccionado</p>',
+            "preset": preset,
+            "preset_label": _preset_label(preset),
+            "rows": [r.to_dict() for r in rows],
+        }
 
-    # Bucket by day
-    buckets: dict[str, int] = {}
-    for s in sales_30d:
-        if s.sold_at is None:
-            continue
-        local = s.sold_at.replace(tzinfo=timezone.utc).astimezone(ASUNCION_TZ)
-        key = local.strftime("%d/%m")
-        buckets[key] = buckets.get(key, 0) + to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs)))
+    return {
+        "html": line_chart(
+            [(r.date.strftime("%d/%m"), float(r.total_gs)) for r in rows],
+            width=700,
+            height=180,
+            label=f"Ventas — {_preset_label(preset)} (Gs.)",
+            y_format="{:,.0f}",
+            color="var(--color-accent)",
+            show_dots=False,
+        ),
+        "preset": preset,
+        "preset_label": _preset_label(preset),
+        "rows": [r.to_dict() for r in rows],
+    }
 
-    # Fill in missing days with 0
-    values = []
-    cur = start
-    while cur <= end:
-        key = cur.strftime("%d/%m")
-        values.append((key, float(buckets.get(key, 0))))
-        cur += timedelta(days=1)
 
-    return line_chart(
-        values,
-        width=700,
-        height=180,
-        label="Ventas — últimos 30 días (Gs.)",
-        y_format="{:,.0f}",
-        color="var(--color-accent)",
-        show_dots=False,
-    )
+def _preset_label(preset: str) -> str:
+    return {
+        "7d": "últimos 7 días",
+        "30d": "últimos 30 días",
+        "90d": "últimos 90 días",
+        "current_month": "mes en curso",
+        "last_month": "mes anterior",
+    }.get(preset, preset)
 
 
 def _build_payment_methods_donut(sales: list[Sale]) -> str:

@@ -269,7 +269,22 @@
 {% if ventas_gs %}
 <div class="dashboard-grid mb-4">
   {{ m.chart_card("Ventas por hora del día", chart_hourly, data_freshness) }}
-  {{ m.chart_card("Tendencia — últimos 30 días", chart_30day, data_freshness) }}
+  {{ m.chart_card("Tendencia — " ~ chart_30day.preset_label, chart_30day.html, data_freshness) }}
+  <div class="chart-preset-switcher" data-component="preset-switcher" data-target-url="/?period={{ period }}">
+    <span class="muted">Período:</span>
+    {% for p, label in [
+      ("7d", "7d"),
+      ("30d", "30d"),
+      ("90d", "90d"),
+      ("current_month", "Este mes"),
+      ("last_month", "Mes anterior"),
+    ] %}
+    <a href="?period={{ period }}&chart_preset={{ p }}"
+       class="chip {% if chart_30day.preset == p %}chip--active{% endif %}">
+      {{ label }}
+    </a>
+    {% endfor %}
+  </div>
   {{ m.chart_card("Distribución de pagos", chart_payment_methods | safe, None) }}
   {{ m.top_list_card("Top productos por ventas", top_products_revenue, "Gs. ", "icon-arrow-up") }}
 </div>
