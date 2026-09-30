@@ -172,6 +172,80 @@
   `tests/test_saskia_r2_data_models.py` for the canonical rollup
   test (`test_rollup_sums_multiple_variants_in_base_unit`).
 
+### Added — Loyalty (Phase 4, 2026-10-01)
+
+The points program was 80% built but never wired to live sales —
+`Customer.loyalty_points` existed, `LoyaltyTier` thresholds existed, UI
+copy existed, but `award_points()` was defined and tested-in-isolation
+and never called from the sale-creation path. This phase finishes the
+program end-to-end.
+
+**New table — `loyalty_transaction` (migration 074)** — append-only
+ledger of every point movement:
+- `customer_id` (FK CASCADE), `delta` (signed int), `reason` enum
+  (`earn_sale` / `redeem` / `void_reversal` / `manual_adjust`),
+  `sale_id` (FK SET NULL), `actor`, `notes`, `recorded_at`.
+- CHECK `delta != 0`; CHECK on `reason` enum; indexes on
+  `(customer_id, recorded_at)` for fast "recent activity" queries.
+- `Customer.loyalty_points` is the cached display balance; the ledger
+  is the source of truth. `reconcile_loyalty_balance()` rebuilds the
+  column from `SUM(delta)` for ops recovery.
+
+**Sale-creation wiring** — `app/routers/sales.py` now calls
+`award_points()` after both single-sale and multi-sale inserts:
+- Points earned on the **post-discount total** (matches industry norm).
+- One ledger row per invoice (multi-line sales credit the sum).
+- Uses `current_user_id(request)` as actor; falls back to `operator`.
+- No-ops gracefully if no customer is attached (customer walk-in).
+
+**Void-reversal** — `sale_void()` calls `reverse_points_for_void()`
+BEFORE `void_sale()` so the ledger stays consistent with the cached
+balance when a sale that earned points is voided. Defensive: only
+reverses the original `earn_sale` rows for that sale_id, never
+unrelated redemptions.
+
+**`/clientes/{id}/puntos/redeem`** — new POST endpoint on the customer
+detail page for the "vení mañana que te descuento" case. Records a
+ledger row with `reason='redeem'`, `sale_id=NULL`, optional `notes`.
+Validates `points_to_redeem > 0` and `customer.loyalty_points >=
+points_to_redeem`. Returns flash messages:
+`points_invalid` / `points_insufficient` / `points_redeemed:N:D`.
+
+**UI — `/clientes/{id}`** — new "Puntos de fidelidad" section with:
+- A 1pt/1000 Gs. → 1000 Gs. redemption rate panel.
+- **Canjear puntos** inline form: number input (min=1, max=balance),
+  optional notes field, "Canjear" primary button.
+- **Movimientos recientes** ledger table: last 20 transactions with
+  date / reason label / signed delta (green for earn, red for spend)
+  / link to source sale.
+- Puntos stat card now also shows `≈ N Gs. en descuentos`.
+
+**Effective rate documentation (decision A3)** — the program gives
+~10% of lifetime spend back as discount. UI copy on `/clientes/{id}`
+explains it explicitly and points to `POINTS_PER_GS` in
+`app/rms/customers.py:36,44,213` for tuning. **Constants are unchanged.**
+
+**Tests** — `tests/test_loyalty_ledger.py`, 15 tests:
+- award_points writes ledger + credits balance
+- award_points zero-when-below-threshold (no ledger row)
+- redeem_points writes ledger + debits balance
+- redeem_points raises on insufficient / non-positive
+- reverse_points_for_void with real sale creates negate ledger row
+- reverse_points_for_void no-op when no earn exists
+- reconcile_loyalty_balance rebuilds from SUM(delta)
+- loyalty_transaction table exists with all expected columns
+- CHECK constraint rejects delta=0 at DB level
+- POST /clientes/{id}/puntos/redeem → ledger row
+- POST rejects more than balance → `points_insufficient` flash
+- POST rejects zero/negative → `points_invalid` flash
+- GET /clientes/{id} renders the ledger table
+- POST /ventas/nueva with customer → earn_sale ledger row
+
+**Deferred (decision C)** — auto-suggest rules engine. The existing
+"Coffee regulars" card (top-5 customers with 2+ sales in 30d) is
+already the lowest-friction version of this. Layering rules on top
+is a future optimization.
+
 ### Housekeeping — orphan stash audit (2026-10-01)
 - **8 stale `git stash` entries on main** (oldest 13 days) audited.
   7 dropped (work already shipped via other commits:

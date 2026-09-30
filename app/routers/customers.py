@@ -646,7 +646,7 @@ def cliente_detail(
     customer_id: int = Path(...),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    """Single customer: stats + purchase history."""
+    """Single customer: stats + purchase history + loyalty ledger."""
     from datetime import datetime, timezone
 
     from app.rms.customers import get_customer
@@ -662,6 +662,18 @@ def cliente_detail(
     # the live product name; "(eliminado #id)" if a product ever goes missing.
     from app.rms.customers import decorate_history
     history_view = decorate_history(session, history)
+
+    # Loyalty ledger (Phase 4, 2026-10-01): show the last 20 point
+    # movements so Saskia can answer "por qué María tiene 47 puntos?".
+    # The full ledger is the source of truth; the cached
+    # Customer.loyalty_points column is shown as the balance.
+    from app.rms.models import LoyaltyTransaction
+    recent_loyalty = session.scalars(
+        select(LoyaltyTransaction)
+        .where(LoyaltyTransaction.customer_id == customer.id)
+        .order_by(LoyaltyTransaction.recorded_at.desc())
+        .limit(20)
+    ).all()
 
     # Tier badge days-since-last-sale: SQLite returns NAIVE datetimes while
     # now() is aware — subtracting them raises TypeError (500 on
@@ -688,10 +700,74 @@ def cliente_detail(
             "stats": stats,
             "history": history,
             "history_view": history_view,
+            "recent_loyalty": recent_loyalty,
             "dietary_profile": profile,
             "now_iso": datetime.now(timezone.utc).isoformat(),
             "last_days": last_days,
         },
+    )
+
+
+@router.post("/{customer_id}/puntos/redeem", response_class=HTMLResponse)
+async def cliente_redeem_points(
+    request: Request,
+    customer_id: int = Path(...),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Manually redeem loyalty points from the customer detail page.
+
+    Used by Saskia for the "vení mañana que te descuento" case — the
+    POS path is /ventas (with customer attached). This endpoint records
+    the redemption as a ledger row with reason='redeem' (sale_id is
+    NULL because no sale is tied to it; it's a manual goodwill redeem).
+
+    Form fields:
+      - points_to_redeem: int (positive)
+      - notes: optional free-text (e.g. "descuento por cumpleaños")
+
+    Errors render the detail page again with a flash message; success
+    redirects back to /clientes/{id} with a flash.
+    """
+    from app.auth import current_user_id
+    from app.rms.customers import get_customer, redeem_points
+
+    customer = get_customer(session, customer_id)
+    if customer is None:
+        return RedirectResponse(url="/clientes", status_code=status.HTTP_303_SEE_OTHER)
+
+    form = await request.form()
+    try:
+        pts = int(str(form.get("points_to_redeem") or 0))
+    except (TypeError, ValueError):
+        pts = 0
+    notes = (str(form.get("notes") or "")).strip() or None
+
+    if pts <= 0:
+        return RedirectResponse(
+            url=f"/clientes/{customer_id}?flash=points_invalid",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    try:
+        redeemed, discount_gs = redeem_points(
+            session,
+            customer,
+            pts,
+            actor=str(current_user_id(request) or "operator"),
+            notes=notes,
+        )
+    except ValueError as e:
+        # Insufficient points (most common). Flash and redirect.
+        return RedirectResponse(
+            url=f"/clientes/{customer_id}?flash=points_insufficient",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    from app.rms.db import safe_commit as _safe_commit
+    _safe_commit(session)
+    return RedirectResponse(
+        url=f"/clientes/{customer_id}?flash=points_redeemed:{redeemed}:{discount_gs}",
+        status_code=status.HTTP_303_SEE_OTHER,
     )
 
 

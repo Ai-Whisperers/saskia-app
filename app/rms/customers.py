@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from sqlalchemy import func, or_, select
@@ -220,7 +220,7 @@ def _record_ledger(
         sale_id=sale_id,
         actor=actor,
         notes=notes,
-        recorded_at=datetime.utcnow(),
+        recorded_at=datetime.now(timezone.utc).replace(tzinfo=None),
     )
     session.add(row)
     customer.loyalty_points = (customer.loyalty_points or 0) + delta

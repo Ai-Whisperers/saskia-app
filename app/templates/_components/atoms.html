@@ -261,8 +261,34 @@
       'unauthorized': ('error', 'No tenés permiso para esta acción.'),
       'invalid': ('error', 'Datos inválidos. Revisá el formulario.'),
       'not_found': ('error', 'No se encontró el recurso.'),
+      'points_invalid': ('error', 'Cantidad de puntos inválida.'),
+      'points_insufficient': ('error', 'El cliente no tiene suficientes puntos.'),
+      'points_redeemed': ('success', 'Canje registrado.'),
     } %}
     {% set m = messages.get(flash) %}
+    {# Loyalty redeem: flash like "points_redeemed:10:10000" — show the discount #}
+    {% if not m and flash and flash.startswith('points_redeemed:') %}
+      {% set parts = flash.split(':') %}
+      {% if parts|length >= 3 %}
+        {% set _pts = parts[1] %}
+        {% set _gs = "{:,}".format(parts[2]|int) %}
+        <script>
+(function () {
+  function fire() {
+    if (window.SaskiaToast) {
+      SaskiaToast.show({
+        severity: 'success',
+        message: 'Canje registrado: {{ _pts }} puntos → {{ _gs }} Gs. de descuento.',
+        duration: 4000
+      });
+    }
+  }
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', fire); }
+  else { fire(); }
+})();
+</script>
+      {% endif %}
+    {% endif %}
     {% if m %}
 <script>
 (function () {

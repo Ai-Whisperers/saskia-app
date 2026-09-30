@@ -799,6 +799,25 @@ async def sale_create(
             .values(value=str(sale.sale_id))
         )
 
+    # Loyalty (Phase 4, 2026-10-01): credit points to the customer if one
+    # was attached to this sale. Awarded on the post-discount total
+    # (ApplySaleResult.total_price_gs already subtracts discount) per
+    # industry norm — you earn on what you spent, not sticker price.
+    # Void/return reversal is handled by ``reverse_points_for_void``
+    # (called from /ventas/{id}/anular).
+    if customer_id is not None:
+        from app.auth import current_user_id
+        from app.rms.customers import award_points as _award_points, get_customer as _get_cust
+        cust = _get_cust(session, customer_id)
+        if cust is not None:
+            _award_points(
+                session,
+                cust,
+                max(0, int(sale.total_price_gs)),
+                sale_id=sale.sale_id,
+                actor=str(current_user_id(request) or "operator"),
+            )
+
     safe_commit(session)
 
     # Audit + rate-limit (writes only — read paths not counted).
@@ -1105,6 +1124,25 @@ async def sale_create_multi(
             .values(value=json.dumps({"sale_ids": sale_ids, "request_id": request_id}))
         )
 
+    # Loyalty (Phase 4, 2026-10-01): credit points on the sum of all
+    # post-discount totals for the multi-line sale. Awarded on the
+    # customer-attached invoice; one ledger row (earn_sale) per invoice.
+    if customer_id is not None and sale_ids:
+        from app.auth import current_user_id
+        from app.rms.customers import award_points as _award_points, get_customer as _get_cust
+        cust = _get_cust(session, customer_id)
+        if cust is not None:
+            total_gs_for_points = sum(
+                int(r.total_price_gs) for r in results  # type: ignore[attr-defined]
+            )
+            _award_points(
+                session,
+                cust,
+                max(0, total_gs_for_points),
+                sale_id=sale_ids[0],
+                actor=str(current_user_id(request) or "operator"),
+            )
+
     safe_commit(session)
 
     # Rate-limit + audit
@@ -1191,6 +1229,29 @@ async def sale_void(
     work — the void just records no reason.
     """
     from app.auth import current_user_id
+
+    # Loyalty (Phase 4, 2026-10-01): if this sale earned points, reverse
+    # them BEFORE void_sale runs so the ledger stays consistent with the
+    # cached balance. ``reverse_points_for_void`` is a no-op if no earn
+    # rows exist for this sale_id (defensive: only the original earn is
+    # reversed, not subsequent unrelated redemptions).
+    try:
+        from app.rms.models import Sale as _Sale
+        from app.rms.customers import reverse_points_for_void, get_customer as _get_cust_void
+        _sale_row = session.get(_Sale, sale_id)
+        if _sale_row and _sale_row.customer_id:
+            _cust_void = _get_cust_void(session, _sale_row.customer_id)
+            if _cust_void is not None:
+                reverse_points_for_void(
+                    session,
+                    _cust_void,
+                    sale_id=sale_id,
+                    actor=str(current_user_id(request) or "operator"),
+                )
+                session.flush()
+    except Exception as _loyalty_void_exc:  # noqa: BLE001
+        from loguru import logger as _logger
+        _logger.warning("loyalty void-reversal failed for sale {}: {}", sale_id, _loyalty_void_exc)
 
     try:
         uid = current_user_id(request)
