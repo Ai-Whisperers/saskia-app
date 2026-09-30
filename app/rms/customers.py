@@ -334,6 +334,28 @@ def customer_purchase_history(
     )
 
 
+def decorate_history(session: Session, sales: list) -> list[dict]:
+    """Snapshot each sale's product name for display (P0 fix).
+
+    `Sale` has NO product_name attribute — the template's old
+    `s.product_name` was always Jinja Undefined, rendering "(eliminado)"
+    on every row. Returns dicts: {sale, product_name, product_exists}.
+    FK constraints make true orphans rare, but a hard-deleted product
+    would leave the name unrecoverable — show "(eliminado #id)" then.
+    """
+    view: list[dict] = []
+    for s in sales:
+        prod = s.product
+        view.append({
+            "sale": s,
+            "product_name": (
+                prod.name if prod is not None
+                else f"(eliminado #{s.product_id})"
+            ),
+            "product_exists": prod is not None,
+        })
+    return view
+
 __all__ = [
     "POINTS_PER_GS",
     "TIER_THRESHOLDS",
@@ -342,6 +364,7 @@ __all__ = [
     "award_points",
     "batch_customer_stats",
     "customer_purchase_history",
+    "decorate_history",
     "customer_stats",
     "ensure_customer",
     "find_customer_by_phone",

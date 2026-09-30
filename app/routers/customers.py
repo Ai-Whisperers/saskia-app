@@ -603,6 +603,12 @@ def cliente_detail(
     stats = customer_stats(session, customer)
     history = customer_purchase_history(session, customer.id)
 
+    # P0 fix: the template's `s.product_name` never existed on Sale — Jinja
+    # Undefined → EVERY row rendered "(eliminado)". decorate_history snapshots
+    # the live product name; "(eliminado #id)" if a product ever goes missing.
+    from app.rms.customers import decorate_history
+    history_view = decorate_history(session, history)
+
     # Tier badge days-since-last-sale: SQLite returns NAIVE datetimes while
     # now() is aware — subtracting them raises TypeError (500 on
     # /clientes/{id}, ref 9da40358ea00). Normalize both to aware-UTC here
@@ -627,6 +633,7 @@ def cliente_detail(
             "customer": customer,
             "stats": stats,
             "history": history,
+            "history_view": history_view,
             "dietary_profile": profile,
             "now_iso": datetime.now(timezone.utc).isoformat(),
             "last_days": last_days,

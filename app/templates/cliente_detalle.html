@@ -1,18 +1,39 @@
 {% extends "base.html" %}
 {% import "_components/atoms.html" as ui %}
 {% import "_components/macros.html" as m %}
-{% block title %}{{ fmt.entity_name(customer) }} — Cliente{% endblock %}
+{% block title %}{{ customer.name|title if customer.name else "Cliente" }} — Cliente{% endblock %}
 {% block content %}
 <nav class="breadcrumbs">
-  <a href="/clientes">Clientes</a> &rsaquo; {{ customer.name or customer.phone }}
+  <a href="/clientes">Clientes</a> &rsaquo; {{ customer.name|title if customer.name else (customer.phone or "Cliente") }}
 </nav>
 
 {{ ui.flash_toast(request) }}
 
+{# ── Page roof: name + tier badge + edit CTA ─────────────────────────── #}
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:var(--space-4);flex-wrap:wrap;">
+  <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;">
+    <h1 style="margin-bottom:0;">{{ customer.name|title if customer.name else "(sin nombre)" }}</h1>
+    {% if last_days > 90 %}
+      <span class="badge" style="background:var(--color-text-muted);color:#fff;">Inactivo</span>
+    {% elif last_days > 30 %}
+      <span class="badge" style="background:var(--color-warn);color:#fff;">Frecuente</span>
+    {% else %}
+      <span class="badge" style="background:var(--color-success);color:#fff;">Nuevo</span>
+    {% endif %}
+  </div>
+  <div style="display:flex;gap:var(--space-2);align-items:center;">
+    <span class="badge badge-tier-{{ stats.tier.value }}">{{ stats.tier.value|title }}</span>
+    <a href="/clientes/{{ customer.id }}/editar" class="btn btn-sm btn-secondary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+      Editar perfil
+    </a>
+  </div>
+</div>
+
 {% if dietary_profile.has_alerts %}
 <div role="alert"
      style="border:2px solid var(--color-danger,#d33);background:rgba(220,50,50,.08);
-            border-radius:8px;padding:var(--space-3);margin-bottom:var(--space-3);">
+            border-radius:8px;padding:var(--space-3);margin-bottom:var(--space-4);">
   <strong style="color:var(--color-danger,#d33);">⚠ Perfil dietético</strong>
   {% if dietary_profile.restrictions %}
     <div style="margin-top:var(--space-1);">
@@ -35,129 +56,150 @@
 </div>
 {% endif %}
 
-<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem;">
-  <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;">
-    <h1 style="margin-bottom:0;">{{ customer.name or "(sin nombre)" }}</h1>
-    {# Customer tier badge #}
-    {# last_days precomputed in the route (tz-safe) #}
-    {% if last_days > 90 %}
-      <span class="badge" style="background:var(--color-text-muted);color:#fff;">Inactivo</span>
-    {% elif last_days > 30 %}
-      <span class="badge" style="background:var(--color-warn);color:#fff;">Frecuente</span>
-    {% else %}
-      <span class="badge" style="background:var(--color-success);color:#fff;">Nuevo</span>
-    {% endif %}
+{# ── Dashboard grid: identity left (1fr) + ledger right (2fr) ────────── #}
+<div style="display:grid;grid-template-columns:1fr 2fr;gap:var(--space-4);align-items:start;">
+
+  {# ══ LEFT: contact + notes ══ #}
+  <aside style="display:flex;flex-direction:column;gap:var(--space-4);min-width:0;">
+
+    <section class="card">
+      <h2 style="margin-top:0;">Contacto</h2>
+      <div style="display:flex;flex-direction:column;gap:var(--space-3);">
+        {% if customer.phone %}
+        <div>
+          <div class="text-muted" style="font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;">Teléfono</div>
+          <div style="display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;margin-top:2px;">
+            <a href="tel:{{ customer.phone }}" class="btn btn-sm btn-ghost" style="gap:0.25rem;">📞 {{ customer.phone }}</a>
+            {# Paraguay prefix: strip leading 0, prepend 595 #}
+            {% set _wa = customer.phone|replace(' ', '')|replace('+', '')|replace('-', '') %}
+            {% if _wa|length > 0 and _wa[0] == '0' %}{% set _wa = _wa[1:] %}{% endif %}
+            <a href="https://wa.me/595{{ _wa }}" target="_blank" rel="noopener" class="btn btn-sm btn-ghost" style="gap:0.25rem;">💬 WhatsApp</a>
+          </div>
+        </div>
+        {% endif %}
+        <div>
+          <div class="text-muted" style="font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;">Email</div>
+          {% if customer.email %}
+          <a href="mailto:{{ customer.email }}">{{ customer.email }}</a>
+          {% else %}<span class="text-muted">—</span>{% endif %}
+        </div>
+        <div>
+          <div class="text-muted" style="font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;">CI / RUC</div>
+          <span>{{ customer.cedula or "—" }}</span>
+        </div>
+        <div>
+          <div class="text-muted" style="font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;">Cliente desde</div>
+          <span>{{ customer.created_at.strftime("%d/%m/%Y") if customer.created_at else "—" }}</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-top:0;">Notas</h2>
+      {% if customer.notes %}
+      <p style="margin:0;white-space:pre-wrap;font-size:var(--text-sm);">{{ customer.notes }}</p>
+      {% else %}
+      <p class="text-muted" style="margin:0;font-size:var(--text-sm);font-style:italic;">Sin notas registradas.</p>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h2 style="margin-top:0;">Actividad</h2>
+      <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:var(--space-2);">
+        <li style="display:flex;gap:var(--space-2);align-items:baseline;">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-success);flex-shrink:0;"></span>
+          <span class="text-muted" style="font-size:var(--text-xs);">
+            {{ customer.created_at.strftime("%d/%m/%Y %H:%M") if customer.created_at else "—" }}
+          </span>
+          <span style="font-size:var(--text-sm);">Cliente registrado</span>
+        </li>
+        {% if stats.last_sale_at %}
+        <li style="display:flex;gap:var(--space-2);align-items:baseline;">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-accent);flex-shrink:0;"></span>
+          <span class="text-muted" style="font-size:var(--text-xs);">
+            {{ stats.last_sale_at.strftime("%d/%m/%Y %H:%M") }}
+          </span>
+          <span style="font-size:var(--text-sm);">Última compra</span>
+        </li>
+        {% endif %}
+        {% if customer.updated_at and customer.updated_at != customer.created_at %}
+        <li style="display:flex;gap:var(--space-2);align-items:baseline;">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-info);flex-shrink:0;"></span>
+          <span class="text-muted" style="font-size:var(--text-xs);">
+            {{ customer.updated_at.strftime("%d/%m/%Y %H:%M") }}
+          </span>
+          <span style="font-size:var(--text-sm);">Perfil actualizado</span>
+        </li>
+        {% endif %}
+      </ul>
+    </section>
+  </aside>
+
+  {# ══ RIGHT: KPIs + purchase ledger ══ #}
+  <div style="display:flex;flex-direction:column;gap:var(--space-4);min-width:0;">
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);">
+      <div class="card" style="margin:0;">
+        <div class="text-muted" style="font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;">Gasto total</div>
+        <div style="font-size:var(--text-xl);font-weight:700;">{{ m.gs_full(stats.lifetime_spend_gs) }}</div>
+      </div>
+      <div class="card" style="margin:0;">
+        <div class="text-muted" style="font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;">Visitas</div>
+        <div style="font-size:var(--text-xl);font-weight:700;">{{ stats.n_sales }}</div>
+      </div>
+      <div class="card" style="margin:0;">
+        <div class="text-muted" style="font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;">Puntos</div>
+        <div style="font-size:var(--text-xl);font-weight:700;">{{ customer.loyalty_points }}</div>
+      </div>
+    </div>
+
+    <section class="card">
+      <h2 style="margin-top:0;">Historial de compras</h2>
+      {% if history_view %}
+      <div style="overflow-x:auto;">
+      <table class="table is-hoverable is-striped">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Producto</th>
+            <th class="num">Cant.</th>
+            <th class="num">Total (Gs.)</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in history_view %}
+          {% set s = item.sale %}
+          <tr {% if s.voided_at %}style="opacity:0.5;text-decoration:line-through"{% endif %}>
+            <td><small>{{ s.sold_at.strftime("%d/%m/%Y") if s.sold_at else "" }}</small></td>
+            <td>
+              {% if item.product_exists %}
+                <strong>{{ item.product_name }}</strong>
+              {% else %}
+                <strong class="text-muted">{{ item.product_name }}</strong>
+              {% endif %}
+            </td>
+            {# P1: quantities are units for discrete products — show int when whole #}
+            <td class="num">{{ s.qty|int if s.qty == s.qty|int else s.qty }}</td>
+            <td class="num">{{ m.gs(s.qty * s.unit_price_gs) }}</td>
+            <td>{% if s.voided_at %}{{ ui.status_pill("Anulada", sev="neutral") }}{% else %}{{ ui.status_pill("Activa", sev="ok") }}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}
+      {{ ui.empty_state(title="Sin compras todavía", icon="icon-sale", hint="Cuando el cliente compre algo va a aparecer acá.") }}
+      {% endif %}
+    </section>
   </div>
-  <a href="/clientes/{{ customer.id }}/editar" class="btn btn-sm btn-secondary">
-    <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
-    Editar
-  </a>
 </div>
 
-<dl class="customer-meta">
-  {% if customer.phone %}
-  <dt>Teléfono</dt>
-  <dd>
-    <a href="tel:{{ customer.phone }}" class="btn btn-sm btn-ghost" style="gap:0.25rem;">
-      📞 {{ customer.phone }}
-    </a>
-    {# Strip a single leading "0" so Paraguay phones become 595XXXXXXXXX.
-       Replaces a 1-arg lstrip() filter that doesn't exist in Jinja. #}
-    {% set _wa_phone = customer.phone|replace(' ', '')|replace('+', '')|replace('-', '') %}
-    {% if _wa_phone|length > 0 and _wa_phone[0] == '0' %}{% set _wa_phone = _wa_phone[1:] %}{% endif %}
-    <a href="https://wa.me/595{{ _wa_phone }}" target="_blank" rel="noopener" class="btn btn-sm btn-ghost" style="gap:0.25rem;">
-      💬 WhatsApp
-    </a>
-  </dd>
-  {% endif %}
-  <dt>Email</dt>
-  <dd>{{ customer.email or "—" }}</dd>
-  <dt>CI / RUC</dt>
-  <dd>{{ customer.cedula or "—" }}</dd>
-  <dt>Nivel</dt>
-  <dd><span class="badge badge-tier-{{ stats.tier.value }}">{{ stats.tier_label }}</span></dd>
-  <dt>Puntos acumulados</dt>
-  <dd>{{ customer.loyalty_points }}</dd>
-  <dt>Gasto total</dt>
-  <dd>{{ m.gs_full(stats.lifetime_spend_gs) }}</dd>
-  <dt>Visitas</dt>
-  <dd>{{ stats.n_sales }}</dd>
-  <dt>Última compra</dt>
-  <dd>{{ stats.last_sale_at.strftime("%d/%m/%Y") if stats.last_sale_at else "—" }}</dd>
-  <dt>Registrado</dt>
-  <dd>{{ customer.created_at.strftime("%d/%m/%Y") if customer.created_at else "—" }}</dd>
-</dl>
-
-{# Activity timeline #}
-<section style="margin-top:1.5rem;">
-  <h2>Actividad</h2>
-  <ul class="timeline" style="list-style:none;padding:0;margin:0;">
-    <li class="timeline-item">
-      <span class="timeline-marker" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-success);margin-right:.5rem;flex-shrink:0;"></span>
-      <span class="text-muted" style="font-size:var(--text-xs)">
-        {{ customer.created_at.strftime("%d/%m/%Y %H:%M") if customer.created_at else "—" }}
-      </span>
-      <span>Cliente registrado</span>
-    </li>
-    {% if stats.last_sale_at %}
-    <li class="timeline-item">
-      <span class="timeline-marker" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-accent);margin-right:.5rem;flex-shrink:0;"></span>
-      <span class="text-muted" style="font-size:var(--text-xs)">
-        {{ stats.last_sale_at.strftime("%d/%m/%Y %H:%M") }}
-      </span>
-      <span>Última compra — {{ m.gs_full(stats.lifetime_spend_gs) }} total lifetime</span>
-    </li>
-    {% endif %}
-    {% if customer.updated_at and customer.updated_at != customer.created_at %}
-    <li class="timeline-item">
-      <span class="timeline-marker" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-info);margin-right:.5rem;flex-shrink:0;"></span>
-      <span class="text-muted" style="font-size:var(--text-xs)">
-        {{ customer.updated_at.strftime("%d/%m/%Y %H:%M") }}
-      </span>
-      <span>Última actualización</span>
-    </li>
-    {% endif %}
-  </ul>
-</section>
-
-{# Notes section #}
-<section style="margin-top:1.5rem;">
-  <h2>Notas</h2>
-  {% if customer.notes %}
-  <div class="card" style="background:var(--color-surface-subtle);">
-    <p style="margin:0;white-space:pre-wrap;">{{ customer.notes }}</p>
-  </div>
-  {% else %}
-  <p class="text-muted" style="font-size:var(--text-sm)">Sin notas.</p>
-  {% endif %}
-</section>
-
-<h2>Historial de compras</h2>
-{% if history %}
-<table class="table is-hoverable is-striped">
-  <thead>
-    <tr>
-      <th>Fecha</th>
-      <th>Producto</th>
-      <th class="num">Cantidad</th>
-      <th class="num">Total (Gs.)</th>
-      <th>Estado</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for s in history %}
-    <tr {% if s.voided_at %}style="opacity:0.5;text-decoration:line-through"{% endif %}>
-      <td><small>{{ s.sold_at.strftime("%d/%m/%Y") if s.sold_at else "" }}</small></td>
-      <td><strong>{{ s.product_name or "(eliminado)" }}</strong></td>
-      <td class="num">{{ "%.2f"|format(s.qty) }}</td>
-      <td class="num">{{ m.gs(s.qty * s.unit_price_gs) }}</td>
-      <td>{% if s.voided_at %}{{ ui.status_pill("Anulada", sev="neutral") }}{% else %}{{ ui.status_pill("Activa", sev="ok") }}{% endif %}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
-{{ ui.empty_state(title="Sin compras todavía", icon="icon-sale", hint="Cuando el cliente compre algo va a aparecer acá.") }}
-{% endif %}
+<style>
+  @media (max-width: 900px) {
+    /* Stack the dashboard on tablets/phones */
+    div[style*="grid-template-columns:1fr 2fr"] { grid-template-columns: 1fr !important; }
+  }
+</style>
 
 {% endblock %}
