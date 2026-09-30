@@ -101,8 +101,20 @@
         return window.customerRowLabel(item);
       },
       onSelect: function (item) {
+        // Prefill contact + facturación from the customer record. Fill-if-empty
+        // for phone (operator may have typed one already); overwrite for RUC/
+        // razón social (customer record is the source of truth, form starts blank).
         if (item && item.phone && phoneInput && !phoneInput.value) {
           phoneInput.value = item.phone;
+        }
+        var rucInput = document.getElementById("invoice_ruc");
+        var nameInput = document.getElementById("invoice_name");
+        if (item && rucInput) {
+          var ruc = item.invoice_ruc || item.cedula || "";
+          if (ruc) rucInput.value = ruc;
+        }
+        if (item && nameInput && item.invoice_name) {
+          nameInput.value = item.invoice_name;
         }
         // P3 dietary: red alert for restrictions + confirm-always note
         var alertEl = document.getElementById("dietary-alert");

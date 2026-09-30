@@ -523,6 +523,10 @@ def customer_search_api(
                 # P3 dietary: picker shows a warning chip + pedido form
                 # autofills the alert banner when a restricted customer
                 # is picked.
+                # Pedido form prefills: facturación defaults (P3 profile)
+                "invoice_ruc": c.invoice_ruc or c.cedula or "",
+                "invoice_name": c.invoice_name or "",
+                "email": c.email or "",
                 "dietary_restrictions": [
                     t for t in (c.dietary_restrictions or "").split(",") if t.strip()
                 ],

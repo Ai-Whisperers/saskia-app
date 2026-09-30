@@ -649,6 +649,17 @@ async def pedidos_create(
         if cust_obj is None:
             raise HTTPException(status_code=400, detail="cliente no encontrado")
         cust_name = cust_name or cust_obj.name
+        # Keep the customer's ficha fresh: pedido form is often where the
+        # operator learns the phone / RUC / razón social. Write back if the
+        # form carries values (never blank out existing data).
+        if cust_phone and cust_phone != (cust_obj.phone or ""):
+            cust_obj.phone = cust_phone
+        if invoice_ruc and not (cust_obj.invoice_ruc or ""):
+            cust_obj.invoice_ruc = invoice_ruc
+        elif invoice_ruc and invoice_ruc != (cust_obj.invoice_ruc or ""):
+            cust_obj.invoice_ruc = invoice_ruc  # newest wins (operator typed it)
+        if invoice_name and invoice_name != (cust_obj.invoice_name or ""):
+            cust_obj.invoice_name = invoice_name
 
     # If user typed a name but didn't pick an existing customer, auto-create.
     if cust_obj is None and cust_name:
@@ -665,6 +676,8 @@ async def pedidos_create(
             cust_obj = Customer(
                 name=cust_name,
                 phone=cust_phone,
+                invoice_ruc=(invoice_ruc or "").strip() or None,
+                invoice_name=(invoice_name or "").strip() or None,
             )
             session.add(cust_obj)
             session.flush()  # assigns cust_obj.id

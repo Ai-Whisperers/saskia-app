@@ -53,6 +53,8 @@
         {% if preset_customer %}
           <strong>{{ preset_customer.name }}</strong>
           <small style="color: var(--color-text-muted);">#{{ preset_customer.id }}</small>
+          {% if preset_customer.phone %}<small style="color: var(--color-text-muted);">· {{ preset_customer.phone }}</small>{% endif %}
+          {% if preset_customer.email %}<small style="color: var(--color-text-muted);">· {{ preset_customer.email }}</small>{% endif %}
         {% else %}
           <em class="muted">Ninguno — se crea al guardar</em>
         {% endif %}
@@ -145,12 +147,14 @@
     <div>
       <label for="invoice_ruc">RUC / CI <span class="muted">(para factura)</span></label>
       <input type="text" id="invoice_ruc" name="invoice_ruc"
-             placeholder="80012345-6" inputmode="numeric">
+             placeholder="80012345-6" inputmode="numeric"
+             value="{{ preset_customer.invoice_ruc or preset_customer.cedula or '' if preset_customer else '' }}">
     </div>
     <div>
       <label for="invoice_name">Nombre / razón social</label>
       <input type="text" id="invoice_name" name="invoice_name"
-             placeholder="Para la factura">
+             placeholder="Para la factura"
+             value="{{ preset_customer.invoice_name or '' if preset_customer else '' }}">
     </div>
   </div>
   <div class="form-row" id="save-address-row" hidden>
