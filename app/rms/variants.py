@@ -67,6 +67,22 @@ def rollup_ingredient_stock(
       variant 3 (package_size=5.0 kg, stock=1)  → 5.0 kg
       ⇒ total: 11.0 kg
 
+    Cross-unit example (base unit = kg, variants in g):
+      variant 1 (package_size=1000 g, stock=3)  → 3.0 kg
+      variant 2 (package_size=250 g, stock=12)  → 3.0 kg
+      ⇒ total: 6.0 kg
+
+    The math is: ``total_in_base = stock_qty × size_in_base`` where
+    ``size_in_base = convert_qty(package_size, package_unit, base_unit)``.
+
+    Bug fix (2026-10-01, /inicio B1 follow-up): the previous code also
+    converted ``stock_qty`` from ``package_unit`` to ``base_unit``
+    before multiplying. That's wrong because ``stock_qty`` is a
+    **count of packages**, not a quantity in package_unit. For
+    same-unit variants the bug was invisible (kg×kg cancels), but
+    for cross-unit (g + kg, ml + l) it produced wildly inflated
+    numbers. See ``tests/test_rollup_cross_unit.py``.
+
     Returns None if the Ingredient doesn't exist. Returns a rollup with
     base_qty=0 if variants are missing.
     """
@@ -97,33 +113,34 @@ def rollup_ingredient_stock(
     preferred_id: Optional[int] = None
 
     for v in variants:
-        # pkg_size is in package_unit. Convert pkg_size to base, multiply
-        # by stock_qty (which is also in package_unit — counts how many
-        # of those packages we have).
+        # size_in_base = how many base units a single package contains.
+        # E.g. package_size=1.0 kg, base=g → 1000.0 g per package.
         from_unit = Unit(v.package_unit)
         if can_convert(from_unit, base_unit):
             size_in_base = float(convert_qty(
                 to_decimal(v.package_size), from_unit, base_unit
             ))
-            stock_in_base = float(convert_qty(
-                to_decimal(v.stock_qty), from_unit, base_unit
-            ))
-            # Total in base units = stock count × package size in base
-            this_total = stock_in_base * size_in_base
-            total += to_decimal(str(this_total))
+            # Total contribution: stock_qty is a COUNT of packages, so
+            # multiply by size_in_base to get the quantity in base units.
+            # DO NOT convert stock_qty separately — that would treat the
+            # count as if it were a quantity (the bug we just fixed).
+            total_in_base = float(v.stock_qty) * size_in_base
         else:
-            # incompatible units (should never happen — UNIT constraint
-            # enforces g/kg/ml/l/und). Be safe: include unconverted.
-            this_total = float(v.stock_qty) * float(v.package_size)
+            # Incompatible units (should never happen — UNIT constraint
+            # enforces g/kg/ml/l/und). Be safe: fall back to no conversion,
+            # and the per-variant total equals stock_qty × package_size
+            # in the variant's own unit. This is the legacy behavior.
+            total_in_base = float(v.stock_qty) * float(v.package_size)
             size_in_base = float(v.package_size)
-            stock_in_base = float(v.stock_qty)
-            total += to_decimal(str(this_total))
+
+        total += to_decimal(str(total_in_base))
         breakdown.append({
             "variant_id": v.id,
             "package_size": v.package_size,
             "package_unit": v.package_unit,
             "stock_qty": v.stock_qty,
-            "stock_in_base": this_total,
+            "stock_in_base": total_in_base,  # each variant's contribution in base unit
+            "size_in_base": size_in_base,     # how many base units per package
             "purchase_price_gs": v.purchase_price_gs,
             "supplier_id": v.supplier_id,
             "preferred": bool(v.preferred),

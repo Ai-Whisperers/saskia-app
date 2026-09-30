@@ -99,6 +99,25 @@ ul.checklist li.pending::before { content: "○ "; color: var(--muted); }
   </table>
 </div>
 
+<h2>Wishlist</h2>
+<div class="grid">
+  <div class="card">
+    <div class="metric-label">Open (raw)</div>
+    <div class="metric-value __RAW_CLASS__">__WISHLIST_RAW__</div>
+    <div style="margin-top: 4px; color: #94a3b8; font-size: 12px;">not yet triaged</div>
+  </div>
+  <div class="card">
+    <div class="metric-label">Triaged</div>
+    <div class="metric-value">__WISHLIST_TRIAGED__</div>
+    <div style="margin-top: 4px; color: #94a3b8; font-size: 12px;">scoped, queued</div>
+  </div>
+  <div class="card">
+    <div class="metric-label">Rejected</div>
+    <div class="metric-value">__WISHLIST_REJECTED__</div>
+    <div style="margin-top: 4px; color: #94a3b8; font-size: 12px;">won't ship</div>
+  </div>
+</div>
+
 <h2>Smoke Tests (5-scenario data layer)</h2>
 <div class="section">
   <ul class="checklist">

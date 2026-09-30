@@ -67,6 +67,15 @@ COV_OUT=$(uv run pytest --cov=app --cov-report=term-missing  -q 2>&1 | tail -3 |
 COV_PCT=$(echo "$COV_OUT" | grep -oE 'TOTAL\s+[0-9]+\s+[0-9]+\s+[0-9]+%' | grep -oE '[0-9]+%' | tr -d '%' | head -1 || echo "?")
 echo "${COV_PCT}%"
 
+# 5b. Wishlist count (docs/wishlist/ — drives the STATUS.html widget)
+if [ -d "$PROJECT_DIR/docs/wishlist" ]; then
+  WISHLIST_RAW=$(find "$PROJECT_DIR/docs/wishlist/raw" -name "*.md" -type f 2>/dev/null | wc -l | tr -d ' ')
+  WISHLIST_TRIAGED=$(find "$PROJECT_DIR/docs/wishlist/triaged" -name "*.md" -type f 2>/dev/null | wc -l | tr -d ' ')
+  WISHLIST_REJECTED=$(find "$PROJECT_DIR/docs/wishlist/rejected" -name "*.md" -type f 2>/dev/null | wc -l | tr -d ' ')
+else
+  WISHLIST_RAW=0; WISHLIST_TRIAGED=0; WISHLIST_REJECTED=0
+fi
+
 # 6. Files
 TOTAL_FILES=$(git ls-files | wc -l | tr -d ' ')
 APP_FILES=$(git ls-files | grep -c '^app/' || echo "0")
@@ -120,6 +129,10 @@ features:
   reports: missing
   install: not_started
   review: not_started
+wishlist:
+  raw: ${WISHLIST_RAW}
+  triaged: ${WISHLIST_TRIAGED}
+  rejected: ${WISHLIST_REJECTED}
 verdict:
   status: on_track
   ready_for_batch_2: yes
@@ -147,6 +160,9 @@ if [ "$COV_PCT" != "?" ] && [ "$COV_PCT" -ge 80 ] 2>/dev/null; then COV_CLASS="g
 [ "$FORMAT_OK" = "pass" ] && FMT_CLASS="ok" || FMT_CLASS="fail"
 [ "$FILES_MISSING" = "0" ] && MISSING_CLASS="ok" || MISSING_CLASS="warn"
 
+# raw-class: warn if more than 10 raw wishlist items pile up
+if [ "${WISHLIST_RAW}" -gt 10 ] 2>/dev/null; then RAW_CLASS="warn"; else RAW_CLASS=""; fi
+
 sed -e "s|__HEAD_SHA__|${HEAD_SHA:0:10}|g" \
     -e "s|__HEAD_MSG__|${HEAD_MSG}|g" \
     -e "s|__HOURS_USED__|${HOURS_USED}|g" \
@@ -165,6 +181,10 @@ sed -e "s|__HEAD_SHA__|${HEAD_SHA:0:10}|g" \
     -e "s|__TOTAL_FILES__|${TOTAL_FILES}|g" \
     -e "s|__FILES_MISSING__|${FILES_MISSING}|g" \
     -e "s|__MISSING_CLASS__|${MISSING_CLASS}|g" \
+    -e "s|__WISHLIST_RAW__|${WISHLIST_RAW}|g" \
+    -e "s|__WISHLIST_TRIAGED__|${WISHLIST_TRIAGED}|g" \
+    -e "s|__WISHLIST_REJECTED__|${WISHLIST_REJECTED}|g" \
+    -e "s|__RAW_CLASS__|${RAW_CLASS}|g" \
     "$TEMPLATE" > "$OUTPUT"
 
 echo ""
