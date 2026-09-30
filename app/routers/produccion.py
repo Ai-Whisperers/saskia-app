@@ -29,7 +29,7 @@ from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
 from app.rms.models import Pedido, PedidoLine, Product, ProductionPlanOverride, Recipe, Sale
 from app.rms.observability import record_audit
-from app.rms.production import plan_production
+from app.rms.production import get_weekly_template, plan_production
 from app.rms.eod_completions import upsert_completion as _upsert_completion
 from app.services.template_render import render
 
@@ -37,6 +37,7 @@ router = APIRouter(prefix="/produccion", dependencies=[Depends(require_login)])
 
 FORECAST_SOURCE_LABELS = {
     "rolling_14d_avg": "Sugerido por ventas",
+    "oculto": "Oculto (sin auto-sugerencia)",
     "seasonal_event": "Sugerido por evento",
     "manual": "Manual",
     "template": "Plan semanal",  # PRO-01
@@ -359,9 +360,20 @@ def produccion_worksheet(
             "is_ad_hoc": True,
         })
 
+    # PRO-TEMPLATE-NUDGE: aviso si no hay template para el weekday de for_date
+    _weekday = plan.for_date.weekday() if plan.for_date else 0
+    _template_rows = get_weekly_template(session).get(_weekday, {})
+    _has_sales = session.scalar(
+        select(func.count()).select_from(Sale).where(
+            Sale.product_id.in_(select(Product.id)),
+        )
+    ) or 0
+    template_nudge = (not _template_rows) and _has_sales > 0
+
     return render(request, "produccion.html", {
         "plan": plan,
         "plan_rows_view": plan_rows_view,
+        "template_nudge": template_nudge,
         "for_date": plan.for_date.isoformat() if plan.for_date else "",
         "view": "day",
         "source_labels": FORECAST_SOURCE_LABELS,

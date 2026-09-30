@@ -127,6 +127,20 @@ def _configure_logging() -> None:
 
 _configure_logging()
 
+# PRO-SEC (2026-09-30): the test-auth bypass must NEVER run in production.
+# It leaked once (Swarm service spec carried SASKIA_TEST_AUTH_DISABLED=1 and
+# the whole app served without login). Fail loudly at boot if it's ever set
+# OUTSIDE a pytest run (the test suite itself needs the bypass via conftest).
+_UNDER_PYTEST = "pytest" in sys.modules
+if (
+    os.getenv("SASKIA_TEST_AUTH_DISABLED") not in (None, "", "0")
+    and not _UNDER_PYTEST
+):
+    raise RuntimeError(
+        "SASKIA_TEST_AUTH_DISABLED está activo: este bypass es solo para tests. "
+        "Producción nunca debe arrancar con esta variable definida."
+    )
+
 
 def _assert_bind() -> None:
     """Defensive: refuse to start if bind host is unsafe.
