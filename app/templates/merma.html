@@ -183,22 +183,22 @@
     </div>
   </div>
 
-  {# Top merma ingredients #}
+  {# Top merma ingredients — moved to /auditoria?source=merma so we
+     don't duplicate the same shape that the 'Hoy' card already shows.
+     Resumen keeps the time-window cost vs sales headline (the strategic
+     panel); the breakdown by ingredient is the operator-facing detail
+     and lives in /auditoria. #}
   {% if top_ingredients %}
-  <h3>Por ingrediente (top 10)</h3>
-  <table class="table is-hoverable">
-    <thead><tr><th>Ingrediente</th><th class="num">Costo (Gs.)</th></tr></thead>
-    <tbody>
-      {% for ing_id, ing_name, cost in top_ingredients %}
-      <tr>
-        <td>{{ ui.entity_link(ing_name, href=('/inventario/' ~ ing_id) if ing_id else None) }}</td>
-        <td class="num">{{ m.gs(cost) }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div style="margin-top:var(--space-3);">
+    <p class="text-muted" style="margin:0 0 var(--space-2) 0;">
+      {{ top_ingredients|length }} ingredientes con merma en este período.
+      <a href="/auditoria?source=merma">Ver detalle por ingrediente en /auditoria →</a>
+    </p>
+  </div>
+  {% endif %}
 
-  {# ASCII bar chart for top ingredients #}
+  {# ASCII bar chart for top ingredients — keep for the at-a-glance chart
+     but only render when the dataset is small enough to be readable. #}
   {% if impact.total_cost_gs > 0 %}
   <div style="margin-top:var(--space-3);">
     <h4>Gráfico de merma</h4>
@@ -214,7 +214,6 @@
     </div>
     {% endfor %}
   </div>
-  {% endif %}
   {% endif %}
 
   {% if impact.by_reason %}
