@@ -131,6 +131,47 @@
   leaving the list. Negative adjustments (waste / breakage) still
   go through the existing modal. (Prelaunch roadmap 2026-09-17.)
 
+### Added — Multi-package + multi-supplier support (decision B1)
+- **`/inventario/{id}/ajustar` is now variant-aware**
+  (`app/routers/inventory.py`): when the ingredient has IngredientVariant
+  rows, a new optional `variant_id` form field routes the adjustment to
+  that variant's stock AND tags the StockMovement with the variant. If
+  variants exist but `variant_id` is omitted (e.g. legacy call paths
+  and the detail-page modal), the preferred variant is auto-picked and
+  a flash notice tells the operator. If no variants exist, the legacy
+  `Ingredient.stock_qty` column is updated as before — full backward
+  compat.
+- **`/inventario` list view is now variant-aware**
+  (`app/routers/inventory.py:inventory_list`):
+  - Each row's "Stock actual" cell shows the **rollup total** (sum
+    across variants in the ingredient's base unit), not the legacy
+    column. Legacy ingredients without variants render the same as
+    before.
+  - New **Variantes** column: `{n} variantes` plus the preferred
+    variant summary (size · supplier · price) and a `gestionar` link
+    to the detail page. Ingredients without variants show `— + variante`.
+  - The `kpi_critical` and `kpi_never_loaded` KPIs were re-pinned to
+    variant-aware totals so an ingredient with variants is no longer
+    flagged as "never_loaded" just because the legacy column is 0.
+- **Inline `+ qty` quick-receipt is now variant-aware**
+  (`app/templates/inventario.html`): when the ingredient has variants,
+  the inline form shows a `<select>` with the preferred preselected;
+  when it doesn't, the form is unchanged. Both `<select>`s on the
+  page carry `data-saskia-combo="..."` to keep the zero-native-selects
+  invariant (`test_inventory_multifilter.py`).
+- **New test suite** `tests/test_inventario_variant_aware.py` —
+  9 tests covering: rollup cell rendering, Variantes column
+  (with/without variants), variant picker on the inline form,
+  POST with/without variant_id, auto-pick flash notice, negative-
+  stock guard variant-aware, legacy path unchanged.
+- **Known follow-up (out of scope for B1)**: `rollup_ingredient_stock()`
+  currently handles same-unit variants cleanly (e.g. all `kg`) but
+  double-counts when Ingredient.unit and variant.package_unit are
+  different families (e.g. `g` with `kg` variants). Affected tests
+  use same-unit. Fixing this is a separate piece of work — see
+  `tests/test_saskia_r2_data_models.py` for the canonical rollup
+  test (`test_rollup_sums_multiple_variants_in_base_unit`).
+
 ### Housekeeping — orphan stash audit (2026-10-01)
 - **8 stale `git stash` entries on main** (oldest 13 days) audited.
   7 dropped (work already shipped via other commits:
