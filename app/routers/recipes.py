@@ -567,6 +567,18 @@ async def recipe_detail(
                 aggregated_allergens.append(a_clean)
 
     from app.rms.tag_algebra import derive_recipe_tags as _derive_tags
+    # UI-V2 dual view: ?vista=estructural (default, assembly) vs
+    # ?vista=consolidada (exploded purchase list). Both computed here;
+    # the template toggles which table renders.
+    from app.rms.recipes_consolidated import explode_recipe
+
+    vista = (request.query_params.get("vista") or "estructural").lower()
+    if vista not in ("estructural", "consolidada"):
+        vista = "estructural"
+    consolidated_lines = (
+        explode_recipe(session, r_id) if vista == "consolidada" else []
+    )
+
     # Parse instructions JSON for template
     recipe_phases = None
     try:
@@ -579,6 +591,8 @@ async def recipe_detail(
         "recipe": r,
         "recipe_phases": recipe_phases,
         "tag_derivation": _derive_tags(session, r_id),
+        "vista": vista,
+        "consolidated_lines": consolidated_lines,
         "derived_tags": [t for t in (r.derived_dietary_tags or "").split(",") if t],
         "resolved_lines": resolved_lines,
         "batch_cost": batch_cost,

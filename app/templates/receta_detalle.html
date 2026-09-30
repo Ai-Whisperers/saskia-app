@@ -97,16 +97,29 @@
       </ul>
     </details>
     {% endif %}
-    {# Allergen warning — styled alert box #}
+    {# Allergen warning — styled alert box. Each undeclared ingredient
+       deep-links to its Inventario edit form: fix at the source (the
+       ingredient), and every recipe that uses it inherits automatically. #}
     {% if tag_derivation.undeclared %}
     <div class="alert alert-warning" role="alert" style="margin-top:var(--space-2);max-width:800px;">
       <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
       <div class="alert-content">
         <p style="line-height:1.5;margin:0;">
-          <strong>Sin alérgenos declarados:</strong>
-          {{ tag_derivation.undeclared|join(", ") }}
-          — declaralos en Inventario para un resumen confiable.
+          <strong>Sin alérgenos declarados</strong> — corregilo en el origen
+          (Inventario) y todas las recetas que los usan heredan automáticamente:
         </p>
+        <ul style="margin:var(--space-1) 0 0 var(--space-3);">
+          {% for name in tag_derivation.undeclared %}
+          {% set ing_id = tag_derivation.undeclared_ids[loop.index0] if loop.index0 < tag_derivation.undeclared_ids|length else none %}
+          <li>
+            {% if ing_id %}
+            <a href="/inventario/{{ ing_id }}/editar">{{ name }}</a>
+            {% else %}
+            {{ name }}
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
       </div>
     </div>
     {% endif %}
@@ -142,9 +155,65 @@
   </div>
 
   {# Ingredients & sub-recetas table #}
+  {# UI-V2 dual view toggle: Estructural (assembly) vs Consolidada
+     (exploded purchase list). Both links preserve nothing else — the
+     detail page is stateless. #}
   {% if resolved_lines %}
   <div class="card mb-4">
-    <div class="card-header"><h2>Ingredientes y sub-recetas</h2></div>
+    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);flex-wrap:wrap;">
+      <h2 style="margin:0;">
+        {% if vista == 'consolidada' %}Ingredientes consolidados (lista de compras){% else %}Ingredientes y sub-recetas{% endif %}
+      </h2>
+      <div role="group" aria-label="Modo de vista" style="display:inline-flex;gap:4px;">
+        <a href="?vista=estructural"
+           class="btn btn-sm {% if vista != 'consolidada' %}btn-primary{% else %}btn-ghost{% endif %}"
+           aria-current="{{ 'page' if vista != 'consolidada' else 'false' }}">Vista Estructural</a>
+        <a href="?vista=consolidada"
+           class="btn btn-sm {% if vista == 'consolidada' %}btn-primary{% else %}btn-ghost{% endif %}"
+           aria-current="{{ 'page' if vista == 'consolidada' else 'false' }}">Vista Consolidada</a>
+      </div>
+    </div>
+
+    {% if vista == 'consolidada' %}
+    {# CONSOLIDADA: sub-recipes exploded into raw ingredients, duplicates
+       summed into one row. Read-only shopping list for the kitchen. #}
+    {% if consolidated_lines %}
+    <p class="text-muted" style="padding:0 var(--space-3);margin-bottom:var(--space-2);">
+      Sub-recetas "explotadas": los ingredientes crudos de cada sub-receta se suman
+      con los de la base. Cantidades en la unidad de compra de cada ingrediente.
+    </p>
+    <table class="table is-hoverable">
+      <thead>
+        <tr>
+          <th>Ingrediente</th>
+          <th class="num">Cantidad total</th>
+          <th>Origen</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in consolidated_lines %}
+        <tr {% if item.error %}style="color:var(--color-warning);"{% endif %}>
+          <td>
+            {% if item.ingredient_id %}
+            <a href="/inventario/{{ item.ingredient_id }}">{{ item.name }}</a>
+            {% else %}
+            {{ item.name }}
+            {% endif %}
+            {% if item.error %}<div><small>⚠ {{ item.error }}</small></div>{% endif %}
+          </td>
+          <td class="num">{{ "%.2f"|format(item.qty) }} {{ item.unit }}</td>
+          <td class="muted">
+            {% if item.sources %}via {{ item.sources|join(", ") }}{% else %}base{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted" style="padding:var(--space-3);">No hay líneas para consolidar.</p>
+    {% endif %}
+    {% else %}
+    {# ESTRUCTURAL: sub-recipes as single logical lines (assembly view) #}
     <table class="table is-hoverable">
       <thead>
         <tr>
@@ -180,6 +249,7 @@
         {% endfor %}
       </tbody>
     </table>
+    {% endif %}
   </div>
   {% endif %}
 
