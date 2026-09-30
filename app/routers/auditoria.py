@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
@@ -66,6 +66,26 @@ def _date_presets() -> dict[str, tuple[str, str]]:
     }
 
 
+@router.get("/api/sources")
+def auditoria_api_sources(
+    q: str | None = Query(None, description="Substring filter (case-insensitive)"),
+) -> Response:
+    """Return the known `detail.source` values used on merma audit rows.
+
+    Powers the 'Origen (merma)' saskia-combo in the /auditoria filter form.
+    Always returns the canonical list (production, manual) so operators
+    see the options even when no rows exist yet.
+    """
+    items = [
+        {"value": "production", "display": "📍 Producción"},
+        {"value": "manual", "display": "✍️ Manual"},
+    ]
+    if q:
+        ql = q.lower()
+        items = [i for i in items if ql in i["display"].lower() or ql in i["value"]]
+    return JSONResponse(content=items)
+
+
 @router.get("", response_class=HTMLResponse)
 def auditoria_index(
     request: Request,
@@ -78,6 +98,9 @@ def auditoria_index(
     user_filter: str | None = Query(None, description="Filter by user_id"),
     target_type: str | None = Query(None, description="Filter by target type (e.g. product)"),
     target_id: str | None = Query(None, description="Filter by record ID (e.g. 42)"),
+    # PROD-MERMA-2: filter merma audit rows by their detail.source tag.
+    # Only meaningful when action_filter starts with write.merma.
+    source: str | None = Query(None, description="Filter by detail.source (production|manual)"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """List recent audit log entries with optional filters and pagination.
@@ -117,6 +140,14 @@ def auditoria_index(
     # IP filter
     if ip_filter:
         rows = [r for r in rows if r.ip and ip_filter in r.ip]
+
+    # PROD-MERMA-2: source filter — only meaningful for merma rows but
+    # we apply it unconditionally (no-op on non-merma rows).
+    if source:
+        rows = [
+            r for r in rows
+            if isinstance(r.detail, dict) and str(r.detail.get("source", "") or "") == source
+        ]
 
     # Total for pagination
     total_count = len(rows)
@@ -183,6 +214,7 @@ def auditoria_index(
         "user_filter": user_filter or "",
         "target_type": target_type or "",
         "target_id": target_id or "",
+        "source": source or "",  # PROD-MERMA-2
         "presets": presets,
         "page_start": (page - 1) * 50 + 1,
         "page_end": min(page * 50, total_count),
@@ -198,6 +230,7 @@ def auditoria_export_csv(
     user_filter: str | None = Query(None),
     target_type: str | None = Query(None),
     target_id: str | None = Query(None),
+    source: str | None = Query(None, description="Filter by detail.source (production|manual)"),  # PROD-MERMA-2
     session: Session = Depends(get_session),
 ) -> Response:
     """Export audit log rows matching the current filters as a CSV download.
@@ -228,6 +261,11 @@ def auditoria_export_csv(
             continue
         if ip_filter and (r.ip or "") != ip_filter:
             continue
+        # PROD-MERMA-2: source filter
+        if source:
+            d = r.detail if isinstance(r.detail, dict) else {}
+            if str(d.get("source", "") or "") != source:
+                continue
         filtered.append(r)
 
     filename = f"auditoria_{datetime.now(timezone.utc).date().isoformat()}.csv"

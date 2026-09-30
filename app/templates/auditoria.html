@@ -43,6 +43,16 @@
                value="{{ user_filter or '' }}" placeholder="saskia">
       </div>
       <div class="form-row">
+        <label for="source">Origen (merma)</label>
+        <saskia-combo id="source" name="source"
+                      value="{{ source or '' }}"
+                      placeholder="Todos"
+                      endpoint="/auditoria/api/sources?q="
+                      data-source="/auditoria/api/sources"
+                      label-field="display"
+                      value-field="value"></saskia-combo>
+      </div>
+      <div class="form-row">
         <label for="target_type">Tipo de registro</label>
         <input type="text" id="target_type" name="target_type"
                value="{{ target_type or '' }}" placeholder="product, sale, customer ...">
@@ -66,7 +76,7 @@
         <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
         Filtrar
       </button>
-      <a href="/auditoria/export.csv?start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}" class="btn btn-ghost" download>
+      <a href="/auditoria/export.csv?start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}&source={{ source }}" class="btn btn-ghost" download>
         <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
         Exportar CSV
       </a>
@@ -103,11 +113,11 @@
 
 <nav class="pagination mb-3" aria-label="paginación de auditoría">
   {% if page > 1 %}
-  <a href="?page={{ page - 1 }}&start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}" class="btn btn-ghost">← Anterior</a>
+  <a href="?page={{ page - 1 }}&start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}&source={{ source }}" class="btn btn-ghost">← Anterior</a>
   {% endif %}
   <span class="pagination-info">Página {{ page }} de {{ total_pages }}</span>
   {% if page < total_pages %}
-  <a href="?page={{ page + 1 }}&start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}" class="btn btn-ghost">Siguiente →</a>
+  <a href="?page={{ page + 1 }}&start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}&source={{ source }}" class="btn btn-ghost">Siguiente →</a>
   {% endif %}
 </nav>
 
@@ -162,11 +172,11 @@
 
 <nav class="pagination mt-3" aria-label="paginación de auditoría">
   {% if page > 1 %}
-  <a href="?page={{ page - 1 }}&start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}" class="btn btn-ghost">← Anterior</a>
+  <a href="?page={{ page - 1 }}&start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}&source={{ source }}" class="btn btn-ghost">← Anterior</a>
   {% endif %}
   <span class="pagination-info">Página {{ page }} de {{ total_pages }}</span>
   {% if page < total_pages %}
-  <a href="?page={{ page + 1 }}&start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}" class="btn btn-ghost">Siguiente →</a>
+  <a href="?page={{ page + 1 }}&start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}&source={{ source }}" class="btn btn-ghost">Siguiente →</a>
   {% endif %}
 </nav>
 {% else %}
