@@ -148,3 +148,18 @@ Asunción local TZ.
   {% endif %}
 </section>
 {%- endmacro %}
+\n
+
+{% macro sort_th(label, key, current_sort="", current_dir="asc") -%}
+{#- Sortable column-header LINK. Wrap in your own <th> (with class="num"
+    for right-aligned numeric columns). Reads `request` from the calling
+    template's context to preserve all active filter params. -#}
+{%- set is_cur = current_sort == key -%}
+{%- set next_dir = 'desc' if (is_cur and current_dir == 'asc') else 'asc' -%}
+{%- set qp = request.query_params.multi_items() if request is defined else [] -%}
+<a href="{{ request.url.path if request is defined else '' }}?sort={{ key }}&dir={{ next_dir }}{%- for k, v in qp if k not in ('sort', 'dir') -%}&{{ k }}={{ v }}{%- endfor -%}"
+   aria-label="Ordenar por {{ label }}">
+  {{ label }}
+  {%- if is_cur %}<small aria-hidden="true">{% if current_dir == 'asc' %}▲{% else %}▼{% endif %}</small>{% endif -%}
+</a>
+{%- endmacro %}

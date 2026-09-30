@@ -78,11 +78,11 @@ async def recipes_list(
     request: Request,
     q: str = Query("", description="Search by recipe name"),
     familia: str = Query("", description="Filter by recipe family (comma-separated, OR semantics)"),
-    dificultad: str = Query("", description="Filter by difficulty 1-5 (exact)"),
+    dificultad: str = Query("", description="Filter by difficulty 1-5, comma-separated multi (P3 UX batch)"),
     dieteticas: str = Query("", description="Filter by dietary tags (comma-separated, AND semantics)"),
     ingredient_id: str = Query("", description="Filter by single ingredient ID (legacy)"),
     ingredient_ids: str = Query("", description="Filter by multiple ingredient IDs (comma-separated). US 3.2: AND semantics — recipe must use ALL selected."),
-    sort: str = Query("name", pattern="^(name|yield_qty|batch_cost_gs)$"),
+    sort: str = Query("name", pattern="^(name|yield_qty|batch_cost_gs|unit_cost_gs|prep_minutes|cook_minutes|difficulty|line_count)$"),
     dir: str = Query("asc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(50, ge=1, le=200, description="Items per page"),
@@ -119,9 +119,23 @@ async def recipes_list(
             if val not in ing_id_ints:
                 ing_id_ints.append(val)
 
+    # P3 UX batch: multi-select popover posts repeated ?ingredient_multi=N
+    # params — merge into the same AND-semantics id set.
+    for raw in request.query_params.getlist("ingredient_multi"):
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            val = int(raw)
+        except ValueError:
+            continue
+        if val not in ing_id_ints:
+            ing_id_ints.append(val)
+
     # Base query — first count for pagination
     familias_sel = [x.strip() for x in familia.split(",") if x.strip()]
-    dif_sel = dificultad.strip()
+    # Accept both ?dificultad=1&dificultad=3 (repeated) and ?dificultad=1,3
+    dif_sel = [d.strip() for d in request.query_params.getlist("dificultad") for d in d.split(",") if d.strip()]
     diet_sel = [x.strip() for x in dieteticas.split(",") if x.strip()]
 
     count_stmt = select(func.count(Recipe.id))
@@ -142,7 +156,8 @@ async def recipes_list(
         )
     if dif_sel:
         try:
-            count_stmt = count_stmt.where(Recipe.difficulty == int(dif_sel))
+            dif_ints = [int(d) for d in dif_sel]
+            count_stmt = count_stmt.where(Recipe.difficulty.in_(dif_ints))
         except ValueError as exc:
             # Bad difficulty query param — just don't filter.
             logger.debug("recipes difficulty filter dropped: {}", exc)
@@ -187,7 +202,7 @@ async def recipes_list(
         )
     if dif_sel:
         try:
-            stmt = stmt.where(Recipe.difficulty == int(dif_sel))
+            stmt = stmt.where(Recipe.difficulty.in_([int(d) for d in dif_sel]))
         except ValueError as exc:
             # Bad difficulty query param — just don't filter.
             logger.debug("recipes difficulty filter dropped: {}", exc)
@@ -232,9 +247,22 @@ async def recipes_list(
         for r in recipes
     ]
 
-    # Sort by cost after decoration if needed
-    if sort == "batch_cost_gs":
-        decorated.sort(key=lambda x: x["batch_cost_gs"] or 0, reverse=(dir == "desc"))
+    # P3 UX batch: sort EVERY column in-memory after decoration — costs,
+    # difficulty, prep/cook are computed values, not plain columns. The
+    # SQL order_by above remains for name/yield (deterministic pagination);
+    # this final pass re-orders the current page's rows by the chosen key.
+    _sort_keys = {
+        "name": lambda x: (x["name"] or "").lower(),
+        "yield_qty": lambda x: x["yield_qty"] or 0,
+        "batch_cost_gs": lambda x: x["batch_cost_gs"] or 0,
+        "unit_cost_gs": lambda x: x["unit_cost_gs"] or 0,
+        "prep_minutes": lambda x: x["prep_minutes"] or 0,
+        "cook_minutes": lambda x: x["cook_minutes"] or 0,
+        "difficulty": lambda x: x["difficulty"] or 0,
+        "line_count": lambda x: x["line_count"] or 0,
+    }
+    if sort in _sort_keys:
+        decorated.sort(key=_sort_keys[sort], reverse=(dir == "desc"))
 
     # Ingredient list for filter dropdown
     all_ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
@@ -248,6 +276,7 @@ async def recipes_list(
         "q": q,
         "familias_sel": familias_sel,
         "dif_sel": dif_sel,
+        "ing_multi_sel": [str(i) for i in ing_id_ints],
         "diet_sel": diet_sel,
         "all_families": all_families,
         "all_recipe_tags": all_tags,

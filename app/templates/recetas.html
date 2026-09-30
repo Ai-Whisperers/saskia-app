@@ -31,10 +31,11 @@
   </div>
   {% endif %}
   <div class="mf-pop" data-mf="dificultad">
-    <button type="button" class="mf-btn" aria-expanded="false">{% if dif_sel %}Dificultad {{ dif_sel }}{% else %}Dificultad{% endif %} ▾</button>
+    <button type="button" class="mf-btn" aria-expanded="false">Dificultad{% if dif_sel %} <span class="mf-count">{{ dif_sel|length }}</span>{% endif %} ▾</button>
     <div class="mf-panel" hidden>
-      {% for val, lbl in [('', 'Todas'), ('1', '1 — Muy fácil'), ('2', '2 — Fácil'), ('3', '3 — Media'), ('4', '4 — Difícil'), ('5', '5 — Muy difícil')] %}
-      <label class="mf-option"><input type="radio" name="dificultad" value="{{ val }}" {% if dif_sel == val %}checked{% endif %}> {{ lbl }}</label>
+      <p class="mf-hint">Mostrar recetas de CUALQUIER dificultad marcada:</p>
+      {% for val, lbl in [('1', '1 — Muy fácil'), ('2', '2 — Fácil'), ('3', '3 — Media'), ('4', '4 — Difícil'), ('5', '5 — Muy difícil')] %}
+      <label class="mf-option"><input type="checkbox" name="dificultad" value="{{ val }}" {% if val in dif_sel %}checked{% endif %}> {{ lbl }}</label>
       {% endfor %}
     </div>
   </div>
@@ -49,15 +50,21 @@
     </div>
   </div>
   {% endif %}
-  <div class="form-row" style="margin-bottom:0;">
-    {{ ui.combo_field(
-      name='ingredient_id',
-      value=ingredient_id,
-      placeholder='Ingrediente…',
-      endpoint='/inventario/api/search/',
-      value_field='id',
-      label_field='name'
-    ) }}
+  {# P3 UX batch: ingredient filter is now a MULTI-select popover
+     (was a single saskia-combo). Checkbox semantics: recipe must use
+     ALL selected ingredients (same AND semantics the router already
+     implements for ingredient_ids). The legacy single ingredient_id
+     param still renders as a pre-checked option when present. #}
+  <div class="mf-pop" data-mf="ingredientes">
+    <button type="button" class="mf-btn" aria-expanded="false">Ingredientes{% if ing_multi_sel %} <span class="mf-count">{{ ing_multi_sel|length }}</span>{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      <p class="mf-hint">Recetas que usan TODOS los marcados:</p>
+      <div class="mf-scroll" style="max-height:260px;overflow:auto;">
+      {% for ing in all_ingredients %}
+      <label class="mf-option"><input type="checkbox" name="ingredient_multi" value="{{ ing.id }}" {% if ing.id|string in ing_multi_sel %}checked{% endif %}> {{ ing.name }}</label>
+      {% endfor %}
+      </div>
+    </div>
   </div>
   <button type="submit" class="btn btn-primary" style="height:36px;">Filtrar</button>
   {% if q or familias_sel or dif_sel or diet_sel or ingredient_id %}
@@ -95,29 +102,14 @@
   <thead>
     <tr>
       <th style="width:70px;">Foto</th>
-      <th>
-        Nombre
-        <a href="?sort=name&dir={% if sort == 'name' and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}{% if ingredient_id %}&ingredient_id={{ ingredient_id }}{% endif %}{% if ingredient_ids %}&ingredient_ids={{ ingredient_ids }}{% endif %}" aria-label="Ordenar por nombre">
-          {% if sort == 'name' %}<strong>{% endif %}{% if sort == 'name' and dir == 'desc' %}▼{% elif sort == 'name' %}▲{% else %}⇅{% endif %}{% if sort == 'name' %}</strong>{% endif %}
-        </a>
-      </th>
-      <th class="num">
-        Rinde
-        <a href="?sort=yield_qty&dir={% if sort == 'yield_qty' and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}{% if ingredient_id %}&ingredient_id={{ ingredient_id }}{% endif %}{% if ingredient_ids %}&ingredient_ids={{ ingredient_ids }}{% endif %}" aria-label="Ordenar por rinde">
-          {% if sort == 'yield_qty' %}<strong>{% endif %}{% if sort == 'yield_qty' and dir == 'desc' %}▼{% elif sort == 'yield_qty' %}▲{% else %}⇅{% endif %}{% if sort == 'yield_qty' %}</strong>{% endif %}
-        </a>
-      </th>
-      <th style="text-align:center;">Dificultad</th>
-      <th class="col-prep" style="text-align:center;">Prep</th>
-      <th class="col-cook" style="text-align:center;">Cocción</th>
-      <th>Líneas</th>
-      <th class="num">
-        Costo del lote (Gs.)
-        <a href="?sort=batch_cost_gs&dir={% if sort == 'batch_cost_gs' and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&q={{ q }}{% endif %}{% if ingredient_id %}&ingredient_id={{ ingredient_id }}{% endif %}{% if ingredient_ids %}&ingredient_ids={{ ingredient_ids }}{% endif %}" aria-label="Ordenar por costo">
-          {% if sort == 'batch_cost_gs' %}<strong>{% endif %}{% if sort == 'batch_cost_gs' and dir == 'desc' %}▼{% elif sort == 'batch_cost_gs' %}▲{% else %}⇅{% endif %}{% if sort == 'batch_cost_gs' %}</strong>{% endif %}
-        </a>
-      </th>
-      <th class="num">Costo / porción (Gs.)</th>
+      <th>{{ m.sort_th("Nombre", "name", sort, dir) }}</th>
+      <th class="num">{{ m.sort_th("Rinde", "yield_qty", sort, dir) }}</th>
+      <th class="num">{{ m.sort_th("Dificultad", "difficulty", sort, dir) }}</th>
+      <th class="num">{{ m.sort_th("Prep", "prep_minutes", sort, dir) }}</th>
+      <th class="num">{{ m.sort_th("Cocción", "cook_minutes", sort, dir) }}</th>
+      <th class="num">{{ m.sort_th("Líneas", "line_count", sort, dir) }}</th>
+      <th class="num">{{ m.sort_th("Costo del lote (Gs.)", "batch_cost_gs", sort, dir) }}</th>
+      <th class="num">{{ m.sort_th("Costo / porción (Gs.)", "unit_cost_gs", sort, dir) }}</th>
       <th class="num">Costo total (Gs.)</th>
       <th class="actions"></th>
     </tr>

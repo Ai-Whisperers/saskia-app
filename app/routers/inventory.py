@@ -211,10 +211,48 @@ def inventory_list(
         kpi_value_gs = sum((i.stock_qty or 0) * (i.purchase_price_gs or 0) for i in all_ings)
 
     q = (request.query_params.get("q") or "").strip().lower()
-    estado = request.query_params.get("estado") or ""
+    # P3 UX batch: estado/almacen/expiry are now MULTI-select (checkboxes).
+    # Legacy single values still work — normalize to lists.
+    estados_sel = [e for e in request.query_params.getlist("estado") if e]
     categorias = [c for c in request.query_params.getlist("categoria") if c]
     alergenos = [a for a in request.query_params.getlist("alergeno") if a]
-    almacen = request.query_params.get("almacen") or ""
+    almacenes_sel = [a for a in request.query_params.getlist("almacen") if a]
+    expiries_sel = [e for e in request.query_params.getlist("expiry") if e and e != "all"]
+    # Diet-restriction filter (P3 UX batch): multi-select over the
+    # canonical dietary tags. AND semantics like allergens — an ingredient
+    # matches only if it carries EVERY selected tag. Both Spanish canonical
+    # ("sin gluten") and legacy English codes ("gluten_free") accepted.
+    from app.rms.tagging.vocabulary import CANONICAL_DIETARY_TAGS
+    diet_sel = [
+        d.strip().lower()
+        for d in request.query_params.getlist("diet") if d.strip()
+    ]
+
+    def _ingredient_diet_tags(i) -> set[str]:
+        raw = (i.dietary_tags or "").lower()
+        return {t.strip() for t in raw.split(",") if t.strip()}
+
+    def _matches_diet(i) -> bool:
+        if not diet_sel:
+            return True
+        tags = _ingredient_diet_tags(i)
+        for want in diet_sel:
+            if want in tags:
+                continue
+            # legacy English aliases → Spanish
+            alias_map = {
+                "gluten_free": ("sin gluten", "sin tacc"),
+                "vegan": ("vegano",),
+                "vegetarian": ("vegetariano",),
+                "dairy_free": ("sin lactosa",),
+                "egg_free": ("sin huevo",),
+                "keto_friendly": ("keto",),
+                "nut_free": ("sin frutos secos",),
+            }
+            if any(a in tags for a in alias_map.get(want, ())):
+                continue
+            return False
+        return True
 
     def _has_allergen(i: Ingredient, code: str) -> bool:
         return code in (i.allergens or "").lower()
@@ -222,28 +260,44 @@ def inventory_list(
     def _match(i: Ingredient) -> bool:
         if q and q not in (i.name or "").lower():
             return False
-        if estado == "bajo" and not (i.stock_qty <= (i.min_stock_qty or 0)):
-            return False
-        if estado == "critico" and not (i.stock_qty <= 0 or (i.min_stock_qty and i.stock_qty < i.min_stock_qty * 0.5)):
-            return False
-        if estado == "negativo" and not (i.stock_qty < 0):
-            return False
-        if estado == "sinprecio" and i.purchase_price_gs is not None:
-            return False
-        if estado == "ok" and (i.stock_qty <= (i.min_stock_qty or 0)):
-            return False
+        if estados_sel:
+            ok = False
+            for estado in estados_sel:
+                if estado == "bajo" and i.stock_qty <= (i.min_stock_qty or 0):
+                    ok = True
+                elif estado == "critico" and (i.stock_qty <= 0 or (i.min_stock_qty and i.stock_qty < i.min_stock_qty * 0.5)):
+                    ok = True
+                elif estado == "negativo" and i.stock_qty < 0:
+                    ok = True
+                elif estado == "sinprecio" and i.purchase_price_gs is None:
+                    ok = True
+                elif estado == "ok" and i.stock_qty > (i.min_stock_qty or 0):
+                    ok = True
+                if ok:
+                    break
+            if not ok:
+                return False
         if categorias and (i.category or "") not in categorias:
             return False
         if alergenos and not all(_has_allergen(i, a) for a in alergenos):
             return False
-        if almacen and (i.storage or "") != almacen:
+        if not _matches_diet(i):
             return False
-        if expiry == "expired" and not (i.expiry_date and i.expiry_date < today):
+        if almacenes_sel and (i.storage or "") not in almacenes_sel:
             return False
-        if expiry == "7days" and not (i.expiry_date and i.expiry_date <= week_from_now and i.expiry_date >= today):
-            return False
-        if expiry == "30days" and not (i.expiry_date and i.expiry_date <= month_from_now and i.expiry_date >= today):
-            return False
+        if expiries_sel:
+            ok = False
+            for expiry in expiries_sel:
+                if expiry == "expired" and i.expiry_date and i.expiry_date < today:
+                    ok = True
+                elif expiry == "7days" and i.expiry_date and i.expiry_date <= week_from_now and i.expiry_date >= today:
+                    ok = True
+                elif expiry == "30days" and i.expiry_date and i.expiry_date <= month_from_now and i.expiry_date >= today:
+                    ok = True
+                if ok:
+                    break
+            if not ok:
+                return False
         return True
 
     _filtered_all = [i for i in all_ings if _match(i)]
@@ -286,6 +340,10 @@ def inventory_list(
         "min_stock_qty": lambda i: i.min_stock_qty or 0,
         "purchase_price_gs": lambda i: i.purchase_price_gs or 0,
         "unit": lambda i: i.unit or "",
+        "valor_gs": lambda i: (i.stock_qty or 0) * (i.purchase_price_gs or 0),
+        "category": lambda i: (i.category or "").lower(),
+        "expiry_date": lambda i: i.expiry_date.isoformat() if i.expiry_date else "",
+        "supplier": lambda i: (i.supplier.name.lower() if i.supplier and i.supplier.name else ""),
     }
     if sort and sort in _sort_map:
         _filtered_all.sort(key=_sort_map[sort], reverse=(dir == "desc"))
@@ -366,11 +424,13 @@ def inventory_list(
             "kpi_no_cost": kpi_no_cost,
             "expiring_soon": expiring_soon,
             "q": q,
-            "estado": estado,
+            "estados_sel": estados_sel,
             "categorias": categorias,
             "alergenos_sel": alergenos,
-            "almacen": almacen,
-            "expiry": expiry,
+            "diet_sel": diet_sel,
+            "diet_options": sorted(CANONICAL_DIETARY_TAGS),
+            "almacenes_sel": almacenes_sel,
+            "expiries_sel": expiries_sel,
             "categories": categories,
             "storages": storages,
             "allergen_codes": [
