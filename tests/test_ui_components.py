@@ -493,15 +493,35 @@ def test_d17_merma_uses_saskia_combo_for_reason(client):
     assert '<div class="saskia-combo"\n         data-source="/inventario/api/search"' not in body
 
 
-def test_d17_merma_uses_saskia_combo_for_recipe_and_ingredient(client):
-    """D17: merma.html migrates recipe_id and ingredient_id combos."""
+def test_d17_merma_uses_saskia_combo_for_ingredient_only(client):
+    """D17: merma.html migrated ingredient_id combo. Recipe card moved to /produccion (PROD-MERMA-1)."""
     status, body = _get(client, "/merma")
     assert status == 200
-    # recipe_id and ingredient_id combos should be migrated
-    assert "name='recipe_id'" in body or "recipe_id" in body
+    # ingredient_id combo still migrated
     assert "name='ingredient_id'" in body or "ingredient_id" in body
     # Inventory API endpoint wired
     assert "/inventario/api/search?q=" in body
+    # recipe_id form was MOVED to /produccion (PROD-MERMA-1)
+    assert "Merma de receta completa" not in body, (
+        "Recipe card must no longer render on /merma (moved to /produccion per PROD-MERMA-1)"
+    )
+
+
+def test_d17_produccion_has_quick_merma_modal(client):
+    """PROD-MERMA-1: /produccion carries the recipe-card form (in quick-merma modal).
+
+    The recipe_id is a HIDDEN INPUT (preselected by JS from data-recipe-id on
+    the row's button), not a combo — operator can't change recipe in the
+    quick-merma modal. The ingrediente suelto tab DOES use combos.
+    """
+    status, body = _get(client, "/produccion?view=day")
+    assert status == 200
+    assert "quick-merma-modal" in body
+    # ingredient combo is wired (combo macro emits both attribute forms)
+    assert "/inventario/api/search" in body
+    assert "/merma/api/reasons" in body
+    # recipe_id is a hidden input — make sure it lives inside the modal form
+    assert 'name="recipe_id"' in body or 'name="qm-recipe-id"' in body
 
 
 def test_d17_receta_form_yield_unit_migrated(client):

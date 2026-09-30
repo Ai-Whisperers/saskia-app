@@ -3,6 +3,7 @@
 Built on app/rms/waste.py which has record_waste + list_waste + waste_impact
 + waste_as_pct_of_revenue.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -56,8 +57,10 @@ def merma_list(
 
     if until:
         try:
-            end_date = datetime.strptime(until, "%Y-%m-%d").replace(tzinfo=timezone.utc).replace(
-                hour=23, minute=59, second=59
+            end_date = (
+                datetime.strptime(until, "%Y-%m-%d")
+                .replace(tzinfo=timezone.utc)
+                .replace(hour=23, minute=59, second=59)
             )
         except ValueError:
             end_date = today
@@ -72,16 +75,21 @@ def merma_list(
         except ValueError:
             reason_filter = None
 
-    items = list_waste(session, start_date=start_date, end_date=end_date,
-                       reason=reason_filter, limit=200)
+    items = list_waste(
+        session, start_date=start_date, end_date=end_date, reason=reason_filter, limit=200
+    )
     impact = waste_impact(session, start_date=start_date, end_date=end_date)
     # Estimate revenue from sales in same window
     from app.rms.models import Sale
-    rev_total = session.execute(
-        select(func.sum(Sale.qty * Sale.unit_price_gs)).where(
-            Sale.sold_at >= start_date, Sale.voided_at.is_(None)
-        )
-    ).scalar() or 0
+
+    rev_total = (
+        session.execute(
+            select(func.sum(Sale.qty * Sale.unit_price_gs)).where(
+                Sale.sold_at >= start_date, Sale.voided_at.is_(None)
+            )
+        ).scalar()
+        or 0
+    )
     # pct is None when there is no revenue in the window, so the template
     # can show the "no hay ventas todavía" copy from MER-03.
     if rev_total > 0:
@@ -108,30 +116,34 @@ def merma_list(
         sd = (today - timedelta(days=d)).strftime("%Y-%m-%d")
         return f"/merma?days={d}&since={sd}&reason={reason or ''}"
 
-    return render(request, "merma.html", {
-        "items": items,
-        "impact": impact,
-        "pct": pct,
-        "reasons": [r.value for r in WasteReason],
-        "selected_reason": reason or "",
-        "ingredients": ingredients,
-        "recipes": recipes_with_yield,
-        "top_ingredients": top_ingredients,
-        "days": days,
-        "since": start_date.strftime("%Y-%m-%d"),
-        "until": end_date.strftime("%Y-%m-%d"),
-        "preset_url_7": preset_url(7),
-        "preset_url_30": preset_url(30),
-        "preset_url_90": preset_url(90),
-        # MER-01: unit selector. Per-ingredient stock unit, plus finer units
-        # from the same family (kg → allow g, l → allow ml). The default unit
-        # is the finer one because operators typically enter small quantities.
-        "available_units": ["g", "kg", "ml", "l", "und"],
-        "default_unit": "g",
-        "total": len(items),
-        "page_start": 1,
-        "page_end": len(items),
-    })
+    return render(
+        request,
+        "merma.html",
+        {
+            "items": items,
+            "impact": impact,
+            "pct": pct,
+            "reasons": [r.value for r in WasteReason],
+            "selected_reason": reason or "",
+            "ingredients": ingredients,
+            "recipes": recipes_with_yield,
+            "top_ingredients": top_ingredients,
+            "days": days,
+            "since": start_date.strftime("%Y-%m-%d"),
+            "until": end_date.strftime("%Y-%m-%d"),
+            "preset_url_7": preset_url(7),
+            "preset_url_30": preset_url(30),
+            "preset_url_90": preset_url(90),
+            # MER-01: unit selector. Per-ingredient stock unit, plus finer units
+            # from the same family (kg → allow g, l → allow ml). The default unit
+            # is the finer one because operators typically enter small quantities.
+            "available_units": ["g", "kg", "ml", "l", "und"],
+            "default_unit": "g",
+            "total": len(items),
+            "page_start": 1,
+            "page_end": len(items),
+        },
+    )
 
 
 @router.post("/registrar")
@@ -142,12 +154,17 @@ def merma_register(
     qty_unit: str = Form(""),
     reason: str = Form(...),
     notes: str = Form(""),
+    source: str = Form(
+        "manual"
+    ),  # PROD-MERMA-1: "manual" (default) | "production" (from quick-merma modal)
     session: Session = Depends(get_session),
 ) -> object:
     """Record a new waste event.
 
     MER-01: qty_unit lets the operator enter 50 g of harina instead of 0.05 kg.
     The unit is converted to the ingredient's stock unit before stock decrement.
+    PROD-MERMA-1: source="production" routes the redirect to /produccion with
+    a merma=ok flash; source="manual" keeps the legacy redirect to /merma.
     """
     # Validate reason is in the enum
     try:
@@ -160,6 +177,7 @@ def merma_register(
 
     # Rate-limit writes per IP.
     from app.rms.rate_limit import is_write_rate_limited
+
     with session.bind.connect() as _:
         pass  # touch to ensure session is live
     # We need request inside the function — use a quick manual lookup
@@ -168,7 +186,9 @@ def merma_register(
         ip = ip.split(",")[0].strip()
     # Re-use the rate-limit helper through session_factory
     if is_write_rate_limited(session, request, max_per_minute=10):
-        raise HTTPException(status_code=429, detail="Demasiadas acciones en 1 minuto. Esperá un momento.")
+        raise HTTPException(
+            status_code=429, detail="Demasiadas acciones en 1 minuto. Esperá un momento."
+        )
 
     try:
         log = record_waste(
@@ -188,16 +208,26 @@ def merma_register(
         ) from exc
 
     from app.auth import current_user_id
+
     record_audit(
         request,
         session=session,
         action="write.merma.create",
         target_type="merma",
         target_id=log.id,
-        detail={"ingredient_id": ingredient_id, "qty": qty, "reason": reason},
+        detail={
+            "ingredient_id": ingredient_id,
+            "qty": qty,
+            "reason": reason,
+            "source": source,  # PROD-MERMA-1: tag entrypoint for /merma event log
+        },
         user_id=str(current_user_id(request) or "operator"),
     )
     session.commit()
+    # PROD-MERMA-1: route the redirect based on entrypoint so the operator lands
+    # where they came from with a flash banner.
+    if source == "production":
+        return RedirectResponse(url="/produccion?view=day&merma=ok&lines=1", status_code=303)
     return RedirectResponse(url="/merma", status_code=303)
 
 
@@ -208,12 +238,16 @@ def merma_register_recipe(
     batch_qty: float = Form(...),
     reason: str = Form(...),
     notes: str = Form(""),
+    source: str = Form("manual"),  # PROD-MERMA-1: "manual" | "production"
     session: Session = Depends(get_session),
 ) -> object:
     """Record a whole-batch waste event (Saskia review T6).
 
     Expands the recipe into per-ingredient WasteLog rows and decrements
     stock proportionally. Sub-recipes recurse via _compute_stock_moves.
+
+    PROD-MERMA-1: source="production" routes the redirect to /produccion with
+    a merma=ok flash (the line count equals the recipe's ingredient count).
     """
     try:
         reason_enum = WasteReason(reason)
@@ -223,11 +257,10 @@ def merma_register_recipe(
             context={"original_error": str(exc)},
         ) from exc
     if batch_qty <= 0:
-        raise HTTPException(
-            status_code=400, detail="La cantidad de lotes debe ser mayor a 0"
-        )
+        raise HTTPException(status_code=400, detail="La cantidad de lotes debe ser mayor a 0")
 
     from app.rms.rate_limit import is_write_rate_limited
+
     if is_write_rate_limited(session, request, max_per_minute=10):
         raise HTTPException(
             status_code=429,
@@ -249,6 +282,7 @@ def merma_register_recipe(
         ) from exc
 
     from app.auth import current_user_id
+
     record_audit(
         request,
         session=session,
@@ -262,10 +296,19 @@ def merma_register_recipe(
             "cost_gs": result.cost_gs,
             "n_ingredient_logs": len(result.waste_logs),
             "reason": reason,
+            "source": source,  # PROD-MERMA-1: tag entrypoint
         },
         user_id=str(current_user_id(request) or "operator"),
     )
     session.commit()
+    # PROD-MERMA-1: redirect by entrypoint; recipe expansion yields N ingredient
+    # lines so the banner reports the actual count.
+    if source == "production":
+        n_lines = max(len(result.waste_logs), 1)
+        return RedirectResponse(
+            url=f"/produccion?view=day&merma=ok&lines={n_lines}",
+            status_code=303,
+        )
     return RedirectResponse(url="/merma", status_code=303)
 
 
@@ -285,10 +328,7 @@ def waste_reasons_api() -> JSONResponse:
         for reason in WasteReason
     ]
 
-    return JSONResponse({
-        "results": payload,
-        "count": len(payload)
-    })
+    return JSONResponse({"results": payload, "count": len(payload)})
 
 
 __all__ = ["router"]
