@@ -82,14 +82,90 @@
   };
 
   function setupCustomerCombo() {
-    var root = document.querySelector(".saskia-customer-combo");
+    // PRO-PED-UX (2026-09-30): la clase .saskia-customer-combo no existe en
+    // ningún template — el hook nunca matcheaba y seleccionar cliente no
+    // prellenaba teléfono/hint/RUC. El combo real es <saskia-combo name="customer_id">.
+    var root = document.querySelector(".saskia-customer-combo") ||
+               document.querySelector('saskia-combo[name="customer_id"]');
     if (!root) return;
+    // Attach per-instance opts al elemento ya definido (upgrade-safe).
+    // Además: escuchar el evento change que el elemento ya emite — path
+    // principal, funciona incluso si attach llega tarde al upgrade.
+    root.addEventListener("change", function (ev) {
+      var d = ev.detail || {};
+      if (d.value && root._selectedItem) {
+        window.customerPickHandlers.firePicked(root._selectedItem);
+      } else if (!d.value) {
+        window.customerPickHandlers.fireCleared();
+      }
+    });
     var hidden = document.getElementById("customer_id");
+
+    // ── handlers compartidos (cfg.onSelect + change-event delegado) ──
     var phoneInput = document.getElementById("customer_phone");
     var pickedHint = document.getElementById("customer_picked_hint");
     var input = root.querySelector(".combo-input");
 
-    var combo = new window.SaskiaCombo(root, {
+    function fireCustomerPicked(item) {
+      // Prefill contact + facturación from the customer record. Fill-if-empty
+      // for phone; overwrite for RUC/razón social.
+      if (item && item.phone && phoneInput && !phoneInput.value) {
+        phoneInput.value = item.phone;
+      }
+      var rucInput = document.getElementById("invoice_ruc");
+      var nameInput = document.getElementById("invoice_name");
+      if (item && rucInput) {
+        var ruc = item.invoice_ruc || item.cedula || "";
+        if (ruc) rucInput.value = ruc;
+      }
+      if (item && nameInput && item.invoice_name) {
+        nameInput.value = item.invoice_name;
+      }
+      // P3 dietary: red alert for restrictions
+      var alertEl = document.getElementById("dietary-alert");
+      var alertBody = document.getElementById("dietary-alert-body");
+      if (alertEl && alertBody) {
+        var restrictions = (item && item.dietary_restrictions) || [];
+        if (restrictions.length) {
+          var askAlways = item && item.dietary_confirm_always;
+          alertBody.innerHTML =
+            "<strong>" + restrictions.map(escapeHtml).join(", ") + "</strong>" +
+            (askAlways
+              ? ' <em>— preguntar siempre antes de sustituir</em>'
+              : ' <em>— verificar cada pedido</em>');
+          alertEl.hidden = false;
+        } else {
+          alertBody.innerHTML = "";
+          alertEl.hidden = true;
+        }
+      }
+      // P3 delivery: autofill address book + preferred zone
+      if (item && item.id && typeof loadCustomerAddresses === "function") {
+        loadCustomerAddresses(item.id);
+      }
+      if (pickedHint) {
+        pickedHint.dataset.empty = "false";
+        pickedHint.innerHTML =
+          '<strong>' + escapeHtml(item.name) + "</strong>" +
+          (item.id
+            ? ' <small style="color: var(--color-text-muted);">#' + item.id + "</small>"
+            : ' <small style="color: var(--color-success);">Nuevo</small>') +
+          (item.lifetime_label
+            ? ' <small style="color: var(--color-accent);">· ' + escapeHtml(item.lifetime_label) + " lifetime</small>"
+            : "");
+      }
+    }
+    function fireCustomerCleared() {
+      if (pickedHint) {
+        pickedHint.dataset.empty = "true";
+        pickedHint.innerHTML = '<em class="muted">Ninguno — se crea al guardar</em>';
+      }
+      var alertEl = document.getElementById("dietary-alert");
+      if (alertEl) alertEl.hidden = true;
+    }
+    window.customerPickHandlers.firePicked = fireCustomerPicked;
+    window.customerPickHandlers.fireCleared = fireCustomerCleared;
+    var combo = window.SaskiaCombo.attach(root, {
       source: function (q) {
         var url = "/clientes/api/search?q=" + encodeURIComponent(q || "");
         return fetch(url).then(function (r) { return r.json(); });
@@ -101,6 +177,7 @@
         return window.customerRowLabel(item);
       },
       onSelect: function (item) {
+        if (window.customerPickHandlers.firePicked) window.customerPickHandlers.firePicked(item);
         // Prefill contact + facturación from the customer record. Fill-if-empty
         // for phone (operator may have typed one already); overwrite for RUC/
         // razón social (customer record is the source of truth, form starts blank).
@@ -151,12 +228,7 @@
         }
       },
       onClear: function () {
-        if (pickedHint) {
-          pickedHint.dataset.empty = "true";
-          pickedHint.innerHTML = '<em class="muted">Ninguno — se crea al guardar</em>';
-        }
-        var alertEl = document.getElementById("dietary-alert");
-        if (alertEl) alertEl.hidden = true;
+        if (window.customerPickHandlers.fireCleared) window.customerPickHandlers.fireCleared();
       },
     });
 
@@ -183,7 +255,7 @@
     var qtyInput = row.querySelector('input[name="line_qty"]');
     var priceInput = row.querySelector('input[name="line_unit_price_gs"]');
 
-    var combo = new window.SaskiaCombo(root, {
+    var combo = window.SaskiaCombo.attach(root, {
       source: "/productos/api/search",
       displayField: "name",
       valueField: "id",

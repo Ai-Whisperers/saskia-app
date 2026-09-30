@@ -113,8 +113,14 @@ TODOs (for tomorrow's full implementation):
   `;
 
   class SaskiaCombo extends HTMLElement {
-    constructor() {
+    constructor(opts) {
       super();
+      // PRO-PED-UX (2026-09-30): allow programmatic config (onSelect/onClear/
+      // source/displayField/valueField/minChars/buildRow) — pedido-combos.js
+      // constructs `new window.SaskiaCombo(root, opts)`; opts were silently
+      // dropped before, so customer-pick never prefilled phone/hint.
+      this._cfg = opts || null;
+      this._hostOverride = null;
       this.attachShadow({ mode: 'open' });
       this._open = false;
       this._activeIdx = -1;
@@ -199,7 +205,12 @@ TODOs (for tomorrow's full implementation):
         display: this._display,
       });
     }
-    clear() { this.setValue(null, null); }
+    clear() {
+      this.setValue(null, null);
+      if (this._cfg && typeof this._cfg.onClear === 'function') {
+        try { this._cfg.onClear(); } catch (err) { console.warn('saskia-combo onClear', err); }
+      }
+    }
     setValue(value, display) {
       this._value = value;
       this._display = display || null;
@@ -307,6 +318,30 @@ TODOs (for tomorrow's full implementation):
       resultsList.innerHTML = '<li class="item loading" role="presentation">Buscando…</li>';
 
       let results = [];
+      // PRO-PED-UX: cfg.source(url) — programmatic fetcher (pedido-combos.js)
+      if (this._cfg && typeof this._cfg.source === 'function' && this._hostOverride) {
+        try {
+          const q = encodeURIComponent(query || '');
+          const data = await this._cfg.source(q);
+          results = Array.isArray(data) ? data : (data.results || []);
+          const vf = this._cfg.valueField || this.getAttribute('value-field') || 'value';
+          const lf = this._cfg.displayField || this.getAttribute('label-field') || 'label';
+          if (results.length && !('value' in results[0]) && ('id' in results[0] || 'name' in results[0])) {
+            results = results.map(function (item) {
+              if ('value' in item && 'label' in item) return item;
+              const value = item[vf] !== undefined ? item[vf] : item.id;
+              const label = item[lf] !== undefined ? item[lf] : item.name;
+              return Object.assign({}, item, { value: value, label: label });
+            });
+          }
+          this._results = results;
+          this._renderResults();
+          return;
+        } catch (err) {
+          console.warn('saskia-combo: cfg.source fetch failed', err);
+          results = [];
+        }
+      }
       if (this._endpoint) {
         try {
           // Build URL: handle endpoints that already include a trailing
@@ -373,7 +408,8 @@ TODOs (for tomorrow's full implementation):
         li.dataset.display = item.label || item.value;
         // row-label: allow per-instance row renderer (combo-rows.js builders).
         // Lookup happens on each render so a later-loaded combo-rows.js still wins.
-        const rowLabelName = self.getAttribute('row-label');
+        const rowLabelName = (self._cfg && self._cfg.buildRow) ? '__cfgBuildRow' : self.getAttribute('row-label');
+        if (self._cfg && self._cfg.buildRow) window.__cfgBuildRow = self._cfg.buildRow;
         const rowLabelFn =
           (rowLabelName && typeof window[rowLabelName] === 'function')
             ? window[rowLabelName]
@@ -451,6 +487,10 @@ TODOs (for tomorrow's full implementation):
       var val = item.value !== undefined ? item.value : item.id;
       this.setValue(val, item.label || item.name || val);
       this._close();
+      // PRO-PED-UX: programmatic onSelect hook (pedido-combos.js)
+      if (this._cfg && typeof this._cfg.onSelect === 'function') {
+        try { this._cfg.onSelect(item); } catch (err) { console.warn('saskia-combo onSelect', err); }
+      }
       // Auto-submit: if attribute set, submit the closest form on selection.
       // Used for scale selectors and similar "change → reload" patterns.
       if (this.hasAttribute('autosubmit')) {
@@ -506,4 +546,16 @@ TODOs (for tomorrow's full implementation):
   if (!customElements.get('saskia-combo')) {
     customElements.define('saskia-combo', SaskiaCombo);
   }
+  // PRO-PED-UX: expose for programmatic construction with per-instance opts.
+  // If the element already exists (upgrade), wrap: new SaskiaCombo(el) is NOT
+  // valid for custom elements — so pedido-combos attaches opts to the
+  // existing element via SaskiaCombo.attach(el, opts) instead.
+  window.SaskiaCombo = {
+    attach: function (el, opts) {
+      if (!el) return null;
+      el._cfg = opts || null;
+      el._hostOverride = el;
+      return el;
+    },
+  };
 })();

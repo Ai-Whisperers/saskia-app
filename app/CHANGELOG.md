@@ -5,6 +5,21 @@
 
 ## [Unreleased]
 
+### Fixed (2026-09-30 noche) — PRO-QS + PRO-PED-UX + CSRF fix
+
+- **Quick-sell sin recarga (PRO-QS)**: tap en producto del grid agrega la
+  línea al carrito AJAX (feedback visual en el badge) en vez de POST +
+  recarga por cada item. Sin JS el submit nativo sigue vendiendo en 1 tap.
+- **Pedidos nuevo: cliente ahora prellena (PRO-PED-UX)**: pedido-combos.js
+  buscaba la clase fantasma `.saskia-customer-combo` (no existe en ningún
+  template) → seleccionar cliente nunca llenaba teléfono/RUC/hint. Ahora
+  matchea `saskia-combo[name=customer_id]` y delega en su evento change.
+  SaskiaCombo expone `attach(el, opts)` para config por instancia.
+- **CSRF fix (regresión del PR #37)**: carga_inicial.html postea sin
+  csrf_token — detectado por el gate P0. Añadido.
+- Tests: test_qsell_pedidoux.py (4). 535 passed en regresión amplia; los
+  4 fallos restantes son pre-existentes en HEAD (verificados con stash).
+
 ### Added (2026-09-30) — PRO-MERMA + PRO-PED: hábito con menos fricción
 
 - **Merma en 1 tap desde /inventario**: botón en cada fila → modal que

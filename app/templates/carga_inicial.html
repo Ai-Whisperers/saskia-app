@@ -14,7 +14,8 @@
 <div class="alert alert-success">¡Todo el inventario tiene su carga inicial! 🎉</div>
 <a class="btn btn-primary" href="/inventario">Volver al inventario</a>
 {% else %}
-<form method="post" action="/inventario/carga-inicial">
+<form method="post" action="/inventario/carga-inicial" id="carga-inicial-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <table class="table">
     <thead>
       <tr><th>Ingrediente</th><th>Categoría</th><th>Unidad</th><th style="width:160px">Stock real hoy</th><th>Precio ref.</th></tr>
