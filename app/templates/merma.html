@@ -57,6 +57,47 @@
 {# PROD-MERMA-1: recipe-batch card moved to /produccion (per-row quick-merma modal). #}
 {# The old "Merma de receta completa" section was removed in feat/prod-quick-merma. #}
 
+{# PROD-MERMA-2 (Batch F): "Hoy" stock-impact summary card.
+   Closes the loop between /merma (where waste is logged) and /inventario
+   (where the operator checks current stock). Shows what moved today only,
+   so it's actionable, not just a rolling 30-day aggregate. #}
+<section class="card mb-4" style="border-left: 4px solid var(--color-info, #3b82f6);">
+  <div class="card-header" style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap;">
+    <h2 style="margin: 0; display: flex; align-items: center; gap: var(--space-2);">
+      <svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg>
+      Hoy
+    </h2>
+    <small class="text-muted">{{ today_event_count }} evento{{ '' if today_event_count == 1 else 's' }} · Gs. {{ "{:,.0f}".format(today_total_cost or 0) }}</small>
+  </div>
+  {% if today_top_ingredients %}
+  <div class="card-body">
+    <p class="text-muted" style="margin: 0 0 var(--space-2) 0; font-size: var(--text-sm);">
+      <strong>Ingredientes más impactados hoy:</strong>
+    </p>
+    <ul style="margin: 0; padding-left: var(--space-4);">
+      {% for ing_id, ing_name, cost in today_top_ingredients %}
+      <li>
+        <a href="/inventario/{{ ing_id }}">{{ ing_name }}</a>
+        <span class="text-muted">— Gs. {{ "{:,.0f}".format(cost or 0) }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <p style="margin: var(--space-3) 0 0 0;">
+      <a href="/inventario" class="btn btn-sm btn-ghost">
+        <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
+        Ver stock actual en /inventario →
+      </a>
+    </p>
+  </div>
+  {% else %}
+  <div class="card-body">
+    <p class="text-muted" style="margin: 0;">
+      No registraste merma hoy. Si perdiste algo, usá el formulario de arriba.
+    </p>
+  </div>
+  {% endif %}
+</section>
+
 <section class="card">
   <div class="card-header">
     <h2>

@@ -135,6 +135,29 @@ def merma_list(
                 key = target_id
             source_by_waste_id[key] = src
 
+    # PROD-MERMA-2 (Batch F): surface a "Hoy" panel so operators see what
+    # moved TODAY (not just the 30-day aggregate). Includes today's event
+    # count, today's cost, top-3 ingredients, and a pointer to /inventario.
+    # WasteLog.recorded_at is stored as naive UTC (DateTime column, default
+    # datetime.utcnow). Compare with naive-UTC bounds so SQLAlchemy doesn't
+    # drop the comparison, and use UTC date (not local) so the day boundary
+    # matches the timestamps the app writes.
+    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+    _utcnow = _dt.now(_tz.utc).replace(tzinfo=None)
+    today_start = _dt.combine(_utcnow.date(), _dt.min.time())
+    today_end = today_start + _td(days=1)
+    today_impact = waste_impact(session, start_date=today_start, end_date=today_end)
+    today_event_count = int(
+        session.execute(
+            select(func.count(WasteLog.id)).where(
+                WasteLog.recorded_at >= today_start,
+                WasteLog.recorded_at < today_end,
+            )
+        ).scalar_one()
+    )
+    today_total_cost = sum(today_impact.by_ingredient[i][2] for i in range(len(today_impact.by_ingredient))) if today_impact.by_ingredient else 0
+    today_top_ingredients = sorted(today_impact.by_ingredient, key=lambda x: x[2], reverse=True)[:3]
+
     # Build preset query strings
     def preset_url(d: int) -> str:
         sd = (today - timedelta(days=d)).strftime("%Y-%m-%d")
@@ -152,8 +175,12 @@ def merma_list(
             "ingredients": ingredients,
             "recipes": recipes_with_yield,
             "top_ingredients": top_ingredients,
-                    "source_by_waste_id": source_by_waste_id,  # PROD-MERMA-2: entrypoint tag
-                    "days": days,
+            "source_by_waste_id": source_by_waste_id,  # PROD-MERMA-2: entrypoint tag
+            # PROD-MERMA-2 (Batch F): today's stock-impact summary
+            "today_event_count": today_event_count,
+            "today_total_cost": today_total_cost,
+            "today_top_ingredients": today_top_ingredients,
+            "days": days,
             "since": start_date.strftime("%Y-%m-%d"),
             "until": end_date.strftime("%Y-%m-%d"),
             "preset_url_7": preset_url(7),
