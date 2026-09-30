@@ -92,3 +92,50 @@ def test_menu_publico_empty_state(client, session_factory):
     resp = client.get("/menu")
     assert resp.status_code == 200
     assert "no tiene productos publicados" in resp.text
+
+
+def test_menu_hides_order_ui_without_whatsapp(client):
+    """No shop_whatsapp setting -> no cart buttons on /menu (pure brochure)."""
+    resp = client.get("/menu")
+    assert resp.status_code == 200
+    assert "data-add" not in resp.text
+    assert "mp-cartbar" not in resp.text
+
+
+def test_menu_shows_order_ui_with_whatsapp(session_factory, client):
+    """Setting shop_whatsapp turns on the per-item + Agregar buttons."""
+    from datetime import datetime as _dt
+
+    from app.rms.models import Product, Recipe, SettingsKV
+
+    with session_factory() as session:
+        session.add(SettingsKV(key="shop_whatsapp", value_json="595981123456",
+                               updated_at=_dt.utcnow()))
+        # Seed one visible product so a card (+ its Agregar button) renders.
+        recipe = Recipe(name="R menu", yield_qty=1, yield_unit="und")
+        session.add(recipe)
+        session.flush()
+        session.add(Product(name="Torta test", recipe_id=recipe.id,
+                            sale_price_gs=10000, is_available=True,
+                            tablet_visible=True))
+        session.commit()
+
+    resp = client.get("/menu")
+    assert resp.status_code == 200
+    assert 'data-add="' in resp.text
+    assert "mp-cartbar" in resp.text
+    assert "595981123456" in resp.text  # WA digits embedded for the JS cart
+
+
+def test_settings_shop_whatsapp_roundtrip(client):
+    """POST then GET /api/settings/shop-whatsapp stores digits-only."""
+    r = client.post("/api/settings/shop-whatsapp", json={"phone": "+595 981 123-456"})
+    assert r.status_code == 200
+    assert r.json()["phone"] == "595981123456"
+    assert r.json()["ordering_enabled"] is True
+
+    r2 = client.get("/api/settings/shop-whatsapp")
+    assert r2.json()["phone"] == "595981123456"
+
+    r3 = client.post("/api/settings/shop-whatsapp", json={"phone": ""})
+    assert r3.json()["ordering_enabled"] is False

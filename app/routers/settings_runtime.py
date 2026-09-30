@@ -75,6 +75,49 @@ def write_pricing_markup(
     return new_cfg
 
 
+# ─── Shop WhatsApp (menu ordering) ─────────────────────────────────────
+
+
+class ShopWhatsappIn(BaseModel):
+    phone: str = Field(min_length=0, max_length=32, description="Order-taking WhatsApp number, digits with country code (595981123456). Empty string disables ordering.")
+
+
+@router.get("/settings/shop-whatsapp")
+def read_shop_whatsapp(
+    request: Request,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+) -> object:
+    """Digits-only WhatsApp number used by the public /menu order cart."""
+    from app.rms.models import SettingsKV
+
+    row = session.get(SettingsKV, "shop_whatsapp")
+    return {"phone": str(row.value_json or "") if row else ""}
+
+
+@router.post("/settings/shop-whatsapp")
+def write_shop_whatsapp(
+    payload: ShopWhatsappIn,
+    session: Session = Depends(get_session),
+    _user=Depends(require_login_or_disabled),
+) -> object:
+    """Set/clear the menu-order WhatsApp number. Stored digits-only."""
+    from datetime import datetime, timezone
+
+    from app.rms.models import SettingsKV
+
+    digits = "".join(c for c in payload.phone if c.isdigit())
+    row = session.get(SettingsKV, "shop_whatsapp")
+    if row is None:
+        row = SettingsKV(key="shop_whatsapp", value_json=digits, updated_at=datetime.utcnow())
+        session.add(row)
+    else:
+        row.value_json = digits
+        row.updated_at = datetime.utcnow()
+    session.commit()
+    return {"phone": digits, "ordering_enabled": bool(digits)}
+
+
 @router.get("/settings/pricing-markup/preview")
 def preview_pricing(
     cost_gs: int = Query(..., gt=0, description="Cost in integer Gs"),

@@ -1069,6 +1069,17 @@ def public_menu_catalog(
         for k in ordered_keys
     ]
 
+    # WhatsApp ordering: the shop's order-taking number lives in SettingsKV
+    # key 'shop_whatsapp' (digits only, e.g. 595981123456). No number set ->
+    # the cart/order UI stays hidden (menu is then a pure brochure).
+    from app.rms.models import SettingsKV
+
+    wa_row = session.get(SettingsKV, "shop_whatsapp")
+    shop_whatsapp = ""
+    if wa_row is not None:
+        raw = str(getattr(wa_row, "value_json", "") or "")
+        shop_whatsapp = "".join(c for c in raw if c.isdigit())
+
     return render(
         request,
         "menu_publico.html",
@@ -1077,5 +1088,6 @@ def public_menu_catalog(
             "total_items": len(products),
             "shop_name": "Saskia RMS",
             "currency_label": "Gs.",
+            "shop_whatsapp": shop_whatsapp,
         },
     )

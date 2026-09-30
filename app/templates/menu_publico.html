@@ -89,6 +89,14 @@
             </div>
             {% endif %}
           </div>
+          {# WhatsApp order: client-side cart. Button hidden until a shop
+             number is configured (shop_whatsapp non-empty). #}
+          {% if shop_whatsapp %}
+          <button type="button" class="menu-publico__add" data-add="{{ item.id }}"
+                  data-name="{{ item.name }}" data-price="{{ item.sale_price_gs }}">
+            + Agregar
+          </button>
+          {% endif %}
         </article>
         {% endfor %}
       </div>
@@ -109,6 +117,69 @@
       Precios en guaraníes · Consultá disponibilidad y encargos por WhatsApp.
     </small>
   </footer>
+
+  {% if shop_whatsapp %}
+  {# Floating order bar: hidden until ≥1 item added. Sends a prefilled
+     WhatsApp message — no accounts, no checkout, exactly how the shop
+     already takes orders. #}
+  <div class="menu-publico__cartbar" id="mp-cartbar" hidden>
+    <div class="menu-publico__cartinfo">
+      <strong id="mp-cart-count">0</strong> ítems · <strong id="mp-cart-total"></strong>
+    </div>
+    <div class="menu-publico__cartactions">
+      <button type="button" class="menu-publico__cartbtn menu-publico__cartbtn--ghost" id="mp-cart-clear">Vaciar</button>
+      <a class="menu-publico__cartbtn menu-publico__cartbtn--wa" id="mp-cart-send" target="_blank" rel="noopener" href="#">
+        💬 Pedir por WhatsApp
+      </a>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    var WA = "{{ shop_whatsapp }}";
+    var cart = {};  // id -> {name, price, qty}
+    var bar = document.getElementById("mp-cartbar");
+    if (!bar) return;
+
+    function fmt(n) { return n.toLocaleString("es-PY"); }
+
+    function render() {
+      var ids = Object.keys(cart);
+      var count = 0, total = 0;
+      ids.forEach(function (id) { count += cart[id].qty; total += cart[id].qty * cart[id].price; });
+      bar.hidden = count === 0;
+      document.getElementById("mp-cart-count").textContent = count;
+      document.getElementById("mp-cart-total").textContent = "Gs. " + fmt(total);
+      if (count > 0) {
+        var lines = ids.map(function (id) {
+          var it = cart[id];
+          return "• " + it.qty + "× " + it.name + " — Gs. " + fmt(it.qty * it.price);
+        });
+        var text = "Hola! Quiero hacer un pedido:\n" + lines.join("\n") +
+                   "\nTotal: Gs. " + fmt(total) + "\nGracias!";
+        document.getElementById("mp-cart-send").href =
+          "https://wa.me/" + WA + "?text=" + encodeURIComponent(text);
+      }
+    }
+
+    document.querySelectorAll("[data-add]").forEach(function (btnEl) {
+      btnEl.addEventListener("click", function () {
+        var id = btnEl.getAttribute("data-add");
+        if (!cart[id]) cart[id] = { name: btnEl.getAttribute("data-name"), price: parseInt(btnEl.getAttribute("data-price"), 10) || 0, qty: 0 };
+        cart[id].qty += 1;
+        btnEl.textContent = "Agregado (" + cart[id].qty + ")";
+        render();
+      });
+    });
+
+    document.getElementById("mp-cart-clear").addEventListener("click", function () {
+      cart = {};
+      document.querySelectorAll("[data-add]").forEach(function (b) { b.textContent = "+ Agregar"; });
+      render();
+    });
+  })();
+  </script>
+  {% endif %}
 
 </div>
 
@@ -201,6 +272,32 @@
   .menu-publico__tag--warn {
     background: rgba(234, 179, 8, 0.12); border-color: rgba(234, 179, 8, 0.4);
     color: #eab308;
+  }
+
+  /* WhatsApp order cart */
+  .menu-publico__add {
+    margin-top: 8px; padding: 4px 12px; font-size: 0.8rem;
+    border: 1px solid var(--border); border-radius: 999px;
+    background: var(--background); color: var(--foreground); cursor: pointer;
+  }
+  .menu-publico__add:active { background: var(--card); }
+  .menu-publico__cartbar {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
+    display: flex; justify-content: space-between; align-items: center; gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    background: var(--card); border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.25);
+  }
+  .menu-publico__cartactions { display: flex; gap: var(--space-2); }
+  .menu-publico__cartbtn {
+    padding: 8px 16px; border-radius: 999px; font-size: 0.9rem; font-weight: 600;
+    text-decoration: none; cursor: pointer;
+  }
+  .menu-publico__cartbtn--ghost {
+    background: transparent; border: 1px solid var(--border); color: var(--muted-foreground);
+  }
+  .menu-publico__cartbtn--wa {
+    background: #22c55e; border: 1px solid #22c55e; color: #052e16;
   }
 
   .menu-publico__empty { text-align: center; padding: var(--space-6) 0; }
