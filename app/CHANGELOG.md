@@ -5,6 +5,14 @@
 
 ## [Unreleased]
 
+### Fixed (2026-09-30) — PRO-11: productos ocultos no reciben auto-sugerencia de producción
+
+`plan_production()` sugería cantidades para productos con `is_available=False`
+que tenían historial de ventas (aparecían en /produccion y /mañana aunque
+estuvieran fuera del menú). Ahora el branch de auto-forecast los salta
+(source="oculto"); override, template y manual siguen pudiendo forzarlos.
+Tests: tests/test_produccion_hidden_products.py (2).
+
 ### Added (2026-09-30) — market-intel: capa de evidencia de competencia en /vs-mercado
 
 Conecta el research repo `saskia-market-intel` (1.349 precios verificados de
