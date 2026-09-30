@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Carga inicial de inventario — Saskia{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom:.5rem">Carga inicial de inventario</h1>
+<p class="muted" style="margin-bottom:1rem">
+  {{ pendientes|length }} ingredientes nunca tuvieron stock cargado. Poné la
+  cantidad real que hay hoy en la cocina (podés dejar vacío lo que quieras
+  cargar después). Cada carga queda registrada en el libro de movimientos.
+</p>
+
+{% if not pendientes %}
+<div class="alert alert-success">¡Todo el inventario tiene su carga inicial! 🎉</div>
+<a class="btn btn-primary" href="/inventario">Volver al inventario</a>
+{% else %}
+<form method="post" action="/inventario/carga-inicial">
+  <table class="table">
+    <thead>
+      <tr><th>Ingrediente</th><th>Categoría</th><th>Unidad</th><th style="width:160px">Stock real hoy</th><th>Precio ref.</th></tr>
+    </thead>
+    <tbody>
+      {% for i in pendientes %}
+      <tr>
+        <td><a href="/inventario/{{ i.id }}">{{ i.name }}</a></td>
+        <td>{{ i.category or "—" }}</td>
+        <td>{{ i.unit }}</td>
+        <td><input type="text" inputmode="decimal" name="qty_{{ i.id }}" placeholder="ej: 2,5"
+                   class="form-control" style="max-width:140px" aria-label="Stock inicial de {{ i.name }}"></td>
+        <td>{% if i.purchase_price_gs %}{{ m.gs_full(i.purchase_price_gs) }}/{{ i.unit }}{% else %}<em class="muted">sin precio</em>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div style="display:flex; gap:.75rem; margin-top:1rem">
+    <button type="submit" class="btn btn-primary">Guardar carga inicial</button>
+    <a class="btn btn-secondary" href="/inventario">Cancelar</a>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

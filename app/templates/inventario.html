@@ -38,7 +38,8 @@
   <div class="metric-card">
     <div class="metric-label">Stock crítico</div>
     <div class="metric-value">{% if kpi_critical %}<span class="badge badge-danger">{{ kpi_critical }}</span>{% else %}0{% endif %}</div>
-    <div class="metric-sub">{% if kpi_critical %}<a href="?estado=bajo">requieren compra →</a>{% else %}todo cubierto{% endif %}</div>
+    <div class="metric-sub">{% if kpi_critical %}<a href="?estado=bajo">requieren compra →</a>{% else %}todo cubierto{% endif %}
+      {% if kpi_never_loaded %} · <a href="?estado=sincargar">{{ kpi_never_loaded }} sin carga inicial</a>{% endif %}</div>
   </div>
   <div class="metric-card">
     <div class="metric-label">Valor de inventario</div>
@@ -75,7 +76,7 @@
   <div class="mf-pop" data-mf="estado">
     <button type="button" class="mf-btn" aria-expanded="false">Estado{% if estados_sel %} <span class="mf-count">{{ estados_sel|length }}</span>{% endif %} ▾</button>
     <div class="mf-panel" hidden>
-      {% for val, lbl in [('bajo', 'Stock bajo'), ('critico', 'Crítico'), ('negativo', 'Negativo'), ('sinprecio', 'Sin precio'), ('ok', 'Stock OK')] %}
+      {% for val, lbl in [('bajo', 'Stock bajo'), ('critico', 'Crítico'), ('negativo', 'Negativo'), ('sincargar', 'Sin carga inicial'), ('sinprecio', 'Sin precio'), ('ok', 'Stock OK')] %}
       <label class="mf-option"><input type="checkbox" name="estado" value="{{ val }}" {% if val in estados_sel %}checked{% endif %}> {{ lbl }}</label>
       {% endfor %}
     </div>
@@ -229,7 +230,7 @@
       <td class="num">{{ i.min_stock_qty|round(2) }}</td>
       <td class="num">{% if i.purchase_price_gs is none %}<em class="muted">sin precio</em>{% else %}{{ m.gs_full(i.purchase_price_gs) }}{% endif %}{% if price_info.get(i.id) %}<div class="price-strip">90d: min {{ m.gs(price_info[i.id].stats.min) }} · max {{ m.gs(price_info[i.id].stats.max) }}{% if price_info[i.id].sparkline_svg %} {{ price_info[i.id].sparkline_svg | safe }}{% endif %}</div>{% endif %}{% if market_refs.get(i.id) %}<div class="price-strip" title="vs. mercado: {{ m.gs_full(market_refs[i.id].market_price_gs) }} Gs/{{ market_refs[i.id].market_unit }} — {{ market_refs[i.id].market_notes }}">{% set delta = market_refs[i.id].delta_pct %}<span class="badge {% if delta > 10 %}badge-danger{% elif delta < -10 %}badge-good{% else %}badge-neutral{% endif %}" style="margin-left:4px">vs mercado {% if delta >= 0 %}+{% endif %}{{ "%.0f"|format(delta) }}%</span></div>{% endif %}</td>
       <td>
-        {{ m.stock_badge(i.stock_qty, i.min_stock_qty) }}
+        {{ m.stock_badge(i.stock_qty, i.min_stock_qty, never_loaded=(i.id in never_loaded_ids)) }}
       </td>
       <td class="actions">
         <a href="/inventario/{{ i.id }}" class="btn btn-sm btn-ghost" aria-label="Ver detalle de {{ fmt.entity_name(i) }}">

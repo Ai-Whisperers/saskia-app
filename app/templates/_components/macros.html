@@ -15,11 +15,13 @@ Asunción local TZ.
 {%- endmacro %}
 
 {# Stock severity badge #}
-{% macro stock_badge(stock_qty, min_stock_qty) -%}
+{% macro stock_badge(stock_qty, min_stock_qty, never_loaded=false) -%}
 {%- if stock_qty is none -%}
   <span class="badge badge-muted">—</span>
 {%- elif stock_qty < 0 -%}
   <span class="badge badge-danger">¡Negativo! {{ "%.2f"|format(stock_qty) }}</span>
+{%- elif never_loaded -%}
+  <span class="badge badge-neutral" title="Nunca se cargó stock inicial — no es que se agotó. Cargalo con Ajustá stock.">Sin carga inicial</span>
 {%- elif min_stock_qty > 0 and stock_qty < min_stock_qty -%}
   <span class="badge badge-warn">Stock bajo: {{ "%.2f"|format(stock_qty) }}</span>
 {%- else -%}
