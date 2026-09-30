@@ -25,7 +25,7 @@
     {{ ui.combo_field(
       name='customer_id',
       placeholder='María González — escribí para buscar',
-      endpoint='/customers/api/search/',
+      endpoint='/clientes/api/search/',
       value_field='id',
       label_field='name'
     ) }}
@@ -48,6 +48,14 @@
       <label for="customer_picked_hint">Cliente seleccionado</label>
       <div id="customer_picked_hint" class="customer-picked-hint" data-empty="true">
         <em class="muted">Ninguno — se crea al guardar</em>
+      </div>
+
+      {# P3 dietary: red alert when the picked customer has restrictions #}
+      <div id="dietary-alert" role="alert" hidden
+           style="border:2px solid var(--color-danger,#d33);background:rgba(220,50,50,.08);
+                  border-radius:8px;padding:var(--space-3);margin:var(--space-2) 0;">
+        <strong style="color:var(--color-danger,#d33);">⚠ Restricción alimentaria</strong>
+        <div id="dietary-alert-body" style="margin-top:var(--space-1);"></div>
       </div>
     </div>
   </div>

@@ -129,6 +129,14 @@
     Atención: alérgenos registrados en notas
   </div>
 
+  {# P3 dietary: structured restrictions + confirm-always (red, actionable) #}
+  <div class="customer-card-dietary-chip" id="customer-card-dietary-chip" hidden role="alert"
+       style="border:2px solid var(--color-danger,#d33);background:rgba(220,50,50,.08);
+              border-radius:8px;padding:8px 10px;margin-top:8px;font-size:0.9rem;">
+    <strong style="color:var(--color-danger,#d33);">⚠ <span id="customer-card-dietary-tags"></span></strong>
+    <div id="customer-card-dietary-note" style="margin-top:2px;"></div>
+  </div>
+
   <div class="customer-card-notes" id="customer-card-notes" hidden>
     <em><strong>Nota:</strong> <span id="customer-card-notes-text"></span></em>
   </div>
@@ -177,6 +185,9 @@
   var cardTop = document.getElementById('customer-card-top');
   var cardTopList = document.getElementById('customer-card-top-list');
   var cardAllergenChip = document.getElementById('customer-card-allergen-chip');
+  var cardDietaryChip = document.getElementById('customer-card-dietary-chip');
+  var cardDietaryTags = document.getElementById('customer-card-dietary-tags');
+  var cardDietaryNote = document.getElementById('customer-card-dietary-note');
   var cardNotes = document.getElementById('customer-card-notes');
   var cardNotesText = document.getElementById('customer-card-notes-text');
   var cardLoading = document.getElementById('customer-card-loading');
@@ -230,6 +241,7 @@
     if (cardTier) { cardTier.textContent = '\u2014'; cardTier.dataset.tier = ''; }
     if (cardTop) { cardTop.hidden = true; }
     if (cardAllergenChip) cardAllergenChip.hidden = true;
+    if (cardDietaryChip) cardDietaryChip.hidden = true;
     if (cardNotes) cardNotes.hidden = true;
     if (cardLoading) cardLoading.hidden = true;
     if (cardError) { cardError.hidden = true; cardError.textContent = ''; }
@@ -304,6 +316,20 @@
     // Allergen chip
     if (cardAllergenChip) {
       cardAllergenChip.hidden = !hasAllergen(data.notes);
+    }
+
+    // P3 dietary: structured restrictions from the API (not notes-guessing)
+    if (cardDietaryChip) {
+      var restrictions = data.dietary_restrictions || [];
+      if (restrictions.length) {
+        cardDietaryTags.textContent = restrictions.join(', ');
+        cardDietaryNote.textContent = data.dietary_confirm_always
+          ? 'Preguntar siempre antes de sustituir'
+          : 'Verificar en cada pedido';
+        cardDietaryChip.hidden = false;
+      } else {
+        cardDietaryChip.hidden = true;
+      }
     }
 
     // Notes (only if non-empty)

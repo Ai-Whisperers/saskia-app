@@ -91,7 +91,7 @@
 
     var combo = new window.SaskiaCombo(root, {
       source: function (q) {
-        var url = "/customers/api/search?q=" + encodeURIComponent(q || "");
+        var url = "/clientes/api/search?q=" + encodeURIComponent(q || "");
         return fetch(url).then(function (r) { return r.json(); });
       },
       displayField: "name",
@@ -103,6 +103,24 @@
       onSelect: function (item) {
         if (item && item.phone && phoneInput && !phoneInput.value) {
           phoneInput.value = item.phone;
+        }
+        // P3 dietary: red alert for restrictions + confirm-always note
+        var alertEl = document.getElementById("dietary-alert");
+        var alertBody = document.getElementById("dietary-alert-body");
+        if (alertEl && alertBody) {
+          var restrictions = (item && item.dietary_restrictions) || [];
+          if (restrictions.length) {
+            var askAlways = item && item.dietary_confirm_always;
+            alertBody.innerHTML =
+              "<strong>" + restrictions.map(escapeHtml).join(", ") + "</strong>" +
+              (askAlways
+                ? ' <em>— preguntar siempre antes de sustituir</em>'
+                : ' <em>— verificar cada pedido</em>');
+            alertEl.hidden = false;
+          } else {
+            alertBody.innerHTML = "";
+            alertEl.hidden = true;
+          }
         }
         // P3 delivery: autofill address book + preferred zone for known customers
         if (item && item.id && typeof loadCustomerAddresses === "function") {
@@ -125,6 +143,8 @@
           pickedHint.dataset.empty = "true";
           pickedHint.innerHTML = '<em class="muted">Ninguno — se crea al guardar</em>';
         }
+        var alertEl = document.getElementById("dietary-alert");
+        if (alertEl) alertEl.hidden = true;
       },
     });
 

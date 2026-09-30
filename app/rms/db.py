@@ -2997,6 +2997,32 @@ def _migration_069_customer_addresses_delivery_favorites(conn: Any) -> None:
     _bump_schema_version(conn, 69)
 
 
+def _migration_070_customer_dietary_profile(conn: Any) -> None:
+    """P3 dietary batch (2026-09-30).
+
+    Customer dietary profile so any employee sees warnings at order time:
+    - dietary_restrictions: CSV of canonical dietary tags the customer
+      must NEVER get violated (sin lactosa, sin gluten, vegano...).
+      Displayed as a red warning on pedidos/nuevo + ventas.
+    - dietary_preferences: JSON list of approved substitutes/choices in
+      preference order, e.g. [{"tag": "sin lactosa", "rank": 1,
+      "note": "leche de almendra OK"}]. Rank 1 = offer first.
+    - dietary_confirm_always: 1 = employee must CONFIRM the preference
+      with the customer on every order (some people flex, some don't).
+    """
+    for stmt in (
+        "ALTER TABLE customer ADD COLUMN dietary_restrictions TEXT",
+        "ALTER TABLE customer ADD COLUMN dietary_preferences TEXT",
+        "ALTER TABLE customer ADD COLUMN dietary_confirm_always INTEGER NOT NULL DEFAULT 0",
+    ):
+        try:
+            conn.execute(text(stmt))
+        except Exception:  # noqa: BLE001, S110 — column already exists
+            pass
+
+    _bump_schema_version(conn, 70)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -3067,6 +3093,7 @@ MIGRATIONS = {
     67: _migration_067_pedido_public_token_expiry,
     68: _migration_068_recipe_menu_tags,
     69: _migration_069_customer_addresses_delivery_favorites,
+    70: _migration_070_customer_dietary_profile,
 }
 
 

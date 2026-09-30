@@ -9,11 +9,37 @@
 
 {{ ui.flash_toast(request) }}
 
+{% if dietary_profile.has_alerts %}
+<div role="alert"
+     style="border:2px solid var(--color-danger,#d33);background:rgba(220,50,50,.08);
+            border-radius:8px;padding:var(--space-3);margin-bottom:var(--space-3);">
+  <strong style="color:var(--color-danger,#d33);">⚠ Perfil dietético</strong>
+  {% if dietary_profile.restrictions %}
+    <div style="margin-top:var(--space-1);">
+      Restricciones: <strong>{{ dietary_profile.restrictions|join(", ") }}</strong>
+    </div>
+  {% endif %}
+  {% if dietary_profile.preferences %}
+    <div style="margin-top:var(--space-1);">
+      Preferencias (en orden):
+      <ol style="margin:var(--space-1) 0 0;padding-left:1.2rem;">
+        {% for pref in dietary_profile.preferences %}
+        <li>{{ pref.tag }}{% if pref.note %} — {{ pref.note }}{% endif %}</li>
+        {% endfor %}
+      </ol>
+    </div>
+  {% endif %}
+  {% if dietary_profile.confirm_always %}
+    <div style="margin-top:var(--space-1);"><em>Preguntar siempre en cada pedido.</em></div>
+  {% endif %}
+</div>
+{% endif %}
+
 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem;">
   <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;">
     <h1 style="margin-bottom:0;">{{ customer.name or "(sin nombre)" }}</h1>
     {# Customer tier badge #}
-    {% set last_days = ((now - stats.last_sale_at).days if stats.last_sale_at else 999) %}
+    {# last_days precomputed in the route (tz-safe) #}
     {% if last_days > 90 %}
       <span class="badge" style="background:var(--color-text-muted);color:#fff;">Inactivo</span>
     {% elif last_days > 30 %}

@@ -470,6 +470,13 @@ def customer_search_api(
                 "cedula": c.cedula or "",
                 "notes": c.notes or "",
                 "loyalty_points": c.loyalty_points,
+                # P3 dietary: picker shows a warning chip + pedido form
+                # autofills the alert banner when a restricted customer
+                # is picked.
+                "dietary_restrictions": [
+                    t for t in (c.dietary_restrictions or "").split(",") if t.strip()
+                ],
+                "dietary_confirm_always": bool(c.dietary_confirm_always),
                 "n_sales": stats.n_sales,
                 "lifetime_spend_gs": stats.lifetime_spend_gs,
                 "lifetime_label": lifetime_label,
@@ -595,6 +602,24 @@ def cliente_detail(
         return RedirectResponse(url="/clientes", status_code=status.HTTP_303_SEE_OTHER)
     stats = customer_stats(session, customer)
     history = customer_purchase_history(session, customer.id)
+
+    # Tier badge days-since-last-sale: SQLite returns NAIVE datetimes while
+    # now() is aware — subtracting them raises TypeError (500 on
+    # /clientes/{id}, ref 9da40358ea00). Normalize both to aware-UTC here
+    # so the template only does integer comparison.
+    last_sale_at = stats.get("last_sale_at") if isinstance(stats, dict) else getattr(stats, "last_sale_at", None)
+    last_days = 999
+    if last_sale_at is not None:
+        if last_sale_at.tzinfo is None:
+            last_sale_at = last_sale_at.replace(tzinfo=timezone.utc)
+        last_days = (datetime.now(timezone.utc) - last_sale_at).days
+
+    from app.rms.customer_dietary import load_profile
+    profile = load_profile(
+        customer.dietary_restrictions,
+        customer.dietary_preferences,
+        customer.dietary_confirm_always,
+    )
     return render(
         request,
         "cliente_detalle.html",
@@ -602,7 +627,9 @@ def cliente_detail(
             "customer": customer,
             "stats": stats,
             "history": history,
+            "dietary_profile": profile,
             "now_iso": datetime.now(timezone.utc).isoformat(),
+            "last_days": last_days,
         },
     )
 
@@ -617,7 +644,22 @@ def cliente_edit(
     customer = session.get(Customer, customer_id)
     if customer is None:
         return StarletteRedirectResponse(url="/clientes", status_code=303)
-    return render(request, "cliente_editar.html", {"customer": customer})
+    from app.rms.customer_dietary import load_profile
+    from app.rms.tagging.vocabulary import CANONICAL_DIETARY_TAGS
+    profile = load_profile(
+        customer.dietary_restrictions,
+        customer.dietary_preferences,
+        customer.dietary_confirm_always,
+    )
+    return render(
+        request,
+        "cliente_editar.html",
+        {
+            "customer": customer,
+            "dietary_profile": profile,
+            "dietary_tag_options": sorted(CANONICAL_DIETARY_TAGS),
+        },
+    )
 
 
 @router.post("/{customer_id}/editar")
@@ -629,6 +671,10 @@ def cliente_update(
     email: str = Form(""),
     cedula: str = Form(""),
     notes: str = Form(""),
+    # P3 dietary: repeated dietary_restriction checkboxes + preference rows
+    dietary_restriction: list[str] = Form([]),
+    dietary_prefs_payload: str = Form(""),  # JSON [{tag, rank, note}]
+    dietary_confirm_always: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Update an existing customer's fields."""
@@ -648,6 +694,27 @@ def cliente_update(
     customer.email = validate_email(email)
     customer.cedula = validate_cedula(cedula)
     customer.notes = optional_text(notes, max_len=2000)
+
+    # P3 dietary profile: restrictions (canonical tags, cleaned), ordered
+    # preferences (JSON), confirm-always flag.
+    from app.rms.customer_dietary import (
+        format_preferences,
+        format_restrictions,
+        parse_preferences,
+    )
+    from app.rms.tagging.vocabulary import CANONICAL_DIETARY_TAGS
+
+    clean_restrictions = [
+        r.strip() for r in dietary_restriction
+        if r.strip() in CANONICAL_DIETARY_TAGS
+    ]
+    customer.dietary_restrictions = format_restrictions(clean_restrictions) or None
+    try:
+        prefs = parse_preferences(dietary_prefs_payload)
+    except Exception:  # noqa: BLE001 — malformed JSON from a stale tab
+        prefs = []
+    customer.dietary_preferences = format_preferences(prefs) if prefs else None
+    customer.dietary_confirm_always = dietary_confirm_always == "1"
     session.commit()
     record_audit(
         request,
