@@ -7,6 +7,12 @@
 <p class="hint">Ingredientes con stock por debajo del mínimo. Total estimado:
   <strong>{{ m.gs_full(total_cost_gs) }}</strong>.</p>
 
+{# Live cost + supplier-change toast banner. The banner only renders when
+   she changes a supplier on one row and the auto-apply is going to
+   ripple to N other rows — see Q4 hybrid: auto-apply on the same page
+   to (a) rows with the old supplier and (b) rows with no supplier. #}
+<div id="supplier-cascade-banner" class="cascade-banner" hidden></div>
+
 {% if items %}
 {# Bulk actions bar #}
 <form method="post" action="/reorder/generate-po" id="bulk-form">
@@ -22,6 +28,9 @@
       <svg class="icon" aria-hidden="true"><use href="#icon-whatsapp"/></svg>
       Generar pedido por WhatsApp
     </button>
+    <small class="text-muted" style="margin-left:auto;">
+      Después de {{ lock_threshold }} compras al mismo proveedor se fija automáticamente.
+    </small>
   </div>
 </form>
 
@@ -59,13 +68,24 @@ function updateBulkBtn() {
       <th>Tendencia (90d)</th>
       <th>Días restantes</th>
       <th>Proveedor</th>
-      <th>Reponer</th>
+      <th class="num" style="min-width:6rem;">Cantidad</th>
+      <th>Unidad</th>
+      <th class="num" style="min-width:7rem;">Precio</th>
+      <th>Confirmar</th>
     </tr>
   </thead>
   <tbody>
   {% for item in items %}
     {% set supplier_info = supplier_map.get(item.ingredient_id, (None, '')) %}
-    <tr>
+    {% set eff_id = effective_supplier_map.get(item.ingredient_id) %}
+    {% set locked_id = locked_supplier_map.get(item.ingredient_id) %}
+    {% set is_locked = locked_id is not none %}
+    {% set price_options = supplier_prices_map.get(item.ingredient_id, {}) %}
+    <tr class="reorder-row{% if is_locked %} reorder-row--locked{% endif %}"
+        data-ingredient-id="{{ item.ingredient_id }}"
+        data-original-supplier-id="{{ eff_id or '' }}"
+        data-original-supplier-name="{{ supplier_info[0] or '' }}"
+        {% if is_locked %}data-locked-supplier-id="{{ locked_id }}"{% endif %}>
       <td>
         <input type="checkbox" class="item-checkbox" value="{{ item.ingredient_id }}" aria-label="Seleccionar {{ fmt.entity_name(item) }}">
       </td>
@@ -83,7 +103,9 @@ function updateBulkBtn() {
           {{ ui.status_pill("OK", sev="ok") }}
         {% endif %}
       </td>
-      <td class="num">
+      <td class="num live-cost"
+          data-ingredient-id="{{ item.ingredient_id }}"
+          data-base-cost="{{ item.estimated_cost_gs }}">
         {% if item.has_price %}{{ m.gs(item.estimated_cost_gs) }}{% else %}<span class="text-muted">sin precio</span>{% endif %}
       </td>
       <td class="num">
@@ -108,11 +130,11 @@ function updateBulkBtn() {
           <span class="text-muted" title="Sin consumo reciente; el stock no se está agotando">—</span>
         {% elif fc %}
           {% if fc.days_of_stock < 3 %}
-            <span class="badge badge-danger" title="Consumo: {{ '%.1f'|format(fc.avg_daily) }}/día; Sin stock en {{ '%.1f'|format(fc.days_of_stock) }} días">{{ '%.0f'|format(fc.days_of_stock) }}d</span>
+            <span class="badge badge-danger" title="Consumo: {{ '%.1f'|format(fc.avg_daily) }}/día; Sin stock en {{ '%.1f'|format(fc.days_of_stock) }} días">{{ '%.0d'|format(fc.days_of_stock) }}d</span>
           {% elif fc.days_of_stock < 7 %}
-            <span class="badge badge-warn">{{ '%.0f'|format(fc.days_of_stock) }}d</span>
+            <span class="badge badge-warn">{{ '%.0d'|format(fc.days_of_stock) }}d</span>
           {% else %}
-            <span class="badge badge-muted">{{ '%.0f'|format(fc.days_of_stock) }}d</span>
+            <span class="badge badge-muted">{{ '%.0d'|format(fc.days_of_stock) }}d</span>
           {% endif %}
         {% else %}
           <span class="text-muted">—</span>
@@ -120,67 +142,221 @@ function updateBulkBtn() {
       </td>
       <td>
         {% if supplier_info[0] %}
-          <span>{{ supplier_info[0] }}</span>
-          {% if supplier_info[1] %}
-            <a href="https://wa.me/{{ supplier_info[1]|replace('+','')|replace(' ','') }}?text=Hola%2C%20necesito%20hacer%20un%20pedido" target="_blank" rel="noopener" class="btn btn-sm" aria-label="WhatsApp a {{ supplier_info[0] }}">
-              <svg class="icon" aria-hidden="true" style="color:var(--color-whatsapp);"><use href="#icon-whatsapp"/></svg>
-            </a>
-          {% endif %}
+          <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;">
+            <span>{{ supplier_info[0] }}</span>
+            {% if is_locked %}
+              <span class="badge badge-info" title="Compraste acá {{ lock_threshold }}+ veces seguidas. El dropdown se queda fijo en este proveedor.">fijo</span>
+            {% endif %}
+            {% if supplier_info[1] %}
+              <a href="https://wa.me/{{ supplier_info[1]|replace('+','')|replace(' ','') }}?text=Hola%2C%20necesito%20hacer%20un%20pedido" target="_blank" rel="noopener" class="btn btn-sm" aria-label="WhatsApp a {{ supplier_info[0] }}">
+                <svg class="icon" aria-hidden="true" style="color:var(--color-whatsapp);"><use href="#icon-whatsapp"/></svg>
+              </a>
+            {% endif %}
+          </div>
         {% else %}
           <em class="muted">sin proveedor</em>
         {% endif %}
       </td>
-      <td>
-        <form method="post" action="/reorder/registrar" class="restock-form">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <input type="hidden" name="ingredient_id" value="{{ item.ingredient_id }}">
-          <input type="hidden" name="notes" value="">
+      {# === 4-cell Reponer block (Q3a) ============================ #}
+      <form method="post" action="/reorder/registrar" class="restock-form"
+            data-ingredient-id="{{ item.ingredient_id }}"
+            data-original-supplier-id="{{ eff_id or '' }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="ingredient_id" value="{{ item.ingredient_id }}">
+        <input type="hidden" name="notes" value="">
+        <td class="num">
           <label class="sr-only" for="rq-{{ item.ingredient_id }}">Cantidad {{ fmt.entity_name(item) }}</label>
           <input type="number" id="rq-{{ item.ingredient_id }}" name="qty" step="0.5" min="0" size="4"
+                 class="qty-input"
                  value="{{ item.suggested_qty|round(2) }}"
                  aria-label="Cantidad a reponer: {{ fmt.entity_name(item) }}">
+        </td>
+        <td>
           {{ ui.combo_field(
               name='qty_unit',
               value=item.unit,
               display=item.unit,
-              src=[
-                {"value": "g", "label": "g"},
-                {"value": "kg", "label": "kg"},
-                {"value": "ml", "label": "ml"},
-                {"value": "l", "label": "l"},
-                {"value": "und", "label": "und"},
-              ] + ([{"value": item.unit, "label": item.unit}] if item.unit not in ("g", "kg", "ml", "l", "und") else [])
+              src=(
+                ([{"value": "g", "label": "g"}, {"value": "kg", "label": "kg"}]
+                 if item.unit in ("g", "kg") else
+                 [{"value": "ml", "label": "ml"}, {"value": "l", "label": "l"}]
+                 if item.unit in ("ml", "l") else
+                 [{"value": "und", "label": "und"}])
+                + ([{"value": item.unit, "label": item.unit}] if item.unit not in ("g", "kg", "ml", "l", "und") else [])
+              )
           ) }}
+        </td>
+        <td class="num">
           <label class="sr-only" for="rp-{{ item.ingredient_id }}">Precio {{ fmt.entity_name(item) }}</label>
           <div class="currency-input-wrap">
-            <input type="number" id="rp-{{ item.ingredient_id }}" name="price_gs" step="100" min="0" size="6" inputmode="numeric" class="currency-input"
+            <input type="number" id="rp-{{ item.ingredient_id }}" name="price_gs" step="100" min="0" size="6" inputmode="numeric" class="currency-input price-input"
                    value="{{ item.purchase_price_gs if item.purchase_price_gs is not none else '' }}"
                    aria-label="Precio pagado por {{ item.unit }} de {{ fmt.entity_name(item) }}">
           </div>
-          <button type="submit" class="btn btn-sm btn-primary">Reponer</button>
-        </form>
-      </td>
+        </td>
+        <td>
+          {# Supplier picker + submit. The supplier combo sits in the same
+             Confirmar cell so the row still has 4 visual columns even when
+             the supplier dropdown is wide. The picker uses an inline
+             saskia-combo (form-safe) so it submits with the rest of the form. #}
+          <div style="display:flex;flex-direction:column;gap:.35rem;min-width:11rem;">
+            <label class="sr-only" for="rsup-{{ item.ingredient_id }}">Proveedor {{ fmt.entity_name(item) }}</label>
+            <saskia-combo id="rsup-{{ item.ingredient_id }}"
+                           name="supplier_id"
+                           class="supplier-picker"
+                           {% if is_locked %}data-locked="1"{% endif %}
+                           {% if is_locked %}data-prev-id="{{ locked_id }}"{% endif %}
+                           placeholder="Elegir proveedor"
+                           src='[
+                             {%- for s in supplier_options -%}
+                               {"value": "{{ s.id }}", "label": "{{ s.name }}{% if price_options.get(s.id) is not none %} — {{ "{:,}".format(price_options[s.id]).replace(",", ".") }}{% else %} — sin registro{% endif %}"}{% if not loop.last %},{% endif %}
+                             {%- endfor -%}
+                             {%- if not supplier_options -%}
+                               {"value": "", "label": "No hay proveedores activos"}
+                             {%- endif -%}
+                           ]'></saskia-combo>
+            <button type="submit" class="btn btn-sm btn-primary confirm-btn" aria-label="Confirmar reponer {{ fmt.entity_name(item) }}">
+              <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+              Reponer
+            </button>
+          </div>
+        </td>
+      </form>
     </tr>
   {% endfor %}
   </tbody>
   <tfoot>
     <tr>
       <td colspan="9" class="num">Total estimado</td>
-      <td class="num">{{ m.gs(total_cost_gs) }}</td>
-      <td></td>
-      <td></td>
+      <td class="num"><span id="reorder-total">{{ m.gs(total_cost_gs) }}</span></td>
+      <td colspan="4"></td>
     </tr>
   </tfoot>
-</div>
 </table>
 
 <div class="table-info">
   <span>Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ count }}</strong> ingredientes</span>
 </div>
 
-| <a href="/suppliers" class="btn">Administrar proveedores</a></p>
+<p><a href="/suppliers" class="btn">Administrar proveedores</a></p>
 {% else %}
 <p class="empty">No hay ingredientes por debajo del mínimo. ¡Todo en orden!</p>
 {% endif %}
+
+<script>
+(function() {
+  // ===== Live cost recompute ============================================
+  // As the operator edits qty * price in any row, update the per-row
+  // "Costo est." cell + the footer total so she sees the running bill.
+  function recomputeCost(row) {
+    var qtyEl = row.querySelector('.qty-input');
+    var priceEl = row.querySelector('.price-input');
+    var costCell = row.querySelector('.live-cost');
+    if (!qtyEl || !priceEl || !costCell) return;
+    var qty = parseFloat(qtyEl.value || '0');
+    var price = parseInt(priceEl.value || '0', 10);
+    if (isNaN(qty) || isNaN(price)) return;
+    var baseCost = parseInt(costCell.getAttribute('data-base-cost') || '0', 10);
+    var newCost = Math.round(qty * price);
+    costCell.setAttribute('data-base-cost', String(newCost));
+    costCell.innerHTML = newCost.toLocaleString('es-PY').replace(/,/g, '.');
+    // Update footer total
+    var total = 0;
+    document.querySelectorAll('.live-cost').forEach(function(c) {
+      total += parseInt(c.getAttribute('data-base-cost') || '0', 10);
+    });
+    var totalEl = document.getElementById('reorder-total');
+    if (totalEl) {
+      totalEl.textContent = total.toLocaleString('es-PY').replace(/,/g, '.');
+    }
+  }
+  document.querySelectorAll('.reorder-row').forEach(function(row) {
+    var form = row.querySelector('form.restock-form');
+    if (!form) return;
+    form.querySelectorAll('.qty-input, .price-input').forEach(function(input) {
+      input.addEventListener('input', function() { recomputeCost(row); });
+    });
+    recomputeCost(row);
+  });
+
+  // ===== Supplier change → cascade banner (Q4 hybrid) ===================
+  // When she changes the supplier on one row, we auto-update the dropdown
+  // on every OTHER row that EITHER (a) has the same previous supplier OR
+  // (b) has no supplier on file. The banner confirms what just happened
+  // (operator can review). Behaviour matches Q4: cascade is silent (no
+  // confirm gate), but the banner surfaces the count so nothing is
+  // hidden.
+  function showBanner(message) {
+    var b = document.getElementById('supplier-cascade-banner');
+    if (!b) return;
+    b.textContent = message;
+    b.hidden = false;
+    setTimeout(function() { b.hidden = true; }, 5000);
+  }
+
+  function cascadeSupplier(originRow, newSupplierId, newSupplierName) {
+    if (!originRow || !newSupplierId) return { sameCount: 0, emptyCount: 0 };
+    var origSupplierId = originRow.getAttribute('data-original-supplier-id') || '';
+    var sameCount = 0;
+    var emptyCount = 0;
+    document.querySelectorAll('.reorder-row').forEach(function(otherRow) {
+      if (otherRow === originRow) return;
+      var otherForm = otherRow.querySelector('form.restock-form');
+      if (!otherForm) return;
+      var otherPicker = otherForm.querySelector('.supplier-picker');
+      if (!otherPicker) return;
+      var otherId = otherForm.getAttribute('data-original-supplier-id') || '';
+      // (a) rows with same previous supplier → update
+      // (b) rows with no supplier at all → update
+      var isSameAsOrigin = (origSupplierId !== '' && otherId === origSupplierId);
+      var isEmpty = (otherId === '' || otherId === 'None');
+      if (isSameAsOrigin) {
+        sameCount += 1;
+        try { otherPicker.setAttribute('value', newSupplierId); } catch (e) {}
+        otherForm.setAttribute('data-original-supplier-id', newSupplierId);
+      } else if (isEmpty) {
+        emptyCount += 1;
+        try { otherPicker.setAttribute('value', newSupplierId); } catch (e) {}
+        otherForm.setAttribute('data-original-supplier-id', newSupplierId);
+      }
+    });
+    return { sameCount: sameCount, emptyCount: emptyCount };
+  }
+
+  document.querySelectorAll('form.restock-form').forEach(function(form) {
+    var picker = form.querySelector('.supplier-picker');
+    if (!picker) return;
+    picker.addEventListener('change', function() {
+      var row = form.closest('tr.reorder-row');
+      var newId = picker.getAttribute('value') || picker.value || '';
+      if (!newId) return;
+      var newName = '';
+      try {
+        var src = JSON.parse(picker.getAttribute('src') || '[]');
+        for (var i = 0; i < src.length; i++) {
+          if (String(src[i].value) === String(newId)) { newName = src[i].label; break; }
+        }
+      } catch (e) {}
+      var result = cascadeSupplier(row, newId, newName);
+      var total = result.sameCount + result.emptyCount;
+      if (total > 0) {
+        var detail = [];
+        if (result.sameCount > 0) detail.push(result.sameCount + ' fila(s) del proveedor anterior');
+        if (result.emptyCount > 0) detail.push(result.emptyCount + ' fila(s) sin proveedor');
+        showBanner('Proveedor actualizado a ' + newName.split(' — ')[0] + ' en ' + total + ' fila(s): ' + detail.join(' + ') + '.');
+      }
+    });
+  });
+
+  // ===== Locked-supplier guard ==========================================
+  // For rows whose dropdown is locked to a specific supplier (Q2 — after
+  // 3 consecutive buys), render the picker with a `locked-hint` tooltip
+  // so she has to consciously realise the lock is in effect. The streak
+  // counter is the data-side enforcement; this hint is purely visual.
+  document.querySelectorAll('.supplier-picker[data-locked="1"]').forEach(function(picker) {
+    picker.setAttribute('locked-hint', 'Compraste acá 3+ veces seguidas. Para cambiar, primero desbloqueá en /inventario.');
+  });
+})();
+</script>
 
 {% endblock %}

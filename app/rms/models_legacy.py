@@ -126,6 +126,24 @@ class Ingredient(Base):
     )
     # Phase 2 — Expiry date for ingredient lot tracking (HACCP / FIFO).
     expiry_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True, index=True)
+    # Migration 072 (P2 reorder redesign, 2026-09-30): reorder-supplier
+    # tracking. `last_purchase_supplier_id` is the source of truth for the
+    # dropdown default on /reorder (pre-seeded from `supplier_id` so
+    # existing ingredients don't show "sin registro" on first visit).
+    # `purchase_streak_count` increments when she buys from the same
+    # supplier twice in a row, resets on a change. At 3 it triggers
+    # `locked_supplier_id`, which makes the dropdown default to that
+    # supplier and shows the "fijo" badge.
+    last_purchase_supplier_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("supplier.id"), nullable=True, index=True
+    )
+    last_purchase_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    purchase_streak_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    locked_supplier_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("supplier.id"), nullable=True
+    )
 
     # Relationships
     # NOTE: `recipe_lines` (the reverse of RecipeLine.ingredient) is NOT defined here
@@ -134,7 +152,15 @@ class Ingredient(Base):
     # or query RecipeLine directly: SELECT FROM recipe_line WHERE line_kind='ingredient'
     # AND line_ref_id = :id. Helper functions live in costing.py.
     stock_moves: Mapped[list["SaleStockMove"]] = relationship(back_populates="ingredient")
-    supplier: Mapped[Optional["Supplier"]] = relationship(back_populates="ingredients")
+    supplier: Mapped[Optional["Supplier"]] = relationship(
+        back_populates="ingredients", foreign_keys=[supplier_id]
+    )
+    last_purchase_supplier: Mapped[Optional["Supplier"]] = relationship(
+        foreign_keys=[last_purchase_supplier_id]
+    )
+    locked_supplier: Mapped[Optional["Supplier"]] = relationship(
+        foreign_keys=[locked_supplier_id]
+    )
     # S7 Decision A1 — one Ingredient has many IngredientVariants (1kg, 250g, etc).
     variants: Mapped[list["IngredientVariant"]] = relationship(
         back_populates="ingredient",
@@ -850,7 +876,30 @@ class Supplier(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     # Relationships
-    ingredients: Mapped[list["Ingredient"]] = relationship(back_populates="supplier")
+    # Migration 072 added two more FKs back to this table from
+    # ingredient (last_purchase_supplier_id + locked_supplier_id), so
+    # the relationship below needs an explicit `foreign_keys` to tell
+    # SQLAlchemy which FK is the join column. Without it, the mapper
+    # raises "multiple foreign key paths linking the tables" on
+    # initialization (test_reorder_supplier_redesign.py proves it).
+    ingredients: Mapped[list["Ingredient"]] = relationship(
+        back_populates="supplier",
+        foreign_keys="Ingredient.supplier_id",
+    )
+    # These two reverse views are read-only — the writes go through the
+    # forward `Ingredient.last_purchase_supplier` /
+    # `Ingredient.locked_supplier` relationships. `viewonly=True` plus
+    # `overlaps=` silences SQLAlchemy's "multiple FK paths" warning.
+    last_purchase_ingredients: Mapped[list["Ingredient"]] = relationship(
+        foreign_keys="Ingredient.last_purchase_supplier_id",
+        viewonly=True,
+        overlaps="last_purchase_supplier",
+    )
+    locked_ingredients: Mapped[list["Ingredient"]] = relationship(
+        foreign_keys="Ingredient.locked_supplier_id",
+        viewonly=True,
+        overlaps="locked_supplier",
+    )
 
     __table_args__ = (Index("ix_supplier_name", "name"),)
 

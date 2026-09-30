@@ -5,6 +5,58 @@
 
 ## [Unreleased]
 
+### Changed — Reorder redesign: per-row supplier picker + auto-lock
+- **Migration 072** (`app/rms/db.py`): adds `last_purchase_supplier_id`,
+  `last_purchase_at`, `purchase_streak_count`, `locked_supplier_id` to
+  `ingredient`. Backfills `last_purchase_supplier_id` from `supplier_id`
+  so existing rows render correctly on first load.
+- **`/reorder`** (`app/templates/reorder.html`, `app/routers/reorder.py`):
+  - The `Reponer` column is now **four separate cells**: Cantidad /
+    Unidad / Precio / Confirmar (was a single cramped `<td>`).
+  - Each row has its own **supplier dropdown** (saskia-combo) with the
+    active supplier's name + price inline and "— sin registro" for the
+    others. Q1.
+  - **Auto-lock badge "fijo"** appears when an ingredient has been
+    bought 3+ times in a row from the same supplier. The picker shows a
+    subtle blue ring + tooltip; the streak counter is the real
+    enforcement (operator can still switch; doing so clears the lock).
+    Q2.
+  - **Live cost recompute** as she edits `qty` × `price_gs`: per-row
+    "Costo est." + footer "Total estimado" update on `input` events.
+  - **Grocery-store cascade banner**: changing the supplier on one row
+    auto-updates every OTHER row that EITHER had the same previous
+    supplier OR had no supplier. A blue toast banner shows the count
+    ("Proveedor actualizado a X en N fila(s): A + B"). Q4 hybrid —
+    auto-apply on the same page + transparent count, not a confirm gate.
+- **`POST /reorder/registrar`**: now accepts `supplier_id`. When
+  supplied, `app/rms/supplier_history.py:record_purchase_supplier()`
+  updates the streak counter and may auto-lock the dropdown on the
+  next visit. When omitted, the existing `last_purchase_supplier_id`
+  is preserved.
+- **Helper modules**:
+  - `app/rms/supplier_history.py` — `get_effective_supplier_id`,
+    `record_purchase_supplier`, `clear_lock`, `LOCK_THRESHOLD=3`.
+  - `app/rms/reorder_supplier_prices.py` — read-only per-supplier
+    price lookup for the dropdown labels.
+- **Supplier model** (`app/rms/models_legacy.py`): explicit
+  `foreign_keys="Ingredient.supplier_id"` on the back-reference
+  relationship to disambiguate the three supplier FKs now pointing
+  at `supplier` from `ingredient`. Two new view-only reverse
+  relationships (`last_purchase_ingredients`, `locked_ingredients`)
+  for ORM access from the supplier side.
+- **CSS** (`app/static/app.css`): `.cascade-banner` toast,
+  `.reorder-row--locked` left-edge stripe, tighter input widths for
+  the 4-cell Reponer block.
+- **JSON endpoint** (`GET /reorder?format=json`): surfaces
+  `supplier_options`, per-item `effective_supplier_id` and
+  `locked_supplier_id`, plus `lock_threshold` so downstream tools can
+  pick suppliers and reason about locks.
+- **Tests** (`tests/test_reorder_supplier_redesign.py`): 11 tests
+  covering effective-supplier precedence, streak lock, streak reset,
+  override-clears-lock, supplier picker rendering, 4-cell layout,
+  locked badge, registrar record, omitted-supplier safety, JSON
+  options, cascade banner DOM.
+
 ### Changed — Producción de mañana: sidebar → botones
 - **Sidebar (`app/rms/nav.py`)**: removed `/produccion/manana` from the
   `Operación` group (duplicate of `/produccion`).
