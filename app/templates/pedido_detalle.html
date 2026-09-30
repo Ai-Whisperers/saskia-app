@@ -35,9 +35,25 @@
       <br>
       <span class="badge badge-neutral">{{ pedido.channel }}</span>
       <span class="badge badge-neutral" style="margin-left: var(--space-1);">pago: {{ pedido.payment_intent }}</span>
+      {% if pedido.delivery_window_start or pedido.delivery_window_end %}
+        <br><small class="text-muted">Ventana: {{ pedido.delivery_window_start or "—" }}–{{ pedido.delivery_window_end or "—" }}</small>
+      {% endif %}
     </p>
   </div>
 </div>
+
+{% if pedido.address_text or pedido.delivery_zone_id or pedido.invoice_ruc %}
+<div class="card mb-4">
+  <h2>Entrega</h2>
+  <p>
+    {% if pedido.address_text %}<strong>{{ pedido.address_text }}</strong><br>{% endif %}
+    {% if pedido.delivery_zone_id %}<span class="badge badge-neutral">zona #{{ pedido.delivery_zone_id }}</span> {% endif %}
+    {% if pedido.invoice_ruc %}
+      <br><small class="text-muted">RUC/CI: {{ pedido.invoice_ruc }}{% if pedido.invoice_name %} — {{ pedido.invoice_name }}{% endif %}</small>
+    {% endif %}
+  </p>
+</div>
+{% endif %}
 
 <div class="card mb-4">
   <h2>

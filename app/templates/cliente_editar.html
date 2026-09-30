@@ -258,14 +258,27 @@
 
   document.querySelectorAll(".addr-del").forEach(function (btn) {
     btn.addEventListener("click", function () {
-      if (!confirm("¿Eliminar esta dirección?")) return;
-      fetch("/clientes/api/" + cid + "/addresses/" + btn.dataset.addrId, {
-        method: "DELETE",
-        headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
-      }).then(function (r) {
-        if (!r.ok) throw new Error("fallo");
-        window.location.reload();
-      }).catch(function () { alert("No se pudo eliminar."); });
+      var doDelete = function () {
+        fetch("/clientes/api/" + cid + "/addresses/" + btn.dataset.addrId, {
+          method: "DELETE",
+          headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
+        }).then(function (r) {
+          if (!r.ok) throw new Error("fallo");
+          window.location.reload();
+        }).catch(function () { alert("No se pudo eliminar."); });
+      };
+      if (window.SaskiaConfirmModal) {
+        SaskiaConfirmModal.show({
+          title: "¿Eliminar esta dirección?",
+          body: "La dirección se borrará del perfil del cliente.",
+          confirmLabel: "Eliminar",
+          danger: true
+        }).then(function (ok) { if (ok) doDelete(); });
+      } else {
+        // SaskiaConfirmModal unavailable (app-components.js failed to load):
+        // proceed directly — the delete is reversible by re-adding the address.
+        doDelete();
+      }
     });
   });
 })();

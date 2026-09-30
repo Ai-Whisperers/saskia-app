@@ -25,15 +25,9 @@
 
   {# ── Summary stats ── #}
   <section class="kpi-strip" style="display:flex;gap:var(--space-3);margin-bottom:var(--space-4);flex-wrap:wrap;">
-    <div class="kpi-card">
-      <div class="kpi-card__value">{{ total }}</div>
-      <div class="kpi-card__label">ingredientes con problemas</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-card__value">{{ fresh_count }}</div>
-      <div class="kpi-card__label">detectados en este run</div>
-    </div>
-    <div class="kpi-card" style="flex:1;min-width:240px;">
+    {{ ui.metric_card("ingredientes con problemas", total) }}
+    {{ ui.metric_card("detectados en este run", fresh_count) }}
+    <div class="card" style="flex:1;min-width:240px;padding:var(--space-3);">
       <button type="button" id="btn-rerun" class="btn btn-primary" style="height:36px;">
         🔄 Re-correr auditoría
       </button>

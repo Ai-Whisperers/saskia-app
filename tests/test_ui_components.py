@@ -401,8 +401,10 @@ def test_d17_first_adoption_inventario_unit_uses_saskia_combo():
     assert "<saskia-combo" in body
     assert 'name="unit"' in body
     assert "/recetas/api/units?q=" in body
-    # Legacy div with data-source should be gone for unit specifically
-    assert 'data-source="/recetas/api/units"' not in body
+    # Legacy combo DIV (v1) should be gone for unit specifically — the
+    # custom element keeps data-source as a compat alias (set by the macro).
+    import re as _re
+    assert not _re.search(r'<div[^>]+data-source="/recetas/api/units"', body)
 
 
 def test_d17_saskia_combo_field_mapping_serves_js(client):
@@ -442,8 +444,10 @@ def test_d17_first_adoption_inventario_unit_uses_saskia_combo(client):
     assert "<saskia-combo" in body
     assert 'name="unit"' in body
     assert "/recetas/api/units?q=" in body
-    # Legacy div with data-source should be gone for unit specifically
-    assert 'data-source="/recetas/api/units"' not in body
+    # Legacy combo DIV (v1) should be gone for unit — the custom element
+    # keeps data-source as a compat alias emitted by the macro itself.
+    import re as _re
+    assert not _re.search(r'<div[^>]+data-source="/recetas/api/units"', body)
 
 
 def test_d17_saskia_combo_field_mapping_serves_js(client):

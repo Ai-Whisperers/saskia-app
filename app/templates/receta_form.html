@@ -1287,4 +1287,31 @@ function handleValidation(inputEl, event) {
   </div>
 </dialog>
 
+<script>
+// D17 bridge: when a line's Tipo changes (Insumo ↔ Sub-receta), swap the
+// item combo's search endpoint to match (inventario vs recetas).
+function bridgeLineKindCombos(root) {
+  (root || document).querySelectorAll('.line-row').forEach(function(row) {
+    var kind = row.querySelector('saskia-combo[name="line_kind"]');
+    var item = row.querySelector('saskia-combo[name="line_target_id"]');
+    if (!kind || !item) return;
+    var apply = function() {
+      var v = kind.getAttribute('value') || kind.value || 'ingredient';
+      if (v === 'sub_recipe') {
+        item.setAttribute('endpoint', '/recetas/api/search?q=');
+        item.setAttribute('data-source', '/recetas/api/search/');
+        item.setAttribute('placeholder', 'Buscar sub-receta…');
+      } else {
+        item.setAttribute('endpoint', '/inventario/api/search?q=');
+        item.setAttribute('data-source', '/inventario/api/search/');
+        item.setAttribute('placeholder', 'Buscar ingrediente…');
+      }
+    };
+    kind.addEventListener('change', apply);
+    apply();
+  });
+}
+document.addEventListener('DOMContentLoaded', function() { bridgeLineKindCombos(); });
+</script>
+
 {% endblock %}

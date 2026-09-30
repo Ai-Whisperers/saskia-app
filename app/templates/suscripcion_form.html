@@ -90,14 +90,14 @@
   <div class="grid grid-2">
     <div class="form-row">
       <label for="start_date">Fecha de inicio *</label>
-      <input type="date" id="start_date" name="start_date" required
-             value="{{ suscripcion.start_date.strftime('%Y-%m-%d') if suscripcion else '' }}">
+      <saskia-date id="start_date" name="start_date" required
+             value="{{ suscripcion.start_date.strftime('%Y-%m-%d') if suscripcion else '' }}"></saskia-date>
     </div>
 
     <div class="form-row">
       <label for="end_date">Fecha de fin <small class="text-muted">(opcional)</small></label>
-      <input type="date" id="end_date" name="end_date"
-             value="{{ suscripcion.end_date.strftime('%Y-%m-%d') if suscripcion and suscripcion.end_date else '' }}">
+      <saskia-date id="end_date" name="end_date"
+             value="{{ suscripcion.end_date.strftime('%Y-%m-%d') if suscripcion and suscripcion.end_date else '' }}"></saskia-date>
     </div>
   </div>
 

@@ -63,6 +63,7 @@ from app.routers import (
     auth,
     credits,
     customers,
+    dev,
     dashboard,
     eod,
     excel_io,
@@ -567,6 +568,8 @@ def _is_public(path: str) -> bool:
 app.include_router(auth.router)
 app.include_router(health.router)
 app.include_router(dashboard.router)
+# Dev-only combo smoke page; routes self-gate on DEV_COMBO_SMOKE env (404 in prod).
+app.include_router(dev.router)
 app.include_router(validation.router)
 app.include_router(analisis.router)
 app.include_router(inventory.router)

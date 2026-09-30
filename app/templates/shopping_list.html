@@ -42,7 +42,9 @@
     Todos (incl. comprados)
   </a>
   <a href="/produccion-planner" class="btn">📐 Crear plan</a>
-  <form method="post" action="/shopping-list/sync-low-stock" style="display:inline;">
+  <form method="post" action="/shopping-list/sync-low-stock" style="display:inline;"
+        class="js-confirm-form" data-confirm-title="¿Sincronizar faltantes?"
+        data-confirm-body="Se importarán todos los ingredientes con stock por debajo del mínimo a la lista de compras.">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <button type="submit" class="btn btn-warning" title="Importar todos los ingredientes con stock &lt; mínimo">
       🔄 Sincronizar faltantes
