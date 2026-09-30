@@ -459,3 +459,28 @@ button.tab.is-active { color: var(--color-accent); border-bottom-color: var(--co
   width: 100%;
   font-size: 0.75rem;
 }
+
+/* --- Q4 cheapest supplier hint --- */
+.reorder-row .cheapest-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 0.7rem;
+  color: var(--color-muted, #6b7280);
+  padding: 2px 4px;
+  background: var(--color-info-soft, #e0e7ff);
+  border-radius: 4px;
+  margin-bottom: 2px;
+}
+.reorder-row .cheapest-hint strong {
+  color: var(--color-info-strong, #1e40af);
+}
+.reorder-row .cheapest-apply {
+  padding: 0 4px;
+  font-size: 0.7rem;
+  text-decoration: underline;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: var(--color-info-strong, #1e40af);
+}

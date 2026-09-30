@@ -204,8 +204,159 @@ def price_stats(
     }
 
 
+
+
+def cheapest_supplier(
+    session: Session,
+    ingredient_id: int,
+    days: int = 90,
+) -> dict | None:
+    """Return the supplier with the lowest recorded price for an ingredient.
+
+    Aggregates by ``supplier_id`` (NULL treated as one bucket: "sin
+    proveedor"), returns the bucket with the lowest mean price. Only
+    suppliers with at least one event in the window are considered.
+
+    Returns:
+        {"supplier_id": int | None,
+         "supplier_name": str | None,
+         "avg_price_gs": int,
+         "event_count": int}
+        or None if the ingredient has no events in the window.
+
+    Used by /reorder to surface the cheapest supplier hint next to the
+    picker dropdown (Q4 multi-supplier).
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    rows = session.execute(
+        select(
+            IngredientPriceEvent.supplier_id,
+            IngredientPriceEvent.price_gs,
+        )
+        .where(IngredientPriceEvent.ingredient_id == ingredient_id)
+        .where(IngredientPriceEvent.recorded_at >= cutoff)
+    ).all()
+
+    if not rows:
+        return None
+
+    # Bucket by supplier_id; compute mean per bucket.
+    buckets: dict[int | None, list[int]] = {}
+    for supplier_id, price in rows:
+        buckets.setdefault(supplier_id, []).append(int(price))
+
+    # Pick the bucket with the lowest mean price.
+    # ``best_set`` distinguishes "no winner yet" from "winner is None
+    # (legacy NULL-supplier bucket)" — using ``best_supplier_id is None``
+    # as the uninitialized check is ambiguous after the first iteration.
+    best_set = False
+    best_supplier_id: int | None = None
+    best_avg: int = 0
+    best_count: int = 0
+    for sid, prices in buckets.items():
+        avg = sum(prices) // len(prices)
+        if not best_set or avg < best_avg or (
+            avg == best_avg and len(prices) > best_count
+        ):
+            best_supplier_id = sid
+            best_avg = avg
+            best_count = len(prices)
+            best_set = True
+
+    supplier_name: str | None = None
+    if best_supplier_id is not None:
+        from app.rms.models import Supplier
+        sup = session.get(Supplier, best_supplier_id)
+        if sup is not None:
+            supplier_name = sup.name
+
+    return {
+        "supplier_id": best_supplier_id,
+        "supplier_name": supplier_name,
+        "avg_price_gs": int(best_avg),
+        "event_count": best_count,
+    }
+
+
+def batch_cheapest_supplier(
+    session: Session, ingredient_ids: list[int], days: int = 90
+) -> dict[int, dict | None]:
+    """Same as ``cheapest_supplier`` but for many ingredients in one query.
+
+    Returns ``{ingredient_id: cheapest_dict | None}``. Used by /reorder
+    to render a per-row "proveedor más barato" hint without N+1.
+    """
+    if not ingredient_ids:
+        return {}
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    rows = session.execute(
+        select(
+            IngredientPriceEvent.ingredient_id,
+            IngredientPriceEvent.supplier_id,
+            IngredientPriceEvent.price_gs,
+        )
+        .where(
+            IngredientPriceEvent.ingredient_id.in_(ingredient_ids),
+            IngredientPriceEvent.recorded_at >= cutoff,
+        )
+    ).all()
+
+    # Group (ingredient_id, supplier_id) buckets.
+    buckets: dict[int, dict[int | None, list[int]]] = {}
+    for iid, sid, price in rows:
+        per_ing = buckets.setdefault(int(iid), {})
+        per_ing.setdefault(int(sid) if sid is not None else None, []).append(int(price))
+
+    # Resolve supplier names in one query.
+    supplier_ids = {
+        sid
+        for per_ing in buckets.values()
+        for sid in per_ing.keys()
+        if sid is not None
+    }
+    supplier_names: dict[int, str] = {}
+    if supplier_ids:
+        from app.rms.models import Supplier
+        sup_rows = session.execute(
+            select(Supplier.id, Supplier.name)
+            .where(Supplier.id.in_(supplier_ids))
+        ).all()
+        supplier_names = {int(sid): name for sid, name in sup_rows}
+
+    # Pick the cheapest per ingredient.
+    result: dict[int, dict | None] = {}
+    for iid in ingredient_ids:
+        per_ing = buckets.get(int(iid))
+        if not per_ing:
+            result[int(iid)] = None
+            continue
+        best_set = False
+        best_sid: int | None = None
+        best_avg = 0
+        best_count = 0
+        for sid, prices in per_ing.items():
+            avg = sum(prices) // len(prices)
+            if not best_set or avg < best_avg or (
+                avg == best_avg and len(prices) > best_count
+            ):
+                best_sid = sid
+                best_avg = avg
+                best_count = len(prices)
+                best_set = True
+        result[int(iid)] = {
+            "supplier_id": best_sid,
+            "supplier_name": supplier_names.get(best_sid) if best_sid else None,
+            "avg_price_gs": int(best_avg),
+            "event_count": best_count,
+        }
+    return result
+
+
 __all__ = [
+    "batch_cheapest_supplier",
     "batch_price_stats",
+    "cheapest_supplier",
     "price_history",
     "price_stats",
     "record_price_event",

@@ -18,7 +18,11 @@ from app.auth import require_login_or_disabled as require_login
 from app.rms.audit import record as audit_record
 from app.rms.dependencies import get_session
 from app.rms.models import Ingredient, IngredientPriceEvent, Supplier
-from app.rms.price_history import batch_price_stats, record_price_event
+from app.rms.price_history import (
+    batch_cheapest_supplier,
+    batch_price_stats,
+    record_price_event,
+)
 from app.rms.rate_limit import is_write_rate_limited
 from app.rms.reorder import compute_reorder_list
 from app.rms.reorder_supplier_prices import get_supplier_price_options
@@ -106,6 +110,10 @@ def reorder_view(
     ingredient_ids = [i.ingredient_id for i in items]
     price_stats = batch_price_stats(session, ingredient_ids, days=90)
 
+    # Cheapest supplier per ingredient (Q4 multi-supplier hint). Same query
+    # shape as price_stats — one round-trip for the whole reorder view.
+    cheapest_suppliers = batch_cheapest_supplier(session, ingredient_ids, days=90)
+
     # Predictive forecast (BACKLOG #7): avg_daily consumption + days_of_stock.
     # Single batched query for all items (no N+1).
     from app.rms.forecast import batch_forecast_ingredients
@@ -159,6 +167,7 @@ def reorder_view(
         "supplier_options": supplier_options,
         "lock_threshold": LOCK_THRESHOLD,
         "price_stats": price_stats,
+        "cheapest_suppliers": cheapest_suppliers,
         "forecast_map": forecast_map,
         "page_start": 1,
         "page_end": len(items),

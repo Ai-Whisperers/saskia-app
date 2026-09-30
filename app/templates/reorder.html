@@ -81,6 +81,7 @@ function updateBulkBtn() {
     {% set locked_id = locked_supplier_map.get(item.ingredient_id) %}
     {% set is_locked = locked_id is not none %}
     {% set price_options = supplier_prices_map.get(item.ingredient_id, {}) %}
+    {% set cheapest = cheapest_suppliers.get(item.ingredient_id) if cheapest_suppliers is defined else None %}
     <tr class="reorder-row{% if is_locked %} reorder-row--locked{% endif %}"
         data-ingredient-id="{{ item.ingredient_id }}"
         data-original-supplier-id="{{ eff_id or '' }}"
@@ -220,7 +221,19 @@ function updateBulkBtn() {
              saskia-combo (form-safe) so it submits with the rest of the form. #}
           <div style="display:flex;flex-direction:column;gap:.35rem;min-width:11rem;">
             <label class="sr-only" for="rsup-{{ item.ingredient_id }}">Proveedor {{ fmt.entity_name(item) }}</label>
-            <<button type="button" class="btn btn-sm btn-ghost scrape-trigger" data-ingredient-id="{{ item.ingredient_id }}" data-ingredient-name="{{ fmt.entity_name(item) }}" aria-label="Buscar precios en la web para {{ fmt.entity_name(item) }}"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg> Ver precios</button>
+            {%- if cheapest and cheapest.supplier_id is not none and cheapest.supplier_id != eff_id -%}
+              <div class="cheapest-hint" data-cheapest-for="{{ item.ingredient_id }}"
+                   title="Basado en {{ cheapest.event_count }} compra(s) en los últimos 90 días">
+                <svg class="icon" aria-hidden="true"><use href="#icon-info"/></svg>
+                Más barato: <strong>{{ cheapest.supplier_name or 'sin proveedor' }}</strong>
+                · {{ "{:,}".format(cheapest.avg_price_gs).replace(",", ".") }} Gs
+                <button type="button" class="cheapest-apply btn btn-sm btn-link"
+                        data-apply-supplier-id="{{ cheapest.supplier_id }}"
+                        data-apply-ingredient-id="{{ item.ingredient_id }}"
+                        aria-label="Aplicar {{ cheapest.supplier_name }} a esta fila">aplicar</button>
+              </div>
+            {%- endif -%}
+            <button type="button" class="btn btn-sm btn-ghost scrape-trigger" data-ingredient-id="{{ item.ingredient_id }}" data-ingredient-name="{{ fmt.entity_name(item) }}" aria-label="Buscar precios en la web para {{ fmt.entity_name(item) }}"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg> Ver precios</button>
               <saskia-combo id="rsup-{{ item.ingredient_id }}"
                            name="supplier_id"
                            class="supplier-picker"
@@ -560,6 +573,33 @@ function updateBulkBtn() {
 
   document.querySelectorAll('.scrape-trigger').forEach(function(btn) {
     btn.addEventListener('click', function() { scrape(btn); });
+  });
+
+  /* === cheapest supplier "aplicar" (Q4 multi-supplier) ===========
+   * Each .cheapest-apply button is rendered only when there's a known
+   * cheaper supplier than the currently effective one. Clicking it
+   * sets the supplier picker's value and re-renders the dropdown.
+   * ============================================================== */
+  document.querySelectorAll('.cheapest-apply').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var supplierId = btn.getAttribute('data-apply-supplier-id');
+      var ingredientId = btn.getAttribute('data-apply-ingredient-id');
+      var picker = document.querySelector('#rsup-' + ingredientId);
+      if (!picker) return;
+      picker.value = supplierId;
+      picker.dispatchEvent(new Event('change', { bubbles: true }));
+      btn.textContent = 'aplicado ✓';
+      btn.disabled = true;
+      // Hide the hint after a moment so the row settles visually.
+      var hint = btn.closest('.cheapest-hint');
+      if (hint) {
+        setTimeout(function() {
+          hint.style.transition = 'opacity .4s';
+          hint.style.opacity = '0';
+          setTimeout(function() { hint.remove(); }, 400);
+        }, 1200);
+      }
+    });
   });
 })();
 </script>
