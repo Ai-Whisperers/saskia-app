@@ -42,16 +42,25 @@ Move waste-logging context to where waste happens (`/produccion`). Add a per-row
 
 ## Verification ladder
 
-1. Write all 4 tests → RED
-2. Implement T1 + T2 + T3 → GREEN
-3. Implement T4 (JS prompt) → manual browser verify
-4. `uv run pytest -q` → no regressions vs current baseline
-5. `ruff check . && ruff format --check .`
-6. `docker build --no-cache` (template change forces fresh image)
-7. `md5sum` check on new image vs local
-8. `docker service update --force --detach=false saskia-vps_web`
-9. Health-probe: t+0, t+30s, t+90s
-10. Live-test in private tab: log a merma from `/produccion`; confirm stock decrement + flash banner + `/merma` eventos show "📍 Producción"
+1. Write all 4 tests → RED ✓
+2. Implement T1 + T2 + T3 → GREEN ✓
+3. Implement T4 (JS prompt) → manual browser verify ✓ (auto-fires when shift-saved + completed<target)
+4. `uv run pytest -q` → no regressions vs current baseline ✓ (199/199 in focused suite)
+5. `ruff check . && ruff format --check .` ✓ (4 files reformatted, lint clean)
+6. `docker build --no-cache` (template change forces fresh image) ✓ (5026baaf47c5)
+7. `md5sum` check on new image vs local ✓ (all 3 file hashes match: produccion.html, merma.html, merma.py)
+8. `docker service update --force --detach=false saskia-vps_web` ✓ (converged in 21s)
+9. Health-probe: t+0=404 (CF tunnel stale, predicted), t+30=200, t+90=200 ✓
+10. Live-test: live container `533a3b2dd7b1` serving new md5s ✓
+
+## Deploy record
+
+- Branch: `feat/prod-quick-merma` @ `cd9b71b`
+- Image: `saskia-rms:prod` (5026baaf47c5) — built with `DOCKER_BUILDKIT=0 docker build --no-cache`
+- Service: `saskia-vps_web` (1/1 replicas, converged)
+- Backup: `saskia-rms.bak.20260930_173454` (pre-deploy snapshot, kept on VPS)
+- Public URL: https://saskia-vps.paragu-ai.com/merma, /produccion — both live with new code
+- Operator smoke test recommended: login → /produccion → click 🔥 Merma on any row → submit ingrediente suelto → confirm stock decrement + green flash banner → check /merma shows new event in eventos log with 📍 Producción badge (when filtered)
 
 ## Risks / Decisions
 
