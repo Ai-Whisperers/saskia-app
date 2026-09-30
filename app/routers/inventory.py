@@ -203,7 +203,23 @@ def inventory_list(
 
     all_ings = session.scalars(select(Ingredient)).all()
     kpi_total = len(all_ings)
-    kpi_critical = sum(1 for i in all_ings if i.stock_qty <= (i.min_stock_qty or 0))
+    # PRO-INV (2026-09-30): distinguish "never loaded initial stock" (stock 0
+    # AND zero movements in the ledger) from genuinely depleted stock. Mixing
+    # both made the "critical" KPI scary on day one (65 vs 44 real).
+    loaded_ids = set(
+        session.scalars(
+            select(StockMovement.ingredient_id).distinct()
+        ).all()
+    )
+    never_loaded_ids = {
+        i.id for i in all_ings
+        if (i.stock_qty or 0) == 0 and i.id not in loaded_ids
+    }
+    kpi_never_loaded = len(never_loaded_ids)
+    kpi_critical = sum(
+        1 for i in all_ings
+        if i.stock_qty <= (i.min_stock_qty or 0) and i.id not in never_loaded_ids
+    )
     kpi_no_cost = sum(1 for i in all_ings if not i.purchase_price_gs)
     try:
         kpi_value_gs = stock_value_gs(session)
@@ -268,6 +284,8 @@ def inventory_list(
                 elif estado == "critico" and (i.stock_qty <= 0 or (i.min_stock_qty and i.stock_qty < i.min_stock_qty * 0.5)):
                     ok = True
                 elif estado == "negativo" and i.stock_qty < 0:
+                    ok = True
+                elif estado == "sincargar" and i.id in never_loaded_ids:
                     ok = True
                 elif estado == "sinprecio" and i.purchase_price_gs is None:
                     ok = True
@@ -420,6 +438,8 @@ def inventory_list(
             # redesign 2026-09-25
             "kpi_total": kpi_total,
             "kpi_critical": kpi_critical,
+            "kpi_never_loaded": kpi_never_loaded,
+            "never_loaded_ids": never_loaded_ids,
             "kpi_value_gs": kpi_value_gs,
             "kpi_no_cost": kpi_no_cost,
             "expiring_soon": expiring_soon,
@@ -454,6 +474,68 @@ def inventory_list(
             "total_all": total_all,
         },
     )
+
+
+@router.get("/carga-inicial", response_class=HTMLResponse)
+def carga_inicial_view(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
+    """PRO-INV: asisted initial stock load — list every ingredient that has
+    zero movements in the ledger so the operator can load real opening counts
+    in one screen (instead of 21 detail-page visits)."""
+    loaded_ids = set(
+        session.scalars(select(StockMovement.ingredient_id).distinct()).all()
+    )
+    pendientes = [
+        i for i in session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
+        if (i.stock_qty or 0) == 0 and i.id not in loaded_ids
+    ]
+    return render(request, "carga_inicial.html", {"pendientes": pendientes})
+
+
+@router.post("/carga-inicial")
+async def carga_inicial_save(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Save bulk initial stock. Form fields: qty_<id> per row (blank = skip)."""
+    from app.auth import current_user_id
+
+    user_id = current_user_id(request) or "operator"
+    saved = 0
+    form = await request.form()
+    for key in list(form.keys()):
+        if not key.startswith("qty_"):
+            continue
+        try:
+            ing_id = int(key[4:])
+        except ValueError:
+            continue
+        raw_val = (form.get(key) or "").strip()
+        if not raw_val:
+            continue
+        try:
+            qty = float(raw_val.replace(",", "."))
+        except ValueError:
+            continue
+        if qty <= 0:
+            continue
+        ing = session.get(Ingredient, ing_id)
+        if ing is None:
+            continue
+        ing.stock_qty = qty
+        session.add(StockMovement(
+            ingredient_id=ing_id,
+            movement_type="initial",
+            qty=qty,
+            reason="carga inicial de inventario",
+            reference_id=None,
+            reference_type=None,
+            recorded_at=datetime.now(timezone.utc),
+        ))
+        saved += 1
+    session.commit()
+    from urllib.parse import urlencode
+    params = urlencode({"flash": f"ok:Carga inicial guardada: {saved} ingredientes."})
+    return RedirectResponse(url=f"/inventario?{params}", status_code=303)
 
 
 @router.get("/nuevo", response_class=HTMLResponse)

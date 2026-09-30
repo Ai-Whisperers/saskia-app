@@ -5,6 +5,20 @@
 
 ## [Unreleased]
 
+### Added (2026-09-30) — PRO-INV: inventario distingue "sin carga inicial" de "agotado"
+
+El KPI "Stock crítico" mezclaba ingredientes nunca cargados (stock 0, cero
+movimientos) con agotados reales — el día 1 asustaba con 65 "críticos"
+cuando ~21 eran solo falta de carga inicial. Ahora:
+
+- Badge "Sin carga inicial" (neutral) para stock 0 sin movimientos en el
+  ledger `stock_movement`; los agotados reales siguen en rojo.
+- KPI separado con link al filtro `?estado=sincargar` (nueva opción).
+- **Carga inicial asistida**: `/inventario/carga-inicial` lista todo lo
+  nunca cargado en una sola pantalla con cantidad real por fila; guarda
+  todo de una y registra cada carga como movimiento `initial`.
+- Tests: tests/test_inventario_never_loaded.py (3).
+
 ### Added (2026-09-30) — guards de seguridad/precio + ayudas de producción
 
 - **PRO-SEC**: guard de arranque en `app/rms/main.py` — la app se niega a
