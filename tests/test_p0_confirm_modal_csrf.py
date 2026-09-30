@@ -49,7 +49,11 @@ def test_all_destructive_forms_have_confirm():
 
 
 def test_all_post_forms_have_csrf():
-    """Every <form method="post"> (except login) must have csrf_token field."""
+    """Every <form method="post"> (except login) must have a csrf_token field.
+
+    Both ``name="_csrf_token"`` (preferred hidden-input convention) and
+    ``name="csrf_token"`` are accepted by app/rms/csrf.py verify_form_csrf.
+    """
     missing = []
     for html in REPO.glob('app/templates/**/*.html'):
         if str(html.relative_to(REPO)) in EXEMPT_TEMPLATES:
@@ -57,7 +61,7 @@ def test_all_post_forms_have_csrf():
         text = html.read_text(encoding='utf-8')
         if 'method="post"' not in text:
             continue
-        if 'name="csrf_token"' not in text:
+        if 'name="_csrf_token"' not in text and 'name="csrf_token"' not in text:
             if re.search(r'<form[^>]*method="post"', text):
                 missing.append(str(html.relative_to(REPO)))
     assert not missing, "Templates with POST form but no csrf_token:\n" + '\n'.join(f"  {m}" for m in missing)

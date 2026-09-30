@@ -11,9 +11,18 @@ This test guards against regressions:
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from app.rms.models import Pedido
+
+
+def _live_token(days: int = 30) -> datetime:
+    """P1-2: pedidos now need a non-expired public_token_expires_at.
+
+    The token-hardening work made NULL/expired expiry → 410 Gone.
+    Tests that craft raw Pedido rows must set a live expiry.
+    """
+    return datetime.now() + timedelta(days=days)
 
 
 def test_public_pedido_token_returns_200(client, session_factory):
@@ -28,6 +37,7 @@ def test_public_pedido_token_returns_200(client, session_factory):
             channel="whatsapp",
             status="pending",
             public_token="k6test01",
+            public_token_expires_at=_live_token(),
         )
         s.add(pedido)
         s.commit()
@@ -61,6 +71,7 @@ def test_public_pedido_integer_path_returns_404(client, session_factory):
             promised_date=date.today(),
             channel="mostrador",
             public_token="k6pk01",
+            public_token_expires_at=_live_token(),
         )
         s.add(pedido)
         s.commit()
@@ -110,6 +121,7 @@ def test_public_pedido_no_auth_required(client, session_factory):
             promised_date=date.today(),
             channel="whatsapp",
             public_token="k6noauth",
+            public_token_expires_at=_live_token(),
         )
         s.add(pedido)
         s.commit()

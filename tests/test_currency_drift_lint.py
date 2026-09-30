@@ -99,8 +99,11 @@ def test_fixed_templates_use_money_macro():
     produccion = (REPO / "app/templates/produccion.html").read_text(encoding="utf-8")
     assert "{% import \"_components/macros.html\" as m %}" in produccion, \
         "produccion.html must import the money macros module"
-    assert "m.gs(it.unit_price_gs)" in produccion, \
-        "produccion.html must use m.gs() for unit_price_gs (Session A fix)"
+    # 399941c moved the month sales/money block from produccion.html to
+    # /reportes, so the old "m.gs(it.unit_price_gs)" line is gone. The
+    # invariant that matters now: no raw "Gs. {{" renderings crept back in.
+    assert "Gs. {{" not in produccion, \
+        "produccion.html must not render raw Gs. literals (regression)"
 
 
 def test_workflow_file_exists():

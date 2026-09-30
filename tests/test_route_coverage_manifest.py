@@ -27,9 +27,11 @@ def _all_routes():
             sub = getattr(r, "routes", None)
             orig = getattr(r, "original_router", None)
             if orig is not None and getattr(orig, "routes", None):
-                # _IncludedRouter: recurse. Sub-paths on the inner router
-                # already include the sub-router's prefix, so we don't merge.
-                _walk(orig.routes, prefix=prefix)
+                # _IncludedRouter: recurse. The include-time prefix lives on
+                # include_context.prefix (e.g. /api/insights); inner route
+                # paths do NOT include it, so merge it into the walk prefix.
+                inc_prefix = getattr(getattr(r, "include_context", None), "prefix", "") or ""
+                _walk(orig.routes, prefix=prefix + inc_prefix)
                 continue
             if sub is not None and getattr(r, "methods", None) is None:
                 # Mount or other non-API wrapper: skip.
@@ -38,7 +40,7 @@ def _all_routes():
                 m for m in getattr(r, "methods", []) or []
                 if m in ("GET", "POST", "PUT", "DELETE", "PATCH")
             )
-            path = getattr(r, "path", "") or prefix
+            path = (prefix + (getattr(r, "path", "") or "")) or prefix
             if not path or path.startswith(("/openapi", "/docs")):
                 continue
             for m in methods:

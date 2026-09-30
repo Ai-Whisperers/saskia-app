@@ -12,6 +12,7 @@ Conventions:
 - Tolerates non-2xx status codes (graceful failure when validation
   rejects) — the audit row still must exist IF the action succeeded.
 """
+# allow-hardcoded-dates: audit backdating test needs one fixed posted_at to assert readback ordering
 
 from __future__ import annotations
 

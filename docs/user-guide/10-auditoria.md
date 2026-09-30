@@ -20,7 +20,7 @@ La app registra automáticamente:
 | **settings.update** | Cuando cambia un ajuste (moneda, IVA, etc.). |
 | **write.sale.create** | Cada venta registrada. |
 | **write.sale.void** | Cada venta anulada. |
-| **write.merma.register** | Cada evento de merma. |
+| **write.merma.create** | Cada evento de merma. |
 | **http.500** | Cualquier error técnico. |
 
 **Quién lo hizo:** tu usuario (login). La app extrae tu ID de la sesión.

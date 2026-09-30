@@ -187,6 +187,7 @@ def merma_register(
             context={"operation": "record_waste", "original_error": str(exc)},
         ) from exc
 
+    from app.auth import current_user_id
     record_audit(
         request,
         session=session,
@@ -194,6 +195,7 @@ def merma_register(
         target_type="merma",
         target_id=log.id,
         detail={"ingredient_id": ingredient_id, "qty": qty, "reason": reason},
+        user_id=str(current_user_id(request) or "operator"),
     )
     session.commit()
     return RedirectResponse(url="/merma", status_code=303)
@@ -246,6 +248,7 @@ def merma_register_recipe(
             context={"original_error": str(exc)},
         ) from exc
 
+    from app.auth import current_user_id
     record_audit(
         request,
         session=session,
@@ -260,6 +263,7 @@ def merma_register_recipe(
             "n_ingredient_logs": len(result.waste_logs),
             "reason": reason,
         },
+        user_id=str(current_user_id(request) or "operator"),
     )
     session.commit()
     return RedirectResponse(url="/merma", status_code=303)

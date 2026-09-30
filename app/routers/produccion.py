@@ -446,6 +446,93 @@ def produccion_override(
     )
 
 
+@router.post("/override-bulk")
+async def produccion_override_bulk(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Bulk per-day qty overrides from /produccion/manana's unified form.
+
+    The manana page (da0abe8 redesign) renders ONE form with per-row
+    ``qty[<product_id>]`` inputs and a single Save button. This endpoint
+    consumes that shape: each non-empty qty[<id>] field becomes (or clears,
+    at qty=0) a date-scoped ProductionPlanOverride — same semantics as the
+    single-row /produccion/override, applied N times in one commit.
+    """
+    from app.rms.rate_limit import is_write_rate_limited
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
+        )
+
+    from app.auth import current_user_id
+    from app.rms.audit import record as audit_record
+    from app.rms.models import Product, ProductionPlanOverride
+    from app.rms.production import upsert_override
+
+    form = await request.form()
+    raw_for_date = str(form.get("for_date") or "").strip()
+    try:
+        for_date = date.fromisoformat(raw_for_date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Fecha inválida")
+
+    user_id = str(current_user_id(request) or "operator")
+
+    # Collect qty[<product_id>] fields
+    entries: dict[int, float] = {}
+    for key, value in form.items():
+        if not key.startswith("qty[") or not key.endswith("]"):
+            continue
+        raw = str(value).strip()
+        if raw == "":
+            continue  # untouched row — leave the forecast as-is
+        try:
+            pid = int(key[4:-1])
+            qty = float(raw)
+        except (TypeError, ValueError):
+            continue
+        if qty < 0:
+            raise HTTPException(
+                status_code=400, detail="La cantidad no puede ser negativa"
+            )
+        entries[pid] = qty
+
+    applied = 0
+    for pid, qty in entries.items():
+        if session.get(Product, pid) is None:
+            raise HTTPException(status_code=404, detail="Producto no encontrado")
+        if qty == 0:
+            existing = session.query(ProductionPlanOverride).filter(
+                ProductionPlanOverride.product_id == pid,
+                ProductionPlanOverride.for_date == for_date,
+            ).one_or_none()
+            if existing:
+                session.delete(existing)
+                session.flush()
+        else:
+            upsert_override(
+                session, product_id=pid, for_date=for_date, qty=qty,
+                updated_by=user_id,
+            )
+        record_audit(
+            request,
+            session=session,
+            action="write.production.override.set",
+            target_type="production",
+            target_id=pid,
+            detail={"for_date": for_date.isoformat(), "qty": qty, "bulk": True},
+        )
+        applied += 1
+
+    session.commit()
+    return RedirectResponse(
+        url=f"/produccion/manana?saved={applied}",
+        status_code=303,
+    )
+
+
 # --- Shift execution layer (Sprint 1) ---
 #
 # The day view renders a "Ejecución del turno" form that lets Saskia

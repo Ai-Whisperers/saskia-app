@@ -302,28 +302,37 @@ def test_ventas_post_with_bad_customer_id_returns_400(client, session_factory):
 
 
 def test_ventas_page_renders_customer_picker(client):
-    """/ventas page includes the customer picker component."""
+    """/ventas page includes the customer picker component.
+
+    c20f692 rewrote the picker from a modal (trigger/search/results IDs)
+    to an inline <saskia-combo> combo box. The functional contract that
+    remains: the hidden customer_id field, the combo input, the hint,
+    and the inline "Nuevo cliente" disclosure panel.
+    """
     resp = client.get("/ventas")
     assert resp.status_code == 200
     body = resp.text
     for marker in [
-        "customer_picker_trigger",
-        "customer_id",
-        "customer_picker_label",
-        "customer_picker_hint",
-        "customer_picker_search",
-        "customer_picker_results",
-        "customer_picker_new_btn",
+        "customer-picker",          # component wrapper div/class
+        "customer_id",              # hidden field the form posts
+        "customer_id_combo",        # saskia-combo input
+        "customer_picker_hint",     # hint line
+        "customer_picker_new_panel" # inline new-customer disclosure
     ]:
         assert marker in body, f"Picker marker {marker!r} not found in /ventas"
 
 
 def test_ventas_page_includes_picker_js(client):
-    """/ventas page references the picker script."""
+    """/ventas page includes the picker wiring (inline script in the component
+    since c20f692; the old standalone customer-picker.js bundle is retired)."""
     resp = client.get("/ventas")
     assert resp.status_code == 200
     body = resp.text
-    assert "customer-picker.js" in body
+    has_inline = "customer_picker_new_form" in body and "addEventListener" in body
+    has_bundle = "customer-picker.js" in body
+    assert has_inline or has_bundle, (
+        "/ventas must include picker JS (inline component script or customer-picker.js bundle)"
+    )
 
 
 def test_picker_js_is_served(client):

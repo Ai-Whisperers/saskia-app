@@ -73,7 +73,7 @@ def test_merma_register_records_operator(client, session_factory):
     with session_factory() as s:
         row = s.execute(
             select(AuditLog)
-            .where(AuditLog.action == "write.merma.register")
+            .where(AuditLog.action == "write.merma.create")
             .order_by(AuditLog.id.desc())
             .limit(1)
         ).scalar_one_or_none()

@@ -200,7 +200,7 @@ def supplier_precios(
 
     For each ingredient that this supplier sells, lists every other supplier's
     price (sorted ASC) and surfaces the delta vs the cheapest — so Saskia can
-    spot when she's paying Gs. 500/kg more than Proveedor B for harina.
+    spot when she's paying 500 Gs./kg more than Proveedor B for harina.
 
     When ``?supplier_id=N`` is present, that supplier's column is highlighted
     and a "Estás pagando Gs. Y más caro que el promedio" badge appears if their

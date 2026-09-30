@@ -170,17 +170,18 @@ def test_manana_route_shows_estimated_revenue(client, session_factory) -> None:
 
 
 def test_manana_route_includes_override_form(client, session_factory) -> None:
-    """Each row's override form posts to /produccion/override with csrf_token."""
+    """The manana page has ONE unified override form (da0abe8 redesign)
+    posting to /produccion/override-bulk with csrf + per-row qty[<id>] fields."""
     _seed_product_with_sales(session_factory, name="Brownie_override", n_sales=12, days_span=7)
     r = client.get("/produccion/manana")
     assert r.status_code == 200
     body = r.text
-    # If rows present, each row has the override form
+    # If rows present, the bulk override form is present
     if "Esperá unos días" in body:
         pytest.skip("No rows rendered (no products)")
-    assert 'action="/produccion/override"' in body
-    assert 'name="csrf_token"' in body
-    assert 'name="qty"' in body
+    assert 'action="/produccion/override-bulk"' in body
+    assert 'name="_csrf_token"' in body
+    assert 'name="qty[' in body
 
 
 def test_manana_route_renders_seasonal_note_when_event_matches(client) -> None:
@@ -233,3 +234,48 @@ def test_forecast_sample_stats_zero_when_no_sales(session_factory) -> None:
         count, days = _forecast_sample_stats(s, product_id=pid, days_history=14)
     assert count == 0
     assert days == 0
+
+
+def test_manana_override_bulk_roundtrip(client, session_factory) -> None:
+    """POST /produccion/override-bulk writes date-scoped overrides (one commit)."""
+    from app.rms.models import ProductionPlanOverride
+    from datetime import date, timedelta
+
+    pid = _seed_product_with_sales(
+        session_factory, name="Bulk_ov_prod", n_sales=12, days_span=7
+    )
+    tomorrow = date.today() + timedelta(days=1)
+
+    r = client.post(
+        "/produccion/override-bulk",
+        data={
+            "_csrf_token": "x",  # csrf middleware disabled in tests
+            "for_date": tomorrow.isoformat(),
+            f"qty[{pid}]": "42",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303, f"expected 303, got {r.status_code}"
+    with session_factory() as s:
+        row = (
+            s.query(ProductionPlanOverride)
+            .filter_by(product_id=pid, for_date=tomorrow)
+            .one_or_none()
+        )
+        assert row is not None, "override row not written"
+        assert float(row.qty) == 42.0
+
+    # Empty qty → untouched; qty=0 → clears the row
+    r2 = client.post(
+        "/produccion/override-bulk",
+        data={"for_date": tomorrow.isoformat(), f"qty[{pid}]": "0"},
+        follow_redirects=False,
+    )
+    assert r2.status_code == 303
+    with session_factory() as s:
+        row = (
+            s.query(ProductionPlanOverride)
+            .filter_by(product_id=pid, for_date=tomorrow)
+            .one_or_none()
+        )
+        assert row is None, "qty=0 should clear the override"

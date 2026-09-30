@@ -527,7 +527,7 @@ async def customer_create_api(
     # check whether the row existed before by comparing created_at vs now.
     # Simpler: ensure_customer returns the row. We capture an `existed`
     # flag by snapshotting IDs before, since ensure_customer may create.
-    pre_ids = {c.id for c in session.scalars(select(Customer.id)).all()}
+    pre_ids = set(session.scalars(select(Customer.id)).all())
     customer = ensure_customer(
         session,
         name=name,

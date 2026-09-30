@@ -78,8 +78,13 @@ _CATEGORY_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
     ),
 
     "frutas": (
-        "fruta", "limón", "naranja", "manzana", "banana", "frutilla",
-        "arándano", "ciruela", "pera", "uva",
+        "fruta", "frutas", "limón", "limones", "naranja", "naranjas",
+        "manzana", "manzanas", "banana", "bananas", "frutilla",
+        "frutillas", "arándano", "arándanos", "ciruela", "ciruelas",
+        "pera", "peras", "uva", "uvas", "frambuesa", "frambuesas",
+        "cereza", "cerezas", "ananá", "ananás", "piña", "mango",
+        "durazno", "duraznos", "damasco", "damascos", "kiwi", "melón",
+        "sandía", "paltas", "palta",
     ),
     "líquidos": (
         "agua", "jugo", "caldo", "café", "espresso",

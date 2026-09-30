@@ -540,13 +540,14 @@ def test_delta_pill_macro_defined():
 
 
 def test_delta_pill_used_for_top_three_metrics():
-    """inicio.html should render delta_pill on Ventas/COGS/Margen cards."""
+    """inicio.html must render the sales delta — via saskia-kpi-card since d820a23
+    (delta_pill macro retired from inicio; the card takes delta/delta-direction)."""
     with open("app/templates/inicio.html") as f:
         inicio = f.read()
-    assert inicio.count("m.delta_pill(") >= 1, (
-        "inicio.html should call delta_pill at least once (Ventas)"
+    assert 'delta-direction="{{ delta_ventas' in inicio, (
+        "inicio.html must pass delta_ventas to the kpi-card delta-direction"
     )
-    assert "delta_ventas" in inicio, "inicio.html must pass delta_ventas to delta_pill"
+    assert "delta_ventas" in inicio, "inicio.html must use delta_ventas"
 
 
 def test_delta_prior_css_rule_present():

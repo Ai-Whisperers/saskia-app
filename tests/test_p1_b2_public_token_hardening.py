@@ -9,6 +9,7 @@ Covers:
   - /p/{token} returns 404 (not 410) for unknown tokens
   - /p/{token} returns 429 after 30 views / 5 min from the same IP
 """
+# allow-hardcoded-dates: token expiry boundary tests need fixed future/past timestamps (deterministic _is_token_valid checks)
 from __future__ import annotations
 
 import secrets
