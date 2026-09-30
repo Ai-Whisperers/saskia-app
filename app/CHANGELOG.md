@@ -5,6 +5,14 @@
 
 ## [Unreleased]
 
+### Fixed (2026-09-30) — PRO-POS: toda venta lleva forma de pago
+
+`/ventas/nueva/multi` guardaba `payment_method=NULL` cuando el operador no
+elegía uno (699/708 ventas de prod quedaron sin atribuir). Ahora el default
+del catálogo (`is_default` → 'efectivo') completa el método, y el combo del
+POS viene preseleccionado con ese default. Tests:
+tests/test_pos_payment_default.py (2: default + explícito respetado).
+
 ### Added (2026-09-30) — PRO-INV: inventario distingue "sin carga inicial" de "agotado"
 
 El KPI "Stock crítico" mezclaba ingredientes nunca cargados (stock 0, cero

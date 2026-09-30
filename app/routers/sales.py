@@ -948,8 +948,11 @@ async def sale_create_multi(
             )
 
     # ── Payment ───────────────────────────────────────────────────────────
-    payment_method_clean = body.payment_method.strip() or None
-    if payment_method_clean is not None and payment_method_clean not in ALLOWED_PAYMENT_METHODS:
+    # PRO-POS (2026-09-30): silent-None payment_method flooded the ledger
+    # with NULLs (699/708 sales unattributed). Fall back to the default
+    # method (is_default → 'efectivo') so every sale carries a method.
+    payment_method_clean = body.payment_method.strip() or default_payment_method_code(session)
+    if payment_method_clean not in ALLOWED_PAYMENT_METHODS:
         raise HTTPException(
             status_code=400,
             detail=SALE_INVALID_PAYMENT_METHOD,
