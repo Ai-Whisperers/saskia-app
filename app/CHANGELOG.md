@@ -246,6 +246,64 @@ explains it explicitly and points to `POINTS_PER_GS` in
 already the lowest-friction version of this. Layering rules on top
 is a future optimization.
 
+### Added — B2 day-of-week-aware forecast (2026-10-01)
+
+The previous `/produccion/manana` plan averaged sales over the last
+14 days **flat** — Tuesday's forecast looked like Sunday's looked
+like Saturday's. Real bakeries have strong weekly seasonality
+(weekday rush vs weekend retail). B2 makes the forecast
+day-of-week-aware.
+
+**Domain** — `app/rms/production.py:forecast_sales()` now accepts a
+`target_weekday` kwarg (Mon=0 ... Sun=6). When set, it aggregates
+ONLY historical sales on that weekday within the window — a
+12-week average of the last 12 Tuesdays, for example, instead of
+the last 84 days. Falls back to the all-DOW average when fewer
+than 4 historical DOW weeks exist for a product (always shows
+something; confidence reflects the weak signal downstream).
+`plan_production()` accepts a `use_dow_forecast=True` flag and
+threads it through.
+
+**Behavior decisions** (with you, 2026-10-01):
+- Metric: **both** units + revenue (single query, single Forecast
+  dataclass, one source of truth for both surfaces).
+- Lookback: **12 weeks** (84 days).
+- Display: **both** `/inicio` headline card (tomorrow's units +
+  revenue + top-5 products, confidence badge) AND
+  `/produccion/manana` per-product DOW breakdown (already
+  existed; the production plan now uses the DOW-aware forecast
+  with the 84-day window).
+- Low-data: **fallback** to flat average when < 4 DOW weeks
+  exist (decision documented above in the report).
+
+**Wiring** — `app/routers/produccion.py` passes
+`days_history=84, use_dow_forecast=True` to `plan_production()`.
+Week and month views keep the legacy flat 14-day avg (unchanged
+for back-compat). `app/routers/dashboard.py` computes the
+/inicio forecast headline (units + revenue + top-5) and passes
+it to the template.
+
+**UI** — new "Pronóstico — {DOW} {date}" card on `/inicio`,
+positioned between the production plan and the Coffee regulars
+card. Shows: tomorrow's predicted units (sum across all
+products), predicted revenue, top-5 product breakdown table,
+confidence pill (high ≥ 5 products / medium ≥ 2 / low).
+Empty-state CTA when no DOW history exists.
+
+**Tests** — 11 new tests across 2 files:
+- `tests/test_dow_forecast.py` (7 tests): DOW-only aggregation,
+  legacy flat avg preserved when target_weekday=None, fallback
+  when < 4 DOW weeks, empty DB, plan_production wiring, 12-week
+  vs 6-week recency, voided-sales exclusion.
+- `tests/test_inicio_forecast_card.py` (4 tests): /inicio renders
+  200 with the new context, empty state when no sales, DOW-aware
+  totals when sales exist, voided-sales exclusion.
+
+**Untouched**: `/produccion` week view, month view, single-day
+view, ingredient reorder forecast, the per-ingredient
+`ConsumptionForecast` in `app/rms/forecast.py` (BACKLOG #7). They
+keep the legacy flat avg behavior.
+
 ### Housekeeping — orphan stash audit (2026-10-01)
 - **8 stale `git stash` entries on main** (oldest 13 days) audited.
   7 dropped (work already shipped via other commits:

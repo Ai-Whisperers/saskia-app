@@ -34,7 +34,7 @@ from app.rms.constants import DEFAULT_TAX_REGIME
 from app.rms.costing import batch_products_cost_margin, batch_recipes_cost
 from app.rms.dependencies import get_session
 from app.rms.insights import build_insights, build_actionable_insights
-from app.rms.models import Ingredient, Recipe, RiskItem, Sale, ShoppingListItem, WishlistItem
+from app.rms.models import Ingredient, Product, Recipe, RiskItem, Sale, ShoppingListItem, WishlistItem
 from app.rms.money import to_int_gs
 from app.services.template_render import render
 
@@ -568,6 +568,47 @@ async def dashboard(
             })
     birthdays.sort(key=lambda b: b["days_until"])
 
+    # Phase 4 B2 (2026-10-01): day-of-week-aware forecast headline for
+    # /inicio. Predicts tomorrow's units + revenue using the last 12
+    # weeks of historical sales for tomorrow's weekday only. Returns
+    # None when there's not enough data so the UI can render an empty
+    # state instead of misleading numbers.
+    from datetime import datetime as _dt_b2
+    from app.rms.config import ASUNCION_TZ as _tz_b2
+    from app.rms.production import forecast_sales as _fs_b2
+    _tomorrow_date = (_dt_b2.now(_tz_b2) + timedelta(days=1)).date()
+    _tomorrow_dow = _tomorrow_date.weekday()
+    _tomorrow_label = ["lunes", "martes", "miércoles", "jueves",
+                       "viernes", "sábado", "domingo"][_tomorrow_dow]
+    _forecast_units = 0.0
+    _forecast_revenue_gs = 0
+    _forecast_products_count = 0
+    _forecast_top = []  # [(product_name, qty, revenue_gs)]
+    for _prod in session.scalars(select(Product)).all():
+        _qty = _fs_b2(
+            session, product_id=_prod.id,
+            days_history=84, target_weekday=_tomorrow_dow,
+        )
+        if _qty <= 0:
+            continue
+        _forecast_products_count += 1
+        _forecast_units += _qty
+        _rev = int(_qty * (_prod.sale_price_gs or 0))
+        _forecast_revenue_gs += _rev
+        _forecast_top.append({
+            "name": _prod.name,
+            "qty": _qty,
+            "revenue_gs": _rev,
+        })
+    _forecast_top.sort(key=lambda x: -x["qty"])
+    _forecast_top = _forecast_top[:5]
+    # Confidence: count of products with at least 4 DOW-weeks of history
+    # divided by total — rough heuristic. Same logic is in
+    # production.py:_forecast_confidence() but per-product.
+    _forecast_confidence = "high" if _forecast_products_count >= 5 else (
+        "medium" if _forecast_products_count >= 2 else "low"
+    )
+
     return render(
         request,
         "inicio.html",
@@ -619,6 +660,14 @@ async def dashboard(
                 )
                 or 0
             ),
+            # B2 (2026-10-01): day-of-week-aware forecast headline
+            "forecast_tomorrow_label": _tomorrow_label,
+            "forecast_tomorrow_date": _tomorrow_date.isoformat(),
+            "forecast_units": int(round(_forecast_units)),
+            "forecast_revenue_gs": _forecast_revenue_gs,
+            "forecast_products_count": _forecast_products_count,
+            "forecast_top": _forecast_top,
+            "forecast_confidence": _forecast_confidence,
             "recipes_no_cost": recipes_no_cost,
             "sales_no_recipe": sales_no_recipe_decor,
             # E8: operational analytics surfaces

@@ -199,6 +199,49 @@
     {% endif %}
   </section>
 
+  {# ── Pronóstico DOW-aware (Phase 4 B2, 2026-10-01) ───────────────── #}
+  <section class="card" aria-label="Pronóstico mañana">
+    <div class="card-header">
+      <h2 style="font-size:var(--text-md);">Pronóstico — {{ forecast_tomorrow_label }} {{ forecast_tomorrow_date }}</h2>
+      <small class="text-muted">12 semanas · día de la semana · confianza
+        {% if forecast_confidence == 'high' %}<span class="sev-pill saludable">alta</span>
+        {% elif forecast_confidence == 'medium' %}<span class="sev-pill aviso">media</span>
+        {% else %}<span class="sev-pill critico">baja</span>{% endif %}
+      </small>
+    </div>
+    {% if forecast_products_count > 0 %}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+      <div>
+        <div class="text-muted" style="font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;">Unidades estimadas</div>
+        <div style="font-size:var(--text-xl);font-weight:700;">{{ "{:,}".format(forecast_units) }}</div>
+      </div>
+      <div>
+        <div class="text-muted" style="font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;">Ingreso estimado</div>
+        <div style="font-size:var(--text-xl);font-weight:700;">{{ m.gs(forecast_revenue_gs) }}</div>
+      </div>
+    </div>
+    <table class="table is-narrow is-striped" style="font-size:var(--text-sm);">
+      <thead>
+        <tr><th>Producto</th><th class="num">Cant. estimada</th><th class="num">Ingreso</th></tr>
+      </thead>
+      <tbody>
+        {% for fp in forecast_top %}
+        <tr>
+          <td>{{ fp.name }}</td>
+          <td class="num">{{ "%.1f"|format(fp.qty) }}</td>
+          <td class="num">{{ m.gs(fp.revenue_gs) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="margin-top:var(--space-2);font-size:var(--text-xs);">
+      <a href="/produccion/manana">Ver plan completo de mañana →</a>
+    </div>
+    {% else %}
+      {{ ui.empty_state(title="Sin datos suficientes", icon="icon-forecast", hint="Necesitamos ~4 semanas de ventas en este día para pronosticar.", cta_href="/produccion/manana", cta_label="Ver producción") }}
+    {% endif %}
+  </section>
+
   {# ── Coffee regulars (prelaunch roadmap 2026-09-17) ─────────────── #}
   <section class="card" aria-label="Clientes habituales">
     <div class="card-header">
