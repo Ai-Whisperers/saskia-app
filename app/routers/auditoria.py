@@ -31,6 +31,27 @@ def _parse_date(val: str | None) -> datetime | None:
         return None
 
 
+# PROD-MERMA-2: map merma audit rows to the same chip text used on /merma
+# so an auditor and the operator see the same vocabulary.
+_MERMA_SOURCE_CHIPS = {
+    "production": ("📍 Producción", "badge-info"),
+    "manual": ("✍️ Manual", "badge-neutral"),
+}
+
+
+def _source_chip_for(row) -> tuple[str, str]:
+    """Return (chip_text, badge_class) for a merma audit row, or ("", "")
+    if the row is not a merma event or has no source tag."""
+    if not row.action or not row.action.startswith("write.merma"):
+        return "", ""
+    if not isinstance(row.detail, dict):
+        return "", ""
+    src = str(row.detail.get("source", "") or "")
+    if src not in _MERMA_SOURCE_CHIPS:
+        return "", ""
+    return _MERMA_SOURCE_CHIPS[src]
+
+
 def _date_presets() -> dict[str, tuple[str, str]]:
     """Return {label: (start, end)} for common date ranges."""
     today = datetime.now(timezone.utc).date().isoformat()
@@ -139,6 +160,10 @@ def auditoria_index(
             "row": r,
             "detail_pairs": fmt_detail(r.detail or {}),
             "user_agent_short": (r.user_agent[:60] + "...") if r.user_agent and len(r.user_agent) > 60 else r.user_agent,
+            # PROD-MERMA-2: surface the entrypoint on /auditoria so operators
+            # triaging merma events see where they came from without expanding
+            # the detail panel. Empty string when not applicable.
+            "source_chip": _source_chip_for(r),
         }
         for r in paginated
     ]

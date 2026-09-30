@@ -132,7 +132,9 @@
     <tr>
       <td><small>{{ r.occurred_at.strftime("%d/%m/%Y %H:%M") if r.occurred_at else "" }}</small></td>
       <td>{{ r.user_id or "—" }}</td>
-      <td><code>{{ r.action }}</code></td>
+      <td><code>{{ r.action }}</code>
+        {% if item.source_chip %}<br><span class="badge {{ item.source_chip[1] }}" title="Origen del registro">{{ item.source_chip[0] }}</span>{% endif %}
+      </td>
       <td data-copy="{{ r.target_id }}">{{ r.target_type or "" }}{% if r.target_id %} #{{ r.target_id }}{% endif %}</td>
       <td><small>{{ r.ip or "" }}</small></td>
       <td><small class="text-muted" title="{{ r.user_agent or '' }}">{{ item.user_agent_short or "—" }}</small></td>
