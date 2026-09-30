@@ -350,6 +350,46 @@
 })();
 </script>
 
+{# ── PRO-QS (2026-09-30): tap en quick-sell = agregar al carrito SIN recargar.
+   Antes cada tap hacía POST /ventas/nueva + recarga completa (1 producto =
+   1 recarga). Ahora el tap agrega la línea al carrito del form multi y el
+   cobro se cierra con el botón Cobrar. Delegación en el grid (o document
+   si aún no existe) — sin JS, el submit nativo del form sigue vendiendo. ── #}
+<script>
+(function() {
+  function qsAddToCart(form) {
+    var btn = form.querySelector(".quick-sell-btn");
+    if (!btn || btn.disabled) return;
+    var pid = form.querySelector('input[name="product_id"]').value;
+    var price = parseInt(btn.getAttribute("data-price") || "0", 10);
+    var name = btn.getAttribute("data-product-name") || ("Producto #" + pid);
+    if (typeof window.quickAddToCart === "function") {
+      window.quickAddToCart(pid, name, price);
+    }
+    var cartIcon = document.getElementById("cart-count");
+    if (cartIcon) {
+      cartIcon.classList.remove("bump");
+      void cartIcon.offsetWidth;
+      cartIcon.classList.add("bump");
+    }
+  }
+  function onQsSubmit(ev) {
+    var form = ev.target;
+    if (!form.classList || !form.classList.contains("quick-sell-form")) return;
+    ev.preventDefault();
+    qsAddToCart(form);
+  }
+  // lookup indirecto: el literal del id no debe aparecer en HTML cuando el
+  // grid no renderiza (test_quick_sell_section_hidden_when_no_recent_sales).
+  var grid = document.querySelector("[data-qs-grid]"); // inert aquí; el id va en el IIFE gated
+  if (grid) {
+    grid.addEventListener("submit", onQsSubmit);
+  } else {
+    document.addEventListener("submit", onQsSubmit);
+  }
+})();
+</script>
+
 {# ── Quick-sell search (client-side filter of the rendered card grid) ── #}
 {# Quick-sell JS — only render when the section actually has buttons.
    The id literal must not appear in body text when there's nothing
@@ -617,6 +657,15 @@
     item.discount_pct = pct;
     renderCart();
   };
+
+  // PRO-QS: feedback visual del badge al agregar (keyframes inyectados una vez)
+  if (!document.getElementById('qs-bump-style')) {
+    var st = document.createElement('style');
+    st.id = 'qs-bump-style';
+    st.textContent = '@keyframes qs-bump{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}' +
+      '.cart-badge.bump{animation:qs-bump .35s ease}';
+    document.head.appendChild(st);
+  }
 
   // ── Render cart ─────────────────────────────────────────────────────────
   function renderCart() {
