@@ -60,6 +60,13 @@
     <a href="/produccion?view=week{% if view == 'week' and prev_week_iso %}&week={{ prev_week_iso }}{% endif %}" class="btn btn-sm {% if view == 'week' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'week' else 'false' }}">Semana</a>
     <a href="/produccion?view=month" class="btn btn-sm {% if view == 'month' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'month' else 'false' }}">Mes</a>
   </nav>
+
+  <a href="/produccion/manana" class="btn"
+     style="display:inline-flex; align-items:center; gap: var(--space-2);">
+    <svg class="icon" aria-hidden="true"><use href="#icon-spark"/></svg>
+    Producción de mañana
+    <svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg>
+  </a>
 </div>
 
 

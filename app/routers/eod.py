@@ -1,12 +1,22 @@
 """app/routers/eod.py — /eod (End-of-day checklist).
 
 Built on app/rms/workflow.py which has fresh_eod_checklist() + eod_progress().
+
+GET /eod                      → today's checklist (default)
+GET /eod?start=YYYY-MM-DD&end=YYYY-MM-DD
+                             → range summary (weekend batch view):
+                               total ventas + merma + producción completada
+                               for each day in the range. Checklist is
+                               NOT shown in range mode (it's per-day only);
+                               link to each individual /eod?date=... from
+                               the summary.
 """
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from decimal import Decimal
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -16,6 +26,8 @@ from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
 from app.rms.eod_completions import completions_for_date, upsert_completion
 from app.rms.errors import BadRequest
+from app.rms.models import ProductionCompletion, Sale, WasteLog
+from app.rms.money import to_int_gs
 from app.rms.observability import record_audit
 from app.rms.production import plan_production
 from app.rms.workflow import eod_progress, fresh_eod_checklist
@@ -24,9 +36,29 @@ from app.services.template_render import render
 router = APIRouter(prefix="/eod", dependencies=[Depends(require_login)])
 
 
+def _parse_range_date(raw: str | None) -> date | None:
+    """Parse YYYY-MM-DD; return None on bad input."""
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
 @router.get("", response_class=HTMLResponse)
-def eod_view(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
-    """Show today's EOD checklist + today's production plan summary."""
+def eod_view(
+    request: Request,
+    start: str | None = Query(None, description="Range start YYYY-MM-DD (inclusive)"),
+    end: str | None = Query(None, description="Range end YYYY-MM-DD (inclusive)"),
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Show today's EOD checklist + today's production plan summary.
+
+    With ?start=YYYY-MM-DD&end=YYYY-MM-DD show a weekend-batch summary
+    card instead: ventas, merma, producción plan vs completada per day.
+    Checklist stays per-day and is only rendered for "today".
+    """
     items = fresh_eod_checklist()
     progress = eod_progress(items)
     # Today's production plan — "se debe registrar cuánto de la producción se completó"
@@ -74,6 +106,69 @@ def eod_view(request: Request, session: Session = Depends(get_session)) -> HTMLR
     reorder_count = len(reorder_items)
     reorder_total_gs = sum(i.estimated_cost_gs for i in reorder_items if i.has_price)
 
+    # ── Weekend batch: ?start=&end= ──────────────────────────────────────
+    # When the operator passes both start and end (e.g. closing Sat+Sun at
+    # once on Monday morning), show a per-day summary instead of the
+    # today's checklist. Cap at 31 days to avoid pathological queries.
+    range_start = _parse_range_date(start)
+    range_end = _parse_range_date(end)
+    range_summary: list[dict] = []
+    range_total_ventas_gs = 0
+    range_total_merma_gs = 0
+    range_total_operaciones = 0
+    range_days = 0
+    is_range_mode = False
+
+    if range_start and range_end and range_end >= range_start:
+        span_days = (range_end - range_start).days + 1
+        if span_days <= 31:
+            is_range_mode = True
+            range_days = span_days
+            # Aggregate sales in range
+            range_sales = session.scalars(
+                select(Sale).where(
+                    Sale.sold_at.isnot(None),
+                    Sale.voided_at.is_(None),
+                    Sale.sold_at >= datetime.combine(
+                        range_start, datetime.min.time()
+                    ).replace(tzinfo=ASUNCION_TZ),
+                    Sale.sold_at < (
+                        datetime.combine(range_end, datetime.min.time())
+                        + timedelta(days=1)
+                    ).replace(tzinfo=ASUNCION_TZ),
+                )
+            ).all()
+            for s in range_sales:
+                range_total_ventas_gs += to_int_gs(
+                    Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))
+                )
+                range_total_operaciones += 1
+            # Waste in range (WasteLog.value_lost_gs)
+            waste_rows = session.scalars(
+                select(WasteLog).where(
+                    WasteLog.recorded_at >= datetime.combine(
+                        range_start, datetime.min.time()
+                    ).replace(tzinfo=ASUNCION_TZ),
+                    WasteLog.recorded_at < (
+                        datetime.combine(range_end, datetime.min.time())
+                        + timedelta(days=1)
+                    ).replace(tzinfo=ASUNCION_TZ),
+                )
+            ).all()
+            for w in waste_rows:
+                range_total_merma_gs += int(getattr(w, "cost_gs", 0) or 0)
+            # Per-day production: completions + plan rows
+            cur = range_start
+            while cur <= range_end:
+                day_plan = plan_production(session, for_date=cur)
+                day_comp = completions_for_date(session, cur)
+                range_summary.append({
+                    "date_iso": cur.isoformat(),
+                    "plan_rows": len(day_plan.rows) if hasattr(day_plan, "rows") else 0,
+                    "completed": sum(day_comp.values()),
+                })
+                cur += timedelta(days=1)
+
     return render(request, "eod.html", {
         "items": items,
         "progress": progress,
@@ -85,6 +180,15 @@ def eod_view(request: Request, session: Session = Depends(get_session)) -> HTMLR
         "reorder_items": reorder_items_top,
         "reorder_count": reorder_count,
         "reorder_total_gs": reorder_total_gs,
+        # Weekend batch (prelaunch roadmap 2026-09-17)
+        "is_range_mode": is_range_mode,
+        "range_start_iso": range_start.isoformat() if range_start else "",
+        "range_end_iso": range_end.isoformat() if range_end else "",
+        "range_days": range_days,
+        "range_summary": range_summary,
+        "range_total_ventas_gs": range_total_ventas_gs,
+        "range_total_merma_gs": range_total_merma_gs,
+        "range_total_operaciones": range_total_operaciones,
     })
 
 

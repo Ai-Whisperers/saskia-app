@@ -78,6 +78,7 @@ markers = [
     "e2e: end-to-end scenario tests driving real routes (tests/e2e/)",
     "migration: schema-migration replay/archaeology tests",
     "slow: tests that take >1s; useful for `--ignore-glob`",
+    "network: tests that hit external sites (skipped in CI without network)",
 ]
 filterwarnings = [
     # starlette.testclient's BlockingPortal alias is deprecated upstream.
@@ -90,7 +91,9 @@ filterwarnings = [
     # starlette.testclient warns about httpx vs httpx2 (not our code).
     # StarletteDeprecationWarning inherits from UserWarning, not
     # DeprecationWarning, so it needs its own filter.
-    "ignore::starlette.exceptions.StarletteDeprecationWarning",
+    # 2026-10-01: starlette dropped StarletteDeprecationWarning — filter
+    # breaks pytest locally. Commented; re-enable when upstream restores.
+    # "ignore::starlette.exceptions.StarletteDeprecationWarning",
 ]
 
 # Ruff config

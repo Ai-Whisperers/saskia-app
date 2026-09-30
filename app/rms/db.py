@@ -3044,6 +3044,111 @@ def _migration_071_customer_profile_completeness(conn: Any) -> None:
     _bump_schema_version(conn, 71)
 
 
+def _migration_072_reorder_supplier_tracking(conn: Any) -> None:
+    """P2 reorder-supplier redesign (2026-09-30): make `/reorder` provider-aware.
+
+    Four new columns on `ingredient` (all NULL-safe so existing rows survive):
+
+      - `last_purchase_supplier_id` — the supplier Saskia actually bought
+        from in her most recent restock. Used to pre-select the dropdown
+        on `/reorder`, and as the source of truth for the
+        "specialty-only-here" auto-lock after 3 consecutive buys from the
+        same supplier.
+
+      - `last_purchase_at` — UTC timestamp of the most recent restock that
+        set `last_purchase_supplier_id`. NULL means "never restocked".
+
+      - `purchase_streak_count` — rolling counter that increments when she
+        buys from the same supplier twice in a row and resets when she
+        buys from a different one. When it reaches 3, the dropdown on
+        `/reorder` auto-locks to that supplier (visual badge: "fijo").
+
+      - `locked_supplier_id` — set when `purchase_streak_count` first hits
+        3 from `last_purchase_supplier_id`. While this column is non-NULL,
+        the dropdown defaults to this supplier and shows the "fijo" badge.
+        The operator can override by picking a different supplier; doing
+        so resets the streak to 1.
+
+    Backfill: every existing ingredient with `supplier_id` set gets that
+    value copied to `last_purchase_supplier_id` so the page renders
+    correctly on first load (no "sin registro" flash for ingredients that
+    have been associated with a supplier for months).
+    """
+    for stmt in (
+        "ALTER TABLE ingredient ADD COLUMN last_purchase_supplier_id INTEGER REFERENCES supplier(id)",
+        "ALTER TABLE ingredient ADD COLUMN last_purchase_at DATETIME",
+        "ALTER TABLE ingredient ADD COLUMN purchase_streak_count INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE ingredient ADD COLUMN locked_supplier_id INTEGER REFERENCES supplier(id)",
+    ):
+        try:
+            conn.execute(text(stmt))
+        except Exception:  # noqa: BLE001, S110 — column already exists
+            pass
+
+    # Backfill — best-effort. Empty DB → no rows affected; populated DB
+    # gets supplier_id copied to last_purchase_supplier_id so the page
+    # renders correctly on first load.
+    try:
+        conn.execute(
+            text(
+                "UPDATE ingredient SET last_purchase_supplier_id = supplier_id "
+                "WHERE last_purchase_supplier_id IS NULL AND supplier_id IS NOT NULL"
+            )
+        )
+    except Exception as exc:  # noqa: BLE001, S110
+        logger.warning("migration 072: backfill of last_purchase_supplier_id failed: %s", exc)
+
+    try:
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_ingredient_last_purchase_supplier "
+                "ON ingredient (last_purchase_supplier_id)"
+            )
+        )
+    except Exception as exc:  # noqa: BLE001, S110
+        logger.warning("migration 072: index creation failed: %s", exc)
+
+    _bump_schema_version(conn, 72)
+
+
+def _migration_073_ingredient_price_event_supplier(conn: Any) -> None:
+    """Phase 2 (2026-10-01): tag every IngredientPriceEvent with a
+    supplier so the /reorder dropdown can show per-supplier prices
+    ('Casa Rica — 4.200' vs 'sin registro') as the operator logs
+    purchases.
+
+    Before 073, IngredientPriceEvent only had ingredient_id + price_gs
+    + recorded_at + source. The CSV price upload (Phase 3) writes
+    rows through this column so per-supplier pricing fills in over time.
+
+    Schema:
+      - ADD COLUMN supplier_id INTEGER REFERENCES supplier(id) ON DELETE SET NULL
+      - ADD INDEX ix_ingredient_price_event_supplier_time
+
+    The column is nullable for backwards compatibility with existing
+    rows (189 of them in prod, all source='restock'). The CSV import
+    always writes supplier_id so future queries can group by supplier.
+
+    Also: backfill the ingredient's ``last_purchase_supplier_id`` from
+    any existing ``IngredientPriceEvent`` that was a 'restock' AND has
+    a supplier_id — but since existing events have NULL supplier_id,
+    this is a no-op for the historical 189 rows. Documented here so
+    future readers don't wonder why.
+    """
+    for stmt in (
+        "ALTER TABLE ingredient_price_event ADD COLUMN supplier_id INTEGER REFERENCES supplier(id) ON DELETE SET NULL",
+        "CREATE INDEX IF NOT EXISTS ix_ingredient_price_event_supplier_time ON ingredient_price_event (supplier_id, recorded_at)",
+    ):
+        try:
+            conn.execute(text(stmt))
+        except Exception as exc:  # noqa: BLE001
+            # CREATE INDEX IF NOT EXISTS is idempotent; ADD COLUMN raises
+            # on second run which we tolerate.
+            logger.debug("migration 073 stmt skipped: %s — %s", stmt.split()[2], exc)
+
+    _bump_schema_version(conn, 73)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -3116,6 +3221,8 @@ MIGRATIONS = {
     69: _migration_069_customer_addresses_delivery_favorites,
     70: _migration_070_customer_dietary_profile,
     71: _migration_071_customer_profile_completeness,
+    72: _migration_072_reorder_supplier_tracking,
+    73: _migration_073_ingredient_price_event_supplier,
 }
 
 

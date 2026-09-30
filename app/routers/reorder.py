@@ -8,18 +8,27 @@ from __future__ import annotations
 
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import current_user_id
 from app.auth import require_login_or_disabled as require_login
 from app.rms.audit import record as audit_record
 from app.rms.dependencies import get_session
-from app.rms.models import Ingredient
+from app.rms.models import Ingredient, IngredientPriceEvent, Supplier
 from app.rms.price_history import batch_price_stats, record_price_event
 from app.rms.rate_limit import is_write_rate_limited
 from app.rms.reorder import compute_reorder_list
+from app.rms.reorder_supplier_prices import get_supplier_price_options
+from app.rms.supplier_history import (
+    LOCK_THRESHOLD,
+    get_effective_supplier_id,
+    record_purchase_supplier,
+    lock_supplier,
+    unlock_supplier,
+)
 from app.services.template_render import render
 
 router = APIRouter(prefix="/reorder", dependencies=[Depends(require_login)])
@@ -42,15 +51,55 @@ def reorder_view(
     # sum remains correct, but we keep this comment for clarity.
     total_cost = sum(i.estimated_cost_gs for i in items)
 
-    # Build ingredient_id -> (supplier_name, supplier_phone) map for WhatsApp links
+    # Build ingredient_id -> (supplier_name, supplier_phone) map for WhatsApp links.
+    # Migration 072 (P2 reorder redesign): the dropdown now defaults to
+    # `effective_supplier_id` (locked > last_purchase > parent supplier_id),
+    # so the supplier phone/name lookup should mirror that priority.
     supplier_map: dict[int, tuple[str | None, str]] = {}
+    effective_supplier_map: dict[int, int | None] = {}
+    locked_supplier_map: dict[int, int | None] = {}
     for item in items:
-        if item.ingredient_id not in supplier_map:
-            ing = session.get(Ingredient, item.ingredient_id)
-            if ing and ing.supplier:
-                supplier_map[item.ingredient_id] = (ing.supplier.name, ing.supplier.phone or "")
-            else:
-                supplier_map[item.ingredient_id] = (None, "")
+        ing = session.get(Ingredient, item.ingredient_id)
+        if ing is None:
+            supplier_map[item.ingredient_id] = (None, "")
+            effective_supplier_map[item.ingredient_id] = None
+            locked_supplier_map[item.ingredient_id] = None
+            continue
+        eff_id = get_effective_supplier_id(ing)
+        effective_supplier_map[item.ingredient_id] = eff_id
+        locked_supplier_map[item.ingredient_id] = ing.locked_supplier_id
+        # Pick the supplier object to show name + phone from
+        eff_supplier = (
+            session.get(Supplier, eff_id) if eff_id is not None else None
+        )
+        if eff_supplier is not None:
+            supplier_map[item.ingredient_id] = (eff_supplier.name, eff_supplier.phone or "")
+        elif ing.supplier is not None:
+            # Fallback to the legacy parent supplier even though it's not
+            # the effective one — better than showing "sin proveedor".
+            supplier_map[item.ingredient_id] = (ing.supplier.name, ing.supplier.phone or "")
+        else:
+            supplier_map[item.ingredient_id] = (None, "")
+
+    # Per-supplier price options for every active supplier (used to render
+    # the inline prices in the dropdown). One query per ingredient — N+1
+    # is acceptable here because N is bounded by the number of ingredients
+    # below minimum (typically <30). If this becomes a bottleneck, batch
+    # the lookup in a single SQL query.
+    supplier_prices_map: dict[int, dict[int, int | None]] = {}
+    for item in items:
+        supplier_prices_map[item.ingredient_id] = get_supplier_price_options(
+            session, item.ingredient_id
+        )
+
+    # All active suppliers, ordered by name ASC. The template iterates
+    # this list once to render every dropdown identically.
+    all_suppliers = session.scalars(
+        select(Supplier).where(Supplier.is_active == True).order_by(Supplier.name)
+    ).all()
+    supplier_options = [
+        {"id": s.id, "name": s.name, "phone": s.phone or ""} for s in all_suppliers
+    ]
 
     # Price-history stats per ingredient (used for the sparkline on /reorder).
     # Single SQL query covers all items; 90-day window.
@@ -88,11 +137,15 @@ def reorder_view(
                     "urgency": i.urgency,
                     "supplier_name": supplier_map.get(i.ingredient_id, (None, ""))[0],
                     "supplier_phone": supplier_map.get(i.ingredient_id, ("", ""))[1],
+                    "effective_supplier_id": effective_supplier_map.get(i.ingredient_id),
+                    "locked_supplier_id": locked_supplier_map.get(i.ingredient_id),
                 }
                 for i in items
             ],
+            "supplier_options": supplier_options,
             "total_estimated_cost_gs": total_cost,
             "count": len(items),
+            "lock_threshold": LOCK_THRESHOLD,  # analytics-only; locks are now manual
         })
 
     return render(request, "reorder.html", {
@@ -100,6 +153,11 @@ def reorder_view(
         "total_cost_gs": total_cost,
         "count": len(items),
         "supplier_map": supplier_map,
+        "effective_supplier_map": effective_supplier_map,
+        "locked_supplier_map": locked_supplier_map,
+        "supplier_prices_map": supplier_prices_map,
+        "supplier_options": supplier_options,
+        "lock_threshold": LOCK_THRESHOLD,
         "price_stats": price_stats,
         "forecast_map": forecast_map,
         "page_start": 1,
@@ -115,6 +173,7 @@ def reorder_registrar(
     qty_unit: str = Form(""),
     price_gs: int = Form(...),
     notes: str = Form(""),
+    supplier_id: int | None = Form(None),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Record a purchase: bump stock, append a 'restock' price event.
@@ -126,6 +185,14 @@ def reorder_registrar(
     MER-01 (cross-cutting): qty_unit lets the operator enter the buy in
     any unit from the same family as the ingredient's stock unit (e.g.
     5000 g instead of 5 kg). Cross-family conversion raises a 400.
+
+    Migration 072 (P2 reorder redesign): ``supplier_id`` is optional
+    but tracked when provided. When supplied, ``record_purchase_supplier``
+    updates the streak counter and may auto-lock the dropdown on the
+    next visit to /reorder (after 3 consecutive buys from the same
+    supplier). When omitted, we leave the existing last-purchase pointer
+    intact (operator skipped the dropdown — e.g. used the keyboard
+    shortcut to submit without picking one).
     """
     if is_write_rate_limited(session, request, max_per_minute=10):
         raise HTTPException(
@@ -142,6 +209,15 @@ def reorder_registrar(
     if ing is None:
         raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
 
+    # Validate the supplier_id FK when supplied so a malformed POST can't
+    # silently write garbage into the streak/lock columns.
+    chosen_supplier_id: int | None = None
+    if supplier_id is not None:
+        sup = session.get(Supplier, supplier_id)
+        if sup is None:
+            raise HTTPException(status_code=400, detail="Proveedor inválido")
+        chosen_supplier_id = sup.id
+
     # Convert qty from the form unit to the ingredient's stock unit so
     # "5000 g" on the form lands as +5.00 kg on the ingredient.
     from app.rms.units import Unit, can_convert, convert_qty
@@ -157,7 +233,15 @@ def reorder_registrar(
         qty_in_stock_unit = float(convert_qty(qty, from_unit, to_unit))
 
     ing.stock_qty = ing.stock_qty + qty_in_stock_unit
-    record_price_event(session, ingredient_id, price_gs, source="restock")
+    record_price_event(
+        session,
+        ingredient_id,
+        price_gs,
+        source="restock",
+        supplier_id=chosen_supplier_id,
+    )
+    if chosen_supplier_id is not None:
+        record_purchase_supplier(session, ingredient_id, chosen_supplier_id)
     audit_record(
         session,
         user_id=current_user_id(request) or "operator",
@@ -168,11 +252,373 @@ def reorder_registrar(
             "qty": qty_in_stock_unit,
             "qty_unit": qty_unit or ing.unit,
             "price_gs": price_gs,
+            "supplier_id": chosen_supplier_id,
             "notes": notes or None,
         },
     )
     session.commit()
     return RedirectResponse(url="/reorder", status_code=303)
+
+
+@router.post("/scrape")
+def reorder_scrape(
+    request: Request,
+    q: str = Form(...),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Scrape public supermarket sites for the latest prices of ``q``.
+
+    Returns a list of :class:`ScrapedPrice` per source so the /reorder UI
+    can show a "Latest prices" dropdown next to the supplier picker. If
+    a source can't be scraped (e.g. Stock needs JS), it's reported with
+    an ``error`` instead of crashing.
+
+    Audit row written (action=read.scraper.run) so the operator can see
+    how often this is actually used.
+    """
+    from app.rms.scrapers import scrape_all
+
+    results = scrape_all(q.strip())
+    payload = {
+        "ok": True,
+        "query": q.strip(),
+        "sources": [
+            {
+                "source": r.source,
+                "ok": r.ok,
+                "error": r.error,
+                "matches": [
+                    {
+                        "name": m.product_name,
+                        "price_gs": m.price_gs,
+                        "unit": m.unit,
+                        "url": m.url,
+                    }
+                    for m in r.matches
+                ],
+            }
+            for r in results
+        ],
+    }
+    try:
+        audit_record(
+            session,
+            user_id=current_user_id(request) or "operator",
+            action="read.scraper.run",
+            target_type="reorder",
+            target_id="scraper",
+            detail={
+                "query": q.strip(),
+                "sources": [r.source for r in results],
+                "match_count": sum(len(r.matches) for r in results),
+            },
+        )
+        session.commit()
+    except Exception:
+        session.rollback()  # don't fail the scrape over an audit miss
+    return JSONResponse(payload)
+
+
+@router.post("/lock-supplier")
+def reorder_lock_supplier(
+    request: Request,
+    ingredient_id: int = Form(...),
+    supplier_id: int = Form(...),
+    reason: str = Form(""),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Manually pin an ingredient to a supplier (🔒 button on /reorder).
+
+    Audit row written server-side via ``lock_supplier()``. Returns
+    ``{"ok": true, "ingredient_id": ..., "supplier_id": ...}`` so the
+    frontend can refresh. On error returns 4xx with ``{"ok": false,
+    "error": "..."}``.
+    """
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
+        )
+
+    ing = session.get(Ingredient, ingredient_id)
+    if ing is None:
+        raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
+
+    sup = session.get(Supplier, supplier_id)
+    if sup is None:
+        raise HTTPException(status_code=400, detail="Proveedor inválido")
+    if not sup.is_active:
+        raise HTTPException(
+            status_code=400,
+            detail=f"El proveedor '{sup.name}' está inactivo. Reactiválo en /settings/catalog antes de fijar.",
+        )
+
+    actor = str(current_user_id(request) or "operator")
+    lock_supplier(
+        session,
+        ingredient_id=ingredient_id,
+        supplier_id=sup.id,
+        actor=actor,
+        reason=reason,
+    )
+    session.commit()
+    return JSONResponse({"ok": True, "ingredient_id": ingredient_id, "supplier_id": sup.id})
+
+
+@router.post("/unlock-supplier")
+def reorder_unlock_supplier(
+    request: Request,
+    ingredient_id: int = Form(...),
+    reason: str = Form(""),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Clear the manual lock on an ingredient (🔓 button on /reorder).
+
+    Audit row written server-side via ``unlock_supplier()``. Returns
+    ``{"ok": true, "ingredient_id": ...}`` on success. No-op (still 200)
+    if there was no lock.
+    """
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
+        )
+
+    ing = session.get(Ingredient, ingredient_id)
+    if ing is None:
+        raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
+
+    actor = str(current_user_id(request) or "operator")
+    unlock_supplier(
+        session,
+        ingredient_id=ingredient_id,
+        actor=actor,
+        reason=reason,
+    )
+    session.commit()
+    return JSONResponse({"ok": True, "ingredient_id": ingredient_id})
+
+
+
+@router.post("/upload-prices")
+async def reorder_upload_prices(
+    request: Request,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Bulk-load supplier price rows from a CSV file.
+
+    Migration 073 made IngredientPriceEvent carry a supplier_id so the
+    /reorder dropdown can show per-supplier prices. This endpoint is
+    the bulk path: paste a spreadsheet (or upload one) and the rows
+    fill in.
+
+    CSV format (UTF-8, comma-separated, with header row):
+
+        ingredient_name,supplier_name,price_gs,date
+        harina,Stock PY,4200,2026-10-01
+        harina,Casa Rica,4500,2026-10-01
+        azúcar,Stock PY,3500,2026-10-01
+        ...
+
+    Validation rules:
+      - ingredient_name must resolve to an active ingredient (case-insensitive
+        match on ``ingredient.name``)
+      - supplier_name must resolve to an ACTIVE supplier
+        (soft-deleted suppliers are skipped with an error in the response)
+      - price_gs must be a positive integer (no decimals; matches the
+        Gs. money rule)
+      - date must be YYYY-MM-DD; defaults to today when blank. Future dates
+        are accepted (she might be quoting upcoming prices) but warn.
+      - duplicate (ingredient, supplier, date) tuples are skipped (one
+        restock per supplier per day per ingredient makes sense).
+
+    Response shape (always 200, even on per-row errors — caller renders
+    a preview to the operator before committing):
+
+        {
+          "ok": true,
+          "imported": 12,        // rows successfully written
+          "skipped": 3,          // duplicates + future-date warnings
+          "errors": [
+            {"row": 5, "ingredient_name": "xxx", "error": "ingredient not found"}
+          ],
+          "preview": [
+            {"ingredient": "harina", "supplier": "Stock PY", "price_gs": 4200, "date": "2026-10-01"}
+          ]
+        }
+    """
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
+        )
+
+    # Read file body. Reject anything bigger than 1MB — a CSV with
+    # thousands of rows is overkill for /reorder; this is meant for a
+    # one-time spreadsheet paste.
+    raw = await file.read()
+    if len(raw) > 1_000_000:
+        raise HTTPException(
+            status_code=413,
+            detail="CSV demasiado grande (>1MB). Partilo en varios archivos.",
+        )
+    try:
+        text = raw.decode("utf-8-sig")  # tolerate BOM
+    except UnicodeDecodeError:
+        try:
+            text = raw.decode("latin-1")
+        except UnicodeDecodeError:
+            raise HTTPException(
+                status_code=400,
+                detail="No se pudo decodificar el CSV. Usá UTF-8.",
+            )
+
+    import csv
+    import io
+    from datetime import date as _date, datetime as _datetime
+
+    reader = csv.DictReader(io.StringIO(text))
+    required = {"ingredient_name", "supplier_name", "price_gs"}
+    if reader.fieldnames is None or not required.issubset(set(reader.fieldnames)):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Faltan columnas. Necesarias: "
+                + ", ".join(sorted(required))
+                + f". Encontradas: {reader.fieldnames}"
+            ),
+        )
+
+    # Pre-load lookup maps so we issue one query per dimension instead
+    # of one per row (cheap, but the test seed has 76 ingredients × 8
+    # suppliers × 90 days = 54k possible rows; we'd be there all day).
+    ingredients_by_name: dict[str, Ingredient] = {
+        i.name.lower(): i for i in (
+            session.execute(select(Ingredient)).scalars().all()
+        )
+    }
+    suppliers_by_name: dict[str, Supplier] = {
+        s.name.lower(): s for s in (
+            session.execute(
+                select(Supplier).where(Supplier.is_active == True)  # noqa: E712
+            ).scalars().all()
+        )
+    }
+
+    today = _date.today()
+    imported = 0
+    skipped = 0
+    errors: list[dict] = []
+    preview: list[dict] = []
+
+    for row_idx, row in enumerate(reader, start=2):  # start=2 (header is row 1)
+        ing_name = (row.get("ingredient_name") or "").strip()
+        sup_name = (row.get("supplier_name") or "").strip()
+        price_raw = (row.get("price_gs") or "").strip()
+        date_raw = (row.get("date") or "").strip()
+
+        if not ing_name or not sup_name:
+            errors.append({"row": row_idx, "error": "ingredient_name o supplier_name vacío"})
+            continue
+        try:
+            price_int = int(price_raw)
+        except (ValueError, TypeError):
+            errors.append({"row": row_idx, "ingredient_name": ing_name, "supplier_name": sup_name,
+                           "error": f"price_gs inválido: {price_raw!r}"})
+            continue
+        if price_int <= 0:
+            errors.append({"row": row_idx, "ingredient_name": ing_name, "supplier_name": sup_name,
+                           "error": "price_gs debe ser > 0"})
+            continue
+
+        ing = ingredients_by_name.get(ing_name.lower())
+        if ing is None:
+            errors.append({"row": row_idx, "ingredient_name": ing_name,
+                           "error": "ingrediente no encontrado"})
+            continue
+        sup = suppliers_by_name.get(sup_name.lower())
+        if sup is None:
+            errors.append({"row": row_idx, "supplier_name": sup_name,
+                           "error": "proveedor no encontrado (o inactivo)"})
+            continue
+
+        # Date parsing
+        if date_raw:
+            try:
+                when = _datetime.strptime(date_raw, "%Y-%m-%d").date()
+            except ValueError:
+                errors.append({"row": row_idx, "ingredient_name": ing_name,
+                               "error": f"date inválido: {date_raw!r} (usá YYYY-MM-DD)"})
+                continue
+        else:
+            when = today
+
+        # Skip future-dated rows but warn
+        if when > today:
+            skipped += 1
+            preview.append({
+                "ingredient": ing.name, "supplier": sup.name,
+                "price_gs": price_int, "date": when.isoformat(),
+                "warning": "fecha futura — no se importó",
+            })
+            continue
+
+        # Dedup: one (ingredient, supplier, date) per restock makes sense
+        existing = session.execute(
+            select(IngredientPriceEvent).where(
+                IngredientPriceEvent.ingredient_id == ing.id,
+                IngredientPriceEvent.supplier_id == sup.id,
+                IngredientPriceEvent.recorded_at >= _datetime.combine(when, _datetime.min.time()),
+                IngredientPriceEvent.recorded_at < _datetime.combine(when, _datetime.max.time()),
+            )
+        ).scalars().first()
+        if existing is not None:
+            skipped += 1
+            preview.append({
+                "ingredient": ing.name, "supplier": sup.name,
+                "price_gs": price_int, "date": when.isoformat(),
+                "warning": "duplicado — ya hay un evento para esta fecha",
+            })
+            continue
+
+        record_price_event(
+            session,
+            ingredient_id=ing.id,
+            price_gs=price_int,
+            source="csv_upload",
+            at=_datetime.combine(when, _datetime.min.time()).replace(tzinfo=None),
+            supplier_id=sup.id,
+        )
+        imported += 1
+        preview.append({
+            "ingredient": ing.name, "supplier": sup.name,
+            "price_gs": price_int, "date": when.isoformat(),
+        })
+
+    audit_record(
+        session,
+        user_id=current_user_id(request) or "operator",
+        action="write.reorder.csv_upload",
+        request=request,
+        detail={
+            "imported": imported,
+            "skipped": skipped,
+            "errors": len(errors),
+            "filename": getattr(file, "filename", None),
+        },
+    )
+    session.commit()
+
+    return JSONResponse({
+        "ok": True,
+        "imported": imported,
+        "skipped": skipped,
+        "errors": errors[:50],  # cap error list
+        "preview": preview[:50],
+    })
+
+
 
 
 @router.post("/generate-po")

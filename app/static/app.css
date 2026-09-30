@@ -299,3 +299,82 @@ button.tab.is-active { color: var(--color-accent); border-bottom-color: var(--co
   .menu-tablet__header { border-bottom: 1px solid #999; }
   .menu-tablet__card { box-shadow: none; border: 1px solid #999; }
 }
+
+/* --- /reorder redesign (migration 072, 2026-09-30) --- */
+
+/* Toast banner shown when changing one row's supplier cascades to others.
+   Auto-dismisses after 5s via the JS in reorder.html. */
+.cascade-banner {
+  background: var(--color-info-soft);
+  color: var(--color-info-fg);
+  border-left: 4px solid var(--color-info);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.cascade-banner::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-info);
+  flex-shrink: 0;
+  animation: cascade-pulse 1.6s ease-in-out infinite;
+}
+@keyframes cascade-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.25); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cascade-banner::before { animation: none; }
+}
+
+/* Locked-supplier row gets a soft left edge so the operator can see at a
+   glance which rows have auto-locked. The picker itself stays editable;
+   the data-side streak counter is the real enforcement. */
+.reorder-row--locked > td:first-child {
+  border-left: 3px solid var(--color-info);
+}
+.reorder-row--locked .badge.badge-info {
+  font-weight: 600;
+  font-size: 0.625rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Inputs in the 4-cell Reponer block. Slightly tighter than the default
+   so 4 cells fit on a 1280px screen without horizontal scroll. */
+.reorder-row .qty-input,
+.reorder-row .price-input {
+  width: 5rem;
+  padding: 0 var(--space-2);
+  height: 32px;
+}
+.reorder-row .price-input {
+  width: 6.5rem;
+}
+
+/* Supplier picker sits in the Confirmar cell; minimum width so the
+   dropdown labels don't truncate. */
+.reorder-row .supplier-picker {
+  width: 100%;
+  min-width: 10rem;
+}
+/* Locked-hint tooltip surfaced when the picker is data-locked. The
+   component reads this attribute and applies a subtle visual cue. */
+.reorder-row .supplier-picker[data-locked="1"] {
+  border-color: var(--color-info);
+  box-shadow: 0 0 0 2px var(--color-info-soft);
+}
+
+/* Confirm button: full-width so the supplier-picker + Reponer column
+   stays a clean 2-row stack. */
+.reorder-row .confirm-btn {
+  width: 100%;
+  justify-content: center;
+}

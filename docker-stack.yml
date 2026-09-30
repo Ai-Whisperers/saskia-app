@@ -57,8 +57,10 @@ services:
       - PORT=8000
       - PYTHONUNBUFFERED=1
       - AIW_SASKIA_LOG_DIR=/var/log/saskia
-      # Auth: bypass mode for dev. Set to 0 in production. See app/routers/auth.py.
-      - SASKIA_TEST_AUTH_DISABLED=1
+      # Auth: bypass mode for dev. PRO-SEC boot guard (commit 90c131f,
+      # 2026-09-30) refuses to start if this is set OUTSIDE a pytest run.
+      # Prod uses bcrypt login via app/auth.py. Keep commented for safety.
+      # - SASKIA_TEST_AUTH_DISABLED=1
       - AIW_SASKIA_INTERNAL_ROUTES=1
       # Auth: keep same as Render so logins work
       - SUPABASE_URL=https://aiwhisperers.supabase.co

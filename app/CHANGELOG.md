@@ -5,6 +5,152 @@
 
 ## [Unreleased]
 
+### Changed — Reorder lock: auto-streak → manual 🔒 toggle
+- **Removed auto-streak lock**: the 3-consecutive-buys auto-lock that
+  shipped in commit 3acd3b4 was producing surprise moments ("why is
+  this pinned?"). Replaced with a **manual 🔒 button** in each row's
+  Proveedor cell. She toggles when she knows the item is specialty,
+  the system never locks on her behalf.
+- **`record_purchase_supplier()`** no longer touches
+  ``locked_supplier_id``. Streak counter (``purchase_streak_count``)
+  is still maintained for the future "lock this?" suggestion dashboard
+  but never changes behaviour automatically.
+- **New endpoints** (`app/routers/reorder.py`):
+  - `POST /reorder/lock-supplier` — pins an ingredient to its
+    currently-effective supplier; refuses soft-deleted suppliers.
+  - `POST /reorder/unlock-supplier` — clears the pin (no-op if no lock).
+  - Both write audit rows via ``audit_record()`` and return JSON
+    ``{ok: true, ...}`` so the frontend can refresh.
+- **New helpers** (`app/rms/supplier_history.py`):
+  - ``lock_supplier()`` — idempotent (no double-audit on re-lock to
+    same supplier); records ``previous_locked_supplier_id`` in audit
+    detail when overriding an existing lock.
+  - ``unlock_supplier()`` — no-op when no lock present.
+- **Template** (`app/templates/reorder.html`):
+  - Each row's Proveedor cell shows **🔒** (unlocked) or **🔓** (locked).
+  - Click → POST → page reload to swap badge + button.
+  - Locked-row CSS still applies (left-edge stripe + dropdown ring).
+- **Tests**: 16 in `test_reorder_supplier_redesign.py` (was 11).
+  Added: `lock_supplier_writes_audit_row`, `lock_is_idempotent`,
+  `lock_overrides_existing_lock_and_audits_previous`,
+  `unlock_writes_audit_row`, `unlock_is_noop_when_unlocked`,
+  `switching_suppliers_does_not_touch_existing_lock`. Replaced
+  `streak_locks_after_three_consecutive_buys` with
+  `streak_does_NOT_auto_lock` (regression for Phase 2).
+
+### Changed — Reorder redesign: per-row supplier picker + auto-lock
+- **Migration 072** (`app/rms/db.py`): adds `last_purchase_supplier_id`,
+  `last_purchase_at`, `purchase_streak_count`, `locked_supplier_id` to
+  `ingredient`. Backfills `last_purchase_supplier_id` from `supplier_id`
+  so existing rows render correctly on first load.
+- **`/reorder`** (`app/templates/reorder.html`, `app/routers/reorder.py`):
+  - The `Reponer` column is now **four separate cells**: Cantidad /
+    Unidad / Precio / Confirmar (was a single cramped `<td>`).
+  - Each row has its own **supplier dropdown** (saskia-combo) with the
+    active supplier's name + price inline and "— sin registro" for the
+    others. Q1.
+  - **Auto-lock badge "fijo"** appears when an ingredient has been
+    bought 3+ times in a row from the same supplier. The picker shows a
+    subtle blue ring + tooltip; the streak counter is the real
+    enforcement (operator can still switch; doing so clears the lock).
+    Q2.
+  - **Live cost recompute** as she edits `qty` × `price_gs`: per-row
+    "Costo est." + footer "Total estimado" update on `input` events.
+  - **Grocery-store cascade banner**: changing the supplier on one row
+    auto-updates every OTHER row that EITHER had the same previous
+    supplier OR had no supplier. A blue toast banner shows the count
+    ("Proveedor actualizado a X en N fila(s): A + B"). Q4 hybrid —
+    auto-apply on the same page + transparent count, not a confirm gate.
+- **`POST /reorder/registrar`**: now accepts `supplier_id`. When
+  supplied, `app/rms/supplier_history.py:record_purchase_supplier()`
+  updates the streak counter and may auto-lock the dropdown on the
+  next visit. When omitted, the existing `last_purchase_supplier_id`
+  is preserved.
+- **Helper modules**:
+  - `app/rms/supplier_history.py` — `get_effective_supplier_id`,
+    `record_purchase_supplier`, `clear_lock`, `LOCK_THRESHOLD=3`.
+  - `app/rms/reorder_supplier_prices.py` — read-only per-supplier
+    price lookup for the dropdown labels.
+- **Supplier model** (`app/rms/models_legacy.py`): explicit
+  `foreign_keys="Ingredient.supplier_id"` on the back-reference
+  relationship to disambiguate the three supplier FKs now pointing
+  at `supplier` from `ingredient`. Two new view-only reverse
+  relationships (`last_purchase_ingredients`, `locked_ingredients`)
+  for ORM access from the supplier side.
+- **CSS** (`app/static/app.css`): `.cascade-banner` toast,
+  `.reorder-row--locked` left-edge stripe, tighter input widths for
+  the 4-cell Reponer block.
+- **JSON endpoint** (`GET /reorder?format=json`): surfaces
+  `supplier_options`, per-item `effective_supplier_id` and
+  `locked_supplier_id`, plus `lock_threshold` so downstream tools can
+  pick suppliers and reason about locks.
+- **Tests** (`tests/test_reorder_supplier_redesign.py`): 11 tests
+  covering effective-supplier precedence, streak lock, streak reset,
+  override-clears-lock, supplier picker rendering, 4-cell layout,
+  locked badge, registrar record, omitted-supplier safety, JSON
+  options, cascade banner DOM.
+
+### Changed — Producción de mañana: sidebar → botones
+- **Sidebar (`app/rms/nav.py`)**: removed `/produccion/manana` from the
+  `Operación` group (duplicate of `/produccion`).
+- **`/produccion`** (`app/templates/produccion.html`): added a
+  "Producción de mañana →" button next to the Día/Semana/Mes view tabs.
+- **`/inicio`** (`app/templates/inicio.html`): added a
+  "Producción de mañana" button in the hero actions row.
+- **Why**: `Operación` was at 6 items; the duplicate crowded the
+  sidebar. The two pages where producers actually plan
+  (`/` for the day, `/produccion` for the full plan) are the
+  natural homes for the button.
+
+### Added — Tier-1 prelaunch items (stock LED + weekend-batch EOD)
+- **Stock-confidence LED on `/inicio` HOY band** (`app/routers/dashboard.py`
+  + `app/templates/inicio.html`): a 5th KPI card aggregating ingredient
+  health into a single green/amber/red signal — `success` ("todo OK")
+  when all tracked ingredients are at/above min, `warn` ("N bajo mínimo")
+  when at least one is below min, `danger` ("N en negativo") when any
+  ingredient has negative stock. Links to `/reorder`. (Prelaunch roadmap
+  2026-09-17.)
+- **Weekend-batch EOD summary `/eod?start=YYYY-MM-DD&end=YYYY-MM-DD`**
+  (`app/routers/eod.py` + `app/templates/eod.html`): when both `start`
+  and `end` are valid (≤31 days, start ≤ end), renders a range summary
+  card with total ventas, total operaciones, total merma, and a per-day
+  table (plan rows + completions). Without params the original
+  checklist UI is unchanged. (Prelaunch roadmap 2026-09-17.)
+
+### Added — Tier-1 round 2 (Coffee regulars + quick receipt-of-stock)
+- **Coffee regulars card on `/inicio`** (`app/routers/dashboard.py`
+  + `app/templates/inicio.html` + `app/static/app-shell.css`):
+  customers with 2+ non-voided sales in the last 30 days, top 5
+  by visit count, each row links to `/clientes/{id}`. Empty state
+  copy when no regulars yet. Middle band widened from 3 to 4 columns.
+  (Prelaunch roadmap 2026-09-17.)
+- **Inline `+ qty` receipt-of-stock on `/inventario`**
+  (`app/templates/inventario.html`): a small inline form per row
+  that POSTs to the existing `/inventario/{id}/ajustar` endpoint
+  with a positive adjustment, so Saskia can add stock without
+  leaving the list. Negative adjustments (waste / breakage) still
+  go through the existing modal. (Prelaunch roadmap 2026-09-17.)
+
+### Housekeeping — orphan stash audit (2026-10-01)
+- **8 stale `git stash` entries on main** (oldest 13 days) audited.
+  7 dropped (work already shipped via other commits:
+  recipe_intel vocab + STATUS_TITLES, instructions ORM field +
+  recipe_phases, products api/tags + api/categories + bulk-edit +
+  mayorista_price + tag/category filters, RSPA fields, recipe
+  ZeroDivisionError guard, recipe_phases observability tests).
+  1 retained (`stash@{0}`: rotating file sink for loguru,
+  BACKLOG #45) — to be shipped in a dedicated PR.
+
+### Already shipped (cross-checked 2026-10-01, not rebuilt)
+- `/excel/importar?mode=PATCH` — supports PATCH (default), FULL, APPEND;
+  per-row validation + warnings are surfaced from `/excel` history and
+  `/excel/validar` dry-run. See `app/routers/excel_io.py` and
+  `app/rms/excel_import.py`.
+- Customer profile `/clientes/{id}` — already renders
+  `cliente_detalle.html` with lifetime spend, top products, dietary
+  alerts. See `app/routers/customers.py:660` and
+  `tests/test_cliente_detalle_*.py` / `tests/test_p3_customer_*.py`.
+
 ### Fixed (2026-09-30 noche) — PRO-QS + PRO-PED-UX + CSRF fix
 
 - **Quick-sell sin recarga (PRO-QS)**: tap en producto del grid agrega la
