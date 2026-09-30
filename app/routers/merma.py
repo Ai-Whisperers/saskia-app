@@ -147,6 +147,30 @@ def merma_list(
     today_total_cost = sum(today_impact.by_ingredient[i][2] for i in range(len(today_impact.by_ingredient))) if today_impact.by_ingredient else 0
     today_top_ingredients = sorted(today_impact.by_ingredient, key=lambda x: x[2], reverse=True)[:3]
 
+    # PROD-MERMA-2 (Batch I follow-up): 14-day source mix for the operator
+    # dashboard. Lightweight enough to compute inline on every /merma hit
+    # (1 query, ~milliseconds, hits an indexed column). If this ever becomes
+    # a hot path, push to a cached endpoint or read from the API route.
+    source_mix_14d: dict[str, dict] = {}
+    try:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=14)
+        rows = session.execute(
+            select(
+                WasteLog.source,
+                func.count(WasteLog.id),
+                func.coalesce(func.sum(WasteLog.cost_gs), 0),
+            )
+            .where(WasteLog.recorded_at >= cutoff)
+            .group_by(WasteLog.source)
+        ).all()
+        for src, n, cost in rows:
+            source_mix_14d[str(src or "manual")] = {
+                "n_events": int(n),
+                "cost_gs": int(cost),
+            }
+    except Exception:  # noqa: BLE001 — defensive: never block the page
+        source_mix_14d = {}
+
     # Build preset query strings
     def preset_url(d: int) -> str:
         sd = (today - timedelta(days=d)).strftime("%Y-%m-%d")
@@ -169,6 +193,9 @@ def merma_list(
             "today_event_count": today_event_count,
             "today_total_cost": today_total_cost,
             "today_top_ingredients": today_top_ingredients,
+            # PROD-MERMA-2 (Batch I follow-up): 14-day source mix for the
+            # operator dashboard (used in the "Hoy" card footer).
+            "source_mix_14d": source_mix_14d,
             "days": days,
             "since": start_date.strftime("%Y-%m-%d"),
             "until": end_date.strftime("%Y-%m-%d"),

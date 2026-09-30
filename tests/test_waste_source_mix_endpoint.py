@@ -119,3 +119,30 @@ def test_endpoint_handles_legacy_rows_backfilled_to_manual(authed_client, sessio
     assert None not in data["mix"], (
         f"endpoint should COALESCE NULL to 'manual'; got {data['mix']}"
     )
+
+
+def test_merma_page_renders_source_mix_dashboard(authed_client, session_factory):
+    """The /merma 'Hoy' card should surface 14-day source counts inline.
+
+    Operators need to see at-a-glance whether the /produccion quick-merma
+    modal is being used. The chips render even when there's no waste in
+    the window (showing zeros) so operators know the dashboard is alive.
+    """
+    ing = _make_ingredient(session_factory, "WSMIX Dashboard Ing")
+    with session_factory() as s:
+        record_waste(
+            s,
+            ingredient_id=ing,
+            qty=0.1,
+            reason=WasteReason.OTRA,
+            source="production",
+        )
+        s.commit()
+
+    r = authed_client.get("/merma")
+    assert r.status_code == 200
+    body = r.text
+    # Both source chips must appear in the "Hoy" card footer.
+    assert "Manual:" in body, "Manual source chip missing from /merma dashboard"
+    assert "Producción:" in body, "Producción source chip missing from /merma dashboard"
+    assert "Últimos 14 días" in body, "14-day window label missing"
