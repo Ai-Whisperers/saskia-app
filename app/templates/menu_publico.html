@@ -1,12 +1,18 @@
 {# Public no-login menu catalog at /menu.
 
-   The whole visible catalog (is_available AND tablet_visible), grouped
-   by category. This is the customer-facing link for the door sticker /
-   WhatsApp bio. /m/{slug} deep-links one product; /menu shows all.
+   UI-V2 (Gemini UX review, 2026-09-30) rebuild:
+   - Bug 2: responsive 2-3 column card grid on desktop (single column
+     on mobile) — kills the vertical scroll wall.
+   - Bug 3: sticky category pill-nav (jump links, scroll-margin on
+     sections so anchors don't hide under the sticky bar).
+   - Bug 4: 80x80 rounded thumbnails + colored dietary pills
+     (vegan/vegetarian → good, gluten → warn, else neutral).
+   - Bug 1 (category blackhole) is a DATA fix: products need
+     Categoría set in /productos; the template already groups by it.
 
+   Visibility gates unchanged: is_available AND tablet_visible.
    No auth: base.html renders logged-out chrome because is_logged_in
-   is False — no sidebar, no search. Mobile-first; reads well on
-   tablets and phones alike.#}
+   is False — no sidebar, no search.#}
 {% extends "base.html" %}
 {% import "_components/macros.html" as m %}
 {% block title %}Menú — {{ shop_name }}{% endblock %}
@@ -14,20 +20,26 @@
 {% block content %}
 <div class="menu-publico">
 
-  {# Header — shop brand + tagline + quick category nav #}
+  {# Header — shop brand + tagline #}
   <header class="menu-publico__header">
     <h1 class="menu-publico__shop">{{ shop_name }}</h1>
     <p class="menu-publico__subtitle">
-      Menú · {{ total_items }} producto{{ '' if total_items == 1 else 's' }}
+      Menú digital — {{ total_items }} producto{{ '' if total_items == 1 else 's' }}
     </p>
-    {% if menu_groups %}
-    <nav class="menu-publico__catnav" aria-label="Categorías">
+  </header>
+
+  {# Bug 3: sticky category jump-nav. Sticks under the viewport top so
+     it's always reachable on this long page. Horizontally scrollable
+     on narrow screens. #}
+  {% if menu_groups %}
+  <nav class="menu-publico__catnav" aria-label="Categorías">
+    <div class="menu-publico__catnav-inner">
       {% for g in menu_groups %}
       <a href="#cat-{{ g.key }}" class="menu-publico__catlink">{{ g.label }}</a>
       {% endfor %}
-    </nav>
-    {% endif %}
-  </header>
+    </div>
+  </nav>
+  {% endif %}
 
   {% if menu_groups %}
   <main>
@@ -35,15 +47,16 @@
     <section class="menu-publico__section" aria-labelledby="cat-{{ g.key }}-h">
       <h2 id="cat-{{ g.key }}" class="menu-publico__cat-title">{{ g.label }}</h2>
 
-      <ul class="menu-publico__list">
+      {# Bug 2: responsive card grid — 1 col mobile, 2 cols tablet, 3 desktop #}
+      <div class="menu-publico__grid">
         {% for item in g.products %}
-        <li class="menu-publico__item">
+        <article class="menu-publico__card">
           {% if item.image_url %}
-          <img class="menu-publico__thumb" src="{{ item.image_url }}" alt=""
-               loading="lazy" width="56" height="56">
+          <img class="menu-publico__thumb" src="{{ item.image_url }}" alt="{{ item.name }}"
+               loading="lazy" width="80" height="80">
           {% else %}
           <span class="menu-publico__thumb menu-publico__thumb--fallback" aria-hidden="true">
-            <svg class="icon" style="width:24px;height:24px;color:var(--color-text-muted);">
+            <svg class="icon" style="width:32px;height:32px;color:var(--color-text-muted);">
               <use href="#icon-box"/>
             </svg>
           </span>
@@ -68,13 +81,17 @@
             {% endif %}
             {% if item.tags %}
             <div class="menu-publico__item-tags">
-              {% for t in item.tags %}<span class="menu-publico__tag">{{ t }}</span>{% endfor %}
+              {% for t in item.tags %}
+              {# Bug 4: colored dietary pills — semantic, recognizable at a glance #}
+              {% set tl = t|lower %}
+              <span class="menu-publico__tag {% if 'vegan' in tl or 'vegetarian' in tl %}menu-publico__tag--good{% elif 'gluten' in tl or 'tacc' in tl %}menu-publico__tag--warn{% endif %}">{{ t }}</span>
+              {% endfor %}
             </div>
             {% endif %}
           </div>
-        </li>
+        </article>
         {% endfor %}
-      </ul>
+      </div>
     </section>
     {% endfor %}
   </main>
@@ -98,36 +115,70 @@
 <style>
   /* Scoped to .menu-publico so it never leaks into the app shell. Uses
      the design-system CSS vars so it themes with the app. */
-  .menu-publico { max-width: 720px; margin: 0 auto; padding: var(--space-4) var(--space-3); }
-  .menu-publico__header { text-align: center; margin-bottom: var(--space-4); }
+  .menu-publico { max-width: 1080px; margin: 0 auto; padding: var(--space-4) var(--space-3); }
+
+  .menu-publico__header { text-align: center; margin-bottom: var(--space-3); }
   .menu-publico__shop { font-size: 1.75rem; margin: 0; letter-spacing: -0.02em; }
   .menu-publico__subtitle { margin: 4px 0 0; color: var(--muted-foreground); font-size: 0.9rem; }
-  .menu-publico__catnav { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: var(--space-3); }
+
+  /* Bug 3: sticky pill nav. */
+  .menu-publico__catnav {
+    position: sticky; top: 0; z-index: 10;
+    margin: 0 calc(-1 * var(--space-3)) var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    background: var(--background);
+    border-bottom: 1px solid var(--border);
+  }
+  .menu-publico__catnav-inner {
+    display: flex; gap: var(--space-2); overflow-x: auto; justify-content: center;
+    scrollbar-width: none;
+  }
+  .menu-publico__catnav-inner::-webkit-scrollbar { display: none; }
   .menu-publico__catlink {
-    display: inline-block; padding: 4px 12px; border: 1px solid var(--border);
+    display: inline-block; padding: 4px 14px; border: 1px solid var(--border);
     border-radius: 999px; font-size: 0.85rem; text-decoration: none;
-    color: var(--foreground);
+    color: var(--foreground); white-space: nowrap;
   }
   .menu-publico__catlink:hover { background: var(--card); }
-  .menu-publico__section { margin-bottom: var(--space-4); }
+
+  /* Sections: scroll-margin so #cat anchors clear the sticky nav. */
+  .menu-publico__section { scroll-margin-top: 64px; margin-bottom: var(--space-4); }
   .menu-publico__cat-title {
     font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.06em;
     color: var(--muted-foreground); border-bottom: 2px solid var(--border);
-    padding-bottom: 6px; margin: var(--space-4) 0 var(--space-2);
+    padding-bottom: 6px; margin: var(--space-4) 0 var(--space-3);
   }
-  .menu-publico__list { list-style: none; margin: 0; padding: 0; }
-  .menu-publico__item {
-    display: flex; gap: 12px; align-items: flex-start;
-    padding: var(--space-2) 0; border-bottom: 1px solid var(--border);
+
+  /* Bug 2: responsive card grid. */
+  .menu-publico__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
   }
-  .menu-publico__item:last-child { border-bottom: none; }
+  @media (min-width: 640px) {
+    .menu-publico__grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 960px) {
+    .menu-publico__grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .menu-publico__card {
+    display: flex; gap: var(--space-3); align-items: flex-start;
+    padding: var(--space-2);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 8px);
+  }
+
+  /* Bug 4: bigger thumbnails. */
   .menu-publico__thumb {
-    width: 56px; height: 56px; border-radius: 8px; object-fit: cover; flex-shrink: 0;
+    width: 80px; height: 80px; border-radius: var(--radius, 8px);
+    object-fit: cover; flex-shrink: 0;
     display: inline-flex; align-items: center; justify-content: center;
-    background: var(--card); border: 1px solid var(--border);
+    background: var(--background); border: 1px solid var(--border);
   }
   .menu-publico__item-body { flex: 1; min-width: 0; }
-  .menu-publico__item-top { display: flex; justify-content: space-between; gap: 12px; }
+  .menu-publico__item-top { display: flex; justify-content: space-between; gap: 8px; }
   .menu-publico__item-name { font-weight: 600; }
   .menu-publico__item-name a { color: var(--foreground); text-decoration: none; }
   .menu-publico__item-name a:hover { text-decoration: underline; }
@@ -136,11 +187,22 @@
   }
   .menu-publico__item-portion { font-size: 0.8rem; color: var(--muted-foreground); margin-top: 2px; }
   .menu-publico__item-notes { font-size: 0.85rem; margin-top: 4px; }
-  .menu-publico__item-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .menu-publico__item-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+
+  /* Bug 4: semantic dietary pills. */
   .menu-publico__tag {
     font-size: 0.7rem; padding: 1px 8px; border-radius: 999px;
     background: var(--card); border: 1px solid var(--border); color: var(--muted-foreground);
   }
+  .menu-publico__tag--good {
+    background: rgba(34, 197, 94, 0.12); border-color: rgba(34, 197, 94, 0.4);
+    color: #22c55e;
+  }
+  .menu-publico__tag--warn {
+    background: rgba(234, 179, 8, 0.12); border-color: rgba(234, 179, 8, 0.4);
+    color: #eab308;
+  }
+
   .menu-publico__empty { text-align: center; padding: var(--space-6) 0; }
   .menu-publico__footer { text-align: center; margin-top: var(--space-5); padding-bottom: var(--space-4); }
 </style>
