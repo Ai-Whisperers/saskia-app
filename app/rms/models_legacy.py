@@ -244,7 +244,9 @@ class Recipe(Base):
     prep_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     cook_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     difficulty: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # 1-5 scale
-    family: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # category
+    family: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # category (legacy, read-only)
+    # UI-V2 (migration 068): multi-select "Etiquetas de Menú" — comma-separated.
+    menu_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     dietary_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # comma-separated
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # Phase 1.D — moisture loss / yield correction. 1.0 = no loss; 0.85 = 15% loss.

@@ -30,6 +30,7 @@ from app.rms.dependencies import get_session
 from app.rms.models import Pedido, PedidoLine, Product, ProductionPlanOverride, Recipe, Sale
 from app.rms.observability import record_audit
 from app.rms.production import plan_production
+from app.rms.eod_completions import upsert_completion as _upsert_completion
 from app.services.template_render import render
 
 router = APIRouter(prefix="/produccion", dependencies=[Depends(require_login)])
@@ -300,8 +301,67 @@ def produccion_worksheet(
         )
     ).scalar() or 0
 
+    # Sprint 1: pull actual production completions for the day so the
+    # shift-execution table can render pre-filled "Progreso" values
+    # instead of blank inputs.
+    from app.rms.eod_completions import completions_for_date as _eod_for_date
+    completions_by_pid = _eod_for_date(session, target_date)
+
+    # Sprint 3: demand fusion — count how many units of each product are
+    # already owed by pedidos for the same day. We surface this as a
+    # per-row "+N por pedidos" badge so the cook knows the plan number
+    # is a baseline, not the final bake count.
+    ped_units_by_pid: dict[int, float] = {}
+    for p in pedido_rows:
+        for ln in p.lines:
+            if ln.qty <= 0:
+                continue
+            ped_units_by_pid[ln.product_id] = (
+                ped_units_by_pid.get(ln.product_id, 0.0) + float(ln.qty)
+            )
+
+    # Wrap each ProductionRow with the completion + pedido data the
+    # template needs (ProductionRow is a dataclass — attribute injection
+    # is safe inside this function but we don't mutate the original).
+    plan_rows_view = []
+    for r in plan.rows:
+        plan_rows_view.append({
+            "product_id": r.product_id,
+            "product_name": r.product_name,
+            "recipe_id": r.recipe_id,
+            "qty_to_produce": r.qty_to_produce,
+            "forecast_source": r.forecast_source,
+            "confidence_pct": r.confidence_pct,
+            "completed_qty": completions_by_pid.get(r.product_id, 0.0),
+            "pending_pedido_qty": ped_units_by_pid.get(r.product_id, 0.0),
+            "is_ad_hoc": False,
+        })
+
+    # Ad-hoc bakes: products COMPLETED for the day but NOT in the plan
+    # row list. These are the walk-ins / on-the-fly decisions that the
+    # forecast engine never proposed but Saskia actually produced.
+    planned_pids = {r["product_id"] for r in plan_rows_view}
+    for pid, qty in completions_by_pid.items():
+        if pid in planned_pids:
+            continue
+        prod_obj = session.get(Product, pid)
+        if prod_obj is None:
+            continue
+        plan_rows_view.append({
+            "product_id": pid,
+            "product_name": prod_obj.name,
+            "recipe_id": None,
+            "qty_to_produce": 0.0,
+            "forecast_source": "ad_hoc",
+            "confidence_pct": 100,
+            "completed_qty": qty,
+            "pending_pedido_qty": ped_units_by_pid.get(pid, 0.0),
+            "is_ad_hoc": True,
+        })
+
     return render(request, "produccion.html", {
         "plan": plan,
+        "plan_rows_view": plan_rows_view,
         "for_date": plan.for_date.isoformat() if plan.for_date else "",
         "view": "day",
         "source_labels": FORECAST_SOURCE_LABELS,
@@ -313,6 +373,11 @@ def produccion_worksheet(
         "pending_pedidos": pending_pedidos,
         "daily_target": daily_target,
         "daily_actual": float(daily_actual),
+        "shift_saved": int(request.query_params.get("shift_saved", 0)),
+        "adhoc_added": request.query_params.get("adhoc_added") == "1",
+        "products_for_adhoc": session.execute(
+            select(Product).order_by(Product.name)
+        ).scalars().all(),
     })
 
 
@@ -377,6 +442,153 @@ def produccion_override(
     session.commit()
     return RedirectResponse(
         url=f"/produccion?for_date={for_date.isoformat()}",
+        status_code=303,
+    )
+
+
+# --- Shift execution layer (Sprint 1) ---
+#
+# The day view renders a "Ejecución del turno" form that lets Saskia
+# mark checkboxes + enter a qty per product. Until Sprint 1 this form
+# posted to /produccion/override, which IGNORED the `completed_*`
+# fields and only wrote production_plan_override (which is the PLAN,
+# not the actual). The actual production is what Saskia really baked;
+# the helper `upsert_completion()` in app.rms.eod_completions already
+# writes the right table — we just need an endpoint that accepts the
+# bulk form.
+#
+# This endpoint iterates over form keys `done_{pid}` + `completed_{pid}`
+# and writes one upsert per product with a non-zero value. Items with
+# `done_{pid}` checked AND `completed_{pid} == 0` are recorded as 0
+# (operator said "I marked this done but produced nothing" — honest).
+
+
+@router.post("/shift-execute")
+async def produccion_shift_execute(
+    request: Request,
+    for_date: date = Form(...),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Persist actual production qty per product (the "ya salió del horno" tracker)."""
+    from app.rms.rate_limit import is_write_rate_limited
+
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
+        )
+
+    form = await request.form()
+    saved = 0
+    skipped = 0
+    for key, value in form.multi_items():
+        if not isinstance(value, str):
+            # skip file uploads / non-str values
+            continue
+        if not key.startswith("completed_"):
+            continue
+        try:
+            product_id = int(key.removeprefix("completed_"))
+        except ValueError:
+            skipped += 1
+            continue
+        try:
+            qty = float(value)
+        except (TypeError, ValueError):
+            skipped += 1
+            continue
+        if qty < 0:
+            skipped += 1
+            continue
+        if session.get(Product, product_id) is None:
+            skipped += 1
+            continue
+        _upsert_completion(
+            session,
+            product_id=product_id,
+            for_date=for_date,
+            completed_qty=qty,
+        )
+        saved += 1
+
+    record_audit(
+        request,
+        session=session,
+        action="write.production.shift.execute",
+        target_type="production_shift",
+        target_id=for_date.isoformat(),
+        detail={"saved": saved, "skipped": skipped, "for_date": for_date.isoformat()},
+    )
+    session.commit()
+    return RedirectResponse(
+        url=f"/produccion?for_date={for_date.isoformat()}&shift_saved={saved}",
+        status_code=303,
+    )
+
+
+# --- Ad-hoc bake entry (Sprint 4) ---
+#
+# Saskia might bake a product that was NOT in the plan (walk-in order,
+# decided on a whim, leftover ingredients). This endpoint writes a
+# ProductionCompletion row with notes="ad_hoc" so the actual count
+# shows up in the day view + EOD, even though the forecast engine
+# never proposed it.
+
+
+@router.post("/ad-hoc")
+async def produccion_ad_hoc(
+    request: Request,
+    for_date: date = Form(...),
+    product_id: int = Form(...),
+    qty: float = Form(...),
+    notes: str = Form(""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Record an unplanned bake: walked-in, decided-on-the-fly, leftovers."""
+    from app.rms.rate_limit import is_write_rate_limited
+
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
+        )
+    if qty <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="La cantidad debe ser mayor a cero.",
+        )
+    if session.get(Product, product_id) is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Producto no encontrado",
+        )
+
+    tag = "ad_hoc"
+    if notes.strip():
+        tag = f"ad_hoc: {notes.strip()[:200]}"
+    _upsert_completion(
+        session,
+        product_id=product_id,
+        for_date=for_date,
+        completed_qty=qty,
+        notes=tag,
+    )
+    record_audit(
+        request,
+        session=session,
+        action="write.production.ad_hoc",
+        target_type="production_ad_hoc",
+        target_id=f"{for_date.isoformat()}:{product_id}",
+        detail={
+            "for_date": for_date.isoformat(),
+            "product_id": product_id,
+            "qty": qty,
+            "notes": notes.strip()[:200] or None,
+        },
+    )
+    session.commit()
+    return RedirectResponse(
+        url=f"/produccion?for_date={for_date.isoformat()}&adhoc_added=1",
         status_code=303,
     )
 

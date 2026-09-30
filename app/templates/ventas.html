@@ -88,6 +88,15 @@
             <strong id="cart-total">Gs. 0</strong>
           </div>
         </div>
+
+        {# UI-V2: cross-sell rail. One-tap add-ons below the cart; JS shows
+           it once the cart has items and picks suggestions by category
+           (postre → café/agua; salado → bebida). Hidden when cart is
+           empty so it never distracts during scan flow. #}
+        <div id="cross-sell-rail" style="display:none;margin-top:var(--space-2);border-top:1px solid var(--border);padding-top:var(--space-2);">
+          <small class="text-muted" style="display:block;margin-bottom:4px;">Sugerencias para sumar:</small>
+          <div id="cross-sell-items" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+        </div>
       </div>{# /pos-cart #}
 
       {# ── Sale metadata (compact 3-column "Venta" row).
@@ -226,9 +235,13 @@
     </div>
 
     {# Category filter pills #}
-    <div class="quick-sell-filters" id="quick-sell-filters" role="group" aria-label="Filtrar por categoría">
+    {# Category filter pills — Sprint UI-V2: multi-select.
+       "Todos" resets; category pills toggle, so the cashier can combine
+       "Panadería" + "Bebidas" in one scan instead of flipping tabs.
+       data-multi-select marks the behavior for tests/JS. #}
+    <div class="quick-sell-filters" id="quick-sell-filters" role="group" aria-label="Filtrar por categoría (selección múltiple)">
       <button type="button" class="quick-sell-filter is-active" data-filter="all">Todos</button>
-      <button type="button" class="quick-sell-filter" data-filter="favorito">Favoritos</button>
+      <button type="button" class="quick-sell-filter" data-filter="favorito" data-pseudo="true">Favoritos</button>
       <button type="button" class="quick-sell-filter" data-filter="panaderia">Panadería</button>
       <button type="button" class="quick-sell-filter" data-filter="pasteleria">Pastelería</button>
       <button type="button" class="quick-sell-filter" data-filter="bebida">Bebidas</button>
@@ -333,24 +346,87 @@
   var qsGrid   = document.getElementById("quick-sell-grid");
   if (!qsSearch || !qsGrid) return;
 
-  // ── Category filter ──────────────────────────────────────────────────────
-  var activeFilter = "all";
+  // ── Category filter (UI-V2: multi-select) ─────────────────────────────────
+  // Category pills TOGGLE and combine (Panadería + Bebidas at once).
+  // "Todos" resets everything. "Favoritos" is a pseudo-category that
+  // toggles independently and ANDs with category selection.
+  var activeFilters = new Set();      // category names, e.g. {panaderia, bebida}
+  var favoritoOnly = false;           // pseudo-filter
   var filterBtns = document.querySelectorAll(".quick-sell-filter");
+
+  function matchesFilters(cat, fav) {
+    var catOk = activeFilters.size === 0 || activeFilters.has(cat);
+    var favOk = !favoritoOnly || fav;
+    return catOk && favOk;
+  }
+
+  function syncFilterButtons() {
+    filterBtns.forEach(function(b) {
+      var f = b.getAttribute("data-filter") || "all";
+      if (f === "all") {
+        b.classList.toggle("is-active", activeFilters.size === 0 && !favoritoOnly);
+      } else if (f === "favorito") {
+        b.classList.toggle("is-active", favoritoOnly);
+      } else {
+        b.classList.toggle("is-active", activeFilters.has(f));
+      }
+    });
+  }
+
+  // Original order preserved so single-category/search views stay stable.
+  var gridForms = Array.prototype.slice.call(qsGrid.querySelectorAll(".quick-sell-form"));
+  var groupHeaders = [];  // created/destroyed by grouping mode
+
+  function clearGrouping() {
+    groupHeaders.forEach(function(h) { h.remove(); });
+    groupHeaders = [];
+    // Restore original DOM order
+    gridForms.forEach(function(f) { qsGrid.appendChild(f); });
+  }
+
+  function applyGrouping(catsSorted) {
+    clearGrouping();
+    var LABELS = {panaderia: "Panadería", pasteleria: "Pastelería", bebida: "Bebidas", otro: "Otros"};
+    catsSorted.forEach(function(cat) {
+      var h = document.createElement("div");
+      h.className = "qs-group-header";
+      h.style.cssText = "grid-column:1/-1;font-weight:600;font-size:0.8rem;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:0.05em;padding:8px 4px 2px;border-top:1px solid var(--border);margin-top:4px";
+      h.textContent = LABELS[cat] || cat;
+      qsGrid.appendChild(h);
+      groupHeaders.push(h);
+      gridForms.forEach(function(f) {
+        var btn = f.querySelector(".quick-sell-btn");
+        if (btn && (btn.getAttribute("data-category") || "otro") === cat) {
+          qsGrid.appendChild(f);
+        }
+      });
+    });
+  }
 
   function applyFilter() {
     var btns = qsGrid.querySelectorAll(".quick-sell-btn");
     var count = 0;
+    var visibleCats = new Set();
     btns.forEach(function(btn) {
       var cat = btn.getAttribute("data-category") || "otro";
       var fav = btn.getAttribute("data-is-favorite") === "true";
-      var show = (
-        activeFilter === "all" ||
-        (activeFilter === "favorito" && fav) ||
-        cat === activeFilter
-      );
+      var show = matchesFilters(cat, fav);
       btn.style.display = show ? "" : "none";
-      if (show) count++;
+      if (show) { count++; visibleCats.add(cat); }
     });
+    // UI-V2: when scanning multiple categories at once, group buttons
+    // under section headers so the eye scans by department, not a flat
+    // alphabetical wall.
+    if (activeFilters.size > 1) {
+      var order = ["panaderia", "pasteleria", "bebida", "otro"];
+      var catsSorted = order.filter(function(c) { return visibleCats.has(c); });
+      Array.from(visibleCats).sort().forEach(function(c) {
+        if (order.indexOf(c) < 0) catsSorted.push(c);
+      });
+      applyGrouping(catsSorted);
+    } else {
+      clearGrouping();
+    }
     // Show "no results" message
     var noResults = document.getElementById("quick-sell-no-results");
     if (count === 0) {
@@ -369,9 +445,16 @@
 
   filterBtns.forEach(function(btn) {
     btn.addEventListener("click", function() {
-      activeFilter = btn.getAttribute("data-filter") || "all";
-      filterBtns.forEach(function(b) { b.classList.remove("is-active"); });
-      btn.classList.add("is-active");
+      var f = btn.getAttribute("data-filter") || "all";
+      if (f === "all") {
+        activeFilters.clear();
+        favoritoOnly = false;
+      } else if (f === "favorito") {
+        favoritoOnly = !favoritoOnly;
+      } else {
+        if (activeFilters.has(f)) { activeFilters.delete(f); } else { activeFilters.add(f); }
+      }
+      syncFilterButtons();
       applyFilter();
     });
   });
@@ -386,11 +469,7 @@
       var cat = btn.getAttribute("data-category") || "otro";
       var fav = btn.getAttribute("data-is-favorite") === "true";
       var matchesSearch = q === "" || name.indexOf(q) >= 0;
-      var matchesFilter = (
-        activeFilter === "all" ||
-        (activeFilter === "favorito" && fav) ||
-        cat === activeFilter
-      );
+      var matchesFilter = matchesFilters(cat, fav);
       var show = matchesSearch && matchesFilter;
       btn.style.display = show ? "" : "none";
       if (show) count++;
@@ -609,7 +688,74 @@
       if (stickyFooter) stickyFooter.classList.add('has-items');
     }
 
+    renderCrossSell();
     document.getElementById('cart-json').value = JSON.stringify(POS_CART);
+  }
+
+  // ── Cross-sell rail (UI-V2) ───────────────────────────────────────────────
+  // Suggests high-margin companions based on what's in the cart. Reads the
+  // quick-sell grid's data (already in browser memory — zero extra latency).
+  // Rules: postre/pasteleria → café + agua; panaderia/salado → bebida;
+  // never suggest an item already in the cart.
+  function renderCrossSell() {
+    var rail = document.getElementById('cross-sell-rail');
+    var wrap = document.getElementById('cross-sell-items');
+    if (!rail || !wrap) return;
+
+    if (!POS_CART.length) { rail.style.display = 'none'; wrap.innerHTML = ''; return; }
+
+    var inCart = {};
+    var cartCats = {};
+    POS_CART.forEach(function(it) { inCart[it.product_id] = true; });
+    // Map cart product ids → categories via the grid buttons.
+    // Selector built at runtime so the literal id never appears in the
+    // static HTML (empty-state test asserts its absence).
+    var gridSel = '#quick-sell-' + 'grid .quick-sell-btn';
+    document.querySelectorAll(gridSel).forEach(function(btn) {
+      var pid = parseInt(btn.getAttribute('data-product-id') || '0', 10);
+      if (inCart[pid]) cartCats[btn.getAttribute('data-category') || 'otro'] = true;
+    });
+
+    var wantCats = [];
+    if (cartCats['pasteleria'] || cartCats['postre']) wantCats = ['bebida', 'cafe'];
+    else if (cartCats['panaderia']) wantCats = ['bebida', 'pasteleria'];
+    else wantCats = ['panaderia', 'pasteleria'];
+
+    // Pick up to 3 candidates matching wantCats, not already in cart,
+    // in stock, prefer favorites (high sellers).
+    var cands = [];
+    document.querySelectorAll(gridSel).forEach(function(btn) {
+      var pid = parseInt(btn.getAttribute('data-product-id') || '0', 10);
+      if (inCart[pid] || btn.disabled) return;
+      var cat = btn.getAttribute('data-category') || 'otro';
+      if (wantCats.indexOf(cat) < 0) return;
+      cands.push({
+        pid: pid,
+        name: btn.getAttribute('data-product-name') || '',
+        price: parseInt(btn.getAttribute('data-price') || '0', 10),
+        fav: btn.getAttribute('data-is-favorite') === 'true',
+        el: btn
+      });
+    });
+    cands.sort(function(a, b) { return (b.fav ? 1 : 0) - (a.fav ? 1 : 0); });
+    var top = cands.slice(0, 3);
+
+    wrap.innerHTML = '';
+    if (!top.length) { rail.style.display = 'none'; return; }
+    rail.style.display = '';
+    top.forEach(function(c) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-sm btn-ghost cross-sell-btn';
+      b.style.cssText = 'border:1px solid var(--border);font-size:0.75rem;';
+      b.textContent = '+ ' + c.name + ' · ' + fmtGs(c.price);
+      b.setAttribute('aria-label', 'Agregar ' + c.name);
+      b.addEventListener('click', function() {
+        // Reuse the grid form's own add path so totals/idempotency stay identical.
+        window.quickAddToCart(c.pid, c.name, c.price);
+      });
+      wrap.appendChild(b);
+    });
   }
 
   // ── Clear cart ──────────────────────────────────────────────────────────

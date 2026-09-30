@@ -128,7 +128,18 @@ async def recipes_list(
     if q:
         count_stmt = count_stmt.where(Recipe.name.ilike(f"%{q}%"))
     if familias_sel:
-        count_stmt = count_stmt.where(Recipe.family.in_(familias_sel))
+        # UI-V2: match legacy family OR the multi-select menu_tags column.
+        from sqlalchemy import or_ as _or
+
+        count_stmt = count_stmt.where(
+            _or(
+                Recipe.family.in_(familias_sel),
+                *[
+                    Recipe.menu_tags.ilike(f"%{tag}%")
+                    for tag in familias_sel
+                ],
+            )
+        )
     if dif_sel:
         try:
             count_stmt = count_stmt.where(Recipe.difficulty == int(dif_sel))
@@ -162,7 +173,18 @@ async def recipes_list(
     if q:
         stmt = stmt.where(Recipe.name.ilike(f"%{q}%"))
     if familias_sel:
-        stmt = stmt.where(Recipe.family.in_(familias_sel))
+        # UI-V2: match legacy family OR the multi-select menu_tags column.
+        from sqlalchemy import or_ as _or
+
+        stmt = stmt.where(
+            _or(
+                Recipe.family.in_(familias_sel),
+                *[
+                    Recipe.menu_tags.ilike(f"%{tag}%")
+                    for tag in familias_sel
+                ],
+            )
+        )
     if dif_sel:
         try:
             stmt = stmt.where(Recipe.difficulty == int(dif_sel))
@@ -278,6 +300,20 @@ async def recipe_new(request: Request, session: Session = Depends(get_session)) 
             "other_recipes": other_recipes,
             "recipe_families": list_cats(session, "recipe_family"),
             "dietary_tags": list_tags_for_kind(session, "recipe"),
+            "menu_tag_options": sorted(
+                {
+                    t.strip()
+                    for r_row in session.scalars(select(Recipe.menu_tags)).all()
+                    if r_row
+                    for t in r_row.split(",")
+                    if t.strip()
+                }
+                | {
+                    r_row
+                    for r_row in session.scalars(select(Recipe.family)).all()
+                    if r_row
+                }
+            ),
         },
     )
 
@@ -302,6 +338,11 @@ async def recipe_create(
         except ValueError:
             difficulty_val = None
     family = str(form.get("family", "")).strip() or None
+    # UI-V2: multi-select Etiquetas de Menú (repeated checkbox fields or CSV).
+    menu_tags_vals = list(form.getlist("menu_tag")) + [
+        t.strip() for t in str(form.get("menu_tags", "")).split(",") if t.strip()
+    ]
+    menu_tags = ",".join(dict.fromkeys(menu_tags_vals)) or None
     dietary_tags = str(form.get("dietary_tags", "")).strip() or None
 
     if not name:
@@ -329,6 +370,7 @@ async def recipe_create(
         prep_minutes=prep_min,
         cook_minutes=cook_min,
         family=family,
+        menu_tags=menu_tags,
         dietary_tags=dietary_tags,
     )
     session.add(recipe)
@@ -567,6 +609,18 @@ async def recipe_detail(
                 aggregated_allergens.append(a_clean)
 
     from app.rms.tag_algebra import derive_recipe_tags as _derive_tags
+    # UI-V2 dual view: ?vista=estructural (default, assembly) vs
+    # ?vista=consolidada (exploded purchase list). Both computed here;
+    # the template toggles which table renders.
+    from app.rms.recipes_consolidated import explode_recipe
+
+    vista = (request.query_params.get("vista") or "estructural").lower()
+    if vista not in ("estructural", "consolidada"):
+        vista = "estructural"
+    consolidated_lines = (
+        explode_recipe(session, r_id) if vista == "consolidada" else []
+    )
+
     # Parse instructions JSON for template
     recipe_phases = None
     try:
@@ -579,6 +633,8 @@ async def recipe_detail(
         "recipe": r,
         "recipe_phases": recipe_phases,
         "tag_derivation": _derive_tags(session, r_id),
+        "vista": vista,
+        "consolidated_lines": consolidated_lines,
         "derived_tags": [t for t in (r.derived_dietary_tags or "").split(",") if t],
         "resolved_lines": resolved_lines,
         "batch_cost": batch_cost,
@@ -716,6 +772,22 @@ async def recipe_edit(
             "scale_factor": scale_factor,
             "recipe_families": list_cats(session, "recipe_family"),
             "dietary_tags": list_tags_for_kind(session, "recipe"),
+            # UI-V2: suggested menu-tag options = distinct values already in
+            # use (from menu_tags + legacy family), so the picker offers them.
+            "menu_tag_options": sorted(
+                {
+                    t.strip()
+                    for r_row in session.scalars(select(Recipe.menu_tags)).all()
+                    if r_row
+                    for t in r_row.split(",")
+                    if t.strip()
+                }
+                | {
+                    r_row
+                    for r_row in session.scalars(select(Recipe.family)).all()
+                    if r_row
+                }
+            ),
         },
     )
 
@@ -739,6 +811,12 @@ async def recipe_update(
     cook_minutes_raw = str(form.get("cook_minutes", "")).strip()
     difficulty_raw = str(form.get("difficulty", "")).strip()
     family = str(form.get("family", "")).strip() or None
+    # UI-V2: multi-select Etiquetas de Menú. Checkboxes post as repeated
+    # fields; also accept one comma-separated hidden field.
+    menu_tags_vals = list(form.getlist("menu_tag")) + [
+        t.strip() for t in str(form.get("menu_tags", "")).split(",") if t.strip()
+    ]
+    menu_tags = ",".join(dict.fromkeys(menu_tags_vals)) or None
     dietary_tags = str(form.get("dietary_tags", "")).strip() or None
 
     if not name:
@@ -762,6 +840,7 @@ async def recipe_update(
     r.cook_minutes = int(cook_minutes_raw) if cook_minutes_raw else None
     r.difficulty = difficulty_val
     r.family = family
+    r.menu_tags = menu_tags
     r.dietary_tags = dietary_tags
 
     # Replace lines

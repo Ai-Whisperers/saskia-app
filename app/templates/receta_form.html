@@ -347,6 +347,22 @@
          ) }}
     </section>
 
+    {# ── Etiquetas de Menú (UI-V2 multi-select) ───────────────── #}
+    <section class="form-section form-section-side">
+      <header class="form-section-header">
+        <h2 class="form-section-title">Etiquetas de Menú</h2>
+        <p class="form-section-hint">Contextos comerciales: una receta puede tener varias (ej. Pastelería + Especial de Temporada)</p>
+      </header>
+      {{ t.tag_picker(
+           name='menu_tags',
+           current_value=recipe.menu_tags if recipe else '',
+           options_markup=t.render_tag_pills(menu_tag_options),
+           allow_custom=True,
+           label='',
+           help='Separadas por coma; usalas para filtrar el recetario.'
+         ) }}
+    </section>
+
     {# ── Action: auto-create product toggle + buttons ──────── #}
     <section class="form-section form-section-side action-section">
       <label class="switch-toggle" for="also_create_product">

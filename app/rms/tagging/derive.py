@@ -62,6 +62,9 @@ class TagDerivation:
       undeclared:       ingredient names with allergens=None — NOT the
                         same as allergen-free; the UI must show
                         "sin declarar".
+      undeclared_ids:   ingredient ids parallel to `undeclared` names —
+                        lets the UI deep-link each name straight to its
+                        Inventario edit form ("fix at source" UX).
       cycles:           sub-recipe reference cycles detected (should be
                         empty; the walker guards).
     """
@@ -70,6 +73,7 @@ class TagDerivation:
     dietary: list[str] = field(default_factory=list)
     blocked: dict[str, list[str]] = field(default_factory=dict)
     undeclared: list[str] = field(default_factory=list)
+    undeclared_ids: list[int] = field(default_factory=list)
     cycles: list[str] = field(default_factory=list)
 
 
@@ -213,6 +217,9 @@ def derive_recipe_tags(
         if isinstance(t.target, Ingredient):
             if t.target.allergens is None:
                 result.undeclared.append(t.target.name)
+                # UI-V2 fix-at-source: keep the id parallel to the name so
+                # the warning can deep-link to /inventario/{id}/editar.
+                result.undeclared_ids.append(t.target.id)
             else:
                 allergen_set.update(_split(t.target.allergens))
             declared_union.update(normalize_all(t.target.dietary_tags))

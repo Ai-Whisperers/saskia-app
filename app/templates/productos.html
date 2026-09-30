@@ -154,6 +154,7 @@
       <th data-col="marginpct" class="col-marginpct num">Margen %</th>
       <th data-col="prime-cost" class="col-prime-cost num">Prime Cost</th>
       <th data-col="prime-pct" class="col-prime-pct num">% Costo</th>
+      <th data-col="cost-updated" class="col-cost-updated" title="Hace cuánto cambió el precio de algún ingrediente de la receta">Costo act.</th>
       <th data-col="available" class="col-available">Disp.</th>
       <th class="col-actions actions"></th>
     </tr>
@@ -196,6 +197,23 @@
           <span class="{% if p.prime_cost_pct < 50 %}badge badge-ok{% elif p.prime_cost_pct < 70 %}badge-warn{% else %}badge-danger{% endif %}">
             {{ "%.1f"|format(p.prime_cost_pct) }}%
           </span>
+        {% endif %}
+      </td>
+      {# UI-V2: cost freshness — when an ingredient price last changed.
+         Stale (>90d) or never-computed costs get a visual nudge: the
+         sale price may be based on outdated input costs. #}
+      <td class="col-cost-updated">
+        {% if p.cost_updated_at is none %}
+          <span class="badge badge-muted" title="Sin precios de ingredientes cargados">sin datos</span>
+        {% else %}
+          {% set days_ago = ((now_utc - p.cost_updated_at).days) if now_utc else 0 %}
+          {% if days_ago > 90 %}
+            <span class="badge badge-warn" title="Costo base con más de 90 días — revisá precios">{{ days_ago }}d</span>
+          {% elif days_ago > 30 %}
+            <span class="badge badge-muted" title="Costo base de hace {{ days_ago }} días">{{ days_ago }}d</span>
+          {% else %}
+            <span class="badge badge-ok" title="Costo actualizado hace {{ days_ago }} día(s)">{{ days_ago }}d</span>
+          {% endif %}
         {% endif %}
       </td>
       <td class="col-available">
