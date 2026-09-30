@@ -247,6 +247,13 @@ def products_list(
             }
         )
 
+    # UI-V2: cost freshness — when did any ingredient price last change?
+    from app.rms.cost_freshness import product_cost_freshness
+
+    freshness = product_cost_freshness(session, list(products))
+    for r in decorated:
+        r["cost_updated_at"] = freshness.get(r["id"])
+
     # Margin state filter (post-costing, in-memory): negativo <0, bajo <30%, ok 30-70%, alto >70%
     if margen_sel:
         def _mstate(r: object) -> str:
@@ -276,6 +283,8 @@ def products_list(
         "disp_sel": disp_sel,
         "tag_sel": tag_sel,
         "category_sel": category_sel,
+        # UI-V2: reference 'now' for the cost-freshness column.
+        "now_utc": datetime.now(timezone.utc).replace(tzinfo=None),
         "total_all": session.scalar(select(func.count()).select_from(Product)) or 0,
         "sort": sort or "",
         "dir": dir,

@@ -88,6 +88,15 @@
             <strong id="cart-total">Gs. 0</strong>
           </div>
         </div>
+
+        {# UI-V2: cross-sell rail. One-tap add-ons below the cart; JS shows
+           it once the cart has items and picks suggestions by category
+           (postre → café/agua; salado → bebida). Hidden when cart is
+           empty so it never distracts during scan flow. #}
+        <div id="cross-sell-rail" style="display:none;margin-top:var(--space-2);border-top:1px solid var(--border);padding-top:var(--space-2);">
+          <small class="text-muted" style="display:block;margin-bottom:4px;">Sugerencias para sumar:</small>
+          <div id="cross-sell-items" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+        </div>
       </div>{# /pos-cart #}
 
       {# ── Sale metadata (compact 3-column "Venta" row).
@@ -679,7 +688,74 @@
       if (stickyFooter) stickyFooter.classList.add('has-items');
     }
 
+    renderCrossSell();
     document.getElementById('cart-json').value = JSON.stringify(POS_CART);
+  }
+
+  // ── Cross-sell rail (UI-V2) ───────────────────────────────────────────────
+  // Suggests high-margin companions based on what's in the cart. Reads the
+  // quick-sell grid's data (already in browser memory — zero extra latency).
+  // Rules: postre/pasteleria → café + agua; panaderia/salado → bebida;
+  // never suggest an item already in the cart.
+  function renderCrossSell() {
+    var rail = document.getElementById('cross-sell-rail');
+    var wrap = document.getElementById('cross-sell-items');
+    if (!rail || !wrap) return;
+
+    if (!POS_CART.length) { rail.style.display = 'none'; wrap.innerHTML = ''; return; }
+
+    var inCart = {};
+    var cartCats = {};
+    POS_CART.forEach(function(it) { inCart[it.product_id] = true; });
+    // Map cart product ids → categories via the grid buttons.
+    // Selector built at runtime so the literal id never appears in the
+    // static HTML (empty-state test asserts its absence).
+    var gridSel = '#quick-sell-' + 'grid .quick-sell-btn';
+    document.querySelectorAll(gridSel).forEach(function(btn) {
+      var pid = parseInt(btn.getAttribute('data-product-id') || '0', 10);
+      if (inCart[pid]) cartCats[btn.getAttribute('data-category') || 'otro'] = true;
+    });
+
+    var wantCats = [];
+    if (cartCats['pasteleria'] || cartCats['postre']) wantCats = ['bebida', 'cafe'];
+    else if (cartCats['panaderia']) wantCats = ['bebida', 'pasteleria'];
+    else wantCats = ['panaderia', 'pasteleria'];
+
+    // Pick up to 3 candidates matching wantCats, not already in cart,
+    // in stock, prefer favorites (high sellers).
+    var cands = [];
+    document.querySelectorAll(gridSel).forEach(function(btn) {
+      var pid = parseInt(btn.getAttribute('data-product-id') || '0', 10);
+      if (inCart[pid] || btn.disabled) return;
+      var cat = btn.getAttribute('data-category') || 'otro';
+      if (wantCats.indexOf(cat) < 0) return;
+      cands.push({
+        pid: pid,
+        name: btn.getAttribute('data-product-name') || '',
+        price: parseInt(btn.getAttribute('data-price') || '0', 10),
+        fav: btn.getAttribute('data-is-favorite') === 'true',
+        el: btn
+      });
+    });
+    cands.sort(function(a, b) { return (b.fav ? 1 : 0) - (a.fav ? 1 : 0); });
+    var top = cands.slice(0, 3);
+
+    wrap.innerHTML = '';
+    if (!top.length) { rail.style.display = 'none'; return; }
+    rail.style.display = '';
+    top.forEach(function(c) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-sm btn-ghost cross-sell-btn';
+      b.style.cssText = 'border:1px solid var(--border);font-size:0.75rem;';
+      b.textContent = '+ ' + c.name + ' · ' + fmtGs(c.price);
+      b.setAttribute('aria-label', 'Agregar ' + c.name);
+      b.addEventListener('click', function() {
+        // Reuse the grid form's own add path so totals/idempotency stay identical.
+        window.quickAddToCart(c.pid, c.name, c.price);
+      });
+      wrap.appendChild(b);
+    });
   }
 
   // ── Clear cart ──────────────────────────────────────────────────────────

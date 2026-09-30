@@ -2800,6 +2800,40 @@ def _migration_067_pedido_public_token_expiry(conn: Any) -> None:
     _bump_schema_version(conn, 67)
 
 
+def _migration_068_recipe_menu_tags(conn: Any) -> None:
+    """UI-V2: recipe.menu_tags — multi-select 'Etiquetas de Menú'.
+
+    Replaces the single-limit `family` field: a product often belongs to
+    several commercial contexts at once ("Pastelería" AND "Especial de
+    Temporada"). Comma-separated, same convention as Recipe.dietary_tags.
+    `family` stays (read-only legacy, still displayed as a fallback);
+    new writes go to menu_tags.
+
+    Idempotent: ALTER try/except (matches _migration_067 pattern).
+    """
+    try:
+        conn.execute(
+            text("ALTER TABLE recipe ADD COLUMN menu_tags TEXT")
+        )
+    except Exception:  # noqa: BLE001, S110
+        pass
+
+    # Backfill: seed menu_tags from the legacy family so nothing the
+    # operator already categorized disappears from the filters.
+    try:
+        conn.execute(
+            text(
+                "UPDATE recipe SET menu_tags = family "
+                "WHERE menu_tags IS NULL AND family IS NOT NULL "
+                "AND TRIM(family) <> ''"
+            )
+        )
+    except Exception:  # noqa: BLE001, S110
+        pass
+
+    _bump_schema_version(conn, 68)
+
+
 def _migration_065_suscripciones(conn: Any) -> None:
     """P1-B5 — add suscripcion table for recurring customer orders (no cron).
 
@@ -2987,6 +3021,7 @@ MIGRATIONS = {
     65: _migration_065_suscripciones,
     66: _migration_066_product_tablet_slug,
     67: _migration_067_pedido_public_token_expiry,
+    68: _migration_068_recipe_menu_tags,
 }
 
 
