@@ -5,6 +5,39 @@
 
 ## [Unreleased]
 
+### Changed — Reorder lock: auto-streak → manual 🔒 toggle
+- **Removed auto-streak lock**: the 3-consecutive-buys auto-lock that
+  shipped in commit 3acd3b4 was producing surprise moments ("why is
+  this pinned?"). Replaced with a **manual 🔒 button** in each row's
+  Proveedor cell. She toggles when she knows the item is specialty,
+  the system never locks on her behalf.
+- **`record_purchase_supplier()`** no longer touches
+  ``locked_supplier_id``. Streak counter (``purchase_streak_count``)
+  is still maintained for the future "lock this?" suggestion dashboard
+  but never changes behaviour automatically.
+- **New endpoints** (`app/routers/reorder.py`):
+  - `POST /reorder/lock-supplier` — pins an ingredient to its
+    currently-effective supplier; refuses soft-deleted suppliers.
+  - `POST /reorder/unlock-supplier` — clears the pin (no-op if no lock).
+  - Both write audit rows via ``audit_record()`` and return JSON
+    ``{ok: true, ...}`` so the frontend can refresh.
+- **New helpers** (`app/rms/supplier_history.py`):
+  - ``lock_supplier()`` — idempotent (no double-audit on re-lock to
+    same supplier); records ``previous_locked_supplier_id`` in audit
+    detail when overriding an existing lock.
+  - ``unlock_supplier()`` — no-op when no lock present.
+- **Template** (`app/templates/reorder.html`):
+  - Each row's Proveedor cell shows **🔒** (unlocked) or **🔓** (locked).
+  - Click → POST → page reload to swap badge + button.
+  - Locked-row CSS still applies (left-edge stripe + dropdown ring).
+- **Tests**: 16 in `test_reorder_supplier_redesign.py` (was 11).
+  Added: `lock_supplier_writes_audit_row`, `lock_is_idempotent`,
+  `lock_overrides_existing_lock_and_audits_previous`,
+  `unlock_writes_audit_row`, `unlock_is_noop_when_unlocked`,
+  `switching_suppliers_does_not_touch_existing_lock`. Replaced
+  `streak_locks_after_three_consecutive_buys` with
+  `streak_does_NOT_auto_lock` (regression for Phase 2).
+
 ### Changed — Reorder redesign: per-row supplier picker + auto-lock
 - **Migration 072** (`app/rms/db.py`): adds `last_purchase_supplier_id`,
   `last_purchase_at`, `purchase_streak_count`, `locked_supplier_id` to
@@ -83,6 +116,30 @@
   card with total ventas, total operaciones, total merma, and a per-day
   table (plan rows + completions). Without params the original
   checklist UI is unchanged. (Prelaunch roadmap 2026-09-17.)
+
+### Added — Tier-1 round 2 (Coffee regulars + quick receipt-of-stock)
+- **Coffee regulars card on `/inicio`** (`app/routers/dashboard.py`
+  + `app/templates/inicio.html` + `app/static/app-shell.css`):
+  customers with 2+ non-voided sales in the last 30 days, top 5
+  by visit count, each row links to `/clientes/{id}`. Empty state
+  copy when no regulars yet. Middle band widened from 3 to 4 columns.
+  (Prelaunch roadmap 2026-09-17.)
+- **Inline `+ qty` receipt-of-stock on `/inventario`**
+  (`app/templates/inventario.html`): a small inline form per row
+  that POSTs to the existing `/inventario/{id}/ajustar` endpoint
+  with a positive adjustment, so Saskia can add stock without
+  leaving the list. Negative adjustments (waste / breakage) still
+  go through the existing modal. (Prelaunch roadmap 2026-09-17.)
+
+### Housekeeping — orphan stash audit (2026-10-01)
+- **8 stale `git stash` entries on main** (oldest 13 days) audited.
+  7 dropped (work already shipped via other commits:
+  recipe_intel vocab + STATUS_TITLES, instructions ORM field +
+  recipe_phases, products api/tags + api/categories + bulk-edit +
+  mayorista_price + tag/category filters, RSPA fields, recipe
+  ZeroDivisionError guard, recipe_phases observability tests).
+  1 retained (`stash@{0}`: rotating file sink for loguru,
+  BACKLOG #45) — to be shipped in a dedicated PR.
 
 ### Already shipped (cross-checked 2026-10-01, not rebuilt)
 - `/excel/importar?mode=PATCH` — supports PATCH (default), FULL, APPEND;

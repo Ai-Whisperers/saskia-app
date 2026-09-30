@@ -186,6 +186,7 @@
       <th>Proveedor</th>
       <th>{{ m.sort_th("Unidad", "unit", sort, dir) }}</th>
       <th class="num">{{ m.sort_th("Stock actual", "stock_qty", sort, dir) }}</th>
+      <th>Recibir</th>
       <th class="num">{{ m.sort_th("Valor", "valor_gs", sort, dir) }}</th>
       <th class="num">{{ m.sort_th("Stock mínimo", "min_stock_qty", sort, dir) }}</th>
       <th class="num">{{ m.sort_th("Precio compra (Gs.)", "purchase_price_gs", sort, dir) }}</th>
@@ -225,6 +226,26 @@
         {% else %}
           {{ i.stock_qty|round(2) }} {{ i.unit }}
         {% endif %}
+      </td>
+      <td>
+        {# Inline quick-receipt form (prelaunch roadmap 2026-09-17):
+           POSTs a positive adjustment to /inventario/{id}/ajustar so
+           Saskia can add stock without leaving the list. Negative
+           adjustments (waste/breakage) still go through the adjust modal. #}
+        <form method="post" action="/inventario/{{ i.id }}/ajustar"
+              style="display:inline-flex;gap:var(--space-1);align-items:center;"
+              data-testid="quick-receipt-{{ i.id }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="number" name="adjustment" min="0" max="99999" step="0.01"
+                 required
+                 aria-label="Cantidad recibida de {{ fmt.entity_name(i) }}"
+                 placeholder="0"
+                 style="width:64px;padding:var(--space-1) var(--space-2);border:1px solid var(--color-border);border-radius:4px;">
+          <span class="text-muted" style="font-size:var(--text-xs);">{{ i.unit }}</span>
+          <button type="submit" class="btn btn-sm" aria-label="Registrar recepción de {{ fmt.entity_name(i) }}">
+            <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+          </button>
+        </form>
       </td>
       <td class="num">{% if i.purchase_price_gs is not none %}{{ m.gs((i.stock_qty or 0) * (i.purchase_price_gs or 0) | int) }}{% else %}<em class="muted">—</em>{% endif %}</td>
       <td class="num">{{ i.min_stock_qty|round(2) }}</td>

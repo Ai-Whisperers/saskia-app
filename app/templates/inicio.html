@@ -94,7 +94,7 @@
 </div>
 
 {# ══ Middle band: Acciones · Plan de mañana · Alertas ════════════════ #}
-<div class="home-band-3 mb-4">
+<div class="home-band-4 mb-4">
 
   {# ── Acciones del día ──────────────────────────────────────────── #}
   <section class="card" aria-label="Acciones del día">
@@ -196,6 +196,29 @@
       </div>
     {% else %}
       {{ ui.empty_state(title="Sin plan todavía", icon="icon-plan", hint="Se calcula con tus ventas.", cta_href="/produccion", cta_label="Ver Producción") }}
+    {% endif %}
+  </section>
+
+  {# ── Coffee regulars (prelaunch roadmap 2026-09-17) ─────────────── #}
+  <section class="card" aria-label="Clientes habituales">
+    <div class="card-header">
+      <h2 style="font-size:var(--text-md);">Clientes habituales</h2>
+      <small class="text-muted">últimos 30 días · 2+ visitas</small>
+    </div>
+    {% if regulars %}
+      {% for r in regulars %}
+      <a class="regular-row" href="/clientes/{{ r.id }}">
+        <span class="regular-name">{{ r.name or '(sin nombre)' }}</span>
+        <span class="regular-visits">{{ r.n_visits }} visita{{ 's' if r.n_visits != 1 }} · {{ m.gs(r.lifetime_spend_gs) }}</span>
+      </a>
+      {% endfor %}
+      {% if regulars_count_total > regulars|length %}
+      <div style="margin-top:var(--space-2);font-size:var(--text-xs);">
+        <a href="/clientes">Ver los {{ regulars_count_total }} habituales →</a>
+      </div>
+      {% endif %}
+    {% else %}
+      {{ ui.empty_state(title="Sin habituales aún", icon="icon-customer", hint="Aparecen acá cuando un cliente vuelve 2+ veces en 30 días.", cta_href="/clientes", cta_label="Ver clientes") }}
     {% endif %}
   </section>
 

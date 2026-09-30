@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
@@ -357,6 +357,50 @@ async def dashboard(
         stock_health_severity = "success"
         stock_health_label = "todo OK"
 
+    # Coffee regulars (prelaunch roadmap 2026-09-17):
+    # Customers with 2+ sales in the last 30 days, sorted by visit count.
+    # A "regular" in a small bakery context = recurring, not lifetime one-timers.
+    # Top 5 for the home card; full list is at /clientes.
+    from app.rms.models import Customer as _Customer
+    _thirty_days_ago = datetime.now(ASUNCION_TZ) - timedelta(days=30)
+    regular_rows = session.execute(
+        select(
+            Sale.customer_id,
+            func.count(Sale.id).label("n_visits"),
+            func.coalesce(func.sum(Sale.qty * Sale.unit_price_gs), 0).label(
+                "lifetime_spend_gs"
+            ),
+        )
+        .where(
+            Sale.customer_id.isnot(None),
+            Sale.voided_at.is_(None),
+            Sale.sold_at >= _thirty_days_ago,
+        )
+        .group_by(Sale.customer_id)
+        .having(func.count(Sale.id) >= 2)
+        .order_by(func.count(Sale.id).desc())
+        .limit(5)
+    ).all()
+    regulars: list[dict] = []
+    if regular_rows:
+        _ids = [r.customer_id for r in regular_rows]
+        _customers = {
+            c.id: c
+            for c in session.scalars(
+                select(_Customer).where(_Customer.id.in_(_ids))
+            ).all()
+        }
+        for r in regular_rows:
+            cust = _customers.get(r.customer_id)
+            if cust is None:
+                continue
+            regulars.append({
+                "id": r.customer_id,
+                "name": (cust.name or "").strip(),
+                "n_visits": int(r.n_visits),
+                "lifetime_spend_gs": int(r.lifetime_spend_gs or 0),
+            })
+
     # Batch-load all recipe costs (replaces per-recipe N+1).
     all_recipes = list(session.scalars(select(Recipe)).all())
     batch_recipe_results = batch_recipes_cost(session, all_recipes)
@@ -553,6 +597,25 @@ async def dashboard(
             "stock_health_label": stock_health_label,
             "stock_negative_count": stock_negative_count,
             "stock_below_min_count": len(stock_low),
+            # Coffee regulars (prelaunch roadmap 2026-09-17)
+            "regulars": regulars,
+            "regulars_count_total": (
+                session.scalar(
+                    select(func.count())
+                    .select_from(
+                        select(Sale.customer_id)
+                        .where(
+                            Sale.customer_id.isnot(None),
+                            Sale.voided_at.is_(None),
+                            Sale.sold_at >= _thirty_days_ago,
+                        )
+                        .group_by(Sale.customer_id)
+                        .having(func.count(Sale.id) >= 2)
+                        .subquery()
+                    )
+                )
+                or 0
+            ),
             "recipes_no_cost": recipes_no_cost,
             "sales_no_recipe": sales_no_recipe_decor,
             # E8: operational analytics surfaces

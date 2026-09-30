@@ -178,6 +178,25 @@ body.has-app-shell > .app-footer { grid-area: footer; }
 }
 @media (max-width: 1100px) { .home-band-3 { grid-template-columns: 1fr; } }
 
+/* 4-column middle band (with Coffee regulars card) */
+.home-band-4 {
+  display: grid; grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.1fr) minmax(260px, 1.1fr) minmax(240px, 1fr);
+  gap: var(--space-4); align-items: start;
+}
+@media (max-width: 1400px) { .home-band-4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 800px)  { .home-band-4 { grid-template-columns: 1fr; } }
+
+/* Coffee regulars card list */
+.regular-row {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+  text-decoration: none; color: var(--color-text);
+}
+.regular-row:last-child { border-bottom: none; }
+.regular-row .regular-name { flex: 1; font-weight: 500; }
+.regular-row .regular-visits { font-size: var(--text-sm); color: var(--color-text-muted); }
+
 /* Acciones del día checklist */
 .accion-row {
   display: flex; align-items: center; gap: var(--space-3);
