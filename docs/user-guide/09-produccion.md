@@ -42,11 +42,30 @@ días, te sugiere hacer 8 docenas mañana.
 Abajo de la lista de productos, ves qué ingredientes necesitás comprar:
 
 ```
-- harina 0000: 4.5 kg
-- manteca: 0.6 kg
-- azúcar: 1.0 kg
-- huevos: 12 und
+|- harina 0000: 4.5 kg
+|- manteca: 0.6 kg
+|- azúcar: 1.0 kg
+|- huevos: 12 und
 ```
+
+## Botón 🔥 Merma (perdida de producción)
+
+Cada producto tiene un botón rojo **🔥 Merma**. Úsalo si perdiste **toda una tanda**:
+- Falla de horno
+- Corte de luz
+- Error en la receta → el producto entero no salió bien
+- Se tiró la hornada entera por cualquier motivo
+
+> **Importante:** este botón descuenta automáticamente TODOS los ingredientes del lote perdido de una sola vez. No cargues merma ingrediente por ingrediente.
+
+### Cómo usarlo
+
+1. Tocá el botón 🔥 Merma en la fila del producto perdido
+2. Aparecerá un modal: elige si es **ingrediente** (usualmente) o **receta**
+3. Ingresa la cantidad perdida (ej. 10 unidades quemadas)
+4. Tocá **Confirmar**
+
+La app ajustará el stock y marcará el evento como `📍 Producción` para diferenciarlo de merma suelta.
 
 Es la suma de lo que consumen todas las recetas de los productos
 sugeridos. **Esta lista es lo que tenés que comprar** antes de mañana.

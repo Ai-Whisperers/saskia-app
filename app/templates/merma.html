@@ -199,6 +199,7 @@
         <th>Ingrediente</th>
         <th class="num">Cantidad</th>
         <th>Motivo</th>
+        <th>Origen</th>
         <th class="num">Costo (Gs.)</th>
       </tr>
     </thead>
@@ -209,6 +210,16 @@
         <td data-copy="{{ w.ingredient.id if w.ingredient else '' }}">{{ ui.entity_link(w.ingredient, href=('/inventario/' ~ w.ingredient.id) if w.ingredient and w.ingredient.id else None) }}</td>
         <td class="num">{{ "%.2f"|format(w.qty) }}</td>
         <td><span class="badge badge-neutral">{{ w.reason }}</span></td>
+        {# PROD-MERMA-2: surface entrypoint chip. source='production' (from
+           quick-merma modal) gets a colored badge; 'manual' is muted. #}
+        <td>
+          {% set _src = source_by_waste_id.get(w.id, 'manual') %}
+          {% if _src == 'production' %}
+            <span class="badge badge-info" title="Registrado desde /producción">📍 Producción</span>
+          {% else %}
+            <span class="badge badge-neutral" title="Registrado manualmente desde /merma">✍️ Manual</span>
+          {% endif %}
+        </td>
         <td class="num">{{ m.gs(w.cost_gs) }}</td>
       </tr>
       {% endfor %}

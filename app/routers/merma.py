@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.errors import BadRequest, NotFound
-from app.rms.models import Ingredient, Recipe
+from app.rms.models import AuditLog, Ingredient, Recipe, Sale
 from app.rms.observability import record_audit
 from app.rms.waste import (
     WasteReason,
@@ -80,8 +80,6 @@ def merma_list(
     )
     impact = waste_impact(session, start_date=start_date, end_date=end_date)
     # Estimate revenue from sales in same window
-    from app.rms.models import Sale
-
     rev_total = (
         session.execute(
             select(func.sum(Sale.qty * Sale.unit_price_gs)).where(
@@ -111,6 +109,32 @@ def merma_list(
     # Top merma ingredients: group impact.by_ingredient and sort descending
     top_ingredients = sorted(impact.by_ingredient, key=lambda x: x[2], reverse=True)[:10]
 
+    # PROD-MERMA-2: surface the entrypoint on the /merma eventos table so the
+    # operator can distinguish events from the new quick-merma modal
+    # (source='production') from entries logged the legacy way (source='manual').
+    # Build a map waste_log_id → source by joining AuditLog on target_id.
+    waste_ids = [w.id for w in items]
+    source_by_waste_id: dict[int, str] = {}
+    if waste_ids:
+        audit_rows = session.execute(
+            select(AuditLog.target_id, AuditLog.detail).where(
+                AuditLog.action == "write.merma.create",
+                AuditLog.target_type == "merma",
+                AuditLog.target_id.in_(waste_ids),
+            )
+        ).all()
+        for target_id, detail in audit_rows:
+            src = "manual"
+            if isinstance(detail, dict):
+                src = str(detail.get("source", "manual") or "manual")
+            # Normalize to int for template lookup (waste_ids are ints; the
+            # audit row stores target_id as str for UUID compat).
+            try:
+                key = int(target_id)
+            except (TypeError, ValueError):
+                key = target_id
+            source_by_waste_id[key] = src
+
     # Build preset query strings
     def preset_url(d: int) -> str:
         sd = (today - timedelta(days=d)).strftime("%Y-%m-%d")
@@ -128,7 +152,8 @@ def merma_list(
             "ingredients": ingredients,
             "recipes": recipes_with_yield,
             "top_ingredients": top_ingredients,
-            "days": days,
+                    "source_by_waste_id": source_by_waste_id,  # PROD-MERMA-2: entrypoint tag
+                    "days": days,
             "since": start_date.strftime("%Y-%m-%d"),
             "until": end_date.strftime("%Y-%m-%d"),
             "preset_url_7": preset_url(7),

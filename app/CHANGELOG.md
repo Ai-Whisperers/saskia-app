@@ -5,6 +5,38 @@
 
 ## [Unreleased]
 
+### Added (2026-09-30) — PROD-MERMA-2: source chip + a11y + docs
+
+Close the loop on the PROD-MERMA-1 quick-merma flow: operators can now
+**see at a glance** whether a merma event came from the new production
+modal (`📍 Producción`) or the legacy `/merma` form (`✍️ Manual`).
+
+**Source chip on /merma eventos table:**
+- New "Origen" column in the Eventos table shows the entrypoint.
+- Backed by an audit-log JOIN on `target_id` (with type coercion so
+  int-keyed `WasteLog.id` matches string-stored `audit_log.target_id`).
+- Two chip variants: `badge-info` (📍 Producción, highlighted) and
+  `badge-neutral` (✍️ Manual, muted).
+
+**Modal a11y:**
+- `role="dialog"`, `aria-modal="true"`, `aria-labelledby="qm-title"` on
+  the quick-merma `<dialog>`.
+- `<h2 id="qm-title">` and `<label for="…">` per tab.
+- Max-width responsive (`min(540px, 95vw)`).
+
+**Wired shift-deficit prompt (T4 completion):**
+- Shift-save flash banner emits `data-shift-saved="1"` so the JS knows
+  when to evaluate deficits.
+- Modal opens with the Lote-entero tab preselected when completed_qty
+  is below qty_to_produce on save.
+
+**Guides updated:**
+- `docs/user-guide/07-merma.md` — new section "Merma de tandas enteras"
+  routing operators to /produccion for batch losses; "Auditoría y
+  seguimiento" explains the source chips.
+- `docs/user-guide/08-produccion.md` — "Botón 🔥 Merma" subsection
+  documents the production-entrypoint flow.
+
 ### Added (2026-09-30) — PROD-MERMA-1: quick-merma modal from /produccion + /merma collapse
 
 Move waste logging to the place where waste happens. The operator no longer
