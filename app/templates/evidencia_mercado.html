@@ -46,6 +46,7 @@
   Columnas: <code>competidor,tipo,ciudad,producto,familia,unidad,precio_gs,as_of,fuente</code> (familia se deduce si falta; <strong>fuente obligatoria</strong>).
 </p>
 <form method="post" action="/vs-mercado/evidencia/importar" enctype="multipart/form-data" style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="file" name="csv" accept=".csv" required>
   <label style="font-size:var(--text-sm);"><input type="checkbox" name="confirmar" value="si" required> Confirmo la importación</label>
   <button type="submit" class="btn btn-sm">Importar</button>

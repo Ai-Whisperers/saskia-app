@@ -22,12 +22,12 @@ def test_product_is_available_filter(session_factory, client):
     # Create two products - one available, one not
     with session_factory() as s:
         s.execute(text(
-            "INSERT INTO product (name, portion_label, sale_price_gs, is_available) "
-            "VALUES ('Test Available', '1 und', 10000, TRUE)"
+            "INSERT INTO product (name, portion_label, sale_price_gs, is_available, is_favorite) "
+            "VALUES ('Test Available', '1 und', 10000, TRUE, 0)"
         ))
         s.execute(text(
-            "INSERT INTO product (name, portion_label, sale_price_gs, is_available) "
-            "VALUES ('Test Hidden', '1 und', 10000, FALSE)"
+            "INSERT INTO product (name, portion_label, sale_price_gs, is_available, is_favorite) "
+            "VALUES ('Test Hidden', '1 und', 10000, FALSE, 0)"
         ))
         s.commit()
 
@@ -45,16 +45,16 @@ def test_product_category_groups_in_dashboard(session_factory, client):
     # Create products with categories
     with session_factory() as s:
         s.execute(text(
-            "INSERT INTO product (name, portion_label, sale_price_gs, category, is_available) "
-            "VALUES ('Pan Frances', '1 und', 5000, 'Panaderia', TRUE)"
+            "INSERT INTO product (name, portion_label, sale_price_gs, category, is_available, is_favorite) "
+            "VALUES ('Pan Frances', '1 und', 5000, 'Panaderia', TRUE, 0)"
         ))
         s.execute(text(
-            "INSERT INTO product (name, portion_label, sale_price_gs, category, is_available) "
-            "VALUES ('Croissant', '1 und', 8000, 'Panaderia', TRUE)"
+            "INSERT INTO product (name, portion_label, sale_price_gs, category, is_available, is_favorite) "
+            "VALUES ('Croissant', '1 und', 8000, 'Panaderia', TRUE, 0)"
         ))
         s.execute(text(
-            "INSERT INTO product (name, portion_label, sale_price_gs, category, is_available) "
-            "VALUES ('Torta Chocolate', '1 und', 25000, 'Pasteleria', TRUE)"
+            "INSERT INTO product (name, portion_label, sale_price_gs, category, is_available, is_favorite) "
+            "VALUES ('Torta Chocolate', '1 und', 25000, 'Pasteleria', TRUE, 0)"
         ))
         s.commit()
 
@@ -106,9 +106,9 @@ def test_product_image_url_stores_and_retrieves(session_factory):
     """P2 #4: image_url column accepts and returns URLs."""
     with session_factory() as s:
         s.execute(text(
-            "INSERT INTO product (name, portion_label, sale_price_gs, image_url, is_available) "
+            "INSERT INTO product (name, portion_label, sale_price_gs, image_url, is_available, is_favorite) "
             "VALUES ('Test Img Product', '1 und', 5000, "
-            "'https://example.com/img.jpg', TRUE)"
+            "'https://example.com/img.jpg', TRUE, 0)"
         ))
         s.commit()
 

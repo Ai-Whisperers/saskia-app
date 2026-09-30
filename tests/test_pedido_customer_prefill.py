@@ -1,4 +1,5 @@
 
+# allow-hardcoded-dates: fixed instants for deterministic assertions
 
 def test_pedido_nuevo_prefills_customer_data(session_factory, client):
     """?customer_id=N loads the customer's phone/RUC/razón social into the form."""

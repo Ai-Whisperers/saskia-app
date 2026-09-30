@@ -3,7 +3,7 @@
 {% import "_components/tags.html" as t %}
 {% import "_components/atoms.html" as ui %}
 
-{% block title %}Receta — {{ action }}
+{% block title %}Receta — {{ action }}{% endblock %}
 <script>
   // P3: live "ingredientes efectivos" panel — explodes sub-recipes so the
   // editor shows the complete raw-ingredient list. Gray = contributed by
@@ -58,7 +58,6 @@
     loadEffective();
   })();
 </script>
-{% endblock %}
 
 {% block content %}
 {{ ui.page_header(

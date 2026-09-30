@@ -136,6 +136,17 @@ class Customer(Base):
     loyalty_points: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     # HEREBUS integration: free-text zone label (no FK — early stage)
     zone: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    # Migrations 069/070/071 (kept in sync with models_legacy.Customer):
+    # dietary profile, profile completeness, marketing consent.
+    dietary_restrictions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # CSV of canonical tags (hard)
+    dietary_preferences: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # JSON [{tag, rank, approved}]
+    dietary_confirm_always: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    birthday: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)        # MM-DD
+    how_found: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    preferred_channel: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    marketing_consent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    invoice_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    invoice_ruc: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 

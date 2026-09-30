@@ -82,6 +82,12 @@ class Pedido(Base):
     delivery_zone_id: Mapped[int | None] = mapped_column(
         ForeignKey("delivery_zone.id"), nullable=True, index=True
     )
+    # Migration 069 delivery/facturación (kept in sync with models_legacy.Pedido):
+    address_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    delivery_window_start: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    delivery_window_end: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    invoice_ruc: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    invoice_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
     public_token: Mapped[str] = mapped_column(
         String(40), nullable=False, unique=True, index=True, default=""
     )

@@ -11,6 +11,7 @@ def test_cliente_detalle_badge_with_naive_last_sale(client, session_factory):
         c = make_customer(s, name="BadgeNaive UX", phone="0982")
         s.flush()
         p = make_product(s, name="BadgeProd UX")
+# allow-hardcoded-dates: fixed instants required for deterministic TZ assertions
         s.flush()
         from app.rms.models import Sale
         # naive sold_at — exactly what SQLite hands back on prod

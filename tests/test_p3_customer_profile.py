@@ -4,6 +4,7 @@ defaults, address manager, and the clientes data-completion nudge.
 Migration 071 adds customer.birthday / how_found / preferred_channel /
 marketing_consent / invoice_name / invoice_ruc.
 """
+# allow-hardcoded-dates: fixed birthday/registration instants for deterministic assertions
 
 from __future__ import annotations
 

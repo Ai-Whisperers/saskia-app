@@ -4,6 +4,7 @@ Cubre: modelo CompetitorPriceObservation, stats por familia, seed
 idempotente, rutas /vs-mercado (columna mercado real), /vs-mercado/evidencia,
 evidencia.csv y el importador con confirmación.
 """
+# allow-hardcoded-dates: fixed instants for deterministic assertions
 
 from __future__ import annotations
 

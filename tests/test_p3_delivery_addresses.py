@@ -6,6 +6,7 @@
 - Product.is_favorite filter on /ventas quick-sale grid
 - migration 069: columns exist (covered by conftest's migrate-on-startup)
 """
+# allow-hardcoded-dates: fixed promised dates for deterministic window assertions
 
 from __future__ import annotations
 

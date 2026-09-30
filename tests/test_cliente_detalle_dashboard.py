@@ -11,6 +11,7 @@ P1: quantities render as ints when whole (2 not 2.00; 0.5 stays 0.5).
 
 P2: client name title-cased in h1 + breadcrumb.
 """
+# allow-hardcoded-dates: fixed instants required for deterministic ordering/TZ assertions
 
 from __future__ import annotations
 

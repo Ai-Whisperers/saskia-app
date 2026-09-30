@@ -209,6 +209,9 @@ class Product(Base):
     image_url: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)  # Product image URL
     category: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # Product category
     tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Comma-separated tags
+    # Migration 069: quick-sale "Favoritos" filter persistence (kept in sync
+    # with models_legacy.Product).
+    is_favorite: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Phase 1.A — IVA rate ∈ {5, 10, 'exento'}. Defaults from ComplianceInfo.iva_default_rate.
     # Stored as string so 'exento' is a valid value alongside 5/10.
