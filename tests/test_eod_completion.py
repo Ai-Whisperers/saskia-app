@@ -104,7 +104,12 @@ def test_eod_view_shows_completion_in_hecho_column(client, session_factory, prod
     from app.rms.eod_completions import upsert_completion
     from app.rms.models import Sale
 
-    # Seed sales so the forecast produces a plan row for this product
+    # Seed sales so the forecast produces a plan row for this product.
+    # /eod reads ASUNCION today, so seed the completion for that date —
+    # UTC date.today() diverges near midnight and the pre-fill vanishes.
+    from app.rms.config import ASUNCION_TZ
+    from datetime import datetime as _dt
+    today_asuncion = _dt.now(ASUNCION_TZ).date()
     with session_factory() as s:
         now = datetime.now(timezone.utc)
         for i in range(5):
@@ -112,7 +117,7 @@ def test_eod_view_shows_completion_in_hecho_column(client, session_factory, prod
                 product_id=product_id, qty=2.0,
                 sold_at=now - timedelta(days=i), unit_price_gs=2500,
             ))
-        upsert_completion(s, product_id=product_id, for_date=date.today(), completed_qty=4.0)
+        upsert_completion(s, product_id=product_id, for_date=today_asuncion, completed_qty=4.0)
         s.commit()
 
     r = client.get("/eod")

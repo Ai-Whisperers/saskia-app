@@ -68,7 +68,7 @@ BACKUP_THRESHOLD_HOURS = int(os.getenv("AIW_SASKIA_BACKUP_HOURS", "24"))
 KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_SASKIA_KEEP_LOCAL_DAYS", "30"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 67  # 067 = pedido.public_token_expires_at (P1-2 token hardening)
+CURRENT_SCHEMA_VERSION = 68  # 068 = recipe.menu_tags (UI-V2 multi-select menu labels)
 
 
 def ensure_dirs() -> None:

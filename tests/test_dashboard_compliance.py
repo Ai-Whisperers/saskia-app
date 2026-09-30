@@ -3,7 +3,19 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
+from app.rms.config import ASUNCION_TZ
 from app.rms.models import ComplianceInfo, Product
+
+
+def _asuncion_today() -> date:
+    """Route under test computes vs Asuncion date (not host UTC date).
+
+    Seeding with date.today() diverges near midnight UTC and flakes the
+    day count by one.
+    """
+    from datetime import datetime
+
+    return datetime.now(ASUNCION_TZ).date()
 from app.routers.dashboard import _compliance_alerts
 
 
@@ -34,7 +46,7 @@ class TestInanREExpiry:
         with Session() as s:
             ci = s.get(ComplianceInfo, 1)
             ci.inan_re_number = "8000/2024"
-            ci.inan_re_expiry = (date.today() - timedelta(days=30)).isoformat()
+            ci.inan_re_expiry = (_asuncion_today() - timedelta(days=30)).isoformat()
             s.commit()
             alerts = _compliance_alerts(s)
         inan_alerts = [a for a in alerts if "INAN R.E." in a["message"]]
@@ -47,7 +59,7 @@ class TestInanREExpiry:
         with Session() as s:
             ci = s.get(ComplianceInfo, 1)
             ci.inan_re_number = "8000/2024"
-            ci.inan_re_expiry = (date.today() + timedelta(days=15)).isoformat()
+            ci.inan_re_expiry = (_asuncion_today() + timedelta(days=15)).isoformat()
             s.commit()
             alerts = _compliance_alerts(s)
         inan_alerts = [a for a in alerts if "INAN R.E." in a["message"]]

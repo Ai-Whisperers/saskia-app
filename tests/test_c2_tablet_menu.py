@@ -32,6 +32,13 @@ pytestmark = pytest.mark.crud
 # ── Helpers ───────────────────────────────────────────────────────────────
 
 
+from datetime import datetime, timedelta
+
+
+def _datetime_now_plus_30d():
+    return datetime.now() + timedelta(days=30)
+
+
 def _make_product(session_factory, **overrides) -> int:
     """Create a Product row with sensible defaults and return its id."""
     defaults: dict = {
@@ -567,6 +574,7 @@ def test_other_public_routes_unaffected(client, session_factory):
             promised_date=date.today(),
             channel="mostrador",
             public_token="c2compat",
+            public_token_expires_at=_datetime_now_plus_30d(),
         )
         s.add(pedido)
         s.commit()
@@ -574,5 +582,5 @@ def test_other_public_routes_unaffected(client, session_factory):
     r = client.get("/p/c2compat")
     assert r.status_code == 200, (
         f"/p/c2compat after C2 mount returned {r.status_code}. "
-        f"Tablet-menu router mount must not break /p/{token}."
+        "Tablet-menu router mount must not break /p/c2compat."
     )
