@@ -972,3 +972,80 @@ def public_menu(
             "currency_label": "Gs.",
         },
     )
+
+
+# ─── Public full-catalog menu (/menu) ─────────────────────────────────────────
+# No auth. Every available product with tablet_visible=True, grouped by
+# category, in one scrollable page. This is the link to print on the door
+# sticker / WhatsApp bio — /m/{slug} deep-links one item, /menu shows all.
+
+# Canonical category display order; unknown categories append alphabetically.
+_MENU_CATEGORY_ORDER = ["panaderia", "pasteleria", "bebida", "otro"]
+_MENU_CATEGORY_LABELS = {
+    "panaderia": "Panadería",
+    "pasteleria": "Pastelería",
+    "bebida": "Bebidas",
+    "otro": "Otros",
+}
+
+
+@public_router.get("/menu", response_class=HTMLResponse)
+def public_menu_catalog(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Public, no-login menu page: the whole visible catalog.
+
+    Only products with ``is_available`` AND ``tablet_visible`` are listed —
+    the operator already controls per-product visibility from the producto
+    form, so /menu never leaks hidden or out-of-stock items. Grouped by
+    category with in-page anchors; prices formatted in Gs.
+    """
+    from app.rms.models import Product
+
+    products = session.scalars(
+        select(Product)
+        .where(Product.is_available.is_(True), Product.tablet_visible.is_(True))
+        .order_by(Product.category, Product.name)
+    ).all()
+
+    # Group, preserving canonical category order then alphabetic extras.
+    groups: dict[str, list[dict]] = {}
+    for p in products:
+        cat = (p.category or "otro").strip().lower() or "otro"
+        groups.setdefault(cat, []).append({
+            "id": p.id,
+            "name": p.name,
+            "portion_label": p.portion_label or "",
+            "sale_price_gs": p.sale_price_gs,
+            "image_url": p.image_url or "",
+            "tablet_slug": p.tablet_slug or "",
+            "notes": p.notes or "",
+            "tags": [t.strip() for t in (p.tags or "").split(",") if t.strip()],
+        })
+
+    ordered_keys = [c for c in _MENU_CATEGORY_ORDER if c in groups]
+    ordered_keys += sorted(k for k in groups if k not in _MENU_CATEGORY_ORDER)
+
+    menu_groups = [
+        {
+            "key": k,
+            "label": _MENU_CATEGORY_LABELS.get(k, k.title()),
+            # NOTE: key must not be 'items' — dict.items() is a method, so
+            # Jinja's `g.items` in the template would resolve to the method,
+            # not this list.
+            "products": groups[k],
+        }
+        for k in ordered_keys
+    ]
+
+    return render(
+        request,
+        "menu_publico.html",
+        {
+            "menu_groups": menu_groups,
+            "total_items": len(products),
+            "shop_name": "Saskia RMS",
+            "currency_label": "Gs.",
+        },
+    )
