@@ -229,6 +229,7 @@ def products_list(
                 "sku": p.sku,
                 "image_url": p.image_url,
                 "is_available": p.is_available,
+                "is_favorite": bool(p.is_favorite),
                 "portion_label": p.portion_label,
                 "sale_price_gs": p.sale_price_gs,
                 "recipe_id": p.recipe_id,
@@ -647,6 +648,35 @@ def product_update(
     )
     session.commit()
     return RedirectResponse(url="/productos", status_code=303)
+
+
+@router.post("/{p_id}/favorito")
+def product_toggle_favorite(
+    p_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Toggle product.is_favorite (P3 UX): favorites pin to the ventas
+    POS quick-sell grid even with zero recent sales."""
+    p = session.get(Product, p_id)
+    if p is None:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    p.is_favorite = not p.is_favorite
+    session.commit()
+    record_audit(
+        request,
+        session=session,
+        action="write.product.update",
+        target_type="product",
+        target_id=p_id,
+        detail={"favorite": p.is_favorite, "name": p.name},
+    )
+    session.commit()
+    # Back to wherever the toggle came from (keep filters/sort/page)
+    return RedirectResponse(
+        url=request.headers.get("referer") or "/productos", status_code=303
+    )
 
 
 @router.post("/{p_id}/eliminar")

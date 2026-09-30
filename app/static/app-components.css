@@ -562,3 +562,8 @@ small.hint,
   max-width: 100%;
   font-size: var(--text-sm);
 }
+
+/* P3: favorite star on productos list */
+.fav-star { font-size: 1.05rem; line-height: 1; padding: 2px 8px; }
+.fav-star.is-fav { color: #d9a406; }
+.fav-star:hover { color: #d9a406; }

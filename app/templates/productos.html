@@ -221,6 +221,18 @@
         {% endif %}
       </td>
       <td class="actions col-actions">
+        {# P3: ⭐ favorite toggle — pins the product to the ventas POS
+           quick-sell grid. POST + redirect keeps filters/sort/page. #}
+        <form method="post" action="/productos/{{ p.id }}/favorito" class="fav-toggle-form" style="display:inline;">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+          <button type="submit"
+                  class="btn btn-sm btn-ghost fav-star{% if p["is_favorite"] %} is-fav{% endif %}"
+                  aria-pressed="{{ 'true' if p["is_favorite"] else 'false' }}"
+                  aria-label="{{ 'Quitar de favoritos' if p.is_favorite else 'Marcar como favorito' }}: {{ fmt.entity_name(p) }}"
+                  title="{{ 'Quitar de favoritos' if p.is_favorite else 'Marcar como favorito' }}">
+            {{ '★' if p["is_favorite"] else '☆' }}
+          </button>
+        </form>
         <a href="/productos/{{ p.id }}/editar" class="btn btn-sm btn-ghost">
           <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
           Editar
