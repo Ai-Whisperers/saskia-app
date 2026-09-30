@@ -39,7 +39,6 @@ class Base(DeclarativeBase):
     """SQLAlchemy declarative base. All models inherit from this."""
 
 
-
 class AppMeta(Base):
     """Key-value store for app metadata (schema version, last_backup_at, etc.)."""
 
@@ -64,9 +63,7 @@ class Ingredient(Base):
     unit: Mapped[str] = mapped_column(String(16), nullable=False)
     stock_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     purchase_price_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    purchase_price_updated_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, nullable=True
-    )
+    purchase_price_updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     last_consumed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     min_stock_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     # Phase 7 reorder: target stock to refill to. Defaults to 2x min_stock_qty
@@ -102,13 +99,21 @@ class Ingredient(Base):
     water_activity_aw: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     # Whether this ingredient requires lot tracking (FIFO per batch).
     # True for dairy, eggs, meat, seafood, fresh produce. False for dry/sugar/salt.
-    lot_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    lot_required: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
     # SINACLA cross-contamination (migration 054): blocks "sin tacc" derivation.
-    may_contain_gluten: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    may_contain_gluten: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
     # Audit items 109, 110: opening stock with date + reorder point override
     opening_stock_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    opening_stock_date: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # ISO date string
-    reorder_point: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # overrides min_stock_qty for reorder
+    opening_stock_date: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True
+    )  # ISO date string
+    reorder_point: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True
+    )  # overrides min_stock_qty for reorder
     # S7 Decision B — per-ingredient forecast horizon. NULL = use global default
     # (DEFAULT_FORECAST_HORIZON_DAYS env var, typically 14).
     forecast_horizon_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -179,16 +184,12 @@ class IngredientVariant(Base):
     # Human-readable label of the package (e.g. "Bolsa 1kg", "Saco 25kg").
     # Optional — operators can leave it empty if the size + unit is clear.
     package_size: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
-    package_unit: Mapped[str] = mapped_column(
-        String(8), nullable=False, default="und"
-    )
+    package_unit: Mapped[str] = mapped_column(String(8), nullable=False, default="und")
     purchase_price_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     # Stock for THIS variant only (e.g. 3 bags of 1kg harina). The
     # ingredient.stock_qty column on the parent is kept for backwards
     # compatibility but new code should read variant-level stock.
-    stock_qty: Mapped[float] = mapped_column(
-        Float, nullable=False, default=0.0, server_default="0"
-    )
+    stock_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0")
     supplier_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("supplier.id"), nullable=True, index=True
     )
@@ -196,9 +197,7 @@ class IngredientVariant(Base):
         Boolean, nullable=False, default=False, server_default="0"
     )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
@@ -326,11 +325,19 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
     portion_label: Mapped[str] = mapped_column(String(60), nullable=False, default="1 unidad")
     sale_price_gs: Mapped[int] = mapped_column(Integer, nullable=False)
-    recipe_id: Mapped[Optional[int]] = mapped_column(ForeignKey("recipe.id"), nullable=True, index=True)
+    recipe_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("recipe.id"), nullable=True, index=True
+    )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    sku: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, unique=True, index=True)  # E23.S1 barcode
-    is_available: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)  # Toggle to hide from POS
-    image_url: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)  # Product image URL
+    sku: Mapped[Optional[str]] = mapped_column(
+        String(32), nullable=True, unique=True, index=True
+    )  # E23.S1 barcode
+    is_available: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )  # Toggle to hide from POS
+    image_url: Mapped[Optional[str]] = mapped_column(
+        String(256), nullable=True
+    )  # Product image URL
     category: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # Product category
     # P3 UX batch: quick-sale "Favoritos" filter persists here.
     is_favorite: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -338,12 +345,16 @@ class Product(Base):
 
     # Phase 1.A — IVA rate ∈ {5, 10, 'exento'}. Defaults from ComplianceInfo.iva_default_rate.
     # Stored as string so 'exento' is a valid value alongside 5/10.
-    iva_rate: Mapped[str] = mapped_column(String(8), nullable=False, default="10", server_default="10")
+    iva_rate: Mapped[str] = mapped_column(
+        String(8), nullable=False, default="10", server_default="10"
+    )
 
     # Phase 1.A — INAN R.S.P.A. (Registro Sanitario de Producto Alimenticio). Required when
     # product is packaged + labeled for retail sale. NULL = no R.S.P.A. (e.g. mostrador
     # or encargo sales where R.S.P.A. is not required).
-    requires_rspa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    requires_rspa: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
     rspa_number: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     rspa_expiry: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # ISO
 
@@ -385,7 +396,9 @@ class Sale(Base):
     """A recorded sale. unit_price_gs is SNAPSHOT — even if product catalog changes."""
 
     __tablename__ = "sale"
-    customer_id: Mapped[Optional[int]] = mapped_column(ForeignKey("customer.id"), nullable=True, index=True)
+    customer_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("customer.id"), nullable=True, index=True
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     sold_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
@@ -436,9 +449,13 @@ class Sale(Base):
     invoice_customer_ruc: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     invoice_customer_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     # IVA breakdown at sale time (snapshot — does not change if Product.iva_rate changes).
-    iva_rate: Mapped[str] = mapped_column(String(8), nullable=False, default="10", server_default="10")
+    iva_rate: Mapped[str] = mapped_column(
+        String(8), nullable=False, default="10", server_default="10"
+    )
     iva_base_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
-    iva_amount_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    iva_amount_gs: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
 
     # Relationships
     product: Mapped["Product"] = relationship(back_populates="sales")
@@ -470,7 +487,9 @@ class SaleStockMove(Base):
     sale_id: Mapped[int] = mapped_column(
         ForeignKey("sale.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    affected_recipe_id: Mapped[int] = mapped_column(ForeignKey("recipe.id"), nullable=False, index=True)
+    affected_recipe_id: Mapped[int] = mapped_column(
+        ForeignKey("recipe.id"), nullable=False, index=True
+    )
     ingredient_id: Mapped[int] = mapped_column(
         ForeignKey("ingredient.id"), nullable=False, index=True
     )
@@ -511,7 +530,9 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[str] = mapped_column(String(32), nullable=False, default="admin")  # admin, cashier, manager
+    role: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="admin"
+    )  # admin, cashier, manager
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
     created_at: Mapped[str] = mapped_column(Text, nullable=False)
     last_login_at: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -580,7 +601,6 @@ class AuditLog(Base):
     user_agent: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
 
 
-
 class IngredientPriceEvent(Base):
     """A purchase-price update for an ingredient (Phase B — Q1 core).
 
@@ -609,9 +629,7 @@ class IngredientPriceEvent(Base):
         index=True,
     )
     price_gs: Mapped[int] = mapped_column(Integer, nullable=False)
-    recorded_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     source: Mapped[str] = mapped_column(String(32), nullable=False, default="restock")
 
     __table_args__ = (
@@ -643,10 +661,8 @@ class Customer(Base):
     # HEREBUS integration: free-text zone label (no FK — early stage)
     zone: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    __table_args__ = (
-        Index("ix_customer_name", "name"),
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
     # P3 delivery batch: operator's default zone for this customer
@@ -715,9 +731,7 @@ class TagLink(Base):
     )
     target_kind: Mapped[str] = mapped_column(String(16), nullable=False)
     target_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (
         UniqueConstraint("tag_id", "target_kind", "target_id", name="uq_tag_link"),
@@ -726,8 +740,6 @@ class TagLink(Base):
 
     # Relationships
     tag: Mapped["Tag"] = relationship("Tag", back_populates="links")
-
-
 
 
 class ProductionCompletion(Base):
@@ -840,9 +852,7 @@ class Supplier(Base):
     # Relationships
     ingredients: Mapped[list["Ingredient"]] = relationship(back_populates="supplier")
 
-    __table_args__ = (
-        Index("ix_supplier_name", "name"),
-    )
+    __table_args__ = (Index("ix_supplier_name", "name"),)
 
 
 class WasteLog(Base):
@@ -934,9 +944,7 @@ class DeliveryZone(Base):
 
     pedidos: Mapped[list["Pedido"]] = relationship(back_populates="delivery_zone")
 
-    __table_args__ = (
-        Index("ix_delivery_zone_active", "is_active", "position"),
-    )
+    __table_args__ = (Index("ix_delivery_zone_active", "is_active", "position"),)
 
 
 # NOTE: `delivery_zone_id` is added to Pedido class below (forward ref).
@@ -962,9 +970,7 @@ class WishlistItem(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     purchased: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     purchased_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (
         CheckConstraint(
@@ -991,14 +997,10 @@ class RiskItem(Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     owner: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (
-        CheckConstraint(
-            "probability BETWEEN 1 AND 5", name="ck_risk_prob_range"
-        ),
+        CheckConstraint("probability BETWEEN 1 AND 5", name="ck_risk_prob_range"),
         CheckConstraint("impact_gs >= 0", name="ck_risk_impact_nonneg"),
         CheckConstraint(
             "status IN ('active', 'activo', 'mitigated', 'closed')",
@@ -1092,9 +1094,7 @@ class ProductionPlan(Base):
     __tablename__ = "production_plan"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    recipe_id: Mapped[int] = mapped_column(
-        ForeignKey("recipe.id"), nullable=False, index=True
-    )
+    recipe_id: Mapped[int] = mapped_column(ForeignKey("recipe.id"), nullable=False, index=True)
     batches_qty: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     planned_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="planned")
@@ -1132,9 +1132,7 @@ class ShoppingListItem(Base):
     purpose_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     purchased: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     purchased_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     ingredient: Mapped["Ingredient"] = relationship("Ingredient")
     production_plan: Mapped[Optional["ProductionPlan"]] = relationship(
@@ -1226,7 +1224,6 @@ class SettingsKV(Base):
     )
 
 
-
 class Pedido(Base):
     """A pre-order (pedido) — Phase 3 (2026-09-17 prelaunch roadmap).
 
@@ -1259,21 +1256,13 @@ class Pedido(Base):
     customer_id: Mapped[int | None] = mapped_column(
         ForeignKey("customer.id"), index=True, nullable=True
     )
-    customer_name: Mapped[str] = mapped_column(
-        String(120), nullable=False, default=""
-    )
-    customer_phone: Mapped[str | None] = mapped_column(
-        String(32), nullable=True, index=True
-    )
+    customer_name: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    customer_phone: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     promised_date: Mapped[datetime] = mapped_column(Date, nullable=False, index=True)
     promised_time: Mapped[str | None] = mapped_column(String(8), nullable=True)
     channel: Mapped[str] = mapped_column(String(32), nullable=False, default="whatsapp")
-    status: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="pending", index=True
-    )
-    payment_intent: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="efectivo"
-    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending", index=True)
+    payment_intent: Mapped[str] = mapped_column(String(32), nullable=False, default="efectivo")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     # HEREBUS integration: link to delivery zone (drives cost + min order)
     delivery_zone_id: Mapped[int | None] = mapped_column(
@@ -1312,9 +1301,7 @@ class Pedido(Base):
     # P1-B3: customer-uploaded comprobante de pago from /p/{public_token}.
     # Relative path like "payment_receipts/123/2026-09-29_141503.jpg".
     payment_receipt_path: Mapped[str | None] = mapped_column(Text, nullable=True)
-    payment_receipt_uploaded_at: Mapped[datetime | None] = mapped_column(
-        DateTime, nullable=True
-    )
+    payment_receipt_uploaded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     lines: Mapped[list["PedidoLine"]] = relationship(
@@ -1345,9 +1332,7 @@ class PedidoLine(Base):
     pedido_id: Mapped[int] = mapped_column(
         ForeignKey("pedido.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    product_id: Mapped[int] = mapped_column(
-        ForeignKey("product.id"), nullable=False, index=True
-    )
+    product_id: Mapped[int] = mapped_column(ForeignKey("product.id"), nullable=False, index=True)
     qty: Mapped[float] = mapped_column(Float, nullable=False)
     unit_price_gs: Mapped[int] = mapped_column(Integer, nullable=False)
     fulfilled_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0)
@@ -1359,9 +1344,6 @@ class PedidoLine(Base):
         CheckConstraint("qty > 0", name="ck_pedido_line_qty_positive"),
         CheckConstraint("unit_price_gs >= 0", name="ck_pedido_line_price_nonneg"),
     )
-
-
-
 
 
 class Tenant(Base):
@@ -1381,6 +1363,7 @@ class Tenant(Base):
     primary_color: Mapped[str] = mapped_column(String(16), nullable=False, default="#7b3f00")
     currency: Mapped[str] = mapped_column(String(8), nullable=False, default="Gs.")
     created_at: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+
 
 class StockMovement(Base):
     """Append-only stock movement ledger for auditability.
@@ -1433,7 +1416,6 @@ class StockMovement(Base):
     ingredient: Mapped["Ingredient"] = relationship("Ingredient")
 
 
-
 class ComplianceInfo(Base):
     """Phase 1.A — Single-row table for Paraguayan tax / regulatory IDs.
 
@@ -1448,6 +1430,7 @@ class ComplianceInfo(Base):
     date fields are ISO strings (not Date columns) so an operator can paste
     "31/12/2027" or "2027-12-31" — we parse on save and reformat on display.
     """
+
     __tablename__ = "compliance_info"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
@@ -1501,7 +1484,10 @@ class ComplianceInfo(Base):
     sifen_test_mode: Mapped[bool] = mapped_column(default=True, nullable=False)
 
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow,
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
 
 
@@ -1524,13 +1510,9 @@ class DateRangePreset(Base):
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
-    __table_args__ = (
-        Index("ix_date_range_preset_active_sort", "is_active", "sort_order"),
-    )
+    __table_args__ = (Index("ix_date_range_preset_active_sort", "is_active", "sort_order"),)
 
 
 class StorageType(Base):
@@ -1559,13 +1541,9 @@ class StorageType(Base):
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
-    __table_args__ = (
-        Index("ix_storage_type_active_sort", "is_active", "sort_order"),
-    )
+    __table_args__ = (Index("ix_storage_type_active_sort", "is_active", "sort_order"),)
 
 
 class MarginTier(Base):
@@ -1597,13 +1575,9 @@ class MarginTier(Base):
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
-    __table_args__ = (
-        Index("ix_margin_tier_active_sort", "is_active", "sort_order"),
-    )
+    __table_args__ = (Index("ix_margin_tier_active_sort", "is_active", "sort_order"),)
 
 
 class StockStatusConfig(Base):
@@ -1639,13 +1613,13 @@ class StockStatusConfig(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False,
-        default=datetime.utcnow, onupdate=datetime.utcnow,
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
 
-    __table_args__ = (
-        Index("ix_stock_status_config_active", "is_active", "sort_order"),
-    )
+    __table_args__ = (Index("ix_stock_status_config_active", "is_active", "sort_order"),)
 
 
 class StorageKeyword(Base):
@@ -1673,9 +1647,7 @@ class StorageKeyword(Base):
     keyword: Mapped[str] = mapped_column(String(64), nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (
         Index("ix_storage_keyword_active_sort", "storage_code", "is_active", "sort_order"),
@@ -1703,13 +1675,9 @@ class Channel(Base):
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
-    __table_args__ = (
-        Index("ix_channel_active_sort", "is_active", "sort_order"),
-    )
+    __table_args__ = (Index("ix_channel_active_sort", "is_active", "sort_order"),)
 
 
 class PaymentMethod(Base):
@@ -1734,13 +1702,9 @@ class PaymentMethod(Base):
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
-    __table_args__ = (
-        Index("ix_payment_method_active_sort", "is_active", "sort_order"),
-    )
+    __table_args__ = (Index("ix_payment_method_active_sort", "is_active", "sort_order"),)
 
 
 class MessageTemplate(Base):
@@ -1772,8 +1736,10 @@ class MessageTemplate(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False,
-        default=datetime.utcnow, onupdate=datetime.utcnow,
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
 
     __table_args__ = (
@@ -1808,9 +1774,7 @@ class Category(Base):
     scope: Mapped[str] = mapped_column(String(16), nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (
         UniqueConstraint("scope", "name", name="uq_category_scope_name"),
@@ -1828,6 +1792,8 @@ __all__ = [
     # Static-content-audit Phase 4 — migrations 041, 042
     "Channel",
     "ComplianceInfo",
+    # market-intel 2026-09-30 — evidencia de competencia retail
+    "CompetitorPriceObservation",
     "Customer",
     # Static-content-audit Phase 9 — migration 048
     "DateRangePreset",
@@ -1894,11 +1860,15 @@ class MarketPriceReference(Base):
         as_of: when the price was last verified
         created_at / updated_at: audit timestamps
     """
+
     __tablename__ = "market_price_reference"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     ingredient_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("ingredient.id", ondelete="CASCADE"), nullable=False, index=True,
+        Integer,
+        ForeignKey("ingredient.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     unit: Mapped[str] = mapped_column(String(16), nullable=False)
     price_gs: Mapped[float] = mapped_column(Float, nullable=False)
@@ -1906,13 +1876,63 @@ class MarketPriceReference(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     as_of: Mapped["Date"] = mapped_column(Date, nullable=False, default=date.today)
     created_at: Mapped["DateTime"] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False,
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
     )
     updated_at: Mapped["DateTime"] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False,
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
     )
 
     ingredient: Mapped["Ingredient"] = relationship("Ingredient")
+
+
+class CompetitorPriceObservation(Base):
+    """Market-intel — observación de precio retail de la competencia (append-only).
+
+    Fuente: repositorio de investigación saskia-market-intel
+    (/opt/data/work/research-repos/saskia-market-intel — cartas online
+    verificadas de locales PY con URL y fecha) u observación manual del
+    operador ("pasé por Karu: cheesecake 32.000").
+
+    A diferencia de MarketPriceReference (insumos), esta tabla guarda
+    precios de PRODUCTOS retail de terceros. El vínculo con nuestro
+    catálogo es por `family` (taxonomía del research repo), no por FK:
+    "cheesecake en El Café de Acá" no es nuestro producto, es evidencia.
+
+    Append-only: corregir = nueva observación con nueva fecha (mismo
+    contrato que price_history). La vista /vs-mercado/evidencia agrega
+    p25/mediana/p75 por familia+unidad.
+    """
+
+    __tablename__ = "competitor_price_observation"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    competitor_name: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    competitor_type: Mapped[Optional[str]] = mapped_column(
+        String(32), nullable=True
+    )  # cafetería|panadería|supermercado|confitería|importado|bistró
+    city: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    product_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    family: Mapped[Optional[str]] = mapped_column(String(24), nullable=True, index=True)
+    unit: Mapped[str] = mapped_column(String(16), nullable=False, default="unidad")
+    price_gs: Mapped[int] = mapped_column(Integer, nullable=False)
+    as_of: Mapped["Date"] = mapped_column(Date, nullable=False, default=date.today, index=True)
+    source: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped["DateTime"] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+    updated_at: Mapped["DateTime"] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        Index("ix_cpo_family_unit_asof", "family", "unit", "as_of"),
+        CheckConstraint("price_gs > 0", name="ck_cpo_price_positive"),
+    )
 
 
 class Suscripcion(Base):
@@ -1946,7 +1966,10 @@ class Suscripcion(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     customer_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("customer.id", ondelete="RESTRICT"), nullable=False, index=True,
+        Integer,
+        ForeignKey("customer.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
     )
     product_summary: Mapped[str] = mapped_column(String(500), nullable=False)
     cadence: Mapped[str] = mapped_column(String(16), nullable=False)
@@ -1958,10 +1981,15 @@ class Suscripcion(Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="activa")
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped["DateTime"] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False,
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
     )
     updated_at: Mapped["DateTime"] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False,
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
     )
 
     customer: Mapped["Customer"] = relationship("Customer")

@@ -39,6 +39,8 @@ except ImportError:
     # Newer starlette versions removed Session; provide a minimal stub.
     class Session(dict):
         pass
+
+
 import json
 from base64 import b64decode
 
@@ -211,6 +213,7 @@ async def lifespan(app: FastAPI):
             # Store error state so /healthz/migrate can surface it.
             try:
                 from app.rms.db import schema_version as _sv
+
                 with engine.connect() as conn:
                     pre = _sv(conn)
             except Exception:  # noqa: BLE001 — defensive default
@@ -226,6 +229,7 @@ async def lifespan(app: FastAPI):
     try:
         from app.rms.bootstrap import run_password_sync
         from app.rms.db import make_session_factory as _make_session
+
         with _make_session(engine)() as _bs:
             run_password_sync(_bs)
     except Exception:  # noqa: BLE001 — defensive default
@@ -236,12 +240,28 @@ async def lifespan(app: FastAPI):
     # Idempotent: skips rows that are already populated.
     try:
         from app.rms.haccp_seed import apply_haccp_defaults
+
         with _make_session(engine)() as _bs:
             n = apply_haccp_defaults(_bs)
             if n:
                 logger.info("haccp: applied defaults to %d ingredients", n)
     except Exception:  # noqa: BLE001 — defensive default
         logger.exception("haccp seed failed (non-fatal)")
+
+    # market-intel 2026-09-30 — evidencia de competencia retail
+    # (86 observaciones del research repo saskia-market-intel).
+    # Idempotente + no-fatal: si el seed falla, /vs-mercado/evidencia
+    # queda vacía pero la app arranca igual.
+    try:
+        from app.rms.db import make_session_factory as _mi_factory
+        from app.rms.seed_competitor_prices import seed_competitor_prices
+
+        with _mi_factory(engine)() as _bs:
+            n_added, _n_skipped = seed_competitor_prices(_bs)
+            if n_added:
+                logger.info("market-intel: %d observaciones de competencia sembradas", n_added)
+    except Exception:  # noqa: BLE001 — defensive default
+        logger.exception("market-intel seed failed (non-fatal)")
 
     app.state.engine = engine
     app.state.session_factory = make_session_factory(engine)
@@ -292,7 +312,6 @@ app = FastAPI(
 )
 
 
-
 class StaticCacheMiddleware:
     """Add Cache-Control + strip vary:Cookie on /static/* responses.
 
@@ -337,19 +356,13 @@ class StaticCacheMiddleware:
                     message = dict(message)
                     message["headers"] = list(message["headers"])
 
-                    new_headers = [
-                        (k, v)
-                        for k, v in message["headers"]
-                        if k.lower() != b"vary"
-                    ]
+                    new_headers = [(k, v) for k, v in message["headers"] if k.lower() != b"vary"]
                     message["headers"] = new_headers
 
                 # Set Cache-Control.
                 # The if above guarantees immutable is only set for immutable paths.
                 cache_value = (
-                    "no-cache"
-                    if path in self._REVALIDATE_PATHS
-                    else "max-age=31536000, immutable"
+                    "no-cache" if path in self._REVALIDATE_PATHS else "max-age=31536000, immutable"
                 )
                 # Append or replace Cache-Control.
                 headers = [(k, v) for k, v in message["headers"] if k.lower() != b"cache-control"]
@@ -419,6 +432,7 @@ app.add_middleware(SessionLifecycleMiddleware)
 # CSRF protection: signed double-submit cookie.
 # Set on every GET response to non-exempt paths; required on every POST.
 app.middleware("http")(csrf_cookie_middleware)
+
 
 # Session middleware: signs cookies with SESSION_SECRET.
 # Must be added BEFORE routers so login_user() can write to request.session.
@@ -606,7 +620,10 @@ app.include_router(settings_runtime.router)
 @app.get("/proveedores", include_in_schema=False)
 def proveedores_alias() -> object:
     from fastapi.responses import RedirectResponse
+
     return RedirectResponse(url="/suppliers", status_code=303)
+
+
 app.include_router(users.router)
 app.include_router(reorder.router)
 app.include_router(help.router)
@@ -622,6 +639,7 @@ import os as _os
 
 if _os.getenv("DEV_COMBO_SMOKE"):
     from app.routers import dev as _dev_router
+
     app.include_router(_dev_router.router)
     app.include_router(_dev_router.api_router)
 
@@ -646,7 +664,9 @@ def _wants_html(request: Request) -> bool:
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
     """Spanish 422 errors so /ventas/nueva etc. don't show English defaults.
 
     Translates the standard FastAPI 422 (English "Field required", "value is not a valid integer")
@@ -664,10 +684,18 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             parts.append(f"{field} es obligatorio")
         elif etype in ("greater_than", "greater_than_equal"):
             limit = err.get("ctx", {}).get("ge") or err.get("ctx", {}).get("gt")
-            parts.append(f"{field} debe ser ≥ {limit}" if etype == "greater_than_equal" else f"{field} debe ser > {limit}")
+            parts.append(
+                f"{field} debe ser ≥ {limit}"
+                if etype == "greater_than_equal"
+                else f"{field} debe ser > {limit}"
+            )
         elif etype in ("less_than", "less_than_equal"):
             limit = err.get("ctx", {}).get("le") or err.get("ctx", {}).get("lt")
-            parts.append(f"{field} debe ser ≤ {limit}" if etype == "less_than_equal" else f"{field} debe ser < {limit}")
+            parts.append(
+                f"{field} debe ser ≤ {limit}"
+                if etype == "less_than_equal"
+                else f"{field} debe ser < {limit}"
+            )
         elif etype in ("int_parsing", "type_error.integer"):
             parts.append(f"{field} debe ser un número entero")
         elif etype in ("float_parsing", "type_error.float"):
@@ -679,10 +707,16 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     detail = "; ".join(parts) if parts else "Datos inválidos"
     return JSONResponse(
         status_code=400,  # BUG-00: 400 is more accurate than 422 for client-side form errors
-        content={"detail": detail, "fields": [loc[-1] if loc else "campo" for loc in [
-            [str(x) for x in e.get("loc", []) if x not in ("body", "query", "path", "form")]
-            for e in errors
-        ]]},
+        content={
+            "detail": detail,
+            "fields": [
+                loc[-1] if loc else "campo"
+                for loc in [
+                    [str(x) for x in e.get("loc", []) if x not in ("body", "query", "path", "form")]
+                    for e in errors
+                ]
+            ],
+        },
     )
 
 
@@ -709,8 +743,11 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> Respo
     if isinstance(exc, AppError):
         logger.warning(
             "app_error request_id={} type={} reason={} msg={} context={!r}",
-            rid, exc.__class__.__name__, exc.reason_code,
-            exc.message, exc.context,
+            rid,
+            exc.__class__.__name__,
+            exc.reason_code,
+            exc.message,
+            exc.context,
         )
         # AppErrors are NOT 500s unless explicitly typed as such. The
         # whole point of the hierarchy is that business errors don't
@@ -719,23 +756,27 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> Respo
         payload["request_id"] = rid
         if _wants_html(request):
             from app.services.template_render import render as _render
+
             # BACKLOG #48: render a styled 4xx page (or 404 fallback)
             # for browser requests, with reason_code + request_id
             # surfaced so support can grep one identifier.
             resp = None
             if exc.status_code == 404:
                 resp = _render(
-                    request, "errors/404.html",
+                    request,
+                    "errors/404.html",
                     {"path": request.url.path, "reason": exc.reason_code},
                     status_code=404,
                 )
             elif 400 <= exc.status_code < 500:
                 from app.rms.errors import _ERROR_TITLES  # local import
+
                 title, default_msg = _ERROR_TITLES.get(
                     exc.status_code, ("Error", "Algo salió mal.")
                 )
                 resp = _render(
-                    request, "errors/4xx.html",
+                    request,
+                    "errors/4xx.html",
                     {
                         "status_code": exc.status_code,
                         "title": title,
@@ -759,25 +800,31 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> Respo
     if isinstance(exc, HTTPException):
         logger.info(
             "http_exception request_id={} status={} detail={!r}",
-            rid, exc.status_code, exc.detail,
+            rid,
+            exc.status_code,
+            exc.detail,
         )
         if _wants_html(request):
             from app.services.template_render import render as _render
+
             resp = None
             if exc.status_code == 404:
                 resp = _render(
-                    request, "errors/404.html",
+                    request,
+                    "errors/404.html",
                     {"path": request.url.path},
                     status_code=404,
                 )
             elif 400 <= exc.status_code < 500:
                 from app.rms.errors import _ERROR_TITLES
+
                 title, default_msg = _ERROR_TITLES.get(
                     exc.status_code, ("Error", "Algo salió mal.")
                 )
                 detail_msg = exc.detail if isinstance(exc.detail, str) else default_msg
                 resp = _render(
-                    request, "errors/4xx.html",
+                    request,
+                    "errors/4xx.html",
                     {
                         "status_code": exc.status_code,
                         "title": title,
@@ -805,7 +852,10 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> Respo
     # ─── 3. Unhandled: genuine 500 ─────────────────────────────────
     logger.exception(
         "unhandled error request_id={} method={} path={}: {!r}",
-        rid, request.method, request.url.path, exc,
+        rid,
+        request.method,
+        request.url.path,
+        exc,
     )
     # Tag Sentry events with the request_id so an operator who sees a
     # Sentry alert can grep `/auditoria?action_filter=http.500` (target_id
@@ -813,6 +863,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> Respo
     # 2026-09-29 (BACKLOG #44). No-op when Sentry isn't initialised.
     try:
         import sentry_sdk as _sentry
+
         if _sentry.Hub.current.client is not None:
             _sentry.set_tag("request_id", rid)
             _sentry.set_tag("request_method", request.method)
@@ -847,8 +898,10 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> Respo
     if _wants_html(request):
         try:
             from app.services.template_render import render as _render
+
             return _render(
-                request, "errors/500.html",
+                request,
+                "errors/500.html",
                 {
                     "request_id": rid,
                     "error_class": exc.__class__.__name__,
@@ -874,8 +927,10 @@ async def not_found_handler(request: Request, exc: Exception) -> Response:
     """404 handler — HTML for browsers, JSON for API clients."""
     if _wants_html(request):
         from app.services.template_render import render as _render
+
         return _render(
-            request, "errors/404.html",
+            request,
+            "errors/404.html",
             {"path": request.url.path},
             status_code=404,
         )

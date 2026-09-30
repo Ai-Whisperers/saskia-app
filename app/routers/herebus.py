@@ -35,6 +35,7 @@ from app.rms.errors import (
 )
 from app.rms.models import (
     BankTransaction,
+    CompetitorPriceObservation,
     DeliveryZone,
     Ingredient,
     MarketBenchmark,
@@ -69,19 +70,19 @@ delivery_router = APIRouter(prefix="/delivery-zones", dependencies=[Depends(requ
 
 @wishlist_router.get("", response_class=HTMLResponse)
 def wishlist_list(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
-    items = session.execute(
-        select(WishlistItem).order_by(WishlistItem.purchased, WishlistItem.priority)
-    ).scalars().all()
+    items = (
+        session.execute(
+            select(WishlistItem).order_by(WishlistItem.purchased, WishlistItem.priority)
+        )
+        .scalars()
+        .all()
+    )
 
     by_priority = defaultdict(list)
     for item in items:
         by_priority[item.priority].append(item)
 
-    total_pending = sum(
-        item.unit_price_gs * item.quantity
-        for item in items
-        if not item.purchased
-    )
+    total_pending = sum(item.unit_price_gs * item.quantity for item in items if not item.purchased)
     total_all = sum(item.unit_price_gs * item.quantity for item in items)
 
     return render(
@@ -112,12 +113,17 @@ async def wishlist_mark_purchased(
     session.commit()
     logger.info(
         "wishlist_marked_purchased item_id={} name={!r} price_gs={}",
-        item.id, item.name, item.unit_price_gs,
+        item.id,
+        item.name,
+        item.unit_price_gs,
     )
     record_audit(
-        request, session=session,
-        action="wishlist.mark_purchased", target_type="WishlistItem",
-        target_id=item.id, detail={"name": item.name},
+        request,
+        session=session,
+        action="wishlist.mark_purchased",
+        target_type="WishlistItem",
+        target_id=item.id,
+        detail={"name": item.name},
     )
     return RedirectResponse(url="/wishlist", status_code=303)
 
@@ -142,9 +148,12 @@ async def wishlist_send_to_shopping_list(
     # Equipment items don't have an Ingredient row, so we create an
     # "[EQUIPMENT] {name}" pseudo-ingredient on the fly.
     from app.rms.models import Ingredient, ShoppingListItem
-    eq_ing = session.execute(
-        select(Ingredient).where(Ingredient.name == f"[EQUIPMENT] {item.name}")
-    ).scalars().first()
+
+    eq_ing = (
+        session.execute(select(Ingredient).where(Ingredient.name == f"[EQUIPMENT] {item.name}"))
+        .scalars()
+        .first()
+    )
     if not eq_ing:
         eq_ing = Ingredient(
             name=f"[EQUIPMENT] {item.name}",
@@ -161,13 +170,17 @@ async def wishlist_send_to_shopping_list(
     # must not be duplicated on re-send.
     from app.rms.models import ShoppingListItem as _SLI
 
-    existing = session.execute(
-        select(_SLI).where(
-            _SLI.ingredient_id == eq_ing.id,
-            _SLI.purpose_text.like(f"Wishlist #{item.id}%"),
-            _SLI.purchased_at.is_(None) if hasattr(_SLI, "purchased_at") else True,
+    existing = (
+        session.execute(
+            select(_SLI).where(
+                _SLI.ingredient_id == eq_ing.id,
+                _SLI.purpose_text.like(f"Wishlist #{item.id}%"),
+                _SLI.purchased_at.is_(None) if hasattr(_SLI, "purchased_at") else True,
+            )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     if existing is None:
         sl = ShoppingListItem(
             ingredient_id=eq_ing.id,
@@ -207,9 +220,11 @@ RISK_CATEGORIES = [
 
 @risks_router.get("", response_class=HTMLResponse)
 def risk_list(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
-    items = session.execute(
-        select(RiskItem).order_by(RiskItem.status, RiskItem.probability.desc())
-    ).scalars().all()
+    items = (
+        session.execute(select(RiskItem).order_by(RiskItem.status, RiskItem.probability.desc()))
+        .scalars()
+        .all()
+    )
 
     # Compute severity = probability × impact for risk heat
     for item in items:
@@ -298,6 +313,7 @@ async def bank_add(
     Parse the date and insert.
     """
     from datetime import datetime as dt
+
     try:
         posted_at_dt = dt.strptime(posted_at, "%Y-%m-%d").replace(tzinfo=ASUNCION_TZ)
     except ValueError:
@@ -320,14 +336,23 @@ async def bank_add(
     session.commit()
     logger.info(
         "bank_tx_added id={} amount={} {} category={} description={!r}",
-        tx.id, amount, currency.upper(), category, description[:60] if description else "",
+        tx.id,
+        amount,
+        currency.upper(),
+        category,
+        description[:60] if description else "",
     )
     record_audit(
-        request, session=session,
-        action="bank.add", target_type="BankTransaction",
-        target_id=tx.id, detail={
-            "amount": amount, "currency": currency.upper(),
-            "category": category, "counterparty": counterparty_name,
+        request,
+        session=session,
+        action="bank.add",
+        target_type="BankTransaction",
+        target_id=tx.id,
+        detail={
+            "amount": amount,
+            "currency": currency.upper(),
+            "category": category,
+            "counterparty": counterparty_name,
         },
     )
     return RedirectResponse(url="/bank", status_code=303)
@@ -349,13 +374,22 @@ async def bank_categorize(
     session.commit()
     logger.info(
         "bank_tx_recategorized id={} {} → {} amount={} {}",
-        tx.id, old_category, category, tx.amount, tx.currency,
+        tx.id,
+        old_category,
+        category,
+        tx.amount,
+        tx.currency,
     )
     record_audit(
-        request, session=session,
-        action="write.bank.categorize", target_type="BankTransaction",
-        target_id=tx.id, detail={
-            "from": old_category, "to": category, "amount": tx.amount,
+        request,
+        session=session,
+        action="write.bank.categorize",
+        target_type="BankTransaction",
+        target_id=tx.id,
+        detail={
+            "from": old_category,
+            "to": category,
+            "amount": tx.amount,
         },
     )
     session.commit()
@@ -405,20 +439,22 @@ async def bank_export_csv(
     writer.writerow(["Fecha", "Cuenta", "Importe", "Categoría", "Contraparte", "Descripción"])
 
     for tx in transactions:
-        writer.writerow([
-            tx.posted_at.strftime("%Y-%m-%d"),
-            tx.currency,
-            f"{tx.amount:+.2f}",
-            tx.category or "",
-            tx.counterparty_name or "",
-            tx.description or ""
-        ])
+        writer.writerow(
+            [
+                tx.posted_at.strftime("%Y-%m-%d"),
+                tx.currency,
+                f"{tx.amount:+.2f}",
+                tx.category or "",
+                tx.counterparty_name or "",
+                tx.description or "",
+            ]
+        )
 
     # Create response
     response = Response(
         content=output.getvalue(),
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=bank_transactions.csv"}
+        headers={"Content-Disposition": "attachment; filename=bank_transactions.csv"},
     )
 
     return response
@@ -528,15 +564,12 @@ def bank_list(
 
     # Get total count for pagination
     from sqlalchemy import func
-    total_count = session.execute(
-        select(func.count()).select_from(query.subquery())
-    ).scalar() or 0
+
+    total_count = session.execute(select(func.count()).select_from(query.subquery())).scalar() or 0
 
     # Apply pagination
     offset = (page - 1) * per_page
-    transactions = session.execute(
-        query.limit(per_page).offset(offset)
-    ).scalars().all()
+    transactions = session.execute(query.limit(per_page).offset(offset)).scalars().all()
 
     # Calculate pagination info
     total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
@@ -544,13 +577,19 @@ def bank_list(
     has_next = page < total_pages
 
     # Get reconciliation stats
-    reconciled_count = session.execute(
-        select(func.count()).select_from(BankTransaction).where(BankTransaction.reconciled)
-    ).scalar() or 0
+    reconciled_count = (
+        session.execute(
+            select(func.count()).select_from(BankTransaction).where(BankTransaction.reconciled)
+        ).scalar()
+        or 0
+    )
 
-    unreconciled_count = session.execute(
-        select(func.count()).select_from(BankTransaction).where(not BankTransaction.reconciled)
-    ).scalar() or 0
+    unreconciled_count = (
+        session.execute(
+            select(func.count()).select_from(BankTransaction).where(not BankTransaction.reconciled)
+        ).scalar()
+        or 0
+    )
 
     # Compute aggregates
     session.execute(
@@ -561,15 +600,17 @@ def bank_list(
     ).all() if False else None  # Avoid complex aggregate for speed
 
     # Simpler aggregates
-    eur_total = session.execute(
-        select(BankTransaction.amount)
-        .where(BankTransaction.currency == "EUR")
-    ).scalars().all()
+    eur_total = (
+        session.execute(select(BankTransaction.amount).where(BankTransaction.currency == "EUR"))
+        .scalars()
+        .all()
+    )
 
-    pyg_total = session.execute(
-        select(BankTransaction.amount)
-        .where(BankTransaction.currency == "PYG")
-    ).scalars().all()
+    pyg_total = (
+        session.execute(select(BankTransaction.amount).where(BankTransaction.currency == "PYG"))
+        .scalars()
+        .all()
+    )
 
     income = sum(a for a in eur_total if a > 0)
     spent = abs(sum(a for a in eur_total if a < 0))
@@ -610,12 +651,27 @@ def bank_list(
 
 @benchmarks_router.get("", response_class=HTMLResponse)
 def benchmarks_list(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
-    benchmarks = session.execute(
-        select(MarketBenchmark).order_by(MarketBenchmark.product_label)
-    ).scalars().all()
+    from app.rms.market_intel import family_of, stats_by_family
+
+    benchmarks = (
+        session.execute(select(MarketBenchmark).order_by(MarketBenchmark.product_label))
+        .scalars()
+        .all()
+    )
+
+    # market-intel: rangos reales por familia desde la evidencia de competencia
+    fam_stats = stats_by_family(session, unit="unidad")
 
     # Compute position (above / below market)
     for b in benchmarks:
+        b.family = family_of(b.product_label)
+        st = fam_stats.get(b.family or "")
+        if st:
+            b.intel_median_gs = st.median_gs
+            b.intel_n = st.n
+        else:
+            b.intel_median_gs = None
+            b.intel_n = 0
         if not b.market_avg_gs:
             b.position_label = "—"
             b.pct = 0
@@ -637,6 +693,169 @@ def benchmarks_list(request: Request, session: Session = Depends(get_session)) -
             "benchmarks": benchmarks,
         },
     )
+
+
+@benchmarks_router.get("/evidencia", response_class=HTMLResponse)
+def evidencia_view(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
+    """Rangos por familia desde la evidencia de competencia + observaciones recientes."""
+    from app.rms.market_intel import family_stats
+
+    stats = family_stats(session)
+    recientes = (
+        session.execute(
+            select(CompetitorPriceObservation)
+            .order_by(CompetitorPriceObservation.as_of.desc(), CompetitorPriceObservation.id.desc())
+            .limit(40)
+        )
+        .scalars()
+        .all()
+    )
+    total = session.query(CompetitorPriceObservation).count()
+    return render(
+        request,
+        "evidencia_mercado.html",
+        {"stats": stats, "recientes": recientes, "total": total},
+    )
+
+
+@benchmarks_router.get("/evidencia.csv")
+def evidencia_csv(session: Session = Depends(get_session)) -> Response:
+    """Export completo de la evidencia (auditoría / re-import al research repo)."""
+    rows = (
+        session.execute(
+            select(CompetitorPriceObservation).order_by(
+                CompetitorPriceObservation.family, CompetitorPriceObservation.price_gs
+            )
+        )
+        .scalars()
+        .all()
+    )
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(
+        [
+            "competidor",
+            "tipo",
+            "ciudad",
+            "producto",
+            "familia",
+            "unidad",
+            "precio_gs",
+            "as_of",
+            "fuente",
+        ]
+    )
+    for r in rows:
+        writer.writerow(
+            [
+                r.competitor_name,
+                r.competitor_type or "",
+                r.city or "",
+                r.product_name,
+                r.family or "",
+                r.unit,
+                r.price_gs,
+                r.as_of.isoformat(),
+                r.source or "",
+            ]
+        )
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=evidencia-mercado.csv"},
+    )
+
+
+@benchmarks_router.post("/evidencia/importar")
+async def evidencia_importar(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Import CSV (mismas columnas que el export) — idempotente.
+
+    Confirma en el formulario: regla anti-silent-overwrite del repo.
+    Filas sin fuente o con precio fuera de 300–500.000 se rechazan.
+    """
+    from datetime import date as _date
+
+    form = await request.form()
+    if form.get("confirmar") != "si":
+        raise BadRequest("Importación sin confirmación explícita")
+    raw = form.get("csv")
+    if not raw or not getattr(raw, "filename", ""):
+        raise BadRequest("Adjuntá un archivo CSV")
+    from starlette.datastructures import UploadFile
+
+    if not isinstance(raw, UploadFile):
+        raise BadRequest("Adjuntá un archivo CSV")
+    content = (await raw.read()).decode("utf-8-sig", errors="replace")
+    reader = csv.DictReader(io.StringIO(content))
+    required = {"competidor", "producto", "unidad", "precio_gs", "as_of"}
+    if not required.issubset({(c or "").strip().lower() for c in reader.fieldnames or []}):
+        raise BadRequest(
+            "CSV inválido: columnas requeridas competidor,producto,unidad,precio_gs,as_of"
+        )
+    existing = set(
+        session.execute(
+            select(
+                CompetitorPriceObservation.competitor_name,
+                CompetitorPriceObservation.product_name,
+                CompetitorPriceObservation.as_of,
+            )
+        ).all()
+    )
+    added = skipped_invalid = dup = 0
+    from app.rms.market_intel import family_of
+
+    for row in reader:
+        comp = (row.get("competidor") or "").strip()
+        prod = (row.get("producto") or "").strip()
+        try:
+            price = int(float(str(row.get("precio_gs") or 0).replace(".", "").replace(",", "")))
+            as_of = _date.fromisoformat((row.get("as_of") or "").strip()[:10])
+        except (ValueError, TypeError):
+            skipped_invalid += 1
+            continue
+        if not comp or not prod or not (300 <= price <= 500_000):
+            skipped_invalid += 1
+            continue
+        if not (row.get("fuente") or "").strip():
+            skipped_invalid += 1
+            continue
+        key = (comp[:120], prod[:160], as_of)
+        if key in existing:
+            dup += 1
+            continue
+        existing.add(key)
+        session.add(
+            CompetitorPriceObservation(
+                competitor_name=key[0],
+                competitor_type=(row.get("tipo") or "").strip()[:32] or None,
+                city=(row.get("ciudad") or "").strip()[:64] or None,
+                product_name=key[1],
+                family=family_of(prod),
+                unit=(row.get("unidad") or "unidad").strip()[:16],
+                price_gs=price,
+                as_of=as_of,
+                source=(row.get("fuente") or "").strip(),
+            )
+        )
+        added += 1
+    session.commit()
+    logger.info(
+        f"market-intel: import {added} nuevas, {dup} duplicadas, {skipped_invalid} inválidas"
+    )
+    return RedirectResponse("/vs-mercado/evidencia", status_code=303)
+
+
+@benchmarks_router.get("/evidencia/seed-demo", name="evidencia_seed_demo")
+def evidencia_seed_demo_route(session: Session = Depends(get_session)) -> RedirectResponse:
+    """Idempotente: siembra las 86 observaciones del research repo (2026-09-30)."""
+    from app.rms.seed_competitor_prices import seed_competitor_prices
+
+    added, skipped = seed_competitor_prices(session)
+    logger.info(f"market-intel seed: {added} nuevas, {skipped} ya presentes")
+    return RedirectResponse("/vs-mercado/evidencia", status_code=303)
 
 
 @benchmarks_router.get("/{bench_id}/edit", response_class=HTMLResponse)
@@ -701,29 +920,36 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
     """
     # Revenue this month
     from datetime import datetime
+
     now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    sales_this_month = session.execute(
-        select(Sale).where(Sale.sold_at >= month_start)
-    ).scalars().all()
+    sales_this_month = (
+        session.execute(select(Sale).where(Sale.sold_at >= month_start)).scalars().all()
+    )
 
     revenue_gs = sum(int(s.qty * s.unit_price_gs) for s in sales_this_month)
     portions = sum(s.qty for s in sales_this_month)
     unique_customers = len({s.customer_id for s in sales_this_month if s.customer_id})
     repeat = sum(
-        1 for s in sales_this_month
-        if s.customer_id and sum(1 for s2 in sales_this_month if s2.customer_id == s.customer_id) > 1
+        1
+        for s in sales_this_month
+        if s.customer_id
+        and sum(1 for s2 in sales_this_month if s2.customer_id == s.customer_id) > 1
     )
 
     # Cost of ingredients sold (approximate via recipe pricing)
     total_food_cost_gs = 0
     for s in sales_this_month:
-        pricing = session.execute(
-            select(RecipePricing).where(
-                RecipePricing.recipe_id == s.product.recipe_id if s.product else None
+        pricing = (
+            session.execute(
+                select(RecipePricing).where(
+                    RecipePricing.recipe_id == s.product.recipe_id if s.product else None
+                )
             )
-        ).scalars().first()
+            .scalars()
+            .first()
+        )
         if pricing:
             total_food_cost_gs += int(pricing.cost_per_unit_gs * s.qty)
 
@@ -736,9 +962,11 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
         gross_margin_pct = None
 
     # Waste this month
-    waste_gs = session.execute(
-        select(WasteLog.cost_gs).where(WasteLog.recorded_at >= month_start)
-    ).scalars().all()
+    waste_gs = (
+        session.execute(select(WasteLog.cost_gs).where(WasteLog.recorded_at >= month_start))
+        .scalars()
+        .all()
+    )
     waste_total_gs = sum(waste_gs)
     waste_pct = (waste_total_gs / revenue_gs * 100) if revenue_gs > 0 else 0
 
@@ -773,13 +1001,12 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
         ShoppingListItem,
         WishlistItem,
     )
+
     sl_agg = session.execute(
         select(
             sa_func.count(ShoppingListItem.id),
             sa_func.coalesce(
-                sa_func.sum(
-                    ShoppingListItem.qty_to_buy * Ingredient.purchase_price_gs
-                ),
+                sa_func.sum(ShoppingListItem.qty_to_buy * Ingredient.purchase_price_gs),
                 0,
             ),
         )
@@ -820,13 +1047,11 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
             "portions": portions,
             "unique_customers": unique_customers,
             "repeat_customers": repeat,
-            "repeat_pct": (
-                int(repeat / unique_customers * 100)
-                if unique_customers > 0
-                else 0
-            ),
+            "repeat_pct": (int(repeat / unique_customers * 100) if unique_customers > 0 else 0),
             "food_cost_pct": round(food_cost_pct, 1) if food_cost_pct is not None else None,
-            "gross_margin_pct": round(gross_margin_pct, 1) if gross_margin_pct is not None else None,
+            "gross_margin_pct": round(gross_margin_pct, 1)
+            if gross_margin_pct is not None
+            else None,
             "waste_gs": waste_total_gs,
             "waste_pct": round(waste_pct, 1),
             "recipe_count": len(recipe_count),
@@ -882,20 +1107,24 @@ def planner_compute(
     if not recipe or batches <= 0:
         return RedirectResponse(url="/produccion-planner", status_code=303)
 
-    lines = session.execute(
-        select(RecipeLine).where(
-            RecipeLine.recipe_id == recipe_id,
-            RecipeLine.line_kind == "ingredient",
+    lines = (
+        session.execute(
+            select(RecipeLine).where(
+                RecipeLine.recipe_id == recipe_id,
+                RecipeLine.line_kind == "ingredient",
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     # Build ingredient lookup
     ing_ids = [ln.line_ref_id for ln in lines]
     ings = {
         i.id: i
-        for i in session.execute(
-            select(Ingredient).where(Ingredient.id.in_(ing_ids))
-        ).scalars().all()
+        for i in session.execute(select(Ingredient).where(Ingredient.id.in_(ing_ids)))
+        .scalars()
+        .all()
     }
 
     results = []
@@ -996,9 +1225,7 @@ def delivery_zones_api(
     stmt = select(DeliveryZone).where(DeliveryZone.is_active.is_(True))
     if q:
         like = f"%{q.strip()}%"
-        stmt = stmt.where(
-            DeliveryZone.coverage_text.ilike(like) | DeliveryZone.name.ilike(like)
-        )
+        stmt = stmt.where(DeliveryZone.coverage_text.ilike(like) | DeliveryZone.name.ilike(like))
     zones = session.execute(stmt.order_by(DeliveryZone.position)).scalars().all()
     payload = [
         {
