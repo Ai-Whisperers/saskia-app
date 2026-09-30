@@ -332,6 +332,8 @@ class Product(Base):
     is_available: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)  # Toggle to hide from POS
     image_url: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)  # Product image URL
     category: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # Product category
+    # P3 UX batch: quick-sale "Favoritos" filter persists here.
+    is_favorite: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Comma-separated tags
 
     # Phase 1.A — IVA rate ∈ {5, 10, 'exento'}. Defaults from ComplianceInfo.iva_default_rate.
@@ -647,8 +649,14 @@ class Customer(Base):
         Index("ix_customer_name", "name"),
     )
 
+    # P3 delivery batch: operator's default zone for this customer
+    preferred_zone_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     # Relationships
     sales: Mapped[list["Sale"]] = relationship(back_populates="customer")
+    addresses: Mapped[list["CustomerAddress"]] = relationship(
+        back_populates="customer", cascade="all, delete-orphan"
+    )
 
 
 class Tag(Base):
@@ -853,6 +861,38 @@ class WasteLog(Base):
 # ──────────────────────────────────────────────────────────────────
 # HEREBUS Drive integration — new modules (migration 029)
 # ──────────────────────────────────────────────────────────────────
+
+
+class CustomerAddress(Base):
+    """A delivery address for a customer (P3 delivery batch).
+
+    One customer can have many (casa / oficina / "casa de mi mamá").
+    `zone_id` optionally pre-fills the pedido's delivery zone; cost still
+    comes from the zone at pedido time. `label` is operator-facing short
+    text ("casa", "oficina"); `address_text` is the full directions text.
+    """
+
+    __tablename__ = "customer_address"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("customer.id"), nullable=False, index=True
+    )
+    label: Mapped[str] = mapped_column(String(32), nullable=False, default="casa")
+    address_text: Mapped[str] = mapped_column(Text, nullable=False)
+    zone_id: Mapped[int | None] = mapped_column(
+        ForeignKey("delivery_zone.id"), nullable=True
+    )
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    customer: Mapped["Customer"] = relationship(back_populates="addresses")
+    zone: Mapped[Optional["DeliveryZone"]] = relationship()
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<CustomerAddress {self.id} c={self.customer_id} {self.label!r}>"
 
 
 class DeliveryZone(Base):
@@ -1223,6 +1263,13 @@ class Pedido(Base):
     delivery_zone_id: Mapped[int | None] = mapped_column(
         ForeignKey("delivery_zone.id"), nullable=True, index=True
     )
+    # P3 delivery batch: address snapshot + acceptable arrival window +
+    # factura data (RUC required for facturas, not boletas).
+    address_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    delivery_window_start: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    delivery_window_end: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    invoice_ruc: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    invoice_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
     public_token: Mapped[str] = mapped_column(
         String(40), nullable=False, unique=True, index=True, default=""
     )
@@ -1769,6 +1816,7 @@ __all__ = [
     # Static-content-audit Phase 9 — migration 048
     "DateRangePreset",
     # HEREBUS Drive integration — migration 029
+    "CustomerAddress",
     "DeliveryZone",
     "ImportBatch",
     "Ingredient",

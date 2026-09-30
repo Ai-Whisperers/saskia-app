@@ -2953,6 +2953,50 @@ def _migration_005_customer(conn: Any) -> None:
     _bump_schema_version(conn, 5)
 
 
+def _migration_069_customer_addresses_delivery_favorites(conn: Any) -> None:
+    """P3 delivery + favorites batch (2026-09-30).
+
+    - customer_address: multiple addresses per customer (label + text +
+      zone ref), so a delivery goes to casa / oficina / wherever today.
+    - pedido: address_text (free-text snapshot), delivery_window_start/end
+      (acceptable arrival window), invoice_ruc + invoice_name (factura).
+    - product.is_favorite: quick-sale "Favoritos" filter persistence.
+    - customer.preferred_zone: pre-fill the zone combo when picking them.
+
+    Idempotent: CREATE TABLE IF NOT EXISTS + ALTER try/except.
+    """
+    conn.execute(text(
+        "CREATE TABLE IF NOT EXISTS customer_address ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " customer_id INTEGER NOT NULL REFERENCES customer(id),"
+        " label VARCHAR(32) NOT NULL DEFAULT 'casa',"
+        " address_text TEXT NOT NULL,"
+        " zone_id INTEGER REFERENCES delivery_zone(id),"
+        " is_default INTEGER NOT NULL DEFAULT 0,"
+        " created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
+        ")"
+    ))
+    conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_customer_address_customer "
+        "ON customer_address(customer_id)"
+    ))
+    for stmt in (
+        "ALTER TABLE pedido ADD COLUMN address_text TEXT",
+        "ALTER TABLE pedido ADD COLUMN delivery_window_start VARCHAR(8)",
+        "ALTER TABLE pedido ADD COLUMN delivery_window_end VARCHAR(8)",
+        "ALTER TABLE pedido ADD COLUMN invoice_ruc VARCHAR(20)",
+        "ALTER TABLE pedido ADD COLUMN invoice_name VARCHAR(120)",
+        "ALTER TABLE product ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE customer ADD COLUMN preferred_zone_id INTEGER",
+    ):
+        try:
+            conn.execute(text(stmt))
+        except Exception:  # noqa: BLE001, S110 — column already exists
+            pass
+
+    _bump_schema_version(conn, 69)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -3022,6 +3066,7 @@ MIGRATIONS = {
     66: _migration_066_product_tablet_slug,
     67: _migration_067_pedido_public_token_expiry,
     68: _migration_068_recipe_menu_tags,
+    69: _migration_069_customer_addresses_delivery_favorites,
 }
 
 

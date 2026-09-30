@@ -215,7 +215,9 @@ def derive_recipe_tags(
     declared_union: set[str] = set()
     for t in targets:
         if isinstance(t.target, Ingredient):
-            if t.target.allergens is None:
+            # '' = operator saved it as declared-neutral; NULL = never touched.
+            # (Backfill 2026-09-30 normalized all neutral rows to ''.)
+            if t.target.allergens is None or t.target.allergens == '':
                 result.undeclared.append(t.target.name)
                 # UI-V2 fix-at-source: keep the id parallel to the name so
                 # the warning can deep-link to /inventario/{id}/editar.

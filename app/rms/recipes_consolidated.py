@@ -33,6 +33,10 @@ class ConsolidatedLine:
     qty: float
     # Recipe names (beyond the root) this qty came from, for traceability.
     sources: list[str] = field(default_factory=list)
+    # How many separate recipe lines were summed into this row. >1 means
+    # duplicates merged (base + one or more sub-recipes use the same
+    # ingredient) — the UI surfaces this so nothing "disappears".
+    merged_count: int = 1
     # Non-empty when a line could not be converted (unit density missing).
     error: str = ""
 
@@ -121,6 +125,7 @@ def explode_recipe(
                 )
             else:
                 row.qty += qty_in_ing_unit
+                row.merged_count += 1
                 for s in _sources or []:
                     if s not in row.sources:
                         row.sources.append(s)
@@ -193,6 +198,7 @@ def explode_recipe(
                     acc[key] = cr
                 else:
                     existing.qty += cr.qty
+                    existing.merged_count += cr.merged_count
                     for s in cr.sources:
                         if s not in existing.sources:
                             existing.sources.append(s)

@@ -20,6 +20,7 @@ from app.rms.models_legacy import (
     ComplianceInfo,  # noqa: F401 — re-exported via __all__
     Customer,  # noqa: F401 — re-exported via __all__
     DateRangePreset,  # noqa: F401 — re-exported via __all__
+    CustomerAddress,  # noqa: F401 — re-exported via __all__
     DeliveryZone,  # noqa: F401 — re-exported via __all__
     ImportBatch,  # noqa: F401 — re-exported via __all__
     Ingredient,  # noqa: F401 — re-exported via __all__

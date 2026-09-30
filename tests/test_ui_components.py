@@ -566,10 +566,14 @@ def test_d17_receta_form_line_rows_migrated():
 
 
 def test_d17_receta_form_family_and_scale_migrated():
-    """D17: receta_form.html family_combo + scale_combo use <saskia-combo>."""
+    """D17: receta_form.html family combo RETIRED (menu_tags replaced it,
+    2026-09-30) + scale_combo uses <saskia-combo> with autosubmit."""
     import pathlib
     src = pathlib.Path("/opt/data/work/saskia-app/app/templates/receta_form.html").read_text()
-    assert ("name='family'" in src or 'name="family"' in src) and "allow_create=True" in src
+    # family single-combo removed from the form UI (legacy field still
+    # accepted server-side); menu_tags picker is the categorization field.
+    assert "family_combo" not in src
+    assert "name='menu_tags'" in src or 'name="menu_tags"' in src
     assert ("name='scale'" in src or 'name="scale"' in src) and "autosubmit" in src
     # No legacy scale_combo
     assert 'id="scale_combo"' not in src or src.count('<div class="saskia-combo"') == 0

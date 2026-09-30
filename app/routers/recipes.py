@@ -1101,6 +1101,36 @@ def _detect_sub_recipe_cycle(
     return []
 
 
+@router.get("/api/{recipe_id}/effective-ingredients", response_class=JSONResponse)
+def recipe_effective_ingredients(
+    recipe_id: int,
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """P3: exploded raw-ingredient list for the recipe FORM.
+
+    The form shows each sub-recipe's contributed ingredients as gray,
+    read-only rows beneath the line table so the operator sees the
+    COMPLETE ingredient list without leaving the editor. Duplicates that
+    got merged arrive as one row with merged_count > 1.
+    """
+    from app.rms.recipes_consolidated import explode_recipe
+    lines = explode_recipe(session, recipe_id)
+    return JSONResponse({
+        "lines": [
+            {
+                "ingredient_id": ln.ingredient_id,
+                "name": ln.name,
+                "unit": ln.unit,
+                "qty": round(ln.qty, 3),
+                "sources": ln.sources,
+                "merged_count": ln.merged_count,
+                "error": ln.error,
+            }
+            for ln in lines
+        ]
+    })
+
+
 @router.get("/api/search", response_class=JSONResponse)
 def recipe_search_api(
     q: str = Query("", description="Search query"),

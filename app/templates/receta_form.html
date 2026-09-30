@@ -3,7 +3,62 @@
 {% import "_components/tags.html" as t %}
 {% import "_components/atoms.html" as ui %}
 
-{% block title %}Receta — {{ action }}{% endblock %}
+{% block title %}Receta — {{ action }}
+<script>
+  // P3: live "ingredientes efectivos" panel — explodes sub-recipes so the
+  // editor shows the complete raw-ingredient list. Gray = contributed by
+  // a sub-recipe; "N× sumadas" badge = duplicates merged into one row.
+  (function () {
+    var panel = document.getElementById("effective-ingredients-panel");
+    var tbody = document.getElementById("effective-ingredients-body");
+    if (!panel || !tbody) return;
+    var recId = {{ recipe.id if recipe else 'null' }};
+
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+        return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+      });
+    }
+
+    function loadEffective() {
+      if (!recId) { panel.hidden = true; return; }
+      fetch("/recetas/api/" + recId + "/effective-ingredients")
+        .then(function (r) { return r.ok ? r.json() : {lines: []}; })
+        .then(function (data) {
+          var lines = data.lines || [];
+          if (!lines.length) { panel.hidden = true; return; }
+          panel.hidden = false;
+          tbody.innerHTML = lines.map(function (ln) {
+            var fromSub = (ln.sources || []).length > 0;
+            var rowStyle = fromSub
+              ? ' style="color:var(--muted-foreground);background:var(--card);font-style:italic;"'
+              : "";
+            var badge = ln.merged_count > 1
+              ? ' <span class="badge badge-neutral" title="' + ln.merged_count + ' líneas sumadas">' + ln.merged_count + '× sumadas</span>'
+              : "";
+            var err = ln.error ? ' <small style="color:var(--color-warning);">⚠ ' + esc(ln.error) + '</small>' : "";
+            return '<tr' + rowStyle + '>' +
+              '<td>' + esc(ln.name) + badge + err + '</td>' +
+              '<td class="num">' + ln.qty + ' ' + esc(ln.unit) + '</td>' +
+              '<td class="muted">' + (fromSub ? 'via ' + esc(ln.sources.join(", ")) : 'base') + '</td>' +
+              '</tr>';
+          }).join("");
+        })
+        .catch(function () { panel.hidden = true; });
+    }
+
+    // Reload whenever a sub-recipe line combo changes (target picked/cleared)
+    document.addEventListener("change", function (e) {
+      var t = e.target;
+      if (t && t.closest && t.closest('.line-row[data-kind="sub_recipe"]')) {
+        loadEffective();
+      }
+    }, true);
+
+    loadEffective();
+  })();
+</script>
+{% endblock %}
 
 {% block content %}
 {{ ui.page_header(
@@ -60,18 +115,10 @@
           <span class="field-error" id="name-error" style="color:var(--color-danger);font-size:var(--text-xs);display:block;margin-top:.25rem;"></span>
         </div>
 
-        <div class="form-row">
-          <label for="family_combo">Familia / Categoría</label>
-          {{ ui.combo_field(
-            name='family',
-            value=(recipe.family if recipe and recipe.family else ''),
-            display=(recipe.family if recipe and recipe.family else ''),
-            placeholder='Elegí o escribí una familia…',
-            allow_create=True,
-            row_label='categoryRowLabel',
-            endpoint='/recetas/api/families?q='
-          ) }}
-        </div>
+        {# Familia (single) retired 2026-09-30: menu_tags (below, multi-select)
+           is the categorization field now. Legacy `family` values still
+           display read-only on the detail page and seed menu_tags via
+           migration 068 backfill. #}
       </div>
     </section>
 
@@ -180,6 +227,24 @@
           {% endfor %}
         </tbody>
       </table>
+
+  {# ── P3: Vista "ingredientes efectivos" (sub-recetas explotadas) ── #}
+  <div id="effective-ingredients-panel" class="card" style="margin-top:var(--space-3);" hidden>
+    <div style="display:flex;align-items:baseline;gap:var(--space-2);padding:var(--space-3) var(--space-3) 0;">
+      <h2 style="margin:0;">Ingredientes efectivos</h2>
+      <small class="text-muted">calculado desde las sub-recetas — solo lectura</small>
+    </div>
+    <p class="text-muted" style="padding:0 var(--space-3) var(--space-2);margin:0;">
+      Lista completa de crudos: los ingredientes de cada sub-receta se explotan
+      y los duplicados se suman. Filas grises = aportadas por una sub-receta.
+    </p>
+    <table class="table">
+      <thead>
+        <tr><th>Ingrediente</th><th class="num">Cantidad total</th><th>Origen</th></tr>
+      </thead>
+      <tbody id="effective-ingredients-body"></tbody>
+    </table>
+  </div>
       <div id="tag-preview" class="card" hidden
            style="padding: var(--space-3); margin: var(--space-2) 0; font-size: 0.9rem;">
       </div>

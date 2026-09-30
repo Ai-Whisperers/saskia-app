@@ -239,12 +239,26 @@
        "Todos" resets; category pills toggle, so the cashier can combine
        "Panadería" + "Bebidas" in one scan instead of flipping tabs.
        data-multi-select marks the behavior for tests/JS. #}
+    {# P3 UX 2026-09-30: pills are DYNAMIC — built from the categories
+       actually present on the quick-sell grid (was hardcoded; "Bebidas"
+       showed for months with zero bebida products while "Especiales"
+       — 11 of 28 real products — had no pill). #}
+    {% set _cat_labels = {
+      'panaderia': 'Panadería', 'pasteleria': 'Pastelería',
+      'bebida': 'Bebidas', 'bebidas': 'Bebidas',
+      'especiales': 'Especiales', 'otro': 'Otros'
+    } %}
+    {% set _cats_seen = [] %}
+    {% for q in products %}
+      {% set _c = q.category or 'otro' %}
+      {% if _c not in _cats_seen %}{% set _ = _cats_seen.append(_c) %}{% endif %}
+    {% endfor %}
     <div class="quick-sell-filters" id="quick-sell-filters" role="group" aria-label="Filtrar por categoría (selección múltiple)">
       <button type="button" class="quick-sell-filter is-active" data-filter="all">Todos</button>
       <button type="button" class="quick-sell-filter" data-filter="favorito" data-pseudo="true">Favoritos</button>
-      <button type="button" class="quick-sell-filter" data-filter="panaderia">Panadería</button>
-      <button type="button" class="quick-sell-filter" data-filter="pasteleria">Pastelería</button>
-      <button type="button" class="quick-sell-filter" data-filter="bebida">Bebidas</button>
+      {% for _c in _cats_seen %}
+      <button type="button" class="quick-sell-filter" data-filter="{{ _c }}">{{ _cat_labels.get(_c, _c|capitalize) }}</button>
+      {% endfor %}
     </div>
 
     <div class="quick-sell-grid" id="quick-sell-grid" role="grid"
@@ -386,7 +400,7 @@
 
   function applyGrouping(catsSorted) {
     clearGrouping();
-    var LABELS = {panaderia: "Panadería", pasteleria: "Pastelería", bebida: "Bebidas", otro: "Otros"};
+    var LABELS = {panaderia: "Panadería", pasteleria: "Pastelería", especiales: "Especiales", bebida: "Bebidas", otro: "Otros"};
     catsSorted.forEach(function(cat) {
       var h = document.createElement("div");
       h.className = "qs-group-header";
@@ -418,7 +432,7 @@
     // under section headers so the eye scans by department, not a flat
     // alphabetical wall.
     if (activeFilters.size > 1) {
-      var order = ["panaderia", "pasteleria", "bebida", "otro"];
+      var order = ["panaderia", "pasteleria", "especiales", "bebida", "otro"];
       var catsSorted = order.filter(function(c) { return visibleCats.has(c); });
       Array.from(visibleCats).sort().forEach(function(c) {
         if (order.indexOf(c) < 0) catsSorted.push(c);

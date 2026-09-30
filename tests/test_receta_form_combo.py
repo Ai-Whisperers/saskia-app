@@ -27,16 +27,17 @@ def pytest_collection_modifyitems(config, items):
 
 
 
-def test_receta_form_category_uses_combobox(qseed, authed_client):
-    """/recetas/nueva category picker is a combobox with creation support."""
+def test_receta_form_category_uses_menu_tags_picker(qseed, authed_client):
+    """/recetas/nueva categorization = menu_tags multi-picker
+    (single-value family combo retired 2026-09-30)."""
     qseed("basic")
     r = authed_client.get("/recetas/nueva")
     assert r.status_code == 200
     body = r.text
-    # Combo markers for category
-    assert "saskia-combo" in body
-    assert "categoryRowLabel" in body
-    assert "data-allow-create=\"true\"" in body
+    assert "saskia-combo" in body  # other combos (lines, scale) still exist
+    assert 'name="menu_tags"' in body or "name='menu_tags'" in body
+    assert "family_combo" not in body
+    assert "categoryRowLabel" not in body
     # Old native input is gone
     assert '<input type="text" id="family" name="family"' not in body
 

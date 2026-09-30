@@ -24,6 +24,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Query, Request, UploadFile
+from fastapi.responses import JSONResponse
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from loguru import logger
 from sqlalchemy import func, select, update
@@ -483,6 +484,44 @@ def pedidos_new_form(
     )
 
 
+@router.get("/api/customer/{customer_id}/addresses")
+def pedidos_customer_addresses(
+    customer_id: int,
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """P3 delivery: address book for the pedido form's customer picker.
+
+    Returns the customer's saved addresses (label + text + zone) so the
+    form can autofill address/zone when a known customer is picked, plus
+    their preferred zone id.
+    """
+    from app.rms.models import CustomerAddress
+    cust = session.get(Customer, customer_id)
+    if cust is None:
+        return JSONResponse({"addresses": [], "preferred_zone_id": None})
+    addrs = session.scalars(
+        select(CustomerAddress)
+        .where(CustomerAddress.customer_id == customer_id)
+        .order_by(CustomerAddress.is_default.desc(), CustomerAddress.id)
+    ).all()
+    return JSONResponse(
+        {
+            "addresses": [
+                {
+                    "id": a.id,
+                    "label": a.label,
+                    "address_text": a.address_text,
+                    "zone_id": a.zone_id,
+                    "is_default": bool(a.is_default),
+                }
+                for a in addrs
+            ],
+            "preferred_zone_id": cust.preferred_zone_id,
+        }
+    )
+
+
+
 @router.post("/nuevo")
 async def pedidos_create(
     request: Request,
@@ -497,6 +536,14 @@ async def pedidos_create(
     payment_intent: str = Form("efectivo"),
     notes: str = Form(""),
     delivery_zone_id: str = Form(""),
+    # P3 delivery batch: address snapshot + arrival window + factura
+    address_text: str = Form(""),
+    delivery_window_start: str = Form(""),
+    delivery_window_end: str = Form(""),
+    invoice_ruc: str = Form(""),
+    invoice_name: str = Form(""),
+    save_address: str = Form(""),  # "1" → persist to customer_address
+    address_label: str = Form("casa"),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Create a new pedido with one or more lines.
@@ -649,6 +696,11 @@ async def pedidos_create(
         status="pending",
         payment_intent=(payment_intent or "efectivo").strip().lower(),
         delivery_zone_id=zone_int,
+        address_text=(address_text or "").strip() or None,
+        delivery_window_start=(delivery_window_start or "").strip() or None,
+        delivery_window_end=(delivery_window_end or "").strip() or None,
+        invoice_ruc=(invoice_ruc or "").strip() or None,
+        invoice_name=(invoice_name or "").strip() or None,
         notes=(notes or "").strip() or None,
         public_token=generate_public_token(),
         # P1-2: token expires 30 days from creation. Set at insert time
@@ -658,6 +710,28 @@ async def pedidos_create(
     )
     session.add(pedido)
     session.flush()  # assigns pedido.id
+
+    # P3: persist the address to the customer's address book (opt-in
+    # checkbox) so the next pedido to this person is one click.
+    if save_address == "1" and cust_obj and (address_text or "").strip():
+        from app.rms.models import CustomerAddress
+        first_for_customer = not session.scalar(
+            select(CustomerAddress.id).where(
+                CustomerAddress.customer_id == cust_obj.id
+            ).limit(1)
+        )
+        session.add(
+            CustomerAddress(
+                customer_id=cust_obj.id,
+                label=(address_label or "casa").strip()[:32] or "casa",
+                address_text=address_text.strip(),
+                zone_id=zone_int,
+                is_default=first_for_customer,
+            )
+        )
+        # Remember the zone as the customer's preference too
+        if zone_int and not cust_obj.preferred_zone_id:
+            cust_obj.preferred_zone_id = zone_int
 
     for ln in lines:
         session.add(

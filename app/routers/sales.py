@@ -109,6 +109,7 @@ def _build_sales_context(
     days: int | None,
     offset: int | None,
     session: Session,
+    fav: bool = False,
 ) -> dict:
     """Build the render context shared by /ventas and /ventas/historial.
 
@@ -117,7 +118,10 @@ def _build_sales_context(
     template (ventas.html for the POS, ventas_historial.html for history)
     so the filter logic stays in sync — US 4.3 split.
     """
-    products = session.scalars(select(Product).order_by(Product.name)).all()
+    products_q = select(Product).order_by(Product.name)
+    if fav:
+        products_q = products_q.where(Product.is_favorite.is_(True))
+    products = session.scalars(products_q).all()
     sales_q = (
         select(Sale)
         .options(selectinload(Sale.product), selectinload(Sale.customer))
@@ -212,6 +216,7 @@ def _build_sales_context(
     quick_rows = session.execute(quick_sell_q).all()
     product_by_id = {p.id: p for p in products}
     quick_sell = []
+    seen_qs: set[int] = set()
     for pid, units, rev in quick_rows:
         p = product_by_id.get(pid)
         if p is not None:
@@ -224,7 +229,30 @@ def _build_sales_context(
                 "is_available": p.is_available,
                 "stock_qty": getattr(p, "stock_qty", None),
                 "image_url": getattr(p, "image_url", None) or "",
+                "is_favorite": bool(p.is_favorite),
             })
+            seen_qs.add(pid)
+
+    # P3 UX (2026-09-30): favorites always visible on the POS grid, even
+    # with no recent sales (fresh boot / quiet week). The cashier's
+    # "initial options are the most relevant": favorites first, then the
+    # top sellers. New favorites appear immediately when toggled.
+    for p in products:
+        if p.is_favorite and p.id not in seen_qs:
+            quick_sell.append({
+                "product_id": p.id,
+                "name": p.name,
+                "sale_price_gs": p.sale_price_gs,
+                "units": 0.0,
+                "revenue_gs": 0,
+                "is_available": p.is_available,
+                "stock_qty": getattr(p, "stock_qty", None),
+                "image_url": getattr(p, "image_url", None) or "",
+                "is_favorite": True,
+            })
+            seen_qs.add(p.id)
+    # favorites first within the merged list (stable for the rest)
+    quick_sell.sort(key=lambda item: not item.get("is_favorite", False))
 
     # E13.S2 — Venta libre: pass the cashier-custom-price product id so
     # the ventas template can render a "+ Venta libre" tile that opens
@@ -280,6 +308,7 @@ async def sales_list(
     product_id: int | None = None,
     days: int | None = None,
     offset: int | None = None,
+    fav: int | None = None,
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """POS landing page — Nueva venta (new sale form + Quick-Sell).
@@ -294,6 +323,7 @@ async def sales_list(
         product_id=product_id,
         days=days,
         offset=offset,
+        fav=bool(fav),
     )
     return render(request, "ventas.html", ctx)
 

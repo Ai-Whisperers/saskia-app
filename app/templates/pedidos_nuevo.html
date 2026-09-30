@@ -107,11 +107,69 @@
   </div>
   {% endif %}
 
+  {# ── P3 delivery: address + arrival window + factura ─────── #}
+  <div class="form-row">
+    <label for="address_text">Dirección de envío <span class="muted">(si es delivery)</span></label>
+    <input type="text" id="address_text" name="address_text"
+           placeholder="Calle, número, barrio, referencia…"
+           autocomplete="street-address">
+  </div>
+  <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+    <div>
+      <label for="delivery_window_start">Ventana de entrega — desde</label>
+      <input type="time" id="delivery_window_start" name="delivery_window_start">
+    </div>
+    <div>
+      <label for="delivery_window_end">hasta</label>
+      <input type="time" id="delivery_window_end" name="delivery_window_end">
+    </div>
+  </div>
+  <small class="muted">Horario en que el cliente recibe delivery. Podemos enviar igual fuera de la ventana (delivery app).</small>
+  <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+    <div>
+      <label for="invoice_ruc">RUC / CI <span class="muted">(para factura)</span></label>
+      <input type="text" id="invoice_ruc" name="invoice_ruc"
+             placeholder="80012345-6" inputmode="numeric">
+    </div>
+    <div>
+      <label for="invoice_name">Nombre / razón social</label>
+      <input type="text" id="invoice_name" name="invoice_name"
+             placeholder="Para la factura">
+    </div>
+  </div>
+  <div class="form-row" id="save-address-row" hidden>
+    <label class="switch-toggle" for="save_address">
+      <input type="checkbox" id="save_address" name="save_address" value="1">
+      <span class="switch-track"><span class="switch-thumb"></span></span>
+      <span>Guardar dirección en la ficha del cliente</span>
+    </label>
+    <input type="text" id="address_label" name="address_label"
+           placeholder="Etiqueta: casa / oficina / mamá…"
+           style="margin-top: var(--space-2);" maxlength="32">
+  </div>
+
   <div class="form-row">
     <label for="notes">Notas</label>
     <textarea id="notes" name="notes" rows="2"
               placeholder="Sin TACC, retirar antes de las 17h, etc."></textarea>
   </div>
+
+  <script>
+    // P3: reveal "guardar dirección" once an address is typed (JS-on only;
+    // the row starts hidden so no-JS forms are unaffected).
+    (function () {
+      var addr = document.getElementById("address_text");
+      var row = document.getElementById("save-address-row");
+      if (!addr || !row) return;
+      addr.addEventListener("input", function () {
+        if (addr.value.trim()) {
+          if (row.hidden && row.dataset.customerHasAddresses !== "1") row.hidden = false;
+        } else {
+          row.hidden = true;
+        }
+      });
+    })();
+  </script>
 
   <h2 style="margin-top: var(--space-5);">
     <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>

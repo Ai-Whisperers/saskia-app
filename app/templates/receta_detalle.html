@@ -204,6 +204,10 @@
           <td class="num">{{ "%.2f"|format(item.qty) }} {{ item.unit }}</td>
           <td class="muted">
             {% if item.sources %}via {{ item.sources|join(", ") }}{% else %}base{% endif %}
+            {% if item.merged_count > 1 %}
+              <span class="badge badge-neutral" style="margin-left:var(--space-1);"
+                    title="{{ item.merged_count }} líneas sumadas en esta fila">{{ item.merged_count }}× sumadas</span>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}

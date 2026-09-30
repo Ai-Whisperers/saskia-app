@@ -539,7 +539,9 @@ def inventory_create(
         category=(category.strip() or inferred_category) or None,
         subcategory=inferred_subcategory,
         role=inferred_role,
-        allergens=inferred_allergens or None,
+        # '' = declared-neutral (no allergen keywords matched). NULL = operator
+        # never touched the field → triggers the receta 'Sin alérgenos declarados' banner.
+        allergens=inferred_allergens,  # empty string stays empty, never NULL
         dietary_tags=inferred_dietary_tags or None,
         shelf_life_days=inferred_shelf_life,
         storage=inferred_storage,
@@ -933,7 +935,7 @@ def inventory_update(
             logger.debug("inventory shelf_life_days parse failed: {}", exc)
     if allergens != "__unset__":
         # Empty string = explicitly cleared to "sin declarar" (None).
-        ing.allergens = allergens.strip() or None
+        ing.allergens = allergens.strip() or ''  # '' = declared-neutral, never NULL
     if dietary_tags != "__unset__":
         ing.dietary_tags = dietary_tags.strip() or None
     ing.may_contain_gluten = may_contain_gluten == "1"
@@ -954,7 +956,7 @@ def inventory_update(
         cls = classify_ingredient(name_clean, session=session)
         ing.subcategory = cls["subcategory"]
         ing.role = cls["role"]
-        ing.allergens = ",".join(cls["allergens"]) or None
+        ing.allergens = ",".join(cls["allergens"]) or ''  # '' = declared-neutral, never NULL
         ing.dietary_tags = ",".join(cls["dietary_tags"]) or None
         ing.shelf_life_days = cls["shelf_life_days"]
         ing.storage = cls["storage"]

@@ -25,6 +25,62 @@
   // ─────────────────────────────────────────────────────────────────────
   // Customer combobox
   // ─────────────────────────────────────────────────────────────────────
+  // P3 delivery: fetch a customer's saved addresses and autofill the form.
+  window.loadCustomerAddresses = function (customerId) {
+    var addrInput = document.getElementById("address_text");
+    var zoneInput = document.querySelector('input[name="delivery_zone_id"]'); // hidden combo field
+    var zoneCombo = document.getElementById("delivery_zone_combo");
+    var wsEl = document.getElementById("delivery_window_start");
+    var weEl = document.getElementById("delivery_window_end");
+    var saveRow = document.getElementById("save-address-row");
+    fetch("/pedidos/api/customer/" + customerId + "/addresses")
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        // Preferred zone → set the zone combo (fires its change so cost recalcs)
+        if (data.preferred_zone_id && zoneInput) {
+          zoneInput.value = String(data.preferred_zone_id);
+          if (zoneCombo && zoneCombo.dispatchEvent) {
+            zoneCombo.dispatchEvent(new Event("saskia-combo-external-set"));
+          }
+        }
+        // Single saved address → autofill; multiple → offer a quick chooser
+        var addrs = data.addresses || [];
+        if (addrs.length === 1 && addrInput && !addrInput.value) {
+          addrInput.value = addrs[0].address_text;
+        } else if (addrs.length > 1 && addrInput) {
+          var chooser = document.createElement("select");
+          chooser.id = "address_quick_pick";
+          chooser.className = "input";
+          chooser.style.marginTop = "var(--space-2)";
+          chooser.innerHTML = '<option value="">— direcciones guardadas —</option>' +
+            addrs.map(function (a) {
+              return '<option value="' + a.id + '">' +
+                escapeHtml(a.label) + ": " + escapeHtml(a.address_text) + "</option>";
+            }).join("");
+          chooser.addEventListener("change", function () {
+            var picked = addrs.filter(function (a) {
+              return String(a.id) === chooser.value;
+            })[0];
+            if (picked) {
+              addrInput.value = picked.address_text;
+              if (picked.zone_id && zoneInput) {
+                zoneInput.value = String(picked.zone_id);
+              }
+            }
+          });
+          addrInput.parentElement.appendChild(chooser);
+        }
+        // Customer already has saved addresses → hide save-row (they're covered);
+        // new customer with address typed → show it. Flag first so the
+        // address input listener doesn't re-show it a beat later.
+        if (saveRow) {
+          saveRow.dataset.customerHasAddresses = addrs.length > 0 ? "1" : "0";
+          saveRow.hidden = addrs.length > 0;
+        }
+      })
+      .catch(function () { /* non-fatal */ });
+  };
+
   function setupCustomerCombo() {
     var root = document.querySelector(".saskia-customer-combo");
     if (!root) return;
@@ -47,6 +103,10 @@
       onSelect: function (item) {
         if (item && item.phone && phoneInput && !phoneInput.value) {
           phoneInput.value = item.phone;
+        }
+        // P3 delivery: autofill address book + preferred zone for known customers
+        if (item && item.id && typeof loadCustomerAddresses === "function") {
+          loadCustomerAddresses(item.id);
         }
         if (pickedHint) {
           pickedHint.dataset.empty = "false";
