@@ -69,6 +69,19 @@
     </h2>
     <small class="text-muted">{{ today_event_count }} evento{{ '' if today_event_count == 1 else 's' }} · Gs. {{ "{:,.0f}".format(today_total_cost or 0) }}</small>
   </div>
+  {# PROD-MERMA-2 (Batch I follow-up): surface source mix ALWAYS (not just
+     when today's list has rows) so operators see at a glance whether the
+     /produccion quick-merma modal is being used. The 14-day window is
+     broader than the Hoy card scope. #}
+  <div class="card-body" style="padding-top: 0;">
+    <p style="margin: 0; font-size: var(--text-sm);">
+      {% set src_manual = source_mix_14d.get('manual', {'n_events': 0}).n_events %}
+      {% set src_prod = source_mix_14d.get('production', {'n_events': 0}).n_events %}
+      <span class="text-muted">Últimos 14 días:</span>
+      <span class="badge badge-neutral">✍️ Manual: {{ src_manual }}</span>
+      <span class="badge badge-info">📍 Producción: {{ src_prod }}</span>
+    </p>
+  </div>
   {% if today_top_ingredients %}
   <div class="card-body">
     <p class="text-muted" style="margin: 0 0 var(--space-2) 0; font-size: var(--text-sm);">
@@ -82,16 +95,6 @@
       </li>
       {% endfor %}
     </ul>
-    {# PROD-MERMA-2 (Batch I follow-up): surface source mix so the operator
-       can see whether the /produccion quick-merma modal is being used.
-       Numbers come from /api/smoke/waste-source-mix (14-day window). #}
-    <p style="margin: var(--space-3) 0 0 0; font-size: var(--text-sm);">
-      {% set src_manual = source_mix_14d.get('manual', {'n_events': 0}).n_events %}
-      {% set src_prod = source_mix_14d.get('production', {'n_events': 0}).n_events %}
-      <span class="text-muted">Últimos 14 días:</span>
-      <span class="badge badge-neutral">✍️ Manual: {{ src_manual }}</span>
-      <span class="badge badge-info">📍 Producción: {{ src_prod }}</span>
-    </p>
     <p style="margin: var(--space-2) 0 0 0;">
       <a href="/inventario" class="btn btn-sm btn-ghost">
         <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>

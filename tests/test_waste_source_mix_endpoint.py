@@ -125,8 +125,8 @@ def test_merma_page_renders_source_mix_dashboard(authed_client, session_factory)
     """The /merma 'Hoy' card should surface 14-day source counts inline.
 
     Operators need to see at-a-glance whether the /produccion quick-merma
-    modal is being used. The chips render even when there's no waste in
-    the window (showing zeros) so operators know the dashboard is alive.
+    modal is being used. Chips render ALWAYS (not gated on today's waste)
+    so operators see the dashboard even when no waste was logged today.
     """
     ing = _make_ingredient(session_factory, "WSMIX Dashboard Ing")
     with session_factory() as s:
@@ -146,3 +146,41 @@ def test_merma_page_renders_source_mix_dashboard(authed_client, session_factory)
     assert "Manual:" in body, "Manual source chip missing from /merma dashboard"
     assert "Producción:" in body, "Producción source chip missing from /merma dashboard"
     assert "Últimos 14 días" in body, "14-day window label missing"
+
+
+def test_merma_page_shows_source_chips_when_no_today_waste(authed_client, session_factory):
+    """Chips must render even on days with zero waste, so the dashboard
+    is 'alive' for the operator. Add a single production-tagged waste
+    from yesterday so the 14-day window has data while today is empty."""
+    from datetime import datetime, timedelta, timezone
+    ing = _make_ingredient(session_factory, "WSMIX Yesterday Ing")
+    with session_factory() as s:
+        log = record_waste(
+            s,
+            ingredient_id=ing,
+            qty=0.1,
+            reason=WasteReason.OTRA,
+            source="production",
+        )
+        # Backdate to yesterday — outside today's bucket, inside 14-day window.
+        log.recorded_at = datetime.now(timezone.utc) - timedelta(days=1)
+        s.commit()
+
+    r = authed_client.get("/merma")
+    body = r.text
+    # Empty-state message renders when no waste today.
+    assert "No registraste merma hoy" in body or today_zero_invariant(body), (
+        "expected today-empty state or the event-zero marker"
+    )
+    # But source chips must STILL render (gated by 14-day, not today).
+    assert "Últimos 14 días" in body, "14-day chips missing on empty-today state"
+    assert "Producción:" in body
+    assert "Manual:" in body
+
+
+def today_zero_invariant(body: str) -> bool:
+    """Helper: the /merma page renders an explicit zero-event line when
+    today has no waste. Used as a fallback when the empty-state copy
+    was already changed by a sibling session."""
+    import re
+    return bool(re.search(r"0\s*eventos?\s*·", body))
