@@ -5,6 +5,21 @@
 
 ## [Unreleased]
 
+### Added (2026-09-30) — guards de seguridad/precio + ayudas de producción
+
+- **PRO-SEC**: guard de arranque en `app/rms/main.py` — la app se niega a
+  iniciar con SASKIA_TEST_AUTH_DISABLED fuera de pytest (incidente 09-30:
+  producción sirvió sin login por esa var en la spec Swarm). Test CI
+  (`tests/test_prod_security_gates.py`) falla si la var vuelve a aparecer en
+  Dockerfile/compose/deploy scripts.
+- **PRO-PRICE**: mismo test CI falla si algún producto ACTIVO queda con
+  precio < costo×1,1 (corre contra la DB de negocio si está disponible).
+- **/produccion**: banner que avisa cuando no hay plan semanal guardado para
+  el día (con ventas cargadas) — empuja el hábito del template.
+- **/productos**: semáforo de margen — badge ámbar cuando el margen cae bajo
+  40% (además del rojo existente para negativos).
+- Label "Oculto (sin auto-sugerencia)" para la fuente PRO-11 del plan.
+
 ### Fixed (2026-09-30) — PRO-11: productos ocultos no reciben auto-sugerencia de producción
 
 `plan_production()` sugería cantidades para productos con `is_available=False`

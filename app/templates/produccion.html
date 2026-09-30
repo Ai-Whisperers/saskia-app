@@ -19,6 +19,14 @@
 
 {% block title %}Producción{% endblock %}
 {% block content %}
+{% if template_nudge %}
+<div class="alert alert-warning" style="margin-bottom:1rem">
+  📋 Todavía no guardaste un plan semanal para este día — el plan se arma con
+  el promedio de ventas. Después de una semana de ventas, andá a
+  <a href="/produccion?view=week">vista semana → Guardar como plan semanal</a>
+  y el sistema usará TU plan en vez del promedio.
+</div>
+{% endif %}
 
 {# ════════════════════════════════════════════════════════════════════
    PAGE ROOF — title + view tabs side-by-side (Bug 3 fix).
