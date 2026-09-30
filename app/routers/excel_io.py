@@ -19,7 +19,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from loguru import logger
 from sqlalchemy import select
@@ -280,18 +280,39 @@ async def excel_import(
 
 
 @router.get("/exportar")
-async def excel_export(request: Request, session: Session = Depends(get_session)) -> FileResponse:
-    """Export current DB state to a HEREBUS-format .xlsx."""
+async def excel_export(
+    request: Request,
+    period: str = Query(
+        "current_month",
+        pattern="^(current_month|last_month|30d|today|all)$",
+    ),
+    session: Session = Depends(get_session),
+) -> FileResponse:
+    """Export current DB state to a HEREBUS-format .xlsx.
+
+    Default period is ``current_month`` so the most common reason to hit
+    this button — month-end close — works with one click. Use ``?period=all``
+    to get the full history (the previous behavior).
+    """
     from app.services.export_xlsx import to_file
 
     fd, tmp_path_str = tempfile.mkstemp(prefix="saskia-export-", suffix=".xlsx")
     os.close(fd)
     tmp_path = Path(tmp_path_str)
     try:
-        written = to_file(session, tmp_path)
+        written = to_file(session, tmp_path, period=period)
+        # Filename reflects the chosen period so operators can keep multiple
+        # exports side-by-side without renaming.
+        filename = {
+            "current_month": "saskia-rms-export-mes-actual.xlsx",
+            "last_month": "saskia-rms-export-mes-anterior.xlsx",
+            "30d": "saskia-rms-export-30d.xlsx",
+            "today": "saskia-rms-export-hoy.xlsx",
+            "all": "saskia-rms-export-completo.xlsx",
+        }[period]
         return FileResponse(
             path=str(written),
-            filename="saskia-rms-export.xlsx",
+            filename=filename,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
     except Exception:

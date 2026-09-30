@@ -99,14 +99,28 @@ def forecast_sales(
     *,
     product_id: int,
     days_history: int = 14,
+    target_weekday: int | None = None,
 ) -> float:
     """Forecast sales for tomorrow based on the last N days.
 
     Returns the daily average qty (handles zero-sales gracefully).
+
+    When ``target_weekday`` is set (0=Mon ... 6=Sun), aggregates ONLY
+    the historical sales on that weekday within the window — making the
+    forecast day-of-week-aware. E.g. with ``target_weekday=2``
+    (Wednesday) and ``days_history=84`` (12 weeks), it averages the
+    last 12 Wednesdays' sales for this product, ignoring all other
+    days. This is the B2 forecast mode powering /produccion/manana
+    and the /inicio headline. (Decision 2026-10-01: 12-week lookback,
+    DOW-only aggregation, fallback to all-DOW avg when < 4 DOW weeks
+    exist.)
+
+    When ``target_weekday`` is None, returns the flat daily average
+    (legacy behavior, kept for any caller that wants it).
     """
     end = datetime.now(timezone.utc)
     start = end - timedelta(days=days_history)
-    rows = session.execute(
+    base_q = session.execute(
         select(func.sum(Sale.qty))
         .where(
             Sale.product_id == product_id,
@@ -115,7 +129,42 @@ def forecast_sales(
             Sale.voided_at.is_(None),
         )
     ).scalar() or 0.0
-    return float(rows) / days_history
+
+    if target_weekday is None:
+        # Legacy flat average.
+        return float(base_q) / days_history
+
+    # DOW-only aggregation. We aggregate by DOW via SQL (GROUP BY the
+    # Asunción-local weekday) so this is one query, not N.
+    from app.rms.config import ASUNCION_TZ
+
+    rows = session.execute(
+        select(Sale.sold_at, Sale.qty)
+        .where(
+            Sale.product_id == product_id,
+            Sale.sold_at >= start,
+            Sale.sold_at <= end,
+            Sale.voided_at.is_(None),
+        )
+    ).all()
+
+    by_dow_qty: dict[int, float] = {}
+    by_dow_count: dict[int, int] = {}
+    for sold_at, qty in rows:
+        wd = sold_at.astimezone(ASUNCION_TZ).weekday()
+        by_dow_qty[wd] = by_dow_qty.get(wd, 0.0) + float(qty)
+        by_dow_count[wd] = by_dow_count.get(wd, 0) + 1
+
+    target_qty = by_dow_qty.get(target_weekday, 0.0)
+    target_days = by_dow_count.get(target_weekday, 0)
+
+    # Fallback (decision 2026-10-01): if < 4 historical weeks on this DOW,
+    # use the all-DOW average over the full window so we always show
+    # something. The confidence calc downstream will reflect the weak
+    # signal via low sale_count.
+    if target_days < 4:
+        return float(base_q) / max(days_history, 1)
+    return target_qty / target_days
 
 
 def _forecast_sample_stats(session: Session, *, product_id: int, days_history: int) -> tuple[int, int]:
@@ -152,6 +201,7 @@ def plan_production(
     days_history: int = 14,
     seasonal_multiplier: float | None = None,
     manual_forecast: dict[int, float] | None = None,
+    use_dow_forecast: bool = False,
 ) -> ProductionPlan:
     """Generate the full production plan for a given date.
 
@@ -160,6 +210,9 @@ def plan_production(
       - days_history: look-back window for forecasting
       - seasonal_multiplier: applied to forecast (uses calendar if None)
       - manual_forecast: {product_id: qty} overrides (operator override)
+      - use_dow_forecast: when True, restrict auto-forecast to historical
+        rows on ``for_date.weekday()`` only (B2 day-of-week-aware
+        forecast, 2026-10-01). Default False preserves legacy flat avg.
 
     Output: ProductionPlan with rows + ingredient lines.
     """
@@ -213,8 +266,15 @@ def plan_production(
                 qty = 0.0
                 source = "oculto"
             else:
+                # B2 DOW-aware: when use_dow_forecast=True, restrict to
+                # historical rows matching for_date.weekday() (Mon=0..Sun=6).
+                # Falls back to flat average inside forecast_sales() when
+                # there are < 4 DOW weeks of history for this product.
                 base = forecast_sales(
-                    session, product_id=prod.id, days_history=days_history
+                    session,
+                    product_id=prod.id,
+                    days_history=days_history,
+                    target_weekday=for_date.weekday() if use_dow_forecast else None,
                 )
                 qty = base * seasonal_multiplier
                 source = "rolling_14d_avg"
