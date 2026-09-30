@@ -69,6 +69,31 @@
   (`/` for the day, `/produccion` for the full plan) are the
   natural homes for the button.
 
+### Added — Tier-1 prelaunch items (stock LED + weekend-batch EOD)
+- **Stock-confidence LED on `/inicio` HOY band** (`app/routers/dashboard.py`
+  + `app/templates/inicio.html`): a 5th KPI card aggregating ingredient
+  health into a single green/amber/red signal — `success` ("todo OK")
+  when all tracked ingredients are at/above min, `warn` ("N bajo mínimo")
+  when at least one is below min, `danger` ("N en negativo") when any
+  ingredient has negative stock. Links to `/reorder`. (Prelaunch roadmap
+  2026-09-17.)
+- **Weekend-batch EOD summary `/eod?start=YYYY-MM-DD&end=YYYY-MM-DD`**
+  (`app/routers/eod.py` + `app/templates/eod.html`): when both `start`
+  and `end` are valid (≤31 days, start ≤ end), renders a range summary
+  card with total ventas, total operaciones, total merma, and a per-day
+  table (plan rows + completions). Without params the original
+  checklist UI is unchanged. (Prelaunch roadmap 2026-09-17.)
+
+### Already shipped (cross-checked 2026-10-01, not rebuilt)
+- `/excel/importar?mode=PATCH` — supports PATCH (default), FULL, APPEND;
+  per-row validation + warnings are surfaced from `/excel` history and
+  `/excel/validar` dry-run. See `app/routers/excel_io.py` and
+  `app/rms/excel_import.py`.
+- Customer profile `/clientes/{id}` — already renders
+  `cliente_detalle.html` with lifetime spend, top products, dietary
+  alerts. See `app/routers/customers.py:660` and
+  `tests/test_cliente_detalle_*.py` / `tests/test_p3_customer_*.py`.
+
 ### Fixed (2026-09-30 noche) — PRO-QS + PRO-PED-UX + CSRF fix
 
 - **Quick-sell sin recarga (PRO-QS)**: tap en producto del grid agrega la

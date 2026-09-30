@@ -68,6 +68,14 @@
     label="Margen estimado"
     value="{% if margen_pct_fmt and margen_pct_fmt != '—' %}{{ margen_pct_fmt }}{% else %}—{% endif %}"
     {% if costs_incomplete %}sub="{{ costs_incomplete }} cargado"{% endif %}></saskia-kpi-card>
+  <saskia-kpi-card
+    label="Stock"
+    value="{{ stock_health_label }}"
+    severity="{{ stock_health_severity }}"
+    {% if stock_health_severity == 'success' %}icon="icon-check"
+    {% elif stock_health_severity == 'warn' %}icon="icon-warn"
+    {% else %}icon="icon-warn"{% endif %}
+    href="/reorder"></saskia-kpi-card>
 </div>
 
 {# ══ P1-B7: 3 actionable insights ═════════════════════════════════════ #}

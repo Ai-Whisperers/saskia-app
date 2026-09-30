@@ -339,6 +339,24 @@ async def dashboard(
         )
     ).all()
 
+    # Stock-confidence LED (prelaunch roadmap item):
+    # aggregate ingredient health into a single green/amber/red signal.
+    # - danger: any ingredient with negative stock (data integrity issue)
+    # - warn:   1+ ingredients below min_stock_qty
+    # - success: all tracked ingredients at or above min (or none tracked)
+    stock_negative_count = sum(
+        1 for i in stock_low if (i.stock_qty or 0) < 0
+    )
+    if stock_negative_count > 0:
+        stock_health_severity = "danger"
+        stock_health_label = f"{stock_negative_count} en negativo"
+    elif stock_low:
+        stock_health_severity = "warn"
+        stock_health_label = f"{len(stock_low)} bajo mínimo"
+    else:
+        stock_health_severity = "success"
+        stock_health_label = "todo OK"
+
     # Batch-load all recipe costs (replaces per-recipe N+1).
     all_recipes = list(session.scalars(select(Recipe)).all())
     batch_recipe_results = batch_recipes_cost(session, all_recipes)
@@ -530,6 +548,11 @@ async def dashboard(
                 }
                 for i in stock_low
             ],
+            # Stock-confidence LED (prelaunch roadmap item)
+            "stock_health_severity": stock_health_severity,
+            "stock_health_label": stock_health_label,
+            "stock_negative_count": stock_negative_count,
+            "stock_below_min_count": len(stock_low),
             "recipes_no_cost": recipes_no_cost,
             "sales_no_recipe": sales_no_recipe_decor,
             # E8: operational analytics surfaces

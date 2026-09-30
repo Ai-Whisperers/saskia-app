@@ -1,11 +1,76 @@
 {% extends "base.html" %}
 {% import "_components/atoms.html" as ui %}
-{% block title %}Cierre diario{% endblock %}
+{% block title %}{% if is_range_mode %}Cierre del rango{% else %}Cierre diario{% endif %}{% endblock %}
 {% block content %}
 <h1>
   <svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg>
-  Cierre diario
+  {% if is_range_mode %}Cierre del rango{% else %}Cierre diario{% endif %}
 </h1>
+
+{# ── Weekend-batch range picker (prelaunch roadmap 2026-09-17) ─────── #}
+<form method="get" action="/eod" class="card mb-4" style="padding:var(--space-3);">
+  <div style="display:flex;gap:var(--space-3);align-items:flex-end;flex-wrap:wrap;">
+    <div>
+      <label for="range-start" style="font-size:var(--text-sm);display:block;">Desde</label>
+      <input type="date" id="range-start" name="start" value="{{ range_start_iso }}"
+             style="padding:var(--space-2);border:1px solid var(--color-border);border-radius:4px;">
+    </div>
+    <div>
+      <label for="range-end" style="font-size:var(--text-sm);display:block;">Hasta</label>
+      <input type="date" id="range-end" name="end" value="{{ range_end_iso }}"
+             style="padding:var(--space-2);border:1px solid var(--color-border);border-radius:4px;">
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Ver rango</button>
+    {% if is_range_mode %}
+    <a href="/eod" class="btn btn-sm">Volver a hoy</a>
+    <span class="text-muted" style="font-size:var(--text-sm);margin-left:auto;">
+      {{ range_days }} día{{ 's' if range_days != 1 else '' }} en el rango
+    </span>
+    {% endif %}
+  </div>
+</form>
+
+{% if is_range_mode %}
+{# ── Range summary card ────────────────────────────────────────────── #}
+<div class="card mb-4">
+  <div class="card-header">
+    <h2 style="font-size:var(--text-md);margin:0;">Resumen del rango</h2>
+    <span class="text-muted" style="font-size:var(--text-sm);">{{ range_start_iso }} → {{ range_end_iso }}</span>
+  </div>
+  <div class="kpi-row" style="display:flex;gap:var(--space-4);flex-wrap:wrap;padding:var(--space-3) var(--space-4);">
+    {{ ui.metric_card(label="Ventas del rango", value=m.gs(range_total_ventas_gs) if range_total_ventas_gs else '—', compact=True) }}
+    {{ ui.metric_card(label="Operaciones", value=range_total_operaciones, compact=True) }}
+    {{ ui.metric_card(label="Merma", value=m.gs(range_total_merma_gs) if range_total_merma_gs else '—', compact=True) }}
+  </div>
+
+  {% if range_summary %}
+  <table class="table is-striped" style="margin-top:var(--space-3);">
+    <thead>
+      <tr>
+        <th>Día</th>
+        <th class="num">Plan (filas)</th>
+        <th class="num">Completado</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for day in range_summary %}
+      <tr>
+        <td>{{ day.date_iso }}</td>
+        <td class="num">{{ day.plan_rows }}</td>
+        <td class="num">{{ '%.1f'|format(day.completed) if day.completed else '—' }}</td>
+        <td><a href="/eod" class="btn btn-sm">Ver cierre de hoy</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  <p class="text-muted" style="padding:var(--space-3) var(--space-4);font-size:var(--text-sm);">
+    El cierre diario (checklist de 9 pasos) se hace por día — usá los enlaces
+    de la derecha para abrir el cierre de cada jornada.
+  </p>
+</div>
+{% endif %}
 
 <div class="card mb-4">
   <div class="card-header">
