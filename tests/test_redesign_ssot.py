@@ -176,3 +176,42 @@ class TestShellRendersNav:
     def test_components_assets_serve(self, client):
         for path in ("/static/app-components.css", "/static/app-components.js"):
             assert client.get(path).status_code == 200, path
+
+
+# ── /produccion/manana must live on the page, not the sidebar ─────────
+
+class TestMananaSidebarAndButtons:
+    """`/produccion/manana` was removed from the sidebar (Operación was at 6
+    items and the duplicate crowded it). The route is now surfaced as a
+    button on `/produccion` and `/inicio`. If a future agent re-adds it to
+    the sidebar OR removes the buttons, this test fails."""
+
+    def test_manana_not_in_sidebar_nav(self):
+        flat = [i["route"] for _, items in NAV_GROUPS for i in items]
+        assert "/produccion/manana" not in flat, (
+            "/produccion/manana should not be in the sidebar — "
+            "it's a button on /produccion and /"
+        )
+
+    def test_manana_button_on_inicio(self, client):
+        r = client.get("/")
+        assert r.status_code == 200
+        assert 'href="/produccion/manana"' in r.text, (
+            "inicio.html must link to /produccion/manana (button in hero)"
+        )
+
+    def test_manana_button_on_produccion(self, client):
+        r = client.get("/produccion")
+        assert r.status_code == 200
+        assert 'href="/produccion/manana"' in r.text, (
+            "produccion.html must link to /produccion/manana "
+            "(button next to Día/Semana/Mes tabs)"
+        )
+
+    def test_manana_route_still_serves(self, client):
+        """Removing the sidebar link must not break the route."""
+        r = client.get("/produccion/manana")
+        assert r.status_code == 200, (
+            "/produccion/manana must still render — only the sidebar entry "
+            "was removed"
+        )

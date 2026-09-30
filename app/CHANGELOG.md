@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+### Changed — Producción de mañana: sidebar → botones
+- **Sidebar (`app/rms/nav.py`)**: removed `/produccion/manana` from the
+  `Operación` group (duplicate of `/produccion`).
+- **`/produccion`** (`app/templates/produccion.html`): added a
+  "Producción de mañana →" button next to the Día/Semana/Mes view tabs.
+- **`/inicio`** (`app/templates/inicio.html`): added a
+  "Producción de mañana" button in the hero actions row.
+- **Why**: `Operación` was at 6 items; the duplicate crowded the
+  sidebar. The two pages where producers actually plan
+  (`/` for the day, `/produccion` for the full plan) are the
+  natural homes for the button.
+
 ### Fixed (2026-09-30 noche) — PRO-QS + PRO-PED-UX + CSRF fix
 
 - **Quick-sell sin recarga (PRO-QS)**: tap en producto del grid agrega la
