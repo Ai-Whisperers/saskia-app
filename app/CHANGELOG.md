@@ -304,6 +304,51 @@ view, ingredient reorder forecast, the per-ingredient
 `ConsumptionForecast` in `app/rms/forecast.py` (BACKLOG #7). They
 keep the legacy flat avg behavior.
 
+### Fixed — cross-unit rollup bug in `rollup_ingredient_stock` (2026-10-01)
+
+The `rollup_ingredient_stock()` helper in `app/rms/variants.py` had a
+latent unit-conversion bug: it was converting `stock_qty` from
+`package_unit` to `base_unit` before multiplying by `size_in_base`.
+That's wrong because `stock_qty` is a **count of packages**, not a
+quantity in `package_unit`. The bug was invisible for same-unit
+variants (e.g. all kg — `convert_qty(x, kg, kg) = x`) but produced
+wildly inflated numbers for cross-unit cases (e.g. base=kg + variants
+in g — would yield 6_000 kg instead of 6 kg).
+
+**The math** (corrected):
+```python
+size_in_base = convert_qty(package_size, package_unit, base_unit)
+total_in_base = stock_qty × size_in_base   # stock_qty is a COUNT
+```
+
+**Impact**:
+- `/inventario` list page "Stock actual" cell — now correct for
+  cross-unit ingredients (harina bought as 1kg bags + 250g packets
+  with a kg base unit).
+- `/ingrediente/{id}` detail page stock total — same fix.
+- `days_until_short()` — used rollup.base_qty, also now correct.
+
+**Tests** — `tests/test_rollup_cross_unit.py` (10 tests):
+- Base=kg with g variants (the real B1 harina use case)
+- Base=g with kg variants (inverse)
+- Base=l with ml variants (leche case)
+- Base=ml with l variants (aceite case)
+- Mixed g + kg on a single ingredient
+- Per-variant `stock_in_base` and `size_in_base` fields are
+  computed correctly (new `size_in_base` field exposed in breakdown)
+- Same-unit cases unchanged (regression guards)
+- No-variants case still uses legacy `Ingredient.stock_qty`
+- `rollup_ingredient_stock()` returns None for missing ingredient
+- `days_until_short()` integration: cross-unit rollup → sensible
+  current_stock_base
+
+The detail-page "Stock total" display, the per-variant table, and
+the `/inventario` listing now all show correct totals for cross-unit
+ingredients. Memory note: **don't refactor `rollup_ingredient_stock`
+lightly — the /ingrediente/{id} detail page and /inventario list
+both depend on the exact field shape (`stock_in_base`, `size_in_base`,
+`preferred_price_gs`, etc.).**
+
 ### Housekeeping — orphan stash audit (2026-10-01)
 - **8 stale `git stash` entries on main** (oldest 13 days) audited.
   7 dropped (work already shipped via other commits:
