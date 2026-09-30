@@ -132,6 +132,8 @@
             {% endfor %}
             {{ ui.combo_field(
               name='payment_method',
+              value=payment_method_default,
+              display=(payment_method_default or '')|capitalize,
               placeholder='Seleccioná forma de pago…',
               src=_pms_src
             ) }}
