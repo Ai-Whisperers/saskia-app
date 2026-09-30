@@ -27,7 +27,9 @@
       placeholder='María González — escribí para buscar',
       endpoint='/clientes/api/search/',
       value_field='id',
-      label_field='name'
+      label_field='name',
+      value=(preset_customer.id if preset_customer else none),
+      display=(preset_customer.name if preset_customer else none)
     ) }}
     <small class="hint">
       Escribí 2+ letras para buscar clientes existentes. Si no aparece, simplemente seguí escribiendo — se crea al guardar.
@@ -42,12 +44,18 @@
              name="customer_phone"
              class="customer-combobox-phone"
              placeholder="+595 9XX XXXXX"
-             autocomplete="off">
+             autocomplete="off"
+             value="{{ preset_customer.phone or '' if preset_customer else '' }}">
     </div>
     <div class="form-row">
       <label for="customer_picked_hint">Cliente seleccionado</label>
-      <div id="customer_picked_hint" class="customer-picked-hint" data-empty="true">
-        <em class="muted">Ninguno — se crea al guardar</em>
+      <div id="customer_picked_hint" class="customer-picked-hint" data-empty="{{ 'false' if preset_customer else 'true' }}">
+        {% if preset_customer %}
+          <strong>{{ preset_customer.name }}</strong>
+          <small style="color: var(--color-text-muted);">#{{ preset_customer.id }}</small>
+        {% else %}
+          <em class="muted">Ninguno — se crea al guardar</em>
+        {% endif %}
       </div>
 
       {# P3 dietary: red alert when the picked customer has restrictions #}

@@ -242,6 +242,8 @@
     if (cardTop) { cardTop.hidden = true; }
     if (cardAllergenChip) cardAllergenChip.hidden = true;
     if (cardDietaryChip) cardDietaryChip.hidden = true;
+    var chEl = document.getElementById("customer-card-channel");
+    if (chEl) chEl.hidden = true;
     if (cardNotes) cardNotes.hidden = true;
     if (cardLoading) cardLoading.hidden = true;
     if (cardError) { cardError.hidden = true; cardError.textContent = ''; }
@@ -316,6 +318,22 @@
     // Allergen chip
     if (cardAllergenChip) {
       cardAllergenChip.hidden = !hasAllergen(data.notes);
+    }
+
+    // P3 profile: preferred channel hint for the cashier
+    if (data.preferred_channel) {
+      var ch = document.getElementById("customer-card-channel");
+      if (!ch) {
+        ch = document.createElement("div");
+        ch.id = "customer-card-channel";
+        ch.style.cssText = "margin-top:6px;font-size:0.85rem;color:var(--muted-foreground);";
+        cardContact.parentElement.appendChild(ch);
+      }
+      ch.textContent = "Prefiere: " + data.preferred_channel;
+      ch.hidden = false;
+    } else {
+      var ch0 = document.getElementById("customer-card-channel");
+      if (ch0) ch0.hidden = true;
     }
 
     // P3 dietary: structured restrictions from the API (not notes-guessing)

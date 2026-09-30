@@ -163,19 +163,31 @@ def clientes_list(
     end = start + PAGE_SIZE
     page_rows = rows[start:end]
 
+    # P3 profile batch: full customer list for CSV enrichment + nudge.
+    all_customers = list_customers(session)
+
     # --- CSV export (all rows, not just current page) ---
     if request.query_params.get("format") == "csv":
+        # P3 profile batch: enrich with contact/profile fields for
+        # promo segmentation (consent!) — keyed lookup by id.
+        cust_by_id = {c.id: c for c in all_customers}
         export_rows = [
             {
                 "id": r["id"],
                 "name": r["name"],
                 "phone": r["phone"] or "",
+                "email": (cust_by_id[r["id"]].email if r["id"] in cust_by_id else "") or "",
+                "birthday": (cust_by_id[r["id"]].birthday if r["id"] in cust_by_id else "") or "",
+                "how_found": (cust_by_id[r["id"]].how_found if r["id"] in cust_by_id else "") or "",
+                "preferred_channel": (cust_by_id[r["id"]].preferred_channel if r["id"] in cust_by_id else "") or "",
+                "marketing_consent": "si" if (r["id"] in cust_by_id and cust_by_id[r["id"]].marketing_consent) else "no",
+                "dietary_restrictions": (cust_by_id[r["id"]].dietary_restrictions if r["id"] in cust_by_id else "") or "",
                 "n_sales": r["n_sales"],
                 "lifetime_spend_gs": r["lifetime_spend_gs"],
                 "tier": r["tier"],
                 "points": r["points"],
-                "last_sale_at": r["last_sale_at"].iso if r["last_sale_at"] else "",
-                "created_at": r["created_at"].iso if r["created_at"] else "",
+                "last_sale_at": r["last_sale_at"].isoformat() if r["last_sale_at"] else "",
+                "created_at": r["created_at"].isoformat() if r["created_at"] else "",
             }
             for r in rows
         ]
@@ -186,6 +198,12 @@ def clientes_list(
                 "id",
                 "name",
                 "phone",
+                "email",
+                "birthday",
+                "how_found",
+                "preferred_channel",
+                "marketing_consent",
+                "dietary_restrictions",
                 "n_sales",
                 "lifetime_spend_gs",
                 "tier",
@@ -204,7 +222,6 @@ def clientes_list(
 
     # P3 profile batch: data-completion nudge — counts of clients missing
     # key contact data, so the operator knows whose profile to fill next.
-    all_customers = list_customers(session)
     nudge = {
         "sin_telefono": sum(
             1 for c in all_customers if not (c.phone or "").strip()
@@ -701,6 +718,7 @@ def cliente_edit(
     zones = session.scalars(
         select(DeliveryZone).where(DeliveryZone.is_active.is_(True)).order_by(DeliveryZone.position)
     ).all()
+    zone_names = {z.id: z.name for z in zones}
     return render(
         request,
         "cliente_editar.html",
@@ -710,6 +728,7 @@ def cliente_edit(
             "dietary_tag_options": sorted(CANONICAL_DIETARY_TAGS),
             "addresses": addresses,
             "zones": zones,
+            "zone_names": zone_names,
             "how_found_options": sorted(ALLOWED_HOW_FOUND),
             "channel_options": sorted(ALLOWED_CHANNELS),
         },
@@ -857,7 +876,22 @@ def cliente_update(
 
     # P3 profile batch
     from app.rms.validation import optional_choice
-    customer.birthday = optional_text(birthday, max_len=10)  # MM-DD / YYYY-MM-DD free
+    # Birthday: accept DD-MM or DD-MM-AAAA (as hinted in the form) and
+    # normalize to MM-DD for the dashboard's month-day comparison.
+    import re as _re
+    bd = (birthday or "").strip()
+    if bd:
+        m_bd = _re.match(r"^(\d{1,2})-(\d{1,2})(?:-(\d{4}))?$", bd)
+        if not m_bd:
+            from fastapi import HTTPException as _HE
+            raise _HE(status_code=400, detail="Cumpleaños inválido: usá DD-MM o DD-MM-AAAA")
+        dd, mm = int(m_bd.group(1)), int(m_bd.group(2))
+        if not (1 <= dd <= 31 and 1 <= mm <= 12):
+            from fastapi import HTTPException as _HE
+            raise _HE(status_code=400, detail="Cumpleaños inválido: día/mes fuera de rango")
+        customer.birthday = f"{mm:02d}-{dd:02d}"
+    else:
+        customer.birthday = None
     customer.how_found = optional_choice(
         how_found, ALLOWED_HOW_FOUND, field="how_found"
     )

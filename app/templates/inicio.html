@@ -123,6 +123,17 @@
     </a>
     {% endif %}
 
+    {% if birthdays %}
+    <a class="accion-row" href="/clientes">
+      <span class="accion-chip sev-ok"><svg class="icon" aria-hidden="true"><use href="#icon-user"/></svg></span>
+      <span class="accion-main">
+        <span class="accion-title">🎂 Cumpleaños de la semana</span>
+        <span class="accion-sub">{{ birthdays[0].name }} — {{ birthdays[0].when }}{% if not birthdays[0].consent %} (sin consent. promo){% endif %}{% if birthdays|length > 1 %} +{{ birthdays|length - 1 }} más{% endif %}</span>
+      </span>
+      <span class="accion-count">{{ birthdays|length }}</span>
+    </a>
+    {% endif %}
+
     {% if cierre_ayer_pendiente %}
     <a class="accion-row" href="/eod">
       <span class="accion-chip sev-warn"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></span>
@@ -144,7 +155,7 @@
     </div>
     {% endif %}
 
-    {% if not (pedido_hoy or pedido_manana or stock_low or vencer_48h_count or cierre_ayer_pendiente) %}
+    {% if not (pedido_hoy or pedido_manana or stock_low or vencer_48h_count or cierre_ayer_pendiente or birthdays) %}
     <div class="alert alert-success" role="status">
       <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
       Todo en orden por hoy.

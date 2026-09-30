@@ -463,6 +463,46 @@ async def dashboard(
     if all_recipes and len(recipes_no_cost):
         costs_incomplete = f"{int(_recipes_with_cost / len(all_recipes) * 100)}% cargados"
 
+    # P3 profile batch: upcoming birthdays (next 7 days) — retention nudge.
+    # birthday stored as "DD-MM" or "YYYY-MM-DD"; compare month-day only.
+    from datetime import date as _date
+
+    from app.rms.models import Customer
+
+    today = datetime.now(ASUNCION_TZ).date()
+    birthdays: list[dict] = []
+    for c in session.scalars(select(Customer)).all():
+        raw = (c.birthday or "").strip()
+        if not raw:
+            continue
+        parts = raw.replace("/", "-").split("-")
+        if len(parts) == 3:
+            mm, dd = parts[1], parts[2]
+        elif len(parts) == 2:
+            mm, dd = parts
+        else:
+            continue
+        if not (mm.isdigit() and dd.isdigit()):
+            continue
+        bday = _date(today.year, int(mm), int(dd))
+        if bday < today:
+            try:
+                bday = _date(today.year + 1, int(mm), int(dd))
+            except ValueError:  # Feb 29
+                continue
+        days_until = (bday - today).days
+        if days_until <= 7:
+            birthdays.append({
+                "name": (c.name or "").title(),
+                "customer_id": c.id,
+                "days_until": days_until,
+                "when": "hoy" if days_until == 0 else (
+                    "mañana" if days_until == 1 else f"en {days_until} días"
+                ),
+                "consent": bool(c.marketing_consent),
+            })
+    birthdays.sort(key=lambda b: b["days_until"])
+
     return render(
         request,
         "inicio.html",
@@ -480,6 +520,7 @@ async def dashboard(
             "delta_margen": delta_margen,
             "prior_label": prior_label,
             "ranking": ranking,
+            "birthdays": birthdays,
             "stock_low": [
                 {
                     "name": i.name,

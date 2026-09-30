@@ -38,7 +38,7 @@ def test_edit_saves_profile_fields(client, session_factory):
     from app.rms.models import Customer
     with session_factory() as s:
         c = s.get(Customer, cid)
-        assert c.birthday == "15-03"
+        assert c.birthday == "03-15"  # normalized to MM-DD by validation
         assert c.how_found == "instagram"
         assert c.preferred_channel == "whatsapp"
         assert c.marketing_consent is True

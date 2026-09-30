@@ -97,7 +97,7 @@
           <tr>
             <td>{{ a.label }}{% if a.is_default %} <span class="badge badge-neutral">predet.</span>{% endif %}</td>
             <td>{{ a.address_text }}</td>
-            <td class="muted">{% if a.zone_id %}zona #{{ a.zone_id }}{% else %}—{% endif %}</td>
+            <td class="muted">{{ zone_names.get(a.zone_id, "—") if a.zone_id else "—" }}</td>
             <td>
               <button type="button" class="btn btn-sm btn-danger-ghost addr-del" data-addr-id="{{ a.id }}"
                       aria-label="Eliminar dirección {{ a.label }}">✕</button>

@@ -452,9 +452,17 @@ def pedidos_board(
 @router.get("/nuevo", response_class=HTMLResponse)
 def pedidos_new_form(
     request: Request,
+    customer_id: int | None = Query(None, ge=1),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    """Render the new-pedido form with the product picker."""
+    """Render the new-pedido form with the product picker.
+
+    ?customer_id=N (POS bridge from /clientes/{id}): preselects that
+    customer so the cashier skips the picker entirely.
+    """
+    preset_customer = None
+    if customer_id:
+        preset_customer = session.get(Customer, customer_id)
     products = session.scalars(select(Product).order_by(Product.name)).all()
     customers = session.scalars(
         select(Customer).order_by(Customer.created_at.desc()).limit(50)
@@ -475,6 +483,7 @@ def pedidos_new_form(
         {
             "products": products,
             "customers": customers,
+            "preset_customer": preset_customer,
             "channels": CHANNELS,
             "payment_methods": sorted(set(ALLOWED_PAYMENT_METHODS)),
             "delivery_zones": delivery_zones,

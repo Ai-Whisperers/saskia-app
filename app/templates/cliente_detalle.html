@@ -23,6 +23,11 @@
   </div>
   <div style="display:flex;gap:var(--space-2);align-items:center;">
     <span class="badge badge-tier-{{ stats.tier.value }}">{{ stats.tier.value|title }}</span>
+    {# POS bridge: cashier lands here after a call → start the order directly #}
+    <a href="/pedidos/nuevo?customer_id={{ customer.id }}" class="btn btn-sm btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
+      Crear pedido
+    </a>
     <a href="/clientes/{{ customer.id }}/editar" class="btn btn-sm btn-secondary">
       <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
       Editar perfil
