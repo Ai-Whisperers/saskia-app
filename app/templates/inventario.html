@@ -187,6 +187,7 @@
       <th>{{ m.sort_th("Unidad", "unit", sort, dir) }}</th>
       <th class="num">{{ m.sort_th("Stock actual", "stock_qty", sort, dir) }}</th>
       <th>Recibir</th>
+      <th>Variantes</th>
       <th class="num">{{ m.sort_th("Valor", "valor_gs", sort, dir) }}</th>
       <th class="num">{{ m.sort_th("Stock mínimo", "min_stock_qty", sort, dir) }}</th>
       <th class="num">{{ m.sort_th("Precio compra (Gs.)", "purchase_price_gs", sort, dir) }}</th>
@@ -221,33 +222,77 @@
       <td>{{ i.supplier.name if i.supplier else '—' }}</td>
       <td>{{ i.unit }}</td>
       <td class="num">
-        {% if i.stock_qty < 0 %}
-          <span class="badge badge-danger" title="¡Stock negativo!">{{ i.stock_qty|round(2) }} {{ i.unit }}</span>
+        {% set _stock = effective_stock_qty.get(i.id, i.stock_qty or 0) %}
+        {% if _stock < 0 %}
+          <span class="badge badge-danger" title="¡Stock negativo!">{{ _stock|round(2) }} {{ i.unit }}</span>
         {% else %}
-          {{ i.stock_qty|round(2) }} {{ i.unit }}
+          {{ _stock|round(2) }} {{ i.unit }}
         {% endif %}
       </td>
       <td>
         {# Inline quick-receipt form (prelaunch roadmap 2026-09-17):
-           POSTs a positive adjustment to /inventario/{id}/ajustar so
-           Saskia can add stock without leaving the list. Negative
-           adjustments (waste/breakage) still go through the adjust modal. #}
+           POSTs to /inventario/{id}/ajustar. Variant-aware: if this
+           ingredient has variants, show a picker (preferred preselected).
+           Otherwise, post directly to legacy stock_qty. #}
+        {% set _variants = variants_by_ing_id.get(i.id, []) %}
         <form method="post" action="/inventario/{{ i.id }}/ajustar"
               style="display:inline-flex;gap:var(--space-1);align-items:center;"
               data-testid="quick-receipt-{{ i.id }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          {% if _variants %}
+            <select name="variant_id"
+                    data-saskia-combo="variant-picker"
+                    aria-label="Variante recibida de {{ fmt.entity_name(i) }}"
+                    style="padding:var(--space-1) var(--space-2);border:1px solid var(--color-border);border-radius:4px;font-size:var(--text-xs);max-width:140px;">
+              {% for v in _variants %}
+                <option value="{{ v.id }}"{% if v.preferred %} selected{% endif %}
+                        title="{{ v.supplier_name or 'Sin proveedor' }} · {{ '{:,}'.format(v.purchase_price_gs|int) if v.purchase_price_gs else '—' }}">
+                  {{ v.package_size }}{{ v.package_unit }}{% if v.preferred %} ★{% endif %}
+                </option>
+              {% endfor %}
+            </select>
+          {% endif %}
           <input type="number" name="adjustment" min="0" max="99999" step="0.01"
                  required
                  aria-label="Cantidad recibida de {{ fmt.entity_name(i) }}"
                  placeholder="0"
                  style="width:64px;padding:var(--space-1) var(--space-2);border:1px solid var(--color-border);border-radius:4px;">
-          <span class="text-muted" style="font-size:var(--text-xs);">{{ i.unit }}</span>
+          <span class="text-muted" style="font-size:var(--text-xs);">
+            {% if _variants %}paq{% else %}{{ i.unit }}{% endif %}
+          </span>
           <button type="submit" class="btn btn-sm" aria-label="Registrar recepción de {{ fmt.entity_name(i) }}">
             <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
           </button>
         </form>
       </td>
-      <td class="num">{% if i.purchase_price_gs is not none %}{{ m.gs((i.stock_qty or 0) * (i.purchase_price_gs or 0) | int) }}{% else %}<em class="muted">—</em>{% endif %}</td>
+      <td>
+        {# Variantes (prelaunch roadmap 2026-09-17, B1 schema decision):
+           show how many variants exist, the preferred one, and link
+           to detail page so Saskia can manage multi-package / multi-
+           supplier relationships. #}
+        {% set _variants = variants_by_ing_id.get(i.id, []) %}
+        {% if _variants %}
+          <small>
+            <strong>{{ _variants|length }}</strong>
+            {% if _variants|length == 1 %}variante{% else %}variantes{% endif %}
+            {% for v in _variants if v.preferred %}
+              <span class="text-muted">·
+                {{ v.package_size }}{{ v.package_unit }}
+                {% if v.supplier_name %} · {{ v.supplier_name }}{% endif %}
+                {% if v.purchase_price_gs %} · {{ '{:,}'.format(v.purchase_price_gs) }} Gs{% endif %}
+              </span>
+            {% endfor %}
+            ·
+            <a href="/inventario/{{ i.id }}#variants">gestionar</a>
+          </small>
+        {% else %}
+          <small class="text-muted">
+            —
+            <a href="/inventario/{{ i.id }}#variants">+ variante</a>
+          </small>
+        {% endif %}
+      </td>
+      <td class="num">{% if i.purchase_price_gs is not none %}{{ m.gs((effective_stock_qty.get(i.id, i.stock_qty or 0)) * (i.purchase_price_gs or 0) | int) }}{% else %}<em class="muted">—</em>{% endif %}</td>
       <td class="num">{{ i.min_stock_qty|round(2) }}</td>
       <td class="num">{% if i.purchase_price_gs is none %}<em class="muted">sin precio</em>{% else %}{{ m.gs_full(i.purchase_price_gs) }}{% endif %}{% if price_info.get(i.id) %}<div class="price-strip">90d: min {{ m.gs(price_info[i.id].stats.min) }} · max {{ m.gs(price_info[i.id].stats.max) }}{% if price_info[i.id].sparkline_svg %} {{ price_info[i.id].sparkline_svg | safe }}{% endif %}</div>{% endif %}{% if market_refs.get(i.id) %}<div class="price-strip" title="vs. mercado: {{ m.gs_full(market_refs[i.id].market_price_gs) }} Gs/{{ market_refs[i.id].market_unit }} — {{ market_refs[i.id].market_notes }}">{% set delta = market_refs[i.id].delta_pct %}<span class="badge {% if delta > 10 %}badge-danger{% elif delta < -10 %}badge-good{% else %}badge-neutral{% endif %}" style="margin-left:4px">vs mercado {% if delta >= 0 %}+{% endif %}{{ "%.0f"|format(delta) }}%</span></div>{% endif %}</td>
       <td>

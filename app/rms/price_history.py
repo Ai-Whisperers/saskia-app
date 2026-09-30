@@ -33,7 +33,7 @@ from sqlalchemy.orm import Session
 
 from app.rms.models import Ingredient, IngredientPriceEvent
 
-_ALLOWED_SOURCES = frozenset({"restock", "manual", "excel_import"})
+_ALLOWED_SOURCES = frozenset({"restock", "manual", "excel_import", "csv_upload"})
 
 
 def record_price_event(
@@ -42,6 +42,7 @@ def record_price_event(
     price_gs: int,
     source: str = "restock",
     at: datetime | None = None,
+    supplier_id: int | None = None,
 ) -> IngredientPriceEvent:
     """Append a purchase-price event and update the ingredient's current price.
 
@@ -52,9 +53,16 @@ def record_price_event(
         session: SQLAlchemy session.
         ingredient_id: PK of the ingredient.
         price_gs: integer Gs. (no decimals; matches the money rule).
-        source: one of "restock", "manual", "excel_import". Other values
-            raise ValueError — silent typos would make analytics queries
-            hard to audit.
+        source: one of "restock", "manual", "excel_import", "csv_upload".
+            Other values raise ValueError. csv_upload added 2026-10-01
+            for the bulk price import path.
+        at: override the recorded_at timestamp (used by the CSV upload
+            to backdate historical rows).
+        supplier_id: tag the event with the supplier that quoted this
+            price. NULL when unknown (e.g. legacy restocks). Migration 073
+            added the column. The reorder/registrar endpoint passes the
+            chosen supplier when available so /reorder's per-row dropdown
+            can fill in real prices over time.
 
     Returns:
         The newly-created IngredientPriceEvent row (flushed; has its id).
@@ -75,6 +83,7 @@ def record_price_event(
         price_gs=price_gs,
         recorded_at=now_utc,
         source=source,
+        supplier_id=supplier_id,
     )
     session.add(event)
     session.flush()  # assigns event.id so callers can read it

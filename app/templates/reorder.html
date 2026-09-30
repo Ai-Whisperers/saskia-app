@@ -145,7 +145,26 @@ function updateBulkBtn() {
           <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;">
             <span>{{ supplier_info[0] }}</span>
             {% if is_locked %}
-              <span class="badge badge-info" title="Compraste acá {{ lock_threshold }}+ veces seguidas. El dropdown se queda fijo en este proveedor.">fijo</span>
+              <span class="badge badge-info" title="Proveedor fijo (manual). Hacé click en 🔓 para liberar.">fijo</span>
+              <button type="button"
+                      class="btn btn-sm btn-lock-toggle"
+                      data-action="unlock"
+                      data-ingredient-id="{{ item.ingredient_id }}"
+                      data-supplier-id="{{ locked_id }}"
+                      title="Desbloquear — liberar el dropdown"
+                      aria-label="Desbloquear proveedor de {{ fmt.entity_name(item) }}">
+                🔓
+              </button>
+            {% else %}
+              <button type="button"
+                      class="btn btn-sm btn-lock-toggle"
+                      data-action="lock"
+                      data-ingredient-id="{{ item.ingredient_id }}"
+                      data-supplier-id="{{ eff_id }}"
+                      {% if not eff_id %}disabled title="Necesita un proveedor seleccionado antes de fijar"{% else %}title="Fijar este proveedor — el dropdown siempre elegirá este"{% endif %}
+                      aria-label="Fijar proveedor de {{ fmt.entity_name(item) }}">
+                🔒
+              </button>
             {% endif %}
             {% if supplier_info[1] %}
               <a href="https://wa.me/{{ supplier_info[1]|replace('+','')|replace(' ','') }}?text=Hola%2C%20necesito%20hacer%20un%20pedido" target="_blank" rel="noopener" class="btn btn-sm" aria-label="WhatsApp a {{ supplier_info[0] }}">
@@ -348,13 +367,66 @@ function updateBulkBtn() {
     });
   });
 
-  // ===== Locked-supplier guard ==========================================
-  // For rows whose dropdown is locked to a specific supplier (Q2 — after
-  // 3 consecutive buys), render the picker with a `locked-hint` tooltip
-  // so she has to consciously realise the lock is in effect. The streak
-  // counter is the data-side enforcement; this hint is purely visual.
+  // ===== Lock / unlock toggle buttons =================================
+  // Each row's Proveedor cell has a 🔒 (lock) or 🔓 (unlock) button.
+  // POST to /reorder/lock-supplier or /reorder/unlock-supplier; on
+  // success, swap the badge + button without a full page reload so the
+  // dropdown / audit trail update in place.
+  //
+  // The audit row is written server-side; the client just refetches the
+  // page section that changed. We do a tiny inline DOM swap to keep
+  // things snappy.
+  document.querySelectorAll('.btn-lock-toggle').forEach(function(btn) {
+    btn.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      var action = btn.getAttribute('data-action');          // 'lock' | 'unlock'
+      var ingId = btn.getAttribute('data-ingredient-id');
+      var supId = btn.getAttribute('data-supplier-id');
+      if (action === 'lock' && (!supId || supId === '')) {
+        // Edge case: she clicked lock on a row whose effective supplier
+        // is null. Should be impossible because we disable the button,
+        // but guard anyway.
+        return;
+      }
+      var endpoint = action === 'lock'
+        ? '/reorder/lock-supplier'
+        : '/reorder/unlock-supplier';
+      btn.disabled = true;
+      var originalHtml = btn.innerHTML;
+      btn.innerHTML = '…';
+      var form = new FormData();
+      form.append('ingredient_id', ingId);
+      if (action === 'lock') form.append('supplier_id', supId);
+      fetch(endpoint, {
+        method: 'POST',
+        body: form,
+        credentials: 'same-origin',
+        headers: {'Accept': 'application/json'},
+      }).then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).then(function(data) {
+        if (data && data.ok) {
+          // Refresh the page section so the badge + button swap.
+          // window.location.reload() is the cheap path; the page is
+          // small (~30KB HTML) so it's instant.
+          window.location.reload();
+        } else {
+          throw new Error((data && data.error) || 'unknown');
+        }
+      }).catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+        showBanner('No se pudo ' + (action === 'lock' ? 'fijar' : 'liberar') + ' el proveedor: ' + err.message);
+      });
+    });
+  });
+
+  // Locked-supplier guard — picker shows a hint tooltip when locked so
+  // she consciously realises the dropdown won't change until she
+  // unlocks. Manual toggle replaced the old 3-streak auto-lock.
   document.querySelectorAll('.supplier-picker[data-locked="1"]').forEach(function(picker) {
-    picker.setAttribute('locked-hint', 'Compraste acá 3+ veces seguidas. Para cambiar, primero desbloqueá en /inventario.');
+    picker.setAttribute('locked-hint', 'Proveedor fijado manualmente. Usá 🔓 para liberar.');
   });
 })();
 </script>

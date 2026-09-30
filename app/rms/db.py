@@ -3111,6 +3111,44 @@ def _migration_072_reorder_supplier_tracking(conn: Any) -> None:
     _bump_schema_version(conn, 72)
 
 
+def _migration_073_ingredient_price_event_supplier(conn: Any) -> None:
+    """Phase 2 (2026-10-01): tag every IngredientPriceEvent with a
+    supplier so the /reorder dropdown can show per-supplier prices
+    ('Casa Rica — 4.200' vs 'sin registro') as the operator logs
+    purchases.
+
+    Before 073, IngredientPriceEvent only had ingredient_id + price_gs
+    + recorded_at + source. The CSV price upload (Phase 3) writes
+    rows through this column so per-supplier pricing fills in over time.
+
+    Schema:
+      - ADD COLUMN supplier_id INTEGER REFERENCES supplier(id) ON DELETE SET NULL
+      - ADD INDEX ix_ingredient_price_event_supplier_time
+
+    The column is nullable for backwards compatibility with existing
+    rows (189 of them in prod, all source='restock'). The CSV import
+    always writes supplier_id so future queries can group by supplier.
+
+    Also: backfill the ingredient's ``last_purchase_supplier_id`` from
+    any existing ``IngredientPriceEvent`` that was a 'restock' AND has
+    a supplier_id — but since existing events have NULL supplier_id,
+    this is a no-op for the historical 189 rows. Documented here so
+    future readers don't wonder why.
+    """
+    for stmt in (
+        "ALTER TABLE ingredient_price_event ADD COLUMN supplier_id INTEGER REFERENCES supplier(id) ON DELETE SET NULL",
+        "CREATE INDEX IF NOT EXISTS ix_ingredient_price_event_supplier_time ON ingredient_price_event (supplier_id, recorded_at)",
+    ):
+        try:
+            conn.execute(text(stmt))
+        except Exception as exc:  # noqa: BLE001
+            # CREATE INDEX IF NOT EXISTS is idempotent; ADD COLUMN raises
+            # on second run which we tolerate.
+            logger.debug("migration 073 stmt skipped: %s — %s", stmt.split()[2], exc)
+
+    _bump_schema_version(conn, 73)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -3184,6 +3222,7 @@ MIGRATIONS = {
     70: _migration_070_customer_dietary_profile,
     71: _migration_071_customer_profile_completeness,
     72: _migration_072_reorder_supplier_tracking,
+    73: _migration_073_ingredient_price_event_supplier,
 }
 
 

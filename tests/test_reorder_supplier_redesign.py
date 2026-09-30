@@ -1,19 +1,24 @@
-"""tests/test_reorder_supplier_redesign.py — migration 072 regression suite.
+"""tests/test_reorder_supplier_redesign.py — migration 072 + manual-lock suite.
 
-Covers the four behaviors added in the P2 /reorder redesign:
+Phase 1 (2026-09-30): auto-streak lock after 3 buys.
+Phase 2 (this commit): replaced auto-streak with a MANUAL 🔒 toggle.
+The streak counter is kept for analytics but no longer changes
+behaviour automatically.
 
-  - locked_supplier_id auto-set after 3 consecutive buys from the same
-    supplier (Q2)
-  - effective_supplier_id precedence: locked > last_purchase > parent
-    supplier_id (helpers + JSON endpoint)
-  - /reorder/registrar accepts the new supplier_id field and writes
-    it through to ingredient.last_purchase_supplier_id
-  - the cascade banner only fires when supplier actually changes
-    (POSTing the same supplier twice in a row is idempotent)
-  - the template renders 4 separate Reponer sub-cells (Q3a) plus the
-    supplier picker with inline prices
-  - the supplier change JSON endpoint exposes supplier_options so
-    downstream scripts can pick
+What's covered:
+  - effective-supplier precedence: locked > last_purchase > parent
+  - record_purchase_supplier() increments streak + updates last_purchase
+    but NEVER touches locked_supplier_id (auto-lock removed)
+  - lock_supplier() / unlock_supplier() write audit rows
+  - lock() is idempotent (no double-audit when re-locking to same)
+  - lock() overrides an existing lock + audits the previous supplier
+  - unlock() is a no-op when there is no lock
+  - the /reorder template renders 🔒 buttons on every unlocked row and
+    🔓 on locked rows
+  - /reorder/lock-supplier + /reorder/unlock-supplier endpoints write
+    audit + 200 + correct ids
+  - /reorder/registrar accepts supplier_id but never auto-locks
+  - JSON endpoint exposes supplier_options + per-row lock state
 
 Tests use factories.make_ingredient / make_supplier (uuid-named to avoid
 UNIQUE collisions in the shared DB).
@@ -24,11 +29,13 @@ import uuid
 
 from sqlalchemy.orm import sessionmaker
 
-from app.rms.models import Ingredient
+from app.rms.models import AuditLog, Ingredient
 from app.rms.supplier_history import (
     LOCK_THRESHOLD,
     get_effective_supplier_id,
+    lock_supplier,
     record_purchase_supplier,
+    unlock_supplier,
 )
 from tests.factories import make_ingredient, make_supplier
 
@@ -99,13 +106,15 @@ def test_effective_supplier_precedence(monkeypatch, session_factory):
         s.close()
 
 
-def test_streak_locks_after_three_consecutive_buys(session_factory):
-    """3 consecutive buys from the same supplier → locked_supplier_id set."""
+def test_streak_does_NOT_auto_lock(session_factory):
+    """Regression (Phase 2): even after LOCK_THRESHOLD buys, the
+    helper must NOT set locked_supplier_id. The lock is now a manual
+    🔒 toggle on /reorder, not an automatic streak consequence.
+    """
     s = sessionmaker(bind=session_factory.kw["bind"])()
     try:
         tag = uuid.uuid4().hex[:8]
         sup_a = make_supplier(s, name=f"streak-a-{tag}")
-        sup_b = make_supplier(s, name=f"streak-b-{tag}")
         ing = make_ingredient(
             s, name=f"streak-{tag}", unit="kg",
             stock_qty=0.0, min_stock_qty=10.0,
@@ -114,29 +123,18 @@ def test_streak_locks_after_three_consecutive_buys(session_factory):
         s.commit()
         s.refresh(ing)
 
-        # Buy 1 — streak = 1
-        record_purchase_supplier(s, ing.id, sup_a.id)
-        s.commit()
-        s.refresh(ing)
-        assert ing.purchase_streak_count == 1
-        assert ing.locked_supplier_id is None, "1 buy shouldn't lock"
-
-        # Buy 2 (same supplier) — streak = 2
-        record_purchase_supplier(s, ing.id, sup_a.id)
-        s.commit()
-        s.refresh(ing)
-        assert ing.purchase_streak_count == 2
-        assert ing.locked_supplier_id is None, "2 buys shouldn't lock"
-
-        # Buy 3 (same supplier) — streak = 3 → lock fires
-        record_purchase_supplier(s, ing.id, sup_a.id)
-        s.commit()
-        s.refresh(ing)
-        assert ing.purchase_streak_count == LOCK_THRESHOLD
-        assert ing.locked_supplier_id == sup_a.id, (
-            f"3 consecutive buys must lock to {sup_a.id}; "
-            f"got {ing.locked_supplier_id}"
-        )
+        # Buy LOCK_THRESHOLD times in a row → streak hits the threshold
+        for expected in (1, 2, 3):
+            record_purchase_supplier(s, ing.id, sup_a.id)
+            s.commit()
+            s.refresh(ing)
+            assert ing.purchase_streak_count == expected, (
+                f"streak count after {expected} consecutive buys must be {expected}"
+            )
+            assert ing.locked_supplier_id is None, (
+                f"after {expected} buys, lock must NOT auto-set — "
+                "manual 🔒 toggle replaced the auto-streak behaviour"
+            )
     finally:
         s.close()
 
@@ -177,8 +175,11 @@ def test_streak_resets_on_supplier_switch(session_factory):
         s.close()
 
 
-def test_switching_away_from_locked_supplier_clears_lock(session_factory):
-    """If a supplier is locked and operator picks a different one, lock clears."""
+def test_switching_suppliers_does_not_touch_existing_lock(session_factory):
+    """Phase-2 regression: if an ingredient has a manually-set lock,
+    switching suppliers on /registrar must NOT auto-clear it. Manual
+    toggle is the only thing that clears the lock now.
+    """
     s = sessionmaker(bind=session_factory.kw["bind"])()
     try:
         tag = uuid.uuid4().hex[:8]
@@ -191,21 +192,166 @@ def test_switching_away_from_locked_supplier_clears_lock(session_factory):
         ing.supplier_id = sup_a.id
         s.commit()
 
-        # Build the lock
-        for _ in range(LOCK_THRESHOLD):
-            record_purchase_supplier(s, ing.id, sup_a.id)
+        # Manually pin to A
+        lock_supplier(s, ing.id, sup_a.id, actor="demo")
         s.commit()
         s.refresh(ing)
         assert ing.locked_supplier_id == sup_a.id
 
-        # Operator switches to B
+        # Switch to B on /registrar
         record_purchase_supplier(s, ing.id, sup_b.id)
         s.commit()
         s.refresh(ing)
-        assert ing.locked_supplier_id is None, (
-            "switching AWAY from a locked supplier must clear the lock"
+        # Lock must STAY on A — manual 🔒 is the only thing that clears it
+        assert ing.locked_supplier_id == sup_a.id, (
+            "switching suppliers on /registrar must NOT clear a manual lock; "
+            "only the 🔓 button does"
         )
         assert ing.purchase_streak_count == 1
+    finally:
+        s.close()
+
+
+def test_lock_supplier_writes_audit_row(session_factory):
+    """lock_supplier() writes an audit row with actor + previous-lock id."""
+    s = sessionmaker(bind=session_factory.kw["bind"])()
+    try:
+        tag = uuid.uuid4().hex[:8]
+        sup = make_supplier(s, name=f"lock-audit-{tag}")
+        ing = make_ingredient(
+            s, name=f"lock-audit-{tag}", unit="kg",
+            stock_qty=0.0, min_stock_qty=10.0,
+        )
+        ing.supplier_id = sup.id
+        s.commit()
+        ing_id, sup_id = ing.id, sup.id
+
+        lock_supplier(s, ing_id, sup_id, actor="demo", reason="specialty import")
+        s.commit()
+
+        rows = s.query(AuditLog).filter(
+            AuditLog.action == "ingredient.supplier.lock"
+        ).all()
+        assert len(rows) == 1
+        row = rows[0]
+        assert row.target_id == str(ing_id)
+        assert row.user_id == "demo"
+        assert row.detail["supplier_id"] == sup_id
+        assert row.detail["previous_locked_supplier_id"] is None
+        assert row.detail["reason"] == "specialty import"
+    finally:
+        s.close()
+
+
+def test_lock_is_idempotent(session_factory):
+    """Re-locking to the same supplier is a no-op (no extra audit row)."""
+    s = sessionmaker(bind=session_factory.kw["bind"])()
+    try:
+        tag = uuid.uuid4().hex[:8]
+        sup = make_supplier(s, name=f"idem-{tag}")
+        ing = make_ingredient(
+            s, name=f"idem-{tag}", unit="kg",
+            stock_qty=0.0, min_stock_qty=10.0,
+        )
+        ing.supplier_id = sup.id
+        s.commit()
+        ing_id, sup_id = ing.id, sup.id
+
+        lock_supplier(s, ing_id, sup_id, actor="demo")
+        s.commit()
+        lock_supplier(s, ing_id, sup_id, actor="demo")
+        s.commit()
+
+        rows = s.query(AuditLog).filter(
+            AuditLog.action == "ingredient.supplier.lock"
+        ).all()
+        assert len(rows) == 1, "second lock to same supplier should no-op"
+    finally:
+        s.close()
+
+
+def test_lock_overrides_existing_lock_and_audits_previous(session_factory):
+    """Re-locking to a different supplier writes a row recording the swap."""
+    s = sessionmaker(bind=session_factory.kw["bind"])()
+    try:
+        tag = uuid.uuid4().hex[:8]
+        sup_a = make_supplier(s, name=f"swap-a-{tag}")
+        sup_b = make_supplier(s, name=f"swap-b-{tag}")
+        ing = make_ingredient(
+            s, name=f"swap-{tag}", unit="kg",
+            stock_qty=0.0, min_stock_qty=10.0,
+        )
+        ing.supplier_id = sup_a.id
+        ing.locked_supplier_id = sup_a.id
+        s.commit()
+        ing_id, a_id, b_id = ing.id, sup_a.id, sup_b.id
+
+        lock_supplier(s, ing_id, b_id, actor="demo")
+        s.commit()
+
+        ing_now = s.get(Ingredient, ing_id)
+        assert ing_now.locked_supplier_id == b_id
+        row = s.query(AuditLog).filter(
+            AuditLog.action == "ingredient.supplier.lock"
+        ).order_by(AuditLog.occurred_at.desc()).first()
+        assert row.detail["previous_locked_supplier_id"] == a_id
+        assert row.detail["supplier_id"] == b_id
+    finally:
+        s.close()
+
+
+def test_unlock_writes_audit_row(session_factory):
+    s = sessionmaker(bind=session_factory.kw["bind"])()
+    try:
+        tag = uuid.uuid4().hex[:8]
+        sup = make_supplier(s, name=f"unlock-audit-{tag}")
+        ing = make_ingredient(
+            s, name=f"unlock-audit-{tag}", unit="kg",
+            stock_qty=0.0, min_stock_qty=10.0,
+        )
+        ing.supplier_id = sup.id
+        ing.locked_supplier_id = sup.id
+        s.commit()
+        ing_id, sup_id = ing.id, sup.id
+
+        unlock_supplier(s, ing_id, actor="demo", reason="changed my mind")
+        s.commit()
+
+        ing_now = s.get(Ingredient, ing_id)
+        assert ing_now.locked_supplier_id is None
+        rows = s.query(AuditLog).filter(
+            AuditLog.action == "ingredient.supplier.unlock"
+        ).all()
+        assert len(rows) == 1
+        assert rows[0].detail == {
+            "previous_locked_supplier_id": sup_id,
+            "reason": "changed my mind",
+        }
+    finally:
+        s.close()
+
+
+def test_unlock_is_noop_when_unlocked(session_factory):
+    """Unlocking an unlocked ingredient must NOT write an audit row."""
+    s = sessionmaker(bind=session_factory.kw["bind"])()
+    try:
+        tag = uuid.uuid4().hex[:8]
+        sup = make_supplier(s, name=f"noop-{tag}")
+        ing = make_ingredient(
+            s, name=f"noop-{tag}", unit="kg",
+            stock_qty=0.0, min_stock_qty=10.0,
+        )
+        ing.supplier_id = sup.id
+        s.commit()
+        ing_id = ing.id
+
+        unlock_supplier(s, ing_id, actor="demo")
+        s.commit()
+
+        rows = s.query(AuditLog).filter(
+            AuditLog.action == "ingredient.supplier.unlock"
+        ).all()
+        assert rows == [], "unlocking an unlocked ingredient must not audit"
     finally:
         s.close()
 
@@ -433,7 +579,8 @@ def test_reorder_json_exposes_supplier_options(client, session_factory):
     assert all(
         "effective_supplier_id" in item for item in payload["items"]
     ), "every item must carry effective_supplier_id"
-    # Lock threshold surfaced for tooling
+    # Lock threshold surfaced for tooling (analytics-only now — locks
+    # are a manual 🔒 toggle, not an automatic streak consequence).
     assert payload.get("lock_threshold") == LOCK_THRESHOLD
 
 

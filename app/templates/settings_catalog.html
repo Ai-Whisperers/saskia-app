@@ -118,6 +118,7 @@
   <button type="button" class="tab" data-tab="templates">Plantillas</button>
   <button type="button" class="tab" data-tab="tax-config">Impuestos</button>
   <button type="button" class="tab" data-tab="branding">Branding</button>
+  <button type="button" class="tab" data-tab="suppliers">Proveedores</button>
 </nav>
 
 <div id="toast" class="toast"></div>
@@ -388,6 +389,33 @@
       <button type="submit" class="btn btn-primary">Guardar cambios</button>
     </div>
   </form>
+</section>
+
+<!-- ── Proveedores ──────────────────────────────────────────────── -->
+<!-- Links to the full /suppliers page which has CRUD + the new
+     soft-delete/reactivate flow. This tab is the discoverability
+     hook so /settings/catalog is the canonical "configure" page. -->
+<section class="tab-panel" data-panel="suppliers">
+  <h2>Proveedores</h2>
+  <p class="muted">
+    Agregá, editá y desactivá los proveedores donde comprás ingredientes.
+    Los proveedores desactivados siguen contando para el historial pero
+    no aparecen en /reorder ni en el dropdown de Proveedor.
+  </p>
+  <p>
+    <a href="/suppliers" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-supplier"/></svg>
+      Administrar proveedores
+    </a>
+    <a href="/suppliers/nuevo" class="btn">
+      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+      Nuevo proveedor
+    </a>
+  </p>
+  <div data-loaded-section="suppliers-summary">
+    {{ ui.skeleton_section(id="suppliers-summary", variant="line", count=8, label="Cargando proveedores") }}
+    <p class="muted small">Resumen de proveedores activos</p>
+  </div>
 </section>
 
 {% endblock %}

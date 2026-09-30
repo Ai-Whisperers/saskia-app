@@ -657,6 +657,16 @@ class IngredientPriceEvent(Base):
     price_gs: Mapped[int] = mapped_column(Integer, nullable=False)
     recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     source: Mapped[str] = mapped_column(String(32), nullable=False, default="restock")
+    # Migration 073 (2026-10-01): tag every event with the supplier that
+    # quoted this price. NULL for historical rows from before the column
+    # existed; populated by /reorder/registrar (when supplier_id is
+    # provided) and by the CSV price upload. ``ON DELETE SET NULL`` so
+    # soft-deleted suppliers don't orphan their price history.
+    supplier_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("supplier.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     __table_args__ = (
         Index(

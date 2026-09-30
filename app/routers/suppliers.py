@@ -158,33 +158,60 @@ def supplier_update(
 def supplier_delete(
     s_id: int, request: Request, session: Session = Depends(get_session)
 ) -> RedirectResponse:
-    """Delete a supplier (only if no ingredients linked)."""
+    """Soft-delete a supplier (preserves history).
+
+    Sets ``is_active=False`` instead of hard-deleting so any past
+    IngredientPriceEvent / PurchaseOrder / restock references stay
+    intact. A reactivation UI lives in /suppliers (filter by inactive).
+
+    Note: even if ingredients are currently linked to this supplier,
+    soft-delete is fine — those ingredients keep their supplier_id
+    pointer; we just hide this supplier from the /reorder dropdown.
+    """
     supplier = session.get(Supplier, s_id)
     if supplier is None:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    if not supplier.is_active:
+        # Already inactive — no-op, but stay on /suppliers.
+        return RedirectResponse(url="/suppliers", status_code=303)
 
-    # Check if any ingredients are linked
-    if supplier.ingredients:
-        raise HTTPException(
-            status_code=400,
-            detail=f"No se puede eliminar: {len(supplier.ingredients)} ingredientes están vinculados a este proveedor.",
-        )
-
-    # Capture identifying fields BEFORE delete so the audit detail survives
-    # the session expunge.
     supplier_name = supplier.name
     ingredients_linked = len(supplier.ingredients) if supplier.ingredients else 0
-    supplier_id = supplier.id
-
-    session.delete(supplier)
+    supplier.is_active = False
     session.commit()
     record_audit(
         request,
         session=session,
-        action="write.supplier.delete",
+        action="write.supplier.soft_delete",
         target_type="supplier",
-        target_id=supplier_id,
+        target_id=s_id,
         detail={"name": supplier_name, "ingredients_linked": ingredients_linked},
+    )
+    session.commit()
+    return RedirectResponse(url="/suppliers", status_code=303)
+
+
+@router.post("/{s_id}/reactivar")
+def supplier_reactivate(
+    s_id: int, request: Request, session: Session = Depends(get_session)
+) -> RedirectResponse:
+    """Re-activate a soft-deleted supplier (the 'deshacer' button)."""
+    supplier = session.get(Supplier, s_id)
+    if supplier is None:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    if supplier.is_active:
+        return RedirectResponse(url="/suppliers", status_code=303)
+
+    supplier_name = supplier.name
+    supplier.is_active = True
+    session.commit()
+    record_audit(
+        request,
+        session=session,
+        action="write.supplier.reactivate",
+        target_type="supplier",
+        target_id=s_id,
+        detail={"name": supplier_name},
     )
     session.commit()
     return RedirectResponse(url="/suppliers", status_code=303)

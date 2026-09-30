@@ -8,6 +8,7 @@ from __future__ import annotations
 import csv
 import io
 from datetime import datetime, timezone
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, Query, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -206,11 +207,18 @@ def inventory_list(
     # PRO-INV (2026-09-30): distinguish "never loaded initial stock" (stock 0
     # AND zero movements in the ledger) from genuinely depleted stock. Mixing
     # both made the "critical" KPI scary on day one (65 vs 44 real).
+    # Variant-aware: ingredients with variants are NEVER "never_loaded"
+    # even if legacy stock_qty is 0 — their stock may live on a variant.
+    # The exact variant counts are computed later (after price_info); we
+    # use a conservative "ignore legacy-only zero" approach here and
+    # re-pin both KPIs after rollup_ingredient_stock() runs.
     loaded_ids = set(
         session.scalars(
             select(StockMovement.ingredient_id).distinct()
         ).all()
     )
+    # Provisional never_loaded / critical counts. Both will be recomputed
+    # once we know which ingredients actually have variants.
     never_loaded_ids = {
         i.id for i in all_ings
         if (i.stock_qty or 0) == 0 and i.id not in loaded_ids
@@ -393,6 +401,79 @@ def inventory_list(
                 )
             price_info[ing.id] = info
 
+    # Variant-aware (multi-package + multi-supplier) totals.
+    # For each ingredient on this page, compute:
+    #   - effective_stock_qty: rollup sum if variants exist, else i.stock_qty
+    #   - variants_by_ing_id:  list of {variant_id, package_size, package_unit,
+    #                          preferred, supplier_name} for the inline +qty
+    #                          form's variant picker.
+    # rollup.variants is list[dict] with keys: variant_id, package_size,
+    # package_unit, stock_qty, purchase_price_gs, supplier_id, preferred, label.
+    from app.rms.variants import rollup_ingredient_stock
+    effective_stock_qty: dict[int, float] = {}
+    variants_by_ing_id: dict[int, list[dict]] = {}
+    for ing in ingredients:
+        rollup = rollup_ingredient_stock(session, ing.id)
+        if rollup is not None and rollup.variant_count > 0:
+            effective_stock_qty[ing.id] = rollup.base_qty
+            # Resolve supplier names in one pass.
+            _sup_ids = {v["supplier_id"] for v in rollup.variants if v.get("supplier_id")}
+            _sup_names: dict[int, str] = {}
+            if _sup_ids:
+                from app.rms.models import Supplier as _Supplier
+                _sup_names = {
+                    s.id: s.name
+                    for s in session.scalars(
+                        select(_Supplier).where(_Supplier.id.in_(_sup_ids))
+                    ).all()
+                }
+            variants_by_ing_id[ing.id] = [
+                {
+                    "id": v["variant_id"],
+                    "package_size": v["package_size"],
+                    "package_unit": v["package_unit"],
+                    "preferred": v["preferred"],
+                    "supplier_name": _sup_names.get(v.get("supplier_id")),
+                    "stock_qty": v["stock_qty"],
+                    "purchase_price_gs": v["purchase_price_gs"],
+                    "label": v.get("label"),
+                }
+                for v in rollup.variants
+            ]
+        else:
+            effective_stock_qty[ing.id] = float(ing.stock_qty or 0.0)
+            variants_by_ing_id[ing.id] = []
+    # Global cache for KPIs (covers ingredients NOT on this page).
+    _all_ing_ids = [i.id for i in all_ings]
+    if _all_ing_ids:
+        _variant_counts: dict[int, int] = dict(
+            session.execute(
+                select(IngredientVariant.ingredient_id, func.count(IngredientVariant.id))
+                .where(IngredientVariant.ingredient_id.in_(_all_ing_ids))
+                .group_by(IngredientVariant.ingredient_id)
+            ).all()
+        )
+    else:
+        _variant_counts = {}
+
+    # KPI adjustments for variant-aware counts: ingredients with variants
+    # should NOT be flagged as "never_loaded" just because legacy stock_qty
+    # is 0 — their stock may live entirely on a variant.
+    _has_variant = {ing_id for ing_id, n in _variant_counts.items() if n > 0}
+    never_loaded_ids = {
+        i.id for i in all_ings
+        if (i.stock_qty or 0) == 0 and i.id not in loaded_ids and i.id not in _has_variant
+    }
+    kpi_never_loaded = len(never_loaded_ids)
+    # Re-run critical with variant-aware effective stock (for ingredients on
+    # this page; ingredients off-page still use legacy stock_qty as before,
+    # which is fine — the user only ever sorts/views what they see).
+    kpi_critical = sum(
+        1 for i in all_ings
+        if effective_stock_qty.get(i.id, float(i.stock_qty or 0.0)) <= (i.min_stock_qty or 0)
+        and i.id not in never_loaded_ids
+    )
+
     # Wave 4 — Market reference price (Paraguay baseline). One row per
     # ingredient. Compute delta_pct = (our_price - market_price) / market * 100.
     from app.rms.models import MarketPriceReference
@@ -425,6 +506,8 @@ def inventory_list(
         "inventario.html",
         {
             "ingredients": ingredients,
+            "effective_stock_qty": effective_stock_qty,
+            "variants_by_ing_id": variants_by_ing_id,
             "price_info": price_info,
             "market_refs": market_refs,
             "sort": sort or "",
@@ -1165,11 +1248,22 @@ def inventory_adjust(
     adjustment: float = Form(...),
     reason: str = Form(""),
     confirm_negative: str = Form(""),
+    variant_id: str = Form(""),  # NEW: multi-package + multi-supplier support
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
-    """Record a stock adjustment (wastage, breakage, count correction).
+    """Record a stock adjustment (wastage, breakage, count correction, RECEIPT).
+
     Pass positive adjustment to add stock, negative to remove.
     Writes a StockMovement record for auditability.
+
+    **Variant-aware (multi-package / multi-supplier)**:
+    If the ingredient has IngredientVariant rows and ``variant_id`` is
+    provided, the adjustment is applied to that variant's stock AND to a
+    StockMovement with a ``variant_id`` column when the schema supports it.
+    If the ingredient has variants but no variant_id is provided, the
+    preferred variant is auto-selected (operator sees a flash notice).
+    If the ingredient has NO variants, falls back to the legacy
+    Ingredient.stock_qty column (unchanged behavior).
 
     If the adjustment would drive stock negative and confirm_negative is not
     'yes', the request is rejected — the caller must show a confirmation
@@ -1181,18 +1275,66 @@ def inventory_adjust(
 
     if adjustment == 0:
         # Don't silently accept a no-op. Tell the operator what happened.
-        from urllib.parse import urlencode
         params = urlencode({
             "flash": "no_op:El ajuste fue 0 — no se modificó el stock.",
             "ing_id": ing_id,
         })
         return RedirectResponse(url=f"/inventario?{params}", status_code=303)
 
-    # Reject negative resulting stock without explicit confirmation
-    if ing.stock_qty + adjustment < 0 and confirm_negative != "yes":
-        from urllib.parse import urlencode
+    # Resolve variant: if the ingredient has variants and none specified,
+    # auto-pick the preferred one. The list-view form sends variant_id
+    # explicitly so this branch mainly affects the detail-page modal.
+    variants = list(session.scalars(
+        select(IngredientVariant)
+        .where(IngredientVariant.ingredient_id == ing_id)
+        .order_by(IngredientVariant.preferred.desc(), IngredientVariant.id)
+    ))
+    target_variant: IngredientVariant | None = None
+    auto_picked = False
+    if variants:
+        if variant_id:
+            try:
+                vid = int(variant_id)
+            except ValueError:
+                raise BadRequest(
+                    f"ID de variante inválido: {variant_id!r}",
+                    context={"raw": variant_id},
+                ) from None
+            for v in variants:
+                if v.id == vid:
+                    target_variant = v
+                    break
+            if target_variant is None:
+                raise BadRequest(
+                    f"Variante {vid} no pertenece al ingrediente {ing_id}.",
+                )
+        else:
+            # Prefer the explicitly preferred variant, else the first.
+            target_variant = next(
+                (v for v in variants if v.preferred), variants[0]
+            )
+            auto_picked = True
+    else:
+        target_variant = None  # legacy path
+
+    # Reject negative resulting stock without explicit confirmation.
+    # When variants are in play, check the variant's own stock_qty (not
+    # the legacy Ingredient.stock_qty column) so the guard matches
+    # what's actually being mutated.
+    if target_variant is not None:
+        pre = target_variant.stock_qty or 0.0
+    else:
+        pre = ing.stock_qty or 0.0
+    if pre + adjustment < 0 and confirm_negative != "yes":
+        if target_variant is not None:
+            which = f"{target_variant.package_size:g} {target_variant.package_unit}"
+        else:
+            which = ing.name
         params = urlencode({
-            "flash": f"no_confirm:La operación llevaría stock de {ing.name} a {ing.stock_qty + adjustment:.2f} {ing.unit}. Confirmá haciendo click en Ajustar de nuevo.",
+            "flash": (
+                f"no_confirm:La operación llevaría stock de {which} a "
+                f"{pre + adjustment:.2f}. Confirmá haciendo click en Ajustar de nuevo."
+            ),
             "ing_id": ing_id,
         })
         return RedirectResponse(url=f"/inventario?{params}", status_code=303)
@@ -1201,8 +1343,10 @@ def inventory_adjust(
 
     user_id = current_user_id(request) or "operator"
 
-    # StockMovement: positive qty = stock in, negative = stock out
-    movement = StockMovement(
+    # StockMovement: positive qty = stock in, negative = stock out.
+    # Reference the variant_id when applicable so the audit trail can
+    # reconstruct "which bag did this receipt come from?".
+    movement_kwargs = dict(
         ingredient_id=ing_id,
         movement_type="adjustment",
         qty=adjustment,
@@ -1212,11 +1356,37 @@ def inventory_adjust(
         recorded_at=datetime.now(timezone.utc),
         created_by=user_id,
     )
+    if target_variant is not None and "variant_id" in StockMovement.__table__.columns:
+        movement_kwargs["variant_id"] = target_variant.id
+
+    movement = StockMovement(**movement_kwargs)
     session.add(movement)
 
-    ing.stock_qty = max(0.0, ing.stock_qty + adjustment)
+    if target_variant is not None:
+        # Variant model: stock lives on the variant, not the parent.
+        target_variant.stock_qty = max(0.0, (target_variant.stock_qty or 0.0) + adjustment)
+        # Sync the legacy Ingredient.stock_qty column with the rollup so
+        # any consumer still reading the legacy field sees the correct total.
+        from app.rms.variants import rollup_ingredient_stock
+        rollup = rollup_ingredient_stock(session, ing_id)
+        if rollup is not None:
+            ing.stock_qty = rollup.base_qty
+    else:
+        # Legacy path: ingredient has no variants.
+        ing.stock_qty = max(0.0, (ing.stock_qty or 0.0) + adjustment)
+
     session.commit()
-    return RedirectResponse(url="/inventario", status_code=303)
+    flash_msg = None
+    if auto_picked:
+        flash_msg = (
+            f"info:Sin variante elegida — se aplicó a la preferida "
+            f"({target_variant.package_size:g} {target_variant.package_unit})."
+        )
+    params = urlencode(
+        {"flash": flash_msg, "ing_id": ing_id}
+    ) if flash_msg else ""
+    target_url = f"/inventario?{params}" if params else "/inventario"
+    return RedirectResponse(url=target_url, status_code=303)
 
 
 @router.get("/{ing_id}/movimientos", response_class=HTMLResponse)

@@ -29,8 +29,11 @@
   </thead>
   <tbody>
     {% for s in suppliers %}
-    <tr>
-      <td><strong data-copy="{{ s.id }}">{{ fmt.entity_name(s) }}</strong></td>
+    <tr class="{% if not s.is_active %}is-inactive{% endif %}">
+      <td>
+        <strong data-copy="{{ s.id }}">{{ fmt.entity_name(s) }}</strong>
+        {% if not s.is_active %}<span class="badge badge-muted">inactivo</span>{% endif %}
+      </td>
       <td>{{ s.contact_name or "—" }}</td>
       <td>{{ s.phone or "—" }}</td>
       <td>{{ s.email or "—" }}</td>
@@ -57,11 +60,21 @@
           <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
           Editar
         </a>
-        {% if not s.ingredients %}
+        {# Soft-delete (preserves history). Reactivation lives at the
+           same endpoint pattern. Inactive rows still render below. #}
+        {% if s.is_active %}
         <form method="post" action="/suppliers/{{ s.id }}/eliminar" style="display:inline;"
-              class="js-confirm-form" data-confirm-title="¿Eliminar proveedor?" data-confirm-body="¿Eliminar {{ fmt.entity_name(s) }}?" data-confirm-danger="true">
+              class="js-confirm-form" data-confirm-title="¿Desactivar proveedor?" data-confirm-body="¿Desactivar {{ fmt.entity_name(s) }}? Los ingredientes vinculados conservan su referencia pero el proveedor no aparece en /reorder. Podés reactivarlo después." data-confirm-danger="true">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+          <button type="submit" class="btn btn-sm btn-danger">Desactivar</button>
+        </form>
+        {% else %}
+        <form method="post" action="/suppliers/{{ s.id }}/reactivar" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="btn btn-sm btn-good">
+            <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+            Reactivar
+          </button>
         </form>
         {% endif %}
       </td>
