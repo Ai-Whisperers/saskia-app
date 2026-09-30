@@ -35,8 +35,8 @@
 - - Register 'network' pytest marker in pyproject.toml to silence test warnings.
 
 ### Stats
-- 55 tests total (16 toggle + 5 CRUD + 10 CSV + 17 scrapers + 4 endpoint)  
-- All tests pass at 52/52 (3 tests require network)
+- 56 tests total (16 toggle + 5 CRUD + 10 CSV + 17 scrapers + 4 endpoint + 2 UI)  
+- All tests pass at 54/54 (3 tests require network)
 
 ### Deploy notes
 - Live at https://saskia-vps.paragu-ai.com/reorder  
