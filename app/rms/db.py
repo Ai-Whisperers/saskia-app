@@ -3023,6 +3023,27 @@ def _migration_070_customer_dietary_profile(conn: Any) -> None:
     _bump_schema_version(conn, 70)
 
 
+def _migration_071_customer_profile_completeness(conn: Any) -> None:
+    """P3 profile batch (2026-09-30): birthday, acquisition channel,
+    preferred contact channel, marketing consent, and default facturación
+    data (prefills pedido invoice fields for business/office clients).
+    """
+    for stmt in (
+        "ALTER TABLE customer ADD COLUMN birthday VARCHAR(10)",
+        "ALTER TABLE customer ADD COLUMN how_found VARCHAR(32)",
+        "ALTER TABLE customer ADD COLUMN preferred_channel VARCHAR(32)",
+        "ALTER TABLE customer ADD COLUMN marketing_consent INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE customer ADD COLUMN invoice_name VARCHAR(120)",
+        "ALTER TABLE customer ADD COLUMN invoice_ruc VARCHAR(20)",
+    ):
+        try:
+            conn.execute(text(stmt))
+        except Exception:  # noqa: BLE001, S110 — column already exists
+            pass
+
+    _bump_schema_version(conn, 71)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -3094,6 +3115,7 @@ MIGRATIONS = {
     68: _migration_068_recipe_menu_tags,
     69: _migration_069_customer_addresses_delivery_favorites,
     70: _migration_070_customer_dietary_profile,
+    71: _migration_071_customer_profile_completeness,
 }
 
 

@@ -10,6 +10,20 @@
 
 {{ ui.flash_toast(request) }}
 
+{% if nudge and (nudge.sin_telefono or nudge.sin_dietary or nudge.sin_direccion or nudge.sin_consent) %}
+<div style="border:1px solid var(--border);border-left:4px solid var(--color-warn,#e6a700);
+            background:var(--color-surface-subtle,rgba(0,0,0,.03));border-radius:8px;
+            padding:var(--space-3);margin-bottom:var(--space-4);font-size:var(--text-sm);">
+  <strong>Datos incompletos</strong> — completá las fichas para que las alertas y
+  promos funcionen:
+  {% if nudge.sin_telefono %}<span style="margin-left:var(--space-2);">{{ nudge.sin_telefono }} sin teléfono</span>{% endif %}
+  {% if nudge.sin_dietary %}<span style="margin-left:var(--space-2);">{{ nudge.sin_dietary }} sin perfil dietético</span>{% endif %}
+  {% if nudge.sin_direccion %}<span style="margin-left:var(--space-2);">{{ nudge.sin_direccion }} sin dirección</span>{% endif %}
+  {% if nudge.sin_consent %}<span style="margin-left:var(--space-2);">{{ nudge.sin_consent }} sin consentimiento de promos</span>{% endif %}
+  <span style="margin-left:var(--space-2);" class="muted">(tocá un cliente → Editar perfil)</span>
+</div>
+{% endif %}
+
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
   <div>
     <a href="/clientes/duplicados" class="btn btn-sm" data-testid="link-duplicados">

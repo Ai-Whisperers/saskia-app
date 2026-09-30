@@ -652,6 +652,22 @@ class Customer(Base):
     # P3 delivery batch: operator's default zone for this customer
     preferred_zone_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # P3 dietary batch: hard restrictions (CSV of CANONICAL_DIETARY_TAGS),
+    # approved substitutes in preference order (JSON [{tag, rank, note}]),
+    # and the confirm-always flag (ask every order before substituting).
+    # P3 profile batch: retention + comms + facturación defaults
+    birthday: Mapped[str | None] = mapped_column(String(10), nullable=True)  # MM-DD or YYYY-MM-DD
+    how_found: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    preferred_channel: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    marketing_consent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    invoice_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    invoice_ruc: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    dietary_restrictions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    dietary_preferences: Mapped[str | None] = mapped_column(Text, nullable=True)
+    dietary_confirm_always: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+
     # Relationships
     sales: Mapped[list["Sale"]] = relationship(back_populates="customer")
     addresses: Mapped[list["CustomerAddress"]] = relationship(

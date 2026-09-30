@@ -36,6 +36,14 @@ from app.services.template_render import render
 
 router = APIRouter(prefix="/clientes", dependencies=[Depends(require_login)])
 
+# P3 profile batch: closed vocabularies for the profile form
+ALLOWED_HOW_FOUND = frozenset({
+    "instagram", "whatsapp", "recomendacion", "local", "otro",
+})
+ALLOWED_CHANNELS = frozenset({
+    "whatsapp", "llamada", "instagram", "presencial",
+})
+
 
 PAGE_SIZE = 50
 
@@ -57,6 +65,8 @@ def clientes_list(
     import io
 
     from starlette.responses import StreamingResponse
+
+    from app.rms.models import CustomerAddress
 
     q = q or ""
     f"%{q.lower()}%"
@@ -192,11 +202,34 @@ def clientes_list(
             headers={"Content-Disposition": "attachment; filename=clientes.csv"},
         )
 
+    # P3 profile batch: data-completion nudge — counts of clients missing
+    # key contact data, so the operator knows whose profile to fill next.
+    all_customers = list_customers(session)
+    nudge = {
+        "sin_telefono": sum(
+            1 for c in all_customers if not (c.phone or "").strip()
+        ),
+        "sin_dietary": sum(
+            1 for c in all_customers if not (c.dietary_restrictions or "").strip()
+        ),
+        "sin_direccion": sum(
+            1 for c in all_customers
+            if not session.scalar(
+                select(CustomerAddress.id).where(
+                    CustomerAddress.customer_id == c.id
+                ).limit(1)
+            )
+        ),
+        "sin_consent": sum(
+            1 for c in all_customers if not c.marketing_consent
+        ),
+    }
     return render(
         request,
         "clientes.html",
         {
             "customers": page_rows,
+            "nudge": nudge,
             "q": q or "",
             "tier": tier or "",
             "tiers": ["bronze", "silver", "gold", "platinum"],
@@ -658,6 +691,16 @@ def cliente_edit(
         customer.dietary_preferences,
         customer.dietary_confirm_always,
     )
+    from app.rms.models import CustomerAddress
+    addresses = session.scalars(
+        select(CustomerAddress)
+        .where(CustomerAddress.customer_id == customer_id)
+        .order_by(CustomerAddress.is_default.desc(), CustomerAddress.id)
+    ).all()
+    from app.rms.models import DeliveryZone
+    zones = session.scalars(
+        select(DeliveryZone).where(DeliveryZone.is_active.is_(True)).order_by(DeliveryZone.position)
+    ).all()
     return render(
         request,
         "cliente_editar.html",
@@ -665,8 +708,90 @@ def cliente_edit(
             "customer": customer,
             "dietary_profile": profile,
             "dietary_tag_options": sorted(CANONICAL_DIETARY_TAGS),
+            "addresses": addresses,
+            "zones": zones,
+            "how_found_options": sorted(ALLOWED_HOW_FOUND),
+            "channel_options": sorted(ALLOWED_CHANNELS),
         },
     )
+
+
+@router.post("/api/{customer_id}/addresses", response_class=JSONResponse)
+async def address_create_api(
+    customer_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """P3 profile: add a delivery address from the client edit form."""
+    import json as _json
+
+    from app.rms.models import CustomerAddress
+
+    cust = session.get(Customer, customer_id)
+    if cust is None:
+        return JSONResponse({"error": "not_found"}, status_code=404)
+    try:
+        payload = await request.json()
+    except ValueError:
+        return JSONResponse({"error": "bad_json"}, status_code=400)
+    text_val = str(payload.get("address_text", "")).strip()
+    if not text_val:
+        return JSONResponse({"error": "address_text required"}, status_code=400)
+    label = str(payload.get("label", "casa")).strip()[:32] or "casa"
+    zone_id = payload.get("zone_id")
+    zone_int = int(zone_id) if zone_id else None
+    first = not session.scalar(
+        select(CustomerAddress.id).where(CustomerAddress.customer_id == customer_id).limit(1)
+    )
+    addr = CustomerAddress(
+        customer_id=customer_id,
+        label=label,
+        address_text=text_val,
+        zone_id=zone_int,
+        is_default=first,
+    )
+    session.add(addr)
+    session.commit()
+    record_audit(
+        request,
+        session=session,
+        action="write.customer.update",
+        target_type="customer",
+        target_id=customer_id,
+        detail={"address_added": label},
+    )
+    session.commit()
+    return JSONResponse({"id": addr.id, "label": addr.label,
+                         "address_text": addr.address_text,
+                         "zone_id": addr.zone_id, "is_default": addr.is_default})
+
+
+@router.delete("/api/{customer_id}/addresses/{address_id}", response_class=JSONResponse)
+def address_delete_api(
+    customer_id: int,
+    address_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """P3 profile: remove a delivery address from the client edit form."""
+    from app.rms.models import CustomerAddress
+
+    addr = session.get(CustomerAddress, address_id)
+    if addr is None or addr.customer_id != customer_id:
+        return JSONResponse({"error": "not_found"}, status_code=404)
+    session.delete(addr)
+    session.commit()
+    record_audit(
+        request,
+        session=session,
+        action="write.customer.update",
+        target_type="customer",
+        target_id=customer_id,
+        detail={"address_removed": addr.label},
+    )
+    session.commit()
+    return JSONResponse({"ok": True})
+
 
 
 @router.post("/{customer_id}/editar")
@@ -682,6 +807,13 @@ def cliente_update(
     dietary_restriction: list[str] = Form([]),
     dietary_prefs_payload: str = Form(""),  # JSON [{tag, rank, note}]
     dietary_confirm_always: str = Form(""),
+    # P3 profile batch
+    birthday: str = Form(""),
+    how_found: str = Form(""),
+    preferred_channel: str = Form(""),
+    marketing_consent: str = Form(""),
+    invoice_name: str = Form(""),
+    invoice_ruc: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Update an existing customer's fields."""
@@ -722,6 +854,19 @@ def cliente_update(
         prefs = []
     customer.dietary_preferences = format_preferences(prefs) if prefs else None
     customer.dietary_confirm_always = dietary_confirm_always == "1"
+
+    # P3 profile batch
+    from app.rms.validation import optional_choice
+    customer.birthday = optional_text(birthday, max_len=10)  # MM-DD / YYYY-MM-DD free
+    customer.how_found = optional_choice(
+        how_found, ALLOWED_HOW_FOUND, field="how_found"
+    )
+    customer.preferred_channel = optional_choice(
+        preferred_channel, ALLOWED_CHANNELS, field="canal preferido"
+    )
+    customer.marketing_consent = marketing_consent == "1"
+    customer.invoice_name = optional_text(invoice_name, max_len=120)
+    customer.invoice_ruc = optional_text(invoice_ruc, max_len=20)
     session.commit()
     record_audit(
         request,

@@ -39,6 +39,97 @@
 
     {# ── P3: Perfil dietético — restricciones + preferencias ordenadas ── #}
     <fieldset style="margin-top:var(--space-4);border:1px solid var(--border);border-radius:8px;padding:var(--space-3);">
+      <legend style="font-weight:600;padding:0 var(--space-2);">Perfil</legend>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+        <div>
+          <label for="birthday">Cumpleaños</label>
+          <input type="text" id="birthday" name="birthday" value="{{ customer.birthday or '' }}"
+                 placeholder="DD-MM o DD-MM-AAAA" maxlength="10" style="margin-top:4px;">
+          <small class="muted">Para promos de cumpleaños.</small>
+        </div>
+        <div>
+          <label for="how_found">¿Cómo nos encontró?</label>
+          <select id="how_found" name="how_found" style="margin-top:4px;">
+            <option value="">—</option>
+            {% for opt in how_found_options %}
+            <option value="{{ opt }}" {% if customer.how_found == opt %}selected{% endif %}>{{ opt|title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="preferred_channel">Canal preferido</label>
+          <select id="preferred_channel" name="preferred_channel" style="margin-top:4px;">
+            <option value="">—</option>
+            {% for opt in channel_options %}
+            <option value="{{ opt }}" {% if customer.preferred_channel == opt %}selected{% endif %}>{{ opt|title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="display:flex;align-items:end;">
+          <label style="display:flex;align-items:center;gap:var(--space-2);padding-bottom:22px;">
+            <input type="checkbox" id="marketing_consent" name="marketing_consent" value="1"
+                   {% if customer.marketing_consent %}checked{% endif %}>
+            <span>Acepta recibir promos <span class="muted">(WhatsApp)</span></span>
+          </label>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-top:var(--space-3);">
+        <div>
+          <label for="invoice_name">Facturación — razón social</label>
+          <input type="text" id="invoice_name" name="invoice_name" value="{{ customer.invoice_name or '' }}"
+                 maxlength="120" placeholder="Para pedidos con factura" style="margin-top:4px;">
+        </div>
+        <div>
+          <label for="invoice_ruc">Facturación — RUC / CI</label>
+          <input type="text" id="invoice_ruc" name="invoice_ruc" value="{{ customer.invoice_ruc or '' }}"
+                 maxlength="20" placeholder="Se precarga en pedidos" style="margin-top:4px;">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset style="margin-top:var(--space-4);border:1px solid var(--border);border-radius:8px;padding:var(--space-3);">
+      <legend style="font-weight:600;padding:0 var(--space-2);">Direcciones de delivery</legend>
+      {% if addresses %}
+      <table class="table" style="margin-bottom:var(--space-2);">
+        <thead><tr><th>Etiqueta</th><th>Dirección</th><th>Zona</th><th></th></tr></thead>
+        <tbody>
+        {% for a in addresses %}
+          <tr>
+            <td>{{ a.label }}{% if a.is_default %} <span class="badge badge-neutral">predet.</span>{% endif %}</td>
+            <td>{{ a.address_text }}</td>
+            <td class="muted">{% if a.zone_id %}zona #{{ a.zone_id }}{% else %}—{% endif %}</td>
+            <td>
+              <button type="button" class="btn btn-sm btn-danger-ghost addr-del" data-addr-id="{{ a.id }}"
+                      aria-label="Eliminar dirección {{ a.label }}">✕</button>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="muted" style="margin:0 0 var(--space-2);font-size:var(--text-sm);">Sin direcciones guardadas.</p>
+      {% endif %}
+      <div style="display:grid;grid-template-columns:120px 1fr 160px auto;gap:var(--space-2);align-items:end;">
+        <div>
+          <label for="addr-label">Etiqueta</label>
+          <input type="text" id="addr-label" placeholder="casa" maxlength="32" style="margin-top:4px;">
+        </div>
+        <div>
+          <label for="addr-text">Dirección</label>
+          <input type="text" id="addr-text" placeholder="Calle, número, barrio…" style="margin-top:4px;">
+        </div>
+        <div>
+          <label for="addr-zone">Zona</label>
+          <select id="addr-zone" style="margin-top:4px;">
+            <option value="">—</option>
+            {% for z in zones %}<option value="{{ z.id }}">{{ z.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <button type="button" id="addr-add" class="btn btn-sm btn-secondary">+ Agregar</button>
+      </div>
+    </fieldset>
+
+    <fieldset style="margin-top:var(--space-4);border:1px solid var(--border);border-radius:8px;padding:var(--space-3);">
       <legend style="font-weight:600;padding:0 var(--space-2);">Perfil dietético</legend>
       <p class="hint" style="margin-top:0;">
         Restricciones = NUNCA violar (aparece como alerta rojo en pedidos y ventas).
@@ -139,3 +230,43 @@
   </div>
 </form>
 {% endblock %}
+
+<script>
+(function () {
+  var custMatch = window.location.pathname.match(/\/clientes\/(\d+)\/editar/);
+  if (!custMatch) return;
+  var cid = custMatch[1];
+
+  var addBtn = document.getElementById("addr-add");
+  if (addBtn) {
+    addBtn.addEventListener("click", function () {
+      var label = document.getElementById("addr-label").value.trim();
+      var text = document.getElementById("addr-text").value.trim();
+      if (!text) { alert("Escribí la dirección."); return; }
+      var zone = document.getElementById("addr-zone").value;
+      fetch("/clientes/api/" + cid + "/addresses", {
+        method: "POST",
+        headers: {"Content-Type": "application/json",
+                  "X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value},
+        body: JSON.stringify({label: label || "casa", address_text: text, zone_id: zone ? parseInt(zone, 10) : null})
+      }).then(function (r) {
+        if (!r.ok) throw new Error("fallo");
+        window.location.reload();
+      }).catch(function () { alert("No se pudo guardar la dirección."); });
+    });
+  }
+
+  document.querySelectorAll(".addr-del").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      if (!confirm("¿Eliminar esta dirección?")) return;
+      fetch("/clientes/api/" + cid + "/addresses/" + btn.dataset.addrId, {
+        method: "DELETE",
+        headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
+      }).then(function (r) {
+        if (!r.ok) throw new Error("fallo");
+        window.location.reload();
+      }).catch(function () { alert("No se pudo eliminar."); });
+    });
+  });
+})();
+</script>

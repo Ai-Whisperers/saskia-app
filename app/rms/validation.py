@@ -354,3 +354,18 @@ __all__ = [
     "validate_slug",
     "validate_url",
 ]
+
+
+def optional_choice(value: str | None, allowed: frozenset[str], *, field: str) -> str | None:
+    """Whitespace-trimmed optional enum-ish field. Empty -> None; a value
+    outside `allowed` -> HTTP 400 (client-side lists are authoritative,
+    but stale tabs / crafted POSTs shouldn't write junk vocabulary)."""
+    v = (value or "").strip().lower()
+    if not v:
+        return None
+    if v not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{field} inválido: {v!r}",
+        )
+    return v

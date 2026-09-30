@@ -686,6 +686,16 @@ async def pedidos_create(
                     + f" [WARN: pedido ₲{pedido_total_gs:,} < mínimo zona ₲{zone.min_order_gs:,}]"
                 ).strip()
 
+    # P3 profile batch: default facturación from the customer's profile
+    # when the operator didn't type invoice data on the order.
+    if cust_obj is not None:
+        invoice_name = (invoice_name or "").strip() or (
+            cust_obj.invoice_name or ""
+        )
+        invoice_ruc = (invoice_ruc or "").strip() or (
+            cust_obj.invoice_ruc or ""
+        )
+
     pedido = Pedido(
         customer_id=cust_obj.id if cust_obj else None,
         customer_name=cust_name,
