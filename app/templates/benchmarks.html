@@ -18,6 +18,7 @@
   <a href="{{ request.url.path }}?{{ csv_q|urlencode }}" class="btn btn-sm" download="benchmarks-{{ now_local[:10] }}.csv">
     📥 CSV
   </a>
+  <a href="/vs-mercado/evidencia" class="btn btn-sm">🔍 Evidencia de mercado</a>
 </div>
 
 <table class="table is-hoverable" id="bench-table">
@@ -27,6 +28,7 @@
       <th class="num">Nuestro wholesale Gs.</th>
       <th class="num">Nuestro retail Gs.</th>
       <th class="num">Mercado avg Gs.</th>
+      <th class="num">Mercado real (evidencia)</th>
       <th class="num">Δ Gs.</th>
       <th class="num">Posición</th>
     </tr>
@@ -47,6 +49,12 @@
       <td class="num">{{ m.gs(b.our_wholesale_gs) if b.our_wholesale_gs else '—' }}</td>
       <td class="num">{{ m.gs(b.our_retail_gs) if b.our_retail_gs else '—' }}</td>
       <td class="num">{{ m.gs(b.market_avg_gs) if b.market_avg_gs else '—' }}</td>
+      <td class="num">
+        {% if b.intel_median_gs %}
+          <strong>{{ m.gs(b.intel_median_gs) }}</strong>
+          <span class="text-muted" style="font-size:var(--text-xs);">· n={{ b.intel_n }}</span>
+        {% else %}—{% endif %}
+      </td>
       <td class="num" style="color:{% if delta_gs is not none and delta_gs > 0 %}var(--color-danger){% elif delta_gs is not none and delta_gs < 0 %}var(--color-success){% endif %};">
         {% if delta_gs is not none %}
           {% if delta_gs > 0 %}+{% endif %}{{ m.gs(delta_gs) }}
@@ -68,12 +76,13 @@
     </tr>
     {% endfor %}
     {% else %}
-    <tr><td colspan="7">
+    <tr><td colspan="8">
       {{ ui.empty_state(
            title="Sin datos de mercado cargados",
            icon="icon-trend",
-           hint="Importá <code>HEREBUS_Benchmarks_Market</code> o agregá el primer benchmark con el botón de abajo.",
-           action=("<a href='/vs-mercado/nuevo' class='btn btn-primary'>+ Agregar primer benchmark</a>")|safe
+           hint="Importá el archivo Benchmarks_Market o agregá el primer benchmark para comparar tus precios.",
+           cta_href="/vs-mercado/nuevo",
+           cta_label="+ Agregar primer benchmark"
          ) }}
     </td></tr>
     {% endif %}

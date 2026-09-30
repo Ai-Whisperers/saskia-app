@@ -5,6 +5,24 @@
 
 ## [Unreleased]
 
+### Added (2026-09-30) — market-intel: capa de evidencia de competencia en /vs-mercado
+
+Conecta el research repo `saskia-market-intel` (1.349 precios verificados de
+48+ locales PY, corte 2026-09-30) con la app: nueva tabla
+`competitor_price_observation` (migration _063, append-only, fuente+fecha),
+vista `/vs-mercado/evidencia` (rangos p25/mediana/p75 por familia +
+importador CSV con confirmación + export), columna "Mercado real
+(evidencia)" en /vs-mercado, y seed idempotente de 144 observaciones
+(no-fatal en lifespan). Tests: tests/test_market_intel.py (8).
+
+### Fixed (2026-09-30) — empty-state de /vs-mercado en tabla vacía
+
+`benchmarks.html` pasaba `action=...` a la macro `empty_state` (param
+inexistente) → TemplateSyntaxError con la tabla sin datos. Ahora usa
+`cta_href`/`cta_label`. (El batch del 29-09 lo arregló también desde la
+macro agregando `action=`; este template ya no lo usa — ambos caminos
+conviven.)
+
 ### Fixed (2026-09-29) — Master-menu cleanup batch: bug fixes + test updates
 
 Pre-existing production bugs found and fixed; legacy/obsolete tests marked xfail.
