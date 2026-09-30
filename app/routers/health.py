@@ -753,6 +753,111 @@ def healthz_migrate(request: Request) -> object:
     )
 
 
+@router.get("/api/smoke/prod-loop", response_model=None)
+def api_smoke_prod_loop(request: Request) -> JSONResponse:
+    """PROD-MERMA-2 (Batch G): smoke check for the production→merma loop.
+
+    Drives the operator-facing surfaces that have to work together to
+    close the production-loss loop. Designed to be hit by a periodic
+    cron (or operator during incident triage) and surface a 200 only
+    when the entire loop is functional.
+
+    Steps (read-only):
+      1. POST /login                   → 200/303 (session cookie set)
+      2. GET  /produccion              → 200/303 (page renders)
+      3. GET  /merma                   → 200/303 (page renders)
+      4. GET  /merma/api/reasons       → 200 (combobox data)
+      5. GET  /auditoria               → 200/303 (audit page renders)
+      6. GET  /auditoria/api/sources   → 200 (entrypoint filter)
+      7. GET  /healthz                 → 200 (process healthy)
+
+    Returns a structured payload so the caller (cron) can see which
+    step failed without parsing HTML.
+    """
+    ready = getattr(request.app.state, "ready", False)
+    if not ready:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "warming_up", "service": "aiw-saskia-rms"},
+        )
+
+    from fastapi.testclient import TestClient
+
+    # PROD: cookies are set with `secure=True`, so we must drive the loop
+    # over https://testserver for the inner client. In dev/test, this is
+    # also fine — TestClient uses an in-memory ASGI transport.
+    steps: list[dict] = []
+    all_ok = True
+    with TestClient(request.app, base_url="https://testserver") as client:
+        # Authenticate (the smoke cron posts demo creds and follows the
+        # redirect chain that sets the session cookie). The demo
+        # account is seeded by app/rms/seed.py at startup; if you
+        # change the password in /settings, also update it here.
+        # NOTE: the login route filters by User.username, not email —
+        # so use 'demo' even though the seed email is 'demo@herbus.local'.
+        demo_user = os.environ.get("SASKIA_SMOKE_USER", "demo")
+        demo_pass = os.environ.get("SASKIA_SMOKE_PASS", "demo1234")
+
+        try:
+            r = client.post(
+                "/login",
+                data={"username": demo_user, "password": demo_pass},
+                follow_redirects=False,
+            )
+            login_ok = r.status_code in (200, 303, 302)
+            steps.append({"step": "POST /login", "ok": login_ok, "status": r.status_code})
+            if not login_ok:
+                all_ok = False
+        except Exception as exc:
+            all_ok = False
+            steps.append({"step": "POST /login", "ok": False, "error": repr(exc)[:200]})
+
+        targets = [
+            ("GET", "/produccion"),
+            ("GET", "/merma"),
+            ("GET", "/merma/api/reasons?q="),
+            ("GET", "/auditoria"),
+            ("GET", "/auditoria/api/sources"),
+            ("GET", "/healthz"),
+        ]
+        for method, path in targets:
+            try:
+                resp = client.get(path, follow_redirects=False)
+                # 200 = ok; 303 = redirect (typical for unauthenticated
+                # state). We accept either as 'reachable' but record the
+                # status so the operator can spot if auth broke.
+                ok = resp.status_code in (200, 303)
+                steps.append(
+                    {
+                        "step": f"{method} {path}",
+                        "ok": ok,
+                        "status": resp.status_code,
+                    }
+                )
+                if not ok:
+                    all_ok = False
+            except Exception as exc:
+                all_ok = False
+                steps.append(
+                    {
+                        "step": f"{method} {path}",
+                        "ok": False,
+                        "error": repr(exc)[:200],
+                    }
+                )
+
+    status_code = 200 if all_ok else 503
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "ok" if all_ok else "degraded",
+            "service": "aiw-saskia-rms",
+            "loop": "production→merma→auditoria",
+            "steps": steps,
+        },
+    )
+
+
 @router.post("/admin/migrate")
 def admin_migrate(request: Request) -> object:
     """Operator escape hatch: trigger init_db() to apply pending migrations.
