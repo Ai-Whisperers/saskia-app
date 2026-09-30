@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.errors import BadRequest, NotFound
-from app.rms.models import AuditLog, Ingredient, Recipe, Sale
+from app.rms.models import AuditLog, Ingredient, Recipe, Sale, WasteLog
 from app.rms.observability import record_audit
 from app.rms.waste import (
     WasteReason,
@@ -214,6 +214,42 @@ def merma_register(
         raise HTTPException(
             status_code=429, detail="Demasiadas acciones en 1 minuto. Esperá un momento."
         )
+
+    # PROD-MERMA-2 (Batch E): duplicate-record guard.
+    # If the same operator just submitted the same (ingredient, reason, qty)
+    # within the last 60 seconds, return the existing event id instead of
+    # double-recording. Tolerance on qty: within 5% or 0.01 absolute — covers
+    # "qty=0.5" being typed twice without rounding noise.
+    dup_window_seconds = 60
+    dup_qty_tolerance_abs = 0.01
+    dup_qty_tolerance_pct = 0.05
+    from datetime import datetime, timedelta, timezone as _tz
+    cutoff = datetime.now(_tz.utc) - timedelta(seconds=dup_window_seconds)
+    qty_abs = abs(float(qty))
+    tol = max(dup_qty_tolerance_abs, qty_abs * dup_qty_tolerance_pct)
+    recent = list(
+        session.execute(
+            select(WasteLog)
+            .where(
+                WasteLog.ingredient_id == ingredient_id,
+                WasteLog.reason == reason,
+                WasteLog.recorded_at >= cutoff,
+            )
+            .order_by(WasteLog.recorded_at.desc())
+            .limit(5)
+        ).scalars()
+    )
+    for prev in recent:
+        prev_qty = float(prev.qty or 0)
+        if abs(prev_qty - qty_abs) <= tol:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Ya registraste este evento hace menos de {dup_window_seconds}s "
+                    f"(id=#{prev.id}). Si fue intencional, esperá un momento y volvé a intentar."
+                ),
+                headers={"X-Saskia-Duplicate-Of": str(prev.id)},
+            )
 
     try:
         log = record_waste(
