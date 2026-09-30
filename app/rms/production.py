@@ -205,13 +205,19 @@ def plan_production(
         elif prod.id in template_for_weekday:
             qty = float(template_for_weekday[prod.id])
             source = "template"
-        # (c) auto-forecast from sales (fallback)
+        # (c) auto-forecast from sales (fallback). PRO-11: productos ocultos
+        # (is_available=False) nunca reciben auto-sugerencia — la operadora
+        # puede forzarlos igual con override/template/manual.
         else:
-            base = forecast_sales(
-                session, product_id=prod.id, days_history=days_history
-            )
-            qty = base * seasonal_multiplier
-            source = "rolling_14d_avg"
+            if not prod.is_available:
+                qty = 0.0
+                source = "oculto"
+            else:
+                base = forecast_sales(
+                    session, product_id=prod.id, days_history=days_history
+                )
+                qty = base * seasonal_multiplier
+                source = "rolling_14d_avg"
         # PRO-02: a bakery cannot bake 0.1 of a muffin. Round the suggested
         # forecast UP to a whole piece. Manual overrides and template rows are
         # kept as-typed (operator-entered); only auto-suggestions are rounded.
