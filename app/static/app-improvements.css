@@ -327,8 +327,12 @@ saskia-date:focus-visible, saskia-combo:focus-visible,
  * Inputs accept raw numbers (or empty); the prefix is decorative.
  * Use with inputmode="numeric" or inputmode="decimal" for mobile.
  *
- * TODO (D15 deeper work): wire this into m.gs() on form submit so
- * the submitted value is the integer Gs. amount, not the formatted string.
+ * No JS hook required: every .currency-input in app/templates/ is
+ * `<input type="number">`, so the browser submits the parsed numeric
+ * value (never the cosmetic prefix). Backend parses via
+ * `app.rms.validation.parse_money_gs()` which handles int, float, and
+ * string inputs robustly. Originally flagged D15 "deeper work" but
+ * the architecture already prevents the bug. Verified 2026-10-01.
  */
 .currency-input-wrap {
   position: relative;

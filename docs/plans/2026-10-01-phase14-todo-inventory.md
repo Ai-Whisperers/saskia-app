@@ -11,6 +11,11 @@ non-actionable documentation TODOs (copy reference, inline comments).
 |---|---|---|
 | `app/rms/accounting.py:267` | `TODO(phase-3c): wire Expense model` | Phase 14 Batch E — migration 082 + `Expense` model wired into `daily_summary()`. Comment rewritten. |
 | `app/rms/accounting.py:333` | duplicate "TODO since phase-3c" inside `daily_summary()` | same — rewritten. |
+| `app/routers/herebus.py:489` | `tx.reconciled_by = "system"  # TODO: get from session` | Phase 14 Sprint 1.4 — `reconciled_by` now reads `request.state.user_id` (falls back to "anonymous" under test bypass). New regression test `test_bank_reconcile_sets_reconciled_by_from_session`. |
+| `app/templates/pedido_board.html:164` | `// AND the auto-refresh detects a new order. (TODO: wire to refresh handler.)` | Phase 14 — chime plays on reload when `saskia:board-sound-enabled=1` and a new order id appears in `saskia:board-last-order-id`. |
+| `app/static/app-improvements.css:330` | `TODO (D15 deeper work): wire this into m.gs() on form submit ...` | Comment rewritten 2026-10-01: every `.currency-input` is `<input type="number">`, browser submits parsed numeric value (never the cosmetic "Gs." prefix). Backend `parse_money_gs()` handles int/float/str. Architecture already prevents the bug. |
+| `app/templates/riesgos.html:11` | `{# TODO: wire to POST /riesgos/new ... #}` | Phase 14 batch `f55c079` — `/riesgos/new` POST endpoint + form shipped. |
+| `app/rms/nav.py:217` | `# TODO: /clientes/nuevo route` | Phase 14 batch `f55c079` — `/clientes/nuevo` form + POST shipped. |
 
 No code path still uses the placeholder zero.
 
