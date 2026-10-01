@@ -12,6 +12,15 @@
 (function () {
   "use strict";
 
+  // Shared handler bag picked up by change events (see lines ~97/99) and
+  // set up later in setupCustomerCombo(). Initialised as an empty object
+  // so dereferences before the assignment (or on pages where the
+  // combo never finishes upgrading) don't crash with
+  // `Cannot read properties of undefined`. Pre-existing bug fixed
+  // 2026-10-01 alongside the new /pedidos/nuevo customer-create panel,
+  // which calls these handlers directly.
+  window.customerPickHandlers = window.customerPickHandlers || {};
+
   function escapeHtml(s) {
     if (s == null) return "";
     return String(s)
