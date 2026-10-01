@@ -99,6 +99,14 @@ def _delete_existing_kyrian(s: Session) -> None:
     We cascade-delete by deleting the customer row. The Pedido/PedidoLine/
     Sale/LoyaltyTransaction FKs are loose (no ON DELETE CASCADE on every
     table in this schema), so we go in dependency order.
+
+    Order matters:
+      1. Sales first (Migration 076 added sale.linked_pedido_id FK;
+         if we delete the pedido first, the FK on sale→pedido trips)
+      2. Pedidos (cascade-deletes their lines)
+      3. Loyalty transactions (FK to customer)
+      4. Suscripcion (FK to customer)
+      5. Customer last
     """
     existing = s.execute(
         select(Customer).where(Customer.phone == KYRIAN_PHONE)
@@ -108,6 +116,37 @@ def _delete_existing_kyrian(s: Session) -> None:
 
     cid = existing.id
 
+    # Null out pedido.fulfilled_sale_id first — that FK has no
+    # ON DELETE clause (legacy column), so deleting a Sale while a
+    # Pedido still references it trips SQLite's NO ACTION.
+    pedidos = s.execute(
+        select(Pedido).where(Pedido.customer_id == cid)
+    ).scalars().all()
+    for p in pedidos:
+        p.fulfilled_sale_id = None
+    s.flush()
+
+    # SaleStockMove next — has FK to sale (declared ON DELETE CASCADE on
+    # the SQLAlchemy side, but SQLite tables created before that hint was
+    # added may not have the cascade clause, so we delete them explicitly).
+    from app.rms.models import SaleStockMove
+    moves = s.execute(
+        select(SaleStockMove).join(Sale, SaleStockMove.sale_id == Sale.id)
+        .where(Sale.customer_id == cid)
+    ).scalars().all()
+    for m in moves:
+        s.delete(m)
+    s.flush()
+
+    # Sales next — Migration 076 added sale.linked_pedido_id which FKs
+    # to pedido, so we must clear sales BEFORE deleting pedidos.
+    sales = s.execute(
+        select(Sale).where(Sale.customer_id == cid)
+    ).scalars().all()
+    for sa in sales:
+        s.delete(sa)
+    s.flush()
+
     # PedidoLines cascade from Pedido via ORM cascade="all, delete-orphan"
     pedidos = s.execute(
         select(Pedido).where(Pedido.customer_id == cid)
@@ -115,13 +154,7 @@ def _delete_existing_kyrian(s: Session) -> None:
     for p in pedidos:
         # Pedido.lines cascade-deletes
         s.delete(p)
-
-    # Sales: scan all (FK on sale.customer_id)
-    sales = s.execute(
-        select(Sale).where(Sale.customer_id == cid)
-    ).scalars().all()
-    for sa in sales:
-        s.delete(sa)
+    s.flush()
 
     # Loyalty transactions
     lts = s.execute(
@@ -129,6 +162,7 @@ def _delete_existing_kyrian(s: Session) -> None:
     ).scalars().all()
     for lt in lts:
         s.delete(lt)
+    s.flush()
 
     # Suscripcion (RESTRICT FK — delete first)
     subs = s.execute(
@@ -136,6 +170,7 @@ def _delete_existing_kyrian(s: Session) -> None:
     ).scalars().all()
     for su in subs:
         s.delete(su)
+    s.flush()
 
     # Addresses cascade-delete from customer
     s.flush()
@@ -405,6 +440,9 @@ def seed_kyrian(s: Session) -> KyrianBundle:
                     channel=channel,
                     payment_method="transferencia",
                     discount_gs=0,
+                    # Migration 076 — back-pointer to the source pedido
+                    # so pedido.sales works symmetrically.
+                    linked_pedido_id=pedido.id,
                 )
                 s.add(sale)
                 s.flush()

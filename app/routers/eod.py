@@ -19,6 +19,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
@@ -196,6 +197,7 @@ def eod_view(
 def eod_check_save(
     request: Request,
     session: Session = Depends(get_session),
+    idempotency_key: str = Form(""),
     cash_count: str = Form(""),
     sales_reconciled: str = Form(""),
     low_stock_reviewed: str = Form(""),
@@ -213,10 +215,47 @@ def eod_check_save(
     Each item's "done" state is stored in app_meta so it survives a page
     reload. The notes_for_next textarea is also persisted (Text column on
     app_meta).
+
+    BACKLOG #9 — Idempotency: an optional ``idempotency_key`` form field
+    prevents the double-click problem (a fast click on "Guardar cierre"
+    used to write two audit rows + fire two backup checks). When the
+    template injects a per-render token (see eod.html), a duplicate
+    POST surfaces an IntegrityError on the ``eod_save_idem:<key>`` AppMeta
+    row and we redirect back to /eod with a "Cierre ya guardado" flash —
+    no second audit row, no second backup attempt. Without a key, we
+    fall back to the legacy upsert path (still safe but allows the
+    duplicate-audit behaviour for old templates in the wild).
     """
     from datetime import datetime, timezone
 
     from app.rms.models import AppMeta
+
+    # BACKLOG #9: idempotency. Reserve the AppMeta row before doing any
+    # work so a double-click from the cashier (form re-submitted before
+    # the 303 redirect lands) lands here as a no-op rather than a second
+    # audit + second backup attempt. Mirrors pedidos.py line ~1410
+    # pattern (close the F3 race window documented in
+    # SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md §F3).
+    idem_reserved = False
+    if idempotency_key:
+        try:
+            request_id_eod = getattr(request.state, "request_id", None) or ""
+            session.add(AppMeta(
+                key=f"eod_save_idem:{idempotency_key}",
+                value=__import__("json").dumps({
+                    "saved_at": datetime.now(timezone.utc).isoformat(),
+                    "request_id": request_id_eod,
+                }),
+                updated_at=datetime.now(timezone.utc).isoformat(),
+            ))
+            session.flush()  # surface IntegrityError without committing
+            idem_reserved = True
+        except IntegrityError:
+            session.rollback()
+            return RedirectResponse(
+                url="/eod?flash=cierre_duplicado",
+                status_code=303,
+            )
 
     today = datetime.now(ASUNCION_TZ).date().isoformat()
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -263,7 +302,10 @@ def eod_check_save(
         action="write.eod.checklist.save",
         target_type="eod",
         target_id=today,
-        detail={"items_done": items_done},
+        detail={
+            "items_done": items_done,
+            "idempotency_reserved": idem_reserved,
+        },
     )
 
     # P0 cerrar-puertas (B8 backup): when ALL EOD checklist items are done

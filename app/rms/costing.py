@@ -406,6 +406,10 @@ def apply_sale(
     packaging_item_id: int | None = None,
     packaging_qty: float | None = None,
     unit_price_gs_override: int | None = None,
+    # Migration 076 — back-pointer to the Pedido that produced this Sale.
+    # Set when apply_sale() is called from the /pedidos/{id}/fulfill flow
+    # so pedido.sales and sale.linked_pedido_id both populate symmetrically.
+    linked_pedido_id: int | None = None,
 ) -> ApplySaleResult:
     """Record a sale. Atomic. Drops theoretical stock.
 
@@ -474,6 +478,8 @@ def apply_sale(
         # cost report can attribute packaging consumption to the sale.
         packaging_item_id=packaging_item_id,
         packaging_qty=packaging_qty,
+        # Migration 076 — link sale back to its source pedido.
+        linked_pedido_id=linked_pedido_id,
     )
     session.add(sale)
     session.flush()  # assigns sale.id

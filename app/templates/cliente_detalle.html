@@ -243,6 +243,41 @@
       </div>
     </section>
 
+    {# BACKLOG #27 (2026-10-01): Sale.tz breakdown. Shows where this
+       customer usually shops (most-used tz first). Used for multi-
+       location migration planning and for fraud-spotting (sudden tz
+       change is a red flag). Cheap: derived from already-loaded
+       history, no extra query. #}
+    {% if tz_breakdown %}
+    <section class="card">
+      <h2 style="margin-top:0;">Zonas de compra</h2>
+      <p class="text-muted" style="font-size:var(--text-sm);margin-top:-0.5rem;">
+        Distribución de ventas por zona horaria (de las últimas compras registradas).
+      </p>
+      <table class="table is-narrow is-striped" style="font-size:var(--text-sm);">
+        <thead>
+          <tr>
+            <th>Zona</th>
+            <th class="num">Compras</th>
+            <th class="num">Total (Gs.)</th>
+            <th class="num">% compras</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set total_sales = tz_breakdown | sum(attribute='1.sales') %}
+          {% for tz, bucket in tz_breakdown %}
+          <tr>
+            <td><code>{{ tz }}</code></td>
+            <td class="num">{{ bucket.sales }}</td>
+            <td class="num">{{ "{:,}".format(bucket.total_gs) }}</td>
+            <td class="num">{{ "{:.0f}%".format((bucket.sales / total_sales * 100) if total_sales else 0) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+
     <section class="card">
       <h2 style="margin-top:0;">Historial de compras</h2>
       {% if history_view %}

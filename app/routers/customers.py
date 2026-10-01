@@ -796,6 +796,34 @@ def cliente_detail(
         customer.dietary_preferences,
         customer.dietary_confirm_always,
     )
+
+    # BACKLOG #27 (2026-10-01): Sale.tz is recorded but never queried.
+    # Expose a tz breakdown on the cliente detail so Saskia can answer
+    # "¿en qué zona compra más este cliente?" — useful when migrating to
+    # multi-location and for fraud-spotting (a customer suddenly shopping
+    # from a tz they never used before is a stolen-points red flag).
+    # Cheap to compute: iterate the already-loaded `history` (≤200 rows).
+    from typing import TypedDict
+
+    class TzBucket(TypedDict):
+        sales: int
+        total_gs: int
+
+    tz_breakdown: dict[str, TzBucket] = {}
+    for sale in history:
+        tz = (getattr(sale, "tz", None) or "America/Asuncion").strip() or "America/Asuncion"
+        bucket = tz_breakdown.setdefault(tz, TzBucket(sales=0, total_gs=0))
+        bucket["sales"] += 1
+        # unit_price_gs × qty — Sale.unit_price_gs is the line price at
+        # time of sale; for the cliente detail we use line total. If you
+        # need sale-grouped totals use the JOIN in app/rms/reports.py.
+        bucket["total_gs"] += int(getattr(sale, "unit_price_gs", 0) * float(getattr(sale, "qty", 0)))
+    # Stable order: most-used tz first
+    tz_breakdown_sorted = sorted(
+        tz_breakdown.items(),
+        key=lambda kv: (-kv[1]["sales"], kv[0]),
+    )
+
     return render(
         request,
         "cliente_detalle.html",
@@ -808,6 +836,7 @@ def cliente_detail(
             "dietary_profile": profile,
             "now_iso": datetime.now(timezone.utc).isoformat(),
             "last_days": last_days,
+            "tz_breakdown": tz_breakdown_sorted,
         },
     )
 

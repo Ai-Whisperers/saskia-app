@@ -92,7 +92,14 @@
 </div>
 
 <form method="post" action="/eod/check">
+  {# BACKLOG #9 (2026-10-01): per-render idempotency token injected by
+     the server. Browser double-click on "Guardar cierre" will re-POST
+     with the SAME key, which the router reserves as an AppMeta row
+     before doing work — so the 2nd click returns 303 + flash=cierre_duplicado
+     instead of writing a duplicate audit row + firing a duplicate backup.
+     Mirrors pedidos.py idempotency_key pattern (F3 race). #}
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="idempotency_key" value="{{ csrf_token }}">
   {{ ui.skeleton_section(id="eod-table", variant="line", count=8, label="Cargando cierre diario") }}
   <div data-loaded-section="eod-table">
   <table class="table is-hoverable">
