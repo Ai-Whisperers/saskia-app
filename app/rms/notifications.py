@@ -97,10 +97,36 @@ class NotifyResult:
 # Local spool dir for dry-run + audit trail
 SPOOL_DIR = Path("./notifications_spool")
 
+# Keep the spool bounded so dryruns don't fill the disk forever.
+# Each dryrun writes ~120 bytes; at 2x/hour that's ~70 KB/day.
+# 7 days retains a full audit week without growing unbounded.
+_SPOOL_RETENTION_DAYS = 7
+
+
+def _prune_spool(now: datetime | None = None) -> int:
+    """Drop dryrun-* files older than _SPOOL_RETENTION_DAYS. Best-effort."""
+    if not SPOOL_DIR.exists():
+        return 0
+    cutoff = (now or datetime.now(timezone.utc)).timestamp() - (
+        _SPOOL_RETENTION_DAYS * 86400
+    )
+    removed = 0
+    for f in SPOOL_DIR.glob("dryrun-*"):
+        try:
+            if f.stat().st_mtime < cutoff:
+                f.unlink()
+                removed += 1
+        except OSError:
+            pass
+    return removed
+
 
 def _spool_message(name: str, body: str) -> Path:
     """Write a delivery to local spool (audit; failure-isolation)."""
     SPOOL_DIR.mkdir(parents=True, exist_ok=True)
+    # Bound the spool on every write so an idle service doesn't accumulate.
+    # Cheap (~µs on small dirs) and keeps the audit-trail guarantee.
+    _prune_spool()
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     out = SPOOL_DIR / f"{name}-{ts}.txt"
     out.write_text(body, encoding="utf-8")
