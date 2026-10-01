@@ -212,6 +212,17 @@
           <td><small class="text-muted">{{ p.payment_method or '—' }}</small></td>
           <td class="num">{{ p.n_lines }}</td>
           <td class="num"><strong>{{ m.gs(p.total_gs) }}</strong></td>
+          {# Phase 14 (2026-10-01): ventana hint as a badge on the list
+             view so the cashier can see at a glance which pedidos need a
+             scheduled handoff vs ASAP. #}
+          <td class="ventana-col">
+            {% set vt = p.ventana_text or '' %}
+            {% if vt and vt != 'Lo antes posible' %}
+              <span class="badge badge-warn" title="Ventana preferida">{{ vt|truncate(28) }}</span>
+            {% elif vt == 'Lo antes posible' %}
+              <span class="badge badge-neutral">ASAP</span>
+            {% endif %}
+          </td>
           <td class="actions">
             <a href="/pedidos/{{ p.id }}" class="btn btn-sm">Ver</a>
             <a href="/pedidos/{{ p.id }}/fulfill" class="btn btn-sm btn-primary js-confirm"

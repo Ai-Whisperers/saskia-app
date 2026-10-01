@@ -268,6 +268,23 @@
       </div>
       {% if k.customer %}<div class="text-muted" style="font-size:var(--text-sm);">{{ k.customer }}</div>{% endif %}
       <div class="text-muted" style="font-size:var(--text-xs);">para {{ k.promised }}</div>
+      {# Phase 14 (2026-10-01): ventana + invoice + delivery hint on the
+         kitchen card. Helps prep staff pace ASAP vs scheduled deliveries. #}
+      {% if k.ventana_text %}
+      <div style="font-size:var(--text-xs);margin-top:var(--space-1);padding:var(--space-1) var(--space-2);background:var(--color-surface);border-radius:var(--radius);">
+        🕒 {{ k.ventana_text }}
+      </div>
+      {% endif %}
+      {% if k.address_text %}
+      <div class="text-muted" style="font-size:var(--text-xs);margin-top:var(--space-1);">
+        📍 {{ k.address_text|truncate(40) }}
+      </div>
+      {% endif %}
+      {% if k.invoice_ruc %}
+      <div class="text-muted" style="font-size:var(--text-xs);">
+        🧾 {{ k.invoice_ruc }}{% if k.invoice_name %} — {{ k.invoice_name|truncate(20) }}{% endif %}
+      </div>
+      {% endif %}
       {% if k.lines %}
       <ul style="margin:var(--space-2) 0 0;padding-left:1.1rem;font-size:var(--text-sm);">
         {% for ln in k.lines %}<li>{{ ln }}</li>{% endfor %}

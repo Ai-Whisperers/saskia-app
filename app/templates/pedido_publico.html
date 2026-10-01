@@ -41,6 +41,26 @@
         {% if pedido.promised_time %} a las {{ pedido.promised_time }}{% endif %}
       </strong>
     </div>
+    {# Phase 14 (2026-10-01): ventana preferida de entrega — visible to
+       the customer via the WhatsApp link so they know what to expect.
+       Wording is operator-neutral ("preferida") but it carries the
+       "(no es garantía)" suffix so the customer doesn't read this as
+       a hard SLA. #}
+    {% if pedido.ventana_text %}
+    <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
+      <span>Ventana preferida</span>
+      <span>{{ pedido.ventana_text }}</span>
+    </div>
+    {% endif %}
+    {# Phase 14 (2026-10-01): show the delivery address on the public
+       view too — useful for delivery pedidos. For pickup, the line is
+       blank and we skip rendering. #}
+    {% if pedido.address_text %}
+    <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
+      <span>Dirección de entrega</span>
+      <span style="text-align:right;max-width:60%;">{{ pedido.address_text }}</span>
+    </div>
+    {% endif %}
     <hr>
     <p style="font-weight: 600; margin-bottom: var(--space-2);">Tu pedido:</p>
     <ul style="list-style: none; padding: 0; margin: 0;">

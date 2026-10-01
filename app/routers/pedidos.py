@@ -245,14 +245,20 @@ def _parse_date_or_none(value: Any):
         return None
 
 
+from app.services.customer_address import (
+    ventana_text as _ventana_text_helper,
+)
+
+
 def _ventana_text_for(pedido_or_decorated) -> str:
     """Phase 13 (2026-10-01): render the preferred-arrival-window text
-    for the pedido detail page. Uses the helper from app.services.customer_address
-    so the wording is consistent across the receipt, the pedido detail,
-    and the customer detail.
+    for the pedido detail page. Uses the helper from
+    app.services.customer_address so the wording is consistent across
+    the receipt, the pedido detail, and the customer detail.
 
     Accepts both a Pedido ORM row and a decorated dict (the detail
-    handler passes the decorated version that already has string dates)."""
+    handler passes the decorated version that already has string dates).
+    """
     def g(k):
         # ORM-row style (attribute access) or dict-style (key access)
         try:
@@ -272,8 +278,7 @@ def _ventana_text_for(pedido_or_decorated) -> str:
         start = start.strftime("%H:%M")
     if end and hasattr(end, "strftime"):
         end = end.strftime("%H:%M")
-    from app.services.customer_address import ventana_text
-    return ventana_text(pref, start, end, scheduled)
+    return _ventana_text_helper(pref, start, end, scheduled)
 
 
 def _pedido_qty_total(p: Pedido) -> float:
@@ -319,6 +324,11 @@ def _decorate_pedido(p: Pedido, session: Session) -> dict:
         "channel_raw": p.channel,  # original DB value for CSV export
         "status": p.status,
         "payment_intent": p.payment_intent,
+        # Phase 14 (2026-10-01): template alias — `payment_method` is
+        # the human-readable name on the list view; `payment_intent` is
+        # the DB column. Both surface the same data so the cashier sees
+        # "efectivo" / "transferencia" without a snake_case mismatch.
+        "payment_method": p.payment_intent,
         "notes": p.notes,
         "cancel_reason": p.cancel_reason,
         "public_token": p.public_token,
@@ -357,6 +367,31 @@ def _decorate_pedido(p: Pedido, session: Session) -> dict:
         "address_text": p.address_text,
         "invoice_ruc": p.invoice_ruc,
         "invoice_name": p.invoice_name,
+        # Phase 14 (2026-10-01): ventana_text precomputed here (single
+        # source of truth — all templates read it). Lets the list view,
+        # board kanban, recibo, and pedido_publico share one render.
+        "ventana_text": _ventana_text_for(p),
+        # Phase 14 (2026-10-01): columns that the ORM has but the
+        # decorator previously dropped. The
+        # `test_decorate_pedido_exposes_all_orm_columns` regression test
+        # catches any drift here. These five are used by the
+        # detail/public/board/recibo flows but the helper used to forget
+        # them.
+        "delivery_zone_id": p.delivery_zone_id,
+        "payment_receipt_path": p.payment_receipt_path,
+        "payment_receipt_uploaded_at": (
+            p.payment_receipt_uploaded_at.isoformat()
+            if p.payment_receipt_uploaded_at
+            else None
+        ),
+        "public_token_expires_at": (
+            p.public_token_expires_at.isoformat()
+            if p.public_token_expires_at
+            else None
+        ),
+        "updated_at": (
+            p.updated_at.isoformat() if p.updated_at else None
+        ),
     }
 
 
@@ -520,14 +555,49 @@ def pedidos_board(
 
     # Kanban columns (redesign F5): group active pedidos by status
     def _kanban(col: object) -> list[dict]:
-        return [
-            {"id": p.id, "label": f"#{p.id}", "status": p.status,
-             "customer": p.customer.name if p.customer else None,
-             "promised": f"{p.promised_date} {p.promised_time or ''}".strip(),
-             "lines": [f"{ln.qty:g} × {(ln.product.name if ln.product else '#' + str(ln.product_id))}" for ln in (p.lines or [])][:6],
-             "created_at": p.created_at}
-            for p in pedidos if p.status == col
-        ]
+        from app.services.customer_address import ventana_text
+        rows = []
+        for p in pedidos:
+            if p.status != col:
+                continue
+            # Phase 14 (2026-10-01): ventana + structured address hint on
+            # the kitchen card so prep staff can see at a glance whether
+            # it's ASAP vs scheduled (affects pacing).
+            start = (
+                p.delivery_window_start.strftime("%H:%M")
+                if hasattr(p.delivery_window_start, "strftime")
+                else p.delivery_window_start
+            )
+            end = (
+                p.delivery_window_end.strftime("%H:%M")
+                if hasattr(p.delivery_window_end, "strftime")
+                else p.delivery_window_end
+            )
+            scheduled = (
+                p.delivery_scheduled_date.isoformat()
+                if hasattr(p.delivery_scheduled_date, "isoformat")
+                else p.delivery_scheduled_date
+            )
+            rows.append({
+                "id": p.id,
+                "label": f"#{p.id}",
+                "status": p.status,
+                "customer": p.customer.name if p.customer else None,
+                "promised": f"{p.promised_date} {p.promised_time or ''}".strip(),
+                "lines": [
+                    f"{ln.qty:g} × {(ln.product.name if ln.product else '#' + str(ln.product_id))}"
+                    for ln in (p.lines or [])
+                ][:6],
+                "created_at": p.created_at,
+                # Phase 14: ventana + invoice + address summary on the card
+                "ventana_text": ventana_text(
+                    p.delivery_preference, start, end, scheduled
+                ),
+                "address_text": p.address_text or "",
+                "invoice_ruc": p.invoice_ruc or "",
+                "invoice_name": p.invoice_name or "",
+            })
+        return rows
 
     return render(
         request,
