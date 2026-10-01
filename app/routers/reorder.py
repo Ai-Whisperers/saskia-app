@@ -463,15 +463,13 @@ async def reorder_upload_prices(
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
         )
 
-    # Read file body. Reject anything bigger than 1MB — a CSV with
+    # Read file body. Reject anything bigger than 2MB — a CSV with
     # thousands of rows is overkill for /reorder; this is meant for a
     # one-time spreadsheet paste.
+    from app.rms.upload_limits import CSV_LIMIT_2MB, CSV_MIME_TYPES, validate_upload
+
+    validate_upload(file, allowed_types=CSV_MIME_TYPES, max_size=CSV_LIMIT_2MB)
     raw = await file.read()
-    if len(raw) > 1_000_000:
-        raise HTTPException(
-            status_code=413,
-            detail="CSV demasiado grande (>1MB). Partilo en varios archivos.",
-        )
     try:
         text = raw.decode("utf-8-sig")  # tolerate BOM
     except UnicodeDecodeError:

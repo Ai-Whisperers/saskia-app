@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
@@ -479,35 +479,35 @@ async def sales_export_csv(
     rendering. UTF-8 BOM-prefixed so Excel opens it correctly in PY.
     """
     sales_q = _build_filtered_sales_query(q=q, product_id=product_id, days=days)
-    rows = session.scalars(sales_q).all()
+    sales = session.scalars(sales_q).all()
 
-    import csv
-    import io
+    def _row_stream():
+        from app.rms.streaming_csv import stream_csv_rows
 
-    buf = io.StringIO()
-    # UTF-8 BOM — Excel reads this as "UTF-8 with BOM" and renders accents.
-    buf.write("\ufeff")
-    writer = csv.writer(buf)
-    writer.writerow([
-        "fecha", "producto", "cantidad", "precio_unitario_gs",
-        "total_gs", "telefono_cliente", "forma_pago",
-        "anulada", "notas", "canal",
-    ])
-    for s in rows:
-        writer.writerow([
-            s.sold_at.strftime("%Y-%m-%d %H:%M"),
-            s.product.name if s.product else "(deleted)",
-            f"{s.qty:.2f}",
-            s.unit_price_gs,
-            to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))),
-            s.customer.phone if s.customer else "",
-            s.payment_method or "",
-            "sí" if s.voided_at else "no",
-            s.notes or "",
-            s.channel or "mostrador",
-        ])
-    return Response(
-        content=buf.getvalue(),
+        header = [
+            "fecha", "producto", "cantidad", "precio_unitario_gs",
+            "total_gs", "telefono_cliente", "forma_pago",
+            "anulada", "notas", "canal",
+        ]
+        def _iter():
+            for s in sales:
+                yield [
+                    s.sold_at.strftime("%Y-%m-%d %H:%M"),
+                    s.product.name if s.product else "(deleted)",
+                    f"{s.qty:.2f}",
+                    s.unit_price_gs,
+                    to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))),
+                    s.customer.phone if s.customer else "",
+                    s.payment_method or "",
+                    "sí" if s.voided_at else "no",
+                    s.notes or "",
+                    s.channel or "mostrador",
+                ]
+        # BOM=True: Excel-PY requires it (CSV without BOM shows accents wrong).
+        return stream_csv_rows(header, _iter(), bom=True)
+
+    return StreamingResponse(
+        _row_stream(),
         media_type="text/csv; charset=utf-8",
         headers={
             "Content-Disposition": 'attachment; filename="ventas.csv"',

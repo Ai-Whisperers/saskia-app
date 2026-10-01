@@ -10,7 +10,7 @@ only handles single values.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -1232,54 +1232,54 @@ def recipe_families_api(
 def recipes_export_csv(
     request: Request,
     session: Session = Depends(get_session),
-) -> Response:
-    """Export all recipes as a CSV download."""
-    import csv
+) -> StreamingResponse:
+    """Export all recipes as a CSV download (streaming)."""
     from datetime import datetime, timezone
-    from io import StringIO
 
-    from starlette.responses import Response
+    from app.rms.streaming_csv import stream_csv_rows
+    from starlette.responses import StreamingResponse
 
     recipes = session.scalars(select(Recipe).order_by(Recipe.name)).all()
-    output = StringIO()
-    writer = csv.writer(output)
-    writer.writerow([
-        "id", "name", "family", "difficulty",
-        "yield_qty", "yield_unit",
-        "prep_minutes", "cook_minutes",
-        "line_count", "batch_cost_gs", "unit_cost_gs",
-        "tags", "notes",
-    ])
 
-    from app.rms.costing import recipe_batch_cost_gs, recipe_unit_cost_gs
-    from app.rms.models_legacy import RecipeLine
+    def _iter():
+        from app.rms.costing import recipe_batch_cost_gs, recipe_unit_cost_gs
+        from app.rms.models_legacy import RecipeLine
 
-    for r in recipes:
-        batch = recipe_batch_cost_gs(session, r.id)
-        unit = recipe_unit_cost_gs(session, r.id)
-        line_count = session.scalar(
-            select(func.count(RecipeLine.id)).where(RecipeLine.recipe_id == r.id)
-        ) or 0
-        writer.writerow([
-            r.id,
-            r.name,
-            r.family or "",
-            r.difficulty or "",
-            r.yield_qty or "",
-            r.yield_unit,
-            r.prep_minutes or "",
-            r.cook_minutes or "",
-            line_count,
-            batch.batch_cost_gs if batch.batch_cost_gs is not None else "",
-            unit.batch_cost_gs if unit.batch_cost_gs is not None else "",
-            r.dietary_tags or "",
-            r.notes or "",
-        ])
+        for r in recipes:
+            batch = recipe_batch_cost_gs(session, r.id)
+            unit = recipe_unit_cost_gs(session, r.id)
+            line_count = session.scalar(
+                select(func.count(RecipeLine.id)).where(RecipeLine.recipe_id == r.id)
+            ) or 0
+            yield [
+                r.id,
+                r.name,
+                r.family or "",
+                r.difficulty or "",
+                r.yield_qty or "",
+                r.yield_unit,
+                r.prep_minutes or "",
+                r.cook_minutes or "",
+                line_count,
+                batch.batch_cost_gs if batch.batch_cost_gs is not None else "",
+                unit.batch_cost_gs if unit.batch_cost_gs is not None else "",
+                r.dietary_tags or "",
+                r.notes or "",
+            ]
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    return Response(
-        content=output.getvalue(),
-        media_type="text/csv",
+    return StreamingResponse(
+        stream_csv_rows(
+            [
+                "id", "name", "family", "difficulty",
+                "yield_qty", "yield_unit",
+                "prep_minutes", "cook_minutes",
+                "line_count", "batch_cost_gs", "unit_cost_gs",
+                "tags", "notes",
+            ],
+            _iter(),
+        ),
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename=rms-recetas-{timestamp}.csv"},
     )
 

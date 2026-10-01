@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, Query, Request, Response
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -157,36 +157,39 @@ def ingredients_api_search(
 def inventory_export_csv(
     request: Request,
     session: Session = Depends(get_session),
-) -> Response:
-    """Export all ingredients as a CSV download."""
+) -> StreamingResponse:
+    """Export all ingredients as a CSV download (streaming)."""
+    from app.rms.streaming_csv import stream_csv_rows
+
     ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
 
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow([
-        "id", "name", "unit", "category", "stock_qty", "min_stock_qty",
-        "purchase_price_gs", "opening_stock_qty", "opening_stock_date",
-        "reorder_point", "notes",
-    ])
-    for i in ingredients:
-        writer.writerow([
-            i.id,
-            i.name,
-            i.unit,
-            i.category or "",
-            i.stock_qty,
-            i.min_stock_qty,
-            i.purchase_price_gs or "",
-            i.opening_stock_qty or "",
-            i.opening_stock_date or "",
-            i.reorder_point or "",
-            i.notes or "",
-        ])
+    def _iter():
+        for i in ingredients:
+            yield [
+                i.id,
+                i.name,
+                i.unit,
+                i.category or "",
+                i.stock_qty,
+                i.min_stock_qty,
+                i.purchase_price_gs or "",
+                i.opening_stock_qty or "",
+                i.opening_stock_date or "",
+                i.reorder_point or "",
+                i.notes or "",
+            ]
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    return Response(
-        content=output.getvalue(),
-        media_type="text/csv",
+    return StreamingResponse(
+        stream_csv_rows(
+            [
+                "id", "name", "unit", "category", "stock_qty", "min_stock_qty",
+                "purchase_price_gs", "opening_stock_qty", "opening_stock_date",
+                "reorder_point", "notes",
+            ],
+            _iter(),
+        ),
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename=rms-inventory-{timestamp}.csv"},
     )
 

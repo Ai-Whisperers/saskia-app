@@ -190,6 +190,27 @@ def save_business_settings(
     ci.labor_cost_per_hour_gs = labor
     ci.overhead_multiplier_pct = overhead
 
+    # Phase 14 (mid-tier): audit business settings change. 20+ fields
+    # touch RUC, timbrado, INAN, Director Técnico — losing these to a
+    # silent overwrite would hurt. The audit row carries the full
+    # business_name + RUC as identifiers so the auditor can grep for
+    # a specific bakery later.
+    from app.auth import current_user_id as _current_user_id
+    from app.rms.audit import record as _audit_record
+
+    _audit_record(
+        session,
+        user_id=_current_user_id(request),
+        action="settings.business.change",
+        detail={
+            "business_name": business_name,
+            "business_ruc": business_ruc,
+            "razon_social": razon_social,
+            "inan_re_number": re_number,
+            "timbrado_number": timbrado_number,
+        },
+    )
+
     session.commit()
     return RedirectResponse(url="/settings?flash=Información+guardada", status_code=303)
 
@@ -272,6 +293,7 @@ def save_theme_settings(
 
 @router.post("/seed-demo", response_class=RedirectResponse)
 def settings_seed_demo(
+    request: Request,
     overwrite: str = Form("0"),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
@@ -298,6 +320,20 @@ def settings_seed_demo(
         )
 
     inserted = report.as_dict() if hasattr(report, "as_dict") else {}
+    # Phase 14 (mid-tier): audit demo-data seeding. Overwrite mode wipes
+    # existing rows, so the auditor MUST see who did it and when — this
+    # is the closest thing the app has to a destructive op.
+    from app.auth import current_user_id as _current_user_id
+    from app.rms.audit import record as _audit_record
+
+    _audit_record(
+        session,
+        user_id=_current_user_id(request),
+        action="settings.seed_demo",
+        target_type="app_meta",
+        detail={"overwrite": do_overwrite, "inserted": inserted},
+    )
+    session.commit()
     msg = (f"Datos de ejemplo cargados: "
            f"{inserted.get('ingredients', '?')} ingredientes, "
            f"{inserted.get('recipes', '?')} recetas, "

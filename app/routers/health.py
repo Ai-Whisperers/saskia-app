@@ -231,8 +231,20 @@ def healthz_db(request: Request) -> JSONResponse:
             # the difference between "DB down" and "audit table missing".
             payload["db"] = "ok_no_metadata"
             payload["metadata_error"] = str(inner_exc)
+            # Phase 14: still mark DB-up for /metrics even when metadata
+            # queries fail (the engine is reachable, that's what matters).
+            from app.rms.metrics import set_db_up as _set_db_up
+
+            _set_db_up(True)
+        # Happy path: DB is fully healthy — mark the gauge for /metrics.
+        from app.rms.metrics import set_db_up as _set_db_up
+
+        _set_db_up(True)
         return payload
     except Exception as exc:  # noqa: BLE001 — defensive default
+        from app.rms.metrics import set_db_up as _set_db_up
+
+        _set_db_up(False)
         return JSONResponse({"db": "error", "detail": str(exc)}, status_code=503)
 
 

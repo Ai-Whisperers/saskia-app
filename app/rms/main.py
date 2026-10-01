@@ -473,6 +473,37 @@ class HealthCacheMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(HealthCacheMiddleware)
 
+
+# Phase 14 — Prometheus /metrics middleware. Stdlib-only so we don't add
+# starlette_exporter as a dep. Records request count + latency for every
+# route, plus a DB-up gauge updated on each /healthz/db hit.
+class MetricsMiddleware(BaseHTTPMiddleware):
+    """Increment request counters and the latency histogram on every response."""
+
+    async def dispatch(self, request: Request, call_next: object) -> Response:
+        from time import perf_counter
+
+        from app.rms.metrics import record_request
+
+        start = perf_counter()
+        try:
+            response = await call_next(request)
+        except Exception:
+            duration = perf_counter() - start
+            record_request(request.url.path, request.method, 500, duration)
+            raise
+        duration = perf_counter() - start
+        record_request(
+            request.url.path,
+            request.method,
+            response.status_code,
+            duration,
+        )
+        return response
+
+
+app.add_middleware(MetricsMiddleware)
+
 # Security headers middleware: defense-in-depth HTTP response headers
 # (X-Frame-Options, CSP, HSTS, etc.). Registered BEFORE SessionMiddleware
 # so it runs OUTERMOST and its headers are guaranteed on every response.
@@ -669,6 +700,24 @@ if os.getenv("AIW_SASKIA_INTERNAL_ROUTES", "1") != "0":
     app.include_router(ops.router)
 app.include_router(settings.router)
 app.include_router(settings_runtime.router)
+
+
+# Phase 14 — Prometheus /metrics endpoint. Stdlib-only, no auth (the
+# endpoint reveals paths + status codes but no PII. If you want it
+# locked down, put it behind the same CF Tunnel that already protects
+# the rest of /saskia-vps).
+@app.get("/metrics", include_in_schema=False)
+def metrics_endpoint() -> Response:
+    from fastapi.responses import PlainTextResponse
+
+    from app.rms.config import CURRENT_SCHEMA_VERSION
+    from app.rms.metrics import render, set_app_info
+
+    set_app_info(version="1.0", schema_version=CURRENT_SCHEMA_VERSION)
+    return PlainTextResponse(
+        render(),
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+    )
 
 
 # Spanish-language alias: /proveedores → /suppliers

@@ -7,12 +7,13 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
 from app.rms.audit import list_recent, prune_audit_log, search_by_target
 from app.rms.dependencies import get_session
+from app.rms.streaming_csv import stream_csv_rows
 from app.services.template_render import render
 
 router = APIRouter(prefix="/auditoria", dependencies=[Depends(require_login)])
@@ -188,28 +189,24 @@ def auditoria_export_csv(
             continue
         filtered.append(r)
 
-    buf = _io.StringIO()
-    writer = csv.writer(buf)
-    writer.writerow(
-        ["id", "timestamp", "user_id", "action", "target_type", "target_id", "ip", "user_agent_short"]
-    )
-    for r in filtered:
-        writer.writerow(
-            [
-                r.id,
-                r.timestamp.isoformat() if r.timestamp else "",
-                r.user_id or "",
-                r.action or "",
-                r.target_type or "",
-                r.target_id or "",
-                r.ip or "",
-                (r.user_agent or "")[:80],
-            ]
-        )
-
     filename = f"auditoria_{datetime.now(timezone.utc).date().isoformat()}.csv"
-    return Response(
-        content=buf.getvalue(),
+    return StreamingResponse(
+        stream_csv_rows(
+            ["id", "timestamp", "user_id", "action", "target_type", "target_id", "ip", "user_agent_short"],
+            (
+                [
+                    r.id,
+                    r.timestamp.isoformat() if r.timestamp else "",
+                    r.user_id or "",
+                    r.action or "",
+                    r.target_type or "",
+                    r.target_id or "",
+                    r.ip or "",
+                    (r.user_agent or "")[:80],
+                ]
+                for r in filtered
+            ),
+        ),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

@@ -62,7 +62,7 @@ packages = ["app"]
 
 # Pytest config
 [tool.pytest.ini_options]
-addopts = "-v --tb=short -p no:randomly --cov=app --cov-report=term-missing --cov-fail-under=30"
+addopts = "-v --tb=short -p no:randomly --cov=app --cov-report=term-missing --cov-fail-under=40"
 testpaths = ["tests"]
 pythonpath = ["."]
 markers = [

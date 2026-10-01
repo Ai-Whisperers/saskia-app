@@ -866,6 +866,12 @@ async def evidencia_importar(
 
     if not isinstance(raw, UploadFile):
         raise BadRequest("Adjuntá un archivo CSV")
+    from app.rms.upload_limits import CSV_LIMIT_2MB, CSV_MIME_TYPES, validate_upload
+
+    try:
+        validate_upload(raw, allowed_types=CSV_MIME_TYPES, max_size=CSV_LIMIT_2MB)
+    except HTTPException as exc:
+        raise BadRequest(exc.detail) from None
     content = (await raw.read()).decode("utf-8-sig", errors="replace")
     reader = csv.DictReader(io.StringIO(content))
     required = {"competidor", "producto", "unidad", "precio_gs", "as_of"}
