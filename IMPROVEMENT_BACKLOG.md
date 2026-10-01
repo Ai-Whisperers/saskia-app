@@ -23,7 +23,7 @@ the code, and operator-ranked. Status is the latest known state.
 |---|---|---|---|
 | 7 | `void_sale` → all money math must use Decimal (12 sites swept this turn; flag for future audits) | ✅ Done 5ce2885 | — |
 | 8 | `pedidos_fulfill` idempotency (double-click → double sale + double stock drop) | ✅ Done 5ce2885 | — |
-| 9 | No idempotency on `/eod/check` (double-click submits two checklists) | ❌ TODO | S |
+| 9 | No idempotency on `/eod/check` (double-click submits two checklists) | ✅ Done 2026-09-29 (F3 race + AppMeta unique-key reserve in `app/routers/eod.py`) | — |
 | 10 | Rate-limit on reads (`/ventas/export.csv` can be scraped 1000×/min, cheap DoS) | ❌ TODO | S |
 | 11 | Sentry / error tracking (when /ventas 500s, neither Ivan nor Saskia sees the trace) | ❌ TODO | S |
 | 12 | Forward-only migrations — no rollback path (manual write required if 027 breaks) | ❌ TODO | L |
