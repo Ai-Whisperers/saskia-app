@@ -5,7 +5,7 @@
 
 **URL activa:** `https://saskia-vps.paragu-ai.com`  *(si ves "service suspended", contactá al equipo — esa URL no es la correcta)*
 **URL alternativa (suspendida):** `https://saskia-rms.paragu-ai.com` — Render, NO usar
-**Versión del manual:** 2026-10-01 · schema 83 · commit `<HEAD>` · 17 secciones
+**Versión del manual:** 2026-10-01 · schema 84 · commit `2536691` · 17 secciones
 **Manual versión:** v1.1 (ver "Cómo verificar la versión" abajo)
 
 ## Índice rápido
@@ -85,7 +85,7 @@ Excel             → importar/exportar planilla
 
 ## Lo que podés hacer — y lo que todavía no
 
-**Versión:** schema 83 · commit `<HEAD>` · 2026-10-01
+**Versión:** schema 84 · commit `2536691` · 2026-10-01
 
 ### ✅ Funcionalidades activas (lista cerrada)
 
@@ -143,7 +143,7 @@ Tres formas:
 |---|---|---|
 | En el navegador | Pie de página de cualquier pantalla | "Saskia RMS v1.0 · Sistema local · 2026" |
 | Al iniciar sesión | Header `X-Agent` en respuesta `/login` | `SaskiaRMS/1.0` |
-| En este manual | El número "v1.x" arriba | Dice `2026-10-01 · schema 83 · commit 0c7f2ee` |
+| En este manual | El número "v1.x" arriba | Dice `2026-10-01 · schema 84 · commit 2536691` |
 
 Si los tres no coinciden, **el manual está desactualizado** — avisá a Iván para que lo actualice.
 
