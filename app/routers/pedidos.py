@@ -54,6 +54,12 @@ from app.services.template_render import render
 # Phase 3: customer-prefill service for /pedidos/nuevo
 from app.services.customer_prefill import customer_defaults_as_json
 
+# Phase 4: timeline + customer history for the detail page
+from app.services.pedido_history import (
+    build_pedido_timeline,
+    customer_recent_pedidos,
+)
+
 router = APIRouter(prefix="/pedidos", dependencies=[Depends(require_login)])
 
 # Public router for /p/{token} — no auth. We use a dedicated, prefix-less
@@ -1286,6 +1292,18 @@ def pedidos_detail(
         for ln in pedido.lines
     ]
     decorated["spend_30d_gs"] = spend_30d
+
+    # Phase 4: build the timeline + customer pedido history
+    timeline = build_pedido_timeline(session, pedido)
+    decorated["timeline"] = [ev.to_dict() for ev in timeline]
+    if pedido.customer_id:
+        recent = customer_recent_pedidos(
+            session, pedido.customer_id, limit=8, exclude_pedido_id=pedido.id
+        )
+        decorated["recent_pedidos"] = [s.to_dict() for s in recent]
+    else:
+        decorated["recent_pedidos"] = []
+
     return render(
         request,
         "pedido_detalle.html",

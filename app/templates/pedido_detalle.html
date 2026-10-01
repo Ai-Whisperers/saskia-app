@@ -26,6 +26,16 @@
       <br><small class="text-muted" title="Compras últimos 30 días">Últ. 30d: {{ m.gs(pedido.spend_30d_gs) }}</small>
       {% endif %}
     </p>
+    {# Phase 4: "Pedir de nuevo" CTA — opens /pedidos/nuevo with this pedido
+       preselected so the form auto-fills from the customer's history AND
+       clones this pedido's lines. Operators don't have to re-pick anything. #}
+    {% if pedido.customer_id %}
+    <a href="/pedidos/nuevo?customer_id={{ pedido.customer_id }}&from={{ pedido.id }}"
+       class="btn btn-primary btn-sm">
+      <svg class="icon" aria-hidden="true"><use href="#icon-copy"/></svg>
+      Pedir de nuevo
+    </a>
+    {% endif %}
   </div>
   <div class="card">
     <h2>Prometido</h2>
@@ -114,6 +124,86 @@
     Vista previa
   </a>
 </div>
+
+{# Phase 4: timeline + customer pedido history #}
+{% if pedido.timeline %}
+<div class="card mb-4">
+  <h2>
+    <svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg>
+    Historial
+  </h2>
+  <ol class="timeline" style="list-style:none;padding-left:0;margin:0;">
+    {% for ev in pedido.timeline %}
+    <li class="timeline-item"
+        style="display:flex;gap:var(--space-3);padding:var(--space-2) 0;border-left:2px solid var(--color-border, #ddd);padding-left:var(--space-3);margin-left:var(--space-2);">
+      <span class="badge
+        {% if ev.kind == 'created' %}badge-info
+        {% elif ev.kind == 'status' %}badge-neutral
+        {% elif ev.kind == 'fulfilled' %}badge-good
+        {% elif ev.kind == 'loyalty' %}badge-warn
+        {% elif ev.kind == 'cancelled' %}badge-danger
+        {% else %}badge-neutral{% endif %}"
+        style="min-width:7em;text-align:center;">
+        {{ ev.kind }}
+      </span>
+      <div style="flex:1;">
+        <div>
+          <strong>{{ ev.label }}</strong>
+          {% if ev.detail %}<small class="text-muted"> — {{ ev.detail }}</small>{% endif %}
+        </div>
+        <small class="text-muted">
+          {{ ev.when[:19] | replace('T', ' ') if ev.when else '—' }}
+          {% if ev.actor %} · por {{ ev.actor }}{% endif %}
+        </small>
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+</div>
+{% endif %}
+
+{% if pedido.recent_pedidos %}
+<div class="card mb-4">
+  <h2>
+    <svg class="icon" aria-hidden="true"><use href="#icon-list"/></svg>
+    Otros pedidos de este cliente
+  </h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Prometido</th>
+        <th>Estado</th>
+        <th class="num">Ítems</th>
+        <th class="num">Total</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rp in pedido.recent_pedidos %}
+      <tr>
+        <td>#{{ rp.id }}</td>
+        <td>{{ rp.promised_date[8:10] }}/{{ rp.promised_date[5:7] }}/{{ rp.promised_date[0:4] }} if rp.promised_date else "—"</td>
+        <td>
+          {% if rp.status == "pending" %}<span class="badge badge-warn">Pendiente</span>
+          {% elif rp.status == "confirmed" %}<span class="badge badge-info">Confirmado</span>
+          {% elif rp.status == "ready" %}<span class="badge badge-info">Listo</span>
+          {% elif rp.status == "fulfilled" %}<span class="badge badge-good">Entregado</span>
+          {% elif rp.status == "cancelled" %}<span class="badge badge-neutral">Cancelado</span>
+          {% endif %}
+        </td>
+        <td class="num">{{ rp.line_count }}</td>
+        <td class="num">{{ m.gs(rp.total_gs) }}</td>
+        <td>
+          <a href="/pedidos/{{ rp.id }}" class="btn btn-sm">Ver</a>
+          <a href="/pedidos/nuevo?customer_id={{ pedido.customer_id }}&from={{ rp.id }}" class="btn btn-sm btn-ghost">Repetir</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
 
 <div class="card mb-4">
   <h2>
