@@ -270,10 +270,21 @@
     </div>
     {% if regulars %}
       {% for r in regulars %}
-      <a class="regular-row" href="/clientes/{{ r.id }}">
-        <span class="regular-name">{{ r.name or '(sin nombre)' }}</span>
-        <span class="regular-visits">{{ r.n_visits }} visita{{ 's' if r.n_visits != 1 }} · {{ m.gs(r.lifetime_spend_gs) }}</span>
-      </a>
+      <div class="regular-row" style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);padding:var(--space-2) 0;border-bottom:1px solid var(--color-border, #eee);">
+        <a href="/clientes/{{ r.id }}" style="flex:1;color:inherit;text-decoration:none;">
+          <span class="regular-name"><strong>{{ r.name or '(sin nombre)' }}</strong></span><br>
+          <span class="regular-visits" style="font-size:var(--text-sm);color:var(--color-text-muted);">{{ r.n_visits }} visita{{ 's' if r.n_visits != 1 }} · {{ m.gs(r.lifetime_spend_gs) }}</span>
+        </a>
+        {# Phase 10: one-click "Pedir de nuevo" shortcut — sends the
+           operator to /pedidos/nuevo with the customer preselected AND
+           the most-recent pedido's lines cloned (the same auto-fill
+           pipeline phase 4 already supports). #}
+        <a href="/pedidos/nuevo?customer_id={{ r.id }}"
+           class="btn btn-sm"
+           title="Crear pedido nuevo para {{ r.name }}">
+          + Pedido
+        </a>
+      </div>
       {% endfor %}
       {% if regulars_count_total > regulars|length %}
       <div style="margin-top:var(--space-2);font-size:var(--text-xs);">
