@@ -68,7 +68,7 @@ BACKUP_THRESHOLD_HOURS = int(os.getenv("AIW_SASKIA_BACKUP_HOURS", "24"))
 KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_SASKIA_KEEP_LOCAL_DAYS", "30"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 74  # 074 = loyalty_transaction ledger (earn/redeem/void_reversal/manual_adjust)
+CURRENT_SCHEMA_VERSION = 75  # 075 = suggestion_applied in loyalty_transaction reason list (Tier 3.2)
 
 
 def ensure_dirs() -> None:

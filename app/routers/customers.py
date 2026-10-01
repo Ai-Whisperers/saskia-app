@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Path, Query, Request, status
+from fastapi import APIRouter, Body, Depends, Form, HTTPException, Path, Query, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -692,7 +692,56 @@ def customer_detail_api(
     except Exception:
         # OPSEC: log only the customer_id, never the name/phone/email.
         logger.exception("customer_detail_api failed for customer_id=%s", customer_id)
-        return JSONResponse({"error": "internal_error"}, status_code=500)
+        return JSONResponse({"error": "internal"}, status_code=500)
+
+
+@router.post("/api/{customer_id}/suggestion-applied", response_class=JSONResponse)
+def log_suggestion_applied(
+    customer_id: int = Path(..., ge=1),
+    payload: dict = Body(default_factory=dict),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Tier 3.2 (2026-10-01): append-only log of suggestion clicks.
+
+    Fires when the cashier taps a suggestion card on /ventas/nueva.
+    Writes a ``LoyaltyTransaction(reason='suggestion_applied')`` row
+    tied to the customer (no sale_id yet — the suggestion is just a
+    pre-fill, the actual sale comes later if they confirm). Carries
+    the suggestion ``kind`` and ``discount_pct`` in the ``notes``
+    field for later analytics.
+
+    Returns 204 No Content on success. 404 if the customer doesn't
+    exist (would mean a stale picker; we don't crash on it).
+
+    This endpoint is fire-and-forget from the JS — failure here
+    should NEVER block the actual applySuggestion() UX.
+    """
+    try:
+        cust = session.get(Customer, customer_id)
+        if cust is None:
+            return JSONResponse({"error": "not_found"}, status_code=404)
+        kind = (payload or {}).get("kind", "unknown")
+        pct = (payload or {}).get("discount_pct")
+        from app.rms.customers import _record_ledger
+        from app.rms.db import safe_commit as _safe_commit
+        _record_ledger(
+            session,
+            cust,
+            delta=0,
+            reason="suggestion_applied",
+            sale_id=None,
+            actor=str((payload or {}).get("actor") or "operator"),
+            notes=f"kind={kind} pct={pct}",
+        )
+        _safe_commit(session)
+        # 204 No Content — JS doesn't need the response body
+        return JSONResponse({"ok": True}, status_code=200)
+    except Exception:
+        logger.exception(
+            "log_suggestion_applied failed for customer_id=%s", customer_id
+        )
+        # Swallow — caller doesn't care
+        return JSONResponse({"error": "internal"}, status_code=500)
 
 
 @router.get("/{customer_id}", response_class=HTMLResponse)

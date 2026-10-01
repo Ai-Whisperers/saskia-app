@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 from loguru import logger
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
@@ -609,6 +609,57 @@ async def dashboard(
         "medium" if _forecast_products_count >= 2 else "low"
     )
 
+    # Tier 3.1 (2026-10-01): enrollment KPI. Two numbers:
+    #   enrollment_pct_today: % of today's sales that had a customer attached.
+    #   enrollment_pct_prior: same for the prior period (so the delta is real).
+    # One window-aligned query each. Both cheap.
+    enrollment_today_q = session.execute(
+        select(
+            func.count(Sale.id).label("total"),
+            func.sum(
+                case(
+                    (Sale.customer_id.isnot(None), 1),
+                    else_=0,
+                )
+            ).label("with_customer"),
+        ).where(
+            Sale.sold_at >= range_start,
+            Sale.sold_at < range_end,
+            Sale.voided_at.is_(None),
+        )
+    ).one()
+    total_today = int(enrollment_today_q.total or 0)
+    with_today = int(enrollment_today_q.with_customer or 0)
+    enrollment_pct_today = (
+        round((with_today / total_today) * 100, 1) if total_today > 0 else None
+    )
+
+    enrollment_prior_q = session.execute(
+        select(
+            func.count(Sale.id).label("total"),
+            func.sum(
+                case(
+                    (Sale.customer_id.isnot(None), 1),
+                    else_=0,
+                )
+            ).label("with_customer"),
+        ).where(
+            Sale.sold_at >= prior_start,
+            Sale.sold_at < prior_end,
+            Sale.voided_at.is_(None),
+        )
+    ).one()
+    total_prior = int(enrollment_prior_q.total or 0)
+    with_prior = int(enrollment_prior_q.with_customer or 0)
+    enrollment_pct_prior = (
+        round((with_prior / total_prior) * 100, 1) if total_prior > 0 else None
+    )
+
+    if enrollment_pct_today is not None and enrollment_pct_prior is not None:
+        enrollment_delta_pp = round(enrollment_pct_today - enrollment_pct_prior, 1)
+    else:
+        enrollment_delta_pp = None
+
     return render(
         request,
         "inicio.html",
@@ -668,6 +719,15 @@ async def dashboard(
             "forecast_products_count": _forecast_products_count,
             "forecast_top": _forecast_top,
             "forecast_confidence": _forecast_confidence,
+            # Tier 3.1 (2026-10-01): enrollment KPI card on /inicio.
+            # Percentage of sales in the current window that had a
+            # customer attached (i.e., loyalty earn fires). Delta is
+            # percentage-point vs the prior period.
+            "enrollment_pct_today": enrollment_pct_today,
+            "enrollment_pct_prior": enrollment_pct_prior,
+            "enrollment_delta_pp": enrollment_delta_pp,
+            "enrollment_total_today": total_today,
+            "enrollment_with_today": with_today,
             "recipes_no_cost": recipes_no_cost,
             "sales_no_recipe": sales_no_recipe_decor,
             # E8: operational analytics surfaces

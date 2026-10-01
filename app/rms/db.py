@@ -3201,6 +3201,91 @@ def _migration_074_loyalty_transaction_ledger(conn: Any) -> None:
     _bump_schema_version(conn, 74)
 
 
+def _migration_075_suggestion_event_log(conn: Any) -> None:
+    """Tier 3.2 (2026-10-01): extend loyalty_transaction to log suggestion clicks.
+
+    The /clientes/api/{id}/suggestion-applied endpoint writes a
+    loyalty_transaction row when the cashier taps a suggestion
+    card. This row carries NO balance change (delta=0) — it's a
+    pure event log row used for analytics on suggestion adoption.
+
+    This migration drops the original two CHECK constraints
+    (ck_loyalty_reason, ck_loyalty_delta_nonzero) and replaces them
+    with looser versions:
+      - reason IN (..., 'suggestion_applied')
+      - delta can be 0 (used only by suggestion_applied; all other
+        reasons still write non-zero)
+
+    Idempotent: each step is wrapped in try/except so re-runs on a
+    partially-applied DB no-op cleanly. SQLite doesn't support
+    ``ALTER TABLE DROP CONSTRAINT`` so the trick is to recreate
+    the table without the constraint and copy data across.
+
+    For non-SQLite dialects (production Postgres) the same effect
+    is achieved by ALTER TABLE DROP CONSTRAINT then ADD CONSTRAINT
+    — see the dialect branch below.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+
+    if dialect == "sqlite":
+        # SQLite: rebuild the table. This loses nothing because the
+        # ledger is append-only and the data being rebuilt is the
+        # data we already have on disk.
+        for stmt in (
+            # 1. Rename old table aside.
+            "ALTER TABLE loyalty_transaction RENAME TO loyalty_transaction_old_075",
+            # 2. Recreate with the new constraints.
+            """CREATE TABLE loyalty_transaction (
+                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                customer_id INTEGER NOT NULL REFERENCES customer(id) ON DELETE CASCADE,
+                delta INTEGER NOT NULL,
+                reason VARCHAR(24) NOT NULL,
+                sale_id INTEGER REFERENCES sale(id) ON DELETE SET NULL,
+                actor VARCHAR(32) NOT NULL DEFAULT 'system',
+                notes TEXT,
+                recorded_at DATETIME NOT NULL,
+                CONSTRAINT ck_loyalty_reason_v2 CHECK (
+                    reason IN ('earn_sale','redeem','void_reversal','manual_adjust','suggestion_applied')
+                )
+            )""",
+            # 3. Copy rows across.
+            """INSERT INTO loyalty_transaction
+                (id, customer_id, delta, reason, sale_id, actor, notes, recorded_at)
+                SELECT id, customer_id, delta, reason, sale_id, actor, notes, recorded_at
+                FROM loyalty_transaction_old_075""",
+            # 4. Drop the old table.
+            "DROP TABLE loyalty_transaction_old_075",
+            # 5. Re-create indexes.
+            "CREATE INDEX IF NOT EXISTS ix_loyalty_transaction_customer_id ON loyalty_transaction (customer_id)",
+            "CREATE INDEX IF NOT EXISTS ix_loyalty_transaction_recorded_at ON loyalty_transaction (recorded_at)",
+            "CREATE INDEX IF NOT EXISTS ix_loyalty_customer_time ON loyalty_transaction (customer_id, recorded_at)",
+        ):
+            try:
+                conn.execute(text(stmt))
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("migration 075 stmt skipped: %s — %s", stmt[:60], exc)
+    else:
+        # Postgres / generic: just drop and re-add the constraint.
+        try:
+            conn.execute(text(
+                "ALTER TABLE loyalty_transaction DROP CONSTRAINT IF EXISTS ck_loyalty_reason"
+            ))
+            conn.execute(text(
+                "ALTER TABLE loyalty_transaction ADD CONSTRAINT ck_loyalty_reason "
+                "CHECK (reason IN ('earn_sale','redeem','void_reversal','manual_adjust','suggestion_applied'))"
+            ))
+            conn.execute(text(
+                "ALTER TABLE loyalty_transaction DROP CONSTRAINT IF EXISTS ck_loyalty_delta_nonzero"
+            ))
+            # delta_nonzero constraint dropped entirely — suggestion_applied
+            # events are zero-balance. Earn/redeem/void/manual_adjust code
+            # never writes 0 anyway (guard in customers.py).
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("migration 075 ALTER skipped: %s", exc)
+
+    _bump_schema_version(conn, 75)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -3276,6 +3361,7 @@ MIGRATIONS = {
     72: _migration_072_reorder_supplier_tracking,
     73: _migration_073_ingredient_price_event_supplier,
     74: _migration_074_loyalty_transaction_ledger,
+    75: _migration_075_suggestion_event_log,
 }
 
 

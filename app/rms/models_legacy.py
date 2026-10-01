@@ -2130,10 +2130,14 @@ class LoyaltyTransaction(Base):
     )
 
     __table_args__ = (
+        # Tier 3.2 (2026-10-01): suggestion_applied added as a pure
+        # event-log row (delta=0, no balance change). The
+        # ``ck_loyalty_delta_nonzero`` constraint was dropped because
+        # suggestion_applied rows are zero-balance by design; the
+        # earn/redeem/void/manual_adjust code never writes 0 anyway.
         CheckConstraint(
-            "reason IN ('earn_sale','redeem','void_reversal','manual_adjust')",
+            "reason IN ('earn_sale','redeem','void_reversal','manual_adjust','suggestion_applied')",
             name="ck_loyalty_reason",
         ),
-        CheckConstraint("delta != 0", name="ck_loyalty_delta_nonzero"),
         Index("ix_loyalty_customer_time", "customer_id", "recorded_at"),
     )

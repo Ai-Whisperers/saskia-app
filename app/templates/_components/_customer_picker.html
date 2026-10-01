@@ -788,6 +788,35 @@
       '[saskia-suggestions] applied', suggestion.kind, '→ Gs.',
       discount, '(unit price Gs.', unitPrice, 'from', unitPriceSource + ')'
     );
+    // Tier 3.2 (2026-10-01): fire-and-forget analytics ping. We
+    // don't await — never block the UX on this. Failure logs to
+    // console but doesn't undo the apply.
+    try {
+      var customerId =
+        (window.CURRENT_CUSTOMER_ID) ||
+        (document.getElementById('customer_id') || {}).value ||
+        null;
+      if (customerId) {
+        fetch(
+          '/clientes/api/' + encodeURIComponent(customerId) + '/suggestion-applied',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              kind: suggestion.kind,
+              discount_pct: pct,
+              unit_price_gs: unitPrice,
+              unit_price_source: unitPriceSource,
+            }),
+            keepalive: true,
+          }
+        ).catch(function (e) {
+          console.warn('[saskia-suggestions] analytics ping failed:', e);
+        });
+      }
+    } catch (e) {
+      console.warn('[saskia-suggestions] could not fire analytics:', e);
+    }
     flashSuggestionFeedback(
       suggestion,
       true,

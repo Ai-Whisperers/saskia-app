@@ -303,18 +303,52 @@ def test_loyalty_transaction_table_exists_in_db():
 
 
 def test_loyalty_transaction_check_constraint_rejects_zero_delta():
-    """The DB-level CHECK should reject delta = 0 (defense-in-depth)."""
+    """Tier 3.2 (2026-10-01): the DB-level CHECK for delta != 0 was
+    dropped in migration 075 to allow ``suggestion_applied`` event
+    rows (delta=0 by design). The remaining CHECK on ``reason`` does
+    NOT enforce delta != 0 for non-zero reasons — that's now an
+    application-layer invariant (see ``app/rms/customers.py`` guards).
+
+    This test now verifies that the ``delta != 0`` constraint has
+    been dropped by migration 075. If you run this against a DB at
+    schema_version < 75, the test will SKIP (it's an old schema).
+    """
     from app.rms.config import DB_PATH
     from sqlalchemy import create_engine, text
     import datetime as _dt
 
     eng = create_engine(f"sqlite:///{DB_PATH}")
     with eng.connect() as c:
+        # Only meaningful if migration 075 has been applied (drops
+        # the ck_loyalty_delta_nonzero constraint). schema version
+        # lives in app_meta.value (TEXT on SQLite, JSONB on Postgres).
+        ver_row = c.execute(
+            text("SELECT value FROM app_meta WHERE key = 'schema_version'")
+        ).fetchone()
+        if ver_row is None:
+            pytest.skip("app_meta table has no schema_version row yet")
+        # On SQLite value is the int as a string; on Postgres it's
+        # a JSON-encoded quoted string like '"75"'.
+        raw = str(ver_row[0]).strip('"')
+        try:
+            current_ver = int(raw)
+        except (TypeError, ValueError):
+            pytest.skip(f"schema_version is unparseable: {ver_row[0]!r}")
+        if current_ver < 75:
+            pytest.skip(
+                f"DB is at schema_version {current_ver} (< 75) — "
+                f"ck_loyalty_delta_nonzero constraint still active. "
+                f"Migration 075 drops it; this test is only meaningful "
+                f"after the migration runs."
+            )
         # Get any customer_id from the DB
         cust = c.execute(text("SELECT id FROM customer LIMIT 1")).fetchone()
         if not cust:
-            pytest.skip("no customer in DB — migration 074 table is empty")
+            pytest.skip("no customer in DB — table is empty")
         cust_id = cust[0]
+        # Insert a delta=0 manual_adjust row. Should SUCCEED (the
+        # constraint was dropped). The application layer is
+        # responsible for never writing delta=0 for non-event reasons.
         try:
             c.execute(
                 text(
@@ -325,12 +359,22 @@ def test_loyalty_transaction_check_constraint_rejects_zero_delta():
                 {"cid": cust_id, "delta": 0, "ts": _dt.datetime.utcnow()},
             )
             c.commit()
-        except Exception as exc:  # noqa: BLE001
-            assert "ck_loyalty_delta_nonzero" in str(exc) or "CHECK" in str(exc), (
-                f"expected CHECK constraint failure, got: {exc}"
+            # Insert succeeded → constraint is gone, as expected.
+            # Roll back the row so we don't pollute the prod DB.
+            c.execute(
+                text(
+                    "DELETE FROM loyalty_transaction "
+                    "WHERE customer_id = :cid AND reason = 'manual_adjust' "
+                    "AND delta = 0 AND actor = 'test'"
+                ),
+                {"cid": cust_id},
             )
-        else:
-            pytest.fail("delta=0 should have been rejected by CHECK constraint")
+            c.commit()
+        except Exception as exc:  # noqa: BLE001
+            pytest.fail(
+                f"migration 075 should have dropped ck_loyalty_delta_nonzero, "
+                f"but manual_adjust delta=0 still failed: {exc}"
+            )
 
 
 def test_redeem_endpoint_writes_ledger_and_redirects(authed_client, qseed):

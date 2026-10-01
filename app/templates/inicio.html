@@ -78,6 +78,26 @@
     href="/reorder"></saskia-kpi-card>
 </div>
 
+{# ══ Tier 3.1 (2026-10-01): Loyalty band — enrollment KPI ══════════════════
+   The single most important number for the loyalty program: what % of
+   sales TODAY had a customer attached (so they earned points and got
+   suggestions)? Industry norm is 40-60% for a healthy program; below
+   30% means the cashier isn't being prompted enough or there's friction.
+   Delta is percentage-points vs prior period (not relative %). #}
+<div class="band-label">Loyalty</div>
+<div class="kpi-row mb-4">
+  <saskia-kpi-card
+    label="Clientes asociados"
+    value="{% if enrollment_pct_today is not none %}{{ enrollment_pct_today }}%{% else %}—{% endif %}"
+    {% if enrollment_delta_pp is not none %}
+    delta="{{ enrollment_delta_pp | abs }}pp"
+    delta-direction="{{ 'up' if enrollment_delta_pp > 0 else 'down' if enrollment_delta_pp < 0 else 'flat' }}"
+    delta-prior="vs período anterior"
+    {% endif %}
+    sub="{% if enrollment_total_today %}{{ enrollment_with_today }} de {{ enrollment_total_today }} ventas{% else %}sin ventas{% endif %}"
+    href="/clientes"></saskia-kpi-card>
+</div>
+
 {# ══ P1-B7: 3 actionable insights ═════════════════════════════════════ #}
 <div class="insights-band mb-4">
   {% for insight in actionable_insights %}
