@@ -65,6 +65,12 @@ PUBLIC_URL = os.environ.get(
 PUBLIC_HOST = re.sub(r"^https?://", "", PUBLIC_URL).rstrip("/")
 LOCAL_PROBE_PORT = int(os.environ.get("SASKIA_LOCAL_HEALTH_PORT", "8080"))
 TIMEOUT_S = int(os.environ.get("SASKIA_PROBE_TIMEOUT_S", "15"))
+# Skip the local container probe — useful when the script runs
+# INSIDE the swarm (the container's 127.0.0.1 is the loopback of
+# its own network namespace, not the swarm's published port).
+SKIP_LOCAL = os.environ.get("SASKIA_SKIP_LOCAL", "").lower() in (
+    "1", "true", "yes", "on",
+)
 
 
 def probe_public() -> tuple[bool, str]:
@@ -112,7 +118,12 @@ def probe_dns() -> tuple[bool, str]:
 
 
 def probe_local() -> tuple[bool, str]:
-    """Probe the local Docker swarm healthz/db."""
+    """Probe the local Docker swarm healthz/db.
+
+    Returns (True, 'skipped') if SKIP_LOCAL is set.
+    """
+    if SKIP_LOCAL:
+        return True, "skipped (SASKIA_SKIP_LOCAL=1)"
     url = f"http://127.0.0.1:{LOCAL_PROBE_PORT}/healthz/db"
     try:
         req = Request(url, method="GET")
