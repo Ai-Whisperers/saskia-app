@@ -283,12 +283,17 @@ def test_reconcile_loyalty_balance_rebuilds_from_ledger(session_factory):
     assert new_balance == 40
 
 
-def test_loyalty_transaction_table_exists_in_db():
-    """Migration 074 must have created loyalty_transaction with the right columns."""
-    from app.rms.config import DB_PATH
+def test_loyalty_transaction_table_exists_in_db(tmp_db_path):
+    """Migration 074 must have created loyalty_transaction with the right columns.
+
+    Tier 3.2 (2026-10-01): now uses tmp_db_path so the test runs
+    against the test engine, not the LIVE DB (which may be at any
+    schema_version). This also makes it runnable in CI without
+    polluting prod.
+    """
     from sqlalchemy import create_engine, text
 
-    eng = create_engine(f"sqlite:///{DB_PATH}")
+    eng = create_engine(f"sqlite:///{tmp_db_path}/test.sqlite")
     with eng.connect() as c:
         cols = c.execute(text("PRAGMA table_info(loyalty_transaction)")).fetchall()
     col_names = [r[1] for r in cols]
