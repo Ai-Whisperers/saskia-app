@@ -24,7 +24,7 @@ from fastapi import (
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.auth import require_login_or_disabled as require_login
 from app.rms.costing import batch_products_cost_margin, product_margin, product_unit_cost_gs
@@ -207,12 +207,25 @@ def products_list(
     offset = (page - 1) * PER_PAGE
     stmt = stmt.offset(offset).limit(PER_PAGE)
 
+    # Phase 1.D — prime cost for each product (batch-safe; new function).
+    from app.rms.prime_cost import batch_compute_prime_cost, compute_prime_cost
+
+    # Eager-load Product.recipe so batch_compute_prime_cost can read
+    # .recipe without an N+1 session.get per row.
+    stmt = stmt.options(selectinload(Product.recipe))
     products = session.scalars(stmt).all()
     # One batch call replaces N+1 cost/margin queries (Neon round-trips).
     batch_results = batch_products_cost_margin(session, list(products))
+    # Batched prime cost (compliance-info singleton + product.recipe
+    # eager-loaded) — avoids the per-product N+1 that this route had
+    # before. Falls back to the per-product path only on cache misses.
+    try:
+        prime_batch = batch_compute_prime_cost(session, list(products))
+    except Exception:
+        # Defensive: if the batch path raises on a malformed product,
+        # fall back to per-product so the list page still loads.
+        prime_batch = {}
     decorated = []
-    # Phase 1.D — prime cost for each product (batch-safe; new function).
-    from app.rms.prime_cost import compute_prime_cost
     for p in products:
         cost, margin = batch_results.get(
             p.id,
@@ -221,7 +234,7 @@ def products_list(
                 product_margin(session, p.id),
             ),
         )
-        pc = compute_prime_cost(session, p.id)
+        pc = prime_batch.get(p.id) or compute_prime_cost(session, p.id)
         decorated.append(
             {
                 "id": p.id,
