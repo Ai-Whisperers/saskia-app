@@ -42,6 +42,10 @@
   // ---- Phase 7: address picker for customers with 2+ addresses ----
   function renderAddressPicker(addresses) {
     let picker = document.getElementById("address-picker");
+    // T-2026-10-01: also remove any address_quick_pick that
+    // pedido-combos.js may have injected on the same page — same UX,
+    // same parent element, but only one chooser should ever be visible.
+    document.querySelectorAll("#address_quick_pick").forEach(function (el) { el.remove(); });
     if (!Array.isArray(addresses) || addresses.length < 2) {
       if (picker) picker.remove();
       return;

@@ -52,8 +52,15 @@
             zoneCombo.dispatchEvent(new Event("saskia-combo-external-set"));
           }
         }
-        // Single saved address → autofill; multiple → offer a quick chooser
+        // Single saved address → autofill; multiple → offer a quick chooser.
+        // T-2026-10-01: idempotent — remove any previously-injected chooser
+        // (this function is called from multiple paths: onSelect, the
+        // delegated change listener, firePicked, and pedido-prefill.js's
+        // renderAddressPicker) and dedupe any address_quick_pick elements
+        // that may have piled up before this fix.
         var addrs = data.addresses || [];
+        addrInput.parentElement.querySelectorAll("#address_quick_pick").forEach(function (el) { el.remove(); });
+        addrInput.parentElement.querySelectorAll("#address-picker").forEach(function (el) { el.remove(); });
         if (addrs.length === 1 && addrInput && !addrInput.value) {
           addrInput.value = addrs[0].address_text;
         } else if (addrs.length > 1 && addrInput) {
@@ -97,14 +104,24 @@
     var root = document.querySelector(".saskia-customer-combo") ||
                document.querySelector('saskia-combo[name="customer_id"]');
     if (!root) return;
+    // T-2026-10-01: dedupe guard — a single user-pick previously fired
+    // both cfg.onSelect AND the delegated change listener (which called
+    // firePicked), which called loadCustomerAddresses twice → two address
+    // choosers stacked. Track whether onSelect handled the event so the
+    // delegated listener can early-return.
+    var _pickHandled = false;
+    var _markHandled = function () { _pickHandled = true; setTimeout(function () { _pickHandled = false; }, 50); };
     // Attach per-instance opts al elemento ya definido (upgrade-safe).
     // Además: escuchar el evento change que el elemento ya emite — path
     // principal, funciona incluso si attach llega tarde al upgrade.
     root.addEventListener("change", function (ev) {
+      if (_pickHandled) return;
       var d = ev.detail || {};
       if (d.value && root._selectedItem) {
+        _markHandled();
         window.customerPickHandlers.firePicked(root._selectedItem);
       } else if (!d.value) {
+        _markHandled();
         window.customerPickHandlers.fireCleared();
       }
     });
@@ -149,9 +166,12 @@
         }
       }
       // P3 delivery: autofill address book + preferred zone
-      if (item && item.id && typeof loadCustomerAddresses === "function") {
-        loadCustomerAddresses(item.id);
-      }
+      // T-2026-10-01: removed — fireCustomerPicked (called from cfg.onSelect
+      // at line 206) already calls loadCustomerAddresses. Keeping this
+      // caused two address-pickers to stack on every customer pick.
+      // if (item && item.id && typeof loadCustomerAddresses === "function") {
+      //   loadCustomerAddresses(item.id);
+      // }
       if (pickedHint) {
         pickedHint.dataset.empty = "false";
         pickedHint.innerHTML =
@@ -221,9 +241,14 @@
           }
         }
         // P3 delivery: autofill address book + preferred zone for known customers
-        if (item && item.id && typeof loadCustomerAddresses === "function") {
-          loadCustomerAddresses(item.id);
-        }
+      // T-2026-10-01: this is now the ONLY place loadCustomerAddresses is
+      // called from cfg.onSelect (fireCustomerPicked used to also call it,
+      // which caused stacking). Kept here because onSelect runs before
+      // firePicked for the customer-combo path and we want the address
+      // fetch to start as soon as the pick happens.
+      if (item && item.id && typeof loadCustomerAddresses === "function") {
+        loadCustomerAddresses(item.id);
+      }
         if (pickedHint) {
           pickedHint.dataset.empty = "false";
           pickedHint.innerHTML =
