@@ -23,7 +23,8 @@ pytestmark = pytest.mark.crud
 
 
 def test_award_points_writes_ledger_row_and_credits_balance(session_factory):
-    from app.rms.customers import award_points, ensure_customer
+    from app.rms.customers import ensure_customer
+    from app.rms.loyalty import award_points
     from app.rms.models import LoyaltyTransaction
 
     with session_factory() as s:
@@ -56,7 +57,8 @@ def test_award_points_writes_ledger_row_and_credits_balance(session_factory):
 
 
 def test_award_points_zero_when_below_threshold(session_factory):
-    from app.rms.customers import award_points, ensure_customer
+    from app.rms.customers import ensure_customer
+    from app.rms.loyalty import award_points
     from app.rms.models import LoyaltyTransaction
 
     with session_factory() as s:
@@ -77,7 +79,8 @@ def test_award_points_zero_when_below_threshold(session_factory):
 
 
 def test_redeem_points_writes_ledger_row_and_debits_balance(session_factory):
-    from app.rms.customers import award_points, ensure_customer, redeem_points
+    from app.rms.customers import ensure_customer
+    from app.rms.loyalty import award_points, redeem_points
     from app.rms.models import Customer, LoyaltyTransaction
 
     with session_factory() as s:
@@ -113,7 +116,8 @@ def test_redeem_points_writes_ledger_row_and_debits_balance(session_factory):
 
 
 def test_redeem_points_raises_on_insufficient(session_factory):
-    from app.rms.customers import ensure_customer, redeem_points
+    from app.rms.customers import ensure_customer
+    from app.rms.loyalty import redeem_points
     from app.rms.models import Customer
 
     with session_factory() as s:
@@ -129,7 +133,8 @@ def test_redeem_points_raises_on_insufficient(session_factory):
 
 
 def test_redeem_points_raises_on_zero_or_negative(session_factory):
-    from app.rms.customers import ensure_customer, redeem_points
+    from app.rms.customers import ensure_customer
+    from app.rms.loyalty import redeem_points
     from app.rms.models import Customer
 
     with session_factory() as s:
@@ -224,7 +229,8 @@ def test_reverse_points_for_void_writes_negative_ledger(session_factory, qseed):
 
 
 def test_reverse_points_for_void_noop_when_no_earn(session_factory):
-    from app.rms.customers import ensure_customer, reverse_points_for_void
+    from app.rms.customers import ensure_customer
+    from app.rms.loyalty import reverse_points_for_void
     from app.rms.models import Customer, LoyaltyTransaction
 
     with session_factory() as s:
@@ -384,7 +390,7 @@ def test_loyalty_transaction_check_constraint_rejects_zero_delta():
 
 def test_redeem_endpoint_writes_ledger_and_redirects(authed_client, qseed):
     """Full HTTP flow: POST /clientes/{id}/puntos/redeem → ledger row."""
-    from app.rms.customers import award_points
+    from app.rms.loyalty import award_points
     from app.rms.models import Customer, LoyaltyTransaction
 
     data = qseed("with_customer")
@@ -445,7 +451,7 @@ def test_redeem_endpoint_rejects_zero_or_negative(authed_client, qseed):
 
 def test_customer_detail_shows_ledger_table(authed_client, qseed):
     """GET /clientes/{id} should include the recent loyalty transactions in the page."""
-    from app.rms.customers import award_points
+    from app.rms.loyalty import award_points
     from app.rms.models import Customer
 
     data = qseed("with_customer")

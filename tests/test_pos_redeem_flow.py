@@ -40,7 +40,8 @@ def test_pos_redeem_deducts_points_and_writes_ledger_row(
     session_factory, client, qseed
 ):
     """Cashier redeems 10 points → 10.000 Gs. discount + ledger row."""
-    from app.rms.customers import ensure_customer, award_points
+    from app.rms.customers import ensure_customer
+    from app.rms.loyalty import award_points
     from app.rms.models import Customer, LoyaltyTransaction, Product, Sale
 
     # Set up: customer with 25 points, a sellable product
@@ -176,7 +177,8 @@ def test_pos_redeem_without_customer_returns_400(session_factory, client, qseed)
 
 def test_pos_redeem_insufficient_points_returns_400(session_factory, client, qseed):
     """Cashier tries to redeem more than available → 400, no sale written."""
-    from app.rms.customers import ensure_customer, award_points
+    from app.rms.customers import ensure_customer
+    from app.rms.loyalty import award_points
     from app.rms.models import Product, Sale
 
     with session_factory() as s:
@@ -211,7 +213,8 @@ def test_pos_redeem_insufficient_points_returns_400(session_factory, client, qse
 
 def test_pos_redeem_combined_with_manual_discount(session_factory, client, qseed):
     """Points discount + manual discount add together; both applied."""
-    from app.rms.customers import ensure_customer, award_points
+    from app.rms.customers import ensure_customer
+    from app.rms.loyalty import award_points
     from app.rms.models import Customer, LoyaltyTransaction, Product, Sale
 
     with session_factory() as s:
@@ -260,7 +263,8 @@ def test_pos_redeem_exceeds_max_discount_returns_400(
     session_factory, client, qseed
 ):
     """Massive redeem that pushes discount_gs past MAX_DISCOUNT_GS → 400."""
-    from app.rms.customers import ensure_customer, award_points
+    from app.rms.customers import ensure_customer
+    from app.rms.loyalty import award_points
     from app.rms.models import Product, Sale
 
     # MAX_DISCOUNT_GS is 100M. 50k pts × 1.000 = 50M alone is fine, but
@@ -304,7 +308,8 @@ def test_pos_redeem_uses_post_discount_total_for_award(
 ):
     """The points redeemed REDUCE the sale total, and points are earned
     on the POST-discount total (industry norm)."""
-    from app.rms.customers import ensure_customer, award_points
+    from app.rms.customers import ensure_customer
+    from app.rms.loyalty import award_points
     from app.rms.models import Customer, LoyaltyTransaction, Product, Sale
 
     with session_factory() as s:

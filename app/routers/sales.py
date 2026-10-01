@@ -884,7 +884,8 @@ async def sale_create(
     # (called from /ventas/{id}/anular).
     if customer_id is not None:
         from app.auth import current_user_id
-        from app.rms.customers import award_points as _award_points, get_customer as _get_cust
+        from app.rms.customers import get_customer as _get_cust
+        from app.rms.loyalty import award_points as _award_points
         from app.rms.models import Sale as _Sale
         cust = _get_cust(session, customer_id)
         if cust is not None:
@@ -910,7 +911,8 @@ async def sale_create(
     # itself is a no-op when points_to_redeem == 0.
     if points_to_redeem > 0 and customer_id is not None:
         from app.auth import current_user_id
-        from app.rms.customers import redeem_points as _redeem_points, get_customer as _get_cust_redeem
+        from app.rms.customers import get_customer as _get_cust_redeem
+        from app.rms.loyalty import redeem_points as _redeem_points
         cust_redeem = _get_cust_redeem(session, customer_id)
         if cust_redeem is not None:
             _redeem_points(
@@ -1434,7 +1436,8 @@ async def sale_void(
     # reversed, not subsequent unrelated redemptions).
     try:
         from app.rms.models import Sale as _Sale
-        from app.rms.customers import reverse_points_for_void, get_customer as _get_cust_void
+        from app.rms.customers import get_customer as _get_cust_void
+        from app.rms.loyalty import reverse_points_for_void
         _sale_row = session.get(_Sale, sale_id)
         if _sale_row and _sale_row.customer_id:
             _cust_void = _get_cust_void(session, _sale_row.customer_id)

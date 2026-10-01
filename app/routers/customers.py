@@ -322,7 +322,7 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
     # selection — must be infallible).
     suggestions: list[dict] = []
     try:
-        from app.rms.loyalty_suggestions import (
+        from app.rms.loyalty.suggestions import (
             redeemed_on_last_visit,
             suggest_for_customer,
         )
@@ -722,8 +722,8 @@ def log_suggestion_applied(
             return JSONResponse({"error": "not_found"}, status_code=404)
         kind = (payload or {}).get("kind", "unknown")
         pct = (payload or {}).get("discount_pct")
-        from app.rms.customers import _record_ledger
         from app.rms.db import safe_commit as _safe_commit
+        from app.rms.loyalty.ledger import _record_ledger
         _record_ledger(
             session,
             cust,
@@ -833,7 +833,8 @@ async def cliente_redeem_points(
     redirects back to /clientes/{id} with a flash.
     """
     from app.auth import current_user_id
-    from app.rms.customers import get_customer, redeem_points
+    from app.rms.customers import get_customer
+    from app.rms.loyalty import redeem_points
 
     customer = get_customer(session, customer_id)
     if customer is None:

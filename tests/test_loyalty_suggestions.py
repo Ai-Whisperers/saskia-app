@@ -63,7 +63,7 @@ def test_no_rule_fires_for_new_bronze_customer():
     (no birthday), POINTS-DORMANT doesn't fire (0 points), VIP doesn't
     fire (not GOLD, n_sales=0). Empty list.
     """
-    from app.rms.loyalty_suggestions import suggest_for_customer
+    from app.rms.loyalty.suggestions import suggest_for_customer
 
     out = suggest_for_customer(
         _FakeCustomer(),
@@ -78,7 +78,7 @@ def test_no_rule_fires_for_new_bronze_customer():
 
 def test_birthday_within_7_days_returns_cumple_cerca():
     """Birthday in 3 days → KIND_CUMPLE_CERCA with 15% discount."""
-    from app.rms.loyalty_suggestions import (
+    from app.rms.loyalty.suggestions import (
         KIND_CUMPLE_CERCA,
         suggest_for_customer,
     )
@@ -103,7 +103,7 @@ def test_birthday_within_7_days_returns_cumple_cerca():
 
 def test_birthday_today_returns_cumple_cerca():
     """Birthday exactly today → special "hoy" wording."""
-    from app.rms.loyalty_suggestions import KIND_CUMPLE_CERCA, suggest_for_customer
+    from app.rms.loyalty.suggestions import KIND_CUMPLE_CERCA, suggest_for_customer
 
     today = _today()
     cust = _FakeCustomer(birthday=today.strftime("%Y-%m-%d"))
@@ -122,7 +122,7 @@ def test_birthday_today_returns_cumple_cerca():
 
 def test_birthday_recurring_mm_dd_format():
     """MM-DD format (no year) recurs annually — handled correctly."""
-    from app.rms.loyalty_suggestions import KIND_CUMPLE_CERCA, suggest_for_customer
+    from app.rms.loyalty.suggestions import KIND_CUMPLE_CERCA, suggest_for_customer
 
     today = _today()  # 2026-10-01
     # Birthday on Oct 4 (3 days from "today")
@@ -142,7 +142,7 @@ def test_birthday_recurring_mm_dd_format():
 
 def test_birthday_recurring_mm_dd_after_today_wraps_to_next_year():
     """MM-DD already passed this year → wrap to next year."""
-    from app.rms.loyalty_suggestions import KIND_CUMPLE_CERCA, suggest_for_customer
+    from app.rms.loyalty.suggestions import KIND_CUMPLE_CERCA, suggest_for_customer
 
     today = _dt.date(2026, 10, 1)
     # Birthday Jan 5 already passed this year; would be 96 days away
@@ -167,7 +167,7 @@ def test_birthday_recurring_mm_dd_after_today_wraps_to_next_year():
 
 def test_birthday_outside_window_no_suggestion():
     """Birthday in 14 days → no KIND_CUMPLE_CERCA (window is 7)."""
-    from app.rms.loyalty_suggestions import KIND_CUMPLE_CERCA, suggest_for_customer
+    from app.rms.loyalty.suggestions import KIND_CUMPLE_CERCA, suggest_for_customer
 
     today = _today()
     bday = today + _dt.timedelta(days=14)
@@ -186,7 +186,7 @@ def test_birthday_outside_window_no_suggestion():
 
 def test_birthday_invalid_format_no_crash():
     """Garbage in customer.birthday → no crash, no suggestion."""
-    from app.rms.loyalty_suggestions import KIND_CUMPLE_CERCA, suggest_for_customer
+    from app.rms.loyalty.suggestions import KIND_CUMPLE_CERCA, suggest_for_customer
 
     cust = _FakeCustomer(birthday="not-a-date")
     out = suggest_for_customer(
@@ -202,7 +202,7 @@ def test_birthday_invalid_format_no_crash():
 
 def test_lapsed_bronze_threshold_is_21_days():
     """BRONZE lapses at 21 days, gets 10% discount."""
-    from app.rms.loyalty_suggestions import KIND_VUELVE_PRONTO, suggest_for_customer
+    from app.rms.loyalty.suggestions import KIND_VUELVE_PRONTO, suggest_for_customer
 
     today = _today()
     last = today - _dt.timedelta(days=21)  # exactly at threshold
@@ -223,7 +223,7 @@ def test_lapsed_bronze_threshold_is_21_days():
 
 def test_lapsed_bronze_below_threshold_no_suggestion():
     """20 days for BRONZE (threshold 21) → no LAPSED rule."""
-    from app.rms.loyalty_suggestions import suggest_for_customer
+    from app.rms.loyalty.suggestions import suggest_for_customer
 
     today = _today()
     cust = _FakeCustomer()
@@ -241,7 +241,7 @@ def test_lapsed_bronze_below_threshold_no_suggestion():
 
 def test_lapsed_silver_threshold_is_30_days_with_7_pct():
     """SILVER lapses at 30 days, gets 7% discount."""
-    from app.rms.loyalty_suggestions import suggest_for_customer
+    from app.rms.loyalty.suggestions import suggest_for_customer
 
     today = _today()
     cust = _FakeCustomer()
@@ -260,7 +260,7 @@ def test_lapsed_silver_threshold_is_30_days_with_7_pct():
 
 def test_lapsed_gold_threshold_is_45_days_with_5_pct():
     """GOLD lapses at 45 days, gets 5% discount (less margin erosion)."""
-    from app.rms.loyalty_suggestions import suggest_for_customer
+    from app.rms.loyalty.suggestions import suggest_for_customer
 
     today = _today()
     cust = _FakeCustomer()
@@ -283,7 +283,7 @@ def test_never_visited_no_lapsed_suggestion():
     The LAPSED rule fires only for known customers who disappeared.
     Never-visited customers get a different funnel (consent-first).
     """
-    from app.rms.loyalty_suggestions import suggest_for_customer
+    from app.rms.loyalty.suggestions import suggest_for_customer
 
     out = suggest_for_customer(
         _FakeCustomer(),
@@ -298,7 +298,7 @@ def test_never_visited_no_lapsed_suggestion():
 
 def test_points_dormant_threshold_is_50():
     """50 points, no last-visit redeem → KIND_PUNTOS_DORMIDOS."""
-    from app.rms.loyalty_suggestions import suggest_for_customer
+    from app.rms.loyalty.suggestions import suggest_for_customer
 
     out = suggest_for_customer(
         _FakeCustomer(loyalty_points=50),
@@ -316,7 +316,7 @@ def test_points_dormant_threshold_is_50():
 
 def test_points_dormant_skipped_when_under_threshold():
     """49 points → no KIND_PUNTOS_DORMIDOS."""
-    from app.rms.loyalty_suggestions import suggest_for_customer
+    from app.rms.loyalty.suggestions import suggest_for_customer
 
     out = suggest_for_customer(
         _FakeCustomer(loyalty_points=49),
@@ -331,7 +331,7 @@ def test_points_dormant_skipped_when_under_threshold():
 
 def test_points_dormant_skipped_when_redeemed_last_visit():
     """Customer already redeemed on last visit → no nudge."""
-    from app.rms.loyalty_suggestions import suggest_for_customer
+    from app.rms.loyalty.suggestions import suggest_for_customer
 
     out = suggest_for_customer(
         _FakeCustomer(loyalty_points=100),
@@ -346,7 +346,7 @@ def test_points_dormant_skipped_when_redeemed_last_visit():
 
 def test_vip_rule_fires_for_gold_with_10plus_sales():
     """GOLD + 10+ sales → KIND_CLIENTE_FIEL (recognition only)."""
-    from app.rms.loyalty_suggestions import suggest_for_customer
+    from app.rms.loyalty.suggestions import suggest_for_customer
 
     today = _today()
     out = suggest_for_customer(
@@ -364,7 +364,7 @@ def test_vip_rule_fires_for_gold_with_10plus_sales():
 
 def test_vip_rule_skipped_for_silver_or_bronze():
     """SILVER + 50 sales still no VIP — only GOLD."""
-    from app.rms.loyalty_suggestions import suggest_for_customer
+    from app.rms.loyalty.suggestions import suggest_for_customer
 
     today = _today()
     out = suggest_for_customer(
@@ -380,7 +380,7 @@ def test_vip_rule_skipped_for_silver_or_bronze():
 
 def test_vip_rule_skipped_for_gold_with_few_sales():
     """GOLD with 5 sales (< 10) → no VIP recognition yet."""
-    from app.rms.loyalty_suggestions import suggest_for_customer
+    from app.rms.loyalty.suggestions import suggest_for_customer
 
     today = _today()
     out = suggest_for_customer(
@@ -396,7 +396,7 @@ def test_vip_rule_skipped_for_gold_with_few_sales():
 
 def test_max_three_suggestions_returned():
     """All four rules firing → only top 3 by priority returned."""
-    from app.rms.loyalty_suggestions import suggest_for_customer
+    from app.rms.loyalty.suggestions import suggest_for_customer
 
     today = _today()
     bday = today + _dt.timedelta(days=3)  # CUMPLE_CERCA fires
@@ -429,7 +429,7 @@ def test_max_three_suggestions_returned():
 
 def test_priority_ordering_is_stable():
     """Suggestions are returned sorted by priority, then by kind for stability."""
-    from app.rms.loyalty_suggestions import suggest_for_customer
+    from app.rms.loyalty.suggestions import suggest_for_customer
 
     today = _today()
     bday = today + _dt.timedelta(days=3)
@@ -451,7 +451,7 @@ def test_priority_ordering_is_stable():
 
 def test_returns_empty_list_never_raises():
     """Edge cases that previously broke similar code paths."""
-    from app.rms.loyalty_suggestions import suggest_for_customer
+    from app.rms.loyalty.suggestions import suggest_for_customer
 
     # birthday = None + loyalty_points = negative should not crash
     out = suggest_for_customer(
