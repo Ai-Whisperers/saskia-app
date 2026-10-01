@@ -408,7 +408,23 @@ def seed_kyrian(s: Session) -> KyrianBundle:
             ),
         )
         s.add(pedido)
-        s.flush()
+        s.flush()  # assigns pedido.id
+
+        # Phase 11 — record PedidoEvent rows so the pedido detail timeline
+        # surfaces the seed's lifecycle. Without this, /pedidos/{id} would
+        # show "no events" for Kyrian's seeded pedidos (a confusing first
+        # impression for the demo).
+        from app.services.pedido_events import PedidoEventService
+        PedidoEventService.record(
+            s, pedido.id, "created", actor="seed:kyrian",
+            payload={
+                "n_lines": len(lines_spec),
+                "channel": channel,
+                "promised_date": promised.isoformat(),
+                "total_gs": sum(qty * price for _, qty, price in lines_spec),
+                "source": "seed",
+            },
+        )
 
         # Lines
         total_gs = 0
@@ -422,6 +438,15 @@ def seed_kyrian(s: Session) -> KyrianBundle:
                 fulfilled_qty=float(qty) if status == "fulfilled" else 0.0,
             )
             s.add(line)
+            PedidoEventService.record(
+                s, pedido.id, "line_added", actor="seed:kyrian",
+                payload={
+                    "product_id": product.id,
+                    "qty": float(qty),
+                    "unit_price_gs": unit_price,
+                    "source": "seed",
+                },
+            )
             total_gs += qty * unit_price
 
         # Fulfilled status: set fulfilled_at + linked sale

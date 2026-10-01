@@ -208,3 +208,28 @@ def test_kyrian_export_constants_match_live_db():
     assert KYRIAN_EMAIL == "kyrianweiss.vdp@gmail.com"
     assert KYRIAN_CEDULA == "5991039"
     assert KYRIAN_NAME == "kyrian weiss"
+
+
+def test_seed_records_pedido_events(qseed, session_factory):
+    """Phase 11 — every seeded pedido has 'created' + 'line_added' events.
+
+    Without this, the timeline on /pedidos/{id} would be empty for the
+    demo data — a confusing first impression.
+    """
+    from app.seed.kyrian import KYRIAN_PHONE
+    from app.rms.models import Customer, Pedido, PedidoEvent
+
+    qseed("with_kyrian_full")
+    with session_factory() as s:
+        kyrian = s.query(Customer).filter_by(phone=KYRIAN_PHONE).one()
+        pedidos = s.query(Pedido).filter_by(customer_id=kyrian.id).all()
+        assert len(pedidos) == 6
+
+        for p in pedidos:
+            events = s.query(PedidoEvent).filter_by(pedido_id=p.id).all()
+            types = {e.event_type for e in events}
+            assert "created" in types, f"pedido {p.id} missing 'created' event"
+            assert "line_added" in types, f"pedido {p.id} missing 'line_added' event"
+            # The 'created' event must be marked as from the seed
+            ce = next(e for e in events if e.event_type == "created")
+            assert ce.payload_json.get("source") == "seed"
