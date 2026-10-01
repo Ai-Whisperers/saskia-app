@@ -137,12 +137,19 @@ BANK_PATH = REPO / "app/templates/bank.html"
 
 
 def test_inicio_uses_saskia_kpi_card():
-    """inicio.html adopts the web component for its 4 KPI tiles."""
+    """inicio.html adopts the web component for its KPI tiles.
+
+    Tier 3.1 (2026-10-01): bumped from 4 to 6 — added the
+    'Clientes asociados' enrollment KPI card under a new 'Loyalty'
+    band. Stock card makes 5 in the HOY band, plus the 1 new loyalty
+    card = 6 total.
+    """
     text = INICIO_PATH.read_text(encoding="utf-8")
-    assert text.count("<saskia-kpi-card") == 4, \
-        "inicio.html should have 4 <saskia-kpi-card> instances"
-    # All four KPIs present
-    for label in ("Ventas de hoy", "Operaciones", "Ticket promedio", "Margen estimado"):
+    assert text.count("<saskia-kpi-card") == 6, \
+        "inicio.html should have 6 <saskia-kpi-card> instances (5 HOY + 1 Loyalty)"
+    # All KPIs present
+    for label in ("Ventas de hoy", "Operaciones", "Ticket promedio",
+                  "Margen estimado", "Stock", "Clientes asociados"):
         assert f'label="{label}"' in text, f"KPI label {label!r} missing"
 
 
