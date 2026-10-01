@@ -124,3 +124,17 @@ def test_module_loaded_with_all_exports():
     assert callable(g["now_year"])
     assert hasattr(g["m"], "gs")
     assert hasattr(g["fmt"], "money")
+
+
+def test_money_helpers_handle_none_and_negative():
+    """Cover the None-fallback and negative-formatting branches in
+    m.gs / fmt.qty / fmt.money. Without these, a price=None silently
+    renders as "0" instead of "—" (visual regression)."""
+    g = jinja_templates.env.globals
+    # m.gs() prefixes "Gs. " — visible currency form
+    assert g["m"].gs(None) == "—"
+    assert "0" in g["m"].gs(0)
+    assert g["m"].gs(-1500).startswith("-")
+    # fmt.money() / fmt.qty() use the bare-number form
+    assert g["fmt"].money(None) == "—"
+    assert g["fmt"].qty(None) == "—"
