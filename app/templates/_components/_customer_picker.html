@@ -35,13 +35,19 @@
   <input type="hidden" id="points_to_redeem" name="points_to_redeem" value="0">
 
   {# Inline saskia-combo — search dropdown opens below the input,
-      not as an overlay. Keyboard navigation, scrollable, no backdrop. #}
+      not as an overlay. Keyboard navigation, scrollable, no backdrop.
+
+      T-2026-10-01: passes row_label="customerRowLabel" so the combo
+      uses the 3-line renderer from combo-rows.js (name / phone+CI /
+      email+tier+lifetime). Previously the cashier saw "kyrian weiss
+      0982515138" jammed into one cramped line. #}
   {{ ui.combo_field(
        name='customer_id_combo',
        placeholder='Buscá por nombre, teléfono o CI/RUC…',
        endpoint='/clientes/api/search/',
        value_field='id',
-       label_field='name'
+       label_field='name',
+       row_label='customerRowLabel'
      ) }}
 
   <small id="customer_picker_hint" class="customer-picker-hint" hidden></small>

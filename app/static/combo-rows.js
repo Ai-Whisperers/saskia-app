@@ -105,17 +105,78 @@
     );
   }
 
-  /** Customer row (clientes). Shows name + last visit / total spent. */
+  /**
+   * Customer row (clientes). Three stacked lines so the cashier can
+   * scan name, phone, email and tier at a glance.
+   *
+   * T-2026-10-01: previously this returned a single cramped line
+   * "Name 0982515138" with no spacing. Replaced with a 3-line layout:
+   *   Line 1: Name (bold) + tier badge (right) when set
+   *   Line 2: phone (📞) + CI/RUC (🪪)
+   *   Line 3: email (✉) when set, dietary chip (⚠) when restricted
+   *           + lifetime spend chip on the right (₲)
+   *
+   * The dropdown stays scannable at a glance — operators no longer
+   * have to squint at squished text or open the customer card to
+   * see what phone/email belong to whom.
+   */
   function customerRowLabel(row) {
     if (!row) return '';
     const name = row.name || row.label || '';
-    const sub = row.phone || row.ruc || row.alias || '';
+
+    // --- Line 1: name + tier badge ---
+    const tierRaw = (row.tier || '').toString().toLowerCase();
+    const tierLabel = {
+      bronze: '🥉',
+      silver: '🥈',
+      gold: '🥇',
+      platinum: '💎',
+    }[tierRaw] || '';
+    const tierName = tierRaw ? tierRaw.charAt(0).toUpperCase() + tierRaw.slice(1) : '';
+    const tierChip = tierRaw
+      ? `<span class="combo-row-tier combo-row-tier--${escapeHtml(tierRaw)}" aria-label="Tier ${escapeHtml(tierName)}">${
+          tierLabel ? tierLabel + ' ' : ''
+        }${escapeHtml(tierName)}</span>`
+      : '';
+
+    // --- Line 2: phone + CI/RUC ---
+    const phoneStr = row.phone ? '📞 ' + escapeHtml(row.phone) : '';
+    const cedulaStr = row.cedula ? '🪪 ' + escapeHtml(row.cedula) : '';
+    const line2 = [phoneStr, cedulaStr].filter(Boolean).join(' &nbsp;·&nbsp; ');
+    const line2Html = line2
+      ? `<span class="combo-row-line combo-row-line--contact">${line2}</span>`
+      : '';
+
+    // --- Line 3: email + dietary + lifetime ---
+    const emailStr = row.email
+      ? '<span class="combo-row-line-part">✉ ' + escapeHtml(row.email) + '</span>'
+      : '';
+    const dietaryArr = Array.isArray(row.dietary_restrictions) ? row.dietary_restrictions : [];
+    const dietaryStr = dietaryArr.length
+      ? '<span class="combo-row-chip combo-row-chip--warn" title="Restricciones: ' +
+        escapeHtml(dietaryArr.join(', ')) +
+        '">⚠ ' + escapeHtml(dietaryArr.length + ' restricción' + (dietaryArr.length === 1 ? '' : 'es')) + '</span>'
+      : '';
+    const lifetimeStr = row.lifetime_label
+      ? '<span class="combo-row-line-part combo-row-line-part--meta">₲ ' + escapeHtml(row.lifetime_label) + '</span>'
+      : '';
+    const leftLine3 = [emailStr, dietaryStr].filter(Boolean).join(' ');
+    const rightLine3 = lifetimeStr;
+    const line3Parts = [];
+    if (leftLine3) line3Parts.push(leftLine3);
+    if (rightLine3) line3Parts.push(rightLine3);
+    const line3Html = line3Parts.length
+      ? `<span class="combo-row-line combo-row-line--meta">${line3Parts.join(' &nbsp;')}</span>`
+      : '';
+
     return (
-      '<span class="combo-row"><span class="combo-row-main">' +
-      escapeHtml(name) +
-      (sub
-          ? '</span><span class="combo-row-sub">' + escapeHtml(sub) + '</span>'
-          : '</span>') +
+      '<span class="combo-row combo-row--customer">' +
+      '<span class="combo-row-main">' +
+      '<span class="combo-row-line combo-row-line--name">' + escapeHtml(name) + '</span>' +
+      line2Html +
+      line3Html +
+      '</span>' +
+      tierChip +
       '</span>'
     );
   }
