@@ -39,6 +39,7 @@ _EXEMPT_PATHS = frozenset({
     "/healthz/db",
     "/healthz/deps",
     "/healthz/migrate",        # emergency migration trigger (Render slow-to-deploy fallback)
+    "/demo/seed",              # operator-only demo seed; gated by AIW_DEMO_SEED_ENABLED (default off)
 })
 
 _serializer = URLSafeSerializer(SESSION_SECRET, salt="csrf-v1")

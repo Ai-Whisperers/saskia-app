@@ -63,8 +63,9 @@ from app.routers import (
     auth,
     credits,
     customers,
-    dev,
     dashboard,
+    demo,
+    dev,
     eod,
     excel_io,
     health,
@@ -632,6 +633,7 @@ app.include_router(sales.router)
 app.include_router(search.router)
 app.include_router(excel_io.router)
 app.include_router(customers.router)
+app.include_router(demo.router)
 app.include_router(produccion.router)
 app.include_router(eod.router)
 app.include_router(merma.router)
