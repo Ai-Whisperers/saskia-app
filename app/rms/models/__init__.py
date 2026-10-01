@@ -17,6 +17,7 @@ from app.rms.models_legacy import (
     BankTransaction,  # noqa: F401 — re-exported via __all__
     Category,  # noqa: F401 — re-exported via __all__
     Channel,  # noqa: F401 — re-exported via __all__
+    CommunicationLog,  # noqa: F401 — re-exported via __all__
     ComplianceInfo,  # noqa: F401 — re-exported via __all__
     Customer,  # noqa: F401 — re-exported via __all__
     DateRangePreset,  # noqa: F401 — re-exported via __all__

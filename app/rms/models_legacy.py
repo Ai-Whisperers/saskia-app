@@ -1880,6 +1880,93 @@ class MessageTemplate(Base):
     )
 
 
+class CommunicationLog(Base):
+    """Migration 078 (2026-10-01): outbound & inbound message log.
+
+    Append-only log of every communication sent to or received from a
+    customer (WhatsApp, email, SMS, manual note). Distinct from
+    AuditLog because:
+      - Scope: per-customer (joined on customer_id) and per-pedido
+        (optional join on pedido_id when the message relates to an order)
+      - Content: the actual rendered message body + delivery status,
+        not just a security event
+
+    Used by:
+      - Cliente detail page ("Mensajes" tab) — chronological thread
+      - Pedido detail timeline — so the operator sees which messages
+        were sent and when
+      - Reporting: response rate, channel coverage, delivery failures
+
+    Schema:
+      - direction: outbound (sent by us) | inbound (received from customer)
+      - channel: whatsapp | email | sms | note (manual operator log)
+      - template_id: FK to message_template (nullable — free-form allowed)
+      - customer_id: FK to customer (NOT NULL — every message is about someone)
+      - pedido_id: FK to pedido (nullable — some messages aren't order-related)
+      - phone/email: snapshot of destination address (so log survives contact edits)
+      - subject, body: rendered content
+      - status: pending | sent | delivered | read | failed | received
+      - provider_message_id: WhatsApp/email provider's ID (for webhook matching)
+      - error_message: filled on status='failed'
+      - ts_sent: when we sent it (outbound) or received it (inbound)
+      - ts_delivered / ts_read: provider-confirmed timestamps
+
+    Indexes:
+      - (customer_id, ts_sent) for per-customer thread
+      - (pedido_id, ts_sent) for pedido timeline
+      - (status, ts_sent) for delivery-failure monitoring
+      - (provider_message_id) for webhook reconciliation
+    """
+
+    __tablename__ = "communication_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    direction: Mapped[str] = mapped_column(String(8), nullable=False)
+    channel: Mapped[str] = mapped_column(String(16), nullable=False)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("customer.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    pedido_id: Mapped[int | None] = mapped_column(
+        ForeignKey("pedido.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    template_id: Mapped[int | None] = mapped_column(
+        ForeignKey("message_template.id", ondelete="SET NULL"), nullable=True
+    )
+    phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    subject: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    provider_message_id: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ts_sent: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    ts_delivered: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    ts_read: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    actor: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    customer: Mapped["Customer"] = relationship()
+    pedido_rel: Mapped["Pedido | None"] = relationship(foreign_keys=[pedido_id])
+    template: Mapped["MessageTemplate | None"] = relationship()
+
+    __table_args__ = (
+        Index("ix_communication_log_customer_ts", "customer_id", "ts_sent"),
+        Index("ix_communication_log_pedido_ts", "pedido_id", "ts_sent"),
+        Index("ix_communication_log_status_ts", "status", "ts_sent"),
+        CheckConstraint(
+            "direction IN ('outbound','inbound')",
+            name="ck_communication_log_direction",
+        ),
+        CheckConstraint(
+            "channel IN ('whatsapp','email','sms','note')",
+            name="ck_communication_log_channel",
+        ),
+        CheckConstraint(
+            "status IN ('pending','sent','delivered','read','failed','received')",
+            name="ck_communication_log_status",
+        ),
+    )
+
+
 class Category(Base):
     """Operator-configurable category/family catalog (migration 039).
 
@@ -1919,6 +2006,7 @@ __all__ = [
     "AuditLog",
     "BankTransaction",
     "Base",
+    "CommunicationLog",
     # Static-content-audit fix — migration 039
     "Category",
     # Static-content-audit Phase 4 — migrations 041, 042

@@ -3466,6 +3466,97 @@ def _migration_077_pedido_event_log(conn: Any) -> None:
     _bump_schema_version(conn, 77)
 
 
+def _migration_078_communication_log(conn: Any) -> None:
+    """Phase 12 (2026-10-01): CommunicationLog — outbound & inbound messages.
+
+    Adds communication_log table for the customer message thread. The
+    operator UI on /clientes/{id} will show a chronological "Mensajes"
+    tab sourced from this table; /pedidos/{id} timeline will surface
+    outbound messages from this pedido too.
+
+    Idempotent: CREATE TABLE IF NOT EXISTS + CREATE INDEX IF NOT EXISTS
+    are inherently idempotent on SQLite + Postgres.
+
+    Three CHECK constraints enforce enum values:
+      - direction: outbound | inbound
+      - channel:   whatsapp | email | sms | note
+      - status:    pending | sent | delivered | read | failed | received
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+
+    if dialect == "sqlite":
+        create_sql = """
+            CREATE TABLE IF NOT EXISTS communication_log (
+                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                direction VARCHAR(8) NOT NULL,
+                channel VARCHAR(16) NOT NULL,
+                customer_id INTEGER NOT NULL REFERENCES customer(id) ON DELETE CASCADE,
+                pedido_id INTEGER REFERENCES pedido(id) ON DELETE SET NULL,
+                template_id INTEGER REFERENCES message_template(id) ON DELETE SET NULL,
+                phone VARCHAR(32),
+                email VARCHAR(120),
+                subject VARCHAR(200),
+                body TEXT NOT NULL,
+                status VARCHAR(16) NOT NULL DEFAULT 'pending',
+                provider_message_id VARCHAR(120),
+                error_message TEXT,
+                ts_sent DATETIME NOT NULL,
+                ts_delivered DATETIME,
+                ts_read DATETIME,
+                actor VARCHAR(64),
+                CONSTRAINT ck_communication_log_direction CHECK (direction IN ('outbound','inbound')),
+                CONSTRAINT ck_communication_log_channel CHECK (channel IN ('whatsapp','email','sms','note')),
+                CONSTRAINT ck_communication_log_status CHECK (status IN ('pending','sent','delivered','read','failed','received'))
+            )
+        """
+    else:  # postgres
+        create_sql = """
+            CREATE TABLE IF NOT EXISTS communication_log (
+                id SERIAL NOT NULL PRIMARY KEY,
+                direction VARCHAR(8) NOT NULL,
+                channel VARCHAR(16) NOT NULL,
+                customer_id INTEGER NOT NULL REFERENCES customer(id) ON DELETE CASCADE,
+                pedido_id INTEGER REFERENCES pedido(id) ON DELETE SET NULL,
+                template_id INTEGER REFERENCES message_template(id) ON DELETE SET NULL,
+                phone VARCHAR(32),
+                email VARCHAR(120),
+                subject VARCHAR(200),
+                body TEXT NOT NULL,
+                status VARCHAR(16) NOT NULL DEFAULT 'pending',
+                provider_message_id VARCHAR(120),
+                error_message TEXT,
+                ts_sent TIMESTAMP NOT NULL,
+                ts_delivered TIMESTAMP,
+                ts_read TIMESTAMP,
+                actor VARCHAR(64),
+                CONSTRAINT ck_communication_log_direction CHECK (direction IN ('outbound','inbound')),
+                CONSTRAINT ck_communication_log_channel CHECK (channel IN ('whatsapp','email','sms','note')),
+                CONSTRAINT ck_communication_log_status CHECK (status IN ('pending','sent','delivered','read','failed','received'))
+            )
+        """
+
+    try:
+        conn.exec_driver_sql(create_sql)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("migration 078 CREATE TABLE communication_log skipped: %s", exc)
+
+    for idx_sql in (
+        "CREATE INDEX IF NOT EXISTS ix_communication_log_customer_id ON communication_log (customer_id)",
+        "CREATE INDEX IF NOT EXISTS ix_communication_log_pedido_id ON communication_log (pedido_id)",
+        "CREATE INDEX IF NOT EXISTS ix_communication_log_provider_message_id ON communication_log (provider_message_id)",
+        "CREATE INDEX IF NOT EXISTS ix_communication_log_ts_sent ON communication_log (ts_sent)",
+        "CREATE INDEX IF NOT EXISTS ix_communication_log_customer_ts ON communication_log (customer_id, ts_sent)",
+        "CREATE INDEX IF NOT EXISTS ix_communication_log_pedido_ts ON communication_log (pedido_id, ts_sent)",
+        "CREATE INDEX IF NOT EXISTS ix_communication_log_status_ts ON communication_log (status, ts_sent)",
+    ):
+        try:
+            conn.exec_driver_sql(idx_sql)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("migration 078 index skipped: %s", exc)
+
+    _bump_schema_version(conn, 78)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -3544,6 +3635,7 @@ MIGRATIONS = {
     75: _migration_075_suggestion_event_log,
     76: _migration_076_sale_linked_pedido_id,
     77: _migration_077_pedido_event_log,
+    78: _migration_078_communication_log,
 }
 
 
