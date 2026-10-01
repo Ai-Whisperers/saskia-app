@@ -833,14 +833,22 @@ def _build_hourly_sales_chart(sales: list[Sale], tz: ZoneInfo) -> str:
     if not sales:
         return '<p class="text-muted">Sin ventas todavía</p>'
 
-    # Bucket by hour of day (0-23) in Asunción local
+    # Bucket by hour of day (0-23) in Asunción local.
+    # Phase 14 #22: previously aggregated `qty × unit_price` (gross) —
+    # silently overcounted revenue for sales with `discount_gs > 0`.
+    # Now uses the post-discount line total (`unit_price × qty −
+    # discount_gs`), which is what the operator sees in /recibo and
+    # /ventas. Stays in Python because the dashboard already has the
+    # full Sale list loaded — moving to SQL would require shipping
+    # timezone-aware bucketing (EXTRACT(HOUR ...) is UTC, not Asunción).
     buckets = [0] * 24
     for s in sales:
         if s.sold_at is None:
             continue
         # sold_at is naive UTC per the data layer convention
         local = s.sold_at.replace(tzinfo=timezone.utc).astimezone(tz)
-        buckets[local.hour] += to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs)))
+        line_total = int(s.qty) * int(s.unit_price_gs) - int(s.discount_gs or 0)
+        buckets[local.hour] += max(line_total, 0)
 
     # Build bar chart
     values = [(f"{h:02d}h", float(v)) for h, v in enumerate(buckets) if v > 0]
@@ -907,11 +915,17 @@ def _preset_label(preset: str) -> str:
 
 
 def _build_payment_methods_donut(sales: list[Sale]) -> str:
-    """Build a donut chart of payment method distribution."""
+    """Build a donut chart of payment method distribution.
+
+    Phase 14 #22 (sibling to hourly chart fix): uses post-discount
+    line totals so the donut matches /recibo and /ventas. Previously
+    aggregated `qty × unit_price` and overcounted discounted sales.
+    """
     buckets: dict[str, int] = {}
     for s in sales:
         pm = s.payment_method or "Sin especificar"
-        buckets[pm] = buckets.get(pm, 0) + to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs)))
+        line_total = int(s.qty) * int(s.unit_price_gs) - int(s.discount_gs or 0)
+        buckets[pm] = buckets.get(pm, 0) + max(line_total, 0)
 
     if not buckets:
         return '<p class="text-muted">Sin datos de pagos</p>'
