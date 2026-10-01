@@ -54,7 +54,8 @@ def clientes_list(
     q: str | None = None,
     tier: str | None = None,
     sort: str | None = Query(
-        None, description="Sort column: name, phone, n_sales, lifetime_spend_gs, points, tier"
+        None,
+        description="Sort column: name, phone, n_sales, lifetime_spend_gs, points, tier, last_sale_at",
     ),
     dir: str | None = Query("asc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
@@ -83,6 +84,31 @@ def clientes_list(
             ]
         rows = []
         all_stats = batch_customer_stats(session, customers)
+        # Tier 6.1 (2026-10-01): batch-fetch active subscriptions + open
+        # pedido counts for the directory list. One IN query each instead
+        # of N+1 per row.
+        from app.rms.models import Pedido, Suscripcion
+
+        cust_ids = [c.id for c in customers]
+        active_sub_count: dict[int, int] = {}
+        open_pedido_count: dict[int, int] = {}
+        if cust_ids:
+            from sqlalchemy import func
+
+            sub_rows = session.execute(
+                select(Suscripcion.customer_id, func.count(Suscripcion.id))
+                .where(Suscripcion.customer_id.in_(cust_ids))
+                .where(Suscripcion.status == "activa")
+                .group_by(Suscripcion.customer_id)
+            ).all()
+            active_sub_count = {cid: n for cid, n in sub_rows}
+            ped_rows = session.execute(
+                select(Pedido.customer_id, func.count(Pedido.id))
+                .where(Pedido.customer_id.in_(cust_ids))
+                .where(Pedido.status.in_(["pending", "promised", "in_production"]))
+                .group_by(Pedido.customer_id)
+            ).all()
+            open_pedido_count = {cid: n for cid, n in ped_rows}
         for c in customers:
             stats = all_stats.get(c.id)
             if stats is None:
@@ -101,6 +127,9 @@ def clientes_list(
                         "tier_sev": status_es(stats.tier.value)[1],
                         "points": c.loyalty_points,
                         "created_at": c.created_at,
+                        "has_active_sub": active_sub_count.get(c.id, 0) > 0,
+                        "active_sub_count": active_sub_count.get(c.id, 0),
+                        "open_pedido_count": open_pedido_count.get(c.id, 0),
                     }
                 )
     else:
@@ -116,6 +145,30 @@ def clientes_list(
             customers = list_customers(session)
         # Batch-fetch all stats in one query instead of N queries
         all_stats = batch_customer_stats(session, customers)
+        # Tier 6.1 (2026-10-01): batch-fetch active subscriptions + open
+        # pedido counts. One IN query each instead of N+1 per row.
+        from app.rms.models import Pedido, Suscripcion
+
+        cust_ids = [c.id for c in customers]
+        active_sub_count: dict[int, int] = {}
+        open_pedido_count: dict[int, int] = {}
+        if cust_ids:
+            from sqlalchemy import func
+
+            sub_rows = session.execute(
+                select(Suscripcion.customer_id, func.count(Suscripcion.id))
+                .where(Suscripcion.customer_id.in_(cust_ids))
+                .where(Suscripcion.status == "activa")
+                .group_by(Suscripcion.customer_id)
+            ).all()
+            active_sub_count = {cid: n for cid, n in sub_rows}
+            ped_rows = session.execute(
+                select(Pedido.customer_id, func.count(Pedido.id))
+                .where(Pedido.customer_id.in_(cust_ids))
+                .where(Pedido.status.in_(["pending", "promised", "in_production"]))
+                .group_by(Pedido.customer_id)
+            ).all()
+            open_pedido_count = {cid: n for cid, n in ped_rows}
         rows = []
         for c in customers:
             stats = all_stats.get(c.id)
@@ -134,6 +187,9 @@ def clientes_list(
                     "tier_sev": status_es(stats.tier.value)[1],
                     "points": c.loyalty_points,
                     "created_at": c.created_at,
+                    "has_active_sub": active_sub_count.get(c.id, 0) > 0,
+                    "active_sub_count": active_sub_count.get(c.id, 0),
+                    "open_pedido_count": open_pedido_count.get(c.id, 0),
                 }
             )
 
@@ -147,6 +203,10 @@ def clientes_list(
         "lifetime_spend_gs": "lifetime_spend_gs",
         "points": "points",
         "tier": "tier",
+        # Tier 6.1 (2026-10-01): sort-by-last-purchase column.
+        # None sorts as oldest; useful for retention outreach — sort
+        # asc by last_sale_at to find lapsed customers first.
+        "last_sale_at": "last_sale_at",
     }
     col = col_map.get(sort_col, "name")
     if rows and col in rows[0]:
@@ -761,6 +821,12 @@ def cliente_detail(
     stats = customer_stats(session, customer)
     history = customer_purchase_history(session, customer.id)
 
+    # Tier 7.2 (2026-10-01): compute the detail payload once so we
+    # can reuse `suggestions` for the HTML template. The payload is
+    # the same dict the JSON endpoint returns at
+    # /clientes/api/{customer_id}.
+    detail_payload = _customer_detail_payload(customer, session)
+
     # P0 fix: the template's `s.product_name` never existed on Sale — Jinja
     # Undefined → EVERY row rendered "(eliminado)". decorate_history snapshots
     # the live product name; "(eliminado #id)" if a product ever goes missing.
@@ -835,6 +901,48 @@ def cliente_detail(
         .order_by(Suscripcion.created_at.desc())
     ).all()
 
+    # Tier 6.2 (2026-10-01): recent pedidos for this customer. Reuse
+    # customer_recent_pedidos so we get the same shape as the
+    # /pedidos/{id} page timeline (status pills + promised_date +
+    # customer_name). Cap at 5 to keep the detail page compact.
+    from app.services.pedido_history import customer_recent_pedidos
+
+    recent_pedidos = customer_recent_pedidos(session, customer.id, limit=5)
+    recent_pedidos_view = [p.to_dict() for p in recent_pedidos]
+
+    # Tier 6.2 (2026-10-01): top 5 products this customer buys. Reuse
+    # the same query the dashboard runs (aggregate by product over
+    # history) so we get consistent rankings across pages.
+    from sqlalchemy import func as sa_func
+
+    from app.rms.models import Product as ProductModel, Sale as SaleModel
+
+    top_products_rows = session.execute(
+        select(
+            ProductModel.id,
+            ProductModel.name,
+            sa_func.count(SaleModel.id).label("n_sales"),
+            sa_func.sum(SaleModel.qty).label("total_qty"),
+            sa_func.sum(SaleModel.qty * SaleModel.unit_price_gs).label("total_gs"),
+        )
+        .join(SaleModel, SaleModel.product_id == ProductModel.id)
+        .where(SaleModel.customer_id == customer.id)
+        .where(SaleModel.voided_at.is_(None))
+        .group_by(ProductModel.id, ProductModel.name)
+        .order_by(sa_func.count(SaleModel.id).desc())
+        .limit(5)
+    ).all()
+    top_products = [
+        {
+            "id": row[0],
+            "name": row[1],
+            "n_sales": int(row[2] or 0),
+            "total_qty": float(row[3] or 0),
+            "total_gs": int(row[4] or 0),
+        }
+        for row in top_products_rows
+    ]
+
     return render(
         request,
         "cliente_detalle.html",
@@ -849,6 +957,15 @@ def cliente_detail(
             "last_days": last_days,
             "tz_breakdown": tz_breakdown_sorted,
             "active_subscriptions": active_subs,
+            "recent_pedidos": recent_pedidos_view,
+            "top_products": top_products,
+            # Tier 7.2 (2026-10-01): pass the suggestions list from
+            # the detail payload so the HTML page can show an
+            # "Aplicar sugerencia" CTA per suggestion. We re-use the
+            # same suggestion computation the JSON endpoint uses
+            # (via _customer_detail_payload) so the rule set stays
+            # consistent across UI surfaces.
+            "suggestions": detail_payload.get("suggestions", []),
         },
     )
 

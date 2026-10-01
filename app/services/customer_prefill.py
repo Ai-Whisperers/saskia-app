@@ -88,6 +88,18 @@ class CustomerPrefill:
     loyalty_points_balance: int = 0
     loyalty_points_projected: int = 0
 
+    # Tier 6.4 (2026-10-01): tier display + suscripción prefill.
+    # `tier` is the BRONZE/SILVER/GOLD/PLATINUM enum value as a string
+    # (matches LoyaltyTier.value). The /pedidos/nuevo template renders
+    # a small pill near the customer name so the operator sees the tier
+    # at a glance while building a pedido. `active_subscriptions` is a
+    # list of {product_summary, cadence, preferred_day_of_week, price_gs,
+    # subscription_id} — the template renders an "Aplicar suscripción"
+    # quick-pick that fills the notes field with the subscription's
+    # product_summary so the operator doesn't have to retype it.
+    tier: str | None = None
+    active_subscriptions: list[dict] = field(default_factory=list)
+
     def to_dict(self) -> dict:
         return asdict(self)
 
@@ -255,6 +267,39 @@ def compute_customer_defaults(
         for ln in out.clone_lines
     )
     out.loyalty_points_projected = int(projected_gs // 1000)
+
+    # Tier 6.4 (2026-10-01): tier display.
+    # Compute the customer's tier from their lifetime spend (same source
+    # as the /clientes list and cliente_detalle). Cheap: 1 stats query.
+    from app.rms.customers import customer_stats
+    from app.rms.loyalty.tiers import tier_for_spend
+
+    stats = customer_stats(session, customer)
+    out.tier = tier_for_spend(int(stats.lifetime_spend_gs or 0)).value
+
+    # Tier 6.4 (2026-10-01): active suscripción prefill.
+    # Query the customer's active suscripciones so the /pedidos/nuevo
+    # template can offer an "Aplicar suscripción" quick-pick that fills
+    # the notes field with the subscription's product_summary.
+    from app.rms.models import Suscripcion
+
+    subs = session.scalars(
+        select(Suscripcion)
+        .where(Suscripcion.customer_id == customer_id)
+        .where(Suscripcion.status == "activa")
+        .order_by(Suscripcion.id.desc())
+    ).all()
+    out.active_subscriptions = [
+        {
+            "id": s.id,
+            "product_summary": s.product_summary,
+            "cadence": s.cadence,
+            "preferred_day_of_week": s.preferred_day_of_week,
+            "preferred_time": s.preferred_time,
+            "price_gs": int(s.price_gs or 0),
+        }
+        for s in subs
+    ]
 
     return out
 

@@ -35,6 +35,24 @@
       Escribí 2+ letras para buscar clientes existentes.
       Si no aparece, simplemente seguí escribiendo — se crea al guardar.
     </small>
+
+    {# Tier 6.4 (2026-10-01): show customer's tier inline. Hidden by
+       default; pedido-prefill.js reveals it once a customer is
+       picked (the JS reads `customer_prefill.tier` from the JSON
+       script block at the bottom of the template). #}
+    <span id="customer-tier-badge" data-tier=""
+          style="display:none;margin-top:6px;padding:2px 8px;border-radius:4px;font-size:var(--text-xs);font-weight:600;">
+      <span class="tier-emoji"></span> <span class="tier-name"></span>
+    </span>
+
+    {# Tier 6.4 (2026-10-01): active suscripción quick-pick. Hidden by
+       default; revealed when prefill.active_subscriptions is non-empty.
+       Clicking "Aplicar" copies product_summary into the notes field. #}
+    <div id="customer-subscription-picker" data-suscripciones=""
+         style="display:none;margin-top:8px;padding:8px 10px;background:#f3e5f5;border:1px solid #ce93d8;border-radius:6px;font-size:var(--text-sm);">
+      <strong>📦 Suscripciones activas:</strong>
+      <ul class="sub-list" style="list-style:none;padding-left:0;margin:6px 0 0 0;"></ul>
+    </div>
   </div>
 
   {# ── Crear cliente nuevo (colapsado) ─────────────────────────

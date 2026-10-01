@@ -130,6 +130,20 @@
           <svg class="icon" aria-hidden="true"><use href="#icon-print"/></svg>
           Recibo
         </a>
+        {# Tier 7.1 (2026-10-01): convert a confirmed sale (with a
+           customer) into a pedido. Pre-fills /pedidos/nuevo with the
+           customer_id + a note describing what was sold so the operator
+           can re-create the same basket as a pending pedido. Only shown
+           when the sale is not voided AND has a customer attached (a
+           cash sale with no customer can't become a pedido). #}
+        {% if s.customer_id and not s.voided_at %}
+        <a href="/pedidos/nuevo?customer_id={{ s.customer_id }}&from_sale={{ s.id }}"
+           class="btn btn-sm"
+           title="Crear pedido para {{ s.customer_name }} basado en esta venta">
+          <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
+          Pedido
+        </a>
+        {% endif %}
         {% if not s.voided_at %}
         <form method="post" action="/ventas/{{ s.id }}/anular" id="void-form-{{ s.id }}" style="display: inline;"
               class="js-confirm-form" data-confirm-title="¿Anular venta #{{ s.id }}?" data-confirm-body="Esta acción devuelve el stock y queda registrada en auditoría." data-confirm-danger="true">

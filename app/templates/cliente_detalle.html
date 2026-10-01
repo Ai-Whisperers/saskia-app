@@ -288,6 +288,55 @@
       </div>
     </section>
 
+    {# Tier 7.2 (2026-10-01): "Aplicar sugerencia" CTA. Re-uses the
+       same Suggestion list the JSON endpoint returns for the POS
+       customer card. Each row has an "Aplicar" button that POSTs to
+       /clientes/api/{id}/suggestion-applied (fire-and-forget
+       telemetry) and opens /ventas/nueva with the suggested
+       discount pre-applied via JS. Helps the cashier convert a
+       suggestion on the customer detail page (without going to
+       /ventas first). #}
+    {% if suggestions %}
+    <section class="card">
+      <h2 style="margin-top:0;">Sugerencias automáticas</h2>
+      <p class="text-muted" style="font-size:var(--text-sm);margin-top:-0.5rem;">
+        Ofertas calculadas en base al historial del cliente. Aplicar
+        registra la sugerencia como aplicada y te lleva a una nueva venta
+        con el descuento pre-cargado.
+      </p>
+      <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:0.5rem;">
+        {% for s in suggestions %}
+        <li class="suggestion-card" style="border:1px solid var(--color-border);border-radius:var(--radius);padding:0.75rem;display:flex;justify-content:space-between;align-items:start;gap:0.5rem;">
+          <div>
+            <strong style="display:block;font-size:var(--text-md);margin-bottom:0.25rem;">
+              {{ s.title }}
+            </strong>
+            <span class="text-muted" style="font-size:var(--text-sm);">
+              {{ s.body }}
+            </span>
+            {% if s.discount_pct %}
+            <div style="margin-top:0.5rem;">
+              {{ ui.status_pill(s.discount_pct ~ "% de descuento", sev="ok") }}
+            </div>
+            {% endif %}
+          </div>
+          <form method="post" action="/clientes/api/{{ customer.id }}/suggestion-applied"
+                class="js-suggestion-form" data-customer-id="{{ customer.id }}"
+                data-kind="{{ s.kind }}" data-discount-pct="{{ s.discount_pct or '' }}"
+                style="margin:0;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="kind" value="{{ s.kind }}">
+            <input type="hidden" name="discount_pct" value="{{ s.discount_pct or '' }}">
+            <button type="submit" class="btn btn-sm">
+              Aplicar sugerencia
+            </button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
     {# BACKLOG #27 (2026-10-01): Sale.tz breakdown. Shows where this
        customer usually shops (most-used tz first). Used for multi-
        location migration planning and for fraud-spotting (sudden tz
@@ -316,6 +365,76 @@
             <td class="num">{{ bucket.sales }}</td>
             <td class="num">{{ "{:,}".format(bucket.total_gs) }}</td>
             <td class="num">{{ "{:.0f}%".format((bucket.sales / total_sales * 100) if total_sales else 0) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+
+    {# Tier 6.2 (2026-10-01): recent pedidos for this customer. Shows
+       up to 5 most-recent pedidos with status pills and a "Pedir de
+       nuevo" CTA. Lets the operator escalate a past pedido without
+       hunting through /pedidos list. #}
+    {% if recent_pedidos %}
+    <section class="card">
+      <h2 style="margin-top:0;">Pedidos recientes</h2>
+      <table class="table is-narrow is-striped" style="font-size:var(--text-sm);">
+        <thead>
+          <tr>
+            <th>Pedido</th>
+            <th>Prometido</th>
+            <th>Estado</th>
+            <th class="num">Total (Gs.)</th>
+            <th class="actions"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in recent_pedidos %}
+          <tr>
+            <td><a href="/pedidos/{{ p.id }}">#{{ p.id }}</a></td>
+            <td>{{ p.promised_date.strftime("%d/%m/%Y") if p.promised_date else "—" }}</td>
+            <td>{{ ui.status_pill(p.status_label, p.status_sev) }}</td>
+            <td class="num">{{ "{:,}".format(p.total_gs or 0) }}</td>
+            <td class="actions">
+              <a href="/pedidos/nuevo?customer_id={{ customer.id }}&from={{ p.id }}"
+                 class="btn btn-sm"
+                 title="Re-petir este pedido">
+                Pedir de nuevo
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+
+    {# Tier 6.2 (2026-10-01): top 5 products this customer buys. Helps
+       the operator answer "qué le gusta?" and seed the next pedido with
+       the right product mix. #}
+    {% if top_products %}
+    <section class="card">
+      <h2 style="margin-top:0;">Productos frecuentes</h2>
+      <p class="text-muted" style="font-size:var(--text-sm);margin-top:-0.5rem;">
+        Top 5 productos que este cliente compra (ordenado por número de ventas).
+      </p>
+      <table class="table is-narrow is-striped" style="font-size:var(--text-sm);">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th class="num">Ventas</th>
+            <th class="num">Cantidad total</th>
+            <th class="num">Total (Gs.)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for prod in top_products %}
+          <tr>
+            <td>{{ prod.name }}</td>
+            <td class="num">{{ prod.n_sales }}</td>
+            <td class="num">{{ "%.0f"|format(prod.total_qty) }}</td>
+            <td class="num">{{ "{:,}".format(prod.total_gs) }}</td>
           </tr>
           {% endfor %}
         </tbody>

@@ -1328,6 +1328,77 @@ def pedidos_detail(
     else:
         decorated["recent_pedidos"] = []
 
+    # Tier 6.3 (2026-10-01): linked sales (migration 076) + loyalty impact.
+    # Pedido.sales relationship returns every Sale whose
+    # linked_pedido_id == this pedido.id (vs. the legacy single
+    # fulfilled_sale_id which only pointed at the FIRST sale). The
+    # detail page now shows the full set so the operator can verify
+    # each line was fulfilled.
+    from app.rms.models import LoyaltyTransaction, Sale as SaleModel
+
+    linked_sales: list[dict] = []
+    if pedido.customer_id:
+        sales = session.scalars(
+            select(SaleModel)
+            .where(SaleModel.linked_pedido_id == pedido.id)
+            .order_by(SaleModel.id.asc())
+        ).all()
+        linked_sales = [
+            {
+                "id": s.id,
+                "product_name": (
+                    s.product.name if s.product else f"#{s.product_id}"
+                ),
+                "qty": float(s.qty),
+                "unit_price_gs": int(s.unit_price_gs or 0),
+                "sold_at": s.sold_at,
+            }
+            for s in sales
+        ]
+    decorated["linked_sales"] = linked_sales
+
+    # Loyalty impact: sum up the points earned / redeemed on the
+    # LoyaltyTransaction rows whose sale_id points at a sale generated
+    # by this pedido. Operators use this to confirm "this pedido le
+    # sumó X puntos al cliente".
+    loyalty_impact: dict = {
+        "earned_points": 0,
+        "redeemed_points": 0,
+        "net_points": 0,
+        "transactions": [],
+    }
+    if pedido.customer_id and linked_sales:
+        sale_ids = [s["id"] for s in linked_sales]
+        txs = session.scalars(
+            select(LoyaltyTransaction)
+            .where(LoyaltyTransaction.customer_id == pedido.customer_id)
+            .where(LoyaltyTransaction.sale_id.in_(sale_ids))
+            .order_by(LoyaltyTransaction.recorded_at.desc())
+            .limit(20)
+        ).all()
+        for tx in txs:
+            loyalty_impact["transactions"].append(
+                {
+                    "delta": int(tx.delta or 0),
+                    "reason": tx.reason or "",
+                    "recorded_at": tx.recorded_at,
+                    "sale_id": tx.sale_id,
+                }
+            )
+            if (tx.reason or "") == "earn_sale":
+                loyalty_impact["earned_points"] += int(tx.delta or 0)
+            elif (tx.reason or "") == "redeem":
+                # `delta` for a redeem row is NEGATIVE (e.g. -50). We
+                # store the absolute amount in `redeemed_points` so the
+                # display "pts canjeados" shows "50" not "-50". The
+                # net_points math then becomes earned + redeemed (where
+                # redeemed is already positive) only when subtracting.
+                loyalty_impact["redeemed_points"] += abs(int(tx.delta or 0))
+        loyalty_impact["net_points"] = (
+            loyalty_impact["earned_points"] - loyalty_impact["redeemed_points"]
+        )
+    decorated["loyalty_impact"] = loyalty_impact
+
     return render(
         request,
         "pedido_detalle.html",

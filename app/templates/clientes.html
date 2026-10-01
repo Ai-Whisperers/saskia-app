@@ -97,6 +97,9 @@
       {{ th("lifetime_spend_gs", "Gasto total (Gs.)") }}
       {{ th("points", "Puntos") }}
       {{ th("tier", "Nivel") }}
+      {# Tier 6.1 (2026-10-01): sort-by-last-purchase column + sub badge column #}
+      {{ th("last_sale_at", "Última compra") }}
+      <th title="Suscripciones activas / Pedidos abiertos">Sub · Ped</th>
       <th>Registrado</th>
       <th class="actions"></th>
     </tr>
@@ -113,9 +116,28 @@
       <td>
         {{ ui.status_pill(c.tier_label, c.tier_sev) }}
       </td>
+      <td class="num"><small>{{ c.last_sale_at.strftime("%d/%m/%y") if c.last_sale_at else "—" }}</small></td>
+      <td class="num">
+        {# Tier 6.1: subscription badge + open pedido count. When a customer
+           has an active suscripción, a quick "+ Pedido" shortcut is shown
+           next to the existing "Ver" button so the operator can escalate
+           a subscription into a pedido without opening the detail page. #}
+        {% if c.has_active_sub %}
+          <span class="badge badge-info" title="{{ c.active_sub_count }} suscripción(es) activa(s)" style="background:#e3f2fd;color:#1565c0;padding:2px 6px;border-radius:4px;font-size:var(--text-xs);">Sub</span>
+        {% endif %}
+        {% if c.open_pedido_count %}
+          <span class="badge badge-warn" title="{{ c.open_pedido_count }} pedido(s) abierto(s)" style="background:#fff3e0;color:#e65100;padding:2px 6px;border-radius:4px;font-size:var(--text-xs);">{{ c.open_pedido_count }}p</span>
+        {% endif %}
+      </td>
       <td><small>{{ c.created_at.strftime("%d/%m/%Y") if c.created_at else "—" }}</small></td>
       <td class="actions">
         <a href="/clientes/{{ c.id }}" class="btn btn-sm btn-ghost">Ver</a>
+        {# Tier 6.1 (2026-10-01): one-click "Pedido" shortcut. Goes to
+           /pedidos/nuevo with this customer preselected; the autofill
+           pipeline (phase 3) will clone the most recent pedido's lines. #}
+        <a href="/pedidos/nuevo?customer_id={{ c.id }}"
+           class="btn btn-sm"
+           title="Crear pedido nuevo para {{ fmt.entity_name(c) }}">+ Pedido</a>
       </td>
     </tr>
     {% endfor %}

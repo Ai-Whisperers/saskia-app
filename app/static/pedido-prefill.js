@@ -118,6 +118,86 @@
     banner.innerHTML = `⭐ <strong>${balance} pts</strong> en cuenta del cliente.${projectedText}`;
   }
 
+  // ---- Tier 6.4: tier badge + suscripción picker ----
+  // Show a small BRONZE/SILVER/GOLD/PLATINUM pill near the customer
+  // combo, and an "Aplicar suscripción" quick-pick if the customer has
+  // any active suscripciones. Both are hidden by default in the template
+  // and revealed here once we have a non-empty prefill.
+
+  const TIER_META = {
+    bronze:   { emoji: "🥉", label: "BRONCE",   bg: "#fbe9e7", fg: "#bf360c" },
+    silver:   { emoji: "🥈", label: "SILVER",   bg: "#eceff1", fg: "#37474f" },
+    gold:     { emoji: "🥇", label: "GOLD",     bg: "#fff8e1", fg: "#e65100" },
+    platinum: { emoji: "💎", label: "PLATINUM", bg: "#f3e5f5", fg: "#4a148c" },
+  };
+
+  function renderTierBadge(prefill) {
+    const badge = document.getElementById("customer-tier-badge");
+    if (!badge) return;
+    const tier = (prefill && prefill.tier) || "";
+    if (!tier || !TIER_META[tier]) {
+      badge.style.display = "none";
+      badge.dataset.tier = "";
+      return;
+    }
+    const meta = TIER_META[tier];
+    badge.style.display = "inline-block";
+    badge.style.background = meta.bg;
+    badge.style.color = meta.fg;
+    badge.dataset.tier = tier;
+    badge.querySelector(".tier-emoji").textContent = meta.emoji;
+    badge.querySelector(".tier-name").textContent = `Nivel ${meta.label}`;
+  }
+
+  function renderSubscriptionPicker(prefill) {
+    const picker = document.getElementById("customer-subscription-picker");
+    if (!picker) return;
+    const subs = (prefill && prefill.active_subscriptions) || [];
+    if (!Array.isArray(subs) || subs.length === 0) {
+      picker.style.display = "none";
+      picker.dataset.suscripciones = "[]";
+      return;
+    }
+    picker.style.display = "block";
+    picker.dataset.suscripciones = JSON.stringify(subs);
+    const ul = picker.querySelector(".sub-list");
+    ul.innerHTML = subs
+      .map((s) => {
+        const cadence = s.cadence ? ` (${s.cadence})` : "";
+        const priceText = s.price_gs
+          ? ` — Gs. ${Number(s.price_gs).toLocaleString("es-PY")}`
+          : "";
+        const summary = (s.product_summary || "").replace(/[<>&]/g, (c) => ({
+          "<": "&lt;", ">": "&gt;", "&": "&amp;",
+        })[c]);
+        return (
+          `<li style="margin-bottom:4px;display:flex;gap:6px;align-items:center;">` +
+          `<span style="flex:1;">📦 ${summary}${cadence}${priceText}</span>` +
+          `<button type="button" class="apply-sub-btn btn btn-sm"` +
+          ` data-summary="${summary}"` +
+          ` style="background:#7b1fa2;color:white;border:none;padding:2px 8px;border-radius:4px;cursor:pointer;">` +
+          `Aplicar</button>` +
+          `</li>`
+        );
+      })
+      .join("");
+    // Wire up the Aplicar buttons
+    ul.querySelectorAll(".apply-sub-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const summary = btn.getAttribute("data-summary") || "";
+        const notes = document.getElementById("notes");
+        if (notes) {
+          if (notes.value && !notes.value.includes(summary)) {
+            notes.value = notes.value + "\n— Suscripción: " + summary;
+          } else if (!notes.value) {
+            notes.value = "Suscripción: " + summary;
+          }
+          notes.focus();
+        }
+      });
+    });
+  }
+
   /**
    * Apply a prefill dict to the form. Only patches fields that exist
    * and only when the prefill value is non-empty. If `force=true`,
@@ -167,6 +247,10 @@
     // Phase 8 — render the loyalty banner with current balance +
     // projected points for this pedido.
     renderLoyaltyBanner(prefill);
+
+    // Tier 6.4 — render tier badge + suscripción picker.
+    renderTierBadge(prefill);
+    renderSubscriptionPicker(prefill);
 
     // Show the "Pedir de nuevo" banner if a clone is suggested
     showCloneBanner(prefill);
