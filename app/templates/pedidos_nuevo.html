@@ -165,14 +165,28 @@
             // 1) Mismos handlers que usa el picker de búsqueda, así se
             //    autorrellenan teléfono / RUC / factura igual que si
             //    Saskia lo hubiera elegido del dropdown.
-            if (window.customerPickHandlers && window.customerPickHandlers.firePicked) {
+            //
+            // El global window.customerPickHandlers a veces no se inicializa
+            // en pedido-combos.js (pre-existing bug), así que siempre
+            // hacemos el autofill local como respaldo.
+            var pickedPhone = (cust.phone || phoneEl.value.trim());
+            var pickedCed   = (cust.cedula || cedEl.value.trim());
+            var pickedName  = (cust.name || name);
+            var phoneEl2 = document.getElementById('customer_phone');
+            if (phoneEl2 && pickedPhone && !phoneEl2.value) phoneEl2.value = pickedPhone;
+            var rucEl = document.getElementById('invoice_ruc');
+            if (rucEl && (cust.invoice_ruc || pickedCed) && !rucEl.value) rucEl.value = (cust.invoice_ruc || pickedCed);
+            var invNameEl = document.getElementById('invoice_name');
+            if (invNameEl && (cust.invoice_name || pickedName) && !invNameEl.value) invNameEl.value = (cust.invoice_name || pickedName);
+
+            if (window.customerPickHandlers && typeof window.customerPickHandlers.firePicked === 'function') {
               window.customerPickHandlers.firePicked({
                 id:    cid,
-                name:  cust.name || name,
-                phone: cust.phone || phoneEl.value.trim(),
-                cedula:        cust.cedula || '',
-                invoice_ruc:   cust.invoice_ruc || cust.cedula || '',
-                invoice_name:  cust.invoice_name || cust.name || name,
+                name:  pickedName,
+                phone: pickedPhone,
+                cedula:        pickedCed,
+                invoice_ruc:   cust.invoice_ruc || pickedCed,
+                invoice_name:  cust.invoice_name || pickedName,
               });
             }
 
