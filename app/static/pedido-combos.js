@@ -37,6 +37,7 @@
   // P3 delivery: fetch a customer's saved addresses and autofill the form.
   window.loadCustomerAddresses = function (customerId) {
     var addrInput = document.getElementById("address_text");
+    var addressList = document.getElementById("customer-addresses");
     var zoneInput = document.querySelector('input[name="delivery_zone_id"]'); // hidden combo field
     var zoneCombo = document.getElementById("delivery_zone_combo");
     var wsEl = document.getElementById("delivery_window_start");
@@ -52,39 +53,29 @@
             zoneCombo.dispatchEvent(new Event("saskia-combo-external-set"));
           }
         }
-        // Single saved address → autofill; multiple → offer a quick chooser.
-        // T-2026-10-01: idempotent — remove any previously-injected chooser
-        // (this function is called from multiple paths: onSelect, the
-        // delegated change listener, firePicked, and pedido-prefill.js's
-        // renderAddressPicker) and dedupe any address_quick_pick elements
-        // that may have piled up before this fix.
+        // T-2026-10-01: repopulate the native <datalist> that backs the
+        // address input. Pre-this-fix a <select id="address_quick_pick">
+        // was appended for every customer pick — multiple picks or
+        // simultaneous fires from pedido-prefill.js stacked them.
+        // The datalist is a single, native, writeable+selectable
+        // combobox: typing still works for new addresses, picking
+        // from the dropdown autofills. Zero JS-injected DOM, zero
+        // duplicates.
         var addrs = data.addresses || [];
-        addrInput.parentElement.querySelectorAll("#address_quick_pick").forEach(function (el) { el.remove(); });
-        addrInput.parentElement.querySelectorAll("#address-picker").forEach(function (el) { el.remove(); });
+        if (addressList) {
+          // Always rebuild — addresses may have changed since last fetch
+          // (e.g. user saved a new one mid-flow).
+          addressList.innerHTML = addrs.map(function (a) {
+            var label = a.label ? a.label + " — " : "";
+            // <option> inside <datalist> uses label/value OR text;
+            // setting value = address_text and a leading label via the
+            // text node gives browsers the "casa — Edificio..." display.
+            return "<option value=\"" + escapeHtml(a.address_text) + "\">" +
+                   escapeHtml(label) + escapeHtml(a.address_text) + "</option>";
+          }).join("");
+        }
         if (addrs.length === 1 && addrInput && !addrInput.value) {
           addrInput.value = addrs[0].address_text;
-        } else if (addrs.length > 1 && addrInput) {
-          var chooser = document.createElement("select");
-          chooser.id = "address_quick_pick";
-          chooser.className = "input";
-          chooser.style.marginTop = "var(--space-2)";
-          chooser.innerHTML = '<option value="">— direcciones guardadas —</option>' +
-            addrs.map(function (a) {
-              return '<option value="' + a.id + '">' +
-                escapeHtml(a.label) + ": " + escapeHtml(a.address_text) + "</option>";
-            }).join("");
-          chooser.addEventListener("change", function () {
-            var picked = addrs.filter(function (a) {
-              return String(a.id) === chooser.value;
-            })[0];
-            if (picked) {
-              addrInput.value = picked.address_text;
-              if (picked.zone_id && zoneInput) {
-                zoneInput.value = String(picked.zone_id);
-              }
-            }
-          });
-          addrInput.parentElement.appendChild(chooser);
         }
         // Customer already has saved addresses → hide save-row (they're covered);
         // new customer with address typed → show it. Flag first so the

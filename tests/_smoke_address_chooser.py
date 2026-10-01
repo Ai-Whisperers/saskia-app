@@ -1,25 +1,57 @@
-"""Smoke test: server-rendered HTML for /pedidos/nuevo must not contain
-any address-chooser markup (the chooser is JS-injected, not server-rendered).
+"""Smoke test: /pedidos/nuevo must have exactly one address input
+backed by a native <datalist id="customer-addresses">.
 
-Bug context: the screenshot shows three 'direcciones guardadas' labels
-stacked. pedido-combos.js's `loadCustomerAddresses` appends a new
-chooser to addrInput.parentElement every time the operator picks a
-customer — without removing the previous one. pedido-prefill.js has a
-similar bug in renderAddressPicker. This test pins the server-rendered
-HTML to ZERO choosers so we can target the duplication fix without
-needing a JS test runner.
+T-2026-10-01: replaced the two competing JS-injected <select>s
+(pedido-combos.js's address_quick_pick + pedido-prefill.js's
+address-picker) with a single native combobox. The picker is the
+existing address_text <input list="customer-addresses">, which is
+writeable AND shows the saved addresses as dropdown options.
+
+This test pins the new contract so a future regression can't
+re-introduce duplicate pickers or stacked "— direcciones guardadas —"
+labels.
 """
 from __future__ import annotations
 
+import json
 import re
 
+from app.rms.models import Customer, CustomerAddress
 
-def test_server_html_has_no_address_chooser(client, session_factory):
-    """With a customer that has 3 saved addresses, server HTML must have zero choosers."""
-    from app.rms.models import Customer, CustomerAddress
 
+def test_datalist_present_and_empty_when_no_customer(client, session_factory):
+    """Even with no customer selected, the <datalist id=customer-addresses>
+    must exist (empty) so the input can be populated when a customer
+    is later picked. No competing pickers."""
+    from tests.factories import make_customer
     with session_factory() as s:
-        c = Customer(name="Chooser Demo", phone="+595 9XX XXXX")
+        cid = make_customer(s, name="NoAddr Test").id
+        s.commit()
+    r = client.get(f"/pedidos/nuevo?customer_id={cid}")
+    assert r.status_code == 200, r.text[:200]
+    body = r.text
+    # Single native <datalist id="customer-addresses"> present
+    assert 'id="customer-addresses"' in body, (
+        "Expected <datalist id='customer-addresses'> in the rendered "
+        "form (provides native writeable+selectable combobox)."
+    )
+    # The address input references the datalist via `list=` attr
+    assert 'list="customer-addresses"' in body, (
+        "Expected address_text input to use list='customer-addresses' "
+        "to bind it to the datalist."
+    )
+    # No JS-injected duplicates from pre-fix code
+    assert 'id="address_quick_pick"' not in body
+    assert 'id="address-picker"' not in body
+    # No stacked "direcciones guardadas" label leaking into HTML
+    assert body.count("direcciones guardadas") == 0
+
+
+def test_datalist_populates_when_customer_has_addresses(client, session_factory):
+    """With a customer that has saved addresses, the datalist must
+    carry one <option> per address (no duplicates, no stray selects)."""
+    with session_factory() as s:
+        c = Customer(name="Datalist UX", phone="+595 9XX XXXX")
         s.add(c)
         s.flush()
         for label, addr, is_def in [
@@ -36,30 +68,90 @@ def test_server_html_has_no_address_chooser(client, session_factory):
         s.commit()
         cid = c.id
 
-    resp = client.get(f"/pedidos/nuevo?customer_id={cid}")
-    assert resp.status_code == 200, resp.text[:200]
-    html = resp.text
+    r = client.get(f"/pedidos/nuevo?customer_id={cid}")
+    assert r.status_code == 200, r.text[:200]
+    body = r.text
 
-    # Server HTML must have ZERO address-chooser markers.
-    assert html.count("direcciones guardadas") == 0, (
-        f"'direcciones guardadas' appears {html.count('direcciones guardadas')} times "
-        "in server HTML; the chooser should be JS-injected only"
-    )
-    assert html.count('id="address-picker"') == 0, (
-        f"address-picker div appears {html.count('id=\"address-picker\"')} times in HTML"
-    )
-    assert html.count('id="address_quick_pick"') == 0, (
-        f"address_quick_pick appears {html.count('id=\"address_quick_pick\"')} times in HTML"
-    )
+    # Datalist exists
+    assert 'id="customer-addresses"' in body
+    # Each address appears at least once in the rendered page (it
+    # shows up in both the <datalist> options and the customer-prefill
+    # JSON payload; we only care that there's at least one visible copy).
+    assert body.count("Av. España 123") >= 1
+    assert body.count("Mcal. López 456") >= 1
+    assert body.count("Sajonia 789") >= 1
+    # No pre-fix duplicate-picker residues
+    assert 'id="address_quick_pick"' not in body
+    assert 'id="address-picker"' not in body
+    # No JS-rendered label leaks into HTML (the datalist is bare)
+    assert "direcciones guardadas" not in body
 
-    # The prefill JSON must carry the address book so JS can render it
-    import json
+    # The prefill JSON still carries the address book for other consumers
     m = re.search(
         r'<script id="customer-prefill" type="application/json">(.*?)</script>',
-        html, re.S,
+        body, re.S,
     )
     assert m is not None, "customer-prefill JSON script block missing"
     data = json.loads(m.group(1))
     addrs = data.get("available_addresses", [])
     assert len(addrs) == 3, f"expected 3 saved addresses, got {len(addrs)}"
     assert {a["label"] for a in addrs} == {"Casa", "Oficina", "Mamá"}
+
+
+def test_datalist_options_have_value_and_label(client, session_factory):
+    """Each <option> inside the datalist must have a value attr (so
+    browsers autofill the input on selection) and the address text as
+    its body (so the dropdown shows the full text, not just an ID)."""
+    with session_factory() as s:
+        c = Customer(name="Datalist Opts", phone="+595 9XX XXXX")
+        s.add(c)
+        s.flush()
+        s.add(CustomerAddress(
+            customer_id=c.id,
+            label="casa",
+            address_text="Edificio Villa Morra, Piso 7 of. 703",
+        ))
+        s.commit()
+        cid = c.id
+
+    r = client.get(f"/pedidos/nuevo?customer_id={cid}")
+    body = r.text
+
+    # Find the datalist options. The datalist options use the
+    # address_text as value (so the input fills with the address on
+    # selection) and the label as part of the visible text.
+    options = re.findall(
+        r'<option value="([^"]+)"[^>]*>([^<]+)</option>',
+        body,
+    )
+    assert options, "no <option> tags rendered in the page"
+    values = [v for v, _ in options]
+    texts = [t for _, t in options]
+    assert "Edificio Villa Morra, Piso 7 of. 703" in values
+    assert "casa — Edificio Villa Morra, Piso 7 of. 703" in texts, (
+        f"Expected label+address in display text, got {texts!r}"
+    )
+
+
+def test_no_duplicate_pickers_across_paths(client, session_factory):
+    """The two JS entry points (pedido-combos.js's loadCustomerAddresses
+    + pedido-prefill.js's renderAddressPicker) both target the same
+    datalist — there should never be two pickers stacked on the page
+    even after the customer is changed via the combo."""
+    from tests.factories import make_customer
+    # Two customers — switching between them must not accumulate pickers
+    with session_factory() as s:
+        c1 = make_customer(s, name="SwitchA", phone="+595****7101")
+        c2 = make_customer(s, name="SwitchB", phone="+595****7102")
+        s.commit()
+        cid1, cid2 = c1.id, c2.id
+
+    r = client.get(f"/pedidos/nuevo?customer_id={cid1}")
+    body = r.text
+    # Exactly ONE datalist reference
+    assert body.count('id="customer-addresses"') == 1
+    # No legacy picker IDs
+    assert 'id="address_quick_pick"' not in body
+    assert 'id="address-picker"' not in body
+    # No "direcciones guardadas" label that the OLD wrong-select showed
+    assert "direcciones guardadas" not in body

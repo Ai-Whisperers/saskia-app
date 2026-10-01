@@ -40,58 +40,43 @@
   };
 
   // ---- Phase 7: address picker for customers with 2+ addresses ----
+  // T-2026-10-01: replaced the JS-injected <select> + label block
+  // with a repopulation of the native <datalist id="customer-addresses">
+  // that backs the address_text input. The datalist is a single,
+  // native combobox that gives both behaviors for free:
+  //   - typing still works for new addresses
+  //   - clicking the dropdown arrow shows the saved addresses
+  //   - selecting one autofills the input
+  // Previously this function fought pedido-combos.js's
+  // address_quick_pick for the same DOM slot, causing 2-3 dupes on
+  // the page when both fired.
   function renderAddressPicker(addresses) {
-    let picker = document.getElementById("address-picker");
-    // T-2026-10-01: also remove any address_quick_pick that
-    // pedido-combos.js may have injected on the same page — same UX,
-    // same parent element, but only one chooser should ever be visible.
-    document.querySelectorAll("#address_quick_pick").forEach(function (el) { el.remove(); });
-    if (!Array.isArray(addresses) || addresses.length < 2) {
-      if (picker) picker.remove();
+    const addressList = document.getElementById("customer-addresses");
+    const addrInput = document.getElementById("address_text");
+    // No native datalist → fall back to legacy behavior (page may be
+    // a pre-fix deploy or a non-pedidos_nuevo page that reuses this
+    // helper). Pre-fix this branch created the duplicate picker.
+    if (!addressList) return;
+    if (!Array.isArray(addresses) || addresses.length === 0) {
+      addressList.innerHTML = "";
       return;
     }
-    if (!picker) {
-      picker = document.createElement("div");
-      picker.id = "address-picker";
-      picker.className = "address-picker";
-      picker.style.cssText =
-        "background:var(--color-surface-2, #f4f4f4);border-radius:6px;padding:8px 12px;margin-bottom:6px;";
-      // Insert directly above the address_text input
-      const addrInput = document.getElementById("address_text");
-      if (addrInput) {
-        addrInput.parentElement.insertBefore(picker, addrInput);
-      }
-    }
-    const options = addresses
-      .map(
-        (a) =>
-          `<option value="${a.id}" data-text="${(a.address_text || "").replace(/"/g, "&quot;")}" data-label="${(a.label || "").replace(/"/g, "&quot;")}" data-zone="${a.delivery_zone_id || ""}" ${a.is_default ? "selected" : ""}>${a.label} — ${a.address_text}</option>`
-      )
+    addressList.innerHTML = addresses
+      .map((a) => {
+        const label = a.label ? a.label + " — " : "";
+        const text = a.address_text || "";
+        // Datalist options: value is what the input gets, the text
+        // node is what the dropdown shows. Chrome/Firefox/Safari all
+        // use value as the default and fall back to text.
+        return `<option value="${text.replace(/"/g, "&quot;")}">${label.replace(/</g, "&lt;")}${text.replace(/</g, "&lt;")}</option>`;
+      })
       .join("");
-    picker.innerHTML =
-      `<label style="font-weight:600;font-size:13px;display:block;margin-bottom:4px;">📍 Direcciones guardadas</label>` +
-      `<select id="address-picker-select" style="width:100%;padding:6px;">${options}</select>` +
-      `<small style="font-size:12px;color:#666;">Cambiá entre las direcciones conocidas del cliente. Si necesitás una nueva, usá el campo de abajo.</small>`;
-
-    const select = document.getElementById("address-picker-select");
-    select.addEventListener("change", (e) => {
-      const opt = e.target.selectedOptions[0];
-      const text = opt.getAttribute("data-text") || "";
-      const label = opt.getAttribute("data-label") || "";
-      const zoneId = opt.getAttribute("data-zone") || "";
-      const addrText = document.getElementById("address_text");
-      const addrLabel = document.getElementById("address_label");
-      const saveChk = document.getElementById("save_address");
-      if (addrText) addrText.value = text;
-      if (addrLabel) addrLabel.value = label;
-      if (saveChk) saveChk.checked = false; // already saved
-      if (zoneId && window.document.querySelector("saskia-combo#delivery_zone_combo")) {
-        const combo = window.document.querySelector("saskia-combo#delivery_zone_combo");
-        if (typeof combo.setValue === "function") {
-          combo.setValue(String(zoneId));
-        }
-      }
-    });
+    // If the input is empty and there's exactly one address, autofill
+    // it (the legacy single-address behavior). Multiple addresses
+    // leave the input alone — the operator picks from the dropdown.
+    if (addrInput && !addrInput.value && addresses.length === 1) {
+      addrInput.value = addresses[0].address_text || "";
+    }
   }
 
   // ---- Phase 8: loyalty banner ----

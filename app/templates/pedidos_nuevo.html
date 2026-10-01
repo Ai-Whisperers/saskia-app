@@ -360,9 +360,30 @@
   {# ── P3 delivery: address + arrival window + factura ─────── #}
   <div class="form-row">
     <label for="address_text">Dirección de envío <span class="muted">(si es delivery)</span></label>
+    {# T-2026-10-01: native <datalist> turns the address input into a
+       writeable+selectable combobox — typing still works for new
+       addresses, picking from the dropdown autofills the input. This
+       replaced TWO competing JS-injected <select>s (one from
+       pedido-combos.js's address_quick_pick, another from
+       pedido-prefill.js's address-picker) that were stacking on the
+       same page and confusing operators. The datalist is updated in
+       place when the customer changes via JS — no DOM injection. #}
     <input type="text" id="address_text" name="address_text"
+           list="customer-addresses"
            placeholder="Calle, número, barrio, referencia…"
            autocomplete="street-address">
+    {# Server-render the datalist with the preset customer's saved
+       addresses so the dropdown is populated on initial paint (no
+       flash of empty input). When the user changes the customer via
+       the combo, pedido-combos.js's loadCustomerAddresses() and
+       pedido-prefill.js's renderAddressPicker() both call
+       document.getElementById('customer-addresses').innerHTML = ...
+       to repopulate. #}
+    <datalist id="customer-addresses">
+      {% for a in customer_prefill.get("available_addresses", []) %}
+      <option value="{{ a.address_text|e }}">{{ (a.label ~ " — ") if a.label else "" }}{{ a.address_text|e }}</option>
+      {% endfor %}
+    </datalist>
   </div>
   <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
     <div>
