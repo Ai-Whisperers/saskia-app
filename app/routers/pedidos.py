@@ -247,6 +247,7 @@ def _parse_date_or_none(value: Any):
 
 from app.services.customer_address import (
     ventana_text as _ventana_text_helper,
+    PARAGUAY_DEPARTMENTS,
 )
 
 
@@ -681,6 +682,13 @@ def pedidos_new_form(
             "delivery_zones": delivery_zones,
             "today_iso": datetime.now(ASUNCION_TZ).date().isoformat(),
             "default_promised_date": tomorrow.isoformat(),
+            # Phase 14 (2026-10-01): 18 PY departments + Asunción Capital
+            # for the address_departamento combo (was a hand-rolled
+            # <select> with a duplicate "Amambay" entry as a bug).
+            "paraguay_departments": PARAGUAY_DEPARTMENTS,
+            "paraguay_departments_src": [
+                {"value": d, "label": d} for d in PARAGUAY_DEPARTMENTS
+            ],
         },
     )
 

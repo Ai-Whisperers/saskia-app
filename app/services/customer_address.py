@@ -153,6 +153,28 @@ def invoice_profile_summary(profile: Mapping[str, Any] | None) -> str:
 
 DELIVERY_PREFERENCES = ("asap", "window", "scheduled")
 
+# 18 departamentos + Asunción (Capital). Used by address_departamento combo.
+PARAGUAY_DEPARTMENTS = (
+    "Asunción",
+    "Alto Paraguay",
+    "Alto Paraná",
+    "Amambay",
+    "Boquerón",
+    "Caaguazú",
+    "Caazapá",
+    "Canindeyú",
+    "Central",
+    "Concepción",
+    "Cordillera",
+    "Guairá",
+    "Itapúa",
+    "Misiones",
+    "Ñeembucú",
+    "Paraguarí",
+    "Presidente Hayes",
+    "San Pedro",
+)
+
 
 def ventana_text(pref: str | None, start: str | None, end: str | None,
                  scheduled_date: str | None = None) -> str:
