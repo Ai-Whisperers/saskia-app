@@ -5,6 +5,24 @@
 
 ## [Unreleased]
 
+### Fixed — DB-level guard for INSERT (recipe yield_qty, recipe_line qty)
+- **Migration 083** (`app/rms/db.py`) closes the gap left by migration
+  028. Migration 028 created triggers on `UPDATE OF yield_qty` /
+  `UPDATE OF qty` that reject non-null values `<= 0`. But raw SQL
+  `INSERT INTO recipe (..., yield_qty, ...) VALUES (..., -1, ...)` slipped
+  past those triggers — UPDATE triggers don't fire on INSERT.
+- Migration 083 adds the corresponding `BEFORE INSERT` triggers for
+  both `recipe.yield_qty` and `recipe_line.qty`. NULL is still allowed
+  (draft state). On Postgres the constraint is already in the model
+  via `CheckConstraint("qty > 0")` so this migration is a no-op there
+  (we still bump the version for schema-tracking consistency).
+- **Closes BACKLOG #5** (recipe.yield_qty CHECK; previously marked Done
+  in 2026 but the gap was the missing INSERT side).
+- **Tests** (`tests/test_db_check_constraints.py`): 5 new tests
+  covering INSERT rejection of zero / negative yield_qty and qty,
+  plus idempotency of the migration itself (re-run is no-op).
+  `11 / 11` pass.
+
 ### Fixed — pedido_board plays chime on new orders (opt-in)
 - **`app/templates/pedido_board.html`** — the sound toggle (🔕/🔔)
   button has been wired. Now when a user has opted in (`localStorage`

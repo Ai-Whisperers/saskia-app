@@ -3874,6 +3874,63 @@ def _migration_082_expense(conn: Any) -> None:
     _bump_schema_version(conn, 82)
 
 
+def _migration_083_recipe_yield_qty_insert_guard(conn: Any) -> None:
+    """BACKLOG #5 (gap-fix) — Migration 028 only added UPDATE triggers.
+
+    Migration 028 created triggers on `UPDATE OF yield_qty` /
+    `UPDATE OF qty` that fire `RAISE(ABORT, ...)` when setting to a
+    non-null value <= 0. But raw `INSERT INTO recipe (..., yield_qty, ...)
+VALUES (..., -1, ...)` slips past those triggers entirely — UPDATE
+triggers don't fire on INSERT. Same for `recipe_line.qty`.
+
+    This migration adds the corresponding BEFORE INSERT triggers so
+    the guard covers both spell and logical write paths. Idempotent
+    (CREATE TRIGGER IF NOT EXISTS).
+
+    On Postgres the constraint lives in the model as a `CheckConstraint`
+    so this migration is a no-op there (we still bump the version).
+    """
+    try:
+        dialect_name = conn.dialect.name
+    except Exception:
+        dialect_name = "sqlite"
+
+    if dialect_name == "sqlite":
+        # Recipe: yield_qty insert guard (NULL allowed for drafts).
+        try:
+            conn.execute(text("""
+                CREATE TRIGGER IF NOT EXISTS recipe_yield_qty_positive_insert
+                BEFORE INSERT ON recipe
+                FOR EACH ROW
+                WHEN NEW.yield_qty IS NOT NULL AND NEW.yield_qty <= 0
+                BEGIN
+                    SELECT RAISE(ABORT, 'recipe.yield_qty must be > 0 (or NULL for drafts)');
+                END
+            """))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "migration 083 recipe_yield_qty_positive_insert skipped: %s", exc
+            )
+
+        # RecipeLine: qty insert guard.
+        try:
+            conn.execute(text("""
+                CREATE TRIGGER IF NOT EXISTS recipe_line_qty_positive_insert
+                BEFORE INSERT ON recipe_line
+                FOR EACH ROW
+                WHEN NEW.qty IS NOT NULL AND NEW.qty <= 0
+                BEGIN
+                    SELECT RAISE(ABORT, 'recipe_line.qty must be > 0 (or NULL)');
+                END
+            """))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "migration 083 recipe_line_qty_positive_insert skipped: %s", exc
+            )
+
+    _bump_schema_version(conn, 83)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -3957,6 +4014,7 @@ MIGRATIONS = {
     80: _migration_080_customer_invoice_profile,
     81: _migration_081_pedido_delivery_window,
     82: _migration_082_expense,
+    83: _migration_083_recipe_yield_qty_insert_guard,
 }
 
 

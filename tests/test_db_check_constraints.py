@@ -115,3 +115,97 @@ def test_recipe_line_qty_negative_at_update_rejected(session_factory):
                 update(RL).where(RL.id == rl_id).values(qty=-1)
             )
             s.commit()
+
+
+# ── Migration 083 (2026-10-01) — INSERT-side guards ──────────────────
+# Migration 028 only added UPDATE triggers. INSERT of a negative
+# `yield_qty` or `qty` slipped through. Migration 083 closes that gap.
+
+
+def test_recipe_insert_with_zero_yield_rejected(session_factory):
+    """INSERT recipe with yield_qty=0 must raise IntegrityError."""
+    from app.rms.models import Recipe
+    sf = session_factory
+    with sf() as s:
+        r = Recipe(name="Receta Zero Yield", yield_qty=0, yield_unit="und")
+        s.add(r)
+        with pytest.raises(IntegrityError):
+            s.commit()
+        s.rollback()
+
+
+def test_recipe_insert_with_negative_yield_rejected(session_factory):
+    """INSERT recipe with yield_qty=-3 must raise IntegrityError.
+
+    Regression for the migration 028 gap: UPDATE trigger did not cover
+    INSERT, so raw SQL INSERT INTO recipe (..., yield_qty, ...) VALUES
+    (..., -3, ...) used to slip past the constraint.
+    """
+    from app.rms.models import Recipe
+    sf = session_factory
+    with sf() as s:
+        r = Recipe(name="Receta Negative Yield", yield_qty=-3, yield_unit="und")
+        s.add(r)
+        with pytest.raises(IntegrityError):
+            s.commit()
+        s.rollback()
+
+
+def test_recipe_line_insert_with_zero_qty_rejected(session_factory):
+    """INSERT recipe_line with qty=0 must raise IntegrityError."""
+    from app.rms.models import Ingredient, Recipe, RecipeLine
+    sf = session_factory
+    with sf() as s:
+        ing = Ingredient(name="test_rl_zero", unit="kg", stock_qty=10,
+                         min_stock_qty=1, purchase_price_gs=3000)
+        s.add(ing); s.flush()
+        rec = Recipe(name="r_zero_qty", yield_qty=12, yield_unit="und")
+        s.add(rec); s.flush()
+        rl = RecipeLine(recipe_id=rec.id, line_kind="ingredient",
+                        line_ref_id=ing.id, qty=0, line_unit="kg")
+        s.add(rl)
+        with pytest.raises(IntegrityError):
+            s.commit()
+        s.rollback()
+
+
+def test_recipe_line_insert_with_negative_qty_rejected(session_factory):
+    """INSERT recipe_line with qty=-0.5 must raise IntegrityError.
+
+    Regression for migration 028 gap — INSERT-side guard now in place
+    via migration 083.
+    """
+    from app.rms.models import Ingredient, Recipe, RecipeLine
+    sf = session_factory
+    with sf() as s:
+        ing = Ingredient(name="test_rl_neg", unit="kg", stock_qty=10,
+                         min_stock_qty=1, purchase_price_gs=3000)
+        s.add(ing); s.flush()
+        rec = Recipe(name="r_neg_qty", yield_qty=12, yield_unit="und")
+        s.add(rec); s.flush()
+        rl = RecipeLine(recipe_id=rec.id, line_kind="ingredient",
+                        line_ref_id=ing.id, qty=-0.5, line_unit="kg")
+        s.add(rl)
+        with pytest.raises(IntegrityError):
+            s.commit()
+        s.rollback()
+
+
+def test_migration_083_idempotent_re_run(session_factory):
+    """Migration 083 must be idempotent — CREATE TRIGGER IF NOT EXISTS.
+
+    Re-running the migration on a DB that already has the triggers
+    must not raise. init_db() takes an Engine; the migration function
+    itself takes a Connection (as called from inside engine.begin()).
+    """
+    from app.rms.db import init_db, MIGRATIONS, _migration_083_recipe_yield_qty_insert_guard
+
+    sf = session_factory
+    bind = sf.kw["bind"]
+    # Migrations expect a Connection; wrap the engine.
+    with bind.begin() as conn:
+        # Second invocation: no-op due to IF NOT EXISTS.
+        _migration_083_recipe_yield_qty_insert_guard(conn)
+    # init_db expects an Engine.
+    init_db(bind)
+    assert 83 in MIGRATIONS
