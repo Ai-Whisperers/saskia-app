@@ -359,7 +359,7 @@ def product_new(request: Request, session: Session = Depends(get_session)) -> HT
     """
     from app.rms.categories import list_categories as list_cats
     from app.rms.settings_runtime import get_pricing_markup
-    from app.rms.tags import list_tags_for_kind
+    from app.rms.tagging import list_tags_for_kind
 
     recipes = session.scalars(select(Recipe).order_by(Recipe.name)).all()
     return render(
@@ -521,7 +521,7 @@ def product_edit(
     """Show edit form. Passes DB-driven catalogs (see product_new)."""
     from app.rms.categories import list_categories as list_cats
     from app.rms.settings_runtime import get_pricing_markup
-    from app.rms.tags import list_tags_for_kind
+    from app.rms.tagging import list_tags_for_kind
 
     p = session.get(Product, p_id)
     if p is None:

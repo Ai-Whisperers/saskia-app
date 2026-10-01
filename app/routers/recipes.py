@@ -267,7 +267,7 @@ async def recipes_list(
     # Ingredient list for filter dropdown
     all_ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
 
-    from app.rms.tags import list_tags_for_kind
+    from app.rms.tagging import list_tags_for_kind
     all_families = sorted({f for f, in session.execute(select(Recipe.family).where(Recipe.family.is_not(None)).distinct()) if f})
     all_tags = [t.name for t in list_tags_for_kind(session, "recipe")]
     total_all = session.scalar(select(func.count(Recipe.id))) or 0
@@ -305,7 +305,7 @@ async def recipe_new(request: Request, session: Session = Depends(get_session)) 
       - dietary_tags: rows from `tag` WHERE kind='recipe'
     """
     from app.rms.categories import list_categories as list_cats
-    from app.rms.tags import list_tags_for_kind
+    from app.rms.tagging import list_tags_for_kind
 
     ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
     # Variant-aware price so JS live cost matches server-side batch/unit
@@ -778,7 +778,7 @@ async def recipe_edit(
         scale_factor = 1.0
 
     from app.rms.categories import list_categories as list_cats
-    from app.rms.tags import list_tags_for_kind
+    from app.rms.tagging import list_tags_for_kind
 
     return render(
         request,

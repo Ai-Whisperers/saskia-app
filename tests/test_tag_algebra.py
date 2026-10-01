@@ -13,7 +13,7 @@ The core semantics under test:
 from __future__ import annotations
 
 from app.rms.models import Ingredient, Product, Recipe, RecipeLine
-from app.rms.tag_algebra import (
+from app.rms.tagging import (
     cascade_refresh,
     derive_recipe_tags,
     ingredient_blocks,

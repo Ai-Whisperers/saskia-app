@@ -1566,7 +1566,7 @@ def _migration_039_category_table(conn: Any) -> None:
     # ensure_starter_tags is a no-op on rows already present.
     try:
         # Use the same connection as the migration so it's in the same transaction.
-        from app.rms.tags import STARTER_TAGS
+        from app.rms.tagging import STARTER_TAGS
         for name, kind, color in STARTER_TAGS:
             try:
                 ensure_tag_with_conn(conn, name, kind, color)

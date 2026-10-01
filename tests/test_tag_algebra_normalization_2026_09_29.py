@@ -14,10 +14,10 @@ from __future__ import annotations
 
 import pytest
 
-from app.rms.tag_algebra import (
-    _normalize_tag,
-    ingredient_dietary_set,
+from app.rms.tagging import (
     ingredient_blocks,
+    ingredient_dietary_set,
+    normalize as _normalize_tag,
 )
 
 
