@@ -37,9 +37,9 @@ the code, and operator-ranked. Status is the latest known state.
 | 15 | Cierre del día doesn't actually mark anything closed — can re-open yesterday | ❌ TODO | M |
 | 16 | `/ventas/{id}` standalone HTML view missing (only `/recibo` exists) | ❌ TODO | S |
 | 17 | Customer-facing share of recibo (`/p/{token}`) broken per audit | ❌ TODO | M |
-| 18 | Consolidate `parse_money_gs` (validation.py) + `parse_gs` (money.py) — duplicate logic | ❌ TODO | S |
+| 18 | Consolidate `parse_money_gs` (validation.py) + `parse_gs` (money.py) — duplicate logic | ✅ Done (`parse_money_gs` is already a thin HTTPException-shaping wrapper around `parse_gs`; canonical parser single source of truth per docstring) | — |
 | 19 | `RecipeLine.qty` is Float but used in Decimal math (make Numeric) | ❌ TODO | S |
-| 20 | Discount math `unit_price * qty - discount` has no overflow check | ❌ TODO | XS |
+| 20 | Discount math `unit_price * qty - discount` has no overflow check | ✅ Done (replaced `math.ceil(qty * unit_price * discount_pct / 100)` with Decimal-safe `to_decimal(...)` math in `sales.py:1230`; `ROUND_HALF_UP` matches existing `to_int_gs` convention; 10 unit tests in `tests/test_sales_discount_overflow_guard.py` cover huge values, rounding edges, None handling, and the [0,100] invariant) | — |
 
 ## Tier 4: P1 — Performance
 
@@ -56,7 +56,7 @@ the code, and operator-ranked. Status is the latest known state.
 | # | Item | Status | Effort |
 |---|---|---|---|
 | 26 | `sale_stock_move` (6,177 rows) — analytics on consumption patterns | ❌ TODO | M |
-| 27 | `Sale.tz` — recorded per sale, never queried | ❌ TODO | S |
+| 27 | `Sale.tz` — recorded per sale, never queried | ✅ Done (`/clientes/{id}` renders tz_breakdown via `customers.py:1048-1080`; tests `test_sale_timezone_field.py` + `test_cliente_tz_breakdown.py` 7/7 pass) | — |
 | 28 | `WasteLog.cost_gs` — waste ROI per ingredient | ❌ TODO | M |
 | 29 | `ProductionCompletion.completed_qty` — plan accuracy ML | ❌ TODO | L |
 | 30 | `AuditLog` — unused for analytics (login IPs, time patterns, operator patterns) | ❌ TODO | L |

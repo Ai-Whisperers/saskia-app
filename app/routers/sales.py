@@ -8,7 +8,7 @@ from __future__ import annotations
 import math
 import uuid
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
@@ -1219,6 +1219,24 @@ async def sale_create_multi(
             )
 
             # All items in the cart share the same metadata (customer, payment, channel)
+            # Phase 14 #20: discount math uses Decimal (NOT float) so a huge
+            # qty or unit_price can't trigger float overflow. discount_pct
+            # is already Pydantic-bounded to [0, 100] at line 1028, so
+            # the discount can never exceed the line subtotal.
+            from app.rms.money import to_decimal
+
+            subtotal_gs = int(
+                (to_decimal(item.qty) * to_decimal(unit_price))
+                .quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+            )
+            line_discount_gs = int(
+                (
+                    to_decimal(item.qty)
+                    * to_decimal(unit_price)
+                    * to_decimal(item.discount_pct or 0)
+                    / to_decimal(100)
+                ).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+            )
             result = apply_sale(
                 session,
                 item.product_id,
@@ -1227,7 +1245,7 @@ async def sale_create_multi(
                 notes_clean,
                 customer_id=customer_id,
                 payment_method=payment_method_clean,
-                discount_gs=math.ceil(item.qty * unit_price * (item.discount_pct or 0) / 100),
+                discount_gs=line_discount_gs,
                 channel=channel_clean,
                 unit_price_gs_override=unit_price if item.unit_price_gs else None,
             )

@@ -798,21 +798,25 @@ def products_import_page(request: Request) -> HTMLResponse:
 
 
 @router.post("/importar")
-def products_import_csv(
+async def products_import_csv(
     request: Request,
+    file: UploadFile | None = File(None),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Parse uploaded CSV, find-or-create each product, return results."""
     from app.rms.validation import optional_text, parse_money_gs
 
-    form_data = request._form()
-    file = form_data.get("file")
+    # FastAPI's multipart parser populates `file` via the File(...) param
+    # declaration above. Previously this called `request._form()` (a
+    # private Starlette attr that's None on every sync handler), which
+    # raised 'NoneType is not callable' on the test client. Tier 3 smoke
+    # (2026-10-01) caught the regression.
     if not file or not hasattr(file, "filename"):
         return render(request, "productos_importar.html", {
             "error": "No se recibió ningún archivo."
         })
 
-    content = file.read().decode("utf-8", errors="replace")
+    content = (await file.read()).decode("utf-8", errors="replace")
     reader = csv.DictReader(content.splitlines())
     if reader.fieldnames is None:
         return render(request, "productos_importar.html", {
