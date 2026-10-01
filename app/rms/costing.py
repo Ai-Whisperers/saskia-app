@@ -515,7 +515,18 @@ def apply_sale(
             try:
                 # Walk tree, collect (ingredient_id, qty_delta)
                 moves = _compute_stock_moves(session, recipe, qty, set())
-                # Create SaleStockMove rows + update ingredient stock
+                # KNOWN DUAL-WRITE (Phase 14 #1 — partially addressed):
+                # We write BOTH SaleStockMove and StockMovement for the same
+                # sale. The reasons SaleStockMove is still written:
+                #   - 157 references in app/+ tests/ (accounting COGS,
+                #     export_csv, backup, demo_reset, seed/kyrian, etc.).
+                #   - SaleStockMove.affected_recipe_id records WHICH recipe
+                #     the ingredient came from (sub-recipe traceability),
+                #     which StockMovement does not capture.
+                # Full consolidation = add affected_recipe_id nullable on
+                # StockMovement + migrate SaleStockMove rows + drop the
+                # old table. Estimated scope: ~50 files touched. See
+                # IMPROVEMENT_BACKLOG.md #1 for the full plan.
                 for affected_recipe_id, ingredient_id, qty_delta in moves:
                     move = SaleStockMove(
                         sale_id=sale.id,

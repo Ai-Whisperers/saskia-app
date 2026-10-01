@@ -10,10 +10,10 @@ the code, and operator-ranked. Status is the latest known state.
 
 | # | Item | Status | Effort |
 |---|---|---|---|
-| 1 | Consolidate `sale_stock_move` + `stock_movement` (two parallel tables; reports on `stock_movement` see nothing) | ❌ TODO | M |
-| 2 | Add `pedido_sale_stock_move` link so pedido fulfillment is traceable back to specific stock moves | ❌ TODO | M |
+| 1 | Consolidate `sale_stock_move` + `stock_movement` (two parallel tables; 157 references; both written per sale — `SaleStockMove` is needed for `affected_recipe_id` (sub-recipe traceability) which `StockMovement` does not capture; full consolidation = add `affected_recipe_id` nullable column to `StockMovement` + backfill migration + drop `SaleStockMove`, ~50 files touched) | 🔶 In progress (costing.py documented as known dual-write 2026-10-01; full consolidation needs dedicated refactor session) | M |
+| 2 | Add `pedido_sale_stock_move` link so pedido fulfillment is traceable back to specific stock moves | ✅ Done (migration 076 added `Sale.linked_pedido_id`; `pedido.detail` shows linked_sales via `select(SaleModel).where(linked_pedido_id == pedido.id)`; each sale has `.stock_moves` → full chain pedido→sales→stock_moves) | — |
 | 3 | Move INV-03 clamp from UI to DB: enforce `stock_qty >= 0` at DB level (the UI clamp hides raw negatives from analytics) | ❌ TODO | S |
-| 4 | Make migrations truly atomic (Postgres DDL auto-commits — `try/except: pass` on ALTER leaves partial state) | ❌ TODO | M |
+| 4 | Make migrations truly atomic (Postgres DDL auto-commits — `try/except: pass` on ALTER leaves partial state; detector added in `app/rms/db.py:_init_db_inner` that probes `schema_version` after a failed migration and raises RuntimeError on partial advance — 3 new tests pass; full atomicity requires per-statement SAVEPOINT wrapping, still open) | 🔶 In progress (partial-apply detector added 2026-10-01) | M |
 | 5 | Add DB-level CHECK on `recipe.yield_qty > 0` (today only Python enforces; raw SQL can insert NULL yield_qty) | ✅ Done 2026-10-01 (migration 028 update triggers + migration 083 INSERT triggers; `tests/test_db_check_constraints.py`) | — |
 | 6 | `ON DELETE` policy on `RecipeLine.recipe_id` (deleting a recipe leaves orphans OR cascades and deletes user data — current behavior is unclear) | ✅ Done 2026-10-01 (audit: `RecipeLine.recipe_id` already has `ondelete="CASCADE"`; `Product.recipe_id` has no `ondelete` so DB default RESTRICT applies — cannot delete an in-use recipe; safe) | — |
 

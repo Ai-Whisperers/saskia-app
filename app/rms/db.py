@@ -4215,6 +4215,35 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
             )
             # Print to stderr so Render logs capture it
             print(f"MIGRATION v{v} FAILED: {exc!r}", file=sys.stderr)
+            # Validation hook (Phase 14 #4): probe schema_version on a
+            # FRESH connection. If it advanced despite the failure, the
+            # DDL partially applied — surface as a loud warning so the
+            # operator investigates before the next migration assumes a
+            # clean baseline.
+            after = None
+            probe_err = None
+            try:
+                with engine.connect() as probe:
+                    after = schema_version(probe)
+            except Exception as probe_exc:
+                probe_err = probe_exc
+            if after is not None and after >= v:
+                msg = (
+                    f"DDL PARTIAL APPLY: migration v{v} raised {exc!r} "
+                    f"but schema_version is {after} (>= {v}). "
+                    "Postgres-only — SQLite cannot reach this state. "
+                    "Manual intervention required before next deploy."
+                )
+                logger.error(msg)
+                print(msg, file=sys.stderr)
+                # CRITICAL: re-raise OUTSIDE the probe try/except so the
+                # caller sees it (init_db must NOT proceed to the next
+                # migration on a partial baseline).
+                raise RuntimeError(msg) from exc
+            elif probe_err is not None:
+                logger.debug(
+                    f"schema probe after v{v} failure: {probe_err!r}"
+                )
 
         # 3. Apply recommended Postgres indexes (idempotent).
         # Wrapped in its own connection so failure here doesn't undo migrations.

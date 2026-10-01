@@ -5,7 +5,7 @@
 
 **URL activa:** `https://saskia-vps.paragu-ai.com`  *(si ves "service suspended", contactá al equipo — esa URL no es la correcta)*
 **URL alternativa (suspendida):** `https://saskia-rms.paragu-ai.com` — Render, NO usar
-**Versión del manual:** 2026-10-01 · schema 83 · commit `f55c079` · 17 secciones
+**Versión del manual:** 2026-10-01 · schema 83 · commit `<HEAD>` · 17 secciones
 **Manual versión:** v1.1 (ver "Cómo verificar la versión" abajo)
 
 ## Índice rápido
@@ -84,7 +84,7 @@ Excel             → importar/exportar planilla
 
 ## Lo que podés hacer — y lo que todavía no
 
-**Versión:** schema 83 · commit `f55c079` · 2026-10-01
+**Versión:** schema 83 · commit `<HEAD>` · 2026-10-01
 
 ### ✅ Funcionalidades activas (lista cerrada)
 
