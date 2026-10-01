@@ -203,6 +203,13 @@ def quick_seed(session_factory, scenario: str = "basic",
             s.flush()
             out["complex_recipe"] = rec2
 
+        elif scenario == "with_kyrian_full":
+            # Phase 1 — Kyrian demo dataset (idempotent). See app/seed/kyrian.py.
+            # Calls the full seed function which clears prior Kyrian data first.
+            from app.seed.kyrian import seed_kyrian
+            result = seed_kyrian(s)
+            out["kyrian"] = result
+
         s.commit()
     return out
 

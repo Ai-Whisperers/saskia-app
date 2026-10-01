@@ -3395,6 +3395,77 @@ def _migration_076_sale_linked_pedido_id(conn: Any) -> None:
     _bump_schema_version(conn, 76)
 
 
+def _migration_077_pedido_event_log(conn: Any) -> None:
+    """Phase 11 (2026-10-01): PedidoEvent edit log.
+
+    Adds pedido_event table for cheap per-pedido timeline rendering.
+    Distinct from audit_log: scope is per-pedido (joined cheaply on
+    pedido_id) and granularity captures line edits + note changes +
+    window adjustments, not just security events.
+
+    Used by:
+      - pedido detail timeline (alongside AuditLog events)
+      - operational reporting (which operator edited this pedido?)
+
+    Idempotent: CREATE TABLE IF NOT EXISTS + CREATE INDEX IF NOT EXISTS
+    are inherently idempotent on SQLite + Postgres.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+
+    if dialect == "sqlite":
+        create_sql = """
+            CREATE TABLE IF NOT EXISTS pedido_event (
+                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                pedido_id INTEGER NOT NULL REFERENCES pedido(id) ON DELETE CASCADE,
+                ts DATETIME NOT NULL,
+                actor VARCHAR(64) NOT NULL DEFAULT 'system',
+                event_type VARCHAR(32) NOT NULL,
+                payload_json TEXT NOT NULL DEFAULT '{}',
+                CONSTRAINT ck_pedido_event_type CHECK (
+                    event_type IN ('created','status_change','line_added','line_removed',
+                    'line_qty_changed','line_price_changed','note_edited','address_changed',
+                    'window_changed','customer_changed','payment_intent_set','cancelled',
+                    'duplicated')
+                )
+            )
+        """
+    else:  # postgres
+        create_sql = """
+            CREATE TABLE IF NOT EXISTS pedido_event (
+                id SERIAL NOT NULL PRIMARY KEY,
+                pedido_id INTEGER NOT NULL REFERENCES pedido(id) ON DELETE CASCADE,
+                ts TIMESTAMP NOT NULL,
+                actor VARCHAR(64) NOT NULL DEFAULT 'system',
+                event_type VARCHAR(32) NOT NULL,
+                payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+                CONSTRAINT ck_pedido_event_type CHECK (
+                    event_type IN ('created','status_change','line_added','line_removed',
+                    'line_qty_changed','line_price_changed','note_edited','address_changed',
+                    'window_changed','customer_changed','payment_intent_set','cancelled',
+                    'duplicated')
+                )
+            )
+        """
+
+    try:
+        conn.exec_driver_sql(create_sql)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("migration 077 CREATE TABLE pedido_event skipped: %s", exc)
+
+    for idx_sql in (
+        "CREATE INDEX IF NOT EXISTS ix_pedido_event_pedido_id ON pedido_event (pedido_id)",
+        "CREATE INDEX IF NOT EXISTS ix_pedido_event_ts ON pedido_event (ts)",
+        "CREATE INDEX IF NOT EXISTS ix_pedido_event_event_type ON pedido_event (event_type)",
+        "CREATE INDEX IF NOT EXISTS ix_pedido_event_pedido_ts ON pedido_event (pedido_id, ts)",
+    ):
+        try:
+            conn.exec_driver_sql(idx_sql)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("migration 077 index skipped: %s", exc)
+
+    _bump_schema_version(conn, 77)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -3472,6 +3543,7 @@ MIGRATIONS = {
     74: _migration_074_loyalty_transaction_ledger,
     75: _migration_075_suggestion_event_log,
     76: _migration_076_sale_linked_pedido_id,
+    77: _migration_077_pedido_event_log,
 }
 
 

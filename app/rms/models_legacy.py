@@ -1422,6 +1422,62 @@ class PedidoLine(Base):
     )
 
 
+class PedidoEvent(Base):
+    """Migration 077 (2026-10-01): per-pedido edit log.
+
+    Append-only timeline of every meaningful change to a pedido.
+    Distinct from AuditLog: scope is per-pedido (joined cheaply on
+    pedido_id) and granularity captures line edits + note changes +
+    window adjustments, not just security events.
+
+    event_type values (constrained by ck_pedido_event_type):
+      - created             pedido row first inserted
+      - status_change       status transition (e.g. pending -> confirmed)
+      - line_added          a PedidoLine was added
+      - line_removed        a PedidoLine was deleted
+      - line_qty_changed    qty on an existing line was edited
+      - line_price_changed  unit_price_gs was edited
+      - note_edited         notes text changed
+      - address_changed     address_text / delivery_zone_id changed
+      - window_changed      delivery_window_start/end changed
+      - customer_changed    customer_id reassigned
+      - payment_intent_set  payment_intent changed
+      - cancelled           status='cancelled' with reason
+      - duplicated          pedido duplicated from this one
+
+    payload_json captures the structured diff. Examples:
+      - status_change: {"from": "pending", "to": "confirmed"}
+      - line_added: {"product_id": 17, "qty": 2.0, "unit_price_gs": 28000}
+      - cancelled: {"reason": "cliente avisó tarde"}
+
+    Index on (pedido_id, ts) for cheap timeline rendering.
+    """
+
+    __tablename__ = "pedido_event"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    pedido_id: Mapped[int] = mapped_column(
+        ForeignKey("pedido.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    ts: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    actor: Mapped[str] = mapped_column(String(64), nullable=False, default="system")
+    event_type: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    payload_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+    pedido: Mapped["Pedido"] = relationship()
+
+    __table_args__ = (
+        Index("ix_pedido_event_pedido_ts", "pedido_id", "ts"),
+        CheckConstraint(
+            "event_type IN ('created','status_change','line_added','line_removed',"
+            "'line_qty_changed','line_price_changed','note_edited','address_changed',"
+            "'window_changed','customer_changed','payment_intent_set','cancelled',"
+            "'duplicated')",
+            name="ck_pedido_event_type",
+        ),
+    )
+
+
 class Tenant(Base):
     """A multi-tenant boundary (E15).
 
@@ -1888,6 +1944,7 @@ __all__ = [
     "MessageTemplate",
     "PaymentMethod",
     "Pedido",
+    "PedidoEvent",
     "PedidoLine",
     "PriceHistory",
     "Product",

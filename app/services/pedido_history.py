@@ -24,6 +24,7 @@ from app.rms.models import (
     Customer,
     LoyaltyTransaction,
     Pedido,
+    PedidoEvent,
     Sale,
 )
 
@@ -127,9 +128,65 @@ def build_pedido_timeline(session: Session, pedido: Pedido) -> list[TimelineEven
                 detail=lt.reason,
             ))
 
+    # Phase 11 — PedidoEvent rows (per-pedido edit log). These are the
+    # higher-fidelity complement to AuditLog: created, line_added,
+    # status_change, etc. The kind is the event_type directly.
+    pe_rows = session.execute(
+        select(PedidoEvent)
+        .where(PedidoEvent.pedido_id == pedido.id)
+        .order_by(PedidoEvent.ts)
+    ).scalars().all()
+    for pe in pe_rows:
+        events.append(TimelineEvent(
+            when=pe.ts,
+            kind="event",
+            label=_label_for_event_type(pe.event_type),
+            detail=_detail_for_event(pe.event_type, pe.payload_json),
+            actor=pe.actor,
+        ))
+
     # Sort by occurred_at ascending (None last). Use a key that handles None.
     events.sort(key=lambda e: e.when or datetime.min)
     return events
+
+
+def _label_for_event_type(event_type: str) -> str:
+    """Human-readable Spanish label for a PedidoEvent.event_type."""
+    return {
+        "created": "Pedido creado",
+        "status_change": "Estado cambiado",
+        "line_added": "Línea añadida",
+        "line_removed": "Línea eliminada",
+        "line_qty_changed": "Cantidad editada",
+        "line_price_changed": "Precio editado",
+        "note_edited": "Notas editadas",
+        "address_changed": "Dirección cambiada",
+        "window_changed": "Ventana de entrega cambiada",
+        "customer_changed": "Cliente reasignado",
+        "payment_intent_set": "Método de pago cambiado",
+        "cancelled": "Pedido cancelado",
+        "duplicated": "Duplicado",
+    }.get(event_type, event_type)
+
+
+def _detail_for_event(event_type: str, payload: dict | None) -> str | None:
+    """Render the payload diff as a one-line human detail string."""
+    if not payload:
+        return None
+    if event_type == "status_change":
+        return f"{payload.get('from', '?')} → {payload.get('to', '?')}"
+    if event_type == "line_added":
+        return f"producto #{payload.get('product_id')} × {payload.get('qty')}"
+    if event_type == "cancelled":
+        return f"motivo: {payload.get('reason', '?')}"
+    if event_type == "address_changed":
+        addr = payload.get("address_text", "")
+        return (addr[:60] + "…") if len(str(addr)) > 60 else addr
+    if event_type == "window_changed":
+        return f"{payload.get('from', '?')} → {payload.get('to', '?')}"
+    # Default: compact JSON
+    import json
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
 
 
 @dataclass

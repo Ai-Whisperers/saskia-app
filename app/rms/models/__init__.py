@@ -32,6 +32,7 @@ from app.rms.models_legacy import (
     MessageTemplate,  # noqa: F401 — re-exported via __all__
     PaymentMethod,  # noqa: F401 — re-exported via __all__
     Pedido,  # noqa: F401 — re-exported via __all__
+    PedidoEvent,  # noqa: F401 — re-exported via __all__
     PedidoLine,  # noqa: F401 — re-exported via __all__
     PriceHistory,  # noqa: F401 — re-exported via __all__
     Product,  # noqa: F401 — re-exported via __all__

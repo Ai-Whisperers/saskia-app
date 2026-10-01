@@ -830,6 +830,30 @@ async def pedidos_create(
             )
         )
 
+    # Phase 11 — record PedidoEvent rows so the timeline surfaces this
+    # pedido's lifecycle in the detail view. We use the cheap batch-add
+    # pattern: add all events at once, then flush once.
+    from app.services.pedido_events import PedidoEventService
+    actor = str(current_user_id(request) or "operator")
+    PedidoEventService.record(
+        session, pedido.id, "created", actor=actor,
+        payload={
+            "n_lines": len(lines),
+            "channel": channel_normalized,
+            "promised_date": pedido.promised_date.isoformat(),
+            "total_gs": sum(ln["qty"] * ln["unit_price_gs"] for ln in lines),
+        },
+    )
+    for ln in lines:
+        PedidoEventService.record(
+            session, pedido.id, "line_added", actor=actor,
+            payload={
+                "product_id": ln["product_id"],
+                "qty": ln["qty"],
+                "unit_price_gs": ln["unit_price_gs"],
+            },
+        )
+
     audit_record(
         session,
         user_id=current_user_id(request) or "operator",
@@ -1553,6 +1577,21 @@ def pedidos_fulfill(
     pedido.fulfilled_at = datetime.now(ASUNCION_TZ)
     pedido.fulfilled_sale_id = first_sale_id
     pedido.status = "fulfilled"
+
+    # Phase 11 — record status_change + sales for the pedido timeline.
+    # We use the actor on the request so the timeline shows who fulfilled it.
+    from app.services.pedido_events import PedidoEventService
+    fulfill_actor = str(current_user_id(request) or "operator")
+    PedidoEventService.record(
+        session, pedido.id, "status_change", actor=fulfill_actor,
+        payload={
+            "from": "pending",
+            "to": "fulfilled",
+            "n_sales": n_sales,
+            "first_sale_id": first_sale_id,
+            "total_gs": _pedido_total_gs(pedido),
+        },
+    )
 
     audit_record(
         session,
