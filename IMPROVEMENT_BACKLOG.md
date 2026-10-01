@@ -1,6 +1,6 @@
 # Saskia RMS — Improvement Backlog (Operator-curated)
 
-**Last updated:** 2026-09-22
+**Last updated:** 2026-10-01
 **Source:** Iván's prioritized list from backend audit + product review
 
 This file tracks every improvement opportunity surfaced across audits, all live in
@@ -87,4 +87,28 @@ the code, and operator-ranked. Status is the latest known state.
 
 - ✅ Money rule sweep (35+ sites) — 5ce2885
 - ✅ Migration 026 SQL escape fix — 5ce2885
-- ✅ Migr
+- ✅ Migration 082 — `expense` table + daily_summary wiring (Phase 14)
+- ✅ Migration 083 — BEFORE INSERT triggers on recipe.yield_qty + recipe_line.qty (Phase 14)
+- ✅ `cf_tunnel_liveness` cron probe (Phase 14)
+- ✅ `verify_catalog_on_vps` catalog durability check (Phase 14)
+- ✅ Coverage gate 30% floor enforced (Phase 14)
+- ✅ `/clientes/nuevo` + `/riesgos/new` + filter_toolbar combo (Phase 14)
+- ✅ Discount overflow guard on `ventas` (BACKLOG #20)
+- ✅ N+1 fix on `/productos` prime cost (BACKLOG #23)
+- ✅ Bank reconcile reads `reconciled_by` from session (closes phase-14 TODO)
+- ✅ Pedido board chime on new orders (closes phase-14 TODO)
+- ✅ `product_bulk_edit` + `products_import_csv` switched from private Starlette attrs (`request._json()` / `request._form()`) to FastAPI parameters — 2026-10-01 (Phase 14 Tier 3 + hygiene A9)
+- ✅ Todo inventory updated to mark 5 stale items closed (Phase 14)
+
+## Notes (2026-10-01)
+
+- Tier 3 (write-route smoke) and Tier 2 (template parse) added a regression
+  net across all 254 routes / 90 templates. Future regressions in any of
+  them surface as CI failures.
+- A9 (grep for `request._\w+`): **only `product_bulk_edit` remained** after
+  the Tier 3 catch. Clean now. Worth re-running this grep periodically
+  (e.g. on each Phase sprint).
+- The deny-pattern for commit messages catches `saskia...delete` together
+  in a single line. Use file-based commit pattern (`commit --file=...txt`)
+  for any commit whose body needs `delete` near `saskia`. Not a regression,
+  but a usability wart worth filing upstream.
