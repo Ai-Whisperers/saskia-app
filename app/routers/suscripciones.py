@@ -424,4 +424,43 @@ def suscripcion_delete(
     return RedirectResponse(url="/suscripciones", status_code=303)
 
 
+@router.post("/dispatch")
+def suscripciones_dispatch(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Generate pending pedidos for every active suscripcion due this week.
+
+    Phase 13 — bridges the gap between Suscripcion (a description) and
+    Pedido (a concrete order). Operator-triggered, idempotent per week.
+
+    POST (not GET) because it's a write — creates Pedido rows + AppMeta
+    dedupe keys + per-petido_event 'created' rows.
+    """
+    from app.services.suscripcion_dispatcher import generate_weekly_pedidos
+    from app.auth import current_user_id
+
+    actor = str(current_user_id(request) or "operator")
+    result = generate_weekly_pedidos(session, actor=actor)
+
+    record_audit(
+        request,
+        session=session,
+        action="write.suscripcion.dispatch",
+        target_type="suscripcion",
+        target_id="batch",
+        detail={
+            "generated": result.total,
+            "skipped_already_done": len(result.skipped_already_done),
+            "skipped_paused": len(result.skipped_paused),
+            "skipped_past_end_date": len(result.skipped_past_end_date),
+            "skipped_no_dow_match": len(result.skipped_no_dow_match),
+        },
+    )
+    session.commit()
+    return RedirectResponse(
+        url=f"/suscripciones?dispatched={result.total}", status_code=303
+    )
+
+
 __all__ = ["router"]
