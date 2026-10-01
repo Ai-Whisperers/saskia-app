@@ -338,3 +338,53 @@ def _maybe_vip(*, n_sales: int, tier: str) -> Optional[Suggestion]:
         priority=50,  # lowest — only fires when nothing else does
         discount_pct=None,
     )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# DB-backed hint used by the POS engine
+# ──────────────────────────────────────────────────────────────────────
+
+
+def redeemed_on_last_visit(session, customer_id: int) -> bool:
+    """True iff the customer's most recent non-voided sale had a
+    ``LoyaltyTransaction(reason="redeem")`` row tied to it.
+
+    Used by ``suggest_for_customer`` to skip the POINTS-DORMANT nudge
+    when the customer is already redeeming regularly. Returns False
+    on any error so the suggestions engine stays infallible (see
+    ``_customer_detail_payload`` in ``app/routers/customers.py`` for
+    the contract).
+
+    Lives here (not in ``customers.py``) because the input is a
+    customer_id, not a Customer object — it's a session-scoped hint
+    used ONLY by the suggestions engine. Two queries: latest sale_id,
+    then ledger row check.
+
+    Args:
+      session: SQLAlchemy session (sync).
+      customer_id: the customer primary key.
+
+    Returns:
+      bool — True if the customer redeemed on their last visit.
+    """
+    try:
+        from sqlalchemy import select as _sa_select
+        from app.rms.models import LoyaltyTransaction, Sale
+        latest_sale = session.execute(
+            _sa_select(Sale.id)
+            .where(Sale.customer_id == customer_id)
+            .where(Sale.voided_at.is_(None))
+            .order_by(Sale.sold_at.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        if latest_sale is None:
+            return False
+        redeem = session.execute(
+            _sa_select(LoyaltyTransaction.id)
+            .where(LoyaltyTransaction.sale_id == latest_sale)
+            .where(LoyaltyTransaction.reason == "redeem")
+            .limit(1)
+        ).scalar_one_or_none()
+        return redeem is not None
+    except Exception:
+        return False

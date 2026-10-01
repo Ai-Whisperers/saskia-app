@@ -992,6 +992,11 @@ async def sale_create_multi(
         customer_id: int | None = Field(None, gt=0)
         payment_method: str = Field("")
         discount_gs: int = Field(0, ge=0)
+        # Phase 4 loyalty (2026-10-01): POS redeem on multi-sale. Same
+        # semantics as /ventas/nueva — converts to Gs. discount (1pt =
+        # 1.000 Gs.), ADDS to discount_gs, writes a ledger row tied
+        # to the first sale_id after apply_sale runs. 0 = no redeem.
+        points_to_redeem: int = Field(0, ge=0)
         notes: str = Field("")
         sold_at: str = Field("")
         channel: str = Field("")
@@ -1068,6 +1073,37 @@ async def sale_create_multi(
 
     notes_clean = body.notes.strip() or None
     discount_gs = body.discount_gs
+    points_to_redeem = body.points_to_redeem
+
+    # Phase 4 loyalty POS redeem (2026-10-01, multi-sale variant):
+    # Same validation as /ventas/nueva. Customer required, balance
+    # sufficient, combined discount ≤ MAX_DISCOUNT_GS. 400 on each
+    # failure with a Spanish message. Then add points × 1000 to
+    # discount_gs so the existing path picks it up.
+    if points_to_redeem > 0:
+        if customer_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Para canjear puntos necesitás seleccionar un cliente. "
+                    "Tocá el buscador de clientes y elegí uno."
+                ),
+            )
+        from app.rms.customers import get_customer as _gc_redeem
+        cust_redeem = _gc_redeem(session, customer_id)
+        if cust_redeem is None:
+            raise HTTPException(status_code=400, detail=SALE_CUSTOMER_NOT_FOUND)
+        if (cust_redeem.loyalty_points or 0) < points_to_redeem:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Puntos insuficientes: el cliente tiene "
+                    f"{cust_redeem.loyalty_points or 0}, intentás canjear "
+                    f"{points_to_redeem}."
+                ),
+            )
+        discount_gs = discount_gs + (points_to_redeem * 1000)
+
     if discount_gs > MAX_DISCOUNT_GS:
         raise HTTPException(
             status_code=400,
@@ -1207,23 +1243,46 @@ async def sale_create_multi(
         )
 
     # Loyalty (Phase 4, 2026-10-01): credit points on the sum of all
-    # post-discount totals for the multi-line sale. Awarded on the
-    # customer-attached invoice; one ledger row (earn_sale) per invoice.
+    # POST-DISCOUNT totals across the multi-line cart. One ledger row
+    # (earn_sale) per invoice — fk'd to the first sale.id. Then write
+    # the redeem row (if any) so the ledger stays consistent.
     if customer_id is not None and sale_ids:
         from app.auth import current_user_id
-        from app.rms.customers import award_points as _award_points, get_customer as _get_cust
+        from app.rms.customers import (
+            award_points as _award_points,
+            get_customer as _get_cust,
+            redeem_points as _redeem_points,
+        )
+        from app.rms.models import Sale as _Sale
         cust = _get_cust(session, customer_id)
         if cust is not None:
-            total_gs_for_points = sum(
-                int(r.total_price_gs) for r in results  # type: ignore[attr-defined]
+            # Sum per-line GROSS, then subtract the per-line discount
+            # (the discount_pct × qty × unit_price that apply_sale
+            # stored on each Sale row). The remaining is what the
+            # customer actually paid — what we earn on.
+            rows = session.execute(
+                select(_Sale).where(_Sale.id.in_(sale_ids))
+            ).scalars().all()
+            net_paid_gs = sum(
+                max(0, int(r.total_price_gs) - int(r.discount_gs or 0))
+                for r in rows
             )
             _award_points(
                 session,
                 cust,
-                max(0, total_gs_for_points),
+                net_paid_gs,
                 sale_id=sale_ids[0],
                 actor=str(current_user_id(request) or "operator"),
             )
+            if points_to_redeem > 0:
+                _redeem_points(
+                    session,
+                    cust,
+                    points_to_redeem,
+                    sale_id=sale_ids[0],
+                    actor=str(current_user_id(request) or "operator"),
+                    notes=f"POS redeem en sale multi #{sale_ids[0]}",
+                )
 
     safe_commit(session)
 
@@ -1242,7 +1301,30 @@ async def sale_create_multi(
         detail={"item_count": len(items), "sale_ids": sale_ids},
     )
 
-    return RedirectResponse(url="/ventas?flash=sale_created", status_code=303)
+    return _redirect_with_loyalty_flash(
+        "/ventas?flash=sale_created",
+        points_to_redeem=points_to_redeem,
+    )
+
+
+def _redirect_with_loyalty_flash(
+    base_url: str,
+    points_to_redeem: int,
+) -> RedirectResponse:
+    """Append the points_flash=N:D query param if points were redeemed.
+
+    Phase 4 loyalty (2026-10-01): lets the flash_toast macro in
+    _components/atoms.html render the same success toast as the
+    Quick-Sell path. Returns the base URL unchanged when no redeem
+    happened, so the existing ``flash=sale_created`` UX is intact.
+    """
+    if points_to_redeem <= 0:
+        return RedirectResponse(url=base_url, status_code=303)
+    sep = "&" if "?" in base_url else "?"
+    return RedirectResponse(
+        url=f"{base_url}{sep}points_flash={points_to_redeem}:{points_to_redeem * 1000}",
+        status_code=303,
+    )
 
 
 def _fire_printer_for_sale(

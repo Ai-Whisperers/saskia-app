@@ -594,9 +594,17 @@
   // #discount-gs-total field if it exists, otherwise from any visible
   // price cell). Cashier still has to hit "Confirmar venta" — we never
   // bypass the submit step.
+  //
+  // Tier 1.4 (2026-10-01): if no unit price can be resolved, surface a
+  // visible warning badge near the discount field (and a console.warn
+  // for QA). Previously the card flashed green even when nothing was
+  // written — false positive that hid real bugs.
   function applySuggestion(suggestion) {
     var pct = suggestion && suggestion.discount_pct;
-    if (!pct || pct <= 0 || pct > 100) return;
+    if (!pct || pct <= 0 || pct > 100) {
+      console.warn('[saskia-suggestions] invalid discount_pct:', pct);
+      return;
+    }
 
     // Try the most common field names the template exposes for the
     // current unit price. Defensive — every form variant is different
@@ -604,6 +612,7 @@
     // flow. We just set the hidden total-discount field that every
     // POS form on /ventas carries.
     var unitPrice = null;
+    var unitPriceSource = null;
     // 1) Look for an explicit price cell on the visible cart row
     var priceEl = document.querySelector(
       '[data-current-unit-price], .cart-row [data-price-gs], .current-sale-price'
@@ -613,7 +622,10 @@
         || priceEl.getAttribute('data-price-gs')
         || priceEl.textContent;
       var parsed = parseInt(String(raw).replace(/[^0-9]/g, ''), 10);
-      if (!isNaN(parsed) && parsed > 0) unitPrice = parsed;
+      if (!isNaN(parsed) && parsed > 0) {
+        unitPrice = parsed;
+        unitPriceSource = 'cart-row-data';
+      }
     }
     // 2) Fallback: parse a unit price out of the product picker if it's
     //    a <select> with visible Gs. labels like "Chipita — 12.000 Gs."
@@ -626,35 +638,106 @@
         var m = labelText.match(/([\d.]+)\s*Gs/);
         if (m) {
           var cleaned = m[1].replace(/\./g, '').replace(/,/g, '');
-          unitPrice = parseInt(cleaned, 10);
+          var parsed2 = parseInt(cleaned, 10);
+          if (!isNaN(parsed2) && parsed2 > 0) {
+            unitPrice = parsed2;
+            unitPriceSource = 'select-label';
+          }
         }
       }
     }
 
     var discountField = document.getElementById('discount-gs-total');
-    if (!discountField) return;
-
-    if (unitPrice && unitPrice > 0) {
-      var discount = Math.round((unitPrice * pct) / 100);
-      discountField.value = String(discount);
-      // Fire an input event so any live-total preview updates.
-      discountField.dispatchEvent(new Event('input', { bubbles: true }));
-      discountField.dispatchEvent(new Event('change', { bubbles: true }));
+    if (!discountField) {
+      console.warn(
+        '[saskia-suggestions] discount-gs-total field missing; cannot apply.'
+      );
+      flashSuggestionFeedback(
+        suggestion,
+        false,
+        'No se pudo aplicar — falta el campo de descuento.'
+      );
+      return;
     }
 
-    // Visual feedback on the clicked card.
+    if (!unitPrice || unitPrice <= 0) {
+      console.warn(
+        '[saskia-suggestions] no unit price resolvable from current form;',
+        'suggestion:', suggestion && suggestion.kind,
+        'pct:', pct
+      );
+      flashSuggestionFeedback(
+        suggestion,
+        false,
+        'No se pudo aplicar — seleccioná un producto primero.'
+      );
+      return;
+    }
+
+    var discount = Math.round((unitPrice * pct) / 100);
+    discountField.value = String(discount);
+    // Fire an input event so any live-total preview updates.
+    discountField.dispatchEvent(new Event('input', { bubbles: true }));
+    discountField.dispatchEvent(new Event('change', { bubbles: true }));
+    console.info(
+      '[saskia-suggestions] applied', suggestion.kind, '→ Gs.',
+      discount, '(unit price Gs.', unitPrice, 'from', unitPriceSource + ')'
+    );
+    flashSuggestionFeedback(
+      suggestion,
+      true,
+      formatGs(discount) + ' Gs. de descuento aplicados.'
+    );
+  }
+
+  // Render a small inline status message near the discount field for
+  // 2.5s. Tier 1.4 (2026-10-01) — replaces the previous false-positive
+  // green-flash when the suggestion didn't actually apply.
+  function flashSuggestionFeedback(suggestion, ok, msg) {
+    // Card visual feedback — green only on success.
     var cards = document.querySelectorAll('.customer-suggestion-card');
     cards.forEach(function (c) {
       c.style.background = '#fff';
       c.style.borderColor = 'var(--color-primary,#3b82f6)';
     });
     var clicked = document.querySelector(
-      '.customer-suggestion-card[data-kind="' + (suggestion.kind || '') + '"]'
+      '.customer-suggestion-card[data-kind="' + (suggestion && suggestion.kind || '') + '"]'
     );
     if (clicked) {
-      clicked.style.background = 'rgba(59,130,246,.15)';
-      clicked.style.borderColor = 'var(--color-success,#16a34a)';
+      if (ok) {
+        clicked.style.background = 'rgba(59,130,246,.15)';
+        clicked.style.borderColor = 'var(--color-success,#16a34a)';
+      } else {
+        clicked.style.background = 'rgba(220,50,50,.10)';
+        clicked.style.borderColor = 'var(--color-danger,#d33)';
+      }
     }
+    // Inline status badge near the discount field — only on failure
+    // (success is already loud via the card flash + post-save toast).
+    if (ok) return;
+    var discountField = document.getElementById('discount-gs-total');
+    var anchor = discountField ? discountField.parentNode : null;
+    if (!anchor) return;
+    var badge = document.createElement('div');
+    badge.className = 'saskia-suggestion-feedback';
+    badge.setAttribute('role', 'status');
+    badge.style.cssText = [
+      'margin-top:6px',
+      'padding:6px 10px',
+      'border-radius:4px',
+      'background:rgba(220,50,50,.10)',
+      'border:1px solid var(--color-danger,#d33)',
+      'color:var(--color-danger,#d33)',
+      'font-size:0.85rem',
+    ].join(';');
+    badge.textContent = msg || 'No se pudo aplicar la sugerencia.';
+    // Remove any prior badge so the message never stacks.
+    var prior = anchor.querySelector('.saskia-suggestion-feedback');
+    if (prior) prior.remove();
+    anchor.appendChild(badge);
+    setTimeout(function () {
+      if (badge.parentNode) badge.parentNode.removeChild(badge);
+    }, 2500);
   }
 
   // ── Combo change → fetch detail + populate card ────────────────────────

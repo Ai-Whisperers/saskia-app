@@ -322,17 +322,32 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
     # selection — must be infallible).
     suggestions: list[dict] = []
     try:
-        from app.rms.loyalty_suggestions import suggest_for_customer
+        from app.rms.loyalty_suggestions import (
+            redeemed_on_last_visit,
+            suggest_for_customer,
+        )
         # Detect "redeemed_on_last_visit": did the customer's most
         # recent sale have a 'redeem' LoyaltyTransaction row? If so,
         # skip the POINTS-DORMANT nudge (they're already redeeming).
-        redeemed_on_last_visit = _redeemed_on_last_visit(session, c.id)
+        # Tier 1.3 (2026-10-01): moved into loyalty_suggestions.py to
+        # keep the engine cohesive.
+        redeemed_on_last_visit_flag = redeemed_on_last_visit(session, c.id)
+        # Phase 4 TZ fix (2026-10-01): pass Asuncion-local today so
+        # the days_since_last_visit math matches what the cashier
+        # sees on the wall clock, not the server's UTC clock. Without
+        # this, sales rung up after 21:00 PY (UTC-03) show as 1 day
+        # later than they should, off-by-one on every LAPSED + birthday
+        # rule.
+        from datetime import datetime
+        from app.rms.config import ASUNCION_TZ
+        today_asuncion = datetime.now(ASUNCION_TZ).date()
         suggestions_raw = suggest_for_customer(
             c,
             last_sale_at=stats.last_sale_at,
             n_sales=stats.n_sales,
             tier=stats.tier.value,
-            redeemed_on_last_visit=redeemed_on_last_visit,
+            redeemed_on_last_visit=redeemed_on_last_visit_flag,
+            today=today_asuncion,
         )
         suggestions = [
             {
@@ -367,39 +382,6 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
         "suggestions": suggestions,
         "hint": f"{c.name} — {stats.n_sales} visitas, {lifetime_label} lifetime",
     }
-
-
-def _redeemed_on_last_visit(session: Session, customer_id: int) -> bool:
-    """True iff the customer's most recent sale had a 'redeem' ledger row.
-
-    Used by the POINTS-DORMANT suggestion rule to skip the nudge when
-    the customer is already redeeming regularly. One query — find the
-    latest non-voided Sale.id for this customer, then check whether a
-    LoyaltyTransaction(reason='redeem') exists tied to it.
-
-    Returns False on any error so the suggestions engine stays
-    infallible (see _customer_detail_payload docstring).
-    """
-    try:
-        from app.rms.models import LoyaltyTransaction, Sale
-        latest_sale = session.execute(
-            select(Sale.id)
-            .where(Sale.customer_id == customer_id)
-            .where(Sale.voided_at.is_(None))
-            .order_by(Sale.sold_at.desc())
-            .limit(1)
-        ).scalar_one_or_none()
-        if latest_sale is None:
-            return False
-        redeem = session.execute(
-            select(LoyaltyTransaction.id)
-            .where(LoyaltyTransaction.sale_id == latest_sale)
-            .where(LoyaltyTransaction.reason == "redeem")
-            .limit(1)
-        ).scalar_one_or_none()
-        return redeem is not None
-    except Exception:
-        return False
 
 
 def _top_products_for_customer(session: Session, customer_id: int, limit: int = 3) -> list[dict]:
