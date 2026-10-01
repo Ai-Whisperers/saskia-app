@@ -477,4 +477,11 @@
 </style>
 
 <script src="/static/pedido-combos.js" defer></script>
+{# Phase 3: smart autofill. The prefill JSON is rendered by the server
+   when ?customer_id=N is on the URL; the JS patches form fields on load
+   and re-fetches defaults when the operator picks a different customer. #}
+{% if customer_prefill %}
+<script id="customer-prefill" type="application/json">{{ customer_prefill | tojson }}</script>
+{% endif %}
+<script src="/static/pedido-prefill.js" defer></script>
 {% endblock %}

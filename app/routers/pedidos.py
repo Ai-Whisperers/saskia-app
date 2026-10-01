@@ -51,6 +51,9 @@ from app.rms.money import to_int_gs
 from app.rms.schemas import ALLOWED_PAYMENT_METHODS
 from app.services.template_render import render
 
+# Phase 3: customer-prefill service for /pedidos/nuevo
+from app.services.customer_prefill import customer_defaults_as_json
+
 router = APIRouter(prefix="/pedidos", dependencies=[Depends(require_login)])
 
 # Public router for /p/{token} — no auth. We use a dedicated, prefix-less
@@ -453,16 +456,39 @@ def pedidos_board(
 def pedidos_new_form(
     request: Request,
     customer_id: int | None = Query(None, ge=1),
+    from_: int | None = Query(None, alias="from", ge=1),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Render the new-pedido form with the product picker.
 
-    ?customer_id=N (POS bridge from /clientes/{id}): preselects that
-    customer so the cashier skips the picker entirely.
+    Query params:
+      ?customer_id=N (POS bridge from /clientes/{id}): preselects that
+        customer so the cashier skips the picker entirely. Also computes
+        smart defaults (phone, zone, RUC, time window, etc.) from the
+        customer's history and passes them as `customer_prefill` for the
+        page to apply on load.
+      ?from=N (Pedir de nuevo): clone the lines from pedido N (which must
+        belong to ?customer_id). Otherwise the most recent pedido's lines
+        are used as a default suggestion.
+
+    The template renders a hidden `<script id="customer-prefill" type="application/json">`
+    with the defaults; static/pedido-prefill.js reads it and patches the
+    form fields once the customer is picked.
     """
+    from app.services.customer_prefill import compute_customer_defaults
+
     preset_customer = None
+    prefill: dict = {}
+    clone_lines: list[dict] = []
     if customer_id:
         preset_customer = session.get(Customer, customer_id)
+        if preset_customer:
+            defaults = compute_customer_defaults(
+                session, customer_id, from_pedido_id=from_
+            )
+            prefill = defaults.to_dict()
+            clone_lines = defaults.clone_lines
+
     products = session.scalars(select(Product).order_by(Product.name)).all()
     customers = session.scalars(
         select(Customer).order_by(Customer.created_at.desc()).limit(50)
@@ -484,6 +510,9 @@ def pedidos_new_form(
             "products": products,
             "customers": customers,
             "preset_customer": preset_customer,
+            "customer_prefill": prefill,
+            "clone_lines": clone_lines,
+            "from_pedido_id": from_,
             "channels": CHANNELS,
             "payment_methods": sorted(set(ALLOWED_PAYMENT_METHODS)),
             "delivery_zones": delivery_zones,
@@ -491,6 +520,25 @@ def pedidos_new_form(
             "default_promised_date": tomorrow.isoformat(),
         },
     )
+
+
+@router.get("/api/customer-defaults/{customer_id}")
+def pedidos_customer_defaults(
+    customer_id: int = Path(..., ge=1),
+    from_: int | None = Query(None, alias="from", ge=1),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Return smart-default JSON for a customer. Called by the picker JS.
+
+    Response shape matches CustomerPrefill.to_dict() — see
+    app.services.customer_prefill. The frontend patches form fields
+    without re-rendering.
+    """
+    payload = customer_defaults_as_json(session, customer_id)
+    if from_:
+        from app.services.customer_prefill import compute_customer_defaults
+        payload = compute_customer_defaults(session, customer_id, from_pedido_id=from_).to_dict()
+    return JSONResponse(payload)
 
 
 @router.get("/api/customer/{customer_id}/addresses")
