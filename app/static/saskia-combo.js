@@ -94,6 +94,12 @@ TODOs (for tomorrow's full implementation):
         cursor: default;
       }
       .item.empty:hover, .item.loading:hover { background: transparent; }
+      /* PRO-A11Y: visually hide the aria-live announcement region. */
+      .sr-only {
+        position: absolute; width: 1px; height: 1px;
+        padding: 0; margin: -1px; overflow: hidden;
+        clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+      }
       @media (prefers-reduced-motion: reduce) {
         .trigger .icon, .panel { transition: none; }
       }
@@ -109,6 +115,13 @@ TODOs (for tomorrow's full implementation):
       <input type="text" class="search combo-input" aria-label="Buscar" placeholder="Buscar…">
       <span class="combo-input" hidden></span>
       <ul class="results" role="presentation"></ul>
+      <!-- PRO-A11Y (2026-10-01): screen-reader announcement region.
+           Updated whenever result count changes (loaded, filtered,
+           cleared) so AT users hear "5 resultados", "Sin resultados",
+           "Cargando..." etc. aria-live="polite" waits for the
+           screen reader to finish current speech -- we never interrupt
+           the user mid-utterance. Visually hidden via sr-only class. -->
+      <div class="sr-only combo-status" aria-live="polite" role="status"></div>
     </div>
   `;
 
@@ -315,7 +328,9 @@ TODOs (for tomorrow's full implementation):
       // we no-op instead of throwing "Cannot set properties of null" on
       // every page that uses <saskia-combo> (18+ page errors per load).
       if (!resultsList) return;
-      resultsList.innerHTML = '<li class="item loading" role="presentation">Buscando…</li>';
+      resultsList.innerHTML = '<li class="item loading" role="presentation">Buscando...</li>';
+      // PRO-A11Y: announce the loading state to screen readers.
+      this._announce(query ? 'Buscando...' : 'Abriendo lista');
 
       let results = [];
       // PRO-PED-UX: cfg.source(url) — programmatic fetcher (pedido-combos.js)
@@ -396,8 +411,16 @@ TODOs (for tomorrow's full implementation):
         li.className = 'item empty';
         li.textContent = 'Sin resultados';
         resultsList.appendChild(li);
+        // PRO-A11Y: announce empty result set to screen readers.
+        this._announce('Sin resultados');
         return;
       }
+
+      // PRO-A11Y: announce result count to screen readers (e.g. "5 resultados").
+      // Cap the message at 99 to avoid verbal "100 resultados" being read for
+      // large lists; the user can arrow-down past the announcement anyway.
+      const n = this._results.length;
+      this._announce(n === 1 ? '1 resultado' : n + ' resultados');
 
       const self = this;
       this._results.forEach(function (item, idx) {
@@ -433,6 +456,17 @@ TODOs (for tomorrow's full implementation):
         resultsList.appendChild(li);
       });
       this._activeIdx = -1;
+    }
+
+    // PRO-A11Y: write a message to the aria-live region. Screen readers
+    // announce the text after any current speech finishes. Safe to call
+    // repeatedly -- aria-live is idempotent (the same text won't re-fire
+    // unless the DOM node changes).
+    _announce(message) {
+      const region = this.shadowRoot.querySelector('.combo-status');
+      if (region && region.textContent !== message) {
+        region.textContent = message;
+      }
     }
 
     _setActiveIdx(idx) {
