@@ -29,10 +29,21 @@ from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
 from app.rms.models import Ingredient, IngredientPriceEvent, Sale
 from app.rms.price_history import batch_price_stats, price_history, price_stats
+from app.rms.rate_limit import read_rate_limit_dependency
 from app.rms.sales_intel import customer_retention, sales_by_hour
 from app.services.template_render import render
 
-router = APIRouter(prefix="/reportes", dependencies=[Depends(require_login)])
+# BACKLOG #10: rate-limit all /reportes/* reads at 30/min/IP. Reports
+# run aggregate queries; capping them prevents a scraper from draining
+# the DB. Operator dashboards still load (typical: 5-10 report loads
+# per shift, well under 30/min).
+router = APIRouter(
+    prefix="/reportes",
+    dependencies=[
+        Depends(require_login),
+        Depends(read_rate_limit_dependency(30, route_tag="reportes")),
+    ],
+)
 
 _ALLOWED_DAYS = (7, 30, 90, 365)
 

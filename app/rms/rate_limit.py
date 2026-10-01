@@ -34,6 +34,8 @@ from sqlalchemy.orm import Session
 
 from app.rms.audit import record as audit_record
 from app.rms.models import AuditLog
+from app.rms.dependencies import get_session  # for read_rate_limit_dependency
+from fastapi import Depends, HTTPException, Request
 
 DEFAULT_LIMIT = 5
 DEFAULT_WINDOW_MINUTES = 5
@@ -179,11 +181,177 @@ def is_write_rate_limited(
     return count >= max_per_minute
 
 
+# ---------------------------------------------------------------------
+# READ-rate limiter (BACKLOG #10)
+#
+# Counts `read.heavy` audit rows for this IP in a sliding window.
+# The search + reports routes write a `read.heavy.<route>` audit row
+# on each call (cheap: single INSERT) and the limiter increments on
+# each `read.heavy` row in the same window. When the count meets or
+# exceeds `max_per_minute`, return 429.
+#
+# Limits chosen (see BACKLOG #10 + Ivan's product brief 2026-09-30):
+#   - /api/search      ->  60 reads / minute  (combobox typing is
+#                            frequent; this is generous)
+#   - /reportes/*      ->  30 reads / minute  (each report runs an
+#                            aggregate; this caps runaway scraping)
+#   - /healthz/*       ->  EXEMPT (UptimeRobot polls every 5 min)
+#
+# FAIL OPEN: if the DB raises, return allowed=True so a DB outage
+# does not brick search/reports. Same trade-off as
+# `is_write_rate_limited` above.
+#
+# Bypass env: AIW_SASKIA_AUTH_DISABLED=1 (the same env that bypasses
+# login rate limit) so tests don't trip the limiter.
+# ---------------------------------------------------------------------
+
+DEFAULT_READ_LIMIT = 60
+DEFAULT_READ_WINDOW_SECONDS = 60
+
+
+def is_read_rate_limited(
+    session: Session,
+    request: object,
+    *,
+    max_per_minute: int = DEFAULT_READ_LIMIT,
+    window_seconds: int = DEFAULT_READ_WINDOW_SECONDS,
+    now: datetime | None = None,
+) -> "RateLimitDecision":
+    """Return whether `request` has exceeded `max_per_minute` reads in `window_seconds`.
+
+    Counts rows with `action LIKE 'read.heavy.%'` for this IP within
+    the sliding window. Used to throttle expensive read endpoints
+    (/api/search, /reportes/*) so a scraper can't drain the DB.
+
+    On block, writes a `read.heavy.rate_limited` audit row so the
+    operator can see who was throttled.
+
+    FAIL OPEN: if the DB raises, returns allowed=True so a DB outage
+    does not brick the route. A scraper hitting a broken service is
+    a lesser evil than operators losing search.
+
+    Pass `now` for deterministic tests.
+    """
+    when = now or datetime.now(timezone.utc)
+    threshold = when - timedelta(seconds=window_seconds)
+    ip = _client_ip(request)
+    try:
+        count = (
+            session.query(AuditLog)
+            .filter(
+                AuditLog.action.like("read.heavy.%"),
+                AuditLog.ip == ip,
+                AuditLog.occurred_at >= threshold,
+            )
+            .count()
+        )
+    except Exception:  # noqa: BLE001 - defensive default
+        logger.warning("is_read_rate_limited DB query failed, failing open for safety")
+        return RateLimitDecision(
+            allowed=True,
+            current_count=0,
+            limit=max_per_minute,
+            retry_after_seconds=0,
+        )
+    if count >= max_per_minute:
+        # Block. Write audit row so the operator sees who was throttled.
+        try:
+            audit_record(
+                session,
+                user_id=None,
+                action="read.heavy.rate_limited",
+                request=request,
+                detail={
+                    "ip": ip,
+                    "window_seconds": window_seconds,
+                    "limit": max_per_minute,
+                    "observed_count": count,
+                },
+            )
+            session.commit()
+        except Exception:  # noqa: BLE001
+            logger.warning("read.rate_limited audit write failed")
+        return RateLimitDecision(
+            allowed=False,
+            current_count=count,
+            limit=max_per_minute,
+            retry_after_seconds=window_seconds,
+        )
+    return RateLimitDecision(
+        allowed=True,
+        current_count=count,
+        limit=max_per_minute,
+        retry_after_seconds=0,
+    )
+
+
+# Read-endpoint audit helpers (cheap INSERTs; throttle on these).
+
+def record_read_heavy(session: Session, request: object, route_tag: str) -> None:
+    """Append a `read.heavy.<route_tag>` audit row.
+
+    Used by /api/search and /reportes/* so the read-rate limiter has
+    data to count on. Fails silently on DB error (does not raise into
+    the calling route -- the rate limiter is best-effort by design).
+    """
+    try:
+        audit_record(
+            session,
+            user_id=None,
+            action=f"read.heavy.{route_tag}",
+            request=request,
+        )
+        session.commit()
+    except Exception:  # noqa: BLE001
+        logger.warning(f"record_read_heavy({route_tag}) audit write failed")
+
+
+def read_rate_limit_dependency(max_per_minute: int, window_seconds: int = 60, route_tag: str = "default"):
+    """Return a FastAPI dependency that gates a route on the read limiter.
+
+    Usage:
+        @router.get(\"/heavy\")
+        def heavy(
+            _rl: None = Depends(read_rate_limit_dependency(30, route_tag=\"heavy\")),
+            session: Session = Depends(get_session),
+        ):
+            ...
+
+    Returns 429 (via HTTPException) if exceeded. Records a
+    `read.heavy.<route_tag>` audit row so future counts have data.
+    Bypassed when AIW_SASKIA_AUTH_DISABLED=1.
+
+    FAIL OPEN: returns None on any DB error so a DB outage doesn't
+    brick the route.
+    """
+    def _dep(request: Request, session: Session = Depends(get_session)) -> None:
+        if is_disabled():
+            return None
+        decision = is_read_rate_limited(
+            session, request,
+            max_per_minute=max_per_minute,
+            window_seconds=window_seconds,
+        )
+        if not decision.allowed:
+            raise HTTPException(
+                status_code=429,
+                detail={"reason": "rate_limited", "retry_after_seconds": decision.retry_after_seconds},
+                headers={"Retry-After": str(decision.retry_after_seconds)},
+            )
+        record_read_heavy(session, request, route_tag=route_tag)
+        return None
+    return _dep
+
+
 __all__ = [
     "DEFAULT_LIMIT",
     "DEFAULT_WINDOW_MINUTES",
+    "DEFAULT_READ_LIMIT",
+    "DEFAULT_READ_WINDOW_SECONDS",
     "RateLimitDecision",
     "is_disabled",
     "is_rate_limited",
     "is_write_rate_limited",
+    "is_read_rate_limited",
+    "record_read_heavy",
 ]

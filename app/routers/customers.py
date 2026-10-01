@@ -31,6 +31,7 @@ from app.rms.customers import (
 from app.rms.dependencies import get_session
 from app.rms.models import Customer
 from app.rms.observability import record_audit
+from app.rms.rate_limit import read_rate_limit_dependency
 from app.rms.nav import status_es
 from app.services.template_render import render
 
@@ -750,7 +751,11 @@ def clientes_duplicados(
     )
 
 
-@router.get("/api/search", response_class=JSONResponse)
+@router.get(
+    "/api/search",
+    response_class=JSONResponse,
+    dependencies=[Depends(read_rate_limit_dependency(60, route_tag="api.search.customers"))],
+)
 def customer_search_api(
     q: str = Query("", description="Search query"),
     limit: int = Query(10, ge=1, le=50),
@@ -759,6 +764,9 @@ def customer_search_api(
     """Search customers by name/phone/email/cedula/notes (case-insensitive).
 
     Used by the customer picker modal on /ventas.
+
+    BACKLOG #10: rate-limited at 60 reads/minute/IP via the
+    `read_rate_limit_dependency`.
     """
     rows = search_customers(session, q, limit=limit)
     if not rows:

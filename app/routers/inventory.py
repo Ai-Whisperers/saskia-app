@@ -39,6 +39,7 @@ from app.rms.models import (
 )
 from app.rms.observability import record_audit
 from app.rms.price_history import price_history, price_stats, record_price_event
+from app.rms.rate_limit import read_rate_limit_dependency
 from app.rms.units import Unit
 from app.services.template_render import render
 
@@ -107,7 +108,11 @@ def ingredient_toggle_packaging(
     return RedirectResponse(url=back, status_code=303)
 
 
-@router.get("/api/search", response_class=JSONResponse)
+@router.get(
+    "/api/search",
+    response_class=JSONResponse,
+    dependencies=[Depends(read_rate_limit_dependency(60, route_tag="api.search.ingredients"))],
+)
 def ingredients_api_search(
     q: str = Query("", description="Search query"),
     limit: int = Query(50, ge=1, le=200),
@@ -118,6 +123,9 @@ def ingredients_api_search(
     Used by /merma and /pedidos/nuevo. Returns matching ingredients
     ordered by name, with up to `limit` rows. Empty query returns
     all ingredients up to limit (alphabetical).
+
+    BACKLOG #10: rate-limited at 60 reads/minute/IP via the
+    `read_rate_limit_dependency`.
     """
     if not q or q.strip() == "":
         rows = session.scalars(

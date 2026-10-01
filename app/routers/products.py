@@ -31,6 +31,7 @@ from app.rms.costing import batch_products_cost_margin, product_margin, product_
 from app.rms.dependencies import get_session
 from app.rms.models import Product, Recipe, Sale
 from app.rms.observability import record_audit
+from app.rms.rate_limit import read_rate_limit_dependency
 from app.services.template_render import render
 
 router = APIRouter(prefix="/productos", dependencies=[Depends(require_login)])
@@ -44,7 +45,11 @@ router = APIRouter(prefix="/productos", dependencies=[Depends(require_login)])
 public_router = APIRouter()
 
 
-@router.get("/api/search", response_class=JSONResponse)
+@router.get(
+    "/api/search",
+    response_class=JSONResponse,
+    dependencies=[Depends(read_rate_limit_dependency(60, route_tag="api.search.products"))],
+)
 def products_api_search(
     q: str = Query("", description="Search query"),
     limit: int = Query(50, ge=1, le=200),
@@ -55,6 +60,10 @@ def products_api_search(
     Used by /pedidos/nuevo and /merma to filter a list of 30+ products
     quickly without scrolling a native <select>. Returns up to `limit`
     matching products ordered by name.
+
+    BACKLOG #10: rate-limited at 60 reads/minute/IP via the
+    `read_rate_limit_dependency` (audit-log sliding window). Bypassed
+    when AIW_SASKIA_AUTH_DISABLED=1 (tests).
     """
     if not q or q.strip() == "":
         # No query: return all available (most-used come first).

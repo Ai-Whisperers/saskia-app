@@ -32,6 +32,7 @@ from app.rms.messages import (
 )
 from app.rms.models import Ingredient, Product, Recipe, RecipeLine
 from app.rms.observability import record_audit
+from app.rms.rate_limit import read_rate_limit_dependency
 from app.rms.recipe_intel import (
     estimate_cook_minutes,
     estimate_prep_minutes,
@@ -1131,7 +1132,11 @@ def recipe_effective_ingredients(
     })
 
 
-@router.get("/api/search", response_class=JSONResponse)
+@router.get(
+    "/api/search",
+    response_class=JSONResponse,
+    dependencies=[Depends(read_rate_limit_dependency(60, route_tag="api.search.recipes"))],
+)
 def recipe_search_api(
     q: str = Query("", description="Search query"),
     limit: int = Query(10, ge=1, le=50),
@@ -1140,6 +1145,9 @@ def recipe_search_api(
     """Search recipes by name/description (case-insensitive).
 
     Used by the combo system on /merma form for recipe selection.
+
+    BACKLOG #10: rate-limited at 60 reads/minute/IP via the
+    `read_rate_limit_dependency`.
     """
     # Basic search by name
     query = (

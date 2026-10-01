@@ -30,9 +30,20 @@ from app.rms.derived_intel import (
     price_change_impact,
     theoretical_vs_actual,
 )
+from app.rms.rate_limit import read_rate_limit_dependency
 from app.services.template_render import render
 
-router = APIRouter(prefix="/reportes", dependencies=[Depends(require_login)])
+# BACKLOG #10: rate-limit /reportes/* at 30/min/IP (shared with
+# app/routers/reportes.py). insights_derived is a separate router
+# file but uses the same /reportes prefix, so both share the same
+# `reportes` route tag in the audit log.
+router = APIRouter(
+    prefix="/reportes",
+    dependencies=[
+        Depends(require_login),
+        Depends(read_rate_limit_dependency(30, route_tag="reportes")),
+    ],
+)
 
 
 @router.get("/food-cost-variance", response_class=HTMLResponse)
