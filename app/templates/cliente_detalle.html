@@ -155,8 +155,93 @@
       <div class="card" style="margin:0;">
         <div class="text-muted" style="font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;">Puntos</div>
         <div style="font-size:var(--text-xl);font-weight:700;">{{ customer.loyalty_points }}</div>
+        <div class="text-muted" style="font-size:var(--text-xs);margin-top:0.25rem;">≈ {{ "{:,}".format((customer.loyalty_points or 0) * 1000) }} Gs. en descuentos</div>
       </div>
     </div>
+
+    {# Loyalty: redeem form + recent ledger (Phase 4, 2026-10-01) #}
+    <section class="card" style="margin-bottom:1rem;">
+      <h2 style="margin-top:0;">Puntos de fidelidad</h2>
+      <p class="text-muted" style="font-size:var(--text-sm);margin-bottom:1rem;">
+        Programa: 1 punto por cada 1.000 Gs. gastados. Cada punto se canjea por 1.000 Gs. de descuento.
+        Tasa efectiva de retorno sobre gasto de por vida: ~10%. Saskia puede ajustar
+        <code>POINTS_PER_GS</code> en <code>app/rms/customers.py</code> cuando quiera.
+      </p>
+
+      <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div>
+          <h3 style="margin-top:0;font-size:var(--text-md);">Canjear puntos</h3>
+          <form method="POST" action="/clientes/{{ customer.id }}/puntos/redeem" style="display:flex;flex-direction:column;gap:0.5rem;">
+            <label style="font-size:var(--text-sm);">
+              Puntos a canjear
+              <input
+                type="number"
+                name="points_to_redeem"
+                min="1"
+                max="{{ customer.loyalty_points or 0 }}"
+                step="1"
+                required
+                class="input"
+                placeholder="ej. 10"
+              >
+            </label>
+            <label style="font-size:var(--text-sm);">
+              Nota (opcional)
+              <input
+                type="text"
+                name="notes"
+                maxlength="200"
+                class="input"
+                placeholder="ej. descuento por cumpleaños"
+              >
+            </label>
+            <button type="submit" class="button is-primary" style="margin-top:0.5rem;">
+              Canjear (1 punto = 1.000 Gs.)
+            </button>
+          </form>
+        </div>
+
+        <div>
+          <h3 style="margin-top:0;font-size:var(--text-md);">Movimientos recientes</h3>
+          {% if recent_loyalty %}
+          <table class="table is-narrow is-striped" style="font-size:var(--text-sm);">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Motivo</th>
+                <th class="num">Δ</th>
+                <th>Venta</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for tx in recent_loyalty %}
+              <tr>
+                <td>{{ tx.recorded_at.strftime('%Y-%m-%d %H:%M') if tx.recorded_at else '—' }}</td>
+                <td>
+                  {% if tx.reason == 'earn_sale' %}Compra
+                  {% elif tx.reason == 'redeem' %}Canje
+                  {% elif tx.reason == 'void_reversal' %}Anulación
+                  {% elif tx.reason == 'manual_adjust' %}Ajuste
+                  {% else %}{{ tx.reason }}
+                  {% endif %}
+                  {% if tx.notes %}<div class="text-muted" style="font-size:var(--text-xs);">{{ tx.notes }}</div>{% endif %}
+                </td>
+                <td class="num" style="font-weight:600;color:{% if tx.delta > 0 %}var(--ok){% else %}var(--danger){% endif %};">
+                  {{ "{:+d}".format(tx.delta) }}
+                </td>
+                <td>
+                  {% if tx.sale_id %}<a href="/ventas/{{ tx.sale_id }}">#{{ tx.sale_id }}</a>{% else %}—{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <p class="text-muted" style="font-size:var(--text-sm);">Sin movimientos. Los puntos se acumulan automáticamente con cada venta.</p>
+          {% endif %}
+        </div>
+      </div>
+    </section>
 
     <section class="card">
       <h2 style="margin-top:0;">Historial de compras</h2>

@@ -172,6 +172,183 @@
   `tests/test_saskia_r2_data_models.py` for the canonical rollup
   test (`test_rollup_sums_multiple_variants_in_base_unit`).
 
+### Added — Loyalty (Phase 4, 2026-10-01)
+
+The points program was 80% built but never wired to live sales —
+`Customer.loyalty_points` existed, `LoyaltyTier` thresholds existed, UI
+copy existed, but `award_points()` was defined and tested-in-isolation
+and never called from the sale-creation path. This phase finishes the
+program end-to-end.
+
+**New table — `loyalty_transaction` (migration 074)** — append-only
+ledger of every point movement:
+- `customer_id` (FK CASCADE), `delta` (signed int), `reason` enum
+  (`earn_sale` / `redeem` / `void_reversal` / `manual_adjust`),
+  `sale_id` (FK SET NULL), `actor`, `notes`, `recorded_at`.
+- CHECK `delta != 0`; CHECK on `reason` enum; indexes on
+  `(customer_id, recorded_at)` for fast "recent activity" queries.
+- `Customer.loyalty_points` is the cached display balance; the ledger
+  is the source of truth. `reconcile_loyalty_balance()` rebuilds the
+  column from `SUM(delta)` for ops recovery.
+
+**Sale-creation wiring** — `app/routers/sales.py` now calls
+`award_points()` after both single-sale and multi-sale inserts:
+- Points earned on the **post-discount total** (matches industry norm).
+- One ledger row per invoice (multi-line sales credit the sum).
+- Uses `current_user_id(request)` as actor; falls back to `operator`.
+- No-ops gracefully if no customer is attached (customer walk-in).
+
+**Void-reversal** — `sale_void()` calls `reverse_points_for_void()`
+BEFORE `void_sale()` so the ledger stays consistent with the cached
+balance when a sale that earned points is voided. Defensive: only
+reverses the original `earn_sale` rows for that sale_id, never
+unrelated redemptions.
+
+**`/clientes/{id}/puntos/redeem`** — new POST endpoint on the customer
+detail page for the "vení mañana que te descuento" case. Records a
+ledger row with `reason='redeem'`, `sale_id=NULL`, optional `notes`.
+Validates `points_to_redeem > 0` and `customer.loyalty_points >=
+points_to_redeem`. Returns flash messages:
+`points_invalid` / `points_insufficient` / `points_redeemed:N:D`.
+
+**UI — `/clientes/{id}`** — new "Puntos de fidelidad" section with:
+- A 1pt/1000 Gs. → 1000 Gs. redemption rate panel.
+- **Canjear puntos** inline form: number input (min=1, max=balance),
+  optional notes field, "Canjear" primary button.
+- **Movimientos recientes** ledger table: last 20 transactions with
+  date / reason label / signed delta (green for earn, red for spend)
+  / link to source sale.
+- Puntos stat card now also shows `≈ N Gs. en descuentos`.
+
+**Effective rate documentation (decision A3)** — the program gives
+~10% of lifetime spend back as discount. UI copy on `/clientes/{id}`
+explains it explicitly and points to `POINTS_PER_GS` in
+`app/rms/customers.py:36,44,213` for tuning. **Constants are unchanged.**
+
+**Tests** — `tests/test_loyalty_ledger.py`, 15 tests:
+- award_points writes ledger + credits balance
+- award_points zero-when-below-threshold (no ledger row)
+- redeem_points writes ledger + debits balance
+- redeem_points raises on insufficient / non-positive
+- reverse_points_for_void with real sale creates negate ledger row
+- reverse_points_for_void no-op when no earn exists
+- reconcile_loyalty_balance rebuilds from SUM(delta)
+- loyalty_transaction table exists with all expected columns
+- CHECK constraint rejects delta=0 at DB level
+- POST /clientes/{id}/puntos/redeem → ledger row
+- POST rejects more than balance → `points_insufficient` flash
+- POST rejects zero/negative → `points_invalid` flash
+- GET /clientes/{id} renders the ledger table
+- POST /ventas/nueva with customer → earn_sale ledger row
+
+**Deferred (decision C)** — auto-suggest rules engine. The existing
+"Coffee regulars" card (top-5 customers with 2+ sales in 30d) is
+already the lowest-friction version of this. Layering rules on top
+is a future optimization.
+
+### Added — B2 day-of-week-aware forecast (2026-10-01)
+
+The previous `/produccion/manana` plan averaged sales over the last
+14 days **flat** — Tuesday's forecast looked like Sunday's looked
+like Saturday's. Real bakeries have strong weekly seasonality
+(weekday rush vs weekend retail). B2 makes the forecast
+day-of-week-aware.
+
+**Domain** — `app/rms/production.py:forecast_sales()` now accepts a
+`target_weekday` kwarg (Mon=0 ... Sun=6). When set, it aggregates
+ONLY historical sales on that weekday within the window — a
+12-week average of the last 12 Tuesdays, for example, instead of
+the last 84 days. Falls back to the all-DOW average when fewer
+than 4 historical DOW weeks exist for a product (always shows
+something; confidence reflects the weak signal downstream).
+`plan_production()` accepts a `use_dow_forecast=True` flag and
+threads it through.
+
+**Behavior decisions** (with you, 2026-10-01):
+- Metric: **both** units + revenue (single query, single Forecast
+  dataclass, one source of truth for both surfaces).
+- Lookback: **12 weeks** (84 days).
+- Display: **both** `/inicio` headline card (tomorrow's units +
+  revenue + top-5 products, confidence badge) AND
+  `/produccion/manana` per-product DOW breakdown (already
+  existed; the production plan now uses the DOW-aware forecast
+  with the 84-day window).
+- Low-data: **fallback** to flat average when < 4 DOW weeks
+  exist (decision documented above in the report).
+
+**Wiring** — `app/routers/produccion.py` passes
+`days_history=84, use_dow_forecast=True` to `plan_production()`.
+Week and month views keep the legacy flat 14-day avg (unchanged
+for back-compat). `app/routers/dashboard.py` computes the
+/inicio forecast headline (units + revenue + top-5) and passes
+it to the template.
+
+**UI** — new "Pronóstico — {DOW} {date}" card on `/inicio`,
+positioned between the production plan and the Coffee regulars
+card. Shows: tomorrow's predicted units (sum across all
+products), predicted revenue, top-5 product breakdown table,
+confidence pill (high ≥ 5 products / medium ≥ 2 / low).
+Empty-state CTA when no DOW history exists.
+
+**Tests** — 11 new tests across 2 files:
+- `tests/test_dow_forecast.py` (7 tests): DOW-only aggregation,
+  legacy flat avg preserved when target_weekday=None, fallback
+  when < 4 DOW weeks, empty DB, plan_production wiring, 12-week
+  vs 6-week recency, voided-sales exclusion.
+- `tests/test_inicio_forecast_card.py` (4 tests): /inicio renders
+  200 with the new context, empty state when no sales, DOW-aware
+  totals when sales exist, voided-sales exclusion.
+
+**Untouched**: `/produccion` week view, month view, single-day
+view, ingredient reorder forecast, the per-ingredient
+`ConsumptionForecast` in `app/rms/forecast.py` (BACKLOG #7). They
+keep the legacy flat avg behavior.
+
+### Fixed — cross-unit rollup bug in `rollup_ingredient_stock` (2026-10-01)
+
+The `rollup_ingredient_stock()` helper in `app/rms/variants.py` had a
+latent unit-conversion bug: it was converting `stock_qty` from
+`package_unit` to `base_unit` before multiplying by `size_in_base`.
+That's wrong because `stock_qty` is a **count of packages**, not a
+quantity in `package_unit`. The bug was invisible for same-unit
+variants (e.g. all kg — `convert_qty(x, kg, kg) = x`) but produced
+wildly inflated numbers for cross-unit cases (e.g. base=kg + variants
+in g — would yield 6_000 kg instead of 6 kg).
+
+**The math** (corrected):
+```python
+size_in_base = convert_qty(package_size, package_unit, base_unit)
+total_in_base = stock_qty × size_in_base   # stock_qty is a COUNT
+```
+
+**Impact**:
+- `/inventario` list page "Stock actual" cell — now correct for
+  cross-unit ingredients (harina bought as 1kg bags + 250g packets
+  with a kg base unit).
+- `/ingrediente/{id}` detail page stock total — same fix.
+- `days_until_short()` — used rollup.base_qty, also now correct.
+
+**Tests** — `tests/test_rollup_cross_unit.py` (10 tests):
+- Base=kg with g variants (the real B1 harina use case)
+- Base=g with kg variants (inverse)
+- Base=l with ml variants (leche case)
+- Base=ml with l variants (aceite case)
+- Mixed g + kg on a single ingredient
+- Per-variant `stock_in_base` and `size_in_base` fields are
+  computed correctly (new `size_in_base` field exposed in breakdown)
+- Same-unit cases unchanged (regression guards)
+- No-variants case still uses legacy `Ingredient.stock_qty`
+- `rollup_ingredient_stock()` returns None for missing ingredient
+- `days_until_short()` integration: cross-unit rollup → sensible
+  current_stock_base
+
+The detail-page "Stock total" display, the per-variant table, and
+the `/inventario` listing now all show correct totals for cross-unit
+ingredients. Memory note: **don't refactor `rollup_ingredient_stock`
+lightly — the /ingrediente/{id} detail page and /inventario list
+both depend on the exact field shape (`stock_in_base`, `size_in_base`,
+`preferred_price_gs`, etc.).**
+
 ### Housekeeping — orphan stash audit (2026-10-01)
 - **8 stale `git stash` entries on main** (oldest 13 days) audited.
   7 dropped (work already shipped via other commits:

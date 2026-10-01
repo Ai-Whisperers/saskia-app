@@ -38,6 +38,7 @@
   <link rel="stylesheet" href="/static/app-components.css?v={{ asset_version() }}">
   <link rel="stylesheet" href="/static/calendar.css?v={{ asset_version() }}">
   <link rel="stylesheet" href="/static/combobox.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/mobile.css?v={{ asset_version() }}">
   {% block head_extra %}{% endblock %}
 
   <script>
@@ -308,6 +309,30 @@
   <script src="/static/saskia-kpi-card.js?v={{ asset_version() }}" defer></script>
   <script src="/static/saskia-insight-card.js?v={{ asset_version() }}" defer></script>
   {% block page_scripts %}{% endblock %}
+
+  {# Sticky bottom-nav for mobile (≤768px). Hidden on desktop via mobile.css. #}
+  <nav class="bottom-nav" aria-label="Navegación rápida">
+    <a href="/inicio" class="{% if request.url.path in ('/inicio', '/') %}active{% endif %}">
+      <svg class="icon" aria-hidden="true"><use href="#icon-home"/></svg>
+      <span>Inicio</span>
+    </a>
+    <a href="/ventas/nueva" class="{% if 'ventas/nueva' in request.url.path %}active{% endif %}">
+      <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
+      <span>Vender</span>
+    </a>
+    <a href="/inventario" class="{% if request.url.path.startswith('/inventario') %}active{% endif %}">
+      <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
+      <span>Stock</span>
+    </a>
+    <a href="/reorder" class="{% if request.url.path.startswith('/reorder') %}active{% endif %}">
+      <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
+      <span>Reponer</span>
+    </a>
+    <a href="/menu" class="{% if request.url.path == '/menu' %}active{% endif %}">
+      <svg class="icon" aria-hidden="true"><use href="#icon-menu"/></svg>
+      <span>Más</span>
+    </a>
+  </nav>
 </body>
 
 </html>

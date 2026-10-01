@@ -106,3 +106,25 @@ jobs:
               exit 1
             fi
           fi
+
+      # ---- E5.S2: regenerate STATUS.html so the dashboard stays current ----
+      # Runs on every push to main. The script writes STATUS.md (yaml) and
+      # STATUS.html (visual, single-file). We auto-commit the result so the
+      # dashboard at docs/operations/dashboard/STATUS.html is always one
+      # commit behind main.
+      - name: Refresh STATUS dashboard
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          chmod +x docs/operations/dashboard/refresh.sh
+          bash docs/operations/dashboard/refresh.sh . || {
+            echo "WARNING: refresh.sh failed; STATUS not updated"
+            exit 0  # Don't fail the build on a dashboard hiccup
+          }
+          # Commit the regenerated dashboard if it changed.
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@noreply.local"
+          if ! git diff --quiet docs/operations/dashboard/STATUS.md                         docs/operations/dashboard/STATUS.html 2>/dev/null; then
+            git add docs/operations/dashboard/STATUS.md                     docs/operations/dashboard/STATUS.html
+            git commit -m "ci: refresh STATUS dashboard" || true
+            git push || true
+          fi

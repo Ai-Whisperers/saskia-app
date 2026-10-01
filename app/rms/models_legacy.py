@@ -1862,6 +1862,8 @@ __all__ = [
     "ImportBatch",
     "Ingredient",
     "IngredientPriceEvent",
+    # Migration 074 — loyalty ledger for earn/redeem/void_reversal/manual_adjust
+    "LoyaltyTransaction",
     # Static-content-audit Phase 7 — migrations 045, 046
     "MarginTier",
     "MarketBenchmark",
@@ -2069,4 +2071,69 @@ class Suscripcion(Base):
         CheckConstraint("price_gs >= 0", name="ck_suscripcion_price_nonneg"),
         Index("ix_suscripcion_status", "status"),
         Index("ix_suscripcion_customer", "customer_id"),
+    )
+
+
+class LoyaltyTransaction(Base):
+    """Append-only ledger of customer loyalty point movements.
+
+    Migration 074 (2026-10-01): the ``Customer.loyalty_points`` column
+    existed since the original loyalty work but was never incremented —
+    ``award_points()`` in ``app/rms/customers.py`` was defined but
+    unwired. This ledger captures every delta (earn, redeem, manual
+    adjustment, void reversal) so refunds/voids can reverse points
+    cleanly without losing history.
+
+    Schema:
+      - id: PK
+      - customer_id: FK -> customer.id, indexed
+      - delta: signed integer (positive=earn, negative=redeem/void)
+      - reason: enum-like string ('earn_sale', 'redeem', 'void_reversal',
+                'manual_adjust')
+      - sale_id: nullable FK -> sale.id, set when reason IN
+                 ('earn_sale', 'redeem', 'void_reversal')
+      - actor: 'system' | 'operator' — for audit (who triggered it)
+      - notes: optional free-text (e.g. "canje por descuento 5.000 Gs")
+      - recorded_at: UTC datetime (default now)
+
+    The Customer.loyalty_points column is kept as the cached balance for
+    fast display; this table is the source of truth. A periodic
+    reconcile (or any inconsistency) can rebuild the column from
+    SUM(delta) GROUP BY customer_id.
+
+    Invariants:
+      - reason IN ('earn_sale', 'redeem', 'void_reversal', 'manual_adjust')
+      - delta != 0
+      - sale_id is set when reason ∈ {earn_sale, redeem, void_reversal}
+    """
+
+    __tablename__ = "loyalty_transaction"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    customer_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("customer.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    delta: Mapped[int] = mapped_column(Integer, nullable=False)
+    reason: Mapped[str] = mapped_column(String(24), nullable=False)
+    sale_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("sale.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    actor: Mapped[str] = mapped_column(String(32), nullable=False, default="system")
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, index=True
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "reason IN ('earn_sale','redeem','void_reversal','manual_adjust')",
+            name="ck_loyalty_reason",
+        ),
+        CheckConstraint("delta != 0", name="ck_loyalty_delta_nonzero"),
+        Index("ix_loyalty_customer_time", "customer_id", "recorded_at"),
     )

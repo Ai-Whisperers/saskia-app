@@ -864,7 +864,15 @@ def produccion_manana(
 
     today = datetime.now(ASUNCION_TZ).date()
     tomorrow = today + timedelta(days=1)
-    plan = plan_production(session, for_date=tomorrow, days_history=14)
+    # B2 (2026-10-01): /produccion/manana now uses the DOW-aware
+    # forecast with a 12-week lookback. Only this surface opts in;
+    # week/month views keep the legacy flat 14-day avg (unchanged).
+    plan = plan_production(
+        session,
+        for_date=tomorrow,
+        days_history=84,
+        use_dow_forecast=True,
+    )
 
     # Pull seasonal events for tomorrow's date (calendar uses SEASONAL_CALENDAR_2026)
     # The calendar dict has 'start'/'end' fields (date ranges), not 'date'.

@@ -320,16 +320,68 @@ def scrape_superseis(query: str) -> ScrapeResult:
 # ---------------------------------------------------------------------------
 
 
+_STOCK_PRODUCT_RE = re.compile(
+    r"""title="Mostrar detalles para (?P<name>[^"]+)"[^>]*class="picture-link"[^>]*href="(?P<url>[^"]+\.aspx)""",
+    re.DOTALL,
+)
+_STOCK_PRICE_RE = re.compile(r"<span class='price-label'>\s*([\d\.]+)\s*</span>")
+
+
+def _parse_stock(html: str) -> list[ScrapedPrice]:
+    """Parse the featured-products list from Stock.com.py's homepage.
+
+    The search box on Stock.com.py is a JS-driven ASP.NET VIEWSTATE form
+    that we can't reliably scrape without a browser. But the homepage
+    HTML (the "destacados" grid) renders the same product cards with
+    real titles, URLs and prices — and ASP.NET WebForms renders them
+    server-side, so plain HTTP GET is enough.
+
+    We pair each product card's title/URL with the *first* price-label
+    that follows it in document order. Cards without a price (sold-out
+    placeholders) get price_gs=0; the operator can ignore them in the
+    /reorder UI.
+
+    Returns up to 25 matches. Paraguayan number format uses "." as
+    thousands separator (e.g. "23.000" → 23000).
+    """
+    products = _STOCK_PRODUCT_RE.findall(html)
+    prices = _STOCK_PRICE_RE.findall(html)
+    out: list[ScrapedPrice] = []
+    for i, (name, url) in enumerate(products[:25]):
+        price_str = prices[i] if i < len(prices) else "0"
+        # "23.000" → 23000 (period = thousands). Strip ALL periods.
+        digits = price_str.replace(".", "").replace(",", "")
+        try:
+            price_gs = int(digits) if digits.isdigit() else 0
+        except ValueError:
+            price_gs = 0
+        out.append(
+            ScrapedPrice(
+                product_name=name.strip(),
+                price_gs=price_gs,
+                unit="",  # Stock pages don't expose units consistently
+                url=url,
+                source="stock",
+            )
+        )
+    return out
+
+
 def scrape_stock(query: str) -> ScrapeResult:
-    """Search Stock.com.py for ``query``.
+    """Fetch Stock.com.py's featured-product list (best-effort).
 
-    Their public site is ASP.NET (default.aspx) with VIEWSTATE — scraping
-    reliably requires a JS-capable browser, which we deliberately avoid on
-    the VPS. This function probes the site, returns an empty result with
-    an explanatory error, and the operator falls back to CSV upload.
+    Their search is JS-driven ASP.NET VIEWSTATE that we cannot reliably
+    scrape server-side (AGENTS.md: no Playwright in fase 1). So instead
+    of running a search, this returns the home page's "destacados"
+    (featured) grid: 24–25 real products with names, URLs and prices.
+    The /reorder UI shows this list as a reference catalog the operator
+    can browse when the search-by-name path is unavailable.
 
-    We do NOT raise; the /reorder UI uses ``ok`` to display a "scraper
-    unavailable" hint instead of crashing.
+    The ``query`` field is preserved in the result so the UI can label
+    the panel as "productos destacados (no se pudo buscar por nombre)".
+
+    We do NOT raise; the /reorder UI uses ``ok`` to display a "partial"
+    hint instead of crashing.
     """
     query = (query or "").strip()
     if not query:
@@ -338,23 +390,27 @@ def scrape_stock(query: str) -> ScrapeResult:
         with _client() as c:
             r = c.get(
                 "https://www.stock.com.py/default.aspx",
-                params={"Search": query},  # common ASP.NET search param name
+                timeout=15.0,
             )
             r.raise_for_status()
+            html = r.text
     except httpx.HTTPError as e:
         return ScrapeResult(
-            source="stock", query=query, error=f"fetch failed: {e}"
+            source="stock",
+            query=query,
+            error=f"fetch failed: {e}",
         )
-    # We didn't find a reliable parser for ASP.NET VIEWSTATE sites. Surface
-    # that as an "unavailable" error rather than silently return nothing.
-    return ScrapeResult(
-        source="stock",
-        query=query,
-        error=(
-            "Stock.com.py requiere navegador con JavaScript; "
-            "usá /reorder/upload-prices (CSV) para cargar precios manualmente."
-        ),
-    )
+    matches = _parse_stock(html)
+    if not matches:
+        return ScrapeResult(
+            source="stock",
+            query=query,
+            error=(
+                "Stock.com.py no devolvió productos destacados; "
+                "usá /reorder/upload-prices (CSV) como alternativa."
+            ),
+        )
+    return ScrapeResult(source="stock", query=query, matches=tuple(matches))
 
 
 # ---------------------------------------------------------------------------

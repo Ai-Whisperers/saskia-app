@@ -3149,6 +3149,58 @@ def _migration_073_ingredient_price_event_supplier(conn: Any) -> None:
     _bump_schema_version(conn, 73)
 
 
+def _migration_074_loyalty_transaction_ledger(conn: Any) -> None:
+    """Append-only ledger of customer loyalty point movements.
+
+    The ``Customer.loyalty_points`` column existed since the original
+    loyalty work but was never incremented — ``award_points()`` in
+    ``app/rms/customers.py`` was defined but unwired. This ledger
+    captures every delta (earn, redeem, manual adjust, void reversal)
+    so refunds and voids can reverse points cleanly without losing
+    history. The cached ``Customer.loyalty_points`` column stays for
+    fast display; this table is the source of truth.
+
+    Schema:
+      - CREATE TABLE loyalty_transaction with id / customer_id (FK) /
+        delta / reason / sale_id (FK, nullable) / actor / notes /
+        recorded_at
+      - CHECK reason IN ('earn_sale','redeem','void_reversal','manual_adjust')
+      - CHECK delta != 0
+      - INDEX on (customer_id, recorded_at) for fast "recent activity"
+        queries on the customer detail page
+
+    Backwards compatibility: existing rows in customer.loyalty_points
+    are NOT backfilled. The first ``award_points`` after this migration
+    will write a ledger row and reconcile. A periodic reconcile
+    helper can rebuild the column from SUM(delta) if needed.
+    """
+    for stmt in (
+        """CREATE TABLE IF NOT EXISTS loyalty_transaction (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL REFERENCES customer(id) ON DELETE CASCADE,
+            delta INTEGER NOT NULL,
+            reason VARCHAR(24) NOT NULL,
+            sale_id INTEGER REFERENCES sale(id) ON DELETE SET NULL,
+            actor VARCHAR(32) NOT NULL DEFAULT 'system',
+            notes TEXT,
+            recorded_at DATETIME NOT NULL,
+            CONSTRAINT ck_loyalty_reason CHECK (
+                reason IN ('earn_sale','redeem','void_reversal','manual_adjust')
+            ),
+            CONSTRAINT ck_loyalty_delta_nonzero CHECK (delta != 0)
+        )""",
+        "CREATE INDEX IF NOT EXISTS ix_loyalty_transaction_customer_id ON loyalty_transaction (customer_id)",
+        "CREATE INDEX IF NOT EXISTS ix_loyalty_transaction_recorded_at ON loyalty_transaction (recorded_at)",
+        "CREATE INDEX IF NOT EXISTS ix_loyalty_customer_time ON loyalty_transaction (customer_id, recorded_at)",
+    ):
+        try:
+            conn.execute(text(stmt))
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("migration 074 stmt skipped: %s", exc)
+
+    _bump_schema_version(conn, 74)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -3223,6 +3275,7 @@ MIGRATIONS = {
     71: _migration_071_customer_profile_completeness,
     72: _migration_072_reorder_supplier_tracking,
     73: _migration_073_ingredient_price_event_supplier,
+    74: _migration_074_loyalty_transaction_ledger,
 }
 
 

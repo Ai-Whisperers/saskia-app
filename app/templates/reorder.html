@@ -81,6 +81,7 @@ function updateBulkBtn() {
     {% set locked_id = locked_supplier_map.get(item.ingredient_id) %}
     {% set is_locked = locked_id is not none %}
     {% set price_options = supplier_prices_map.get(item.ingredient_id, {}) %}
+    {% set cheapest = cheapest_suppliers.get(item.ingredient_id) if cheapest_suppliers is defined else None %}
     <tr class="reorder-row{% if is_locked %} reorder-row--locked{% endif %}"
         data-ingredient-id="{{ item.ingredient_id }}"
         data-original-supplier-id="{{ eff_id or '' }}"
@@ -220,7 +221,20 @@ function updateBulkBtn() {
              saskia-combo (form-safe) so it submits with the rest of the form. #}
           <div style="display:flex;flex-direction:column;gap:.35rem;min-width:11rem;">
             <label class="sr-only" for="rsup-{{ item.ingredient_id }}">Proveedor {{ fmt.entity_name(item) }}</label>
-            <saskia-combo id="rsup-{{ item.ingredient_id }}"
+            {%- if cheapest and cheapest.supplier_id is not none and cheapest.supplier_id != eff_id -%}
+              <div class="cheapest-hint" data-cheapest-for="{{ item.ingredient_id }}"
+                   title="Basado en {{ cheapest.event_count }} compra(s) en los últimos 90 días">
+                <svg class="icon" aria-hidden="true"><use href="#icon-info"/></svg>
+                Más barato: <strong>{{ cheapest.supplier_name or 'sin proveedor' }}</strong>
+                · {{ "{:,}".format(cheapest.avg_price_gs).replace(",", ".") }} Gs
+                <button type="button" class="cheapest-apply btn btn-sm btn-link"
+                        data-apply-supplier-id="{{ cheapest.supplier_id }}"
+                        data-apply-ingredient-id="{{ item.ingredient_id }}"
+                        aria-label="Aplicar {{ cheapest.supplier_name }} a esta fila">aplicar</button>
+              </div>
+            {%- endif -%}
+            <button type="button" class="btn btn-sm btn-ghost scrape-trigger" data-ingredient-id="{{ item.ingredient_id }}" data-ingredient-name="{{ fmt.entity_name(item) }}" aria-label="Buscar precios en la web para {{ fmt.entity_name(item) }}"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg> Ver precios</button>
+              <saskia-combo id="rsup-{{ item.ingredient_id }}"
                            name="supplier_id"
                            class="supplier-picker"
                            {% if is_locked %}data-locked="1"{% endif %}
@@ -234,6 +248,7 @@ function updateBulkBtn() {
                                {"value": "", "label": "No hay proveedores activos"}
                              {%- endif -%}
                            ]'></saskia-combo>
+            <div id="scrape-results-{{ item.ingredient_id }}" class="scrape-results" hidden></div>
             <button type="submit" class="btn btn-sm btn-primary confirm-btn" aria-label="Confirmar reponer {{ fmt.entity_name(item) }}">
               <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
               Reponer
@@ -427,6 +442,164 @@ function updateBulkBtn() {
   // unlocks. Manual toggle replaced the old 3-streak auto-lock.
   document.querySelectorAll('.supplier-picker[data-locked="1"]').forEach(function(picker) {
     picker.setAttribute('locked-hint', 'Proveedor fijado manualmente. Usá 🔓 para liberar.');
+  });
+})();
+
+/* === scraper panel =====================================================
+ * Phase 4 UI: clicking "Ver precios" runs /reorder/scrape?q=<ingredient>
+ * and renders a small results panel next to the supplier picker. The
+ * operator can click any result to fill the price field (best price
+ * pre-selected on the lowest match).
+ * ====================================================================== */
+(function() {
+  function csrfToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) return meta.getAttribute('content');
+    var hidden = document.querySelector('input[name="csrf_token"]');
+    return hidden ? hidden.value : '';
+  }
+
+  function fmtGs(n) {
+    if (typeof n !== 'number') return String(n);
+    return n.toLocaleString('es-PY').replace(/,/g, '.') + ' Gs';
+  }
+
+  function renderResults(panel, query, sources) {
+    panel.innerHTML = '';
+    panel.hidden = false;
+    var heading = document.createElement('div');
+    heading.className = 'scrape-heading';
+    heading.textContent = 'Precios en la web para "' + query + '"';
+    panel.appendChild(heading);
+    if (!sources.length) {
+      var empty = document.createElement('div');
+      empty.className = 'scrape-empty muted';
+      empty.textContent = 'No hay resultados.';
+      panel.appendChild(empty);
+      return;
+    }
+    sources.forEach(function(src) {
+      var row = document.createElement('div');
+      row.className = 'scrape-source';
+      if (src.ok && src.matches.length) {
+        var head = document.createElement('div');
+        head.className = 'scrape-source-head';
+        head.innerHTML = '<strong>' + src.source + '</strong> · '
+          + src.matches.length + ' resultado'
+          + (src.matches.length === 1 ? '' : 's');
+        row.appendChild(head);
+        var list = document.createElement('ul');
+        list.className = 'scrape-list';
+        src.matches.slice(0, 5).forEach(function(m) {
+          var li = document.createElement('li');
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'scrape-item';
+          btn.innerHTML = '<span class="scrape-name">' + m.name + '</span>'
+            + '<span class="scrape-price">' + fmtGs(m.price_gs) + '</span>';
+          btn.title = 'Usar este precio';
+          btn.addEventListener('click', function() {
+            var id = panel.getAttribute('data-ingredient-id');
+            var priceInput = document.querySelector(
+              '#rp-' + id
+            );
+            if (priceInput) {
+              priceInput.value = m.price_gs;
+              priceInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            btn.classList.add('scrape-item-active');
+            setTimeout(function() {
+              btn.classList.remove('scrape-item-active');
+            }, 600);
+          });
+          li.appendChild(btn);
+          list.appendChild(li);
+        });
+        row.appendChild(list);
+      } else {
+        var err = document.createElement('div');
+        err.className = 'scrape-error muted';
+        err.textContent = src.source + ': ' + (src.error || 'sin datos');
+        row.appendChild(err);
+      }
+      panel.appendChild(row);
+    });
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'scrape-close btn btn-sm btn-ghost';
+    close.textContent = 'Cerrar';
+    close.addEventListener('click', function() {
+      panel.hidden = true;
+      panel.innerHTML = '';
+    });
+    panel.appendChild(close);
+  }
+
+  function scrape(button) {
+    var id = button.getAttribute('data-ingredient-id');
+    var query = button.getAttribute('data-ingredient-name');
+    var panel = document.getElementById('scrape-results-' + id);
+    if (!panel) return;
+    panel.setAttribute('data-ingredient-id', id);
+    panel.hidden = false;
+    panel.innerHTML = '<div class="scrape-loading muted">Buscando precios…</div>';
+
+    var body = new URLSearchParams();
+    body.set('q', query);
+    fetch('/reorder/scrape', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRF-Token': csrfToken(),
+      },
+      body: body.toString(),
+      credentials: 'same-origin',
+    })
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(payload) {
+        renderResults(panel, query, payload.sources || []);
+      })
+      .catch(function(err) {
+        panel.innerHTML = '';
+        var div = document.createElement('div');
+        div.className = 'scrape-error';
+        div.textContent = 'Error: ' + err.message;
+        panel.appendChild(div);
+      });
+  }
+
+  document.querySelectorAll('.scrape-trigger').forEach(function(btn) {
+    btn.addEventListener('click', function() { scrape(btn); });
+  });
+
+  /* === cheapest supplier "aplicar" (Q4 multi-supplier) ===========
+   * Each .cheapest-apply button is rendered only when there's a known
+   * cheaper supplier than the currently effective one. Clicking it
+   * sets the supplier picker's value and re-renders the dropdown.
+   * ============================================================== */
+  document.querySelectorAll('.cheapest-apply').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var supplierId = btn.getAttribute('data-apply-supplier-id');
+      var ingredientId = btn.getAttribute('data-apply-ingredient-id');
+      var picker = document.querySelector('#rsup-' + ingredientId);
+      if (!picker) return;
+      picker.value = supplierId;
+      picker.dispatchEvent(new Event('change', { bubbles: true }));
+      btn.textContent = 'aplicado ✓';
+      btn.disabled = true;
+      // Hide the hint after a moment so the row settles visually.
+      var hint = btn.closest('.cheapest-hint');
+      if (hint) {
+        setTimeout(function() {
+          hint.style.transition = 'opacity .4s';
+          hint.style.opacity = '0';
+          setTimeout(function() { hint.remove(); }, 400);
+        }, 1200);
+      }
+    });
   });
 })();
 </script>

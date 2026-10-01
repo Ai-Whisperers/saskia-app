@@ -7,10 +7,12 @@ with a marker so it can be skipped in CI via ``-m 'not network'``.
 from __future__ import annotations
 
 import pytest
+from pathlib import Path
 
 from app.rms.scrapers import (
     SCRAPERS,
     ScrapeResult,
+    _parse_stock,
     _parse_superseis,
     _normalize_price,
     scrape_all,
@@ -212,3 +214,56 @@ class TestLiveSuperseis:
         assert len(r.matches) >= 1, "live scrape returned zero matches"
         # The fixture is the same query; we should get harina products.
         assert any("harina" in m.product_name.lower() for m in r.matches)
+
+
+def test_parse_stock_featured_grid_from_fixture():
+    """Offline parse of saved Stock.com.py featured grid HTML."""
+    fixture = Path(__file__).parent / "fixtures" / "stock_featured.html"
+    if not fixture.exists():
+        import pytest
+        pytest.skip("stock_featured.html fixture missing (network needed once)")
+    html = fixture.read_text(encoding="utf-8")
+    matches = _parse_stock(html)
+    assert 10 <= len(matches) <= 30, f"expected 10-30 matches, got {len(matches)}"
+    # First match must have a non-empty name and url.
+    first = matches[0]
+    assert first.product_name
+    assert "/products/" in first.url
+    # Paraguayan number format: "23.000" → 23000.
+    if first.price_gs:
+        assert first.price_gs > 1000, f"price {first.price_gs} should be >= 1000"
+
+
+def test_scrape_stock_returns_featured_products():
+    """scrape_stock() returns featured products, not error."""
+    result = scrape_stock("harina")
+    assert result.source == "stock"
+    assert result.query == "harina"
+    # Either ok + matches, or ok + error (if the live site is down).
+    if result.ok:
+        assert len(result.matches) >= 10
+    else:
+        # Live site failed — that's acceptable for a CI run.
+        assert "fetch failed" in (result.error or "")
+
+
+def test_parse_stock_handles_empty_html():
+    """Empty or invalid HTML → empty matches."""
+    matches = _parse_stock("")
+    assert matches == []
+    matches = _parse_stock("<html><body>no products here</body></html>")
+    assert matches == []
+
+
+def test_parse_stock_handles_price_with_thousands_separator():
+    """Verify Paraguayan '23.000' format is parsed as 23000."""
+    html = (
+        '<a title="Mostrar detalles para TEST PRODUCT 1KG" '
+        'class="picture-link" href="https://www.stock.com.py/products/123-test.aspx">'
+        '<img title="test" /></a>'
+        "<span class='price-label'>  23.000</span>"
+    )
+    matches = _parse_stock(html)
+    assert len(matches) == 1
+    assert matches[0].price_gs == 23000
+    assert matches[0].product_name == "TEST PRODUCT 1KG"

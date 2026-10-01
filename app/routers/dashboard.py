@@ -34,7 +34,7 @@ from app.rms.constants import DEFAULT_TAX_REGIME
 from app.rms.costing import batch_products_cost_margin, batch_recipes_cost
 from app.rms.dependencies import get_session
 from app.rms.insights import build_insights, build_actionable_insights
-from app.rms.models import Ingredient, Recipe, RiskItem, Sale, ShoppingListItem, WishlistItem
+from app.rms.models import Ingredient, Product, Recipe, RiskItem, Sale, ShoppingListItem, WishlistItem
 from app.rms.money import to_int_gs
 from app.services.template_render import render
 
@@ -272,6 +272,9 @@ async def dashboard(
     period: str = Query("today", pattern="^(today|week|month|custom)$"),
     start: str | None = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     end: str | None = Query(None, description="End date for custom range (YYYY-MM-DD)"),
+    chart_preset: str = Query(
+        "30d", pattern="^(7d|30d|90d|current_month|last_month)$"
+    ),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     if period == "custom" and start and end:
@@ -565,6 +568,47 @@ async def dashboard(
             })
     birthdays.sort(key=lambda b: b["days_until"])
 
+    # Phase 4 B2 (2026-10-01): day-of-week-aware forecast headline for
+    # /inicio. Predicts tomorrow's units + revenue using the last 12
+    # weeks of historical sales for tomorrow's weekday only. Returns
+    # None when there's not enough data so the UI can render an empty
+    # state instead of misleading numbers.
+    from datetime import datetime as _dt_b2
+    from app.rms.config import ASUNCION_TZ as _tz_b2
+    from app.rms.production import forecast_sales as _fs_b2
+    _tomorrow_date = (_dt_b2.now(_tz_b2) + timedelta(days=1)).date()
+    _tomorrow_dow = _tomorrow_date.weekday()
+    _tomorrow_label = ["lunes", "martes", "miércoles", "jueves",
+                       "viernes", "sábado", "domingo"][_tomorrow_dow]
+    _forecast_units = 0.0
+    _forecast_revenue_gs = 0
+    _forecast_products_count = 0
+    _forecast_top = []  # [(product_name, qty, revenue_gs)]
+    for _prod in session.scalars(select(Product)).all():
+        _qty = _fs_b2(
+            session, product_id=_prod.id,
+            days_history=84, target_weekday=_tomorrow_dow,
+        )
+        if _qty <= 0:
+            continue
+        _forecast_products_count += 1
+        _forecast_units += _qty
+        _rev = int(_qty * (_prod.sale_price_gs or 0))
+        _forecast_revenue_gs += _rev
+        _forecast_top.append({
+            "name": _prod.name,
+            "qty": _qty,
+            "revenue_gs": _rev,
+        })
+    _forecast_top.sort(key=lambda x: -x["qty"])
+    _forecast_top = _forecast_top[:5]
+    # Confidence: count of products with at least 4 DOW-weeks of history
+    # divided by total — rough heuristic. Same logic is in
+    # production.py:_forecast_confidence() but per-product.
+    _forecast_confidence = "high" if _forecast_products_count >= 5 else (
+        "medium" if _forecast_products_count >= 2 else "low"
+    )
+
     return render(
         request,
         "inicio.html",
@@ -616,6 +660,14 @@ async def dashboard(
                 )
                 or 0
             ),
+            # B2 (2026-10-01): day-of-week-aware forecast headline
+            "forecast_tomorrow_label": _tomorrow_label,
+            "forecast_tomorrow_date": _tomorrow_date.isoformat(),
+            "forecast_units": int(round(_forecast_units)),
+            "forecast_revenue_gs": _forecast_revenue_gs,
+            "forecast_products_count": _forecast_products_count,
+            "forecast_top": _forecast_top,
+            "forecast_confidence": _forecast_confidence,
             "recipes_no_cost": recipes_no_cost,
             "sales_no_recipe": sales_no_recipe_decor,
             # E8: operational analytics surfaces
@@ -639,7 +691,8 @@ async def dashboard(
             "insights": build_insights(session),
             # Phase 3 visual dashboard — charts + freshness
             "chart_hourly": _build_hourly_sales_chart(sales, ASUNCION_TZ),
-            "chart_30day": _build_30day_sales_chart(session),
+            "chart_30day": _build_30day_sales_chart(session, preset=chart_preset),
+            "chart_preset": chart_preset,
             "chart_payment_methods": _build_payment_methods_donut(sales),
             "top_products_revenue": _build_top_products_revenue(ranking),
             # P1-B7: actionable insights for dashboard
@@ -743,51 +796,54 @@ def _build_hourly_sales_chart(sales: list[Sale], tz: ZoneInfo) -> str:
     )
 
 
-def _build_30day_sales_chart(session: Session) -> str:
-    """Build an SVG line chart of sales over the last 30 days."""
-    end = datetime.now(ASUNCION_TZ).replace(hour=23, minute=59, second=59)
-    start = (end - timedelta(days=29)).replace(hour=0, minute=0, second=0)
+def _build_30day_sales_chart(
+    session: Session, preset: str = "30d"
+) -> dict:
+    """Build an SVG line chart for the dashboard over the given preset.
 
-    # Query sales in the range
-    start_utc = start.astimezone(timezone.utc).replace(tzinfo=None)
-    end_utc = end.astimezone(timezone.utc).replace(tzinfo=None)
+    Returns a dict ``{"html": str, "preset": str, "rows": list[dict]}``
+    so the template can render the chart plus a small top-product
+    summary table and the preset switcher.
 
-    sales_30d = session.scalars(
-        select(Sale).where(
-            Sale.sold_at >= start_utc,
-            Sale.sold_at <= end_utc,
-        )
-    ).all()
+    Delegates the heavy lifting to ``app.services.reports.daily_sales_series``
+    (E4.S2) so the same numbers power any future surface (toolbar widget,
+    export, etc).
+    """
+    from app.services.reports import daily_sales_series
 
-    if not sales_30d:
-        return '<p class="text-muted">Sin ventas en los últimos 30 días</p>'
+    rows = daily_sales_series(session, preset=preset)
+    if not rows or all(r.total_gs == 0 for r in rows):
+        return {
+            "html": '<p class="text-muted">Sin ventas en el período seleccionado</p>',
+            "preset": preset,
+            "preset_label": _preset_label(preset),
+            "rows": [r.to_dict() for r in rows],
+        }
 
-    # Bucket by day
-    buckets: dict[str, int] = {}
-    for s in sales_30d:
-        if s.sold_at is None:
-            continue
-        local = s.sold_at.replace(tzinfo=timezone.utc).astimezone(ASUNCION_TZ)
-        key = local.strftime("%d/%m")
-        buckets[key] = buckets.get(key, 0) + to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs)))
+    return {
+        "html": line_chart(
+            [(r.date.strftime("%d/%m"), float(r.total_gs)) for r in rows],
+            width=700,
+            height=180,
+            label=f"Ventas — {_preset_label(preset)} (Gs.)",
+            y_format="{:,.0f}",
+            color="var(--color-accent)",
+            show_dots=False,
+        ),
+        "preset": preset,
+        "preset_label": _preset_label(preset),
+        "rows": [r.to_dict() for r in rows],
+    }
 
-    # Fill in missing days with 0
-    values = []
-    cur = start
-    while cur <= end:
-        key = cur.strftime("%d/%m")
-        values.append((key, float(buckets.get(key, 0))))
-        cur += timedelta(days=1)
 
-    return line_chart(
-        values,
-        width=700,
-        height=180,
-        label="Ventas — últimos 30 días (Gs.)",
-        y_format="{:,.0f}",
-        color="var(--color-accent)",
-        show_dots=False,
-    )
+def _preset_label(preset: str) -> str:
+    return {
+        "7d": "últimos 7 días",
+        "30d": "últimos 30 días",
+        "90d": "últimos 90 días",
+        "current_month": "mes en curso",
+        "last_month": "mes anterior",
+    }.get(preset, preset)
 
 
 def _build_payment_methods_donut(sales: list[Sale]) -> str:

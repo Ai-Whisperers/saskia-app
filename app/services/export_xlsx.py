@@ -14,6 +14,7 @@ What we DON'T write here:
 
 from __future__ import annotations
 
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
 from openpyxl import Workbook
@@ -21,6 +22,7 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.rms.config import ASUNCION_TZ
 from app.rms.models import Customer, Ingredient, Product, Recipe, Sale
 from app.rms.money import format_gs
 
@@ -113,16 +115,82 @@ def _autosize(ws: object, max_width: int = 40) -> None:
         ws.column_dimensions[get_column_letter(col_idx)].width = min(max_len + 2, max_width)
 
 
-def to_file(session: Session, path: str | Path) -> Path:
+def _resolve_export_range(
+    period: str | None, today: date | None = None
+) -> tuple[datetime | None, datetime | None]:
+    """Map an export period preset to (start_utc, end_utc) for Sale.sold_at.
+
+    Returns ``(None, None)`` for no filter. Both bounds are UTC-naive
+    (matching how Sale.sold_at is stored). The caller applies them as
+    half-open interval filters: ``Sale.sold_at >= start`` and
+    ``Sale.sold_at <= end``.
+    """
+    if period in (None, "", "all", "full"):
+        return None, None
+    today = today or date.today()
+    if period == "today":
+        local_start = datetime.combine(today, time.min)
+        local_end = datetime.combine(today, time.max)
+    elif period == "30d":
+        local_start = datetime.combine(today - timedelta(days=29), time.min)
+        local_end = datetime.combine(today, time.max)
+    elif period == "current_month":
+        first = today.replace(day=1)
+        local_start = datetime.combine(first, time.min)
+        local_end = datetime.combine(today, time.max)
+    elif period == "last_month":
+        first_this = today.replace(day=1)
+        last_prev = first_this - timedelta(days=1)
+        local_start = datetime.combine(last_prev.replace(day=1), time.min)
+        local_end = datetime.combine(last_prev, time.max)
+    else:
+        raise ValueError(f"unknown export period: {period!r}")
+
+    # Convert Asunción local → UTC-naive
+    start_utc = (
+        local_start.replace(tzinfo=ASUNCION_TZ)
+        .astimezone(timezone.utc)
+        .replace(tzinfo=None)
+    )
+    end_utc = (
+        local_end.replace(tzinfo=ASUNCION_TZ)
+        .astimezone(timezone.utc)
+        .replace(tzinfo=None)
+    )
+    return start_utc, end_utc
+
+
+def to_file(
+    session: Session,
+    path: str | Path,
+    period: str | None = None,
+    today: date | None = None,
+) -> Path:
     """Export current DB state to a HEREBUS-format .xlsx.
+
+    ``period`` controls whether the Ventas + StockMoves sheets are filtered
+    to a date range:
+
+    - ``None`` or ``"all"`` — full history (default, same as before).
+    - ``"current_month"`` — sales in the current month.
+    - ``"last_month"`` — sales in the previous calendar month.
+    - ``"30d"`` — last 30 days rolling.
+    - ``"today"`` — today only (Asunción local).
+
+    Non-sales sheets (Ingredientes, Recetas, Productos, Clientes) are
+    always full state — close-out at month-end needs the catalog, not just
+    the month's movements.
 
     Returns the absolute Path of the written file.
     """
+    from app.rms.config import ASUNCION_TZ
+
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
+    sale_start, sale_end = _resolve_export_range(period, today=today)
+
     wb = Workbook()
-    # Remove the default sheet; we'll add named ones.
     default_sheet = wb.active
     if default_sheet is not None:
         wb.remove(default_sheet)
@@ -216,7 +284,12 @@ def to_file(session: Session, path: str | Path) -> Path:
     ws = wb.create_sheet("Ventas")
     _write_header(ws, VENTAS_COLS)
     products_by_id = {prod.id: prod for prod in session.scalars(select(Product)).all()}
-    for sale in session.scalars(select(Sale).order_by(Sale.id)).all():
+    sales_q = select(Sale).order_by(Sale.id)
+    if sale_start is not None and sale_end is not None:
+        sales_q = sales_q.where(
+            Sale.sold_at >= sale_start, Sale.sold_at <= sale_end
+        )
+    for sale in session.scalars(sales_q).all():
         product = products_by_id.get(sale.product_id)
         ws.append(
             [
@@ -235,7 +308,7 @@ def to_file(session: Session, path: str | Path) -> Path:
     # --- StockMoves (derived from sales; informational only) ---
     ws = wb.create_sheet("StockMoves")
     _write_header(ws, STOCKMOVES_COLS)
-    for sale in session.scalars(select(Sale).order_by(Sale.id)).all():
+    for sale in session.scalars(sales_q).all():
         for move in sale.stock_moves:
             ws.append(
                 [
