@@ -218,7 +218,12 @@ def test_stock_turnover_basic_properties(ingredient_id, days, current_stock, con
     # Days of stock should be non-negative if there's consumption
     if consumed_qty > 0:
         per_day = consumed_qty / days
-        if per_day > 0 and per_day != float('inf') and not math.isnan(per_day):
+        # TIER-4-PROPERTY-BUG (2026-10-01): match the production-code
+        # guard (see stock_turnover in app/rms/analytics.py).
+        # `per_day > 0` lets denormal floats slip through, so the
+        # next line divides by a denormal, producing `inf`, then
+        # `int(inf)` raises OverflowError. Hypothesis caught this.
+        if per_day > 1e-9 and math.isfinite(per_day):
             days_of_stock = int(current_stock / per_day)
             assert days_of_stock >= 0
 

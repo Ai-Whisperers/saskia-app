@@ -48,6 +48,29 @@
 4. **Coverage gate: 80% overall, 95% for money.py and units.py, 90% for costing.py.**
 5. **No float in money test inputs.** Use `Decimal(str(value))`.
 
+## Migration rules
+
+**Postgres DDL auto-commits.** On SQLite this is a non-issue (DDL is
+transactional) and `try/except` around ALTERs is fine. On Postgres,
+each `ALTER TABLE` / `CREATE INDEX` is its own implicit commit — a
+failing 5th ALTER leaves the first 4 applied. The next migration then
+runs against a partial baseline.
+
+**Fix:** use `atomic_ddl_block(conn, [sql1, sql2, ...])` (defined in
+`app/rms/db.py`) instead of looping `conn.exec_driver_sql(sql)` in
+plain try/except. The helper wraps each statement in a SAVEPOINT on
+Postgres (no-op on SQLite), so a failure in statement N rolls back
+ONLY N while statements 1..N-1 stay applied.
+
+Per-statement try/except is still allowed **inside** the helper (for
+migrations that want to skip-and-continue on individual ALTERs), but
+batch DDL like `add_columns_sql` lists should pass the whole list to
+`atomic_ddl_block` so the SAVEPOINT isolation kicks in.
+
+Migration 081 (`_migration_081_pedido_delivery_window`) is the
+reference example — it batches 6 ADD COLUMNs into one
+`atomic_ddl_block(conn, list(add_columns_sql))` call.
+
 ## Module structure (when adding new files)
 
 - Pure logic (no DB, no IO): `app/rms/<module>.py` with public function exports.

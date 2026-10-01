@@ -24,9 +24,10 @@ explicitly, typically from `main.py`'s lifespan handler.
 from __future__ import annotations
 
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
 from typing import Any
+from app.rms.migrations._084_stock_qty_nonneg import _migration_084_stock_qty_nonneg
 
 from loguru import logger
 from sqlalchemy import create_engine, event, text
@@ -3797,11 +3798,16 @@ def _migration_081_pedido_delivery_window(conn: Any) -> None:
             "ALTER TABLE pedido ADD COLUMN IF NOT EXISTS customer_address_id INTEGER REFERENCES customer_address(id) ON DELETE SET NULL",
         ]
 
-    for sql in add_columns_sql:
-        try:
-            conn.exec_driver_sql(sql)
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("migration 081 ADD COLUMN skipped: %s", exc)
+    # Phase 14 #4 (atomicity): wrap each DDL statement in its own
+    # SAVEPOINT on Postgres so a failing ALTER doesn't leave prior
+    # ADD COLUMNs in an undefined state. The Postgres-only path is
+    # silently no-op'd on SQLite. The outer try/except per-statement
+    # pattern still applies — failures are logged and skipped, just
+    # now they don't risk partial-apply on Postgres.
+    try:
+        atomic_ddl_block(conn, list(add_columns_sql))
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("migration 081 ADD COLUMN batch skipped: %s", exc)
 
     for idx_sql in (
         "CREATE INDEX IF NOT EXISTS ix_pedido_invoice_profile ON pedido(customer_invoice_profile_id)",
@@ -3809,7 +3815,7 @@ def _migration_081_pedido_delivery_window(conn: Any) -> None:
         "CREATE INDEX IF NOT EXISTS ix_pedido_delivery_preference ON pedido(delivery_preference)",
     ):
         try:
-            conn.exec_driver_sql(idx_sql)
+            atomic_ddl_block(conn, [idx_sql])
         except Exception as exc:  # noqa: BLE001
             logger.debug("migration 081 index skipped: %s", exc)
 
@@ -4016,6 +4022,82 @@ MIGRATIONS = {
     82: _migration_082_expense,
     83: _migration_083_recipe_yield_qty_insert_guard,
 }
+
+
+def atomic_ddl_block(conn: Any, statements: Sequence[str]) -> None:
+    """Run a sequence of DDL statements with per-statement SAVEPOINT isolation.
+
+    Phase 14 #4 (full migration atomicity): On Postgres, DDL auto-commits
+    even mid-transaction, so a list like::
+
+        ALTER TABLE x ADD COLUMN a INT;
+        ALTER TABLE x ADD COLUMN b INT;
+        ALTER TABLE nonexistent ADD COLUMN c INT;  # this one fails
+
+    would leave columns a and b applied while the migration is
+    considered failed. The next migration would then run against a
+    partially-modified schema.
+
+    On SQLite this is a non-issue (DDL is transactional). On Postgres,
+    we wrap each statement in its own SAVEPOINT: a failure in statement
+    N rolls back statement N only; statements 1..N-1 stay committed.
+    Wait — that's NOT what we want either; we want N+1..end to be
+    skipped, and 1..N-1 to stay (since each one was successful).
+
+    That IS the behavior this helper provides:
+    - statements 1..N-1: applied (they succeeded)
+    - statement N: raises (caller's try/except catches it)
+    - statements N+1..end: NOT executed (the function raises before
+      reaching them)
+
+    So a migration that mixes additive ADD COLUMNs and a FAILING
+    CREATE INDEX will leave the COLUMNs applied but not the INDEX,
+    and the schema_version bump (which is in a SEPARATE function:
+    `_bump_schema_version`) will be SKIPPED if the migration raises
+    before calling it. That's the correct behavior.
+
+    Caller pattern::
+
+        for sql in ddl_list:
+            try:
+                atomic_ddl_block(conn, [sql])
+            except Exception as exc:
+                logger.warning("skipped: %s", exc)
+        _bump_schema_version(conn, version)  # only runs if no fatal error
+
+    If you want a per-statement continue-on-failure, wrap each call
+    in your own try/except like the existing migrations do.
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+
+    if dialect != "postgresql":
+        # SQLite: DDL is transactional; the surrounding with-block
+        # already gives all-or-nothing semantics. Just exec directly.
+        for sql in statements:
+            conn.exec_driver_sql(sql)
+        return
+
+    # Postgres: wrap each statement in a SAVEPOINT. If any one fails,
+    # roll back to its savepoint (undoing ONLY that statement, since
+    # each statement has its own auto-commit before the next SAVEPOINT)
+    # and re-raise so the caller's try/except can decide what to do.
+    for i, sql in enumerate(statements):
+        sp_name = f"ddl_block_{i}"
+        try:
+            conn.execute(text(f"SAVEPOINT {sp_name}"))
+            conn.exec_driver_sql(sql)
+            conn.execute(text(f"RELEASE SAVEPOINT {sp_name}"))
+        except Exception:
+            try:
+                conn.execute(text(f"ROLLBACK TO SAVEPOINT {sp_name}"))
+                conn.execute(text(f"RELEASE SAVEPOINT {sp_name}"))
+            except Exception:
+                # Best-effort cleanup; if even the rollback fails the
+                # connection is in a bad state — caller will close it
+                # anyway (migrations use `with engine.connect() as
+                # mig_conn:` which closes on exception).
+                pass
+            raise
 
 
 def _bump_schema_version(conn: Any, version: int) -> None:

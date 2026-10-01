@@ -11,6 +11,7 @@ in the same unit as stored on Ingredient (kg, l, g, ml, und).
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -127,7 +128,15 @@ def stock_turnover(
     days_of_stock: int | None = None
     if consumed_abs > 0:
         per_day = consumed_abs / days
-        days_of_stock = int(current_stock / per_day) if per_day > 0 else None
+        # TIER-4-PROPERTY-BUG (2026-10-01): the previous guard
+        # `per_day > 0` let denormal floats (~1e-308) through, so the
+        # next line divided by a denormal, producing `inf`, then
+        # `int(inf)` raised OverflowError. Hypothesis caught this
+        # with `consumed_qty = 1.11e-308, days=1`. Tighten the
+        # guard with `math.isfinite + sane threshold` -- a real
+        # kitchen has at least one gram/second consumption.
+        if per_day > 1e-9 and math.isfinite(per_day):
+            days_of_stock = int(current_stock / per_day)
 
     return StockTurnover(
         ingredient_id=ingredient_id,
@@ -190,7 +199,12 @@ def batch_stock_turnover(
         days_of_stock: int | None = None
         if consumed_abs > 0:
             per_day = consumed_abs / days
-            days_of_stock = int(current_stock / per_day) if per_day > 0 else None
+            # TIER-4-PROPERTY-BUG (2026-10-01): same fix as in
+            # stock_turnover() above -- `per_day > 0` lets denormals
+            # through, leading to int(inf) OverflowError on the next
+            # line. Tighten with math.isfinite + sane threshold.
+            if per_day > 1e-9 and math.isfinite(per_day):
+                days_of_stock = int(current_stock / per_day)
         result[ingredient_id] = StockTurnover(
             ingredient_id=ingredient_id,
             ingredient_name=ing.name,
