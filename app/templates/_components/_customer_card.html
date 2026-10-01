@@ -1,0 +1,161 @@
+{# app/templates/_components/_customer_card.html
+   Tier 4.2 (2026-10-01): extracted from _customer_picker.html.
+   Customer info card (Phase A).
+
+   Inline <section>, hidden by default. Populated by
+   app/static/js/customer_picker.js when a customer is picked from
+   the combo (or after inline-create).
+
+   NOT a <dialog> modal — see SALES-UX-001.
+
+   Sub-blocks (kept inline so JS can target their IDs directly):
+     - tier label + dataset.tier
+     - allergen chip
+     - P3 dietary chip (structured restrictions, NOT notes-guessing)
+     - notes (only if non-empty)
+     - Phase 4 loyalty POS redeem inline form
+     - Tier 2.1 one-tap auto-redeem button (>= 100 pts)
+     - Phase 4 decision C suggestions list (cumple_cerca / dormant / lapsed / vip)
+     - loading + error placeholders
+#}
+{# ── Customer info card (Phase A) ──
+   Inline <section>, hidden by default. Populated by the JS below when a
+   customer is picked from the combo (or after inline-create).
+   NOT a <dialog> modal — see SALES-UX-001. #}
+<section class="customer-card" id="customer-card" hidden aria-live="polite">
+  <header class="customer-card-head">
+    <h3 class="customer-card-name" id="customer-card-name">—</h3>
+    <button type="button" class="btn btn-ghost customer-card-quit" id="customer-card-quit">
+      <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
+      Quitar
+    </button>
+  </header>
+
+  <div class="customer-card-contact" id="customer-card-contact">—</div>
+
+  <div class="customer-card-stats">
+    <div class="customer-card-stat">
+      <span class="customer-card-stat-label">Visitas</span>
+      <strong class="customer-card-stat-value" id="customer-card-visits">—</strong>
+    </div>
+    <div class="customer-card-stat">
+      <span class="customer-card-stat-label">Última visita</span>
+      <strong class="customer-card-stat-value" id="customer-card-last-visit">—</strong>
+    </div>
+    <div class="customer-card-stat">
+      <span class="customer-card-stat-label">Gs. lifetime</span>
+      <strong class="customer-card-stat-value" id="customer-card-lifetime">—</strong>
+    </div>
+    <div class="customer-card-stat">
+      <span class="customer-card-stat-label">Puntos</span>
+      <strong class="customer-card-stat-value" id="customer-card-points">—</strong>
+    </div>
+  </div>
+
+  <div class="customer-card-tier-row">
+    <span class="customer-card-tier" id="customer-card-tier" data-tier="">—</span>
+  </div>
+
+  <div class="customer-card-top" id="customer-card-top" hidden>
+    <span class="customer-card-top-label">Compra habitual:</span>
+    <span class="customer-card-top-list" id="customer-card-top-list">—</span>
+  </div>
+
+  <div class="customer-card-allergen-chip" id="customer-card-allergen-chip" hidden role="status">
+    <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+    Atención: alérgenos registrados en notas
+  </div>
+
+  {# P3 dietary: structured restrictions + confirm-always (red, actionable) #}
+  <div class="customer-card-dietary-chip" id="customer-card-dietary-chip" hidden role="alert"
+       style="border:2px solid var(--color-danger,#d33);background:rgba(220,50,50,.08);
+              border-radius:8px;padding:8px 10px;margin-top:8px;font-size:0.9rem;">
+    <strong style="color:var(--color-danger,#d33);">⚠ <span id="customer-card-dietary-tags"></span></strong>
+    <div id="customer-card-dietary-note" style="margin-top:2px;"></div>
+  </div>
+
+  <div class="customer-card-notes" id="customer-card-notes" hidden>
+    <em><strong>Nota:</strong> <span id="customer-card-notes-text"></span></em>
+  </div>
+
+  {# ── Phase 4 loyalty POS redeem (2026-10-01) ───────────────────────────
+       Live "Usar puntos" form. Hidden until a customer is picked
+       (visibility toggled by the customer-card JS). The cashier types
+       a points amount; JS shows the live discount preview in Gs.
+       On sale submit, the value rides along with the existing form. #}
+  <div class="customer-card-redeem" id="customer-card-redeem" hidden
+       style="margin-top:10px;padding:10px;border:1px dashed var(--color-primary,#3b82f6);
+              border-radius:6px;background:rgba(59,130,246,.06);">
+    <label for="points_to_redeem_input" style="display:flex;justify-content:space-between;
+           align-items:center;font-size:0.9rem;font-weight:600;">
+      <span>Usar puntos</span>
+      <span class="text-muted" style="font-weight:400;">
+        Disponible: <strong id="points-redeem-available">0</strong>
+      </span>
+    </label>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+      <input type="number" id="points_to_redeem_input"
+             min="0" step="1" value="0"
+             placeholder="ej. 5"
+             style="flex:1;padding:6px 8px;border:1px solid #ccc;border-radius:4px;
+                    font-size:0.95rem;">
+      <button type="button" id="points-redeem-clear"
+              class="btn btn-ghost" style="font-size:0.8rem;">Limpiar</button>
+    </div>
+    <div id="points-redeem-preview" class="text-muted"
+         style="margin-top:6px;font-size:0.85rem;min-height:1.2em;">
+      1 punto = 1.000 Gs. de descuento
+    </div>
+  </div>
+
+  {# ── Tier 2.1 (2026-10-01): one-tap auto-apply for large balances.
+       When the customer has ≥100 points (≥ Gs. 100.000 of meaningful
+       discount), show a single "Canjear puntos ahora" button. The
+       click handler pre-fills the inline "Usar puntos" input with
+       the customer's full balance AND pre-fills the discount_gs
+       field. Cashier confirms the result by hitting Confirmar venta
+       — we never bypass the submit. Below the threshold, this block
+       stays hidden so we don't constantly push redemptions on small
+       balances (would erode margin). #}
+  <div class="customer-card-auto-redeem" id="customer-card-auto-redeem" hidden
+       style="margin-top:8px;">
+    <button type="button" id="auto-redeem-btn"
+            class="btn btn-primary"
+            style="width:100%;font-size:0.9rem;padding:8px;display:flex;
+                   justify-content:space-between;align-items:center;gap:8px;">
+      <span>
+        ⭐ Canjear <strong id="auto-redeem-points">0</strong> puntos
+      </span>
+      <span id="auto-redeem-amount" class="text-muted" style="font-size:0.85rem;">
+        −Gs. 0
+      </span>
+    </button>
+    <div class="text-muted" style="font-size:0.75rem;margin-top:4px;">
+      Se pre-rellena el descuento; vos confirmás antes de cobrar.
+    </div>
+  </div>
+
+  {# ── Phase 4 decision C (2026-10-01): auto-suggested offers for
+       this customer. Hidden until the picker JS renders up to 3 cards
+       from the /clientes/api/{id} payload's `suggestions` array.
+       Click handler pre-fills the existing #discount-gs-total field
+       with the suggestion's discount_pct applied to the active
+       product's price — cashier confirms or ignores. #}
+  <div class="customer-card-suggestions" id="customer-card-suggestions" hidden
+       style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+      <span style="font-size:0.85rem;font-weight:600;color:var(--color-text,#222);">
+        🎁 Ofertas sugeridas
+      </span>
+      <span class="text-muted" style="font-size:0.75rem;">tap = aplicar</span>
+    </div>
+    <div id="customer-card-suggestions-list"
+         style="display:flex;flex-direction:column;gap:4px;"></div>
+  </div>
+
+  <div class="customer-card-loading" id="customer-card-loading" hidden aria-hidden="true">
+    <span class="spinner"></span>
+  </div>
+
+  <div class="customer-card-error" id="customer-card-error" hidden role="alert"></div>
+</section>

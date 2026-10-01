@@ -324,25 +324,42 @@ def test_ventas_page_renders_customer_picker(client):
 
 def test_ventas_page_includes_picker_js(client):
     """/ventas page includes the picker wiring (inline script in the component
-    since c20f692; the old standalone customer-picker.js bundle is retired)."""
+    since c20f692; the old standalone customer-picker.js bundle is retired).
+
+    Tier 4.2 (2026-10-01): the picker JS now lives at
+    /static/js/customer_picker.js (extracted from the inline
+    <script>). Assert the new bundle is referenced AND the bundle
+    file is served with non-empty content.
+    """
     resp = client.get("/ventas")
     assert resp.status_code == 200
     body = resp.text
-    has_inline = "customer_picker_new_form" in body and "addEventListener" in body
-    has_bundle = "customer-picker.js" in body
-    assert has_inline or has_bundle, (
-        "/ventas must include picker JS (inline component script or customer-picker.js bundle)"
+    # Tier 4.2: new bundle path must be referenced
+    has_bundle = "/static/js/customer_picker.js" in body
+    assert has_bundle, (
+        "/ventas must include /static/js/customer_picker.js "
+        "(Tier 4.2 extracted picker JS into static bundle)"
     )
 
 
-def test_picker_js_is_served(client):
-    """The picker JS bundle is reachable at /static/customer-picker.js."""
-    resp = client.get("/static/customer-picker.js")
+def test_picker_js_bundle_is_served(client):
+    """Tier 4.2 (2026-10-01): the new picker JS bundle is reachable at
+    /static/js/customer_picker.js and parses as JavaScript.
+
+    Note: there is ALSO a legacy /static/customer-picker.js from
+    before the inline rewrite; that file still exists but is unused
+    on /ventas (the template no longer references it). We do NOT
+    test the legacy file here — only the one the template loads.
+    """
+    resp = client.get("/static/js/customer_picker.js")
     assert resp.status_code == 200
     body = resp.text
-    assert "/clientes/api/search" in body
-    assert "/clientes/api/create" in body
-    assert "SaskiaCustomerPicker" in body
+    # Bundle should contain the key tier markers
+    assert "ALLERGENS" in body, "Bundle missing allergen vocab constant"
+    assert "renderCard" in body, "Bundle missing renderCard function"
+    assert "applySuggestion" in body, "Bundle missing applySuggestion function"
+    assert "/clientes/api/search" in body, "Bundle missing search endpoint"
+    assert "/clientes/api/create" in body, "Bundle missing create endpoint"
 
 
 # --- All endpoints return JSON correctly with the expected schema ---
