@@ -61,6 +61,51 @@
 </div>
 {% endif %}
 
+{# Phase 9 — Suscripciones activas. Show as banners with one-click
+   "Crear pedido desde esta suscripción" CTA. Each subscription becomes
+   a pedido with the product_summary pre-filled in notes. #}
+{% if active_subscriptions %}
+<div class="card mb-4" style="border-left:4px solid #4caf50;">
+  <h2>
+    <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
+    Suscripciones
+  </h2>
+  <ul style="list-style:none;padding-left:0;margin:0;">
+    {% for sub in active_subscriptions %}
+    <li style="display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:var(--space-2) 0;border-bottom:1px solid var(--color-border, #eee);">
+      <div style="flex:1;">
+        <div>
+          <span class="badge"
+                style="background:{% if sub.status == 'activa' %}#4caf50{% elif sub.status == 'pausada' %}#ff9800{% else %}#9e9e9e{% endif %};color:#fff;">
+            {{ sub.status }}
+          </span>
+          <strong>{{ sub.cadence }}</strong>
+          {% if sub.preferred_day_of_week %}
+            · día {{ sub.preferred_day_of_week }}
+          {% endif %}
+          {% if sub.preferred_time %}
+            · {{ sub.preferred_time }}
+          {% endif %}
+          · Gs. {{ "{:,}".format(sub.price_gs).replace(",", ".") }}
+        </div>
+        <div style="margin-top:var(--space-1);">{{ sub.product_summary }}</div>
+        {% if sub.notes %}<small class="text-muted">{{ sub.notes }}</small>{% endif %}
+      </div>
+      {% if sub.status == 'activa' %}
+      <form method="post" action="/pedidos/nuevo?customer_id={{ customer.id }}" style="display:inline;">
+        <input type="hidden" name="notes" value="[Suscripción] {{ sub.product_summary }}">
+        <input type="hidden" name="payment_intent" value="">
+        <button type="submit" class="btn btn-sm">
+          📦 Crear pedido
+        </button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
 {# ── Dashboard grid: identity left (1fr) + ledger right (2fr) ────────── #}
 <div style="display:grid;grid-template-columns:1fr 2fr;gap:var(--space-4);align-items:start;">
 

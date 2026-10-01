@@ -824,6 +824,17 @@ def cliente_detail(
         key=lambda kv: (-kv[1]["sales"], kv[0]),
     )
 
+    # Phase 9 — Suscripción badge + "create pedido from subscription" CTA.
+    # We load active subscriptions so the detail page can show a "📦
+    # Suscripción activa: semanal · sábados" pill with a click-to-create
+    # pedido button that pre-fills the product summary as a note.
+    from app.rms.models import Suscripcion
+    active_subs = session.scalars(
+        select(Suscripcion)
+        .where(Suscripcion.customer_id == customer.id)
+        .order_by(Suscripcion.created_at.desc())
+    ).all()
+
     return render(
         request,
         "cliente_detalle.html",
@@ -837,6 +848,7 @@ def cliente_detail(
             "now_iso": datetime.now(timezone.utc).isoformat(),
             "last_days": last_days,
             "tz_breakdown": tz_breakdown_sorted,
+            "active_subscriptions": active_subs,
         },
     )
 
