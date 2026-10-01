@@ -101,6 +101,12 @@ def _configure_logging() -> None:
       Render's log viewer / log aggregators can parse line-by-line.
     - In dev (default): human-readable, color-coded.
 
+    A rotating file sink is ALWAYS added (BACKLOG #45) so that:
+      - On Render / Fly, the platform keeps ~7 days of structured JSON
+        before rotating out.
+      - On local dev, the file is ~/.local/share/AIW-Saskia/logs/app.log
+        (rotated after 50MB, keep 7 files = ~350MB max disk usage).
+
     Called once at module import. Idempotent on subsequent calls
     (logger.remove() removes all default sinks).
     """
@@ -123,6 +129,38 @@ def _configure_logging() -> None:
             diagnose=False,
             format=("<green>{time:HH:mm:ss}</green> | <level>{level: <7}</level> | {message}"),
         )
+
+    # Rotating file sink (BACKLOG #45). Path comes from env so prod and
+    # dev can land in different places. Defaults to a per-app data dir
+    # so a local dev doesn't pollute the repo. Skipped if AIW_SASKIA_LOG_FILE
+    # is set to empty string (operator opted out, e.g. on Render where
+    # platform already captures stderr).
+    log_file = os.getenv("AIW_SASKIA_LOG_FILE")
+    if log_file is None:
+        # Default location: <data_dir>/logs/app.log (created lazily).
+        from app.rms.config import DATA_DIR  # local import to avoid cycle
+        log_dir = DATA_DIR / "logs"
+        log_file = str(log_dir / "app.log")
+    if log_file:
+        log_dir = os.path.dirname(log_file) or "."
+        try:
+            os.makedirs(log_dir, exist_ok=True)
+            logger.add(
+                log_file,
+                level=os.getenv("AIW_SASKIA_LOG_FILE_LEVEL", "INFO"),
+                rotation="50 MB",
+                retention="7 days",
+                compression="gz",
+                enqueue=True,  # thread-safe, non-blocking writes
+                backtrace=True,
+                diagnose=False,  # never leak env vars to disk
+                format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <7} | {extra[request_id]} | {extra[user_id]} | {name}:{function}:{line} | {message}",
+            )
+        except Exception as exc:
+            # Never break startup over a logging config failure.
+            sys.stderr.write(
+                f"WARN: could not initialise log file sink at {log_file!r}: {exc!r}\n"
+            )
 
 
 _configure_logging()
