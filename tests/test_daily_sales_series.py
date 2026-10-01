@@ -25,6 +25,18 @@ from app.services.reports import (
 )
 
 
+def _asuncion_today() -> date:
+    """Today in America/Asuncion for stable test bucketing.
+
+    daily_sales_series buckets by Asunción-local date. The CI runner is
+    UTC, so date.today() on the runner differs from Asunción date.today()
+    when the test runs near midnight. Using a stable Asunción anchor
+    keeps tests that assert "today's row has N sales" deterministic.
+    """
+    from zoneinfo import ZoneInfo
+    return datetime.now(ZoneInfo("America/Asuncion")).date()
+
+
 # --- Preset resolution ---
 
 
@@ -104,8 +116,8 @@ def test_daily_sales_series_buckets_sales_by_local_date(session_factory, qseed):
             payment_method="efectivo", discount_gs=0, channel="Mostrador",
         )
         s.commit()
-        rows = daily_sales_series(s, preset="7d")
-    assert len(rows) == 7
+        rows = daily_sales_series(s, preset="7d", today=_asuncion_today())
+        assert len(rows) == 7
     # Today's row should have 1 sale (the original from with_sale seed).
     assert rows[-1].sale_count == 1
     # Total non-zero rows must be exactly 3 (today, yesterday, day-3).
@@ -127,7 +139,7 @@ def test_daily_sales_series_excludes_voided_sales(session_factory, qseed):
             payment_method="efectivo", discount_gs=0, channel="Mostrador",
         )
         s.commit()
-        rows_today = daily_sales_series(s, preset="7d")
+        rows_today = daily_sales_series(s, preset="7d", today=_asuncion_today())
     # The qseed already voided a sale. The new apply_sale is the only
     # non-voided sale today. So today's sale_count should be 1, NOT 2.
     today = rows_today[-1]
@@ -168,9 +180,9 @@ def test_daily_sales_series_top_product_by_qty(session_factory, qseed):
                    notes=None, customer_id=None,
                    payment_method="efectivo", discount_gs=0, channel="Mostrador")
         s.commit()
-        rows = daily_sales_series(s, preset="7d")
-    today = rows[-1]
-    assert today.sale_count == 3  # qseed 'with_sale' (1) + 2 we added
+        rows = daily_sales_series(s, preset="7d", today=_asuncion_today())
+        today = rows[-1]
+        assert today.sale_count == 3  # qseed 'with_sale' (1) + 2 we added
     assert today.top_product_id == p2_id
     assert today.top_product_name == "Otro Producto"
 
@@ -195,7 +207,7 @@ def test_daily_sales_series_to_dict_serializable(session_factory, qseed):
     Session = session_factory
     qseed("with_sale")
     with Session() as s:
-        rows = daily_sales_series(s, preset="7d")
+        rows = daily_sales_series(s, preset="7d", today=_asuncion_today())
     d = rows[-1].to_dict()
     assert isinstance(d["date"], str)
     assert isinstance(d["total_gs"], int)

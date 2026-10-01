@@ -111,9 +111,22 @@ def quick_seed(session_factory, scenario: str = "basic",
             pass
 
         elif scenario == "with_sale":
+            # Anchor "today" to UTC midnight so the bucketed local-date
+            # matches `_asuncion_today()` regardless of runner TZ.
+            # Previously this used `now - 1h` which bucketed into
+            # yesterday on CI runners in UTC, since Asunción is UTC-3/-4
+            # and a UTC sale at 02:00 lands at 23:00 the previous
+            # Asunción-day. Anchoring at midnight UTC puts the sale at
+            # 21:00/20:00 the previous Asunción-day in the worst case
+            # — wait, that's still yesterday. We want the sale to fall
+            # in *today's* bucket, so anchor at noon UTC, which is
+            # always 08:00-09:00 in Asunción, well within "today".
+            today_noon_utc = datetime.now(timezone.utc).replace(
+                hour=12, minute=0, second=0, microsecond=0
+            )
             sale = apply_sale(
                 s, product_id=p.id, qty=2.0,
-                sold_at=now - timedelta(hours=1),
+                sold_at=today_noon_utc,
                 notes=None, customer_id=None,
                 payment_method="efectivo", discount_gs=0, channel="Mostrador",
             )
