@@ -21,7 +21,10 @@ def test_cliente_detalle_badge_with_naive_last_sale(client, session_factory):
         cid = c.id
     r = client.get(f"/clientes/{cid}")
     assert r.status_code == 200, r.status_code
-    assert ("Inactivo" in r.text or "Frecuente" in r.text or "Nuevo" in r.text)
+    assert ("Inactivo" in r.text or "Frecuente" in r.text or "Activo" in r.text), (
+        f"Expected one of Inactivo/Frecuente/Activo badges; got none. "
+        f"Page title: {r.text[r.text.find('<h1'):r.text.find('</h1>')+5] if '<h1' in r.text else 'no h1'}"
+    )
 
 
 def test_cliente_detalle_no_sales_yet(client, session_factory):

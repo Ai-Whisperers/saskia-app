@@ -111,6 +111,8 @@ def test_layout_two_column_dashboard(client, session_factory):
     r = client.get(f"/clientes/{cid}")
     assert r.status_code == 200
     body = r.text
+    # T-2026-10-01: page now uses semantic class cliente-detalle-grid
+    assert "cliente-detalle-grid" in body
     assert "grid-template-columns:1fr 2fr" in body
     assert ">Contacto<" in body
     assert ">Notas<" in body

@@ -106,3 +106,63 @@ def test_detalle_suggestion_post_endpoint_writes_ledger(client, qseed, session_f
         ).scalar_one_or_none()
         assert tx is not None, "Expected a suggestion_applied ledger row"
         assert "cliente_fiel" in (tx.notes or "")
+
+
+def test_detalle_suggestion_form_post_endpoint_writes_correct_kind(client, qseed, session_factory):
+    """T-2026-10-01: the JS-free <form> on cliente_detalle.html submits
+    form-encoded data. Pre-this-fix the handler only accepted JSON, so
+    the form's `kind` was always logged as 'unknown'. Now the handler
+    accepts form-encoded POSTs and the real kind is captured.
+    """
+    qseed("with_kyrian_full")
+    cid = _kyrian_customer_id(session_factory)
+
+    # No headers={"Content-Type": ...} — the TestClient defaults to
+    # application/x-www-form-urlencoded when `data=` is used.
+    r = client.post(
+        f"/clientes/api/{cid}/suggestion-applied",
+        data={"kind": "cumple", "discount_pct": "10", "_csrf_token": "x"},
+    )
+    assert r.status_code == 200, r.text[:300]
+
+    with session_factory() as s:
+        from app.rms.models import LoyaltyTransaction
+
+        tx = s.execute(
+            __import__("sqlalchemy").select(LoyaltyTransaction)
+            .where(LoyaltyTransaction.customer_id == cid)
+            .where(LoyaltyTransaction.reason == "suggestion_applied")
+            .where(LoyaltyTransaction.notes.like("%cumple%"))
+        ).scalar_one_or_none()
+        assert tx is not None, (
+            "Expected a suggestion_applied ledger row with kind=cumple, "
+            "but no matching row found — handler may have logged 'unknown'"
+        )
+        assert "kind=cumple" in (tx.notes or "")
+        assert "pct=10" in (tx.notes or "")
+
+
+def test_detalle_suggestion_form_post_empty_kind_is_unknown(client, qseed, session_factory):
+    """T-2026-10-01: an empty/missing kind still logs 'unknown' (not
+    crashes) so a bad UI never 500s the telemetry endpoint."""
+    qseed("with_kyrian_full")
+    cid = _kyrian_customer_id(session_factory)
+
+    r = client.post(
+        f"/clientes/api/{cid}/suggestion-applied",
+        data={"kind": "", "discount_pct": ""},
+    )
+    assert r.status_code == 200
+
+    with session_factory() as s:
+        from app.rms.models import LoyaltyTransaction
+
+        tx = s.execute(
+            __import__("sqlalchemy").select(LoyaltyTransaction)
+            .where(LoyaltyTransaction.customer_id == cid)
+            .where(LoyaltyTransaction.reason == "suggestion_applied")
+        ).scalars().all()
+        assert tx, "expected at least one row"
+        # Latest row (most-recent) should be the unknown one
+        latest = tx[-1]
+        assert "kind=unknown" in (latest.notes or "")

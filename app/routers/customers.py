@@ -756,22 +756,34 @@ def customer_detail_api(
 
 
 @router.post("/api/{customer_id}/suggestion-applied", response_class=JSONResponse)
-def log_suggestion_applied(
+async def log_suggestion_applied(
+    request: Request,
     customer_id: int = Path(..., ge=1),
-    payload: dict = Body(default_factory=dict),
     session: Session = Depends(get_session),
 ) -> JSONResponse:
     """Tier 3.2 (2026-10-01): append-only log of suggestion clicks.
 
-    Fires when the cashier taps a suggestion card on /ventas/nueva.
+    Fires when the cashier taps a suggestion card on /ventas/nueva OR
+    when the operator clicks "Aplicar sugerencia" on /clientes/{id}.
+
+    Accepts BOTH content-types:
+      - application/json (from customer_picker.js via fetch)
+      - application/x-www-form-urlencoded (from the <form> on
+        cliente_detalle.html — JS-free fallback for the operator)
+
+    Pre-this-fix: the handler read Body(...) only, so the form-encoded
+    submit from the detail page always logged kind="unknown". Now we
+    pull from request.form() when the content-type is form-encoded,
+    else parse the raw JSON body.
+
     Writes a ``LoyaltyTransaction(reason='suggestion_applied')`` row
     tied to the customer (no sale_id yet — the suggestion is just a
     pre-fill, the actual sale comes later if they confirm). Carries
     the suggestion ``kind`` and ``discount_pct`` in the ``notes``
     field for later analytics.
 
-    Returns 204 No Content on success. 404 if the customer doesn't
-    exist (would mean a stale picker; we don't crash on it).
+    Returns 200 OK on success. 404 if the customer doesn't exist
+    (would mean a stale picker; we don't crash on it).
 
     This endpoint is fire-and-forget from the JS — failure here
     should NEVER block the actual applySuggestion() UX.
@@ -780,8 +792,34 @@ def log_suggestion_applied(
         cust = session.get(Customer, customer_id)
         if cust is None:
             return JSONResponse({"error": "not_found"}, status_code=404)
-        kind = (payload or {}).get("kind", "unknown")
-        pct = (payload or {}).get("discount_pct")
+
+        # T-2026-10-01: accept both content-types so the JS-free
+        # <form> on cliente_detalle.html carries the real kind.
+        kind = "unknown"
+        pct: int | None = None
+        actor = "operator"
+        ctype = (request.headers.get("content-type") or "").lower()
+        is_form = "application/x-www-form-urlencoded" in ctype or "multipart/form-data" in ctype
+        payload: dict = {}
+        form = None
+        if is_form:
+            form = await request.form()
+            kind = (str(form.get("kind") or "unknown").strip() or "unknown")
+            pct_raw = form.get("discount_pct")
+            if pct_raw and str(pct_raw).strip().lstrip("-").isdigit():
+                pct = int(str(pct_raw).strip())
+            actor_raw = form.get("actor")
+            actor = str(actor_raw).strip() if actor_raw else "operator"
+        else:
+            # JSON path (customer_picker.js uses keepalive fetch)
+            try:
+                payload = await request.json()
+            except Exception:
+                payload = {}
+            kind = (str((payload or {}).get("kind") or "unknown").strip() or "unknown")
+            pct = (payload or {}).get("discount_pct")
+            actor = str((payload or {}).get("actor") or "operator")
+
         from app.rms.db import safe_commit as _safe_commit
         from app.rms.loyalty.ledger import _record_ledger
         _record_ledger(
@@ -790,11 +828,11 @@ def log_suggestion_applied(
             delta=0,
             reason="suggestion_applied",
             sale_id=None,
-            actor=str((payload or {}).get("actor") or "operator"),
+            actor=actor or "operator",
             notes=f"kind={kind} pct={pct}",
         )
         _safe_commit(session)
-        # 204 No Content — JS doesn't need the response body
+        # 200 OK — JS doesn't need the response body
         return JSONResponse({"ok": True}, status_code=200)
     except Exception:
         logger.exception(
