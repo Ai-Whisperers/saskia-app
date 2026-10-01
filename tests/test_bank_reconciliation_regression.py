@@ -44,6 +44,63 @@ def test_bank_reconcile_endpoint_exists(client):
     })
     assert r.status_code in (200, 302, 303, 404)
 
+
+def test_bank_reconcile_sets_reconciled_by_from_session(client, session_factory):
+    """Phase 14 — `reconciled_by` is populated from request.state.user_id.
+
+    With SASKIA_TEST_AUTH_DISABLED=*** the ObservabilityContextMiddleware
+    can't extract a user id from the session (test bypass), so the value
+    must fall back to "anonymous" — NOT the old literal "system". This
+    locks in the regression-vs-replacement: any future change that
+    hard-codes "system" again trips this test.
+    """
+    from datetime import datetime, timezone
+
+    from app.rms.models import BankTransaction
+    from sqlalchemy import select
+
+    with session_factory() as s:
+        # Create a fresh transaction so this test is self-contained.
+        tx = BankTransaction(
+            posted_at=datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc),
+            amount=1000,
+            currency="EUR",
+            description="Phase-14 reconciled_by test",
+            category="uncategorized",
+        )
+        s.add(tx)
+        # Commit (not just flush) so the row is visible to the route's
+        # session — get_session() opens a fresh session per request.
+        s.commit()
+        tx_pk = tx.id
+        try:
+            r = client.post(f'/bank/{tx_pk}/reconcile', data={
+                'with_type': 'pedido',
+                'with_id': '1',
+            })
+            assert r.status_code in (200, 302, 303, 404), r.text
+            # Re-open session to read the post-reconcile state (the route
+            # committed via a different session).
+            with session_factory() as s2:
+                tx2 = s2.get(BankTransaction, tx_pk)
+                assert tx2 is not None
+                assert tx2.reconciled is True
+                assert tx2.reconciled_by != "system", (
+                    "reconciled_by must NOT be hard-coded 'system' anymore — "
+                    "the Phase 14 fix reads from request.state.user_id (fallback 'anonymous')."
+                )
+                # In SASKIA_TEST_AUTH_DISABLED=*** the session has no user_id,
+                # so ObservabilityContextMiddleware sets state.user_id = None
+                # and the fallback resolves to "anonymous".
+                assert tx2.reconciled_by == "anonymous"
+        finally:
+            # Always clean up so we don't pollute other tests.
+            with session_factory() as s2:
+                tx2 = s2.get(BankTransaction, tx_pk)
+                if tx2 is not None:
+                    s2.delete(tx2)
+                    s2.commit()
+
 def test_bank_reconcile_valid_type(client):
     """Reconciliation accepts valid with_type values."""
     for with_type in ['pedido', 'gasto', 'ingreso']:

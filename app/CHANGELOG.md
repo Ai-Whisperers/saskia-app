@@ -5,6 +5,44 @@
 
 ## [Unreleased]
 
+### Fixed — `bank_reconcile` audit hygiene
+- **`app/routers/herebus.py:489`** — `reconciled_by` is now read from
+  `request.state.user_id` (populated by `ObservabilityContextMiddleware`
+  in `app/rms/observability.py`) instead of the hard-coded literal
+  `"system"`. Falls back to `"anonymous"` when no session user is
+  present (e.g. the test-bypass env `SASKIA_TEST_AUTH_DISABLED=***`).
+  Audit rows now accurately identify the operator who reconciled the
+  bank transaction; bcrypted backend returns the int user_id, Supabase
+  backend returns the UUID.
+- **Closes the phase-14 TODO** from
+  `docs/plans/2026-10-01-phase14-todo-inventory.md` row 2
+  (`app/routers/herebus.py:489`).
+- **New regression test** `test_bank_reconcile_sets_reconciled_by_from_session`
+  (`tests/test_bank_reconciliation_regression.py`): creates a fresh
+  `BankTransaction`, POSTs `/bank/{id}/reconcile`, then asserts
+  `reconciled_by != "system"` and `== "anonymous"` under the test
+  bypass. Any future hard-coding of `"system"` trips this test.
+
+### Changed — User guide renumber + pin
+- **13 section files renumbered** (03-inventario … 15-excel → 04-inventario
+  … 16-excel) to make room for the new Pedidos section between Ventas
+  and Inventario.
+- **New `03-pedidos.md`** (`docs/user-guide/`) covering the full Pedidos
+  flow: nuevo pedido (autofill + address picker + loyalty banner), KDS
+  kanban board (Pendientes / En preparación / Listos), suscripciones
+  semanales, entregas a domicilio (ventana + aviso amarillo), errores
+  comunes, día a día.
+- **README.md** (`docs/user-guide/README.md`): version header re-pinned
+  to **schema 82 / commit `3b8a6a5`** (was **schema 75 / `64f5e4f`**,
+  stale across phases 11–14). Two prior commits also pinned stale
+  schema numbers in the active-features table.
+- **Active features table** (README.md): fixed broken links to
+  non-existent `03-pedidos.md` / `05-produccion.md` / `06-lista-compras.md`,
+  renumbered refs to match the new sibling file numbering, added row 17
+  (Suscripción semanal de un cliente → `03-pedidos.md`).
+- **`tests/test_user_guide_version.py::SECTIONS`** updated to the new
+  numbering; all 7 contract tests + 6 help-route tests pass.
+
 ### Changed — Reorder lock: auto-streak → manual 🔒 toggle
 - **Removed auto-streak lock**: the 3-consecutive-buys auto-lock that
   shipped in commit 3acd3b4 was producing surprise moments ("why is

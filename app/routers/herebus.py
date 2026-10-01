@@ -486,7 +486,11 @@ async def bank_reconcile(
     tx.reconciled_with_type = with_type
     tx.reconciled_with_id = with_id
     tx.reconciled_at = datetime.now(timezone.utc)
-    tx.reconciled_by = "system"  # TODO: get from session
+    # Phase 14 — populate reconciled_by from the session set by
+    # ObservabilityContextMiddleware (request.state.user_id). Falls back
+    # to "anonymous" if the middleware hasn't run (e.g. direct unit
+    # test) so the field always has a meaningful audit trail.
+    tx.reconciled_by = getattr(request.state, "user_id", None) or "anonymous"
 
     session.commit()
 
