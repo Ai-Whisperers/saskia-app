@@ -455,3 +455,26 @@ saskia-date:focus-visible, saskia-combo:focus-visible,
   margin-bottom: var(--space-3, 0.75rem);
 }
 .cost-summary.is-empty .cost-warnings { display: none; }
+
+
+/* ─── Phase 14 (2026-10-01): mobile phone breakpoint ──────────────────
+   Without these, two inline-grid-2-col form rows in pedidos_nuevo
+   (ventana start/end + invoice_ruc/invoice_name) collapse to half-width
+   on a phone and force horizontal scrolling.
+
+   The class .grid-2-col is added at the inline grid wrappers; below
+   768px it collapses to a single column. Same breakpoint used by
+   .grid-2 / .grid-3 / .grid-4 in the original stylesheet. */
+@media (max-width: 768px) {
+  .grid-2-col { grid-template-columns: 1fr !important; }
+
+  /* Pedidos detail action row: stack buttons on phones */
+  .pedido-detail-actions {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  .pedido-detail-actions > * { width: 100%; }
+
+  /* KDS kanban (kitchen display): collapse 3 columns → 1 on phones */
+  .kds-kanban { grid-template-columns: 1fr !important; }
+}
