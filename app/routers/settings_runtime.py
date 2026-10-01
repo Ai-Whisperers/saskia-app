@@ -28,6 +28,7 @@ from app.rms.categories import (
     update_category,
 )
 from app.rms.dependencies import get_session
+from app.rms.clock import now
 from app.rms.settings_runtime import (
     compute_suggested_price,
     get_pricing_markup,
@@ -109,11 +110,11 @@ def write_shop_whatsapp(
     digits = "".join(c for c in payload.phone if c.isdigit())
     row = session.get(SettingsKV, "shop_whatsapp")
     if row is None:
-        row = SettingsKV(key="shop_whatsapp", value_json=digits, updated_at=datetime.utcnow())
+        row = SettingsKV(key="shop_whatsapp", value_json=digits, updated_at=now())
         session.add(row)
     else:
         row.value_json = digits
-        row.updated_at = datetime.utcnow()
+        row.updated_at = now()
     session.commit()
     return {"phone": digits, "ordering_enabled": bool(digits)}
 
@@ -484,7 +485,7 @@ def update_template_endpoint(
         row.is_active = payload.is_active
     if body_changed:
         row.version += 1
-    row.updated_at = datetime.now(timezone.utc)
+    row.updated_at = now()
     session.commit()
     return {
         "id": row.id, "channel": row.channel, "key": row.key,

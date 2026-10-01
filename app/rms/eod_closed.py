@@ -37,16 +37,17 @@ from sqlalchemy.orm import Session
 from app.rms.models import AppMeta
 from app.rms.workflow import fresh_eod_checklist
 
-# Default EOD clock — Asuncion (UTC-4 year-round). Same TZ used by eod.py.
+# Default EOD clock — Asuncion (offset is what zoneinfo says: -3 or -4).
 def _today_local() -> date:
-    from datetime import datetime
+    """Return today's date in Asuncion, via the canonical clock module.
 
-    try:
-        from app.rms.config import ASUNCION_TZ
-        return datetime.now(ASUNCION_TZ).date()
-    except ImportError:
-        # Fallback if config module is unavailable in tests.
-        return datetime.utcnow().date()
+    Sprint 1.3: uses ``app.rms.clock.today_local`` (which itself uses the
+    IANA ``America/Asuncion`` zone). Avoids the deprecated
+    ``datetime.utcnow()`` fallback.
+    """
+    from app.rms.clock import today_local
+
+    return today_local().date()
 
 
 def eod_is_day_closed(session: Session, day: date) -> bool:

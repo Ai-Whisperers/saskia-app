@@ -22,6 +22,8 @@ import secrets
 import json
 from collections.abc import Iterable
 from datetime import date, datetime, timedelta, timezone
+
+from app.rms.clock import now, today_local
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Query, Request, UploadFile
@@ -857,7 +859,7 @@ async def pedidos_create(
             session.add(_AppMeta(
                 key=f"pedido_idem:{idempotency_key}",
                 value="pending",
-                updated_at=datetime.utcnow().isoformat(),
+                updated_at=now().isoformat(),
             ))
             session.flush()
         except IntegrityError:
@@ -1057,7 +1059,7 @@ async def pedidos_create(
         # P1-2: token expires 30 days from creation. Set at insert time
         # so the customer can always see "expires X" from the moment
         # the pedido is created (not from when migration 067 ran).
-        public_token_expires_at=datetime.utcnow() + timedelta(days=30),
+        public_token_expires_at=now() + timedelta(days=30),
     )
     session.add(pedido)
     session.flush()  # assigns pedido.id
@@ -1164,7 +1166,7 @@ async def pedidos_create(
                         "request_id": getattr(request.state, "request_id", "") or "",
                     }
                 ),
-                updated_at=datetime.utcnow().isoformat(),
+                updated_at=now().isoformat(),
             )
         )
         safe_commit(session)
@@ -1417,7 +1419,7 @@ async def pedido_publico_comprobante(
         # pedido_id namespaces the directory so a re-upload overwrites cleanly.
         receipts_root = DATA_DIR / "payment_receipts" / str(pedido.id)
         receipts_root.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = today_local().strftime("%Y%m%d_%H%M%S")
         safe_name = "".join(
             ch if ch.isalnum() or ch in ("-", "_", ".") else "_"
             for ch in filename
@@ -1429,7 +1431,7 @@ async def pedido_publico_comprobante(
         # Store relative path so it survives data-dir moves.
         relative_path = f"payment_receipts/{pedido.id}/{stored_name}"
         pedido.payment_receipt_path = relative_path
-        pedido.payment_receipt_uploaded_at = datetime.utcnow()
+        pedido.payment_receipt_uploaded_at = now()
         session.commit()
 
         # Rate-limit-style audit: every upload is recorded even though the
@@ -2120,7 +2122,7 @@ def pedidos_duplicate(
         notes=original.notes,
         public_token=generate_public_token(),
         # P1-2: see create_pedido above — same 30-day expiry policy.
-        public_token_expires_at=datetime.utcnow() + timedelta(days=30),
+        public_token_expires_at=now() + timedelta(days=30),
     )
     session.add(copy)
     session.flush()
