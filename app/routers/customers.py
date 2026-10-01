@@ -14,7 +14,7 @@ import logging
 
 from fastapi import APIRouter, Body, Depends, Form, HTTPException, Path, Query, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse as StarletteRedirectResponse
 
@@ -1152,6 +1152,14 @@ def cliente_edit(
         select(DeliveryZone).where(DeliveryZone.is_active.is_(True)).order_by(DeliveryZone.position)
     ).all()
     zone_names = {z.id: z.name for z in zones}
+    # Phase 14 (2026-10-01): invoice profiles for the management fieldset
+    from app.rms.models import CustomerInvoiceProfile
+    invoice_profiles = session.scalars(
+        select(CustomerInvoiceProfile)
+        .where(CustomerInvoiceProfile.customer_id == customer_id)
+        .where(CustomerInvoiceProfile.is_active.is_(True))
+        .order_by(CustomerInvoiceProfile.is_default.desc(), CustomerInvoiceProfile.alias)
+    ).all()
     return render(
         request,
         "cliente_editar.html",
@@ -1162,6 +1170,7 @@ def cliente_edit(
             "addresses": addresses,
             "zones": zones,
             "zone_names": zone_names,
+            "invoice_profiles": invoice_profiles,
             "how_found_options": sorted(ALLOWED_HOW_FOUND),
             "channel_options": sorted(ALLOWED_CHANNELS),
         },
@@ -1469,3 +1478,152 @@ def cliente_merge(
 
     flash = f"Se+fusionaron+{len(result.sources_merged)}+clientes+en+1"
     return RedirectResponse(url=f"/clientes?flash={flash}", status_code=303)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Phase 14 (2026-10-01): Invoice-profile CRUD endpoints.
+# CustomerInvoiceProfile rows carry paired (RUC/CI + razón social). A
+# customer can have many (Personal / Empresa / etc.) with exactly one
+# is_default = True. These endpoints let the cashier add / set-default /
+# soft-delete profiles from the cliente_editar form.
+# ──────────────────────────────────────────────────────────────────────────
+
+
+@router.post(
+    "/api/{customer_id}/invoice-profiles",
+    response_class=JSONResponse,
+)
+async def invoice_profile_create_api(
+    customer_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Add a new invoice profile (RUC/CI + razón social + tipo)."""
+    import json as _json
+    from app.rms.models import CustomerInvoiceProfile
+
+    cust = session.get(Customer, customer_id)
+    if cust is None:
+        return JSONResponse({"error": "not_found"}, status_code=404)
+    try:
+        payload = await request.json()
+    except ValueError:
+        return JSONResponse({"error": "bad_json"}, status_code=400)
+    ruc = str(payload.get("ruc_ci", "")).strip()
+    name = str(payload.get("razon_social", "")).strip()
+    alias = str(payload.get("alias", "")).strip() or name[:32] or "Perfil"
+    if not ruc or not name:
+        return JSONResponse(
+            {"error": "ruc_ci + razon_social required"}, status_code=400
+        )
+    tipo_doc = str(payload.get("tipo_documento", "CI_PARAGUAYA")).strip()
+    tipo_op = str(payload.get("tipo_operacion", "B2C")).strip()
+    # First profile becomes the default automatically.
+    has_any = session.scalar(
+        select(CustomerInvoiceProfile.id)
+        .where(CustomerInvoiceProfile.customer_id == customer_id)
+        .where(CustomerInvoiceProfile.is_active.is_(True))
+        .limit(1)
+    )
+    prof = CustomerInvoiceProfile(
+        customer_id=customer_id,
+        ruc_ci=ruc[:20],
+        razon_social=name[:120],
+        alias=alias[:32],
+        tipo_documento=tipo_doc,
+        tipo_operacion=tipo_op,
+        is_default=not has_any,
+        is_active=True,
+    )
+    session.add(prof)
+    session.commit()
+    session.refresh(prof)
+    return JSONResponse(
+        {
+            "id": prof.id,
+            "alias": prof.alias,
+            "ruc_ci": prof.ruc_ci,
+            "razon_social": prof.razon_social,
+            "tipo_documento": prof.tipo_documento,
+            "tipo_operacion": prof.tipo_operacion,
+            "is_default": bool(prof.is_default),
+        }
+    )
+
+
+@router.post(
+    "/api/{customer_id}/invoice-profiles/{profile_id}/default",
+    response_class=JSONResponse,
+)
+def invoice_profile_set_default_api(
+    customer_id: int,
+    profile_id: int,
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Mark a profile as the customer's default. Clears is_default on
+    every other profile for the same customer (single default rule)."""
+    from app.rms.models import CustomerInvoiceProfile
+
+    prof = session.get(CustomerInvoiceProfile, profile_id)
+    if prof is None or prof.customer_id != customer_id:
+        return JSONResponse({"error": "not_found"}, status_code=404)
+    # Clear other defaults for this customer first
+    session.execute(
+        update(CustomerInvoiceProfile)
+        .where(CustomerInvoiceProfile.customer_id == customer_id)
+        .values(is_default=False)
+    )
+    prof.is_default = True
+    prof.is_active = True  # reactivating if soft-deleted
+    session.commit()
+    return JSONResponse({"ok": True, "id": prof.id, "is_default": True})
+
+
+@router.delete(
+    "/api/{customer_id}/invoice-profiles/{profile_id}",
+    response_class=JSONResponse,
+)
+def invoice_profile_delete_api(
+    customer_id: int,
+    profile_id: int,
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Soft-delete an invoice profile (sets is_active=False). Refuses to
+    delete the default — caller should set another default first."""
+    from app.rms.models import CustomerInvoiceProfile
+
+    prof = session.get(CustomerInvoiceProfile, profile_id)
+    if prof is None or prof.customer_id != customer_id:
+        return JSONResponse({"error": "not_found"}, status_code=404)
+    if prof.is_default:
+        return JSONResponse(
+            {"error": "cannot_delete_default"}, status_code=400
+        )
+    prof.is_active = False
+    session.commit()
+    return JSONResponse({"ok": True})
+
+
+@router.post(
+    "/api/{customer_id}/addresses/{address_id}/default",
+    response_class=JSONResponse,
+)
+def address_set_default_api(
+    customer_id: int,
+    address_id: int,
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Mark a saved address as the customer's default delivery address."""
+    from app.rms.models import CustomerAddress
+
+    addr = session.get(CustomerAddress, address_id)
+    if addr is None or addr.customer_id != customer_id:
+        return JSONResponse({"error": "not_found"}, status_code=404)
+    session.execute(
+        update(CustomerAddress)
+        .where(CustomerAddress.customer_id == customer_id)
+        .values(is_default=False)
+    )
+    addr.is_default = True
+    session.commit()
+    return JSONResponse({"ok": True, "id": addr.id, "is_default": True})

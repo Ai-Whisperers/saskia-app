@@ -99,6 +99,8 @@
             <td>{{ a.address_text }}</td>
             <td class="muted">{{ zone_names.get(a.zone_id, "—") if a.zone_id else "—" }}</td>
             <td>
+              <button type="button" class="btn btn-sm addr-default" data-addr-id="{{ a.id }}"
+                      aria-label="Marcar {{ a.label }} como predeterminada">★</button>
               <button type="button" class="btn btn-sm btn-danger-ghost addr-del" data-addr-id="{{ a.id }}"
                       aria-label="Eliminar dirección {{ a.label }}">✕</button>
             </td>
@@ -126,6 +128,54 @@
           </select>
         </div>
         <button type="button" id="addr-add" class="btn btn-sm btn-secondary">+ Agregar</button>
+      </div>
+    </fieldset>
+
+    {# Phase 14 (2026-10-01): Perfiles de facturación (RUC + razón social).
+       Each customer can have many (Personal / Empresa / etc.) with exactly
+       one marked default. The cashier adds / sets-default / deletes rows
+       from here. POSTs to /clientes/api/{id}/invoice-profiles endpoints. #}
+    <fieldset style="margin-top:var(--space-4);border:1px solid var(--border);border-radius:8px;padding:var(--space-3);">
+      <legend style="font-weight:600;padding:0 var(--space-2);">Perfiles de facturación</legend>
+      {% if invoice_profiles %}
+      <table class="table" style="margin-bottom:var(--space-2);">
+        <thead><tr><th>Alias</th><th>RUC / CI</th><th>Razón social</th><th>Tipo</th><th></th></tr></thead>
+        <tbody>
+        {% for p in invoice_profiles %}
+          <tr data-inv-id="{{ p.id }}">
+            <td>{{ p.alias }}{% if p.is_default %} <span class="badge badge-neutral">predet.</span>{% endif %}</td>
+            <td>{{ p.ruc_ci }}</td>
+            <td>{{ p.razon_social }}</td>
+            <td class="muted">{{ p.tipo_documento }} · {{ p.tipo_operacion }}</td>
+            <td>
+              {% if not p.is_default %}
+              <button type="button" class="btn btn-sm inv-default" data-inv-id="{{ p.id }}"
+                      aria-label="Marcar {{ p.alias }} como predeterminado">★</button>
+              <button type="button" class="btn btn-sm btn-danger-ghost inv-del" data-inv-id="{{ p.id }}"
+                      aria-label="Eliminar perfil {{ p.alias }}">✕</button>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="muted" style="margin:0 0 var(--space-2);font-size:var(--text-sm);">Sin perfiles de facturación. El cliente se factura siempre con RUC/CI manual.</p>
+      {% endif %}
+      <div style="display:grid;grid-template-columns:120px 140px 1fr auto;gap:var(--space-2);align-items:end;">
+        <div>
+          <label for="inv-alias">Alias</label>
+          <input type="text" id="inv-alias" placeholder="Personal" maxlength="32" style="margin-top:4px;">
+        </div>
+        <div>
+          <label for="inv-ruc">RUC / CI</label>
+          <input type="text" id="inv-ruc" placeholder="80012345-6" maxlength="20" style="margin-top:4px;">
+        </div>
+        <div>
+          <label for="inv-razon">Razón social / Nombre</label>
+          <input type="text" id="inv-razon" placeholder="Kyrian Weiss o Empresa S.A." maxlength="120" style="margin-top:4px;">
+        </div>
+        <button type="button" id="inv-add" class="btn btn-sm btn-secondary">+ Agregar perfil</button>
       </div>
     </fieldset>
 
@@ -278,6 +328,97 @@
         // SaskiaConfirmModal unavailable (app-components.js failed to load):
         // proceed directly — the delete is reversible by re-adding the address.
         doDelete();
+      }
+    });
+  });
+
+  // Phase 14 (2026-10-01): set-default address (★ button)
+  document.querySelectorAll(".addr-default").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      fetch("/clientes/api/" + cid + "/addresses/" + btn.dataset.addrId + "/default", {
+        method: "POST",
+        headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
+      }).then(function (r) {
+        if (!r.ok) throw new Error("fallo");
+        window.location.reload();
+      }).catch(function () { alert("No se pudo marcar como predeterminada."); });
+    });
+  });
+
+  // Phase 14 (2026-10-01): invoice-profile CRUD
+  var invAdd = document.getElementById("inv-add");
+  if (invAdd) {
+    invAdd.addEventListener("click", function () {
+      var alias = document.getElementById("inv-alias").value.trim();
+      var ruc = document.getElementById("inv-ruc").value.trim();
+      var razon = document.getElementById("inv-razon").value.trim();
+      if (!ruc || !razon) {
+        alert("RUC/CI y razón social son obligatorios.");
+        return;
+      }
+      fetch("/clientes/api/" + cid + "/invoice-profiles", {
+        method: "POST",
+        headers: {"Content-Type": "application/json",
+                  "X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value},
+        body: JSON.stringify({
+          alias: alias || razon.substring(0, 32),
+          ruc_ci: ruc,
+          razon_social: razon,
+          tipo_documento: "CI_PARAGUAYA",
+          tipo_operacion: "B2C",
+        })
+      }).then(function (r) {
+        if (!r.ok) {
+          return r.json().then(function (j) {
+            throw new Error(j.error || "fallo");
+          });
+        }
+        window.location.reload();
+      }).catch(function (e) {
+        alert("No se pudo guardar el perfil: " + e.message);
+      });
+    });
+  }
+  document.querySelectorAll(".inv-default").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      fetch("/clientes/api/" + cid + "/invoice-profiles/" + btn.dataset.invId + "/default", {
+        method: "POST",
+        headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
+      }).then(function (r) {
+        if (!r.ok) throw new Error("fallo");
+        window.location.reload();
+      }).catch(function () { alert("No se pudo marcar como predeterminado."); });
+    });
+  });
+  document.querySelectorAll(".inv-del").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var doDel = function () {
+        fetch("/clientes/api/" + cid + "/invoice-profiles/" + btn.dataset.invId, {
+          method: "DELETE",
+          headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
+        }).then(function (r) {
+          if (!r.ok) {
+            return r.json().then(function (j) {
+              if (j.error === "cannot_delete_default") {
+                throw new Error("Marque otro perfil como predeterminado primero.");
+              }
+              throw new Error(j.error || "fallo");
+            });
+          }
+          window.location.reload();
+        }).catch(function (e) {
+          alert("No se pudo eliminar: " + e.message);
+        });
+      };
+      if (window.SaskiaConfirmModal) {
+        SaskiaConfirmModal.show({
+          title: "¿Eliminar este perfil de facturación?",
+          body: "El perfil queda inactivo (soft-delete); se puede reactivar desde la base de datos.",
+          confirmLabel: "Eliminar",
+          danger: true
+        }).then(function (ok) { if (ok) doDel(); });
+      } else {
+        doDel();
       }
     });
   });
