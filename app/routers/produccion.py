@@ -20,7 +20,7 @@ import calendar as _calendar
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -839,6 +839,50 @@ def produccion_template_fork_week(
 
 
 __all__ = ["router"]
+
+
+# --- Live forecast API for /pedidos/nuevo (T-2026-10-01) ---
+# Pings when the operator picks a product+qty in the pedido form,
+# returns the qty the production plan will bake for that date so the
+# form can warn "Pediste N pero el plan dice M".
+@router.get("/api/forecast")
+def produccion_api_forecast(
+    for_date: str = Query(...),
+    product_id: int | None = Query(None, ge=1),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Return production-plan rows for a date (filtered to one product if given).
+
+    Shape:
+            {"for_date": "YYYY-MM-DD",
+             "rows": [{"product_id": int, "product_name": str,
+                       "qty_to_produce": float, "forecast_source": str,
+                       "confidence_pct": int}, ...]}
+    """
+    try:
+        parsed = date.fromisoformat(for_date)
+    except ValueError:
+        raise HTTPException(
+            status_code=400, detail=f"for_date inválido: {for_date!r}"
+        ) from None
+
+    plan = plan_production(session, for_date=parsed)
+
+    rows = [
+        {
+            "product_id": r.product_id,
+            "product_name": r.product_name,
+            "qty_to_produce": float(r.qty_to_produce),
+            "forecast_source": r.forecast_source,
+            "confidence_pct": r.confidence_pct,
+        }
+        for r in plan.rows
+    ]
+
+    if product_id is not None:
+        rows = [r for r in rows if r["product_id"] == product_id]
+
+    return JSONResponse({"for_date": parsed.isoformat(), "rows": rows})
 
 
 # --- P1-B2 forecast enchufado: tomorrow-focused view ---

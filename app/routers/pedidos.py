@@ -19,6 +19,7 @@ path stays short when shared over WhatsApp: `https://saskia.app/p/AbCd1234`.
 from __future__ import annotations
 
 import secrets
+import json
 from collections.abc import Iterable
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
@@ -607,6 +608,10 @@ async def pedidos_create(
     invoice_name: str = Form(""),
     save_address: str = Form(""),  # "1" → persist to customer_address
     address_label: str = Form("casa"),
+    # T-2026-10-01: client-generated UUID, deduplicates accidental
+    # double-submits within ~5s of each other. Mirrors the
+    # sale_multi_idem pattern from app/routers/sales.py.
+    idempotency_key: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Create a new pedido with one or more lines.
@@ -618,6 +623,60 @@ async def pedidos_create(
     lines without exploding the function signature.
     """
     form = await request.form()
+
+    # T-2026-10-01: idempotency reservation. If a request with the same
+    # idempotency_key arrives, we return the previously-created pedido
+    # via redirect) instead of creating a duplicate. Mirrors the
+    # `sale_multi_idem` pattern from app/routers/sales.py.
+    if idempotency_key:
+        from sqlalchemy.exc import IntegrityError
+
+        from app.rms.models import AppMeta as _AppMeta
+
+        # Check for an existing reservation first (read-then-write).
+        existing = session.scalar(
+            select(_AppMeta).where(_AppMeta.key == f"pedido_idem:{idempotency_key}")
+        )
+        if existing is not None:
+            # Try to parse {pedido_id, request_id} from the cached value.
+            try:
+                cached = json.loads(existing.value or "{}")
+            except (ValueError, TypeError):
+                cached = {}
+            existing_id = cached.get("pedido_id")
+            if existing_id:
+                return RedirectResponse(
+                    url=f"/pedidos/{existing_id}", status_code=303
+                )
+            # Cache was a placeholder ("pending") from a request that died
+            # mid-transaction. Fall through and try to reserve again.
+            session.delete(existing)
+            session.flush()
+
+        try:
+            session.add(_AppMeta(
+                key=f"pedido_idem:{idempotency_key}",
+                value="pending",
+                updated_at=datetime.utcnow().isoformat(),
+            ))
+            session.flush()
+        except IntegrityError:
+            session.rollback()
+            # Lost the race; re-read and redirect to the winner.
+            existing = session.scalar(
+                select(_AppMeta).where(_AppMeta.key == f"pedido_idem:{idempotency_key}")
+            )
+            if existing is not None:
+                try:
+                    cached = json.loads(existing.value or "{}")
+                except (ValueError, TypeError):
+                    cached = {}
+                existing_id = cached.get("pedido_id")
+                if existing_id:
+                    return RedirectResponse(
+                        url=f"/pedidos/{existing_id}", status_code=303
+                    )
+
     cust_id_str = str(customer_id or "").strip()
     cust_id_int: int | None = None
     if cust_id_str:
@@ -869,6 +928,25 @@ async def pedidos_create(
         request=request,
     )
     safe_commit(session)
+
+    # T-2026-10-01: stamp the idempotency reservation with the new
+    # pedido_id so a follow-up POST with the same key redirects back.
+    if idempotency_key:
+        from app.rms.models import AppMeta as _AppMeta
+        session.execute(
+            update(_AppMeta)
+            .where(_AppMeta.key == f"pedido_idem:{idempotency_key}")
+            .values(
+                value=json.dumps(
+                    {
+                        "pedido_id": pedido.id,
+                        "request_id": getattr(request.state, "request_id", "") or "",
+                    }
+                ),
+                updated_at=datetime.utcnow().isoformat(),
+            )
+        )
+        safe_commit(session)
 
     return RedirectResponse(url=f"/pedidos/{pedido.id}", status_code=303)
 
