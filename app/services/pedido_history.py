@@ -191,19 +191,31 @@ def _detail_for_event(event_type: str, payload: dict | None) -> str | None:
 
 @dataclass
 class CustomerPedidoSummary:
-    """Compact representation of a pedido for the customer's history list."""
+    """Compact representation of a pedido for the customer's history list.
+
+    promised_date is kept as a date object (not pre-formatted) so the
+    template can call .strftime() — matches the Pedido model shape.
+    """
 
     id: int
     status: str
-    promised_date: str | None
+    promised_date: "date | None"  # type: ignore[name-defined]
     total_gs: int
     line_count: int
     is_current: bool = False
 
     def to_dict(self) -> dict:
+        # Tier 6.2 (2026-10-01): pre-compute the Spanish label + severity
+        # for the status pill so callers (e.g. /clientes/{id} recent
+        # pedidos table) can render `ui.status_pill(...)` directly.
+        from app.rms.nav import status_es as _status_es
+
+        label, sev = _status_es(self.status)
         return {
             "id": self.id,
             "status": self.status,
+            "status_label": label,
+            "status_sev": sev,
             "promised_date": self.promised_date,
             "total_gs": self.total_gs,
             "line_count": self.line_count,
@@ -241,7 +253,7 @@ def customer_recent_pedidos(
         out.append(CustomerPedidoSummary(
             id=p.id,
             status=p.status,
-            promised_date=p.promised_date.isoformat() if p.promised_date else None,
+            promised_date=p.promised_date,  # date | None — template calls strftime
             total_gs=total,
             line_count=len(p.lines),
         ))
