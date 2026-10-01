@@ -12,7 +12,8 @@ import pytest
 
 from . import CHROME
 
-pytest_plugins = ["tests.browser.helpers"]
+# pytest_plugins is registered at the top-level conftest (tests/conftest.py)
+# since pytest >=7 disallows non-top-level pytest_plugins declarations.
 
 
 def pytest_collection_modifyitems(config, items):

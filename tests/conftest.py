@@ -11,6 +11,12 @@ from __future__ import annotations
 
 import os as _os
 
+# Register browser helpers as a top-level plugin so the non-top-level
+# pytest_plugins declaration in tests/browser/conftest.py is no longer
+# needed (pytest >=7 made it a hard error). The plugin auto-skips if
+# Chromium is missing — see tests/browser/helpers.py.
+pytest_plugins = ["tests.browser.helpers"]
+
 # Mount internal routes (Auditoría, Ops) BEFORE app.rms.main is imported.
 # NAV-02: these routes are internal-only and gated off in production.
 # This MUST be set before the app is constructed (router include happens
