@@ -171,6 +171,53 @@
       {% endif %}
     </section>
 
+    {# Phase 13 (2026-10-01): direcciones guardadas + perfiles de
+       facturación. Renders read-only here; the operator edits via
+       /clientes/{id}/editar (which already has full CRUD). This card
+       exists so the cashier can SEE the customer's addresses + RUC
+       pairs without opening the edit form. #}
+    <section class="card">
+      <h2 style="margin-top:0;">Perfiles de facturación</h2>
+      {% if invoice_profiles %}
+      <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:var(--space-2);">
+        {% for p in invoice_profiles %}
+        <li style="display:flex;gap:var(--space-3);align-items:baseline;">
+          {% if p.is_default %}<span class="badge badge-success" style="font-size:var(--text-xs);">Por defecto</span>{% endif %}
+          <strong>{{ p.alias }}</strong>
+          <span class="text-muted" style="font-size:var(--text-sm);">{{ p.ruc_ci }} — {{ p.razon_social }}</span>
+          <span class="text-muted" style="font-size:var(--text-xs);text-transform:uppercase;">{{ p.tipo_documento }} · {{ p.tipo_operacion }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-muted" style="margin:0;font-size:var(--text-sm);font-style:italic;">Sin perfiles de facturación registrados.</p>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h2 style="margin-top:0;">Direcciones de entrega</h2>
+      {% if addresses %}
+      <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:var(--space-2);">
+        {% for a in addresses %}
+        <li style="display:flex;gap:var(--space-3);align-items:baseline;">
+          {% if a.is_default %}<span class="badge badge-success" style="font-size:var(--text-xs);">Por defecto</span>{% endif %}
+          {% if a.address_kind %}
+          {% set kind_icons = {"HOME": "🏠", "WORK": "🏢", "FAMILY": "👪", "OTHER": "📍"} %}
+          <span style="font-size:var(--text-base);" title="{{ a.address_kind }}">{{ kind_icons.get(a.address_kind, '📍') }}</span>
+          {% endif %}
+          <strong>{{ a.label or "(sin etiqueta)" }}</strong>
+          <span class="text-muted" style="font-size:var(--text-sm);">{{ a.address_text }}</span>
+          {% if a.recipient_name %}
+          <span class="text-muted" style="font-size:var(--text-xs);">— Entregar a {{ a.recipient_name }}</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-muted" style="margin:0;font-size:var(--text-sm);font-style:italic;">Sin direcciones guardadas.</p>
+      {% endif %}
+    </section>
+
     <section class="card">
       <h2 style="margin-top:0;">Actividad</h2>
       <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:var(--space-2);">

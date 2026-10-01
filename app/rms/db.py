@@ -3557,6 +3557,265 @@ def _migration_078_communication_log(conn: Any) -> None:
     _bump_schema_version(conn, 78)
 
 
+def _migration_079_customer_address_structured(conn: Any) -> None:
+    """Phase 13 (2026-10-01): Structured delivery-address columns.
+
+    Research (MercadoLibre PY, Lightspeed X, Uber Direct) showed that
+    free-text `address_text` is fine for receipts but blocks structured
+    logistics. This migration adds discrete columns the cashier can
+    fill optionally (kept nullable for backward compat):
+
+      calle_principal, calle_secundaria, numero, edificio, piso, unidad,
+      barrio, ciudad, departamento, pais, codigo_postal,
+      recipient_name, delivery_instructions,
+      address_kind (HOME/WORK/FAMILY/OTHER), sort_order, is_active
+
+    Existing `address_text` stays as the rendered "what the cashier
+    sees" — the helpers at application layer will compose it from the
+    structured columns at write time so the legacy callers never break.
+    """
+    # Phase 13 task: extending customer_address — all additive, idempotent.
+    if conn.dialect.name == "sqlite":
+        add_columns_sql = [
+            "ALTER TABLE customer_address ADD COLUMN calle_principal VARCHAR(160)",
+            "ALTER TABLE customer_address ADD COLUMN calle_secundaria VARCHAR(160)",
+            "ALTER TABLE customer_address ADD COLUMN numero VARCHAR(20)",
+            "ALTER TABLE customer_address ADD COLUMN edificio VARCHAR(120)",
+            "ALTER TABLE customer_address ADD COLUMN piso VARCHAR(20)",
+            "ALTER TABLE customer_address ADD COLUMN unidad VARCHAR(20)",
+            "ALTER TABLE customer_address ADD COLUMN barrio VARCHAR(120)",
+            "ALTER TABLE customer_address ADD COLUMN ciudad VARCHAR(120)",
+            "ALTER TABLE customer_address ADD COLUMN departamento VARCHAR(120)",
+            "ALTER TABLE customer_address ADD COLUMN pais VARCHAR(8) DEFAULT 'PRY'",
+            "ALTER TABLE customer_address ADD COLUMN codigo_postal VARCHAR(16)",
+            "ALTER TABLE customer_address ADD COLUMN recipient_name VARCHAR(120)",
+            "ALTER TABLE customer_address ADD COLUMN delivery_instructions TEXT",
+            "ALTER TABLE customer_address ADD COLUMN address_kind VARCHAR(16) DEFAULT 'HOME'",
+            "ALTER TABLE customer_address ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE customer_address ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1",
+        ]
+    else:  # postgres
+        add_columns_sql = [
+            "ALTER TABLE customer_address ADD COLUMN IF NOT EXISTS calle_principal VARCHAR(160)",
+            "ALTER TABLE customer_address ADD COLUMN IF NOT EXISTS calle_secundaria VARCHAR(160)",
+            "ALTER TABLE customer_address ADD COLUMN IF NOT EXISTS numero VARCHAR(20)",
+            "ALTER TABLE customer_address ADD COLUMN IF NOT EXISTS edificio VARCHAR(120)",
+            "ALTER TABLE customer_address ADD COLUMN IF NOT EXISTS piso VARCHAR(20)",
+            "ALTER TABLE customer_address ADD COLUMN IF NOT EXISTS unidad VARCHAR(20)",
+            "ALTER TABLE customer_address ADD COLUMN IF NOT EXISTS barrio VARCHAR(120)",
+            "ALTER TABLE customer_address ADD COLUMN IF NOT EXISTS ciudad VARCHAR(120)",
+            "ALTER TABLE customer_address ADD COLUMN IF NOT EXISTS departamento VARCHAR(120)",
+            "ALTER TABLE customer_address ADD COLUMN IF NOT EXISTS pais VARCHAR(8) DEFAULT 'PRY'",
+            "ALTER TABLE customer_address ADD COLUMN IF NOT EXISTS codigo_postal VARCHAR(16)",
+            "ALTER TABLE customer_address ADD COLUMN IF NOT EXISTS recipient_name VARCHAR(120)",
+            "ALTER TABLE customer_address ADD COLUMN IF NOT EXISTS delivery_instructions TEXT",
+            "ALTER TABLE customer_address ADD COLUMN IF NOT EXISTS address_kind VARCHAR(16) DEFAULT 'HOME'",
+            "ALTER TABLE customer_address ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE customer_address ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT 1",
+        ]
+
+    for sql in add_columns_sql:
+        try:
+            conn.exec_driver_sql(sql)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("migration 079 ADD COLUMN skipped: %s", exc)
+
+    # Address_kind CHECK constraint is awkward to add idempotently on both
+    # dialects (sqlite ALTER TABLE … ADD CONSTRAINT is limited); enforce at
+    # app layer instead. Index on customer_id is already present from migration 069.
+
+    _bump_schema_version(conn, 79)
+
+
+def _migration_080_customer_invoice_profile(conn: Any) -> None:
+    """Phase 13 (2026-10-01): Multiple invoice profiles per customer.
+
+    Research (Wise Platform, Shopify B2B CompanyLocation, Stripe TaxIDs)
+    showed that one person can invoice under many tax identities — personal
+    CI + spouse RUC + own company RUC. Today's Customer has a single
+    invoice_ruc + invoice_name which prevents that.
+
+    This migration creates customer_invoice_profile (1:N from customer)
+    with the SIFEN-required enum fields (tipo_documento 7 values,
+    tipo_operacion 4 values) and aliases for the cashier's mental model
+    ("Personal", "Ometz S.A.").
+
+    Backfill: for every customer with invoice_ruc OR invoice_name set,
+    insert one default profile named "Personal" (or the razon_social if
+    it differs from customer.name). The single legacy columns are kept
+    on customer for backward compat — the application layer will use
+    the profile table when available and fall back to the legacy columns.
+    """
+    if conn.dialect.name == "sqlite":
+        create_sql = """
+            CREATE TABLE IF NOT EXISTS customer_invoice_profile (
+                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                customer_id INTEGER NOT NULL REFERENCES customer(id) ON DELETE CASCADE,
+                alias VARCHAR(64) NOT NULL,
+                ruc_ci VARCHAR(20) NOT NULL,
+                razon_social VARCHAR(160) NOT NULL,
+                tipo_documento VARCHAR(32) NOT NULL DEFAULT 'CI_PARAGUAYA',
+                tipo_operacion VARCHAR(16) NOT NULL DEFAULT 'B2C',
+                is_default BOOLEAN NOT NULL DEFAULT 0,
+                is_active BOOLEAN NOT NULL DEFAULT 1,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                CONSTRAINT ck_customer_invoice_profile_tipo_documento CHECK (
+                    tipo_documento IN (
+                        'CI_PARAGUAYA','RUC','PASAPORTE','CEDULA_EXTRANJERA',
+                        'CARNET_RESIDENCIA','INNOMINADO','DIPLOMATICA_EXONERACION','OTRO'
+                    )
+                ),
+                CONSTRAINT ck_customer_invoice_profile_tipo_operacion CHECK (
+                    tipo_operacion IN ('B2B','B2C','B2G','EXTRANJERO')
+                )
+            )
+        """
+    else:  # postgres
+        create_sql = """
+            CREATE TABLE IF NOT EXISTS customer_invoice_profile (
+                id SERIAL NOT NULL PRIMARY KEY,
+                customer_id INTEGER NOT NULL REFERENCES customer(id) ON DELETE CASCADE,
+                alias VARCHAR(64) NOT NULL,
+                ruc_ci VARCHAR(20) NOT NULL,
+                razon_social VARCHAR(160) NOT NULL,
+                tipo_documento VARCHAR(32) NOT NULL DEFAULT 'CI_PARAGUAYA',
+                tipo_operacion VARCHAR(16) NOT NULL DEFAULT 'B2C',
+                is_default BOOLEAN NOT NULL DEFAULT 0,
+                is_active BOOLEAN NOT NULL DEFAULT 1,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
+                CONSTRAINT ck_customer_invoice_profile_tipo_documento CHECK (
+                    tipo_documento IN (
+                        'CI_PARAGUAYA','RUC','PASAPORTE','CEDULA_EXTRANJERA',
+                        'CARNET_RESIDENCIA','INNOMINADO','DIPLOMATICA_EXONERACION','OTRO'
+                    )
+                ),
+                CONSTRAINT ck_customer_invoice_profile_tipo_operacion CHECK (
+                    tipo_operacion IN ('B2B','B2C','B2G','EXTRANJERO')
+                )
+            )
+        """
+
+    try:
+        conn.exec_driver_sql(create_sql)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("migration 080 CREATE TABLE customer_invoice_profile skipped: %s", exc)
+
+    for idx_sql in (
+        "CREATE INDEX IF NOT EXISTS ix_customer_invoice_profile_customer_id "
+            "ON customer_invoice_profile (customer_id)",
+        "CREATE INDEX IF NOT EXISTS ix_customer_invoice_profile_ruc_ci "
+            "ON customer_invoice_profile (ruc_ci)",
+        "CREATE INDEX IF NOT EXISTS ix_customer_invoice_profile_customer_default "
+            "ON customer_invoice_profile (customer_id, is_default)",
+    ):
+        try:
+            conn.exec_driver_sql(idx_sql)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("migration 080 index skipped: %s", exc)
+
+    # Backfill: every customer with invoice_ruc OR invoice_name set
+    # gets a default profile named "Personal" (or the razon_social if
+    # it differs from the customer's name — covers the case where the
+    # cashier had been invoicing under the customer's own company).
+    # Idempotent because we use NOT EXISTS to skip customers that
+    # already have a profile from a re-run.
+    ts = datetime.now(timezone.utc).isoformat()
+    try:
+        conn.exec_driver_sql(
+            """
+            INSERT INTO customer_invoice_profile
+                (customer_id, alias, ruc_ci, razon_social,
+                 tipo_documento, tipo_operacion, is_default, is_active,
+                 created_at, updated_at)
+            SELECT
+                c.id,
+                CASE WHEN c.invoice_name IS NOT NULL
+                       AND c.invoice_name != c.name
+                     THEN c.invoice_name
+                     ELSE 'Personal' END,
+                COALESCE(NULLIF(c.invoice_ruc, ''), ''),
+                COALESCE(NULLIF(c.invoice_name, ''), c.name),
+                CASE WHEN LENGTH(COALESCE(NULLIF(c.invoice_ruc, ''), '')) >= 9
+                     THEN 'RUC' ELSE 'CI_PARAGUAYA' END,
+                'B2C',
+                1,
+                1,
+                :ts,
+                :ts
+            FROM customer c
+            WHERE (c.invoice_ruc IS NOT NULL AND c.invoice_ruc != '')
+               OR (c.invoice_name IS NOT NULL AND c.invoice_name != '')
+              AND NOT EXISTS (
+                  SELECT 1 FROM customer_invoice_profile p
+                  WHERE p.customer_id = c.id
+              )
+            """,
+            {"ts": ts},
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("migration 080 backfill skipped: %s", exc)
+
+    _bump_schema_version(conn, 80)
+
+
+def _migration_081_pedido_delivery_window(conn: Any) -> None:
+    """Phase 13 (2026-10-01): Preferred delivery window + invoice-profile FK.
+
+    Research (Wix Restaurants, Uber Direct dropoff_ready/deadline_dt,
+    Instacart "desired windows", DoorDash Drive) showed the cashier
+    needs to express a preferred window of arrival — NOT a delivery
+    promise. This migration adds:
+
+      delivery_preference    ENUM asap | window | scheduled
+      delivery_window_start  HH:MM (e.g. "14:00")
+      delivery_window_end    HH:MM (e.g. "16:00")
+      delivery_scheduled_date DATE (for future-dated pedido)
+
+      customer_invoice_profile_id FK  (links to the chosen profile)
+      customer_address_id FK          (links to the chosen address)
+
+    All columns are additive nullable — existing pedidos stay valid.
+    """
+    if conn.dialect.name == "sqlite":
+        add_columns_sql = [
+            "ALTER TABLE pedido ADD COLUMN delivery_preference VARCHAR(16) DEFAULT 'asap'",
+            "ALTER TABLE pedido ADD COLUMN delivery_window_start VARCHAR(8)",
+            "ALTER TABLE pedido ADD COLUMN delivery_window_end VARCHAR(8)",
+            "ALTER TABLE pedido ADD COLUMN delivery_scheduled_date DATE",
+            "ALTER TABLE pedido ADD COLUMN customer_invoice_profile_id INTEGER REFERENCES customer_invoice_profile(id) ON DELETE SET NULL",
+            "ALTER TABLE pedido ADD COLUMN customer_address_id INTEGER REFERENCES customer_address(id) ON DELETE SET NULL",
+        ]
+    else:  # postgres
+        add_columns_sql = [
+            "ALTER TABLE pedido ADD COLUMN IF NOT EXISTS delivery_preference VARCHAR(16) DEFAULT 'asap'",
+            "ALTER TABLE pedido ADD COLUMN IF NOT EXISTS delivery_window_start VARCHAR(8)",
+            "ALTER TABLE pedido ADD COLUMN IF NOT EXISTS delivery_window_end VARCHAR(8)",
+            "ALTER TABLE pedido ADD COLUMN IF NOT EXISTS delivery_scheduled_date DATE",
+            "ALTER TABLE pedido ADD COLUMN IF NOT EXISTS customer_invoice_profile_id INTEGER REFERENCES customer_invoice_profile(id) ON DELETE SET NULL",
+            "ALTER TABLE pedido ADD COLUMN IF NOT EXISTS customer_address_id INTEGER REFERENCES customer_address(id) ON DELETE SET NULL",
+        ]
+
+    for sql in add_columns_sql:
+        try:
+            conn.exec_driver_sql(sql)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("migration 081 ADD COLUMN skipped: %s", exc)
+
+    for idx_sql in (
+        "CREATE INDEX IF NOT EXISTS ix_pedido_invoice_profile ON pedido(customer_invoice_profile_id)",
+        "CREATE INDEX IF NOT EXISTS ix_pedido_address_id ON pedido(customer_address_id)",
+        "CREATE INDEX IF NOT EXISTS ix_pedido_delivery_preference ON pedido(delivery_preference)",
+    ):
+        try:
+            conn.exec_driver_sql(idx_sql)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("migration 081 index skipped: %s", exc)
+
+    _bump_schema_version(conn, 81)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -3636,6 +3895,9 @@ MIGRATIONS = {
     76: _migration_076_sale_linked_pedido_id,
     77: _migration_077_pedido_event_log,
     78: _migration_078_communication_log,
+    79: _migration_079_customer_address_structured,
+    80: _migration_080_customer_invoice_profile,
+    81: _migration_081_pedido_delivery_window,
 }
 
 

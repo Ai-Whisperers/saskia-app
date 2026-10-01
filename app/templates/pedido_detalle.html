@@ -55,8 +55,12 @@
       <br>
       <span class="badge badge-neutral">{{ pedido.channel }}</span>
       <span class="badge badge-neutral" style="margin-left: var(--space-1);">pago: {{ pedido.payment_intent }}</span>
-      {% if pedido.delivery_window_start or pedido.delivery_window_end %}
-        <br><small class="text-muted">Ventana: {{ pedido.delivery_window_start or "—" }}–{{ pedido.delivery_window_end or "—" }}</small>
+      {% if pedido.delivery_preference or pedido.delivery_window_start or pedido.delivery_window_end %}
+        {# Phase 13 (2026-10-01): render via ventana_text() so the wording
+           reflects the preference (asap | window | scheduled) and includes
+           the explicit "(no es garantía)" suffix the cashier should see
+           before assuming anything about dispatch. #}
+        <br><small class="text-muted">{{ ventana_text }}</small>
       {% endif %}
     </p>
   </div>

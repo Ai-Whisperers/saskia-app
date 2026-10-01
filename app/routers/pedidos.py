@@ -216,6 +216,66 @@ def _pedido_total_gs(p: Pedido) -> int:
     return sum(to_int_gs(Decimal(str(ln.qty or 0)) * Decimal(str(ln.unit_price_gs or 0))) for ln in p.lines)
 
 
+def _int_or_none(value: Any) -> int | None:
+    """Phase 13 (2026-10-01): parse a form FK field. Returns None for
+    empty/missing/invalid (vs raising HTTPException) so the cashier
+    who didn't pick a profile gets a pedido without invoice_profile_id
+    instead of a 500. The legacy invoice_ruc/invoice_name still get
+    populated from the form below."""
+    s = (str(value or "")).strip()
+    if not s:
+        return None
+    try:
+        return int(s)
+    except (ValueError, TypeError):
+        return None
+
+
+def _parse_date_or_none(value: Any):
+    """Phase 13: parse a YYYY-MM-DD date string. Returns None for empty
+    or invalid. The Pedido column is Date (not DateTime), so callers
+    receive a date object back."""
+    s = (str(value or "")).strip()
+    if not s:
+        return None
+    try:
+        # ISO date; we'll coerce at the SQLAlchemy level
+        return datetime.strptime(s, "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None
+
+
+def _ventana_text_for(pedido_or_decorated) -> str:
+    """Phase 13 (2026-10-01): render the preferred-arrival-window text
+    for the pedido detail page. Uses the helper from app.services.customer_address
+    so the wording is consistent across the receipt, the pedido detail,
+    and the customer detail.
+
+    Accepts both a Pedido ORM row and a decorated dict (the detail
+    handler passes the decorated version that already has string dates)."""
+    def g(k):
+        # ORM-row style (attribute access) or dict-style (key access)
+        try:
+            v = getattr(pedido_or_decorated, k)
+        except AttributeError:
+            v = pedido_or_decorated.get(k)
+        return v or None
+    pref = g("delivery_preference")
+    start = g("delivery_window_start")
+    end = g("delivery_window_end")
+    scheduled = g("delivery_scheduled_date")
+    # scheduled_date is a date object on the ORM; the decorated dict
+    # converts it to ISO YYYY-MM-DD via the existing _decorate_pedido.
+    if scheduled and hasattr(scheduled, "strftime"):
+        scheduled = scheduled.strftime("%Y-%m-%d")
+    if start and hasattr(start, "strftime"):
+        start = start.strftime("%H:%M")
+    if end and hasattr(end, "strftime"):
+        end = end.strftime("%H:%M")
+    from app.services.customer_address import ventana_text
+    return ventana_text(pref, start, end, scheduled)
+
+
 def _pedido_qty_total(p: Pedido) -> float:
     """Total quantity across all lines."""
     return sum((ln.qty or 0) for ln in p.lines)
@@ -271,6 +331,32 @@ def _decorate_pedido(p: Pedido, session: Session) -> dict:
         "fulfilled_at": p.fulfilled_at,
         "fulfilled_sale_id": p.fulfilled_sale_id,
         "created_at": p.created_at,
+        # Phase 13 (2026-10-01): delivery-window fields used by the
+        # ventana badge on the detail template (and by `_ventana_text_for`
+        # which falls back gracefully when any of these is None).
+        "delivery_preference": p.delivery_preference,
+        "delivery_window_start": (
+            p.delivery_window_start.strftime("%H:%M")
+            if hasattr(p.delivery_window_start, "strftime")
+            else p.delivery_window_start
+        ),
+        "delivery_window_end": (
+            p.delivery_window_end.strftime("%H:%M")
+            if hasattr(p.delivery_window_end, "strftime")
+            else p.delivery_window_end
+        ),
+        "delivery_scheduled_date": (
+            p.delivery_scheduled_date.isoformat()
+            if hasattr(p.delivery_scheduled_date, "isoformat")
+            else p.delivery_scheduled_date
+        ),
+        # Phase 13 (2026-10-01): the FK pointers back to the structured
+        # address + the invoice profile that were used at pedido time.
+        "customer_address_id": p.customer_address_id,
+        "customer_invoice_profile_id": p.customer_invoice_profile_id,
+        "address_text": p.address_text,
+        "invoice_ruc": p.invoice_ruc,
+        "invoice_name": p.invoice_name,
     }
 
 
@@ -608,6 +694,29 @@ async def pedidos_create(
     invoice_name: str = Form(""),
     save_address: str = Form(""),  # "1" → persist to customer_address
     address_label: str = Form("casa"),
+    # Phase 13 (2026-10-01): preferred-arrival window (not a promise)
+    delivery_preference: str = Form("asap"),  # asap | window | scheduled
+    delivery_scheduled_date: str = Form(""),  # YYYY-MM-DD for scheduled
+    # Phase 13: FK to the chosen invoice profile + chosen address.
+    # The form also keeps the legacy invoice_ruc/invoice_name/address_text
+    # fields so existing callers don't break.
+    customer_invoice_profile_id: str = Form(""),
+    customer_address_id: str = Form(""),
+    # Phase 13: structured address fields (all optional; composed into
+    # address_text at write time so the receipt stays a single line)
+    address_calle_principal: str = Form(""),
+    address_calle_secundaria: str = Form(""),
+    address_numero: str = Form(""),
+    address_edificio: str = Form(""),
+    address_piso: str = Form(""),
+    address_unidad: str = Form(""),
+    address_barrio: str = Form(""),
+    address_ciudad: str = Form(""),
+    address_departamento: str = Form(""),
+    address_codigo_postal: str = Form(""),
+    address_recipient_name: str = Form(""),
+    address_delivery_instructions: str = Form(""),
+    address_kind: str = Form("HOME"),
     # T-2026-10-01: client-generated UUID, deduplicates accidental
     # double-submits within ~5s of each other. Mirrors the
     # sale_multi_idem pattern from app/routers/sales.py.
@@ -844,8 +953,14 @@ async def pedidos_create(
         address_text=(address_text or "").strip() or None,
         delivery_window_start=(delivery_window_start or "").strip() or None,
         delivery_window_end=(delivery_window_end or "").strip() or None,
+        # Phase 13 (2026-10-01): preferred-arrival window semantics
+        delivery_preference=(delivery_preference or "asap").strip() or "asap",
+        delivery_scheduled_date=_parse_date_or_none(delivery_scheduled_date),
         invoice_ruc=(invoice_ruc or "").strip() or None,
         invoice_name=(invoice_name or "").strip() or None,
+        # Phase 13: FKs to chosen profile + chosen address
+        customer_invoice_profile_id=_int_or_none(customer_invoice_profile_id),
+        customer_address_id=_int_or_none(customer_address_id),
         notes=(notes or "").strip() or None,
         public_token=generate_public_token(),
         # P1-2: token expires 30 days from creation. Set at insert time
@@ -872,6 +987,21 @@ async def pedidos_create(
                 address_text=address_text.strip(),
                 zone_id=zone_int,
                 is_default=first_for_customer,
+                # Phase 13: structured address columns from the form
+                calle_principal=address_calle_principal.strip() or None,
+                calle_secundaria=address_calle_secundaria.strip() or None,
+                numero=address_numero.strip() or None,
+                edificio=address_edificio.strip() or None,
+                piso=address_piso.strip() or None,
+                unidad=address_unidad.strip() or None,
+                barrio=address_barrio.strip() or None,
+                ciudad=address_ciudad.strip() or None,
+                departamento=address_departamento.strip() or None,
+                pais="PRY",
+                codigo_postal=address_codigo_postal.strip() or None,
+                recipient_name=address_recipient_name.strip() or None,
+                delivery_instructions=address_delivery_instructions.strip() or None,
+                address_kind=(address_kind or "HOME").strip() or "HOME",
             )
         )
         # Remember the zone as the customer's preference too
@@ -1488,6 +1618,12 @@ def pedidos_detail(
             "payment_methods": sorted(
                 set(ALLOWED_PAYMENT_METHODS) | {"efectivo", "transferencia", "qr", "tarjeta", "otro"}
             ),
+            # Phase 13 (2026-10-01): the rendered ventana text for the
+            # template's badge (uses "ventana preferida" wording + the
+            # "(no es garantía)" suffix that the cashier should always
+            # see). Scheduled_date comes from the pedido; preference
+            # defaults to "asap" for legacy rows that predate migration 081.
+            "ventana_text": _ventana_text_for(decorated),
         },
     )
 

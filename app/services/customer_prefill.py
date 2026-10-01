@@ -84,6 +84,11 @@ class CustomerPrefill:
     # picker dropdown when length >= 2; with 1 address we auto-fill
     # without showing the picker; with 0 we just show the text input.
     available_addresses: list[dict] = field(default_factory=list)
+    # Phase 13 (2026-10-01): list of invoice profiles for the customer.
+    # Same shape as available_addresses — used by the new
+    # /pedidos/nuevo "Perfil de facturación" dropdown. Empty list is OK
+    # (the cashier falls back to typing RUC + Razón social manually).
+    invoice_profiles: list[dict] = field(default_factory=list)
     # Loyalty balance + projected points (Phase 8 — for the banner)
     loyalty_points_balance: int = 0
     loyalty_points_projected: int = 0
@@ -195,9 +200,53 @@ def compute_customer_defaults(
             "address_text": addr.address_text,
             "is_default": bool(addr.is_default),
             "delivery_zone_id": addr.zone_id,
+            # Phase 13 (2026-10-01): include the structured columns so
+            # the JS can prefill the structured disclosure if the
+            # cashier picks a saved address.
+            "calle_principal": addr.calle_principal,
+            "calle_secundaria": addr.calle_secundaria,
+            "numero": addr.numero,
+            "edificio": addr.edificio,
+            "piso": addr.piso,
+            "unidad": addr.unidad,
+            "barrio": addr.barrio,
+            "ciudad": addr.ciudad,
+            "departamento": addr.departamento,
+            "codigo_postal": addr.codigo_postal,
+            "recipient_name": addr.recipient_name,
+            "delivery_instructions": addr.delivery_instructions,
+            "address_kind": addr.address_kind,
         }
         for addr in all_addresses
     ]
+
+    # --- Invoice profiles (Phase 13) ---
+    from app.rms.models import CustomerInvoiceProfile as _InvoiceProfile
+    all_profiles = session.execute(
+        select(_InvoiceProfile)
+        .where(_InvoiceProfile.customer_id == customer_id)
+        .where(_InvoiceProfile.is_active.is_(True))
+        .order_by(_InvoiceProfile.is_default.desc(), _InvoiceProfile.alias)
+    ).scalars().all()
+    out.invoice_profiles = [
+        {
+            "id": prof.id,
+            "alias": prof.alias,
+            "ruc_ci": prof.ruc_ci,
+            "razon_social": prof.razon_social,
+            "tipo_documento": prof.tipo_documento,
+            "tipo_operacion": prof.tipo_operacion,
+            "is_default": bool(prof.is_default),
+        }
+        for prof in all_profiles
+    ]
+    # If exactly one profile, prepopulate the legacy fields too so the
+    # cashier sees RUC + Razón social pre-filled (matches legacy behavior).
+    if all_profiles and not out.invoice_ruc:
+        out.invoice_ruc = all_profiles[0].ruc_ci
+    if all_profiles and not out.invoice_name:
+        out.invoice_name = all_profiles[0].razon_social
+
     addr = _default_address(session, customer_id)
     if addr:
         out.address_text = addr.address_text

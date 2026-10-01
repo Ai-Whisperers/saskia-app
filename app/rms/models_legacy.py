@@ -966,6 +966,13 @@ class CustomerAddress(Base):
     `zone_id` optionally pre-fills the pedido's delivery zone; cost still
     comes from the zone at pedido time. `label` is operator-facing short
     text ("casa", "oficina"); `address_text` is the full directions text.
+
+    Phase 13 (2026-10-01): extended with structured fields so the cashier
+    can optionally fill calle/secundaria/número/edificio/piso/unidad/
+    barrio/ciudad/departamento/pais/postal/recipient_name/
+    delivery_instructions. address_text stays as the legacy composed
+    string (rendered for receipts + dispatch tickets). The pick alias
+    is `label`; address_kind discriminates HOME/WORK/FAMILY/OTHER.
     """
 
     __tablename__ = "customer_address"
@@ -984,11 +991,88 @@ class CustomerAddress(Base):
         DateTime, nullable=False, default=datetime.utcnow
     )
 
+    # ── Phase 13: structured address fields (research-backed)
+    # MercadoLibre PY uses discrete street_name+street_number+floor+apartment;
+    # Lightspeed X uses 2 address lines + suburb + city + state + country.
+    # These are all optional; existing address_text remains the rendered
+    # "what the cashier sees" and is composed from these at write time.
+    calle_principal: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    calle_secundaria: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    numero: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    edificio: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    piso: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    unidad: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    barrio: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    ciudad: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    departamento: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    pais: Mapped[Optional[str]] = mapped_column(String(8), nullable=True, default="PRY")
+    codigo_postal: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    recipient_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    delivery_instructions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # address_kind: HOME | WORK | FAMILY | OTHER (app-layer enum)
+    address_kind: Mapped[Optional[str]] = mapped_column(String(16), nullable=True, default="HOME")
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
     customer: Mapped["Customer"] = relationship(back_populates="addresses")
     zone: Mapped[Optional["DeliveryZone"]] = relationship()
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<CustomerAddress {self.id} c={self.customer_id} {self.label!r}>"
+
+
+class CustomerInvoiceProfile(Base):
+    """Multiple invoice profiles per customer (Phase 13, 2026-10-01).
+
+    Research (Wise Platform "profiles", Shopify B2B "CompanyLocation",
+    Stripe "TaxID collection") — one person can invoice under many tax
+    identities: personal CI, spouse's RUC, their own company RUC. Today's
+    Customer has a single invoice_ruc + invoice_name which prevents this.
+
+    The cashier picks the WHOLE profile (alias + RUC + razon_social +
+    tipo_documento + tipo_operacion) — the e-invoice later locks RUC↔name
+    so they must travel together. SIFEN defines 7 tipos de documento
+    and 4 tipos de operación; we expose those as DB CHECK constraints
+    (see migration 080).
+
+    Single `Customer.invoice_ruc` / `invoice_name` columns are kept for
+    backward compat (the latest-write-wins behavior stays for the
+    rare legacy path). The migration backfilled one profile per
+    customer that had legacy RUC/name set.
+    """
+
+    __tablename__ = "customer_invoice_profile"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("customer.id"), nullable=False, index=True
+    )
+    alias: Mapped[str] = mapped_column(String(64), nullable=False)
+    ruc_ci: Mapped[str] = mapped_column(String(20), nullable=False)
+    razon_social: Mapped[str] = mapped_column(String(160), nullable=False)
+    # tipo_documento: 1:Cedula paraguaya, 2:Pasaporte, 3:Cedula extranjera,
+    # 4:Carnet de residencia, 5:Innominado, 6:Tarjeta Diplomatica exoneracion,
+    # 7:Otro — see SIFEN spec (https://sisfe.com.py/documentacion.html)
+    tipo_documento: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="CI_PARAGUAYA"
+    )
+    # tipo_operacion: 1:B2B, 2:B2C, 3:B2G, 4:B2F (extranjero)
+    tipo_operacion: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="B2C"
+    )
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    customer: Mapped["Customer"] = relationship()
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<CustomerInvoiceProfile {self.id} c={self.customer_id} {self.alias!r} {self.ruc_ci!r}>"
 
 
 class DeliveryZone(Base):
@@ -1345,6 +1429,24 @@ class Pedido(Base):
     delivery_window_end: Mapped[str | None] = mapped_column(String(8), nullable=True)
     invoice_ruc: Mapped[str | None] = mapped_column(String(20), nullable=True)
     invoice_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # Phase 13 (2026-10-01): preferred delivery window semantics
+    # 'asap' (default), 'window' (window_start..end are guidance, not a
+    # promise — matches Instacart "desired windows"), 'scheduled' (future
+    # date). See _render_ventana_preferida in app/templates for the
+    # "ventana preferida: 14:00–16:00 (no es garantía)" rendering.
+    delivery_preference: Mapped[str | None] = mapped_column(
+        String(16), nullable=True
+    )
+    delivery_scheduled_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    # Phase 13: FKs linking the pedido to the chosen invoice profile
+    # (multiple per customer, SIFEN-compliant) and chosen address
+    # (multiple per customer, alias-driven picker).
+    customer_invoice_profile_id: Mapped[int | None] = mapped_column(
+        ForeignKey("customer_invoice_profile.id"), nullable=True, index=True
+    )
+    customer_address_id: Mapped[int | None] = mapped_column(
+        ForeignKey("customer_address.id"), nullable=True, index=True
+    )
     public_token: Mapped[str] = mapped_column(
         String(40), nullable=False, unique=True, index=True, default=""
     )
@@ -1379,6 +1481,8 @@ class Pedido(Base):
     )
     customer: Mapped["Customer | None"] = relationship()
     delivery_zone: Mapped["DeliveryZone | None"] = relationship(back_populates="pedidos")
+    invoice_profile: Mapped["CustomerInvoiceProfile | None"] = relationship()
+    address: Mapped["CustomerAddress | None"] = relationship()
     # Migration 076 — every Sale generated by fulfilling this pedido.
     # Note: fulfilled_sale_id points at the FIRST sale (legacy); this
     # collection includes the rest when the pedido has multiple lines.
@@ -2015,11 +2119,13 @@ __all__ = [
     # market-intel 2026-09-30 — evidencia de competencia retail
     "CompetitorPriceObservation",
     "Customer",
+    # Phase 13 (2026-10-01): structured address fields on CustomerAddress
+    "CustomerAddress",
+    # Phase 13 (2026-10-01): multiple invoice profiles per customer
+    "CustomerInvoiceProfile",
+    "DeliveryZone",
     # Static-content-audit Phase 9 — migration 048
     "DateRangePreset",
-    # HEREBUS Drive integration — migration 029
-    "CustomerAddress",
-    "DeliveryZone",
     "ImportBatch",
     "Ingredient",
     "IngredientPriceEvent",

@@ -425,6 +425,22 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
         # suggestions block, which is the pre-Decision-C behavior.
         logger.exception("loyalty_suggestions failed for customer_id=%s", c.id)
 
+    # Phase 13 (2026-10-01): invoice profiles + structured addresses
+    # for the customer. The cashier sees them on /clientes/{id}; the
+    # /pedidos/nuevo prefill also reads them from the same helper. We
+    # keep the JSON-API surface aligned with the HTML surface.
+    from app.rms.models import CustomerAddress as _CA, CustomerInvoiceProfile as _CIP
+    profiles = session.scalars(
+        select(_CIP)
+        .where(_CIP.customer_id == c.id)
+        .where(_CIP.is_active.is_(True))
+        .order_by(_CIP.is_default.desc(), _CIP.alias)
+    ).all()
+    addresses = session.scalars(
+        select(_CA)
+        .where(_CA.customer_id == c.id)
+        .order_by(_CA.is_default.desc(), _CA.id)
+    ).all()
     return {
         "id": c.id,
         "name": c.name or "",
@@ -441,6 +457,36 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
         "top_products": top_products,
         "suggestions": suggestions,
         "hint": f"{c.name} — {stats.n_sales} visitas, {lifetime_label} lifetime",
+        "invoice_profiles": [
+            {
+                "id": p.id,
+                "alias": p.alias,
+                "ruc_ci": p.ruc_ci,
+                "razon_social": p.razon_social,
+                "tipo_documento": p.tipo_documento,
+                "tipo_operacion": p.tipo_operacion,
+                "is_default": bool(p.is_default),
+            }
+            for p in profiles
+        ],
+        "addresses": [
+            {
+                "id": a.id,
+                "label": a.label,
+                "address_text": a.address_text,
+                "is_default": bool(a.is_default),
+                "address_kind": a.address_kind,
+                "recipient_name": a.recipient_name,
+                "barrio": a.barrio,
+                "ciudad": a.ciudad,
+                "departamento": a.departamento,
+                "edificio": a.edificio,
+                "piso": a.piso,
+                "unidad": a.unidad,
+                "delivery_instructions": a.delivery_instructions,
+            }
+            for a in addresses
+        ],
     }
 
 
@@ -1004,6 +1050,12 @@ def cliente_detail(
             # (via _customer_detail_payload) so the rule set stays
             # consistent across UI surfaces.
             "suggestions": detail_payload.get("suggestions", []),
+            # Phase 13 (2026-10-01): invoice profiles + addresses
+            # rendered as a small card on the detail page so the cashier
+            # can see at a glance which RUC pairs and which addresses the
+            # customer has without opening the edit form.
+            "invoice_profiles": detail_payload.get("invoice_profiles", []),
+            "addresses": detail_payload.get("addresses", []),
         },
     )
 
