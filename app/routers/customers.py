@@ -296,6 +296,10 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
       - last_sale_at (ISO timestamp from latest Sale.sold_at, or null)
       - top_products: top 3 products the customer buys most often
         ([{name, count}]) — counted across non-voided sales
+      - suggestions: up to 3 auto-suggested offers for the POS card
+        (Phase 4 decision C, 2026-10-01). Pure-function computation in
+        ``app/rms/loyalty_suggestions.py`` — never raises; an empty list
+        means "no rule fires for this customer right now."
 
     Uses batch_customer_stats() to keep the stats query consistent with the
     search/list endpoints. One extra query walks Sale rows for top_products.
@@ -311,6 +315,41 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
     lifetime_label = _format_gs_compact(stats.lifetime_spend_gs)
     top_products = _top_products_for_customer(session, c.id, limit=3)
     last_sale_at_iso = stats.last_sale_at.isoformat() if stats.last_sale_at else None
+
+    # Phase 4 decision C (2026-10-01): compute auto-suggestions for the
+    # POS customer card. Wrapped in try/except so a future rule bug
+    # never 500s the picker (this endpoint is hit on every customer
+    # selection — must be infallible).
+    suggestions: list[dict] = []
+    try:
+        from app.rms.loyalty_suggestions import suggest_for_customer
+        # Detect "redeemed_on_last_visit": did the customer's most
+        # recent sale have a 'redeem' LoyaltyTransaction row? If so,
+        # skip the POINTS-DORMANT nudge (they're already redeeming).
+        redeemed_on_last_visit = _redeemed_on_last_visit(session, c.id)
+        suggestions_raw = suggest_for_customer(
+            c,
+            last_sale_at=stats.last_sale_at,
+            n_sales=stats.n_sales,
+            tier=stats.tier.value,
+            redeemed_on_last_visit=redeemed_on_last_visit,
+        )
+        suggestions = [
+            {
+                "kind": s.kind,
+                "title": s.title,
+                "body": s.body,
+                "discount_pct": s.discount_pct,
+                "payload": s.payload,
+            }
+            for s in suggestions_raw
+        ]
+    except Exception:
+        # Log + swallow — a suggestions bug must never block the
+        # customer picker. Picks the customer card WITHOUT the
+        # suggestions block, which is the pre-Decision-C behavior.
+        logger.exception("loyalty_suggestions failed for customer_id=%s", c.id)
+
     return {
         "id": c.id,
         "name": c.name or "",
@@ -325,8 +364,42 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
         "tier": stats.tier.value,
         "last_sale_at": last_sale_at_iso,
         "top_products": top_products,
+        "suggestions": suggestions,
         "hint": f"{c.name} — {stats.n_sales} visitas, {lifetime_label} lifetime",
     }
+
+
+def _redeemed_on_last_visit(session: Session, customer_id: int) -> bool:
+    """True iff the customer's most recent sale had a 'redeem' ledger row.
+
+    Used by the POINTS-DORMANT suggestion rule to skip the nudge when
+    the customer is already redeeming regularly. One query — find the
+    latest non-voided Sale.id for this customer, then check whether a
+    LoyaltyTransaction(reason='redeem') exists tied to it.
+
+    Returns False on any error so the suggestions engine stays
+    infallible (see _customer_detail_payload docstring).
+    """
+    try:
+        from app.rms.models import LoyaltyTransaction, Sale
+        latest_sale = session.execute(
+            select(Sale.id)
+            .where(Sale.customer_id == customer_id)
+            .where(Sale.voided_at.is_(None))
+            .order_by(Sale.sold_at.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        if latest_sale is None:
+            return False
+        redeem = session.execute(
+            select(LoyaltyTransaction.id)
+            .where(LoyaltyTransaction.sale_id == latest_sale)
+            .where(LoyaltyTransaction.reason == "redeem")
+            .limit(1)
+        ).scalar_one_or_none()
+        return redeem is not None
+    except Exception:
+        return False
 
 
 def _top_products_for_customer(session: Session, customer_id: int, limit: int = 3) -> list[dict]:

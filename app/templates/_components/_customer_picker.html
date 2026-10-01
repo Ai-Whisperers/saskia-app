@@ -174,6 +174,24 @@
     </div>
   </div>
 
+  {# ── Phase 4 decision C (2026-10-01): auto-suggested offers for
+       this customer. Hidden until the picker JS renders up to 3 cards
+       from the /clientes/api/{id} payload's `suggestions` array.
+       Click handler pre-fills the existing #discount-gs-total field
+       with the suggestion's discount_pct applied to the active
+       product's price — cashier confirms or ignores. #}
+  <div class="customer-card-suggestions" id="customer-card-suggestions" hidden
+       style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+      <span style="font-size:0.85rem;font-weight:600;color:var(--color-text,#222);">
+        🎁 Ofertas sugeridas
+      </span>
+      <span class="text-muted" style="font-size:0.75rem;">tap = aplicar</span>
+    </div>
+    <div id="customer-card-suggestions-list"
+         style="display:flex;flex-direction:column;gap:4px;"></div>
+  </div>
+
   <div class="customer-card-loading" id="customer-card-loading" hidden aria-hidden="true">
     <span class="spinner"></span>
   </div>
@@ -328,6 +346,14 @@
     if (cardLastVisit) cardLastVisit.textContent = relativeDate(data.last_sale_at);
     if (cardLifetime) cardLifetime.textContent = data.lifetime_label || '\u2014';
     if (cardPoints) cardPoints.textContent = data.loyalty_points != null ? String(data.loyalty_points) : '\u2014';
+
+    // Phase 4 decision C (2026-10-01): render auto-suggested offers
+    // for this customer. Pure-function output from /clientes/api/{id}
+    // (see app/rms/loyalty_suggestions.py). The list is up to 3
+    // cards with title + body; clicking a suggestion pre-fills the
+    // existing #discount-gs-total field with discount_pct × unit price
+    // (cashier confirms or clears).
+    renderSuggestions(data.suggestions || []);
 
     // Phase 4 loyalty POS redeem (2026-10-01): populate the inline
     // "Usar puntos" form when a customer is picked. The form lives in
@@ -506,6 +532,129 @@
       if (redeemInput) redeemInput.value = '0';
       updateRedeemPreview();
     });
+  }
+
+  // ── Phase 4 decision C (2026-10-01): auto-suggestions renderer.
+  // The /clientes/api/{id} payload includes up to 3 suggestions;
+  // we render them as small cards with a "tap to apply" affordance.
+  // Clicking a suggestion with a discount_pct pre-fills the existing
+  // #discount-gs-total field (the cashier confirms or clears before
+  // submitting the sale — we never bypass that step).
+  function renderSuggestions(suggestions) {
+    var wrap = document.getElementById('customer-card-suggestions');
+    var list = document.getElementById('customer-card-suggestions-list');
+    if (!wrap || !list) return;
+    if (!Array.isArray(suggestions) || suggestions.length === 0) {
+      wrap.hidden = true;
+      list.innerHTML = '';
+      return;
+    }
+    wrap.hidden = false;
+    list.innerHTML = '';
+    suggestions.forEach(function (s) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'customer-suggestion-card';
+      btn.dataset.kind = s.kind || '';
+      btn.dataset.discountPct = s.discount_pct != null ? String(s.discount_pct) : '';
+      btn.style.cssText = [
+        'text-align:left',
+        'padding:8px 10px',
+        'border:1px solid var(--color-primary,#3b82f6)',
+        'border-radius:6px',
+        'background:#fff',
+        'cursor:pointer',
+        'font-size:0.85rem',
+        'line-height:1.3',
+        'transition:background 0.1s',
+      ].join(';');
+      var title = document.createElement('div');
+      title.style.cssText = 'font-weight:600;color:var(--color-primary,#3b82f6);margin-bottom:2px;';
+      title.textContent = s.title || '';
+      var body = document.createElement('div');
+      body.style.cssText = 'color:var(--color-text,#333);font-weight:400;';
+      body.textContent = s.body || '';
+      btn.appendChild(title);
+      btn.appendChild(body);
+      btn.addEventListener('click', function () {
+        applySuggestion(s);
+      });
+      btn.addEventListener('mouseover', function () {
+        btn.style.background = 'rgba(59,130,246,.08)';
+      });
+      btn.addEventListener('mouseout', function () {
+        btn.style.background = '#fff';
+      });
+      list.appendChild(btn);
+    });
+  }
+
+  // Apply a suggestion: pre-fill the hidden discount_gs field with
+  // discount_pct × current unit price (read from the sale form's
+  // #discount-gs-total field if it exists, otherwise from any visible
+  // price cell). Cashier still has to hit "Confirmar venta" — we never
+  // bypass the submit step.
+  function applySuggestion(suggestion) {
+    var pct = suggestion && suggestion.discount_pct;
+    if (!pct || pct <= 0 || pct > 100) return;
+
+    // Try the most common field names the template exposes for the
+    // current unit price. Defensive — every form variant is different
+    // and we don't want to crash if the operator is on a less common
+    // flow. We just set the hidden total-discount field that every
+    // POS form on /ventas carries.
+    var unitPrice = null;
+    // 1) Look for an explicit price cell on the visible cart row
+    var priceEl = document.querySelector(
+      '[data-current-unit-price], .cart-row [data-price-gs], .current-sale-price'
+    );
+    if (priceEl) {
+      var raw = priceEl.getAttribute('data-current-unit-price')
+        || priceEl.getAttribute('data-price-gs')
+        || priceEl.textContent;
+      var parsed = parseInt(String(raw).replace(/[^0-9]/g, ''), 10);
+      if (!isNaN(parsed) && parsed > 0) unitPrice = parsed;
+    }
+    // 2) Fallback: parse a unit price out of the product picker if it's
+    //    a <select> with visible Gs. labels like "Chipita — 12.000 Gs."
+    if (!unitPrice) {
+      var selectEl = document.querySelector(
+        'select[name="product_id"], select#product_id'
+      );
+      if (selectEl && selectEl.selectedOptions && selectEl.selectedOptions[0]) {
+        var labelText = selectEl.selectedOptions[0].textContent || '';
+        var m = labelText.match(/([\d.]+)\s*Gs/);
+        if (m) {
+          var cleaned = m[1].replace(/\./g, '').replace(/,/g, '');
+          unitPrice = parseInt(cleaned, 10);
+        }
+      }
+    }
+
+    var discountField = document.getElementById('discount-gs-total');
+    if (!discountField) return;
+
+    if (unitPrice && unitPrice > 0) {
+      var discount = Math.round((unitPrice * pct) / 100);
+      discountField.value = String(discount);
+      // Fire an input event so any live-total preview updates.
+      discountField.dispatchEvent(new Event('input', { bubbles: true }));
+      discountField.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    // Visual feedback on the clicked card.
+    var cards = document.querySelectorAll('.customer-suggestion-card');
+    cards.forEach(function (c) {
+      c.style.background = '#fff';
+      c.style.borderColor = 'var(--color-primary,#3b82f6)';
+    });
+    var clicked = document.querySelector(
+      '.customer-suggestion-card[data-kind="' + (suggestion.kind || '') + '"]'
+    );
+    if (clicked) {
+      clicked.style.background = 'rgba(59,130,246,.15)';
+      clicked.style.borderColor = 'var(--color-success,#16a34a)';
+    }
   }
 
   // ── Combo change → fetch detail + populate card ────────────────────────

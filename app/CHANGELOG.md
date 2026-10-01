@@ -384,6 +384,47 @@ the `/ventas/nueva` (Quick-Sell) flow. The customer-profile half
 - `tests/test_pos_redeem_flow.py` — 8 new tests covering success,
   400 paths, no-op, combined discount, post-discount earn math.
 
+### Added — Decision C: auto-suggest rules engine (2026-10-01)
+
+Closes the deferred Phase 4 decision C. The "Coffee regulars" card
+on `/inicio` (top-5 customers with 2+ sales in 30d) stays as the
+discovery surface — but at the POS, when a cashier selects a
+customer, the inline card now surfaces up to 3 **auto-suggested
+offers** based on that customer's history. Tapping a suggestion
+pre-fills the existing `discount_gs` field on the sale form; the
+cashier confirms or ignores.
+
+**Five rule kinds** (priority order — first three win when all fire):
+
+| Kind | Trigger | Discount | Notes |
+|---|---|---|---|
+| 🎂 `cumple_cerca` | Birthday within 7 days | 15% | MM-DD and YYYY-MM-DD formats both supported; Feb 29 leap-year handled |
+| 💤 `vuelve_pronto` | No visit in N days (21 BRONZE / 30 SILVER / 45 GOLD) | 10 / 7 / 5 % | Higher tiers earn longer patience AND smaller discounts to protect margin |
+| ⭐ `puntos_dormidos` | ≥ 50 points AND didn't redeem on last visit | None (separate redeem UI) | Skipped when `redeemed_on_last_visit=True` |
+| 🛒 `cross_sell` | (deferred to C2) | — | Needs `/clientes/{id}` rule-builder UI |
+| 👑 `cliente_fiel` | GOLD + ≥ 10 sales | None | Recognition only — never discount top spenders |
+
+**Design rules (must read before extending):**
+- Pure function: `suggest_for_customer(customer, last_sale_at, n_sales, tier,
+  redeemed_on_last_visit, today=)` returns `list[Suggestion]`. No DB, no
+  FastAPI imports. Caller stitches the inputs.
+- Infallible: the /clientes/api/{id} endpoint wraps the call in
+  try/except + logs + returns `suggestions=[]` on failure. A bug in
+  any rule must never 500 the picker (it's hit on every selection).
+- Thresholds are module-level constants in `app/rms/loyalty_suggestions.py`
+  (no DB-driven rules — that's C2/C3 territory).
+- Suggestions **never bypass the cashier**. The click pre-fills the
+  existing `discount_gs` field with `round(unit_price × pct / 100)`.
+  The cashier still has to hit "Confirmar venta".
+- Maximum 3 returned (UI space constraint).
+
+**Files:**
+- `app/rms/loyalty_suggestions.py` — pure-function engine (340 lines).
+- `app/routers/customers.py` — payload wiring + `_redeemed_on_last_visit` helper.
+- `app/templates/_components/_customer_picker.html` — inline suggestions card +
+  click-to-apply JS.
+- `tests/test_loyalty_suggestions.py` — 26 tests (19 pure-function, 7 integration).
+
 ### Housekeeping — orphan stash audit (2026-10-01)
 - **8 stale `git stash` entries on main** (oldest 13 days) audited.
   7 dropped (work already shipped via other commits:
