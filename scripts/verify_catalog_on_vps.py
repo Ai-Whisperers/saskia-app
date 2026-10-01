@@ -59,13 +59,20 @@ DEFAULT_DB_PATH = os.environ.get(
 
 
 def get_db_metadata(conn: sqlite3.Connection) -> dict:
-    """Pull schema_version + migrations_pending from app_meta."""
+    """Pull schema_version from app_meta.
+
+    `code_schema_version` and `migrations_pending` aren't persisted —
+    they're computed at request time by `/healthz/db` from in-memory
+    state. So this script only reads what it can: the persisted
+    schema_version. The caller compares it to the code's
+    CURRENT_SCHEMA_VERSION via the env var SASKIA_CODE_SCHEMA_VERSION
+    (default: read from app.rms.config if available).
+    """
     out = {}
-    for key in ("schema_version", "code_schema_version", "migrations_pending"):
-        row = conn.execute(
-            "SELECT value FROM app_meta WHERE key = ?", (key,)
-        ).fetchone()
-        out[key] = row[0] if row else None
+    row = conn.execute(
+        "SELECT value FROM app_meta WHERE key = 'schema_version'"
+    ).fetchone()
+    out["schema_version"] = int(row[0]) if row else None
     return out
 
 
@@ -107,17 +114,23 @@ def main() -> int:
     finally:
         conn.close()
 
+    # Resolve code_schema_version: env override, else read from app module.
+    code_sv_env = os.environ.get("SASKIA_CODE_SCHEMA_VERSION")
+    if code_sv_env:
+        code_sv = int(code_sv_env)
+    else:
+        try:
+            from app.rms.config import CURRENT_SCHEMA_VERSION as code_sv
+        except (ImportError, AttributeError):
+            code_sv = None
+
     # Check schema match
-    if meta.get("schema_version") != meta.get("code_schema_version"):
+    if code_sv is not None and meta.get("schema_version") != code_sv:
         if not args.quiet:
             print(
                 f"FAIL: schema_version={meta.get('schema_version')} != "
-                f"code_schema_version={meta.get('code_schema_version')}"
+                f"code CURRENT_SCHEMA_VERSION={code_sv}"
             )
-        return 1
-    if str(meta.get("migrations_pending")) not in ("0", "None", None):
-        if not args.quiet:
-            print(f"FAIL: migrations_pending={meta.get('migrations_pending')}")
         return 1
 
     # Check catalog row counts
@@ -131,13 +144,14 @@ def main() -> int:
         status = "OK" if not failures else "FAIL"
         print(
             f"vps-catalog-verify[{status}] "
-            f"schema={meta.get('schema_version')} "
+            f"sv={meta.get('schema_version')} "
+            f"code={code_sv} "
             + " ".join(f"{t}={c}" for t, c in counts.items())
         )
     else:
         print(f"=== Catalog on VPS (db: {args.db}) ===")
-        for k in ("schema_version", "code_schema_version", "migrations_pending"):
-            print(f"  {k}: {meta.get(k)}")
+        print(f"  schema_version: {meta.get('schema_version')}"
+              + (f" (code: {code_sv})" if code_sv else ""))
         print("  catalog row counts:")
         for t, c in counts.items():
             minimum = MIN_COUNTS[t]
