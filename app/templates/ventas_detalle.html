@@ -1,0 +1,167 @@
+{# Operator-facing single-sale detail page (BACKLOG #16).
+
+   Distinct from /recibo (the printable customer receipt):
+   - Has nav, breadcrumbs, action buttons (print, void)
+   - Wider layout — fits all metadata (channel, payment method, stock moves)
+   - Linked-sale trail (linked_pedido_id → pedido, customer → sales history)
+   - Stock-move ledger for traceability
+
+   Rendered by `GET /ventas/{sale_id}`. Path placed before /recibo in
+   router so /recibo still wins when explicitly requested.
+#}
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Venta #{{ sale.id }} — Saskia RMS{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="breadcrumb">
+  <a href="/ventas">Ventas</a>
+  <span aria-hidden="true">›</span>
+  <span>Venta #{{ sale.id }}</span>
+</nav>
+
+{% if sale.voided_at %}
+  <div class="voided-banner" role="alert">
+    <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
+    <strong>ANULADO</strong>
+    <span>
+      Venta anulada el {{ sale.voided_at_str }}
+      {% if sale.voided_by %}por <strong>{{ sale.voided_by }}</strong>{% endif %}
+      {% if sale.void_reason %}— “{{ sale.void_reason }}”{% endif %}
+    </span>
+  </div>
+{% endif %}
+
+<div class="card" style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.5rem;">
+  <div>
+    <h1 style="font-size:var(--text-xl);margin:0;">
+      Venta #{{ sale.id }}
+    </h1>
+    <p class="text-muted" style="margin:.25rem 0 0;font-size:var(--text-sm);">
+      {{ sale.sold_at_str }}
+      {% if sale.fulfilled_by %} · atendido por <strong>{{ sale.fulfilled_by }}</strong>{% endif %}
+    </p>
+  </div>
+  <div style="display:flex;gap:.5rem;">
+    <a class="btn btn-secondary" href="/ventas/{{ sale.id }}/recibo" target="_blank" rel="noopener">
+      Ver recibo imprimible
+    </a>
+    {% if not sale.voided_at %}
+      <form method="post" action="/ventas/{{ sale.id }}/anular" style="display:inline;"
+            onsubmit="return confirm('¿Anular esta venta? El stock volverá.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="btn btn-danger">Anular venta</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="font-size:var(--text-lg);margin:0 0 var(--space-3) 0;">Detalle</h2>
+  <dl class="kv-list">
+    <div class="kv-row">
+      <dt>Producto</dt>
+      <dd>
+        {% if sale.product_id %}
+          <a href="/productos/{{ sale.product_id }}">{{ sale.product_name }}</a>
+        {% else %}
+          {{ sale.product_name }}
+        {% endif %}
+        {% if sale.qty != 1 %}
+          · <span class="text-muted">× {{ "%.2f"|format(sale.qty) }}</span>
+        {% endif %}
+      </dd>
+    </div>
+    <div class="kv-row">
+      <dt>Precio unitario</dt>
+      <dd>{{ "{:,}".format(sale.unit_price_gs) }} Gs.</dd>
+    </div>
+    {% if sale.discount_gs %}
+      <div class="kv-row">
+        <dt>Descuento</dt>
+        <dd class="text-danger">−{{ "{:,}".format(sale.discount_gs) }} Gs.</dd>
+      </div>
+    {% endif %}
+    <div class="kv-row kv-row--total">
+      <dt>Total</dt>
+      <dd><strong>{{ "{:,}".format(sale.total_gs) }} Gs.</strong></dd>
+    </div>
+  </dl>
+</div>
+
+<div class="card">
+  <h2 style="font-size:var(--text-lg);margin:0 0 var(--space-3) 0;">Pago y canal</h2>
+  <dl class="kv-list">
+    <div class="kv-row">
+      <dt>Forma de pago</dt>
+      <dd>{{ sale.payment_method or "—" }}</dd>
+    </div>
+    <div class="kv-row">
+      <dt>Canal</dt>
+      <dd>{{ sale.channel }}</dd>
+    </div>
+    {% if sale.customer_id %}
+      <div class="kv-row">
+        <dt>Cliente</dt>
+        <dd>
+          <a href="/clientes/{{ sale.customer_id }}">
+            {{ sale.customer_name or sale.customer_phone }}
+          </a>
+        </dd>
+      </div>
+    {% endif %}
+  </dl>
+</div>
+
+{% if sale.notes %}
+  <div class="card">
+    <h2 style="font-size:var(--text-lg);margin:0 0 var(--space-2) 0;">Notas</h2>
+    <p style="margin:0;white-space:pre-wrap;">{{ sale.notes }}</p>
+  </div>
+{% endif %}
+
+{% if stock_moves %}
+  <div class="card">
+    <h2 style="font-size:var(--text-lg);margin:0 0 var(--space-3) 0;">
+      Stock moves ({{ stock_moves|length }})
+    </h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Ingrediente</th>
+          <th class="num">Cantidad</th>
+          <th>Sub-receta afectada</th>
+          <th>Fecha</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sm in stock_moves %}
+          <tr>
+            <td>
+              {% if sm.ingredient_id %}
+                <a href="/inventario">{{ sm.ingredient_name }}</a>
+              {% else %}
+                {{ sm.ingredient_name }}
+              {% endif %}
+            </td>
+            <td class="num">−{{ "%.3f"|format(sm.qty) }} {{ sm.unit }}</td>
+            <td>
+              {% if sm.affected_recipe_id %}
+                <a href="/recetas/{{ sm.affected_recipe_id }}">#{{ sm.affected_recipe_id }}</a>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>{{ sm.recorded_at_str }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+
+<p class="text-muted" style="font-size:var(--text-sm);margin-top:var(--space-3);">
+  <a href="/ventas">← Volver al listado</a>
+</p>
+{% endblock %}

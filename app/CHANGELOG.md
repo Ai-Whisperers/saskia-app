@@ -2765,6 +2765,40 @@ direction (regression for the 404), and all 7 nav targets returning 200.
 ### Added
 - `tests/test_template_render_m.py` — 17 tests covering `m.gs`, `m.gs_plain`, `m.stock_badge`, `m.margin_pct`, `m.top_list_card` (all green).
 
+### Added — Backend & middleware gap closures (Phase 14 follow-up)
+Five concrete improvements addressing gaps surfaced by the architecture
+inventory (backend + middleware; see `docs/FRONTEND_MIDDLEWARE_AUDIT.md`):
+
+1. **Streaming CSV exports** — `app/rms/streaming_csv.py` (helper) +
+   4 endpoints migrated (`/ventas/export.csv`, `/auditoria/export.csv`,
+   `/inventario/export.csv`, `/recetas/export`) to use `StreamingResponse`
+   via `stream_csv_rows`. Memory drops from O(rows) to O(1); first byte
+   streams immediately; UTF-8 BOM for Excel.
+2. **CSV upload guards** — `app/rms/upload_limits.py` (`validate_upload`,
+   `CSV_LIMIT_2MB`, `CSV_MIME_TYPES`) protects 2 unprotected endpoints:
+   `/reorder/upload-prices`, `/benchmarks/evidencia/importar`. Closed
+   DoS / arbitrary-upload vectors.
+3. **`/metrics` endpoint (Prometheus format)** — `app/rms/metrics.py`
+   stdlib-only (no `prometheus-fastapi` dep). Counters, histograms
+   (5ms→5s+∞), gauges (`rms_db_up`, `rms_app_info{version,schema}`).
+   `MetricsMiddleware` records per-request metrics, exception-safely.
+   `/healthz/db` updates `rms_db_up` after each probe.
+4. **Settings audit gaps closed** — `/settings/business` and
+   `/settings/seed-demo` (destructive overwrite) now call
+   `record_audit` with explicit user id, RUC, timbrado, inserted-row
+   counts. Previously unaudited.
+5. **`/ventas/{sale_id}` operator detail page** — new
+   `ventas_detalle.html` (BACKLOG #16) with sale meta, line items,
+   payment breakdown, stock-move ledger, nav breadcrumb, links to
+   `/recibo` (customer ticket) and `/ventas/{id}/anular`.
+
+### Test results
+- 53 new tests pass: `test_streaming_csv` (10), `test_upload_limits` (9),
+  `test_upload_endpoint_guards` (3), `test_metrics` (10),
+  `test_metrics_endpoint` (4), `test_settings_audit` (4),
+  `test_ventas_detail_route` (7), plus 6 regression checks
+  (manual version pin). Total: 7+4+10+9+3+10+4+7
+
 
 ## [Unreleased-pre-templates] — pre-signoff skeleton
 

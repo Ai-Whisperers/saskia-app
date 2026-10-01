@@ -515,6 +515,62 @@ async def sales_export_csv(
     )
 
 
+@router.get("/{sale_id}", response_class=HTMLResponse)
+async def sale_detail(
+    request: Request,
+    sale_id: int,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Operator-facing single-sale detail page (BACKLOG #16).
+
+    Distinct from /recibo (the printable customer receipt):
+    - Full nav + breadcrumbs
+    - Action buttons: view recibo, void
+    - Wider layout — fits channel, payment method, customer link
+    - Stock-move ledger so the operator can trace what got consumed
+
+    Placed before /recibo so the {sale_id} path matches first; FastAPI
+    routing prefers more-specific literals, so /{sale_id}/recibo still
+    wins for the printable receipt.
+    """
+    from app.rms.errors import NotFound
+    from app.rms.models import Ingredient, SaleStockMove
+
+    sale = session.get(Sale, sale_id)
+    if sale is None:
+        raise NotFound("venta", id=sale_id)
+
+    # Stock-move ledger for this sale (BACKLOG #16 traceability).
+    # Note: SaleStockMove has no timestamp column; order by id (insertion order).
+    moves = session.execute(
+        select(SaleStockMove)
+        .where(SaleStockMove.sale_id == sale_id)
+        .order_by(SaleStockMove.id.asc())
+    ).scalars().all()
+
+    stock_moves = []
+    for sm in moves:
+        ing = session.get(Ingredient, sm.ingredient_id) if sm.ingredient_id else None
+        stock_moves.append({
+            "id": sm.id,
+            "ingredient_id": sm.ingredient_id,
+            "ingredient_name": ing.name if ing else f"#{sm.ingredient_id}",
+            "qty": abs(float(sm.qty_delta)),
+            "unit": ing.unit if ing else "",
+            "affected_recipe_id": sm.affected_recipe_id,
+            "recorded_at_str": "—",  # SaleStockMove has no timestamp column
+        })
+
+    return render(
+        request,
+        "ventas_detalle.html",
+        {
+            "sale": _decorated(sale),
+            "stock_moves": stock_moves,
+        },
+    )
+
+
 @router.get("/{sale_id}/recibo", response_class=HTMLResponse)
 async def sale_receipt(
     request: Request,
