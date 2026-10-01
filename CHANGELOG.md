@@ -2,6 +2,35 @@
 
 ## 2026-10-01
 - **Schema 75** (`app/rms/config.py`): adds `suggestion_applied` to `loyalty_transaction.reason` ENUM (Tier 3.2).
+
+## 2026-10-02 - Backend overhaul (Sprint 1.2)
+
+### Fix
+- **Duplicate `_migration_044_message_templates`** (`app/rms/db.py`):
+  the audit found this function defined twice — first as a stub (just
+  setting `conn.dialect.name` and returning) followed by the real
+  implementation ~15 lines below. Python silently kept the second
+  definition, so the migration ran correctly, but the duplicate was a
+  ticking bomb: any new `_migration_044` between them would have been
+  silently discarded. Removed the stub.
+
+### New
+- **`tests/test_migration_integrity.py`** — 89 tests pinning migration
+  invariants:
+  - No duplicate `_migration_NNN_*` function names (the duplicate-def P0).
+  - Migration numbers form the contiguous range `1..CURRENT_SCHEMA_VERSION`.
+  - Every migration name matches `_migration_NNN_<slug>` convention.
+  - `MIGRATIONS` dict is sorted, complete, and each entry accepts one
+    positional `conn` argument.
+  - Each migration function has a docstring ≥ 10 chars.
+  - Parametrized 82-case test asserting every individual migration
+    function is importable and callable.
+
+### Stats
+- 89 new tests, 1 stub removed (-15 lines), 0 behavior changes.
+
+### Deploy notes
+- No schema change. No deploy required.
 - **Logging** (`app/rms/main.py`): rotating file sink (BACKLOG #45) — 50 MB / 7-day retention; env-tunable path.
 - **Spool prune** (`app/rms/notifications.py`): bound `notifications_spool/dryrun-*` at 7 days; prevents local-disk bloat.
 - **Migrations 60-62** (`app/rms/db.py`): wrap ORM-touching steps in try/except so fresh DBs don't fail when 072's columns don't exist yet.
