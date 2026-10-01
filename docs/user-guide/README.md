@@ -5,8 +5,8 @@
 
 **URL activa:** `https://saskia-vps.paragu-ai.com`  *(si ves "service suspended", contactá al equipo — esa URL no es la correcta)*
 **URL alternativa (suspendida):** `https://saskia-rms.paragu-ai.com` — Render, NO usar
-**Versión del manual:** 2026-10-01 · schema 75 · commit `64f5e4f` · 16 secciones
-**Manual versión:** v1.0 (ver "Cómo verificar la versión" abajo)
+**Versión del manual:** 2026-10-01 · schema 82 · commit `3b8a6a5` · 17 secciones
+**Manual versión:** v1.1 (ver "Cómo verificar la versión" abajo)
 
 ## Índice rápido
 
@@ -15,19 +15,20 @@
 | [0](00-quickstart.md) | Primer inicio de sesión | Antes de usar la app por primera vez |
 | [1](01-dashboard.md) | Pantalla principal (Inicio) | Todos los días al abrir |
 | [2](02-ventas.md) | Ventas (lo más usado) | Cada venta del día |
-| [3](03-inventario.md) | Inventario / ingredientes | Al reordenar, al hacer compras |
-| [4](04-productos.md) | Productos y precios | Al cambiar precios, agregar productos |
-| [5](05-recetas.md) | Recetas | Al crear o modificar recetas |
-| [6](06-clientes.md) | Clientes | Al registrar clientes nuevos |
-| [7](07-merma.md) | Merma (desperdicio) | Cada vez que algo se tira |
-| [8](08-produccion.md) | Plan de producción | Al planificar el día |
-| [9](09-reportes.md) | Reportes (IVA, libro de ventas, diario) | Mensual, antes de declarar |
-| [10](10-auditoria.md) | Auditoría / log | Cuando algo se borró y querés saber quién |
-| [11](11-configuracion.md) | Configuración | Cambios poco frecuentes |
-| [12](12-ops.md) | Estado operativo (diagnóstico) | Cuando algo no carga |
-| [13](13-reponer.md) | Reponer stock (lista de compras) | Antes de ir al super o proveedor |
-| [14](14-cierre.md) | Cierre diario (EOD) | Al final del día |
-| [15](15-excel.md) | Excel (importar/exportar) | Para copias de seguridad o cargas masivas |
+| [3](03-pedidos.md) | Pedidos anticipados y suscripciones | Para encargos y entregas a domicilio |
+| [4](04-inventario.md) | Inventario / ingredientes | Al reordenar, al hacer compras |
+| [5](05-productos.md) | Productos y precios | Al cambiar precios, agregar productos |
+| [6](06-recetas.md) | Recetas | Al crear o modificar recetas |
+| [7](07-clientes.md) | Clientes | Al registrar clientes nuevos |
+| [8](08-merma.md) | Merma (desperdicio) | Cada vez que algo se tira |
+| [9](09-produccion.md) | Plan de producción | Al planificar el día |
+| [10](10-reportes.md) | Reportes (IVA, libro de ventas, diario) | Mensual, antes de declarar |
+| [11](11-auditoria.md) | Auditoría / log | Cuando algo se borró y querés saber quién |
+| [12](12-configuracion.md) | Configuración | Cambios poco frecuentes |
+| [13](13-ops.md) | Estado operativo (diagnóstico) | Cuando algo no carga |
+| [14](14-reponer.md) | Reponer stock (lista de compras) | Antes de ir al super o proveedor |
+| [15](15-cierre.md) | Cierre diario (EOD) | Al final del día |
+| [16](16-excel.md) | Excel (importar/exportar) | Para copias de seguridad o cargas masivas |
 
 ## Conceptos generales
 
@@ -62,28 +63,28 @@ Todas las pantallas tienen el mismo esqueleto:
 
 ```
 Inicio            → resumen del día + avisos
+Ventas            → registrar una venta
+Pedidos           → encargos anticipados + suscripciones
+Inventario        → qué tenés en la panadería
 Productos         → qué vendés + precios
 Recetas           → cómo se hace cada producto
-Inventario        → qué tenés en la panadería
-Ventas            → registrar una venta
 Clientes          → quién te compró
-Producción        → cuánto hornear mañana
-Cierre (EOD)      → marcar tareas del final del día
 Merma             → desperdicio
+Producción        → cuánto hornear mañana
 Reportes          → IVA + libro de ventas + resumen diario
 Auditoría         → log de todo lo que pasó
 Configuración     → preferencias
+Ops               → diagnóstico (solo Iván)
 Reponer           → lista de compras para hacer
 Cierre (EOD)      → checklist del final del día
 Excel             → importar/exportar planilla
-Ops               → diagnóstico (solo Iván)
 ```
 
 ---
 
 ## Lo que podés hacer — y lo que todavía no
 
-**Versión:** schema 75 · commit `36639ae` · 2026-10-01
+**Versión:** schema 82 · commit `3b8a6a5` · 2026-10-01
 
 ### ✅ Funcionalidades activas (lista cerrada)
 
@@ -92,19 +93,20 @@ Ops               → diagnóstico (solo Iván)
 | 1 | Registrar una venta (POS, scan, multi-item) | [`02-ventas`](02-ventas.md) | `01-ventas-pos.png` |
 | 2 | Anular una venta del día | [`02-ventas`](02-ventas.md) → Historial | (en `01-ventas-pos.png`) |
 | 3 | Crear pedido anticipado (recetas, orden) | [`03-pedidos`](03-pedidos.md) | `04-pedidos-nuevo.png` |
-| 4 | Ver el board de pedidos pendientes | [`03-pedidos`](03-pedidos.md) | `03-pedidos-board.png` |
-| 5 | Plan de producción del día (manual) | [`05-produccion`](05-produccion.md) | `05-produccion.png` |
-| 6 | Plan de producción de mañana (auto) | [`05-produccion`](05-produccion.md) | `06-produccion-manana.png` |
-| 7 | Cierre diario (EOD checklist) | [`14-cierre`](14-cierre.md) | `07-eod-checklist.png` |
-| 8 | Crear / editar producto | [`04-productos`](04-productos.md) | `08-productos.png`, `09-productos-nuevo.png` |
-| 9 | Crear / editar receta con foto | [`05-recetas`](05-recetas.md) | `10-recetas.png`, `11-recetas-nueva.png` |
-| 10 | Crear / ajustar ingrediente (stock, precio) | [`03-inventario`](03-inventario.md) | `12-inventario.png`, `13-inventario-nuevo.png` |
-| 11 | Registrar merma / desperdicio | [`07-merma`](07-merma.md) | `14-merma.png` |
-| 12 | Reponer stock (con precios scrapeados) | [`13-reponer`](13-reponer.md) | `15-reorder.png` |
-| 13 | Reporte diario de ventas | [`09-reportes`](09-reportes.md) | `16-reportes-diario.png` |
-| 14 | Registrar cliente y sumar puntos | [`06-clientes`](06-clientes.md) | `17-clientes.png` |
+| 4 | Ver el board de pedidos pendientes (KDS kanban) | [`03-pedidos`](03-pedidos.md) | `03-pedidos-board.png` |
+| 5 | Plan de producción del día (manual) | [`09-produccion`](09-produccion.md) | `05-produccion.png` |
+| 6 | Plan de producción de mañana (auto) | [`09-produccion`](09-produccion.md) | `06-produccion-manana.png` |
+| 7 | Cierre diario (EOD checklist) | [`15-cierre`](15-cierre.md) | `07-eod-checklist.png` |
+| 8 | Crear / editar producto | [`05-productos`](05-productos.md) | `08-productos.png`, `09-productos-nuevo.png` |
+| 9 | Crear / editar receta con foto | [`06-recetas`](06-recetas.md) | `10-recetas.png`, `11-recetas-nueva.png` |
+| 10 | Crear / ajustar ingrediente (stock, precio) | [`04-inventario`](04-inventario.md) | `12-inventario.png`, `13-inventario-nuevo.png` |
+| 11 | Registrar merma / desperdicio | [`08-merma`](08-merma.md) | `14-merma.png` |
+| 12 | Reponer stock (con precios scrapeados) | [`14-reponer`](14-reponer.md) | `15-reorder.png` |
+| 13 | Reporte diario de ventas | [`10-reportes`](10-reportes.md) | `16-reportes-diario.png` |
+| 14 | Registrar cliente y sumar puntos | [`07-clientes`](07-clientes.md) | `17-clientes.png` |
 | 15 | Canjear puntos del cliente (POS) | [`02-ventas`](02-ventas.md) → "Usar puntos" | (en POS) |
-| 16 | Lista de compras (sincroniza con stock bajo) | [`06-lista-compras`](06-clientes.md#lista-de-compras) | `18-shopping-list.png` |
+| 16 | Lista de compras (sincroniza con stock bajo) | [`14-reponer`](14-reponer.md) → Lista de compras | `18-shopping-list.png` |
+| 17 | Suscripción semanal de un cliente (pedido recurrente) | [`03-pedidos`](03-pedidos.md) → Suscripciones | (en `03-pedidos-board.png`) |
 
 ### ⏳ Lo que **todavía no** podés hacer (wishlist)
 
@@ -137,7 +139,7 @@ Tres formas:
 |---|---|---|
 | En el navegador | Pie de página de cualquier pantalla | "Saskia RMS v1.0 · Sistema local · 2026" |
 | Al iniciar sesión | Header `X-Agent` en respuesta `/login` | `SaskiaRMS/1.0` |
-| En este manual | El número "v1.0" arriba | Dice `2026-10-01 · schema 75` |
+| En este manual | El número "v1.x" arriba | Dice `2026-10-01 · schema 82` |
 
 Si los tres no coinciden, **el manual está desactualizado** — avisá a Iván para que lo actualice.
 

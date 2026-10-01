@@ -28,8 +28,8 @@ Cambian los números de abajo:
 > **Cómo interpretarlo:**
 > - Si **Margen** es verde y grande, vas bien.
 > - Si **Margen** es muy bajo (menos de 30%), mirá los precios en
->   [Productos](04-productos.md) o los costos de ingredientes en
->   [Inventario](03-inventario.md).
+>   [Productos](05-productos.md) o los costos de ingredientes en
+>   [Inventario](04-inventario.md).
 > - Si **Costo de lo vendido** está en rojo, te falta cargar
 >   precios de ingredientes — la app no puede calcular el margen
 >   real.
@@ -49,7 +49,7 @@ necesita tu atención:
 |---|---|---|
 | **"Stock bajo: esencia de vainilla (0 ml, mínimo 50 ml)"** | Te quedás sin un ingrediente | Ir a [Reponer](reorder-route.md) y comprar |
 | **"Sin precio"** | Tenés un ingrediente sin precio de compra cargado | Ir a Inventario y ponerle precio |
-| **"Merma alta esta semana (8%)"** | Estás tirando mucho producto | Ver [Merma](07-merma.md) y revisar qué se descarta |
+| **"Merma alta esta semana (8%)"** | Estás tirando mucho producto | Ver [Merma](08-merma.md) y revisar qué se descarta |
 | **"Producto sin receta: torta de chocolate"** | Vendés algo que no tiene ingredientes cargados | Ir a Recetas y crear la receta |
 
 **Esta sección es importante: revisala todos los días cuando llegues.**
@@ -68,7 +68,7 @@ informativa — leela cuando tengas un momento.
    Anotá las acciones pendientes.
 2. Mirá **Ventas del día**. ¿Es un día normal o algo cambió?
 3. Si tenés algo que preparar para mañana, andá a
-   [Producción](08-produccion.md) para ver qué se sugiere hornear.
+   [Producción](09-produccion.md) para ver qué se sugiere hornear.
 
 **No necesitás mirar el resto todos los días.** El resto de las pantallas
 es para cuando hacés acciones específicas.

@@ -62,7 +62,7 @@ Tocá **Agregar línea** y repetí. Al final tocá **Guardar cambios**.
 
 ## Vincular receta a producto
 
-Una vez que tenés la receta, andá a [Productos](04-productos.md) y en el
+Una vez que tenés la receta, andá a [Productos](05-productos.md) y en el
 producto correspondiente elegí esta receta en el campo "Receta".
 
 A partir de ahí, cada vez que vendas ese producto, la app descuenta
@@ -110,4 +110,4 @@ sub-producto, podés:
 
 ## Siguiente paso
 
-→ [06-clientes.md](06-clientes.md) — cómo registrar clientes.
+→ [07-clientes.md](07-clientes.md) — cómo registrar clientes.

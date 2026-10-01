@@ -90,4 +90,4 @@ todo automáticamente cuando cargás ventas con teléfono.
 
 ## Siguiente paso
 
-→ [07-merma.md](07-merma.md) — cómo registrar desperdicio.
+→ [08-merma.md](08-merma.md) — cómo registrar desperdicio.

@@ -47,10 +47,10 @@ tildes**. Eso indica que hay un problema que tenés que investigar.
 | Si completaste... | ...y querés entender mejor | Andá a |
 |---|---|---|
 | Conteo de caja | Cuánto entró en ventas hoy | [01-dashboard.md](01-dashboard.md) |
-| Ventas conciliadas | Cuál es el margen del día | [09-reportes.md](09-reportes.md) → Diario |
-| Stock bajo revisado | Qué tenés que reponer | [13-reponer.md](13-reponer.md) |
-| Ingredientes a reordenar | El costo estimado de la próxima compra | [13-reponer.md](13-reponer.md) |
-| Merma registrada | Cuánto te costó la merma | [07-merma.md](07-merma.md) |
+| Ventas conciliadas | Cuál es el margen del día | [10-reportes.md](10-reportes.md) → Diario |
+| Stock bajo revisado | Qué tenés que reponer | [14-reponer.md](14-reponer.md) |
+| Ingredientes a reordenar | El costo estimado de la próxima compra | [14-reponer.md](14-reponer.md) |
+| Merma registrada | Cuánto te costó la merma | [08-merma.md](08-merma.md) |
 
 ## Tu rutina con EOD
 
@@ -67,4 +67,4 @@ tildes**. Eso indica que hay un problema que tenés que investigar.
 
 ## Siguiente paso
 
-→ [15-excel.md](15-excel.md) — importar/exportar planillas.
+→ [16-excel.md](16-excel.md) — importar/exportar planillas.

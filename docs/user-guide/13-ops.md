@@ -31,7 +31,7 @@ Si todo está verde, todo está bien. Si algo está rojo, **avisá a Iván**.
 | **Healthz** | La app está caída | Esperá 30 segundos y refrescá. Si sigue rojo, avisá a Iván. |
 | **Base de datos** | No se puede conectar a Postgres | Avisá a Iván — puede ser problema del proveedor de Neon. |
 | **Esquema** | Las migraciones no corrieron | Iván tiene que correrlas. |
-| **Errores** | Más de 5 errores en 1 hora | Avisá a Iván — ver [10-auditoria.md](10-auditoria.md) para detalles. |
+| **Errores** | Más de 5 errores en 1 hora | Avisá a Iván — ver [11-auditoria.md](11-auditoria.md) para detalles. |
 
 ## Tu día a día con Ops
 
@@ -44,7 +44,7 @@ un error técnico.
 ## Siguiente paso
 
 Si querés ver todos los detalles de los errores, andá a
-[10-auditoria.md](10-auditoria.md) y filtrá por `http.500`.
+[11-auditoria.md](11-auditoria.md) y filtrá por `http.500`.
 
 Si todo está bien y querés volver al trabajo, andá a
 [01-dashboard.md](01-dashboard.md).

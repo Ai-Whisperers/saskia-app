@@ -104,4 +104,4 @@ el promedio.
 
 ## Siguiente paso
 
-→ [10-auditoria.md](10-auditoria.md) — el log de auditoría.
+→ [11-auditoria.md](11-auditoria.md) — el log de auditoría.

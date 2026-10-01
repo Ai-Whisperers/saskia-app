@@ -68,7 +68,7 @@ toques** a menos que Iván te pida.)
    **Guardar**.
 4. Si querés volver al valor de fábrica, tocá **Reset**.
 
-**Todos los cambios quedan registrados en [Auditoría](10-auditoria.md).**
+**Todos los cambios quedan registrados en [Auditoría](11-auditoria.md).**
 
 ## Tu día a día con Configuración
 
@@ -83,4 +83,4 @@ una vez al configurar la panadería. Después, no necesitás volver.
 
 ## Siguiente paso
 
-→ [12-ops.md](12-ops.md) — la pantalla de diagnóstico (poco frecuente).
+→ [13-ops.md](13-ops.md) — la pantalla de diagnóstico (poco frecuente).

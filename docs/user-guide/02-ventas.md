@@ -55,7 +55,7 @@ un control remoto), esto es para vos:
 
 **Si el SKU no existe:** la app muestra "SKU no encontrado". Tendrás que
 cargar ese producto primero en
-[Productos](04-productos.md) → Asignar SKU.
+[Productos](05-productos.md) → Asignar SKU.
 
 ### Opción B: Selección manual
 
@@ -99,7 +99,7 @@ manteca, etc., en las proporciones correctas.
 
 > **Si la receta no está bien cargada**, las proporciones se calculan
 > mal y tu stock queda incorrecto. Es importante mantener las recetas
-> actualizadas — ver [05-recetas.md](05-recetas.md).
+> actualizadas — ver [06-recetas.md](06-recetas.md).
 
 ## Errores comunes
 
@@ -124,4 +124,4 @@ manteca, etc., en las proporciones correctas.
 
 ## Siguiente paso
 
-→ [03-inventario.md](03-inventario.md) — cómo gestionar ingredientes y stock.
+→ [04-inventario.md](04-inventario.md) — cómo gestionar ingredientes y stock.

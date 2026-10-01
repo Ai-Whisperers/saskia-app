@@ -84,4 +84,4 @@ vendieron** (se vencieron, se cayeron, se quemaron en producción).
 
 ## Siguiente paso
 
-→ [08-produccion.md](08-produccion.md) — el plan diario de producción.
+→ [09-produccion.md](09-produccion.md) — el plan diario de producción.

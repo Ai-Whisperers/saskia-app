@@ -91,4 +91,4 @@ ambos y el costo va a aparecer.
 
 ## Siguiente paso
 
-→ [05-recetas.md](05-recetas.md) — cómo hacer una receta.
+→ [06-recetas.md](06-recetas.md) — cómo hacer una receta.

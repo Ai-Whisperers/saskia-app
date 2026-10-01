@@ -56,12 +56,12 @@ Antes de empezar a vender, necesitás cargar el **catálogo**. En orden:
 
 1. **Inventario → + Nuevo ingrediente** — cargá todos tus ingredientes
    con su stock actual y precio de compra. Ver
-   [03-inventario.md](03-inventario.md).
+   [04-inventario.md](04-inventario.md).
 2. **Productos → + Nuevo producto** — cargá los productos que vendés
    (medialunas, tortas, etc.) con su precio. Ver
-   [04-productos.md](04-productos.md).
+   [05-productos.md](05-productos.md).
 3. **Recetas → + Nueva receta** — para cada producto, decí qué
-   ingredientes lleva y cuánto. Ver [05-recetas.md](05-recetas.md).
+   ingredientes lleva y cuánto. Ver [06-recetas.md](06-recetas.md).
 
 Después de cargar el catálogo, ya podés registrar ventas. Ver
 [02-ventas.md](02-ventas.md).

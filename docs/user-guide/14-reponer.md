@@ -81,4 +81,4 @@ Inventario listo para producción
 
 ## Siguiente paso
 
-→ [14-cierre.md](14-cierre.md) — el cierre diario (tareas del final del día).
+→ [15-cierre.md](15-cierre.md) — el cierre diario (tareas del final del día).

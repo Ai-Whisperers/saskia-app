@@ -53,7 +53,7 @@ sugeridos. **Esta lista es lo que tenés que comprar** antes de mañana.
 
 **Si algún ingrediente no aparece** en esta lista, probablemente
 significa que el producto no tiene receta cargada. Andá a
-[Recetas](05-recetas.md) y completá.
+[Recetas](06-recetas.md) y completá.
 
 ## Botón "Marcar como hecho"
 
@@ -93,4 +93,4 @@ venta. La app ya sabe esto.
 
 ## Siguiente paso
 
-→ [09-reportes.md](09-reportes.md) — los reportes financieros.
+→ [10-reportes.md](10-reportes.md) — los reportes financieros.

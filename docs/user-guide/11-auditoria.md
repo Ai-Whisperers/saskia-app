@@ -62,7 +62,7 @@ para diagnosticar problemas, pero no los mira rutinariamente.
 ## Errores 500
 
 Si la app tuvo un error técnico (no culpa tuya), queda registrado como
-**http.500**. La página [12-ops.md](12-ops.md) te deja ver el resumen
+**http.500**. La página [13-ops.md](13-ops.md) te deja ver el resumen
 rápido sin entrar al log completo.
 
 Si ves muchos errores 500 seguidos, **avisá a Iván** — algo no está
@@ -70,4 +70,4 @@ funcionando bien.
 
 ## Siguiente paso
 
-→ [11-configuracion.md](11-configuracion.md) — cómo cambiar preferencias.
+→ [12-configuracion.md](12-configuracion.md) — cómo cambiar preferencias.

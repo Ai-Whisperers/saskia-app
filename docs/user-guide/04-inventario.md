@@ -65,7 +65,7 @@ Tocá **Editar → Eliminar**. La app te pide confirmación.
 
 El stock baja automáticamente cuando:
 - Vendés un producto que usa ese ingrediente.
-- Registrás merma (desperdicio) en [07-merma.md](07-merma.md).
+- Registrás merma (desperdicio) en [08-merma.md](08-merma.md).
 
 El stock sube cuando:
 - Comprás mercadería y actualizás manualmente el campo.
@@ -84,7 +84,7 @@ algo es la forma más confiable.
   huevos). Tienen precio de compra y stock.
 
 La pantalla **Inventario** es para ingredientes. Para productos,
-andá a [04-productos.md](04-productos.md).
+andá a [05-productos.md](05-productos.md).
 
 ## Tu flujo de trabajo
 
@@ -103,4 +103,4 @@ siendo correcto.
 
 ## Siguiente paso
 
-→ [04-productos.md](04-productos.md) — qué vendés y a qué precio.
+→ [05-productos.md](05-productos.md) — qué vendés y a qué precio.
