@@ -4021,6 +4021,7 @@ MIGRATIONS = {
     81: _migration_081_pedido_delivery_window,
     82: _migration_082_expense,
     83: _migration_083_recipe_yield_qty_insert_guard,
+    84: _migration_084_stock_qty_nonneg,
 }
 
 

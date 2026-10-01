@@ -5,6 +5,17 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 
+@pytest.fixture(autouse=True)
+def run_migration_084(session_factory):
+    """Ensure migration 084 runs before tests."""
+    # Import the migration function to ensure it's registered
+    from app.rms.migrations._084_stock_qty_nonneg import _migration_084_stock_qty_nonneg
+    
+    with session_factory() as conn:
+        # Run the migration
+        _migration_084_stock_qty_nonneg(conn)
+
+
 def test_stock_qty_cannot_go_negative_in_sqlite(session_factory):
     """Test that DB-level rejection works for negative stock_qty in SQLite."""
     with session_factory() as db:

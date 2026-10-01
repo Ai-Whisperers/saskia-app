@@ -197,7 +197,7 @@
   </thead>
   <tbody>
     {% for i in ingredients %}
-    <tr class="{% if i.stock_qty < 0 %}row-negative{% endif %}">
+    <tr class="">
       <td>
         <strong data-copy="{{ i.id }}"><a href="/inventario/{{ i.id }}">{{ fmt.entity_name(i) }}</a></strong>
         {% if i.category %}<span style="display:inline-flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-accent);flex-shrink:0;" aria-hidden="true"></span>{{ t.category_pill(i.category) }}</span>{% endif %}
@@ -358,8 +358,6 @@
 {% include "_components/merma_modal.html" %}
 
 <style>
-.row-negative td { background-color: rgba(220, 38, 38, 0.07); }
-.row-negative:hover td { background-color: rgba(220, 38, 38, 0.13); }
 .pagination {
   display: flex;
   align-items: center;
