@@ -5,7 +5,7 @@
 
 **URL activa:** `https://saskia-vps.paragu-ai.com`  *(si ves "service suspended", contactá al equipo — esa URL no es la correcta)*
 **URL alternativa (suspendida):** `https://saskia-rms.paragu-ai.com` — Render, NO usar
-**Versión del manual:** 2026-10-01 · schema 74 · commit `69f9442` · 16 secciones
+**Versión del manual:** 2026-10-01 · schema 74 · commit `f382741` · 16 secciones
 **Manual versión:** v1.0 (ver "Cómo verificar la versión" abajo)
 
 ## Índice rápido
@@ -83,7 +83,7 @@ Ops               → diagnóstico (solo Iván)
 
 ## Lo que podés hacer — y lo que todavía no
 
-**Versión:** schema 74 · commit `69f9442` · 2026-10-01
+**Versión:** schema 74 · commit `f382741` · 2026-10-01
 
 ### ✅ Funcionalidades activas (lista cerrada)
 
