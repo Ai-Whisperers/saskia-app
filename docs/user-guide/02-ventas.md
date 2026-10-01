@@ -35,10 +35,21 @@ El formulario tiene estos campos:
 | **Producto** | Elegí el producto desde el menú. |
 | **Cantidad** | Cuántas unidades (por defecto: 1). |
 | **Forma de pago** | efectivo / transferencia / tarjeta / otro. |
-| **Descuento (Gs.)** | Si le hiciste descuento al cliente, escribilo acá en guaraníes. |
+| **Descuento (%)** | Porcentaje de descuento por línea (0 a 100). La app calcula el descuento en guaraníes por vos. |
 | **Cliente (teléfono)** | Si querés registrar quién compró, escribí el teléfono. |
 | **Notas** | Algo que quieras anotar ("cliente pidió extra queso"). |
 | **Fecha y hora** | Por defecto: ahora. Tocá para cambiarla si necesitás registrar una venta anterior. |
+
+> **Sobre los descuentos:**
+> - El campo es un **porcentaje** entre 0 y 100, no guaraníes. La app
+>   calcula el monto por vos usando el subtotal de la línea (sin errores
+>   de redondeo).
+> - Si cargás ventas con descuentos, el **Dashboard** ya muestra los
+>   totales **post-descuento** (antes mostraba el bruto y sobreestimaba
+>   la ganancia cuando había descuentos).
+> - El sistema registra el descuento por línea, no por venta total — si
+>   tenés dos productos con descuentos distintos, cada uno se guarda
+>   por separado.
 
 Después de completar, hacé clic en **Registrar venta**.
 

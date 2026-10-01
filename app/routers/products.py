@@ -760,14 +760,14 @@ def product_bulk_delete(
 # ─── Bulk edit ──────────────────────────────────────────────────────────────────
 
 @router.post("/bulk-edit")
-def product_bulk_edit(
+async def product_bulk_edit(
     request: Request,
     session: Session = Depends(get_session),
 ) -> JSONResponse:
     """Bulk-edit products: price_pct (±% on sale_price_gs),
     set_availability (bool), set_category (string)."""
     try:
-        body = request._json()
+        body = await request.json()
     except Exception:  # noqa: BLE001 — defensive default
         return JSONResponse(status_code=400, content={"error": "JSON body required"})
 

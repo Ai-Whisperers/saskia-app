@@ -81,6 +81,28 @@ una vez al configurar la panadería. Después, no necesitás volver.
 - Si querés que el dashboard muestre "Mes" en vez de "Hoy" por
   defecto.
 
+## Riesgos (issues / riesgos operativos)
+
+En la barra superior vas a ver también **Riesgos** (con un ícono de
+advertencia). Sirve para anotar cosas que **no son urgentes** pero que
+querés que Iván vea la próxima vez que entre al sistema:
+
+- "La balanza está descalibrada — descuadra ~10 g por kilo."
+- "El horno 2 hace un ruido raro cuando arranca."
+- "Faltan bandejas de aluminio para medialunas."
+
+Cada riesgo tiene **descripción**, **probabilidad** (baja / media / alta)
+e **impacto estimado** (en Gs., si es cuantificable). Cuando el tema se
+resuelve, lo marcás como **mitigado** desde la misma pantalla — no se
+borra, queda en el historial.
+
+**Cuándo usarlo:**
+
+- ✅ Cuando algo funciona mal pero no bloquea el día (no es un 911).
+- ✅ Cuando notás un patrón que se repite (cliente se queja seguido de X).
+- ❌ **NO** para ventas anuladas o problemas urgentes — esos se resuelven
+  en el momento con Iván por WhatsApp.
+
 ## Siguiente paso
 
 → [13-ops.md](13-ops.md) — la pantalla de diagnóstico (poco frecuente).

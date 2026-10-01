@@ -21,7 +21,7 @@ Cambian los números de abajo:
 
 | Cifra | Qué significa |
 |---|---|
-| **Ventas** | Cuánto plata entró en ventas (en guaraníes) |
+| **Ventas** | Cuánto plata entró en ventas (en guaraníes, **post-descuento**) |
 | **Costo de lo vendido** | Cuánto te costó hacer lo que vendiste (materias primas) |
 | **Margen** | Ventas − Costo = ganancia bruta |
 

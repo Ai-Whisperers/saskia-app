@@ -5,7 +5,7 @@
 
 **URL activa:** `https://saskia-vps.paragu-ai.com`  *(si ves "service suspended", contactá al equipo — esa URL no es la correcta)*
 **URL alternativa (suspendida):** `https://saskia-rms.paragu-ai.com` — Render, NO usar
-**Versión del manual:** 2026-10-01 · schema 83 · commit `4c3fba1` · 17 secciones
+**Versión del manual:** 2026-10-01 · schema 83 · commit `<HEAD>` · 17 secciones
 **Manual versión:** v1.1 (ver "Cómo verificar la versión" abajo)
 
 ## Índice rápido
@@ -36,7 +36,8 @@
 
 - Toda la app está en **español rioplatense** (usamos "vos": "guardá", "vendé").
 - La moneda es **guaraní (Gs.)** y se muestra sin decimales (`1.234.567`).
-- El horario que importa es **Asunción (UTC-4)**. El sistema
+- El horario que importa es **Asunción (UTC-4 en invierno, UTC-3 en verano)**. Paraguay
+  cambia el reloj en octubre (a UTC-3) y en marzo (a UTC-4). El sistema
   convierte automáticamente — no necesitás pensar en zonas horarias.
 
 ### Cómo se ve la app
@@ -84,7 +85,7 @@ Excel             → importar/exportar planilla
 
 ## Lo que podés hacer — y lo que todavía no
 
-**Versión:** schema 83 · commit `4c3fba1` · 2026-10-01
+**Versión:** schema 83 · commit `<HEAD>` · 2026-10-01
 
 ### ✅ Funcionalidades activas (lista cerrada)
 
@@ -104,6 +105,9 @@ Excel             → importar/exportar planilla
 | 12 | Reponer stock (con precios scrapeados) | [`14-reponer`](14-reponer.md) | `15-reorder.png` |
 | 13 | Reporte diario de ventas | [`10-reportes`](10-reportes.md) | `16-reportes-diario.png` |
 | 14 | Registrar cliente y sumar puntos | [`07-clientes`](07-clientes.md) | `17-clientes.png` |
+| 14a | Crear cliente nuevo desde el formulario dedicado (antes: solo CSV) | [`07-clientes`](07-clientes.md) | (en `17-clientes.png`) |
+| 14b | Ver desglose de zonas horarias del cliente (fraud-spotting: cliente comprando desde una tz nueva) | [`07-clientes`](07-clientes.md) → perfil | (en `17-clientes.png`) |
+| 14c | Registrar riesgo / issue desde la página `/riesgos` (antes: solo vía DB) | [`12-configuracion`](12-configuracion.md) → Riesgos | (captura nueva) |
 | 15 | Canjear puntos del cliente (POS) | [`02-ventas`](02-ventas.md) → "Usar puntos" | (en POS) |
 | 16 | Lista de compras (sincroniza con stock bajo) | [`14-reponer`](14-reponer.md) → Lista de compras | `18-shopping-list.png` |
 | 17 | Suscripción semanal de un cliente (pedido recurrente) | [`03-pedidos`](03-pedidos.md) → Suscripciones | (en `03-pedidos-board.png`) |
@@ -139,7 +143,7 @@ Tres formas:
 |---|---|---|
 | En el navegador | Pie de página de cualquier pantalla | "Saskia RMS v1.0 · Sistema local · 2026" |
 | Al iniciar sesión | Header `X-Agent` en respuesta `/login` | `SaskiaRMS/1.0` |
-| En este manual | El número "v1.x" arriba | Dice `2026-10-01 · schema 82` |
+| En este manual | El número "v1.x" arriba | Dice `2026-10-01 · schema 83 · commit <HEAD>` |
 
 Si los tres no coinciden, **el manual está desactualizado** — avisá a Iván para que lo actualice.
 

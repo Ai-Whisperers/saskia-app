@@ -23,6 +23,39 @@
 > **Tip:** en la panadería, basta con pedir el teléfono al cliente y
 > escribirlo en la venta. No necesitás nombre completo.
 
+### Crear un cliente desde la app (opcional)
+
+Si querés cargar un cliente **antes** de la primera venta — por ejemplo,
+para abrir un pedido anticipado o para anotar dirección y nombre de
+antemano — andá a **Clientes → Nuevo cliente** (botón "+" arriba a la
+derecha). Te deja completar:
+
+- Nombre y apellido
+- Teléfono (formato Paraguay: `+5959XX XXXXXX`)
+- Dirección y notas
+
+Si el teléfono ya existe, la app **actualiza** al cliente en lugar de
+crear uno duplicado — útil si cambia de dirección o nombre.
+
+### Ver zonas horarias del cliente
+
+Cuando entrás al perfil de un cliente (pestaña "Historial"), abajo del
+listado de compras vas a ver un desglose por **zona horaria** (tz). Por
+ejemplo:
+
+```
+🇵🇾 Asunción       47 compras · 1.234.000 Gs.
+🇦🇷 Buenos Aires    3 compras ·   45.000 Gs.
+```
+
+Sirve para dos cosas:
+
+1. **Multi-sucursal:** saber en qué zona compra más cada cliente antes de
+   abrir un local nuevo.
+2. **Fraud-spotting:** si un cliente de repente compra desde una tz que
+   nunca usó (y se queja de puntos faltantes), es señal de que alguien
+   usó su teléfono. Anotalo y avisá a Iván.
+
 ## Programa de puntos
 
 La regla es: **1 punto por cada 1.000 Gs. gastados**, y **cada punto vale
