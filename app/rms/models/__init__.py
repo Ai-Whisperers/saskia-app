@@ -24,6 +24,7 @@ from app.rms.models_legacy import (
     CustomerAddress,  # noqa: F401 — re-exported via __all__
     CustomerInvoiceProfile,  # noqa: F401 — Phase 13 multiple invoice profiles
     DeliveryZone,  # noqa: F401 — re-exported via __all__
+    Expense,  # noqa: F401 — Phase 14 operating-expense rows
     ImportBatch,  # noqa: F401 — re-exported via __all__
     Ingredient,  # noqa: F401 — re-exported via __all__
     IngredientPriceEvent,  # noqa: F401 — re-exported via __all__

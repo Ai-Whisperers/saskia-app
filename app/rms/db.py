@@ -3816,6 +3816,64 @@ def _migration_081_pedido_delivery_window(conn: Any) -> None:
     _bump_schema_version(conn, 81)
 
 
+def _migration_082_expense(conn: Any) -> None:
+    """Phase 14 (2026-10-01): Expense model for cierres mensuales.
+
+    Until now, `daily_summary()` returned
+    `expenses_placeholder_gs=0` and the cierres mensuales could
+    not subtract operating expenses from margin. This migration
+    adds the `expense` table:
+
+        id              INT PK
+        occurred_at     DATETIME — when the expense hit the cash
+        category        VARCHAR(32) — INGREDIENT | RENT | UTILITIES |
+                                          PAYROLL | PACKAGING | OTHER
+        description     VARCHAR(255)
+        amount_gs       INT — always positive (sign applied at
+                          aggregate time)
+        is_voided        BOOLEAN (false default)
+        created_at      DATETIME (UTC, default now)
+
+    Categories are an INKWARD check constraint (sqlite doesn't have
+    ENUM; we guard via CHECK at row-insert time in the ORM +
+    `executor-mapper` falls back to the constraint if ORM bypassed).
+    The table is referenced by daily_summary() to compute real
+    `expenses_gs` from rows in the day window.
+    """
+    try:
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS expense (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                occurred_at DATETIME NOT NULL,
+                category VARCHAR(32) NOT NULL,
+                description VARCHAR(255) NOT NULL DEFAULT '',
+                amount_gs INTEGER NOT NULL,
+                is_voided BOOLEAN NOT NULL DEFAULT 0,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("migration 082 CREATE TABLE expense failed: %s", exc)
+
+    try:
+        conn.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_expense_occurred_at ON expense(occurred_at)"
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("migration 082 ix_expense_occurred_at skipped: %s", exc)
+
+    try:
+        conn.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_expense_category ON expense(category)"
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("migration 082 ix_expense_category skipped: %s", exc)
+
+    _bump_schema_version(conn, 82)
+
+
 MIGRATIONS = {
     1: _migration_001_initial_schema,
     2: _migration_002_audit_log,
@@ -3898,6 +3956,7 @@ MIGRATIONS = {
     79: _migration_079_customer_address_structured,
     80: _migration_080_customer_invoice_profile,
     81: _migration_081_pedido_delivery_window,
+    82: _migration_082_expense,
 }
 
 

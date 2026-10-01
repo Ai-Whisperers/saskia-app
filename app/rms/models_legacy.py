@@ -15,7 +15,7 @@ Tables:
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from sqlalchemy import (
@@ -952,6 +952,53 @@ class WasteLog(Base):
 
     # Relationships
     ingredient: Mapped["Ingredient"] = relationship("Ingredient")
+
+
+# ──────────────────────────────────────────────────────────────────
+# Expense model (migration 082, Phase 14 2026-10-01)
+# ──────────────────────────────────────────────────────────────────
+
+
+class Expense(Base):
+    """An operating-expense row (Phase 14).
+
+    Used by `daily_summary()` to subtract real expenses from margin
+    (until now it returned `expenses_placeholder_gs=0`). Also feeds
+    cierres mensuales.
+
+    Categories: INGREDIENT | RENT | UTILITIES | PAYROLL | PACKAGING |
+                OTHER. amount_gs is always positive — sign applied at
+    aggregate time. is_voided=True preserves audit trail while removing
+    the row from aggregates (same pattern as Sale.voided_at).
+    """
+
+    __tablename__ = "expense"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    category: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    description: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    amount_gs: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_voided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    # Optional bookkeeping: who logged it + an optional supplier FK
+    # for INGREDIENT expenses (lets you trace flour from supplier X).
+    created_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    supplier_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("supplier.id"), nullable=True
+    )
+
+    __table_args__ = (
+        CheckConstraint("amount_gs >= 0", name="ck_expense_amount_nonneg"),
+        CheckConstraint(
+            "category IN ('INGREDIENT','RENT','UTILITIES','PAYROLL','PACKAGING','OTHER')",
+            name="ck_expense_category",
+        ),
+    )
+
+    supplier: Mapped[Optional["Supplier"]] = relationship("Supplier")
 
 
 # ──────────────────────────────────────────────────────────────────

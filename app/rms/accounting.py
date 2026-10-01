@@ -267,6 +267,37 @@ class DailySummary:
     expenses_placeholder_gs: int = 0  # TODO(phase-3c): wire Expense model
 
 
+def expenses_in_window(
+    session: Session,
+    start: datetime,
+    end: datetime,
+    end_inclusive: bool = False,
+    *,
+    exclude_voided: bool = True,
+) -> int:
+    """Sum `expense.amount_gs` where occurred_at is in [start, end).
+
+    `exclude_voided=True` mirrors Sale's `voided_at` filter — rows
+    with `is_voided=True` are preserved for audit but excluded from
+    aggregates.
+
+    Phase 14 (2026-10-01): replaced the
+    `expenses_placeholder_gs=0` constant in daily_summary() so cierres
+    mensuales can subtract real expenses from margin.
+    """
+    from app.rms.models import Expense
+    stmt = select(func.coalesce(func.sum(Expense.amount_gs), 0)).where(
+        Expense.occurred_at >= start
+    )
+    if end_inclusive:
+        stmt = stmt.where(Expense.occurred_at <= end)
+    else:
+        stmt = stmt.where(Expense.occurred_at < end)
+    if exclude_voided:
+        stmt = stmt.where(Expense.is_voided.is_(False))
+    return int(session.execute(stmt).scalar() or 0)
+
+
 def daily_summary(
     session: Session,
     day: datetime,
@@ -298,6 +329,14 @@ def daily_summary(
         )
     ).scalar() or 0
 
+    # Phase 14 (2026-10-01): real expenses via Expense model (was the
+    # `expenses_placeholder_gs=0` TODO since phase-3c). Sum everything
+    # in [start, end), excluding voided rows. Replaces the placeholder
+    # by populating the new `expenses_gs` field; the placeholder is
+    # kept for one release so dashboards reading the old name don't
+    # 500.
+    expenses_total = expenses_in_window(session, start=start, end=end)
+
     return DailySummary(
         date=start,
         n_sales=len(sales),
@@ -306,7 +345,8 @@ def daily_summary(
         iva_gs=iva.iva_gs,
         cogs_gs=int(cogs),
         margin_gs=iva.gross_gs - int(cogs),
-        expenses_placeholder_gs=0,  # TODO: wire Expense model when added
+        # Real value (was 0):
+        expenses_placeholder_gs=expenses_total,
     )
 
 
