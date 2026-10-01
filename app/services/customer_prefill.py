@@ -79,6 +79,15 @@ class CustomerPrefill:
     last_pedido_summary: str | None = None
     clone_lines: list[dict] = field(default_factory=list)
 
+    # Phase 7 — address picker: list of saved addresses for the customer.
+    # Empty when the customer has 0 addresses. The frontend renders a
+    # picker dropdown when length >= 2; with 1 address we auto-fill
+    # without showing the picker; with 0 we just show the text input.
+    available_addresses: list[dict] = field(default_factory=list)
+    # Loyalty balance + projected points (Phase 8 — for the banner)
+    loyalty_points_balance: int = 0
+    loyalty_points_projected: int = 0
+
     def to_dict(self) -> dict:
         return asdict(self)
 
@@ -164,15 +173,25 @@ def compute_customer_defaults(
 
     # --- Delivery ---
     out.delivery_zone_id = customer.preferred_zone_id
+    all_addresses = session.execute(
+        select(CustomerAddress).where(CustomerAddress.customer_id == customer_id)
+    ).scalars().all()
+    out.available_addresses = [
+        {
+            "id": addr.id,
+            "label": addr.label,
+            "address_text": addr.address_text,
+            "is_default": bool(addr.is_default),
+            "delivery_zone_id": addr.zone_id,
+        }
+        for addr in all_addresses
+    ]
     addr = _default_address(session, customer_id)
     if addr:
         out.address_text = addr.address_text
         out.address_label = addr.label
         # If the customer has 0 or 1 addresses total, "save" by default
-        total_addrs = session.execute(
-            select(CustomerAddress).where(CustomerAddress.customer_id == customer_id)
-        ).scalars().all()
-        out.save_address = len(total_addrs) <= 1
+        out.save_address = len(all_addresses) <= 1
 
     # --- When ---
     # Promised date: customer's average lead time (today → pedido.promised_date)
@@ -223,6 +242,19 @@ def compute_customer_defaults(
     elif recent and recent.lines:
         # Default: copy most-recent pedido's lines (cheap "Pedir de nuevo")
         out.clone_lines = _pedido_lines_as_dicts(recent.id, session)
+
+    # Phase 8 — Loyalty banner.
+    # Show the customer's current points balance + a projection of what
+    # they'll earn on this pedido if it's fulfilled today. Operators use
+    # this to remind the customer at the counter ("sumás ~120 pts hoy").
+    out.loyalty_points_balance = int(customer.loyalty_points or 0)
+    # Projected: 1 point / 1.000 Gs. (matches the migration 074 earn rate).
+    # Estimate the pedido total from the cloned lines, or 0 if none.
+    projected_gs = sum(
+        ln.get("qty", 0) * ln.get("unit_price_gs", 0)
+        for ln in out.clone_lines
+    )
+    out.loyalty_points_projected = int(projected_gs // 1000)
 
     return out
 
