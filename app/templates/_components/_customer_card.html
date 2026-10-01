@@ -104,9 +104,19 @@
     </div>
     <div id="points-redeem-preview" class="text-muted"
          style="margin-top:6px;font-size:0.85rem;min-height:1.2em;">
-      1 punto = 1.000 Gs. de descuento
+      {# T-2026-10-01: rate comes from server-rendered window global so the
+         UI shows the real POINTS_VALUE_GS, not a hardcoded string. #}
+      <span id="points-redeem-rate-display">1 punto = 1.000 Gs. de descuento</span>
     </div>
   </div>
+
+  <script>
+    // Expose the loyalty rate so customer_picker.js (and any other
+    // page-level script) computes the discount at the live rate, not
+    // a stale hardcoded 1000.
+    window.SASKIA_POINTS_VALUE_GS = {{ POINTS_VALUE_GS | tojson }};
+    window.SASKIA_POINTS_PER_GS_EARN = {{ POINTS_PER_GS_EARN | tojson }};
+  </script>
 
   {# ── Tier 2.1 (2026-10-01): one-tap auto-apply for large balances.
        When the customer has ≥100 points (≥ Gs. 100.000 of meaningful

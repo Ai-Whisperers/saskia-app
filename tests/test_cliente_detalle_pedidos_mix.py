@@ -92,37 +92,55 @@ def test_detalle_pedir_de_nuevo_cta_links(client, qseed, session_factory):
 
 
 def test_detalle_top_products_section_renders(client, qseed, session_factory):
-    """When the customer has sold products, the page shows the
-    'Productos frecuentes' section."""
+    """T-2026-10-01: reviewer's "right-pane table bloat" rule. The
+    Productos frecuentes section was removed (folded into Pedidos
+    recientes <details>). This test is preserved as a regression
+    guard so the new shape — pedidos with inline line-item expansion
+    — stays present.
+    """
     qseed("with_kyrian_full")
     cid = _kyrian_customer_id(session_factory)
 
     r = client.get(f"/clientes/{cid}")
     body = r.text
-    assert "Productos frecuentes" in body
-    # Should mention it's "Top 5" so operators understand the limit
-    assert "Top 5" in body
+    # New shape: pedidos with <details> expansion (the line-item
+    # snapshot lives inside, not as a separate table).
+    assert "Pedidos recientes" in body
+    assert "recent-pedido" in body
+    # The Productos frecuentes section was deliberately removed.
+    assert "Productos frecuentes" not in body
 
 
 def test_detalle_top_products_lists_product_with_sales(client, qseed, session_factory):
-    """When customer has sales, at least one product row is shown."""
+    """T-2026-10-01: reviewer's "right-pane table bloat" rule. The
+    Productos frecuentes table was removed — the same product data
+    is now surfaced inline inside each Pedidos recientes <details>
+    expansion (via top_lines). This test now asserts the new shape:
+    the pedidos section is present and at least one pedido row
+    expands to show item lines including the Croissant / Pan Francés
+    that Kyrian buys.
+    """
     qseed("with_kyrian_full")
     cid = _kyrian_customer_id(session_factory)
 
     r = client.get(f"/clientes/{cid}")
     body = r.text
 
-    # Pull just the productos section
-    start = body.find("Productos frecuentes")
-    assert start >= 0
-    section = body[start:]
-
-    # The seed includes Croissant + Pan Francés for Kyrian. The product
-    # table uses `.num` cells; we just verify a "Ventas" column header
-    # is present and at least one numeric row appears.
-    assert "Ventas" in section
-    assert "Cantidad total" in section
-    assert "Total (Gs.)" in section
+    # Pedidos recientes section must exist
+    assert "Pedidos recientes" in body
+    # Each pedido row is now a <details class="recent-pedido">
+    assert "recent-pedido" in body
+    # Kyrian's seeded favorites include Appeltaart, Babka de chocolate,
+    # Cheesecake entera, Pan lactal, Stroopwafel — at least one of
+    # these MUST be in the HTML (rendered inside the <details>
+    # expansion). This proves the top_lines snapshot is wired through.
+    body_text = body
+    expected_products = ["Appeltaart", "Babka de chocolate", "Cheesecake entera", "Pan lactal", "Stroopwafel"]
+    assert any(prod in body_text for prod in expected_products), (
+        f"Expected at least one of {expected_products} in the page (rendered "
+        f"inside the new Pedidos recientes <details> expansion), but none "
+        f"appeared. Either the seed or the top_lines snapshot is broken."
+    )
 
 
 def test_detalle_no_recent_pedidos_hides_section(client, qseed, session_factory):

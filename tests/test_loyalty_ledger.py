@@ -80,7 +80,7 @@ def test_award_points_zero_when_below_threshold(session_factory):
 
 def test_redeem_points_writes_ledger_row_and_debits_balance(session_factory):
     from app.rms.customers import ensure_customer
-    from app.rms.loyalty import award_points, redeem_points
+    from app.rms.loyalty import POINTS_VALUE_GS, award_points, redeem_points
     from app.rms.models import Customer, LoyaltyTransaction
 
     with session_factory() as s:
@@ -99,7 +99,11 @@ def test_redeem_points_writes_ledger_row_and_debits_balance(session_factory):
         s.commit()
 
     assert redeemed == 10
-    assert discount == 10_000  # 1 pt = 1.000 Gs.
+    # T-2026-10-01: redemption rate is now POINTS_VALUE_GS (100 Gs per
+    # point at the new defaults), not 1.000 Gs/point. Pre-this-fix the
+    # redeem returned 1 pt = 1.000 Gs (100% return rate). The constants
+    # are split now: see app/rms/loyalty/ledger.py.
+    assert discount == 10 * POINTS_VALUE_GS  # = 1.000 at current default
 
     with session_factory() as s:
         cust = s.get(Customer, cust_id)

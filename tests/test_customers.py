@@ -139,17 +139,21 @@ def test_award_points_increments(session_factory):
 
 
 def test_redeem_points_returns_discount(session_factory):
-    """10 points -> 10k Gs. discount."""
+    """T-2026-10-01: 10 points -> POINTS_VALUE_GS*10 Gs. discount.
+    Pre-this-fix the rate was a hardcoded 1000 Gs/point (100% return);
+    now it's the tunable POINTS_VALUE_GS (100 Gs at current defaults,
+    so 10 pts = 1.000 Gs of discount)."""
+    from app.rms.loyalty import POINTS_VALUE_GS
     s = session_factory()
     try:
-        cust = ensure_customer(s, "Test", phone="+595981000011")
+        cust = ensure_customer(s, "Test", phone="+595****0011")
         award_points(s, cust, 25_000)
         s.commit()
         assert cust.loyalty_points == 25
         redeemed, discount = redeem_points(s, cust, 10)
         s.commit()
         assert redeemed == 10
-        assert discount == 10_000
+        assert discount == 10 * POINTS_VALUE_GS
         assert cust.loyalty_points == 15
     finally:
         s.close()

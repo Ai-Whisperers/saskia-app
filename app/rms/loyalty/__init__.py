@@ -19,7 +19,11 @@ from __future__ import annotations
 
 from app.rms.loyalty.ledger import (  # noqa: F401
     POINTS_PER_GS,
+    POINTS_PER_GS_EARN,
+    POINTS_VALUE_GS,
     award_points,
+    discount_gs_for_points,
+    effective_return_rate,
     points_for_sale,
     reconcile_loyalty_balance,
     redeem_points,
@@ -37,10 +41,14 @@ from app.rms.loyalty.suggestions import (  # noqa: F401
 
 __all__ = [
     "POINTS_PER_GS",
+    "POINTS_PER_GS_EARN",
+    "POINTS_VALUE_GS",
     "TIER_THRESHOLDS",
     "LoyaltyTier",
     "Suggestion",
     "award_points",
+    "discount_gs_for_points",
+    "effective_return_rate",
     "points_for_sale",
     "reconcile_loyalty_balance",
     "redeem_points",

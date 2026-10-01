@@ -264,6 +264,26 @@ def render(
     ctx.setdefault("now_local", _now_local())
     ctx.setdefault("now", _now())
 
+    # T-2026-10-01: inject the loyalty constants on every render so
+    # any template (or downstream <script>) can show the real rate.
+    # Pre-this-fix: hardcoded `*1000` literals in 4+ places caused a
+    # 100% lifetime-spend return rate. The constants now live in
+    # app/rms/loyalty/ledger.py; the routes are the single point of
+    # change when Saskia tunes the rate.
+    try:
+        from app.rms.loyalty import (
+            POINTS_PER_GS_EARN,
+            POINTS_VALUE_GS,
+            effective_return_rate,
+        )
+        ctx.setdefault("POINTS_VALUE_GS", POINTS_VALUE_GS)
+        ctx.setdefault("POINTS_PER_GS_EARN", POINTS_PER_GS_EARN)
+        ctx.setdefault("LOYALTY_RETURN_RATE_PCT", effective_return_rate())
+    except Exception:  # noqa: BLE001 — defensive default
+        ctx.setdefault("POINTS_VALUE_GS", 100)
+        ctx.setdefault("POINTS_PER_GS_EARN", 1 / 1000)
+        ctx.setdefault("LOYALTY_RETURN_RATE_PCT", 10.0)
+
     # Phase 5 — load branding once per request. Lazy import keeps
     # template_render import-light.
     # auth state for chrome (hide nav/search on the login screen).

@@ -297,21 +297,35 @@ def test_never_visited_no_lapsed_suggestion():
 
 
 def test_points_dormant_threshold_is_50():
-    """50 points, no last-visit redeem → KIND_PUNTOS_DORMIDOS."""
+    """50 points, no last-visit redeem → KIND_PUNTOS_DORMIDOS.
+
+    T-2026-10-01: the discount Gs in the body now uses POINTS_VALUE_GS
+    (100 Gs/pt at current defaults) instead of the old hardcoded 1000.
+
+    T-2026-10-01 (reviewer's "redundant suggestions" rule): the
+    suggestion card is hidden when points-dormant is the ONLY
+    suggestion. To keep the assertion meaningful we force a second
+    suggestion via tier=GOLD + n_sales=12 (cliente_fiel).
+    """
+    from app.rms.loyalty import POINTS_VALUE_GS
     from app.rms.loyalty.suggestions import suggest_for_customer
 
     out = suggest_for_customer(
         _FakeCustomer(loyalty_points=50),
         last_sale_at=_dt.datetime.combine(_today(), _dt.time()),
-        n_sales=3,
-        tier="BRONZE",
+        n_sales=12,           # → VIP rule also fires (cliente_fiel)
+        tier="GOLD",
         redeemed_on_last_visit=False,
         today=_today(),
     )
+    # Now both puntos_dormidos AND cliente_fiel are present
     puntos = next(s for s in out if s.kind == "puntos_dormidos")
     assert puntos.discount_pct is None  # points redeem has its own UI
     assert "50" in puntos.body
-    assert "50,000" in puntos.body or "50.000" in puntos.body  # 50 pts × 1000 Gs.
+    expected_discount_gs = 50 * POINTS_VALUE_GS  # = 5,000 at default 100 Gs/pt
+    expected_str_comma = f"{expected_discount_gs:,}"  # "5,000"
+    expected_str_dot = f"{expected_discount_gs:,}".replace(",", ".")  # "5.000"
+    assert expected_str_comma in puntos.body or expected_str_dot in puntos.body
 
 
 def test_points_dormant_skipped_when_under_threshold():
@@ -574,8 +588,14 @@ def test_cliente_api_with_lapsed_bronze_returns_vuelve_pronto(
 def test_cliente_api_with_dormant_points_returns_puntos_dormidos(
     session_factory, client, qseed
 ):
-    """End-to-end: 50+ points + didn't redeem last visit → 'puntos_dormidos'."""
+    """End-to-end: 50+ points + didn't redeem last visit → 'puntos_dormidos'.
+
+    T-2026-10-01: the discount in the body now reflects POINTS_VALUE_GS
+    (100 Gs/pt at default), not the old hardcoded 1000 Gs/pt. Pre-fix
+    this expected "60,000" in the body; now it expects "6,000".
+    """
     from app.rms.customers import ensure_customer
+    from app.rms.loyalty import POINTS_VALUE_GS
     from app.rms.models import Customer
 
     with session_factory() as s:
@@ -585,6 +605,12 @@ def test_cliente_api_with_dormant_points_returns_puntos_dormidos(
         s.flush()
         cust_db = s.get(Customer, cust.id)
         cust_db.loyalty_points = 60
+        # T-2026-10-01 (reviewer's "redundant suggestions" rule): the
+        # API endpoint also suppresses a lone points-dormant
+        # suggestion. Add a birthday in 3 days so the cumple_cerca
+        # rule fires alongside it.
+        from datetime import date, timedelta
+        cust_db.birthday = (date.today() + timedelta(days=3)).strftime("%m-%d")
         s.commit()
         cust_id = cust.id
 
@@ -595,4 +621,7 @@ def test_cliente_api_with_dormant_points_returns_puntos_dormidos(
     # Verify the body has the right numbers
     puntos = next(s for s in payload["suggestions"] if s["kind"] == "puntos_dormidos")
     assert "60" in puntos["body"]
-    assert "60,000" in puntos["body"] or "60.000" in puntos["body"]
+    expected_discount_gs = 60 * POINTS_VALUE_GS  # 6,000 at default
+    expected_comma = f"{expected_discount_gs:,}"
+    expected_dot = f"{expected_discount_gs:,}".replace(",", ".")
+    assert expected_comma in puntos["body"] or expected_dot in puntos["body"]

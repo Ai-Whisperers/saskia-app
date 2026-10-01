@@ -27,6 +27,7 @@ from app.rms.costing import RecipeWithoutYield, apply_sale, void_sale
 from app.rms.db import safe_commit
 from app.rms.dependencies import get_session
 from app.rms.errors import BadRequest, Conflict, NotFound, ValidationError
+from app.rms.loyalty import discount_gs_for_points
 from app.rms.messages import (
     SALE_BODY_INVALID,
     SALE_CUSTOMER_NOT_FOUND,
@@ -560,6 +561,11 @@ async def sale_receipt(
                 "earn_points": earn_abs,
                 "redeemed_points": redeem_abs,
                 "current_balance": int(cust.loyalty_points or 0),
+                # T-2026-10-01: pre-format the discount Gs at the source
+                # instead of having the template multiply by a hardcoded
+                # 1000. The POINTS_VALUE_GS rate (1 pt = 100 Gs) lives
+                # in app/rms/loyalty/ledger.py — change there, not here.
+                "redeemed_discount_gs": discount_gs_for_points(redeem_abs),
             }
     return render(
         request,

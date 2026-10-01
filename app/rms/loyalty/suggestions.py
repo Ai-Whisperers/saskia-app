@@ -39,6 +39,10 @@ import datetime as _dt
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional
 
+# T-2026-10-01: use the live discount rate (POINTS_VALUE_GS) instead of
+# the old hardcoded 1000 Gs/point that gave a 100% return rate.
+from app.rms.loyalty.ledger import POINTS_VALUE_GS
+
 if TYPE_CHECKING:
     from app.rms.models_legacy import Customer
 
@@ -184,6 +188,22 @@ def suggest_for_customer(
 
     # Sort by priority (lower wins), then by kind for stability.
     out.sort(key=lambda s: (s.priority, s.kind))
+
+    # T-2026-10-01: reviewer's "redundant suggestions" rule.
+    # If the ONLY suggestion is a points-dormant reminder AND the
+    # customer-detail page already shows the points balance
+    # prominently (it does — see the KPI tile "Puntos" in
+    # cliente_detalle.html), drop it. Reviewer caught the "merely
+    # repeats the point balance" waste of vertical space. Keep the
+    # card when it's one of multiple suggestions (it's still useful
+    # as an action item in context) or when it carries a unique
+    # algorithmic insight we don't surface elsewhere.
+    if (
+        len(out) == 1
+        and out[0].kind == KIND_PUNTOS_DORMIDOS
+    ):
+        return []
+
     return out[:MAX_SUGGESTIONS]
 
 
@@ -299,7 +319,12 @@ def _maybe_points_dormant(
     n_sales: int,
     redeemed_on_last_visit: bool,
 ) -> Optional[Suggestion]:
-    """Customer has ≥POINTS_DORMANT_THRESHOLD and didn't redeem on last visit."""
+    """Customer has ≥POINTS_DORMANT_THRESHOLD and didn't redeem on last visit.
+
+    T-2026-10-01: the displayed discount now uses POINTS_VALUE_GS
+    instead of a hardcoded *1000. Pre-fix this echoed a 10x inflated
+    number on the cashier's screen.
+    """
     if redeemed_on_last_visit:
         # Already redeeming — no need to nudge.
         return None
@@ -309,7 +334,7 @@ def _maybe_points_dormant(
         # Brand-new customer with manually-credited points? Nudge anyway.
         pass
 
-    discount_gs = loyalty_points * 1000
+    discount_gs = loyalty_points * POINTS_VALUE_GS
     return Suggestion(
         kind=KIND_PUNTOS_DORMIDOS,
         title="⭐ Puntos acumulados",

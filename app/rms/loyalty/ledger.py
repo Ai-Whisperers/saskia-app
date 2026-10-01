@@ -22,14 +22,61 @@ from sqlalchemy.orm import Session
 from app.rms.models import Customer
 
 # Default loyalty rule: points per guaraní spent.
-# 1 point per 1000 Gs. (mirrors redeem: 1 point = 1000 Gs. discount).
-# To change: edit this constant only — every helper picks it up.
-POINTS_PER_GS = 1 / 1000
+# ════════════════════════════════════════════════════════════════════════
+# Loyalty conversion rules (tunable from one place)
+# ════════════════════════════════════════════════════════════════════════
+#
+# Two independent constants — DO NOT make them the inverse of each other:
+#
+#   POINTS_PER_GS_EARN   = 1 / 1000  →  1 point earned per 1,000 Gs spent
+#   POINTS_VALUE_GS       = 100       →  1 redeemed point = 100 Gs off
+#
+# Effective lifetime-spend return rate with these values:
+#   (POINTS_VALUE_GS) / (1 / POINTS_PER_GS_EARN) = 100 / 1000 = 10%
+#
+# Pre-2026-10-01 bug: a single POINTS_PER_GS = 1/1000 was used for both,
+# so 1,000 Gs spent earned 1 pt AND 1 pt redeemed = 1,000 Gs. That was
+# a 100% effective return rate — the cashier could refund 95% of a
+# customer's lifetime spend by redeeming their balance. Reviewer caught
+# this in the live CRM walkthrough. The constants are now split.
+#
+# The POS redeem UI and the recibo PDF format the discount as
+#   points_to_redeem * POINTS_VALUE_GS
+# so changing POINTS_VALUE_GS here changes the live floor behavior
+# instantly (no other code edits required).
+POINTS_PER_GS_EARN = 1 / 1000  # pts earned per Gs spent
+POINTS_VALUE_GS = 100           # Gs discount per redeemed point
 
 
-def points_for_sale(total_gs: int, points_per_gs: float = POINTS_PER_GS) -> int:
-    """Convert guaraní spent to loyalty points (rounded down)."""
+# Kept as a module alias so legacy imports (`from app.rms.loyalty.ledger
+# import POINTS_PER_GS`) keep working — but the value now reflects only
+# the earn rate, which matches its name. Callers that want the redeem
+# value should use POINTS_VALUE_GS.
+POINTS_PER_GS = POINTS_PER_GS_EARN
+
+
+def points_for_sale(total_gs: int, points_per_gs: float = POINTS_PER_GS_EARN) -> int:
+    """Convert guaraní spent to loyalty points (rounded down).
+
+    Uses POINTS_PER_GS_EARN by default. Caller can override for testing.
+    """
     return int(total_gs * points_per_gs)
+
+
+def discount_gs_for_points(points_to_redeem: int) -> int:
+    """Convert a redemption amount to Gs discount at POINTS_VALUE_GS."""
+    if points_to_redeem < 0:
+        raise ValueError("points_to_redeem must be >= 0")
+    return points_to_redeem * POINTS_VALUE_GS
+
+
+def effective_return_rate() -> float:
+    """Return the % of lifetime-spend a customer can reclaim via points.
+
+    Used in the customer-detail page footer + admin diagnostics. With
+    the default constants this is 10%.
+    """
+    return (POINTS_VALUE_GS * POINTS_PER_GS_EARN) * 100.0
 
 
 def _record_ledger(
@@ -110,10 +157,11 @@ def redeem_points(
 ) -> tuple[int, int]:
     """Redeem points; returns (points_redeemed, discount_gs).
 
-    1 point = 1000 Gs. (mirrors POINTS_PER_GS inverse). Note the
-    effective 10% lifetime-spend return rate — documented in the
-    prelaunch roadmap; Saskia can change the constants at the top of
-    this module when she wants to tune.
+    1 point = POINTS_VALUE_GS (currently 100 Gs). At the default
+    POINTS_PER_GS_EARN of 1/1000 (1 pt per 1,000 Gs spent), this gives
+    a 10% lifetime-spend return rate — see ledger.py top-of-file for
+    the derivation. If the floor tunes either constant, the new
+    effective rate is one line away.
 
     Writes a LoyaltyTransaction ledger row with ``reason='redeem'``.
 
@@ -125,7 +173,7 @@ def redeem_points(
         raise ValueError(
             f"Insufficient points: have {customer.loyalty_points}, want {points_to_redeem}"
         )
-    discount = points_to_redeem * 1000
+    discount = discount_gs_for_points(points_to_redeem)
     _record_ledger(
         session,
         customer,

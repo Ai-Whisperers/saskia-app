@@ -201,6 +201,34 @@
         {% endif %}
       </ul>
     </section>
+
+    {# T-2026-10-01: reviewer's "right-pane table bloat" rule.
+       Moved from a full-width table on the right to a compact 3-line
+       summary card on the LEFT (next to Contacto/Notas/Actividad).
+       Saves ~12 rows of vertical space in the right pane. The full
+       tz_breakdown still ships in the API payload. #}
+    {% if tz_breakdown %}
+    <section class="card" style="margin:0;">
+      <h3 style="margin-top:0;font-size:var(--text-md);">Zonas de compra</h3>
+      {% set top_tz = tz_breakdown[0] %}
+      <div style="font-size:var(--text-sm);">
+        <div><strong>{{ top_tz[0] }}</strong> · {{ top_tz[1].sales }} compras</div>
+        {% if tz_breakdown | length > 1 %}
+        {# T-2026-10-01: when there's a 2nd-most-used zone (multi-city
+           customer, anomaly indicator), surface it so the operator
+           can spot the split without expanding a full table. #}
+        {% set second_tz = tz_breakdown[1] %}
+        <div class="text-muted" style="font-size:var(--text-xs);">
+          + {{ second_tz[0] }} · {{ second_tz[1].sales }} compras
+        </div>
+        {% endif %}
+        <div class="text-muted">
+          {{ tz_breakdown | length }} zona{{ 's' if tz_breakdown|length != 1 else '' }}
+          · Gs. {{ "{:,}".format(top_tz[1].total_gs) }} principal
+        </div>
+      </div>
+    </section>
+    {% endif %}
   </aside>
 
   {# ══ RIGHT: KPIs + purchase ledger ══ #}
@@ -218,17 +246,25 @@
       <div class="card" style="margin:0;">
         <div class="text-muted" style="font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;">Puntos</div>
         <div style="font-size:var(--text-xl);font-weight:700;">{{ customer.loyalty_points }}</div>
-        <div class="text-muted" style="font-size:var(--text-xs);margin-top:0.25rem;">≈ {{ "{:,}".format((customer.loyalty_points or 0) * 1000) }} Gs. en descuentos</div>
+        {# T-2026-10-01: live rate from app/rms/loyalty/ledger.py, no longer
+           the hardcoded 1000 that gave a 100% return rate. #}
+        <div class="text-muted" style="font-size:var(--text-xs);margin-top:0.25rem;">≈ {{ "{:,}".format((customer.loyalty_points or 0) * POINTS_VALUE_GS) }} Gs. en descuentos</div>
       </div>
     </div>
 
-    {# Loyalty: redeem form + recent ledger (Phase 4, 2026-10-01) #}
+    {# Loyalty: redeem form + recent ledger (Phase 4, 2026-10-01)
+       T-2026-10-01: rewrote the description. The previous copy said
+       "1 punto = 1.000 Gs. de descuento" (100% return rate — broken)
+       and leaked the backend constant name + file path. The current
+       rate (1 pt = {{ POINTS_VALUE_GS }} Gs) and effective return rate
+       ({{ LOYALTY_RETURN_RATE_PCT|round(0) }}%) come from
+       app/rms/loyalty/ledger.py — no implementation details exposed. #}
     <section class="card" style="margin-bottom:1rem;">
       <h2 style="margin-top:0;">Puntos de fidelidad</h2>
       <p class="text-muted" style="font-size:var(--text-sm);margin-bottom:1rem;">
-        Programa: 1 punto por cada 1.000 Gs. gastados. Cada punto se canjea por 1.000 Gs. de descuento.
-        Tasa efectiva de retorno sobre gasto de por vida: ~10%. Saskia puede ajustar
-        <code>POINTS_PER_GS</code> en <code>app/rms/customers.py</code> cuando quiera.
+        Programa: 1 punto por cada 1.000 Gs. gastados.
+        Cada punto se canjea por {{ POINTS_VALUE_GS }} Gs. de descuento.
+        Tasa efectiva de retorno sobre gasto de por vida: ~{{ LOYALTY_RETURN_RATE_PCT|round(0) }}%.
       </p>
 
       <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
@@ -259,7 +295,7 @@
               >
             </label>
             <button type="submit" class="button is-primary" style="margin-top:0.5rem;">
-              Canjear (1 punto = 1.000 Gs.)
+              Canjear (1 punto = {{ POINTS_VALUE_GS }} Gs.)
             </button>
           </form>
         </div>
@@ -355,108 +391,50 @@
     </section>
     {% endif %}
 
-    {# BACKLOG #27 (2026-10-01): Sale.tz breakdown. Shows where this
-       customer usually shops (most-used tz first). Used for multi-
-       location migration planning and for fraud-spotting (sudden tz
-       change is a red flag). Cheap: derived from already-loaded
-       history, no extra query. #}
-    {% if tz_breakdown %}
-    <section class="card">
-      <h2 style="margin-top:0;">Zonas de compra</h2>
-      <p class="text-muted" style="font-size:var(--text-sm);margin-top:-0.5rem;">
-        Distribución de ventas por zona horaria (de las últimas compras registradas).
-      </p>
-      <table class="table is-narrow is-striped" style="font-size:var(--text-sm);">
-        <thead>
-          <tr>
-            <th>Zona</th>
-            <th class="num">Compras</th>
-            <th class="num">Total (Gs.)</th>
-            <th class="num">% compras</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% set total_sales = tz_breakdown | sum(attribute='1.sales') %}
-          {% for tz, bucket in tz_breakdown %}
-          <tr>
-            <td><code>{{ tz }}</code></td>
-            <td class="num">{{ bucket.sales }}</td>
-            <td class="num">{{ "{:,}".format(bucket.total_gs) }}</td>
-            <td class="num">{{ "{:.0f}%".format((bucket.sales / total_sales * 100) if total_sales else 0) }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </section>
-    {% endif %}
+    {# T-2026-10-01: reviewer's "right-pane table bloat" rule.
+       The full tz_breakdown table moved to a compact LEFT-column
+       summary card (see above). Removed here. #}
 
-    {# Tier 6.2 (2026-10-01): recent pedidos for this customer. Shows
-       up to 5 most-recent pedidos with status pills and a "Pedir de
-       nuevo" CTA. Lets the operator escalate a past pedido without
-       hunting through /pedidos list. #}
+    {# T-2026-10-01: reviewer's "right-pane table bloat" rule.
+       Pedidos recientes now uses <details> elements to reveal the
+       line items inline (no separate Productos frecuentes table). #}
     {% if recent_pedidos %}
     <section class="card">
       <h2 style="margin-top:0;">Pedidos recientes</h2>
-      <table class="table is-narrow is-striped" style="font-size:var(--text-sm);">
-        <thead>
-          <tr>
-            <th>Pedido</th>
-            <th>Prometido</th>
-            <th>Estado</th>
-            <th class="num">Total (Gs.)</th>
-            <th class="actions"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for p in recent_pedidos %}
-          <tr>
-            <td><a href="/pedidos/{{ p.id }}">#{{ p.id }}</a></td>
-            <td>{{ p.promised_date.strftime("%d/%m/%Y") if p.promised_date else "—" }}</td>
-            <td>{{ ui.status_pill(p.status_label, p.status_sev) }}</td>
-            <td class="num">{{ "{:,}".format(p.total_gs or 0) }}</td>
-            <td class="actions">
-              <a href="/pedidos/nuevo?customer_id={{ customer.id }}&from={{ p.id }}"
-                 class="btn btn-sm"
-                 title="Re-petir este pedido">
-                Pedir de nuevo
-              </a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </section>
-    {% endif %}
-
-    {# Tier 6.2 (2026-10-01): top 5 products this customer buys. Helps
-       the operator answer "qué le gusta?" and seed the next pedido with
-       the right product mix. #}
-    {% if top_products %}
-    <section class="card">
-      <h2 style="margin-top:0;">Productos frecuentes</h2>
-      <p class="text-muted" style="font-size:var(--text-sm);margin-top:-0.5rem;">
-        Top 5 productos que este cliente compra (ordenado por número de ventas).
-      </p>
-      <table class="table is-narrow is-striped" style="font-size:var(--text-sm);">
-        <thead>
-          <tr>
-            <th>Producto</th>
-            <th class="num">Ventas</th>
-            <th class="num">Cantidad total</th>
-            <th class="num">Total (Gs.)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for prod in top_products %}
-          <tr>
-            <td>{{ prod.name }}</td>
-            <td class="num">{{ prod.n_sales }}</td>
-            <td class="num">{{ "%.0f"|format(prod.total_qty) }}</td>
-            <td class="num">{{ "{:,}".format(prod.total_gs) }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div style="display:flex;flex-direction:column;gap:var(--space-2);">
+        {% for p in recent_pedidos %}
+        <details class="recent-pedido">
+          <summary style="cursor:pointer;list-style:none;display:flex;gap:var(--space-3);align-items:center;padding:var(--space-2) 0;border-bottom:1px solid var(--color-border,#eee);">
+            <span style="flex:0 0 auto;"><a href="/pedidos/{{ p.id }}">#{{ p.id }}</a></span>
+            <span style="flex:0 0 auto;color:var(--text-muted);font-size:var(--text-sm);">{{ p.promised_date.strftime("%d/%m/%Y") if p.promised_date else "—" }}</span>
+            <span style="flex:0 0 auto;">{{ ui.status_pill(p.status_label, p.status_sev) }}</span>
+            <span style="flex:1;text-align:right;font-variant-numeric:tabular-nums;">Gs. {{ "{:,}".format(p.total_gs or 0) }}</span>
+            <a href="/pedidos/nuevo?customer_id={{ customer.id }}&from={{ p.id }}"
+               class="btn btn-sm"
+               title="Re-petir este pedido"
+               onclick="event.stopPropagation();">
+              Pedir de nuevo
+            </a>
+          </summary>
+          {% if p.top_lines %}
+          <div style="padding:var(--space-2) var(--space-3);background:var(--color-surface-alt,#f7f7f7);font-size:var(--text-sm);">
+            <strong style="display:block;margin-bottom:var(--space-1);">{{ p.line_count }} ítem{% if p.line_count != 1 %}s{% endif %}</strong>
+            <ul style="list-style:none;padding-left:0;margin:0;">
+              {% for ln in p.top_lines %}
+              <li style="display:flex;justify-content:space-between;padding:2px 0;">
+                <span{% if not ln.product_exists %} class="text-muted" style="text-decoration:line-through"{% endif %}>{{ ln.product_name }}</span>
+                <span class="text-muted">{{ ln.qty }} × Gs. {{ "{:,}".format(ln.unit_price_gs) }}</span>
+              </li>
+              {% endfor %}
+              {% if p.line_count > p.top_lines | length %}
+              <li class="text-muted" style="font-style:italic;padding-top:var(--space-1);">…y {{ p.line_count - (p.top_lines | length) }} más</li>
+              {% endif %}
+            </ul>
+          </div>
+          {% endif %}
+        </details>
+        {% endfor %}
+      </div>
     </section>
     {% endif %}
 

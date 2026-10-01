@@ -31,16 +31,48 @@ def _kyrian_customer_id(session_factory):
 
 
 def test_detalle_suggestions_card_renders_for_kyrian(client, qseed, session_factory):
-    """With the full Kyrian seed (loyalty-eligible), the
-    'Sugerencias automáticas' card renders on /clientes/{id}."""
+    """T-2026-10-01: reviewer's "redundant suggestions" rule. The
+    points-dormant card (the only suggestion Kyrian triggers under
+    the standard seed — no birthday within 7 days, no lapsed, no VIP)
+    no longer renders because it merely echoes the points balance
+    already shown in the KPI tile. The block is hidden when no
+    unique algorithmic upsell applies.
+    """
     qseed("with_kyrian_full")
     cid = _kyrian_customer_id(session_factory)
 
     r = client.get(f"/clientes/{cid}")
     assert r.status_code == 200
     body = r.text
+    # The lone points-dormant suggestion is suppressed for Kyrian
+    assert "Sugerencias automáticas" not in body
+
+
+def test_detalle_suggestions_card_renders_when_multiple_suggestions(client, qseed, session_factory):
+    """T-2026-10-01: the suggestion card renders when the rule
+    engine returns ≥2 distinct suggestions (i.e. one of them is
+    a real algorithmic upsell, not just a points-dormant echo).
+
+    We force this state by seeding a birthday within the next 7
+    days directly, so the rule engine fires BOTH cumpleaños + puntos
+    dormidos — keeping both.
+    """
+    from datetime import date, timedelta
+    from app.rms.models import Customer
+
+    qseed("with_kyrian_full")
+    cid = _kyrian_customer_id(session_factory)
+
+    with session_factory() as s:
+        cust = s.get(Customer, cid)
+        # Birthday in 3 days → triggers cumpleaños_cerca
+        cust.birthday = (date.today() + timedelta(days=3)).strftime("%m-%d")
+        s.commit()
+
+    r = client.get(f"/clientes/{cid}")
+    body = r.text
+    # Now at least 2 suggestions → the card stays
     assert "Sugerencias automáticas" in body
-    # The 'Aplicar sugerencia' button must be present (at least one suggestion)
     assert "Aplicar sugerencia" in body
 
 
@@ -48,8 +80,17 @@ def test_detalle_suggestions_button_has_csrf_and_kind(client, qseed, session_fac
     """Each 'Aplicar sugerencia' button is a form POST that targets
     the suggestion-applied endpoint and carries the suggestion kind +
     discount_pct as hidden inputs."""
+    from datetime import date, timedelta
+    from app.rms.models import Customer
+
     qseed("with_kyrian_full")
     cid = _kyrian_customer_id(session_factory)
+
+    with session_factory() as s:
+        cust = s.get(Customer, cid)
+        # Add a 2nd suggestion trigger so the card renders
+        cust.birthday = (date.today() + timedelta(days=3)).strftime("%m-%d")
+        s.commit()
 
     r = client.get(f"/clientes/{cid}")
     body = r.text

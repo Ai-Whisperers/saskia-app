@@ -219,7 +219,12 @@
     if (autoBlock && autoPtsEl && autoAmtEl) {
       if (available >= AUTO_REDEEM_MIN) {
         autoPtsEl.textContent = String(available);
-        autoAmtEl.textContent = '−' + formatGs(available * 1000) + ' Gs.';
+        // T-2026-10-01: use the live rate from window.SASKIA_POINTS_VALUE_GS
+        // (set by _customer_card.html) instead of the hardcoded 1000 that
+        // assumed a 100% lifetime-spend return rate.
+        var ptsVal = (typeof window.SASKIA_POINTS_VALUE_GS === 'number')
+          ? window.SASKIA_POINTS_VALUE_GS : 100;
+        autoAmtEl.textContent = '−' + formatGs(available * ptsVal) + ' Gs.';
         autoBlock.hidden = false;
       } else {
         autoBlock.hidden = true;
@@ -362,11 +367,20 @@
       redeemInput.value = String(typed);
     }
     hiddenPts.value = String(typed);
+    // T-2026-10-01: use the live rate (server-injected via window
+    // global in _customer_card.html) instead of the hardcoded 1000
+    // that assumed 1 pt = 1000 Gs. The displayed rate text and the
+    // computed discount both read from the same source.
+    var ptsVal = (typeof window.SASKIA_POINTS_VALUE_GS === 'number')
+      ? window.SASKIA_POINTS_VALUE_GS : 100;
+    var rateLabel = '1 punto = ' + formatGs(ptsVal) + ' Gs. de descuento';
+    var rateEl = document.getElementById('points-redeem-rate-display');
+    if (rateEl) rateEl.textContent = rateLabel;
     if (typed === 0) {
-      redeemPreview.textContent = '1 punto = 1.000 Gs. de descuento';
+      redeemPreview.textContent = rateLabel;
       redeemPreview.style.color = '';
     } else {
-      var gs = typed * 1000;
+      var gs = typed * ptsVal;
       redeemPreview.textContent =
         typed + ' punto' + (typed === 1 ? ' = ' : 's = ') +
         formatGs(gs) + ' Gs. de descuento';

@@ -203,6 +203,12 @@ class CustomerPedidoSummary:
     total_gs: int
     line_count: int
     is_current: bool = False
+    # T-2026-10-01: lightweight line-item snapshot so the
+    # /clientes/{id} "Pedidos recientes" can render <details> with
+    # the items inline (reviewer's "consolidate redundant tables"
+    # rule). Each entry: {qty:int, unit_price_gs:int,
+    # product_name:str, product_exists:bool}. Capped at 5 lines.
+    top_lines: list[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         # Tier 6.2 (2026-10-01): pre-compute the Spanish label + severity
@@ -220,6 +226,7 @@ class CustomerPedidoSummary:
             "total_gs": self.total_gs,
             "line_count": self.line_count,
             "is_current": self.is_current,
+            "top_lines": self.top_lines,
         }
 
 
@@ -250,11 +257,24 @@ def customer_recent_pedidos(
     out: list[CustomerPedidoSummary] = []
     for p in pedidos:
         total = sum(int(ln.qty * ln.unit_price_gs) for ln in p.lines)
+        # T-2026-10-01: snapshot up to 5 line items for the
+        # "Pedidos recientes" <details> expansion. Same decorate-and-
+        # snapshot trick used by decorate_history() so the items
+        # survive a deleted product (no "(eliminado)" strings).
+        top_lines = []
+        for ln in list(p.lines)[:5]:
+            top_lines.append({
+                "qty": int(ln.qty),
+                "unit_price_gs": int(ln.unit_price_gs),
+                "product_name": (ln.product.name if ln.product else "(eliminado)"),
+                "product_exists": ln.product is not None,
+            })
         out.append(CustomerPedidoSummary(
             id=p.id,
             status=p.status,
             promised_date=p.promised_date,  # date | None — template calls strftime
             total_gs=total,
             line_count=len(p.lines),
+            top_lines=top_lines,
         ))
     return out
