@@ -5,6 +5,21 @@
 
 ## [Unreleased]
 
+### Fixed — pedido_board plays chime on new orders (opt-in)
+- **`app/templates/pedido_board.html`** — the sound toggle (🔕/🔔)
+  button has been wired. Now when a user has opted in (`localStorage`
+  flag `saskia:board-sound-enabled=1`), the chime plays on each reload
+  if any card-id is greater than the value stored in
+  `saskia:board-last-order-id`. Falls through on `audio.play()` rejection
+  (autoplay policy) without surfacing to the user.
+- **Why localStorage + page reload** (vs in-place fetch):
+  the board uses `<meta http-equiv="refresh" content="30">` (full reload)
+  rather than JS polling, so we can't diff the DOM. localStorage is
+  the cheapest way to track the high-water mark across reloads.
+- **Closes the phase-14 TODO** from
+  `docs/plans/2026-10-01-phase14-todo-inventory.md` row 4
+  (`app/templates/pedido_board.html:164`).
+
 ### Fixed — `bank_reconcile` audit hygiene
 - **`app/routers/herebus.py:489`** — `reconciled_by` is now read from
   `request.state.user_id` (populated by `ObservabilityContextMiddleware`

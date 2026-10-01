@@ -160,8 +160,29 @@
 
   btn.addEventListener('click', toggle);
   render();
-  // Intentionally NO autoplay on page load — sound only plays if the user has opted in
-  // AND the auto-refresh detects a new order. (TODO: wire to refresh handler.)
+
+  // Phase 14 — play chime on page load ONLY if a NEW order appeared since
+  // the last reload. The board uses <meta http-equiv="refresh"> so we
+  // can't diff in-place; instead we track the highest card-id in
+  // localStorage and compare on each load. Opt-in (the `enabled` flag).
+  try {
+    if (enabled) {
+      var ids = [];
+      var cards = document.querySelectorAll('.order-card .card-id');
+      for (var i = 0; i < cards.length; i++) {
+        // textContent is like "#123" — strip the # and parse int.
+        var raw = cards[i].textContent.replace(/[^0-9]/g, '');
+        var n = parseInt(raw, 10);
+        if (!isNaN(n)) ids.push(n);
+      }
+      var maxId = ids.length ? Math.max.apply(null, ids) : 0;
+      var lastSeen = parseInt(localStorage.getItem('saskia:board-last-order-id') || '0', 10);
+      if (maxId > lastSeen && maxId > 0) {
+        try { audio.currentTime = 0; audio.play().catch(function(){}); } catch(e) {}
+      }
+      localStorage.setItem('saskia:board-last-order-id', String(maxId));
+    }
+  } catch(e) { /* never block the UI on a localStorage/play error */ }
 })();
 
 // Live clock — keeps "Actualizado:" time current across auto-refreshes
