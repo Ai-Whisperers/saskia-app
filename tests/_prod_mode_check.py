@@ -14,6 +14,12 @@ import os
 # subprocess env — do NOT pop it here (default when absent: routes mounted).
 os.environ.setdefault("SASKIA_TEST_AUTH_DISABLED", "1")
 
+# PRO-SEC boot guard (app/rms/main.py) fires when SASKIA_TEST_AUTH_DISABLED
+# is set OUTSIDE of pytest. The guard uses `sys.modules` to detect pytest,
+# but we're a subprocess started by pytest, so sys.modules is fresh. Mark
+# ourselves as under-test so the guard doesn't refuse to boot.
+sys.modules.setdefault("pytest", __import__("importlib").import_module("pytest"))
+
 from fastapi.testclient import TestClient
 
 from app.rms.main import app

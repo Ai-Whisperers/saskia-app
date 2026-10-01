@@ -182,7 +182,7 @@ def supplier_delete(
     record_audit(
         request,
         session=session,
-        action="write.supplier.soft_delete",
+        action="write.supplier.delete",
         target_type="supplier",
         target_id=s_id,
         detail={"name": supplier_name, "ingredients_linked": ingredients_linked},
