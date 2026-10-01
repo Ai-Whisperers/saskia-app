@@ -23,6 +23,9 @@
 
   {# Hidden field that the form posts. Picker.js writes here on selection. #}
   <input type="hidden" id="customer_id" name="customer_id" value="">
+  {# Phase 4 loyalty POS redeem (2026-10-01): the value of this hidden
+     field is set by the live preview JS below. 0 = no redeem. #}
+  <input type="hidden" id="points_to_redeem" name="points_to_redeem" value="0">
 
   {# Inline saskia-combo — search dropdown opens below the input,
       not as an overlay. Keyboard navigation, scrollable, no backdrop. #}
@@ -139,6 +142,36 @@
 
   <div class="customer-card-notes" id="customer-card-notes" hidden>
     <em><strong>Nota:</strong> <span id="customer-card-notes-text"></span></em>
+  </div>
+
+  {# ── Phase 4 loyalty POS redeem (2026-10-01) ───────────────────────────
+       Live "Usar puntos" form. Hidden until a customer is picked
+       (visibility toggled by the customer-card JS). The cashier types
+       a points amount; JS shows the live discount preview in Gs.
+       On sale submit, the value rides along with the existing form. #}
+  <div class="customer-card-redeem" id="customer-card-redeem" hidden
+       style="margin-top:10px;padding:10px;border:1px dashed var(--color-primary,#3b82f6);
+              border-radius:6px;background:rgba(59,130,246,.06);">
+    <label for="points_to_redeem_input" style="display:flex;justify-content:space-between;
+           align-items:center;font-size:0.9rem;font-weight:600;">
+      <span>Usar puntos</span>
+      <span class="text-muted" style="font-weight:400;">
+        Disponible: <strong id="points-redeem-available">0</strong>
+      </span>
+    </label>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+      <input type="number" id="points_to_redeem_input"
+             min="0" step="1" value="0"
+             placeholder="ej. 5"
+             style="flex:1;padding:6px 8px;border:1px solid #ccc;border-radius:4px;
+                    font-size:0.95rem;">
+      <button type="button" id="points-redeem-clear"
+              class="btn btn-ghost" style="font-size:0.8rem;">Limpiar</button>
+    </div>
+    <div id="points-redeem-preview" class="text-muted"
+         style="margin-top:6px;font-size:0.85rem;min-height:1.2em;">
+      1 punto = 1.000 Gs. de descuento
+    </div>
   </div>
 
   <div class="customer-card-loading" id="customer-card-loading" hidden aria-hidden="true">
@@ -296,6 +329,27 @@
     if (cardLifetime) cardLifetime.textContent = data.lifetime_label || '\u2014';
     if (cardPoints) cardPoints.textContent = data.loyalty_points != null ? String(data.loyalty_points) : '\u2014';
 
+    // Phase 4 loyalty POS redeem (2026-10-01): populate the inline
+    // "Usar puntos" form when a customer is picked. The form lives in
+    // _customer_picker.html; we toggle its hidden state here and stash
+    // the customer's available points so the live preview can clamp.
+    var redeemBlock = document.getElementById('customer-card-redeem');
+    var redeemAvailableEl = document.getElementById('points-redeem-available');
+    var redeemInput = document.getElementById('points_to_redeem_input');
+    var available = data.loyalty_points != null ? Number(data.loyalty_points) : 0;
+    if (redeemBlock) redeemBlock.hidden = !(available > 0);
+    if (redeemAvailableEl) redeemAvailableEl.textContent = String(available);
+    if (redeemInput) {
+      redeemInput.max = String(available);
+      // Reset the input and the hidden form value when a different
+      // customer is picked so old typed values don't leak.
+      redeemInput.value = '0';
+      var hiddenPts = document.getElementById('points_to_redeem');
+      if (hiddenPts) hiddenPts.value = '0';
+      var redeemPreview = document.getElementById('points-redeem-preview');
+      if (redeemPreview) redeemPreview.textContent = '1 punto = 1.000 Gs. de descuento';
+    }
+
     var tierKey = (data.tier || '').toLowerCase();
     if (cardTier) {
       cardTier.textContent = TIER_LABELS[tierKey] || data.tier || '\u2014';
@@ -401,6 +455,56 @@
       if (hidden) hidden.value = '';
       if (combo && typeof combo.setValue === 'function') combo.setValue('', '');
       clearCard();
+    });
+  }
+
+  // ── Phase 4 loyalty POS redeem (2026-10-01): live preview + clamping.
+  // The cashier types a points amount; we update the hidden form field
+  // (which rides along with /ventas/nueva's POST) and the live preview
+  // showing the equivalent Gs. discount. Clamps to available balance
+  // so the cashier gets instant feedback.
+  var redeemInput = document.getElementById('points_to_redeem_input');
+  var redeemClear = document.getElementById('points-redeem-clear');
+  var hiddenPts = document.getElementById('points_to_redeem');
+  var redeemPreview = document.getElementById('points-redeem-preview');
+  var redeemAvailableEl = document.getElementById('points-redeem-available');
+  function getAvailablePoints() {
+    return redeemAvailableEl ? Number(redeemAvailableEl.textContent) || 0 : 0;
+  }
+  function formatGs(n) {
+    // Insert thousands separators; matches the rest of the app's number format.
+    var s = String(Math.round(n));
+    return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  function updateRedeemPreview() {
+    if (!redeemInput || !hiddenPts || !redeemPreview) return;
+    var typed = Math.floor(Number(redeemInput.value) || 0);
+    if (typed < 0) typed = 0;
+    var available = getAvailablePoints();
+    if (typed > available) {
+      typed = available;
+      redeemInput.value = String(typed);
+    }
+    hiddenPts.value = String(typed);
+    if (typed === 0) {
+      redeemPreview.textContent = '1 punto = 1.000 Gs. de descuento';
+      redeemPreview.style.color = '';
+    } else {
+      var gs = typed * 1000;
+      redeemPreview.textContent =
+        typed + ' punto' + (typed === 1 ? ' = ' : 's = ') +
+        formatGs(gs) + ' Gs. de descuento';
+      redeemPreview.style.color = 'var(--color-success, #16a34a)';
+    }
+  }
+  if (redeemInput) {
+    redeemInput.addEventListener('input', updateRedeemPreview);
+    redeemInput.addEventListener('change', updateRedeemPreview);
+  }
+  if (redeemClear) {
+    redeemClear.addEventListener('click', function() {
+      if (redeemInput) redeemInput.value = '0';
+      updateRedeemPreview();
     });
   }
 

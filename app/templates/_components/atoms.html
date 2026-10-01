@@ -289,6 +289,31 @@
 </script>
       {% endif %}
     {% endif %}
+    {# POS redeem (2026-10-01): points_flash= query param holds N:D format
+       after a /ventas/nueva sale that included a points redemption. #}
+    {% set points_flash = req.query_params.get('points_flash') if req else None %}
+    {% if points_flash and ':' in points_flash %}
+      {% set _parts = points_flash.split(':') %}
+      {% if _parts|length >= 2 %}
+        {% set _pts_pos = _parts[0] %}
+        {% set _gs_pos = "{:,}".format(_parts[1]|int) %}
+        <script>
+(function () {
+  function fire() {
+    if (window.SaskiaToast) {
+      SaskiaToast.show({
+        severity: 'success',
+        message: 'Canje POS: {{ _pts_pos }} puntos → {{ _gs_pos }} Gs. de descuento aplicados a esta venta.',
+        duration: 5000
+      });
+    }
+  }
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', fire); }
+  else { fire(); }
+})();
+</script>
+      {% endif %}
+    {% endif %}
     {% if m %}
 <script>
 (function () {

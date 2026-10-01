@@ -588,6 +588,11 @@ async def sale_create(
     # Both fields must be set together (or both empty).
     packaging_item_id: int | None = Form(None, gt=0),
     packaging_qty: float | None = Form(None, gt=0),
+    # Phase 4 loyalty (2026-10-01): POS redeem flow. When > 0, converts
+    # to Gs. discount at 1pt = 1.000 Gs., writes a ledger row tied to
+    # the resulting Sale.id, and ADDS the discount to discount_gs below.
+    # 0 means "don't redeem"; never negative.
+    points_to_redeem: int = Form(0, ge=0),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Create a sale with stock drop.
@@ -750,6 +755,45 @@ async def sale_create(
                 status_code=303,
             )
 
+    # Phase 4 loyalty POS redeem (2026-10-01): when points_to_redeem > 0,
+    # convert to Gs. discount (1pt = 1.000 Gs.) and ADD it to discount_gs
+    # so it flows through the existing apply_sale path. The ledger row is
+    # written AFTER apply_sale returns (we need the real sale_id to FK
+    # into). If the customer doesn't have enough points, we raise 400 —
+    # we DO NOT silently round down because the cashier typed a number
+    # and expects that exact amount to be honored.
+    if points_to_redeem > 0:
+        if customer_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Para canjear puntos necesitás seleccionar un cliente. "
+                    "Tocá el buscador de clientes y elegí uno."
+                ),
+            )
+        from app.rms.customers import get_customer as _gc_redeem
+        cust_redeem = _gc_redeem(session, customer_id)
+        if cust_redeem is None:
+            raise HTTPException(status_code=400, detail=SALE_CUSTOMER_NOT_FOUND)
+        if (cust_redeem.loyalty_points or 0) < points_to_redeem:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Puntos insuficientes: el cliente tiene "
+                    f"{cust_redeem.loyalty_points or 0}, intentás canjear "
+                    f"{points_to_redeem}."
+                ),
+            )
+        points_discount_gs = points_to_redeem * 1000
+        discount_gs = (discount_gs or 0) + points_discount_gs
+        # Re-check the upper bound after adding the points discount.
+        if discount_gs > MAX_DISCOUNT_GS:
+            raise HTTPException(
+                status_code=400,
+                detail=SALE_DISCOUNT_TOO_HIGH,
+                headers={"X-Max-Discount-Gs": str(MAX_DISCOUNT_GS)},
+            )
+
     try:
         sale = apply_sale(
             session,
@@ -818,6 +862,25 @@ async def sale_create(
                 actor=str(current_user_id(request) or "operator"),
             )
 
+    # Phase 4 loyalty POS redeem (2026-10-01): if the cashier redeemed
+    # points via the inline "Usar puntos" form, write the ledger row NOW
+    # (sale.sale_id is now known — redeem_points takes it as a FK). The
+    # balance check + discount math already happened above; redeem_points
+    # itself is a no-op when points_to_redeem == 0.
+    if points_to_redeem > 0 and customer_id is not None:
+        from app.auth import current_user_id
+        from app.rms.customers import redeem_points as _redeem_points, get_customer as _get_cust_redeem
+        cust_redeem = _get_cust_redeem(session, customer_id)
+        if cust_redeem is not None:
+            _redeem_points(
+                session,
+                cust_redeem,
+                points_to_redeem,
+                sale_id=sale.sale_id,
+                actor=str(current_user_id(request) or "operator"),
+                notes=f"POS redeem en sale #{sale.sale_id}",
+            )
+
     safe_commit(session)
 
     # Audit + rate-limit (writes only — read paths not counted).
@@ -864,6 +927,17 @@ async def sale_create(
     # Failures are logged but never block the sale.
     _fire_printer_for_sale(session, request, product_id, qty, discount_gs, payment_method_clean, notes_clean)
 
+    # If points were redeemed at the till, append a flash token so the
+    # operator sees the confirmation toast. ``points_redeemed_pos:N:D``
+    # tells the JS renderer "N puntos canjeados por D Gs. de descuento".
+    # Reusing the existing points_redeemed prefix means the
+    # flash_toast macro in _components/atoms.html handles it (with
+    # the new _pos suffix to distinguish it from /clientes/{id} redeem).
+    if points_to_redeem > 0:
+        return RedirectResponse(
+            url=f"/ventas?flash=sale_created&points_flash={points_to_redeem}:{points_to_redeem * 1000}",
+            status_code=303,
+        )
     return RedirectResponse(url="/ventas?flash=sale_created", status_code=303)
 
 
