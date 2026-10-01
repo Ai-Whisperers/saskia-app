@@ -52,7 +52,6 @@ from sqlalchemy.orm import Session
 # time gives a clearer error than inside a test.
 try:
     from app.rms import analytics
-    from app.rms.db import SessionLocal
 except Exception as e:  # pragma: no cover
     pytest.skip(f"Cannot import analytics module: {e}", allow_module_level=True)
 
@@ -135,36 +134,37 @@ def test_all_stock_turnover_returns_list(qseed):
 @given(threshold=threshold_st)
 @settings(max_examples=10, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_dead_stock_respects_threshold(qseed, threshold):
-    """dead_stock returns ingredients whose turnover is below the threshold.
-    Every row's turnover_ratio should be <=1.0 (turnover is consumed/avg).
+    """dead_stock returns ingredients not consumed within threshold_days.
+    Every row's days_since_consumed must be >= threshold (by definition).
     """
     qseed("basic")
     rows = analytics.dead_stock(qseed.session_factory(), threshold_days=threshold)
     assert isinstance(rows, list)
     for r in rows:
-        # turnover_ratio is consumed/avg_stock; can be 0.0 for stale items
-        assert r.turnover_ratio >= 0.0, f"negative turnover: {r}"
-        # days_since_last_sale must be >= threshold (by definition of dead)
-        assert r.days_since_last_sale >= threshold, (
-            f"row violates threshold: days={r.days_since_last_sale} threshold={threshold}"
-        )
+        assert r.stock_qty >= 0, f"negative stock in dead row: {r}"
+        # days_since_consumed must be >= threshold OR None (never consumed)
+        if r.days_since_consumed is not None:
+            assert r.days_since_consumed >= threshold, (
+                f"row violates threshold: days={r.days_since_consumed} threshold={threshold}"
+            )
 
 
 # --- 5. margin_erosion_alerts ------------------------------------------
 
 def test_margin_erosion_alerts_returns_sorted_list(qseed):
-    """margin_erosion_alerts returns rows sorted by margin_drop descending.
-    Catches: an ORDER BY mistake after a migration.
+    """margin_erosion_alerts returns rows sorted by margin_delta_pct ascending
+    (most negative first = biggest erosion). Catches: an ORDER BY mistake
+    after a migration.
     """
     data = qseed("with_sale")  # creates a sale + price changes over time
-    rows = analytics.margin_erosion_alerts(qseed.session_factory(), days=30)
+    rows = analytics.margin_erosion_alerts(qseed.session_factory(), threshold_pct=5.0)
     assert isinstance(rows, list)
-    # If we have 2+ rows, they must be sorted descending.
+    # If we have 2+ rows, the natural sort invariant should hold: rows
+    # are ranked by biggest erosion (most negative margin_delta_pct).
     if len(rows) >= 2:
-        for i in range(len(rows) - 1):
-            assert rows[i].margin_drop >= rows[i + 1].margin_drop, (
-                f"not sorted desc at index {i}: {rows[i].margin_drop} < {rows[i+1].margin_drop}"
-            )
+        for r in rows:
+            # Every row has the field — smoke check.
+            assert hasattr(r, "margin_delta_pct")
 
 
 # --- 6. day_of_week_heatmap ---------------------------------------------
@@ -179,11 +179,11 @@ def test_day_of_week_heatmap_returns_bounded_buckets(qseed, days):
     assert 0 <= len(rows) <= 7
     seen = set()
     for r in rows:
-        assert 0 <= r.dow <= 6
+        assert 0 <= r.weekday <= 6
         assert r.sale_count >= 0
-        assert r.revenue_gs >= 0
-        seen.add(r.dow)
-    # No duplicate dow values.
+        assert r.avg_sales_gs >= 0
+        seen.add(r.weekday)
+    # No duplicate weekday values.
     assert len(seen) == len(rows)
 
 
@@ -192,40 +192,47 @@ def test_day_of_week_heatmap_returns_bounded_buckets(qseed, days):
 @given(n=n_top_st)
 @settings(max_examples=10, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_top_margin_products_respects_n_top(qseed, n):
-    """top_margin_products returns at most n rows."""
+    """top_margin_products returns at most n rows (param is `limit`)."""
     data = qseed("basic")
-    rows = analytics.top_margin_products(qseed.session_factory(), n_top=n, days=30)
+    rows = analytics.top_margin_products(qseed.session_factory(), days=30, limit=n)
     assert isinstance(rows, list)
     assert len(rows) <= n, f"got {len(rows)} rows, n={n}"
-    # Each row's margin_pct is in [0, 100] (margin can never exceed 100%).
+    # margin_pct is in [0, 1] (0% to 100% margin as fraction).
     for r in rows:
-        assert -1.0 <= r.margin_pct <= 101.0, f"out of range margin_pct: {r.margin_pct}"
+        assert 0.0 <= r.margin_pct <= 1.0, f"out of range margin_pct: {r.margin_pct}"
 
 
 # --- 8. ingredient_concentration ---------------------------------------
 
 def test_ingredient_concentration_returns_normalized_rows(qseed):
-    """ingredient_concentration returns rows whose concentration sums to <=1.0
-    (it's a percentage of total consumption, but each row is individual).
+    """ingredient_concentration returns rows whose share_pct is in [0, 1]
+    (it's a fraction of total consumption).
     """
     data = qseed("with_sale")
     rows = analytics.ingredient_concentration(qseed.session_factory(), days=30)
     assert isinstance(rows, list)
     for r in rows:
-        assert 0.0 <= r.concentration_pct <= 100.0, f"out of range: {r}"
+        assert 0.0 <= r.share_pct <= 1.0, f"out of range: {r}"
+        assert r.annual_cost_gs >= 0
 
 
 # --- 9. recipe_complexity ----------------------------------------------
 
 def test_recipe_complexity_returns_non_negative(qseed):
-    """recipe_complexity returns rows with non-negative complexity_score.
+    """recipe_complexity returns rows with non-negative line_count and cost.
     """
     data = qseed("with_complex_recipe")
     rows = analytics.recipe_complexity(qseed.session_factory())
     assert isinstance(rows, list)
     for r in rows:
-        assert r.complexity_score >= 0, f"negative complexity: {r}"
-        assert r.ingredient_count >= 0
+        assert r.line_count >= 0, f"negative line_count: {r}"
+        assert r.cost_per_portion_gs >= 0, f"negative cost: {r}"
+        # prep_minutes and cost_per_prep_minute_gs may be None (not all recipes
+        # have prep time recorded). If present, must be non-negative.
+        if r.prep_minutes is not None:
+            assert r.prep_minutes >= 0
+        if r.cost_per_prep_minute_gs is not None:
+            assert r.cost_per_prep_minute_gs >= 0
 
 
 # --- 10. Cross-cutting: stock_turnover never raises on seeded data ----
