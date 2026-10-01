@@ -84,13 +84,18 @@ def get_counts(conn: sqlite3.Connection) -> dict[str, int]:
     return out
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--db", default=DEFAULT_DB_PATH,
                    help=f"path to rms.sqlite (default: {DEFAULT_DB_PATH})")
     p.add_argument("--quiet", action="store_true",
                    help="one-line summary (cron-friendly)")
-    args = p.parse_args()
+    p.add_argument("--code-schema-version", type=int, default=None,
+                   help="Override expected schema version (default: "
+                        "from SASKIA_CODE_SCHEMA_VERSION env, then "
+                        "app.rms.config.CURRENT_SCHEMA_VERSION, "
+                        "else skip schema check).")
+    args = p.parse_args(argv)
 
     if not os.path.exists(args.db):
         if not args.quiet:
@@ -114,9 +119,11 @@ def main() -> int:
     finally:
         conn.close()
 
-    # Resolve code_schema_version: env override, else read from app module.
+    # Resolve code_schema_version: CLI override > env > app module.
     code_sv_env = os.environ.get("SASKIA_CODE_SCHEMA_VERSION")
-    if code_sv_env:
+    if args.code_schema_version is not None:
+        code_sv = args.code_schema_version
+    elif code_sv_env:
         code_sv = int(code_sv_env)
     else:
         try:
