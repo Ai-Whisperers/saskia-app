@@ -32,9 +32,183 @@
       display=(preset_customer.name if preset_customer else none)
     ) }}
     <small class="hint">
-      Escribí 2+ letras para buscar clientes existentes. Si no aparece, simplemente seguí escribiendo — se crea al guardar.
+      Escribí 2+ letras para buscar clientes existentes.
+      Si no aparece, simplemente seguí escribiendo — se crea al guardar.
     </small>
   </div>
+
+  {# ── Crear cliente nuevo (colapsado) ─────────────────────────
+     El combo de arriba ya soporta "tipear nombre libre → al guardar
+     crea el cliente", pero para pedidos donde Saskia quiere guardar
+     teléfono / RUC / notas AHORA, este panel crea el cliente en
+     su lugar. Al éxito, selecciona el cliente nuevo en el combo.
+  #}
+  <div class="form-row">
+    <details id="pedido-new-customer-panel" class="customer-picker-new-panel">
+      <summary style="cursor:pointer;font-size:var(--text-sm);color:var(--color-accent);
+                       display:inline-flex;align-items:center;gap:var(--space-1);
+                       padding:var(--space-2) 0;">
+        <svg class="icon" aria-hidden="true" style="width:1em;height:1em">
+          <use href="#icon-plus"/>
+        </svg>
+        Crear cliente nuevo con teléfono / RUC / notas
+      </summary>
+      <div id="pedido-new-customer-error" class="customer-picker-error" hidden></div>
+      <div class="grid grid-2" style="margin-top:var(--space-3);">
+        <div class="form-row" style="margin-bottom:var(--space-2);">
+          <label for="pedido-new-customer-name">Nombre *</label>
+          <input type="text" id="pedido-new-customer-name" name="_new_customer_name"
+                 autocomplete="off" placeholder="Ej: María González">
+        </div>
+        <div class="form-row" style="margin-bottom:var(--space-2);">
+          <label for="pedido-new-customer-phone">Teléfono</label>
+          <input type="tel" id="pedido-new-customer-phone" name="_new_customer_phone"
+                 autocomplete="off" placeholder="+595 9XX XXXXX">
+        </div>
+      </div>
+      <div class="grid grid-2">
+        <div class="form-row" style="margin-bottom:var(--space-2);">
+          <label for="pedido-new-customer-cedula">RUC / CI (para factura)</label>
+          <input type="text" id="pedido-new-customer-cedula" name="_new_customer_cedula"
+                 autocomplete="off" placeholder="80012345-6">
+        </div>
+        <div class="form-row" style="margin-bottom:var(--space-2);">
+          <label for="pedido-new-customer-email">Email</label>
+          <input type="email" id="pedido-new-customer-email" name="_new_customer_email"
+                 autocomplete="off" placeholder="cliente@correo.com">
+        </div>
+      </div>
+      <div class="form-row" style="margin-bottom:var(--space-2);">
+        <label for="pedido-new-customer-notes">Notas internas (alergias, preferencias…)</label>
+        <textarea id="pedido-new-customer-notes" name="_new_customer_notes" rows="2"
+                  placeholder="Sin TACC, retira siempre antes de las 17h, etc."></textarea>
+      </div>
+      <div class="form-actions" style="margin-top:var(--space-3);">
+        <button type="button" id="pedido-new-customer-cancel" class="btn">Cancelar</button>
+        <button type="button" id="pedido-new-customer-create" class="btn btn-primary">
+          <svg class="icon" aria-hidden="true" style="width:1em;height:1em">
+            <use href="#icon-check"/>
+          </svg>
+          Crear y seleccionar
+        </button>
+      </div>
+    </details>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+      var panel  = document.getElementById('pedido-new-customer-panel');
+      var btn    = document.getElementById('pedido-new-customer-create');
+      var cancel = document.getElementById('pedido-new-customer-cancel');
+      var errBox = document.getElementById('pedido-new-customer-error');
+      if (!panel || !btn) return;
+
+      function showError(msg) {
+        errBox.textContent = msg;
+        errBox.hidden = false;
+      }
+      function clearError() {
+        errBox.textContent = '';
+        errBox.hidden = true;
+      }
+      function escapeHtml(s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      }
+
+      cancel && cancel.addEventListener('click', function () { panel.open = false; clearError(); });
+
+      btn.addEventListener('click', function () {
+        clearError();
+        var nameEl  = document.getElementById('pedido-new-customer-name');
+        var phoneEl = document.getElementById('pedido-new-customer-phone');
+        var cedEl   = document.getElementById('pedido-new-customer-cedula');
+        var emailEl = document.getElementById('pedido-new-customer-email');
+        var notesEl = document.getElementById('pedido-new-customer-notes');
+        var name = (nameEl.value || '').trim();
+        if (!name) {
+          showError('El nombre es obligatorio.');
+          nameEl.focus();
+          return;
+        }
+        btn.disabled = true;
+        var oldLabel = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner"></span> Creando…';
+
+        var body = new URLSearchParams();
+        body.set('name', name);
+        if (phoneEl.value) body.set('phone', phoneEl.value.trim());
+        if (cedEl.value)   body.set('cedula', cedEl.value.trim());
+        if (emailEl.value) body.set('email', emailEl.value.trim());
+        if (notesEl.value) body.set('notes', notesEl.value.trim());
+
+        fetch('/clientes/api/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body.toString(),
+        })
+          .then(function (r) {
+            if (!r.ok) {
+              return r.json().then(function (j) {
+                throw new Error(j.detail || ('Error ' + r.status));
+              }).catch(function () { throw new Error('Error ' + r.status); });
+            }
+            return r.json();
+          })
+          .then(function (data) {
+            var cust = (data && data.customer) || {};
+            var cid  = cust.id || data.id;
+            if (!cid) throw new Error('Respuesta inesperada del servidor.');
+
+            // 1) Mismos handlers que usa el picker de búsqueda, así se
+            //    autorrellenan teléfono / RUC / factura igual que si
+            //    Saskia lo hubiera elegido del dropdown.
+            if (window.customerPickHandlers && window.customerPickHandlers.firePicked) {
+              window.customerPickHandlers.firePicked({
+                id:    cid,
+                name:  cust.name || name,
+                phone: cust.phone || phoneEl.value.trim(),
+                cedula:        cust.cedula || '',
+                invoice_ruc:   cust.invoice_ruc || cust.cedula || '',
+                invoice_name:  cust.invoice_name || cust.name || name,
+              });
+            }
+
+            // 2) Actualizar el hint visible
+            var hint = document.getElementById('customer_picked_hint');
+            if (hint) {
+              hint.dataset.empty = 'false';
+              hint.innerHTML =
+                '<strong>' + escapeHtml(cust.name || name) + '</strong>' +
+                ' <small style="color:var(--color-text-muted);">#' + cid + '</small>' +
+                (cust.phone ? '<small style="color:var(--color-text-muted);">· ' +
+                  escapeHtml(cust.phone) + '</small>' : '') +
+                ' <small style="color:var(--color-success);font-weight:600;">· nuevo</small>';
+            }
+
+            // 3) Sincronizar el combo visible
+            var combo = document.querySelector('saskia-combo[name="customer_id"]');
+            if (combo && typeof combo.setValue === 'function') {
+              combo.setValue(cid, cust.name || name);
+            }
+
+            // 4) Limpiar y cerrar el panel
+            nameEl.value = ''; phoneEl.value = ''; cedEl.value = '';
+            emailEl.value = ''; notesEl.value = '';
+            panel.open = false;
+          })
+          .catch(function (err) {
+            showError(err && err.message ? err.message : 'No se pudo crear el cliente.');
+          })
+          .finally(function () {
+            btn.disabled = false;
+            btn.innerHTML = oldLabel;
+          });
+      });
+    })();
+  </script>
 
   <div class="grid grid-2">
     <div class="form-row">
