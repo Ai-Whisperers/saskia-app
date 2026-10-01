@@ -115,8 +115,34 @@
   </div>
 
   <div class="text-center text-muted" style="font-size: var(--text-xs); padding: var(--space-4) 0;">
+    {# Tier 2.2 (2026-10-01): loyalty footer on the receipt. Hidden
+       entirely when no customer / no ledger row exists. On a busy
+       sale this is the ONLY place Saskia tells the customer "vos
+       ganaste 5 puntos" — so make it loud. #}
+    {% if loyalty_snapshot and loyalty_snapshot.customer_name %}
+    <div class="loyalty-receipt-footer" style="margin-top:var(--space-3);
+              padding-top:var(--space-3); border-top:1px dashed #999;
+              text-align:left;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;">
+        <strong style="color:var(--color-text,#222);">{{ loyalty_snapshot.customer_name }}</strong>
+        <span style="font-size:0.9rem;">⭐ Saldo: {{ loyalty_snapshot.current_balance }} pts</span>
+      </div>
+      {% if loyalty_snapshot.earn_points > 0 %}
+      <div style="color:var(--color-success,#16a34a); font-size:0.85rem; margin-top:4px;">
+        +{{ loyalty_snapshot.earn_points }} puntos por esta compra
+      </div>
+      {% endif %}
+      {% if loyalty_snapshot.redeemed_points > 0 %}
+      <div style="color:var(--color-primary,#3b82f6); font-size:0.85rem;">
+        Canjeaste {{ loyalty_snapshot.redeemed_points }} puntos
+        (= Gs. {{ (loyalty_snapshot.redeemed_points * 1000) | int | string | replace(',', '.') }} de descuento)
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
     {% if not sale.voided_at %}
-    <p>¡Gracias por tu compra!</p>
+    <p style="margin-top:var(--space-3);">¡Gracias por tu compra!</p>
     <p>Este recibo no es un comprobante fiscal.</p>
     {% else %}
     <p class="text-danger"><strong>Esta venta fue anulada.</strong></p>

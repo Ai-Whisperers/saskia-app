@@ -755,6 +755,22 @@
 
     renderCrossSell();
     document.getElementById('cart-json').value = JSON.stringify(POS_CART);
+
+    // Tier 2.5 (2026-10-01): "Cliente sin asociar" nudge. Show only
+    // when the cart has items AND no customer is currently picked.
+    // The customer-pick event sets CURRENT_CUSTOMER_ID; we read it
+    // to decide whether to show the banner.
+    var nudge = document.getElementById('nudge-no-customer');
+    if (nudge) {
+      if (n > 0 && !CURRENT_CUSTOMER_ID) {
+        var est = Math.max(1, Math.floor(total / 1000));
+        var estEl = document.getElementById('nudge-points-estimate');
+        if (estEl) estEl.textContent = '~' + est;
+        nudge.hidden = false;
+      } else {
+        nudge.hidden = true;
+      }
+    }
   }
 
   // ── Cross-sell rail (UI-V2) ───────────────────────────────────────────────

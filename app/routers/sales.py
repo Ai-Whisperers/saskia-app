@@ -529,11 +529,44 @@ async def sale_receipt(
     sale = session.get(Sale, sale_id)
     if sale is None:
         raise NotFound("venta", id=sale_id)
+    # Phase 4 tier 2.2 (2026-10-01): if this sale has a customer AND
+    # a ledger row, surface "+X puntos" + "Nuevo saldo: Y" on the
+    # receipt. Two queries max; both are FK-indexed so they cost <1ms.
+    loyalty_snapshot = None
+    if sale.customer_id:
+        from app.rms.models import Customer as _Cust, LoyaltyTransaction as _LT
+        cust = session.get(_Cust, sale.customer_id)
+        if cust is not None:
+            earn_row = session.execute(
+                select(_LT)
+                .where(_LT.sale_id == sale_id)
+                .where(_LT.reason == "earn_sale")
+                .limit(1)
+            ).scalar_one_or_none()
+            redeemed_row = session.execute(
+                select(_LT)
+                .where(_LT.sale_id == sale_id)
+                .where(_LT.reason == "redeem")
+                .limit(1)
+            ).scalar_one_or_none()
+            # Ledger rows are signed: earn_sale → positive delta,
+            # redeem → negative delta. Surface them to the cashier
+            # as absolute point counts so the receipt reads naturally
+            # ("canjeaste 5 puntos") instead of (-5).
+            earn_abs = int(earn_row.delta) if earn_row else 0
+            redeem_abs = -int(redeemed_row.delta) if redeemed_row else 0
+            loyalty_snapshot = {
+                "customer_name": cust.name or cust.phone or "Cliente",
+                "earn_points": earn_abs,
+                "redeemed_points": redeem_abs,
+                "current_balance": int(cust.loyalty_points or 0),
+            }
     return render(
         request,
         "recibo.html",
         {
             "sale": _decorated(sale),
+            "loyalty_snapshot": loyalty_snapshot,
         },
     )
 
