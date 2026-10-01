@@ -349,6 +349,41 @@ lightly — the /ingrediente/{id} detail page and /inventario list
 both depend on the exact field shape (`stock_in_base`, `size_in_base`,
 `preferred_price_gs`, etc.).**
 
+### Added — Phase 4 loyalty POS redeem flow (2026-10-01)
+
+Decision B (Phase 4): redeem happens at the till AND on the customer
+profile. This entry covers the POS half — the "Usar puntos" button on
+the `/ventas/nueva` (Quick-Sell) flow. The customer-profile half
+(`/clientes/{id}`) shipped earlier with PR #43.
+
+**What it does:**
+- New optional form field `points_to_redeem` on `POST /ventas/nueva`.
+- Cashier types the points amount in an inline form below the
+  customer's "Puntos" stat. A live preview shows the Gs. discount
+  ("5 puntos = 5,000 Gs. de descuento"). JS clamps to the available
+  balance so the cashier gets instant feedback.
+- Backend validates: customer is required, balance is sufficient,
+  combined discount ≤ MAX_DISCOUNT_GS. All three failures return 400.
+- On success: points discount is ADDED to `discount_gs`, `apply_sale`
+  runs once, then `redeem_points()` writes a ledger row with
+  `reason="redeem"`, `delta=-points`, FK'd to the new sale.id.
+- Points are now awarded on the **post-discount** total
+  (`total_price_gs - discount_gs`). Industry norm — you earn on
+  what you spent, not sticker price. Fixes a latent bug where the
+  earn amount ignored the discount.
+- On 303 success the response carries `?points_flash=N:D` which
+  the `flash_toast` macro renders as a success toast: "Canje POS:
+  N puntos → D Gs. de descuento aplicados a esta venta."
+
+**Files:**
+- `app/routers/sales.py` — `points_to_redeem` form field, validation,
+  redeem ledger row, post-discount earn fix.
+- `app/templates/_components/_customer_picker.html` — inline "Usar
+  puntos" form + live preview JS + clamp to available.
+- `app/templates/_components/atoms.html` — POS toast renderer.
+- `tests/test_pos_redeem_flow.py` — 8 new tests covering success,
+  400 paths, no-op, combined discount, post-discount earn math.
+
 ### Housekeeping — orphan stash audit (2026-10-01)
 - **8 stale `git stash` entries on main** (oldest 13 days) audited.
   7 dropped (work already shipped via other commits:

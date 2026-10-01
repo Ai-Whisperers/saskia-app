@@ -844,20 +844,28 @@ async def sale_create(
         )
 
     # Loyalty (Phase 4, 2026-10-01): credit points to the customer if one
-    # was attached to this sale. Awarded on the post-discount total
-    # (ApplySaleResult.total_price_gs already subtracts discount) per
-    # industry norm — you earn on what you spent, not sticker price.
+    # was attached to this sale. Awarded on the POST-discount total
+    # (what the customer actually paid = total_price_gs - discount_gs)
+    # per industry norm — you earn on what you spent, not sticker price.
     # Void/return reversal is handled by ``reverse_points_for_void``
     # (called from /ventas/{id}/anular).
     if customer_id is not None:
         from app.auth import current_user_id
         from app.rms.customers import award_points as _award_points, get_customer as _get_cust
+        from app.rms.models import Sale as _Sale
         cust = _get_cust(session, customer_id)
         if cust is not None:
+            # apply_sale() returns an ApplySaleResult dataclass with
+            # total_price_gs but NOT discount_gs. The Sale ORM row
+            # carries discount_gs (just persisted). Query through the
+            # session to get the real discount for this sale.
+            sale_row = session.get(_Sale, sale.sale_id)
+            discount_for_award = int(sale_row.discount_gs or 0) if sale_row else 0
+            net_paid_gs = max(0, int(sale.total_price_gs) - discount_for_award)
             _award_points(
                 session,
                 cust,
-                max(0, int(sale.total_price_gs)),
+                net_paid_gs,
                 sale_id=sale.sale_id,
                 actor=str(current_user_id(request) or "operator"),
             )
