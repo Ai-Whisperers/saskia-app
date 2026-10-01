@@ -261,10 +261,10 @@ class DailySummary:
     iva_gs: int
     cogs_gs: int  # Cost of goods sold (recipe cost x qty)
     margin_gs: int
-    # Renamed from `expenses_gs` to make the placeholder explicit.
-    # Until the Expense model ships, this is always 0 and operators
-    # reading the dashboard should not mistake it for a real number.
-    expenses_placeholder_gs: int = 0  # TODO(phase-3c): wire Expense model
+    # Real expenses pulled from the `expense` table (Phase 14, 2026-10-01).
+    # The field name keeps the `_placeholder_` suffix for one release so
+    # dashboards reading the old name don't 500 — see migration 082.
+    expenses_placeholder_gs: int = 0
 
 
 def expenses_in_window(
@@ -329,12 +329,10 @@ def daily_summary(
         )
     ).scalar() or 0
 
-    # Phase 14 (2026-10-01): real expenses via Expense model (was the
-    # `expenses_placeholder_gs=0` TODO since phase-3c). Sum everything
-    # in [start, end), excluding voided rows. Replaces the placeholder
-    # by populating the new `expenses_gs` field; the placeholder is
-    # kept for one release so dashboards reading the old name don't
-    # 500.
+    # Phase 14 (2026-10-01): real expenses via Expense model (migration
+    # 082). Sum everything in [start, end), excluding voided rows.
+    # The field name stays expenses_placeholder_gs for one release so
+    # dashboards reading the old name don't 500.
     expenses_total = expenses_in_window(session, start=start, end=end)
 
     return DailySummary(
