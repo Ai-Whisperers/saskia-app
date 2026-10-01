@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.rms.models_legacy import RiskItem
+from app.rms.models import RiskItem
 
 pytestmark = pytest.mark.crud
 
