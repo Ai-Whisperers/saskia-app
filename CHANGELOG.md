@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## 2026-10-01 - User Guide v1.0 (screenshots + version drift check)
+
+### New
+- **24 real PNG screenshots** of every daily-use page captured via Playwright + cookie auth against the live Swarm URL. Replaces 22 "placeholder screenshot" references across 16 sections of `docs/user-guide/`.
+- **`check_manual_version.py`** — verifies README's `schema NN · commit XXXX` header against `app/rms/config.py` and `git HEAD`. Exits non-zero on drift so CI can catch stale docs.
+- **"Lo que podés hacer" matrix** in README — 16 confirmed-active daily workflows linked to their screenshots, 8 wishlist items bucketed by quarter, 3 known-fragility callouts.
+- **Version pinning header** in README: three-form verification (browser footer, login response header, this manual) so Saskia can detect drift herself.
+- **`tests/test_user_guide_version.py`** — 7 tests pin the contract: header present, drift check passes, every section embeds a screenshot, no placeholder strings remain, README documents both active and not-yet-active features.
+
+### Fixes
+- README pointed at **suspended** Render URL `saskia-rms.paragu-ai.com` (returns 503 / `x-render-routing: suspend-by-user`). Now points at the live Swarm URL `saskia-vps.paragu-ai.com` and warns about the suspended one.
+
+### Stats
+- 24 screenshots (5.5 MB total), 4 helper scripts (capture + replace + version-check), 17 doc files updated.
+- `152 + 7 = 159` tests, `152/152` pass + 6 PG skip + 3 net skip.
+
+### Deploy notes
+- Manual lives in repo at `docs/user-guide/README.md`. No live deploy needed (markdown only).
+- When schema or routes change: re-run `python3 docs/user-guide/capture_saskia_screenshots.py` and update the version header in README.md. Run `python3 docs/user-guide/check_manual_version.py` to confirm no drift.
+
 ## 2026-09-30 - reorder supplier redesign + scraper completion
 
 ### New
