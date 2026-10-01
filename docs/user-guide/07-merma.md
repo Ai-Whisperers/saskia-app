@@ -16,7 +16,7 @@ Si estás tirando más que eso, algo está mal.
 
 **Merma** en la barra superior.
 
-![Pantalla de merma — placeholder screenshot]
+![Pantalla de Merma / desperdicio.](screenshots/14-merma.png)
 
 La pantalla tiene dos secciones:
 

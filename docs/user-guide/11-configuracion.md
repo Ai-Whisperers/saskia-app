@@ -7,7 +7,7 @@
 
 **Configuración** en la barra superior.
 
-![Pantalla de configuración — placeholder screenshot]
+![Configuración general.](screenshots/20-settings.png)
 
 Los ajustes están agrupados por categoría: General, Inventario, Ventas,
 Dashboard, Backup, Sesión, Demo.

@@ -7,7 +7,7 @@
 
 **Auditoría** en la barra superior.
 
-![Pantalla de auditoría — placeholder screenshot]
+![Log de auditoría.](screenshots/19-auditoria.png)
 
 ## Qué se registra
 

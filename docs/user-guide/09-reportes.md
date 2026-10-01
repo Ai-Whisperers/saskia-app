@@ -8,7 +8,7 @@
 **Reportes** en la barra superior. Te aparece una sub-página con los
 tres tipos de reporte.
 
-![Pantalla de reportes — placeholder screenshot]
+![Reporte diario de ventas.](screenshots/16-reportes-diario.png)
 
 ## Reporte 1: IVA (mensual)
 

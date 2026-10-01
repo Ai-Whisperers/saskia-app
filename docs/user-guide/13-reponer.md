@@ -7,7 +7,7 @@
 
 **Reponer** en la barra superior.
 
-![Pantalla de reponer — placeholder screenshot]
+![Pantalla principal de Reposición.](screenshots/15-reorder.png)
 
 ## Qué muestra
 

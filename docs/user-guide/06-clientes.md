@@ -8,7 +8,7 @@
 
 **Clientes** en la barra superior.
 
-![Pantalla de clientes — placeholder screenshot]
+![Listado de Clientes.](screenshots/17-clientes.png)
 
 ## Tu rutina diaria con clientes
 

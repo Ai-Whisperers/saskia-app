@@ -7,7 +7,7 @@
 
 **Recetas** en la barra superior.
 
-![Pantalla de recetas — placeholder screenshot]
+![Listado de Recetas.](screenshots/10-recetas.png)
 
 ## Qué muestra
 
@@ -23,7 +23,7 @@ Cada fila es una receta. Las columnas son:
 
 Tocá **+ Nueva receta**.
 
-![Formulario de receta nueva — placeholder screenshot]
+![Formulario para crear receta.](screenshots/11-recetas-nueva.png)
 
 ### Campos principales
 

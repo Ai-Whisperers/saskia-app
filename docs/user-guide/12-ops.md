@@ -8,7 +8,7 @@
 
 **Ops** en la barra superior.
 
-![Pantalla de ops — placeholder screenshot]
+![Estado operativo (sólo Iván).](screenshots/21-ops.png)
 
 > **Esta pantalla es raramente útil para vos.** Es más para Iván.
 > Si la app está funcionando normal, no necesitás mirar esto.

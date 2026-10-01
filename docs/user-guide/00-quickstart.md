@@ -23,7 +23,7 @@ dos campos:
 | **Correo electrónico** | `saskia@paragu-ai.com` |
 | **Contraseña** | La contraseña que Iván te pasó por WhatsApp (si no la tenés, pedila). |
 
-![Pantalla de login — placeholder screenshot]
+![Pantalla de inicio de sesión (login).](screenshots/00-login.png)
 
 Después de escribir los dos datos, hacé clic en **"Iniciar sesión"**.
 
@@ -45,7 +45,7 @@ Una vez que entrás, llegás a la pantalla **Inicio**. Es el "tablero de
 control" de la panadería: ves las ventas del día, los avisos de stock
 bajo, y el ranking de productos más vendidos.
 
-![Pantalla de inicio — placeholder screenshot]
+![Pantalla principal al iniciar sesión.](screenshots/00-dashboard.png)
 
 Si llegaste hasta acá, ya podés usar la app. Las siguientes secciones
 explican cada pantalla en detalle.

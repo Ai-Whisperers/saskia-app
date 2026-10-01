@@ -7,7 +7,7 @@
 
 **Producción** en la barra superior.
 
-![Pantalla de producción — placeholder screenshot]
+![Plan de producción del día.](screenshots/05-produccion.png)
 
 ## Qué muestra
 

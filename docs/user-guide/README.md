@@ -3,7 +3,10 @@
 > **Para Saskia.** Esta guía explica, página por página, todo lo que
 > tiene la app y cómo usarlo en el día a día de la panadería.
 
-**URL:** `https://saskia-rms.paragu-ai.com`
+**URL activa:** `https://saskia-vps.paragu-ai.com`  *(si ves "service suspended", contactá al equipo — esa URL no es la correcta)*
+**URL alternativa (suspendida):** `https://saskia-rms.paragu-ai.com` — Render, NO usar
+**Versión del manual:** 2026-10-01 · schema 74 · commit `80ec6aa` · 16 secciones
+**Manual versión:** v1.0 (ver "Cómo verificar la versión" abajo)
 
 ## Índice rápido
 
@@ -75,6 +78,68 @@ Cierre (EOD)      → checklist del final del día
 Excel             → importar/exportar planilla
 Ops               → diagnóstico (solo Iván)
 ```
+
+---
+
+## Lo que podés hacer — y lo que todavía no
+
+**Versión:** schema 74 · commit `80ec6aa` · 2026-10-01
+
+### ✅ Funcionalidades activas (lista cerrada)
+
+| # | Flujo | Página | Captura |
+|---|---|---|---|
+| 1 | Registrar una venta (POS, scan, multi-item) | [`02-ventas`](02-ventas.md) | `01-ventas-pos.png` |
+| 2 | Anular una venta del día | [`02-ventas`](02-ventas.md) → Historial | (en `01-ventas-pos.png`) |
+| 3 | Crear pedido anticipado (recetas, orden) | [`03-pedidos`](03-pedidos.md) | `04-pedidos-nuevo.png` |
+| 4 | Ver el board de pedidos pendientes | [`03-pedidos`](03-pedidos.md) | `03-pedidos-board.png` |
+| 5 | Plan de producción del día (manual) | [`05-produccion`](05-produccion.md) | `05-produccion.png` |
+| 6 | Plan de producción de mañana (auto) | [`05-produccion`](05-produccion.md) | `06-produccion-manana.png` |
+| 7 | Cierre diario (EOD checklist) | [`14-cierre`](14-cierre.md) | `07-eod-checklist.png` |
+| 8 | Crear / editar producto | [`04-productos`](04-productos.md) | `08-productos.png`, `09-productos-nuevo.png` |
+| 9 | Crear / editar receta con foto | [`05-recetas`](05-recetas.md) | `10-recetas.png`, `11-recetas-nueva.png` |
+| 10 | Crear / ajustar ingrediente (stock, precio) | [`03-inventario`](03-inventario.md) | `12-inventario.png`, `13-inventario-nuevo.png` |
+| 11 | Registrar merma / desperdicio | [`07-merma`](07-merma.md) | `14-merma.png` |
+| 12 | Reponer stock (con precios scrapeados) | [`13-reponer`](13-reponer.md) | `15-reorder.png` |
+| 13 | Reporte diario de ventas | [`09-reportes`](09-reportes.md) | `16-reportes-diario.png` |
+| 14 | Registrar cliente y sumar puntos | [`06-clientes`](06-clientes.md) | `17-clientes.png` |
+| 15 | Canjear puntos del cliente (POS) | [`02-ventas`](02-ventas.md) → "Usar puntos" | (en POS) |
+| 16 | Lista de compras (sincroniza con stock bajo) | [`06-lista-compras`](06-clientes.md#lista-de-compras) | `18-shopping-list.png` |
+
+### ⏳ Lo que **todavía no** podés hacer (wishlist)
+
+| # | Lo que falta | Por qué | Cuándo (planificado) |
+|---|---|---|---|
+| A | Sincronizar planillas de Drive en vivo | Sólo importa Excel manualmente | Q4 2026 |
+| B | Notificación WhatsApp al cliente cuando su pedido está listo | Evolution API no configurada | Sin fecha |
+| C | Pagos con tarjeta (POS integrado con Bancard) | Requiere uno con extensiones | Sin fecha |
+| D | Imprimir tickets en la impresora fiscal | Requiere driver específico | Sin fecha |
+| E | Multi-usuario (roles: cajero / administrador / panadero) | Sólo hay un usuario (`demo`) | Q4 2026 |
+| F | App móvil nativa (iOS / Android) | Hoy sólo funciona en navegador | Sin fecha |
+| G | Funcionar sin internet (modo offline) | La app requiere conexión constante | Sin fecha |
+| H | Códigos QR para clientes (auto-checkin) | No implementado | Sin fecha |
+
+Si necesitás alguna de estas, anotalo en `installer/ROUND-2-NOTES.md` o avisá a Iván.
+
+### ⚠️ Funciones que tienen riesgo de rotura conocida
+
+- **`/ventas` carga lenta con >200 ventas en pantalla.** Si la página se cuelga, refrescá con `F5` o navegá a otra sección y volvé.
+- **`/reorder` usa scraping externo** (Superseis, Stock.com.py). Si la página no carga precios, los scrapers pueden estar caídos — usá el botón "📤 Cargar CSV" para no quedar bloqueada.
+- **El navegador "duerme" a los 5 minutos** y tarda medio segundo en despertar. Es normal.
+
+---
+
+## Cómo verificar que tenés la versión correcta
+
+Tres formas:
+
+| Cómo | Dónde mirar | Cómo se ve OK |
+|---|---|---|
+| En el navegador | Pie de página de cualquier pantalla | "Saskia RMS v1.0 · Sistema local · 2026" |
+| Al iniciar sesión | Header `X-Agent` en respuesta `/login` | `SaskiaRMS/1.0` |
+| En este manual | El número "v1.0" arriba | Dice `2026-10-01 · schema 74` |
+
+Si los tres no coinciden, **el manual está desactualizado** — avisá a Iván para que lo actualice.
 
 ---
 

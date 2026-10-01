@@ -7,7 +7,7 @@
 
 **Cierre** en la barra superior.
 
-![Pantalla de cierre — placeholder screenshot]
+![Cierre diario (EOD) — checklist de 10 ítems.](screenshots/07-eod-checklist.png)
 
 ## Qué muestra
 

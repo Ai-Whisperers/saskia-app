@@ -7,7 +7,7 @@
 **Ventas** en la barra superior. Verás tres secciones: **Quick-sell**,
 **Nueva venta**, e **Historial**.
 
-![Pantalla de ventas — placeholder screenshot]
+![Pantalla principal de Ventas — Quick-sell (columna).](screenshots/01-ventas-pos.png)
 
 ## Sección 1: Quick-sell (botones grandes arriba)
 
@@ -25,7 +25,7 @@ botón dos veces.
 
 Para ventas que **no son los top 5** o que requieren más detalle:
 
-![Formulario de nueva venta — placeholder screenshot]
+![Misma pantalla, sección «Nueva venta» (centro).](screenshots/01-ventas-pos.png)
 
 El formulario tiene estos campos:
 

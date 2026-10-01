@@ -1,0 +1,157 @@
+{
+  "base": "https://saskia-vps.paragu-ai.com",
+  "routes": [
+    {
+      "path": "/ventas",
+      "label": "01-ventas-pos",
+      "status": 200,
+      "file": "01-ventas-pos.png",
+      "size_kb": 344,
+      "errors": []
+    },
+    {
+      "path": "/ventas/nueva",
+      "label": "02-ventas-nueva",
+      "status": 405,
+      "file": "02-ventas-nueva.png",
+      "size_kb": 9,
+      "errors": [
+        "error page rendered"
+      ]
+    },
+    {
+      "path": "/pedidos",
+      "label": "03-pedidos-board",
+      "status": 200,
+      "file": "03-pedidos-board.png",
+      "size_kb": 106,
+      "errors": []
+    },
+    {
+      "path": "/pedidos/nuevo",
+      "label": "04-pedidos-nuevo",
+      "status": 200,
+      "file": "04-pedidos-nuevo.png",
+      "size_kb": 176,
+      "errors": []
+    },
+    {
+      "path": "/produccion",
+      "label": "05-produccion",
+      "status": 200,
+      "file": "05-produccion.png",
+      "size_kb": 444,
+      "errors": []
+    },
+    {
+      "path": "/produccion/manana",
+      "label": "06-produccion-manana",
+      "status": 200,
+      "file": "06-produccion-manana.png",
+      "size_kb": 583,
+      "errors": []
+    },
+    {
+      "path": "/eod",
+      "label": "07-eod-checklist",
+      "status": 200,
+      "file": "07-eod-checklist.png",
+      "size_kb": 248,
+      "errors": []
+    },
+    {
+      "path": "/productos",
+      "label": "08-productos",
+      "status": 200,
+      "file": "08-productos.png",
+      "size_kb": 211,
+      "errors": []
+    },
+    {
+      "path": "/productos/nuevo",
+      "label": "09-productos-nuevo",
+      "status": 200,
+      "file": "09-productos-nuevo.png",
+      "size_kb": 180,
+      "errors": []
+    },
+    {
+      "path": "/recetas",
+      "label": "10-recetas",
+      "status": 200,
+      "file": "10-recetas.png",
+      "size_kb": 499,
+      "errors": []
+    },
+    {
+      "path": "/recetas/nueva",
+      "label": "11-recetas-nueva",
+      "status": 200,
+      "file": "11-recetas-nueva.png",
+      "size_kb": 195,
+      "errors": []
+    },
+    {
+      "path": "/inventario",
+      "label": "12-inventario",
+      "status": 200,
+      "file": "12-inventario.png",
+      "size_kb": 203,
+      "errors": []
+    },
+    {
+      "path": "/inventario/nuevo",
+      "label": "13-inventario-nuevo",
+      "status": 200,
+      "file": "13-inventario-nuevo.png",
+      "size_kb": 189,
+      "errors": []
+    },
+    {
+      "path": "/merma",
+      "label": "14-merma",
+      "status": 200,
+      "file": "14-merma.png",
+      "size_kb": 193,
+      "errors": []
+    },
+    {
+      "path": "/reorder",
+      "label": "15-reorder",
+      "status": 200,
+      "file": "15-reorder.png",
+      "size_kb": 1259,
+      "errors": []
+    },
+    {
+      "path": "/reportes/diario",
+      "label": "16-reportes-diario",
+      "status": 200,
+      "file": "16-reportes-diario.png",
+      "size_kb": 85,
+      "errors": []
+    },
+    {
+      "path": "/clientes",
+      "label": "17-clientes",
+      "status": 200,
+      "file": "17-clientes.png",
+      "size_kb": 159,
+      "errors": []
+    },
+    {
+      "path": "/shopping-list",
+      "label": "18-shopping-list",
+      "status": 200,
+      "file": "18-shopping-list.png",
+      "size_kb": 597,
+      "errors": []
+    }
+  ],
+  "bugs_found": [
+    {
+      "path": "/ventas/nueva",
+      "issue": "5xx / traceback in body"
+    }
+  ]
+}

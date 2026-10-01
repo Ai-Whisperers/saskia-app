@@ -7,7 +7,7 @@
 
 **Productos** en la barra superior.
 
-![Pantalla de productos — placeholder screenshot]
+![Listado de Productos.](screenshots/08-productos.png)
 
 ## Qué muestra la tabla
 
@@ -34,7 +34,7 @@ Arriba de la tabla hay filtros:
 
 Tocá **+ Nuevo producto**.
 
-![Formulario de producto nuevo — placeholder screenshot]
+![Formulario para crear producto.](screenshots/09-productos-nuevo.png)
 
 Llená:
 

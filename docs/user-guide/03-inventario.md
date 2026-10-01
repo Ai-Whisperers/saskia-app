@@ -7,7 +7,7 @@
 
 **Inventario** en la barra superior.
 
-![Pantalla de inventario — placeholder screenshot]
+![Pantalla principal de Inventario.](screenshots/12-inventario.png)
 
 ## Qué muestra la tabla
 
@@ -26,7 +26,7 @@ Cada fila es un ingrediente. Las columnas son:
 
 Tocá **+ Nuevo ingrediente** arriba a la derecha.
 
-![Formulario de ingrediente nuevo — placeholder screenshot]
+![Formulario para agregar ingrediente.](screenshots/13-inventario-nuevo.png)
 
 Llená los campos:
 

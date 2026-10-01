@@ -10,7 +10,7 @@ haciendo clic en **Inicio** en la barra de arriba.
 
 ## Qué muestra
 
-![Pantalla de inicio — placeholder screenshot]
+![Inicio: resumen del día + avisos.](screenshots/00-dashboard.png)
 
 De arriba para abajo:
 

@@ -7,7 +7,7 @@
 
 **Excel** en la barra superior.
 
-![Pantalla de Excel — placeholder screenshot]
+![Pantalla de Excel (importar / exportar).](screenshots/22-excel.png)
 
 ## Exportar (bajar datos)
 
