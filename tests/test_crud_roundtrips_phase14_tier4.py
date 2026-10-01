@@ -88,19 +88,12 @@ def test_pedido_create_fulfill_and_appears_in_report(client, session_factory):
         report_response = client.get(f"/reportes/diario?for_date={check_date.isoformat()}")
         
         if report_response.status_code == 200:
-            # Debug: print the response to understand its structure
-            print(f"Report response status: {report_response.status_code}")
-            print(f"Report response content-type: {report_response.headers.get('content-type', '')}")
             report_data = report_response.json() if "application/json" in report_response.headers.get("content-type", "") else {}
-            print(f"Report data keys: {list(report_data.keys()) if report_data else 'No JSON data'}")
             
             # Check if we got JSON data with the expected fields
-            if report_data:
-                if "n_sales" in report_data and report_data.get("n_sales", 0) > 0:
-                    # Found sales data, test passes
-                    break
-            else:
-                print(f"Report response text: {report_response.text[:200]}")
+            if report_data and "n_sales" in report_data and report_data.get("n_sales", 0) > 0:
+                # Found sales data, test passes
+                break
         elif i == 2:  # Last check failed
             pytest.fail(f"Daily report endpoint not working or no sales found in 3 days")
 
@@ -244,12 +237,6 @@ def test_sale_multi_item_appears_in_daily_total(client, session_factory):
     
     # Parse the report response
     report_data = report_response.json() if "application/json" in report_response.headers.get("content-type", "") else {}
-    
-    # Debug: print the response to understand its structure
-    print(f"Report response status: {report_response.status_code}")
-    print(f"Report response content-type: {report_response.headers.get('content-type', '')}")
-    if not report_data:
-        print(f"Report response text: {report_response.text[:500]}")
     
     # Check if we got JSON data with the expected fields
     if report_data:
