@@ -8,11 +8,70 @@
     <p class="muted">Riesgos operacionales, externos, comerciales, legales y personales</p>
   </div>
   <div style="display:flex;gap:.5rem;flex-shrink:0;">
-    {# TODO: wire to POST /riesgos/new when the add-risk endpoint lands. Meanwhile use /settings → Configuración general. #}
-    <button type="button" class="btn btn-primary" disabled aria-disabled="true" title="Próximo: formulario para agregar riesgos desde esta pantalla">+ Agregar riesgo</button>
+    <button type="button" class="btn btn-primary" id="add-risk-btn"
+            aria-expanded="false" aria-controls="add-risk-form"
+            onclick="document.getElementById('add-risk-form').hidden = !document.getElementById('add-risk-form').hidden; this.setAttribute('aria-expanded', String(!document.getElementById('add-risk-form').hidden));">
+      + Agregar riesgo
+    </button>
     <a href="/settings#riesgos" class="btn btn-ghost">Configurar categorías</a>
   </div>
 </div>
+
+{% if flash %}
+<div class="alert alert--{{ flash.severity }}" role="status" style="margin-bottom:1rem;padding:.6rem .8rem;border-radius:6px;
+            {% if flash.severity == 'error' %}background:rgba(220,50,50,.10);border:1px solid #d33;color:#a00;
+            {% else %}background:rgba(34,197,94,.10);border:1px solid #16a34a;color:#15803d;
+            {% endif %}">
+  {{ flash.message }}
+</div>
+{% endif %}
+
+<form id="add-risk-form" method="post" action="/riesgos/new" hidden class="card" style="margin-bottom:1rem;max-width:780px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:.75rem;">
+    <div class="form-row is-required">
+      <label for="risk-description">Descripción</label>
+      <input type="text" id="risk-description" name="description" required maxlength="255" placeholder="Ej: Corte de luz durante turno mañana">
+    </div>
+    <div class="form-row">
+      <label for="risk-category">Categoría</label>
+      <select id="risk-category" name="category">
+        <option value="">—</option>
+        <option value="operacional">Operacional</option>
+        <option value="externo">Externo</option>
+        <option value="comercial">Comercial</option>
+        <option value="legal">Legal</option>
+        <option value="personal">Personal</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label for="risk-probability">Probabilidad (1-5)</label>
+      <input type="number" id="risk-probability" name="probability" value="2" min="1" max="5" step="1">
+    </div>
+    <div class="form-row">
+      <label for="risk-impact">Impacto Gs.</label>
+      <input type="number" id="risk-impact" name="impact_gs" value="0" min="0" step="1000">
+    </div>
+  </div>
+  <div class="form-row">
+    <label for="risk-mitigation">Mitigación propuesta</label>
+    <textarea id="risk-mitigation" name="mitigation" rows="2" maxlength="2000" placeholder="¿Cómo se mitiga o se reduce el impacto?"></textarea>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+    <div class="form-row">
+      <label for="risk-owner">Responsable</label>
+      <input type="text" id="risk-owner" name="owner" maxlength="64" placeholder="Ej: Iván, Gaby">
+    </div>
+    <div class="form-row">
+      <label for="risk-notes">Notas</label>
+      <input type="text" id="risk-notes" name="notes" maxlength="2000">
+    </div>
+  </div>
+  <div style="display:flex;gap:.5rem;margin-top:.5rem;">
+    <button type="submit" class="btn btn-primary">Guardar riesgo</button>
+    <button type="button" class="btn btn-ghost" onclick="document.getElementById('add-risk-form').hidden = true; document.getElementById('add-risk-btn').setAttribute('aria-expanded','false');">Cancelar</button>
+  </div>
+</form>
 
 <div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
   {{ ui.metric_card(label="Activos", value=active_count) }}

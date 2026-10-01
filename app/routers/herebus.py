@@ -20,7 +20,7 @@ import json
 from collections import defaultdict
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Form, Query, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from loguru import logger
 from sqlalchemy import select
@@ -248,8 +248,82 @@ def risk_list(request: Request, session: Session = Depends(get_session)) -> HTML
             "active_count": sum(1 for i in items if i.status == "activo"),
             "mitigated_count": sum(1 for i in items if i.status == "mitigated"),
             "closed_count": sum(1 for i in items if i.status == "cerrado"),
+            "flash": request.session.pop("flash_risk", None) if hasattr(request, "session") else None,
         },
     )
+
+
+@risks_router.post("/new")
+def risk_create(
+    request: Request,
+    description: str = Form(""),
+    category: str = Form(""),
+    probability: int = Form(2),
+    impact_gs: int = Form(0),
+    mitigation: str = Form(""),
+    owner: str = Form(""),
+    notes: str = Form(""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Create a new risk on the registry (closes Phase-14 #nav:11 TODO).
+
+    The same validation rules as the model CheckConstraints apply:
+      - probability BETWEEN 1 AND 5
+      - impact_gs >= 0
+      - description non-empty (NOT NULL, len 1..255)
+    On violation we re-render the list with a flash message.
+    """
+    from app.rms.validation import optional_text, require_text
+
+    errors: list[str] = []
+    try:
+        clean_description = require_text(description, field="descripción", max_len=255)
+    except HTTPException as e:
+        errors.append(str(e.detail))
+        # Don't fall back — description is NOT NULL in the schema; reject.
+        clean_description = ""
+
+    if not (1 <= int(probability) <= 5):
+        errors.append("La probabilidad debe estar entre 1 y 5.")
+    if int(impact_gs) < 0:
+        errors.append("El impacto Gs. no puede ser negativo.")
+
+    if errors:
+        if hasattr(request, "session"):
+            request.session["flash_risk"] = {
+                "severity": "error",
+                "message": "; ".join(errors),
+            }
+        return RedirectResponse(url="/riesgos", status_code=303)
+
+    item = RiskItem(
+        description=clean_description,
+        category=optional_text(category, max_len=32) or None,
+        probability=int(probability),
+        impact_gs=int(impact_gs),
+        mitigation=optional_text(mitigation, max_len=2000) or None,
+        status="activo",  # default: new risks are active (DB CHECK accepts 'activo')
+        owner=optional_text(owner, max_len=64) or None,
+        notes=optional_text(notes, max_len=2000) or None,
+    )
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+    record_audit(
+        request,
+        session=session,
+        action="write.risk.create",
+        target_type="risk_item",
+        target_id=item.id,
+        detail={"description": clean_description, "category": category},
+    )
+    session.commit()
+    if hasattr(request, "session"):
+        request.session["flash_risk"] = {
+            "severity": "ok",
+            "message": f"Riesgo «{clean_description[:30]}» registrado.",
+        }
+    return RedirectResponse(url="/riesgos", status_code=303)
 
 
 # ──────────────────────────────────────────────────────────────────

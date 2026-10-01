@@ -15,7 +15,7 @@ the code, and operator-ranked. Status is the latest known state.
 | 3 | Move INV-03 clamp from UI to DB: enforce `stock_qty >= 0` at DB level (the UI clamp hides raw negatives from analytics) | ❌ TODO | S |
 | 4 | Make migrations truly atomic (Postgres DDL auto-commits — `try/except: pass` on ALTER leaves partial state) | ❌ TODO | M |
 | 5 | Add DB-level CHECK on `recipe.yield_qty > 0` (today only Python enforces; raw SQL can insert NULL yield_qty) | ✅ Done 2026-10-01 (migration 028 update triggers + migration 083 INSERT triggers; `tests/test_db_check_constraints.py`) | — |
-| 6 | `ON DELETE` policy on `RecipeLine.recipe_id` (deleting a recipe leaves orphans OR cascades and deletes user data — current behavior is unclear) | ❌ TODO | S |
+| 6 | `ON DELETE` policy on `RecipeLine.recipe_id` (deleting a recipe leaves orphans OR cascades and deletes user data — current behavior is unclear) | ✅ Done 2026-10-01 (audit: `RecipeLine.recipe_id` already has `ondelete="CASCADE"`; `Product.recipe_id` has no `ondelete` so DB default RESTRICT applies — cannot delete an in-use recipe; safe) | — |
 
 ## Tier 2: P0 — Security / data integrity
 

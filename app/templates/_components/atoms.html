@@ -144,8 +144,10 @@
 {%- endmacro %}
 
 {# ── A-8 filter_toolbar ────────────────────────────────────────────── #}
-{# items: list of dicts {type: 'search'|'select'|'date', name, label, value,
-   options: [(value, label, selected?)]} — renders a GET form row. #}
+{# items: list of dicts {type: 'search'|'select'|'date'|'combo', name, label, value,
+   options: [(value, label, selected?)] OR
+   endpoint: server-mode combo URL — renders a <saskia-combo>} — renders a GET form row.
+   Use 'combo' for searchable dropdowns; 'select' for short static lists. #}
 {% macro filter_toolbar(items, action=None, applied=None) -%}
 <form method="get" {% if action %}action="{{ action }}"{% endif %} class="filter-toolbar" role="search">
   {% for f in items %}
@@ -160,6 +162,17 @@
     </select>
     {% elif f.type == 'date' %}
     <input type="date" class="filter-toolbar__date" name="{{ f.name }}" value="{{ f.value or '' }}" aria-label="{{ f.label }}">
+    {% elif f.type == 'combo' %}
+    {# Wires A-1 combo_field into the toolbar. Pass src=[{value,label}] directly,
+       or endpoint='/api/x?q=' for server-mode. (See saskia-combo contract.) #}
+    <saskia-combo name="{{ f.name }}"
+                  {% if f.value is not none %}value="{{ f.value }}"{% endif %}
+                  {% if f.display %}display="{{ f.display }}"{% endif %}
+                  {% if f.src %}src='{{ f.src | tojson }}'{% endif %}
+                  {% if f.endpoint %}endpoint="{{ f.endpoint }}"{% endif %}
+                  placeholder="{{ f.placeholder or f.label or 'Buscar…' }}"
+                  aria-label="{{ f.label }}">
+    </saskia-combo>
     {% endif %}
   {% endfor %}
   <button type="submit" class="btn btn-primary">Filtrar</button>
@@ -350,8 +363,13 @@
      label       — associated <label> text (optional)
      label_for   — id for the <label for="...">
 
-   TODO (tomorrow): wire into filter_toolbar macro; add currency formatter
-   for price-type combos (closes D15). #}
+   allow_create — show "+ crear" affordance inside the dropdown
+     autosubmit   — auto-submit the closest <form> on selection
+     row_label    — optional standalone label rendered to the left
+     data_attrs    — dict of extra `data-*` attributes on the web component
+
+   See: docs/plans/2026-10-01-phase14-todo-inventory.md (D15 — currency
+   formatter for price combos still pending). #}
 {% macro combo_field(name, value=None, display=None, placeholder=None,
                      src=None, endpoint=None, required=False,
                      label=None, label_for=None,

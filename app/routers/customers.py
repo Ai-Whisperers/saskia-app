@@ -48,6 +48,104 @@ ALLOWED_CHANNELS = frozenset({
 PAGE_SIZE = 50
 
 
+@router.get("/nuevo", response_class=HTMLResponse)
+def cliente_new(
+    request: Request,
+) -> object:
+    """Render the create-customer form (closes Phase-14 #nav:217 TODO)."""
+    return render(
+        request,
+        "clientes_nuevo.html",
+        {
+            "form": {},
+            "how_found_options": sorted(ALLOWED_HOW_FOUND),
+            "channel_options": sorted(ALLOWED_CHANNELS),
+        },
+    )
+
+
+@router.post("/nuevo")
+def cliente_new_submit(
+    request: Request,
+    name: str = Form(""),
+    phone: str = Form(""),
+    email: str = Form(""),
+    cedula: str = Form(""),
+    notes: str = Form(""),
+    birthday: str = Form(""),
+    how_found: str = Form(""),
+    preferred_channel: str = Form(""),
+    marketing_consent: str = Form(""),
+    session: Session = Depends(get_session),
+) -> object:
+    """POST → create (or update, by phone) → redirect to /clientes/{id}.
+
+    Mirrors the /clientes/api/create JSON contract, but for the operator
+    who clicks the topbar "+ Cliente" link. Returns 422-style form re-render
+    with `error` when validation fails; otherwise 303 to /clientes/{id}.
+    """
+    from app.rms.validation import (
+        optional_text,
+        require_text,
+        validate_cedula,
+        validate_email,
+        validate_phone,
+    )
+    from app.rms.customers import ensure_customer
+
+    try:
+        clean_name = require_text(name, field="nombre", max_len=120)
+        clean_phone = validate_phone(phone)
+        clean_email = validate_email(email)
+        clean_cedula = validate_cedula(cedula)
+        clean_notes = optional_text(notes, max_len=2000)
+    except HTTPException as e:
+        # Re-render the form with the user's input so they don't retype.
+        return render(
+            request,
+            "clientes_nuevo.html",
+            {
+                "form": {
+                    "name": name, "phone": phone, "email": email,
+                    "cedula": cedula, "notes": notes,
+                    "birthday": birthday, "how_found": how_found,
+                    "preferred_channel": preferred_channel,
+                    "marketing_consent": bool(marketing_consent),
+                },
+                "error": e.detail,
+                "how_found_options": sorted(ALLOWED_HOW_FOUND),
+                "channel_options": sorted(ALLOWED_CHANNELS),
+            },
+            status_code=422,
+        )
+
+    pre_ids = set(session.scalars(select(Customer.id)).all())
+    customer = ensure_customer(
+        session,
+        name=clean_name,
+        phone=clean_phone,
+        email=clean_email,
+        cedula=clean_cedula,
+        notes=clean_notes,
+    )
+    was_created = customer.id not in pre_ids
+    # Capture the new id BEFORE flush so we can audit even on rollback.
+    new_id = customer.id
+    session.commit()
+    session.refresh(customer)
+    if was_created:
+        record_audit(
+            request,
+            session=session,
+            action="write.customer.create",
+            target_type="customer",
+            target_id=new_id,
+            detail={"name": clean_name, "via": "ui.nuevo"},
+        )
+        session.commit()
+    return RedirectResponse(url=f"/clientes/{new_id}", status_code=303)
+
+
 @router.get("", response_class=HTMLResponse)
 def clientes_list(
     request: Request,

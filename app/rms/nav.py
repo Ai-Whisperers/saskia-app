@@ -214,7 +214,7 @@ CREATE_ACTIONS: list[tuple[str, str]] = [
     ("Producto", "/productos/nuevo"),
     ("Receta", "/recetas/nueva"),
     ("Ingrediente", "/inventario/nuevo"),
-    ("Cliente", "/clientes/nuevo" if False else "/clientes"),  # TODO: /clientes/nuevo route
+    ("Cliente", "/clientes/nuevo"),
     ("Proveedor", "/suppliers/nuevo"),
     ("Merma", "/merma"),
 ]

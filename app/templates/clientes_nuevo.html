@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Nuevo cliente{% endblock %}
+{% block content %}
+<nav class="breadcrumbs">
+  <a href="/clientes">Clientes</a> &rsaquo;
+  Nuevo
+</nav>
+
+<h1>Nuevo cliente</h1>
+
+{# POST submits to /clientes/nuevo and the router creates the row, then
+   redirects to /clientes/{id} so the operator can review/add details. #}
+<form method="post" action="/clientes/nuevo" class="card" style="max-width:560px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+  {% if error %}<div class="alert is-error" role="alert">{{ error }}</div>{% endif %}
+
+  <div class="form-row is-required">
+    <label for="name">Nombre</label>
+    <input type="text" id="name" name="name" value="{{ form.name or '' }}" required maxlength="120" aria-required="true" autofocus>
+  </div>
+
+  <div class="form-row">
+    <label for="phone">Teléfono</label>
+    <input type="tel" id="phone" name="phone" value="{{ form.phone or '' }}" maxlength="32">
+  </div>
+
+  <div class="form-row">
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email" value="{{ form.email or '' }}" maxlength="120">
+  </div>
+
+  <div class="form-row">
+    <label for="cedula">CI / RUC</label>
+    <input type="text" id="cedula" name="cedula" value="{{ form.cedula or '' }}" maxlength="32">
+  </div>
+
+  <div class="form-row">
+    <label for="notes">Notas</label>
+    <textarea id="notes" name="notes" rows="3" maxlength="2000">{{ form.notes or '' }}</textarea>
+  </div>
+
+  <fieldset style="margin-top:var(--space-4);border:1px solid var(--border);border-radius:8px;padding:var(--space-3);">
+    <legend style="font-weight:600;padding:0 var(--space-2);">Perfil (opcional)</legend>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+      <div>
+        <label for="birthday">Cumpleaños</label>
+        <input type="text" id="birthday" name="birthday" value="{{ form.birthday or '' }}"
+               placeholder="DD-MM o DD-MM-AAAA" maxlength="10" style="margin-top:4px;">
+        <small class="muted">Para promos de cumpleaños.</small>
+      </div>
+      <div>
+        <label for="how_found">¿Cómo nos encontró?</label>
+        <select id="how_found" name="how_found" style="margin-top:4px;">
+          <option value="">—</option>
+          {% for opt in how_found_options %}
+          <option value="{{ opt }}" {% if form.how_found == opt %}selected{% endif %}>{{ opt|title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="preferred_channel">Canal preferido</label>
+        <select id="preferred_channel" name="preferred_channel" style="margin-top:4px;">
+          <option value="">—</option>
+          {% for opt in channel_options %}
+          <option value="{{ opt }}" {% if form.preferred_channel == opt %}selected{% endif %}>{{ opt|title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="display:flex;align-items:end;">
+        <label style="display:flex;align-items:center;gap:var(--space-2);padding-bottom:22px;">
+          <input type="checkbox" id="marketing_consent" name="marketing_consent" value="1"
+                 {% if form.marketing_consent %}checked{% endif %}>
+          <span>Acepta recibir promos <span class="muted">(WhatsApp)</span></span>
+        </label>
+      </div>
+    </div>
+  </fieldset>
+
+  <div style="margin-top:var(--space-4);display:flex;gap:var(--space-3);align-items:center;">
+    <button type="submit" class="btn btn-primary">Crear cliente</button>
+    <a href="/clientes" class="btn btn-ghost">Cancelar</a>
+    <small class="muted" style="margin-left:auto;">Si el teléfono ya existe, se actualizará ese cliente.</small>
+  </div>
+</form>
+
+<script>
+(function () {
+  // Phase 14 — phone-only mode: if phone has 6+ digits and name is empty,
+  // offer to autofill name from the existing customer.
+  // (Implemented in cliente_editar.html; not duplicated here for the new flow
+  //  because phone uniqueness is enforced server-side and the API would
+  //  return the existing record via /api/create.)
+})();
+</script>
+{% endblock %}
