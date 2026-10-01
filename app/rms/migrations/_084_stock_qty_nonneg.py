@@ -78,26 +78,16 @@ def _migration_084_stock_qty_nonneg(conn: Any) -> None:
     # For Postgres, the constraint is already in the model's CheckConstraint,
     # so no action needed here (just bump the version)
     
-    # Bump the schema version
-    try:
-        # Check current version
-        result = conn.execute(text("SELECT current_schema_version FROM app_meta")).fetchone()
-        if result is None:
-            # No app_meta row yet (fresh schema) - initialize
-            conn.execute(text("INSERT INTO app_meta (current_schema_version) VALUES (:version)"), {"version": 84})
-        else:
-            current = result[0]
-            if current < 84:
-                # Only bump if we're moving forward
-                conn.execute(text("UPDATE app_meta SET current_schema_version = :version"), {"version": 84})
-    except Exception:
-        # Fallback for older schemas that might not have app_meta yet
-        try:
-            conn.execute(text("CREATE TABLE IF NOT EXISTS app_meta (current_schema_version INTEGER)"))
-            conn.execute(text("INSERT INTO app_meta (current_schema_version) VALUES (:version)"), {"version": 84})
-        except Exception:
-            # If all else fails, at least ensure the version is bumped for next time
-            pass
+    # Bump the schema version using the CANONICAL helper so init_db's
+    # probe sees the migration applied. (TIER-4-PROPERTY-FIX 2026-10-01:
+    # the previous inline `app_meta.current_schema_version` query used
+    # a column that doesn't exist in the canonical schema -- the
+    # canonical schema is `app_meta (key, value, updated_at)`. The
+    # migration ran the triggers but never bumped the version, so
+    # init_db kept reporting `migrations_pending=1`. This uses the
+    # same helper as every other migration.)
+    from app.rms.db import _bump_schema_version
+    _bump_schema_version(conn, 84)
 
 
 def run_post_migration(session) -> dict[str, int]:
