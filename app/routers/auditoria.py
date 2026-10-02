@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
 from app.rms.audit import list_recent, prune_audit_log, search_by_target
+from app.rms.audit_analytics import compute_audit_analytics
 from app.rms.dependencies import get_session
 from app.rms.streaming_csv import stream_csv_rows
 from app.services.template_render import render
@@ -222,6 +223,30 @@ def auditoria_prune(
     deleted = prune_audit_log(session, older_than_days=older_than_days)
     session.commit()
     return RedirectResponse(url=f"/auditoria?pruned={deleted}", status_code=303)
+
+
+@router.get("/analytics", response_class=HTMLResponse)
+def auditoria_analytics(
+    request: Request,
+    days: int = Query(30, ge=1, le=365),
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """BACKLOG #30: aggregated audit log analytics.
+
+    Complements the row-level /auditoria viewer with:
+      - Top IPs by event count (with login.failure vs login.success split)
+      - Top actions by frequency
+      - Per-operator activity (events + distinct actions + last seen)
+      - Login failure rate (overall)
+
+    Read-only, no writes. Pure analytics.
+    """
+    report = compute_audit_analytics(session, days=days)
+    return render(
+        request,
+        "auditoria_analytics.html",
+        {"report": report, "days": days},
+    )
 
 
 __all__ = ["router"]

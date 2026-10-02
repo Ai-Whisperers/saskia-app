@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Analítica de auditoría{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-audit"/></svg>
+  Analítica de auditoría
+</h1>
+
+<p class="hint">
+  Agregación del audit log en los últimos <strong>{{ days }}</strong> días.
+  Complementa al visor fila-por-fila de <a href="/auditoria">/auditoria</a>
+  con métricas de patrones de uso: IPs más frecuentes, acciones por
+  frecuencia, actividad por operador, y tasa de fallo de login.
+</p>
+
+<form method="get" action="/auditoria/analytics" class="filter-bar">
+  <label>
+    Período:
+    <select name="days" onchange="this.form.submit()">
+      {% for opt in [7, 14, 30, 60, 90] %}
+      <option value="{{ opt }}" {% if opt == days %}selected{% endif %}>
+        Últimos {{ opt }} días
+      </option>
+      {% endfor %}
+    </select>
+  </label>
+</form>
+
+<div class="kpi-row grid-4 mb-4">
+  <div class="card kpi">
+    <span class="kpi-label">Eventos totales</span>
+    <strong class="kpi-value">{{ report.n_events }}</strong>
+  </div>
+  <div class="card kpi">
+    <span class="kpi-label">IPs únicas (top 10)</span>
+    <strong class="kpi-value">{{ report.top_ips | length }}</strong>
+  </div>
+  <div class="card kpi">
+    <span class="kpi-label">Operadores activos</span>
+    <strong class="kpi-value">{{ report.operator_activity | length }}</strong>
+  </div>
+  <div class="card kpi
+              {% if report.login_failure_rate is not none and report.login_failure_rate > 0.3 %}warn
+                     {% endif %}">
+    <span class="kpi-label">Tasa de fallo de login</span>
+    <strong class="kpi-value">
+      {% if report.login_failure_rate is not none %}
+      {{ (report.login_failure_rate * 100) | round(1) }}%
+      {% else %}—{% endif %}
+    </strong>
+    <small class="text-muted">
+      ({{ report.n_login_successes }} ok, {{ report.n_login_failures }} fail)
+    </small>
+  </div>
+</div>
+
+<div class="grid-2 mb-4">
+  <div class="card">
+    <h2>Top IPs</h2>
+    <p class="text-muted">
+      <small>
+        IPs con más eventos en el período. Útil para detectar
+        accesos automatizados o un nuevo local/device. Si una IP
+        tiene muchos login.failure podría ser un ataque de
+        fuerza bruta.
+      </small>
+    </p>
+    {% if report.top_ips %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>IP</th>
+          <th class="text-right">Eventos</th>
+          <th class="text-right">Login OK</th>
+          <th class="text-right">Login FAIL</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ip in report.top_ips %}
+        <tr>
+          <td><code>{{ ip.ip }}</code></td>
+          <td class="text-right"><strong>{{ ip.n_events }}</strong></td>
+          <td class="text-right">{{ ip.n_logins_success }}</td>
+          <td class="text-right
+                     {% if ip.n_logins_failed > ip.n_logins_success %}warn{% endif %}">
+            {{ ip.n_logins_failed }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">No hay eventos con IP registrada.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Acciones más frecuentes</h2>
+    <p class="text-muted">
+      <small>
+        Qué tipos de eventos dominan el log. Si ves "sale.void"
+        creciendo mucho, puede haber un patrón de anulaciones
+        que revisar.
+      </small>
+    </p>
+    {% if report.top_actions %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Acción</th>
+          <th class="text-right">Eventos</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in report.top_actions %}
+        <tr>
+          <td><code>{{ a.action }}</code></td>
+          <td class="text-right"><strong>{{ a.n_events }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">No hay eventos.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>Actividad por operador</h2>
+  <p class="text-muted">
+    <small>
+      Top operadores por eventos en el período. "Acciones distintas"
+      indica variedad del trabajo (más alto = más diverso, no
+      solo carga bruta). "Última actividad" muestra cuándo se
+      vio al operador por última vez en el log.
+    </small>
+  </p>
+  {% if report.operator_activity %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Usuario</th>
+        <th class="text-right">Eventos</th>
+        <th class="text-right">Acciones distintas</th>
+        <th>Última actividad</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for op in report.operator_activity %}
+      <tr>
+        <td><code>{{ op.user_id }}</code></td>
+        <td class="text-right"><strong>{{ op.n_events }}</strong></td>
+        <td class="text-right">{{ op.distinct_actions }}</td>
+        <td>{{ op.last_seen_at.strftime("%Y-%m-%d %H:%M") if op.last_seen_at else "—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-muted">No hay eventos con usuario registrado (¿login automático?).</p>
+  {% endif %}
+</div>
+
+{% endblock %}

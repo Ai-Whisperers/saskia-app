@@ -81,6 +81,7 @@ CRUMBS: dict[str, list[tuple[str, str | None]]] = {
     "/pedidos/board": [("Inicio", "/"), ("Pedidos", "/pedidos"), ("Cocina (KDS)", None)],
     "/produccion": [("Inicio", "/"), ("Producción", None)],
     "/produccion-planner": [("Inicio", "/"), ("Producción", "/produccion"), ("Planificador", None)],
+    "/produccion/accuracy": [("Inicio", "/"), ("Producción", "/produccion"), ("Precisión", None)],
     "/eod": [("Inicio", "/"), ("Cierre del día", None)],
     "/productos": [("Inicio", "/"), ("Productos", None)],
     "/productos/nuevo": [("Inicio", "/"), ("Productos", "/productos"), ("Nuevo", None)],
@@ -109,6 +110,7 @@ CRUMBS: dict[str, list[tuple[str, str | None]]] = {
     "/users": [("Inicio", "/"), ("Usuarios", None)],
     "/excel": [("Inicio", "/"), ("Excel", None)],
     "/auditoria": [("Inicio", "/"), ("Auditoría", None)],
+    "/auditoria/analytics": [("Inicio", "/"), ("Auditoría", "/auditoria"), ("Analítica", None)],
     "/guia": [("Inicio", "/"), ("Guía", None)],
     "/ops": [("Inicio", "/"), ("Sistema", None), ("Estado operativo", None)],
 }

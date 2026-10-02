@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Precisión del plan de producción{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>
+  Precisión del plan vs. producción real
+</h1>
+
+<p class="hint">
+  Compara lo que el planificador sugirió producir cada día contra lo que
+  realmente se produjo (ProductionCompletion) y se vendió (Sale).
+  Útil para calibrar la confianza del pronóstico y detectar productos
+  problemáticos donde se hornéa de más o de menos en cada
+  <strong>{{ days_in_period }}</strong> día(s) del período
+  (<strong>{{ start_date }}</strong> → <strong>{{ end_date }}</strong>).
+</p>
+
+<div class="period-toggle flex gap-2 mb-4">
+  {% for opt in [("7d", "7 días"), ("30d", "30 días"), ("90d", "90 días")] %}
+  <a href="?preset={{ opt[0] }}"
+     class="btn {% if opt[0] == preset %}btn-primary{% endif %}">{{ opt[1] }}</a>
+  {% endfor %}
+</div>
+
+{% if report.product_summary %}
+<div class="kpi-row grid-4 mb-4">
+  <div class="card kpi">
+    <span class="kpi-label">Plan total</span>
+    <strong class="kpi-value">{{ "%.1f"|format(report.total_planned) }} und</strong>
+  </div>
+  <div class="card kpi">
+    <span class="kpi-label">Producido</span>
+    <strong class="kpi-value">{{ "%.1f"|format(report.total_completed) }} und</strong>
+  </div>
+  <div class="card kpi">
+    <span class="kpi-label">Vendido</span>
+    <strong class="kpi-value">{{ "%.1f"|format(report.total_sold) }} und</strong>
+  </div>
+  <div class="card kpi">
+    <span class="kpi-label">Accuracy promedio</span>
+    <strong class="kpi-value">
+      {% if report.avg_accuracy is not none %}
+      {{ (report.avg_accuracy * 100) | round(1) }}%
+      {% else %}—{% endif %}
+    </strong>
+  </div>
+</div>
+
+{% if report.under_baked_pct is not none and report.under_baked_pct > 0.2 %}
+<div class="card warn mb-4">
+  <strong>Atención:</strong> en este período faltó hornear
+  {{ (report.under_baked_pct * 100) | round(1) }}% de las unidades
+  planificadas. Los productos con bajo accuracy aparecen abajo en rojo.
+</div>
+{% endif %}
+
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th class="text-right">Días plan</th>
+      <th class="text-right">Plan</th>
+      <th class="text-right">Producido</th>
+      <th class="text-right">Vendido</th>
+      <th class="text-right">Accuracy</th>
+      <th class="text-right">Faltó hornear</th>
+      <th class="text-right">Sobró hornear</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in report.product_summary %}
+    <tr>
+      <td><strong>{{ s.product_name }}</strong></td>
+      <td class="text-right">{{ s.n_days_with_plan }}</td>
+      <td class="text-right">{{ "%.1f"|format(s.total_planned) }}</td>
+      <td class="text-right">{{ "%.1f"|format(s.total_completed) }}</td>
+      <td class="text-right">{{ "%.1f"|format(s.total_sold) }}</td>
+      <td class="text-right">
+        {% if s.total_accuracy is not none %}
+        <span class="status-pill
+                     {% if s.total_accuracy >= 0.9 %}success
+                     {% elif s.total_accuracy >= 0.7 %}warn
+                     {% else %}error{% endif %}">
+          {{ (s.total_accuracy * 100) | round(1) }}%
+        </span>
+        {% else %}—{% endif %}
+      </td>
+      <td class="text-right
+                 {% if s.under_baked_units > 0 %}warn{% endif %}">
+        {{ "%.1f"|format(s.under_baked_units) }}
+      </td>
+      <td class="text-right
+                 {% if s.over_baked_units > 0 %}muted{% endif %}">
+        {{ "%.1f"|format(s.over_baked_units) }}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p class="text-muted mt-3">
+  <small>
+    <strong>Cómo leerlo:</strong> "Accuracy" = producido ÷ plan.
+    Cerca de 100% = bien calibrado. &lt;70% = faltó (perdiste ventas).
+    &gt;120% = sobró (desperdicio / merma). "Faltó hornear" y "Sobró
+    hornear" suman las diferencias día a día — no el neto, así que un
+    día malo y un día bueno aparecen como dos errores separados.
+    Las ventas (anuladas filtradas) muestran la demanda real; si
+    vendido &lt; plan, el pronóstico sobreestima.
+  </small>
+</p>
+{% else %}
+{{ ui.empty_state(
+     title="No hay datos de producción en este período",
+     hint="Esto pasa cuando el local abrió hace poco, o cuando todavía no se registró el primer cierre del día. La página se llena automáticamente a partir del primer EOD.",
+     icon="icon-production") }}
+{% endif %}
+
+{% endblock %}

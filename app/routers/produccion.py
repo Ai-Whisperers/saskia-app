@@ -31,6 +31,7 @@ from app.rms.models import Pedido, PedidoLine, Product, ProductionPlanOverride, 
 from app.rms.observability import record_audit
 from app.rms.production import get_weekly_template, plan_production
 from app.rms.eod_completions import upsert_completion as _upsert_completion
+from app.rms.plan_accuracy import compute_plan_accuracy, date_range_presets
 from app.services.template_render import render
 
 router = APIRouter(prefix="/produccion", dependencies=[Depends(require_login)])
@@ -984,5 +985,52 @@ def produccion_manana(
             "estimated_revenue_gs": estimated_revenue_gs,
             "overrides_tomorrow": overrides_tomorrow,
             "low_confidence_count": sum(1 for r in rows if r.confidence_pct < 70),
+        },
+    )
+
+
+@router.get("/accuracy", response_class=HTMLResponse)
+def produccion_accuracy(
+    request: Request,
+    preset: str = Query("30d", pattern="^(7d|30d|90d)$"),
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """BACKLOG #29 + #33: plan-vs-actual accuracy dashboard.
+
+    Aggregates the production plan (per day, per product) against the
+    actual completions + sold quantities for the period. Surfaces
+    under-baked days (ran out) and over-baked days (wasted capacity)
+    per-period. Pure read-only analytics — never writes.
+    """
+    ranges = date_range_presets()
+    start_date, end_date = ranges[preset]
+    days_in_period = (end_date - start_date).days + 1
+
+    # Build planned_qty_by_pid_day from plan_production() for each day in range.
+    # We call the planner per-day; this matches the existing /produccion page
+    # path so the dashboard shows exactly what the operator saw that morning.
+    planned: dict[tuple[int, date], float] = {}
+    cur = start_date
+    while cur <= end_date:
+        plan = plan_production(session, for_date=cur)
+        for r in plan.rows:
+            if r.qty_to_produce <= 0:
+                continue
+            planned[(r.product_id, cur)] = planned.get(
+                (r.product_id, cur), 0.0
+            ) + float(r.qty_to_produce)
+        cur = cur + timedelta(days=1)
+
+    report = compute_plan_accuracy(session, start_date, end_date, planned)
+
+    return render(
+        request,
+        "produccion_accuracy.html",
+        {
+            "preset": preset,
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "days_in_period": days_in_period,
+            "report": report,
         },
     )
