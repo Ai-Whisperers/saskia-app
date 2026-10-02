@@ -55,7 +55,7 @@ the code, and operator-ranked. Status is the latest known state.
 
 | # | Item | Status | Effort |
 |---|---|---|---|
-| 26 | `sale_stock_move` (6,177 rows) — analytics on consumption patterns | ❌ TODO | M |
+| 26 | `sale_stock_move` (6,177 rows) — analytics on consumption patterns | ✅ Done (`/reportes/consumo` + `/reportes/consumo/csv` aggregate `sale_stock_move.qty_delta` per ingredient, joining Sale to use `Sale.sold_at` as the time axis (SaleStockMove has no timestamp) and exclude voided sales; ranks by `abs(total_qty)` so heavy voiders don't hide steady burners; period toggles 7/30/90/365d; `limit` query param 1-100; new "Consumo por ingrediente" entry in /reportes index. 8 tests in `tests/test_reportes_consumo.py` cover ranking by abs, void exclusion (the voided-sale -0.5 kg move on Harina must NOT inflate its total), n_sales counted as distinct, empty-window empty-card (not 500), invalid days=422, CSV format/Content-Type/BOM-less, limit param, period toggles in template. 63/63 pass in regression slice.) | — |
 | 27 | `Sale.tz` — recorded per sale, never queried | ✅ Done (`/clientes/{id}` renders tz_breakdown via `customers.py:1048-1080`; tests `test_sale_timezone_field.py` + `test_cliente_tz_breakdown.py` 7/7 pass) | — |
 | 28 | `WasteLog.cost_gs` — waste ROI per ingredient | ❌ TODO | M |
 | 29 | `ProductionCompletion.completed_qty` — plan accuracy ML | ❌ TODO | L |

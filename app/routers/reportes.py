@@ -27,7 +27,7 @@ from app.rms.accounting import (
 from app.rms.charts import fmt_short_date, line_chart
 from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
-from app.rms.models import Ingredient, IngredientPriceEvent, Sale
+from app.rms.models import Ingredient, IngredientPriceEvent, Sale, SaleStockMove
 from app.rms.price_history import batch_price_stats, price_history, price_stats
 from app.rms.rate_limit import read_rate_limit_dependency
 from app.rms.sales_intel import customer_retention, sales_by_hour
@@ -215,6 +215,16 @@ def reportes_index(request: Request) -> HTMLResponse:
                      "Hacé clic en un ingrediente para ver el gráfico de 90 días.",
             "icon": "#icon-report",
             "url": "/reportes/precios",
+        },
+        {
+            "id": "consumo",
+            "name": "Consumo por ingrediente",
+            "desc": "Top ingredientes consumidos por ventas (últimos 7/30/90/365 días).",
+            "help": "Suma los movimientos de stock atribuidos a ventas reales "
+                     "(excluye anuladas). Útil para detectar qué insumos rotan "
+                     "más rápido y planificar reposición.",
+            "icon": "#icon-report",
+            "url": "/reportes/consumo",
         },
     ]
     return render(request, "reportes.html", {"reports": reports})
@@ -762,6 +772,122 @@ def _precio_rows(session: Session, days: int) -> list[dict]:
             "last_event_at": last_ts_map.get(iid),
         })
     return rows
+
+
+@router.get("/consumo", response_class=HTMLResponse)
+def reportes_consumo(
+    request: Request,
+    days: int = Query(30),
+    limit: int = Query(20, ge=1, le=100),
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """BACKLOG #26: surface consumption patterns from sale_stock_move.
+
+    Aggregate `qty_delta` (negative for sales, positive for voids) by
+    ingredient over the last N days. Voids are netted (sum of both
+    directions equals actual stock-out). Excludes voided sales.
+
+    Why the JOIN on Sale.side? Two reasons:
+      - Skip voided sales (joined where Sales has voided_at IS NULL)
+      - Use Sale.sold_at as the time axis (SaleStockMove has no
+        recorded_at column — see __table_args on the model)
+
+    Returns top `limit` ingredients by absolute consumption, ranked by
+    `abs(total_qty)` so heavy voiders (positive) don't hide steady
+    burners (negative) and vice-versa.
+    """
+    if days not in _ALLOWED_DAYS:
+        raise HTTPException(
+            status_code=422, detail=f"días inválido: usá uno de {list(_ALLOWED_DAYS)}"
+        )
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    # qty_delta is negative for sales, positive for voids. Net out is
+    # `sum(qty_delta)` — voids offset the original deduction.
+    # `abs(total_qty)` rank orders by magnitude regardless of net direction.
+    q = (
+        select(
+            SaleStockMove.ingredient_id,
+            Ingredient.name,
+            Ingredient.unit,
+            func.sum(SaleStockMove.qty_delta).label("total_qty"),
+            func.count(SaleStockMove.id).label("n_moves"),
+            func.count(func.distinct(SaleStockMove.sale_id)).label("n_sales"),
+        )
+        .join(Ingredient, Ingredient.id == SaleStockMove.ingredient_id)
+        .join(Sale, Sale.id == SaleStockMove.sale_id)
+        .where(Sale.sold_at >= cutoff)
+        .where(Sale.voided_at.is_(None))
+        .group_by(
+            SaleStockMove.ingredient_id,
+            Ingredient.name,
+            Ingredient.unit,
+        )
+        .order_by(func.abs(func.sum(SaleStockMove.qty_delta)).desc())
+        .limit(limit)
+    )
+
+    rows_raw = session.execute(q).all()
+    rows = [
+        {
+            "ingredient_id": ing_id,
+            "name": ing_name,
+            "unit": ing_unit or "",
+            "total_qty": float(total_qty or 0.0),
+            "abs_qty": abs(float(total_qty or 0.0)),
+            "n_moves": int(n_moves or 0),
+            "n_sales": int(n_sales or 0),
+        }
+        for ing_id, ing_name, ing_unit, total_qty, n_moves, n_sales in rows_raw
+    ]
+    return render(
+        request, "reportes_consumo.html", {"rows": rows, "days": days, "limit": limit}
+    )
+
+
+@router.get("/consumo/csv")
+def reportes_consumo_csv(
+    days: int = Query(30),
+    session: Session = Depends(get_session),
+) -> Response:
+    """CSV variant for /reportes/consumo."""
+    if days not in _ALLOWED_DAYS:
+        raise HTTPException(
+            status_code=422, detail=f"días inválido: usá uno de {list(_ALLOWED_DAYS)}"
+        )
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    q = (
+        select(
+            SaleStockMove.ingredient_id,
+            Ingredient.name,
+            Ingredient.unit,
+            func.sum(SaleStockMove.qty_delta).label("total_qty"),
+            func.count(SaleStockMove.id).label("n_moves"),
+            func.count(func.distinct(SaleStockMove.sale_id)).label("n_sales"),
+        )
+        .join(Ingredient, Ingredient.id == SaleStockMove.ingredient_id)
+        .join(Sale, Sale.id == SaleStockMove.sale_id)
+        .where(Sale.sold_at >= cutoff)
+        .where(Sale.voided_at.is_(None))
+        .group_by(
+            SaleStockMove.ingredient_id,
+            Ingredient.name,
+            Ingredient.unit,
+        )
+        .order_by(func.abs(func.sum(SaleStockMove.qty_delta)).desc())
+    )
+    out = io.StringIO()
+    out.write("ingredient_id,name,total_qty,n_moves,n_sales,unit\n")
+    for ing_id, name, unit, total_qty, n_moves, n_sales in session.execute(q).all():
+        out.write(
+            f"{ing_id},{name},{float(total_qty or 0):.4f},{int(n_moves or 0)},"
+            f"{int(n_sales or 0)},{unit or ''}\n"
+        )
+    return Response(
+        content=out.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="consumo.csv"'},
+    )
 
 
 @router.get("/precios", response_class=HTMLResponse)
