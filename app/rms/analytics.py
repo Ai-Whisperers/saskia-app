@@ -19,7 +19,7 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale, SaleStockMove
+from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale, SaleStockMove, StockMovement
 from app.rms.money import to_int_gs
 
 # --- Public dataclasses ---
@@ -227,16 +227,20 @@ def all_stock_turnover(session: Session, days: int = 30) -> list[StockTurnover]:
 
 
 def dead_stock(session: Session, threshold_days: int = 30) -> list[DeadStockRow]:
-    """Return ingredients not consumed in the last `threshold_days` days."""
+    """Return ingredients not consumed in the last `threshold_days` days.
+
+    Uses StockMovement (the unified ledger since BACKLOG #1 migration 090)
+    instead of the dropped SaleStockMove stub.
+    """
     cutoff = datetime.now(timezone.utc) - timedelta(days=threshold_days)
     # Find ingredient ids that HAVE had consumption since cutoff
     active_ids = set(
         session.execute(
-            select(SaleStockMove.ingredient_id)
-            .join(Sale, Sale.id == SaleStockMove.sale_id)
+            select(StockMovement.ingredient_id)
             .where(
-                Sale.sold_at >= cutoff.replace(tzinfo=None),
-                SaleStockMove.qty_delta < 0,
+                StockMovement.recorded_at >= cutoff.replace(tzinfo=None),
+                StockMovement.qty < 0,
+                StockMovement.reference_type == "sale",
             )
             .distinct()
         ).scalars().all()
@@ -250,9 +254,11 @@ def dead_stock(session: Session, threshold_days: int = 30) -> list[DeadStockRow]
             days_since: int | None = (datetime.now(timezone.utc) - last).days
         else:
             last_move = session.execute(
-                select(func.max(Sale.sold_at))
-                .join(SaleStockMove, SaleStockMove.sale_id == Sale.id)
-                .where(SaleStockMove.ingredient_id == ing.id)
+                select(func.max(StockMovement.recorded_at))
+                .where(
+                    StockMovement.ingredient_id == ing.id,
+                    StockMovement.reference_type == "sale",
+                )
             ).scalar()
             if last_move is None:
                 days_since = None
