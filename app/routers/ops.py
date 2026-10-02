@@ -22,6 +22,7 @@ router = APIRouter(prefix="/ops", dependencies=[Depends(require_login)])
 _OPERATIONAL_ENDPOINTS = [
     # (path, purpose label)
     ("/healthz", "Liveness"),
+    ("/healthz/summary", "Vista consolidada del sistema"),
     ("/healthz/db", "Database"),
     ("/healthz/deps", "Environment"),
     ("/healthz/schema", "Schema drift"),

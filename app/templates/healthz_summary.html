@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Estado del sistema · Saskia RMS{% endblock %}
+{% block content %}
+{{ ui.page_header(
+  "Estado del sistema",
+  desc="Vista consolidada para operadores. Cada tarjeta abre su detalle en JSON para profundizar.",
+  actions=[
+    {"label": "Actualizar", "href": "/healthz/summary", "variant": "ghost"},
+  ],
+) }}
+
+{# --- Top-level status banner --- #}
+{% if not ready %}
+<div class="alert alert--danger" role="alert">
+  <strong>La aplicación todavía está arrancando.</strong>
+  Los chequeos van a aparecer como <code>unknown</code> hasta que termine el cold-start.
+  Volvé a intentar en unos segundos.
+</div>
+{% elif all_ok %}
+<div class="alert alert--success" role="status">
+  Todo en verde. Última actualización: <code>{{ now_local }}</code>.
+</div>
+{% else %}
+<div class="alert alert--warn" role="status">
+  Hay al menos un chequeo en amarillo o rojo. Revisá las tarjetas abajo.
+</div>
+{% endif %}
+
+<div class="healthz-grid">
+  {% set checks = checks or {} %}
+  {% if ready and checks %}
+
+  {# --- Database --- #}
+  {% set db = checks.get("db", {}) %}
+  {% set db_schema = db.get("schema_version", "—") %}
+  {% set db_code = db.get("code_schema_version", "—") %}
+  {% set db_pending = db.get("migrations_pending") %}
+  {% set db_last = db.get("last_audit_at") %}
+  <article class="card healthz-card">
+    <header class="card__header">
+      <h2 class="card__title">Base de datos</h2>
+      {{ ui.status_pill(
+        "ok" if db.get("ok") else "fallar",
+        "ok" if db.get("ok") else "danger",
+      ) }}
+    </header>
+    <dl class="healthz-meta">
+      {% if db.get("ok") %}
+        <dt>Esquema</dt>
+        <dd>{{ db_schema }} (código: {{ db_code }})</dd>
+        {% if db_pending %}
+          <dt>Migraciones pendientes</dt>
+          <dd><span class="badge badge--warn">{{ db_pending }}</span></dd>
+        {% endif %}
+        <dt>Último audit</dt>
+        <dd>{{ db_last or "—" }}</dd>
+      {% else %}
+        <dt>Detalle</dt>
+        <dd><code>{{ db.get("detail", "error desconocido") }}</code></dd>
+      {% endif %}
+    </dl>
+    <footer class="card__footer">
+      <a class="btn btn-sm btn-ghost" href="/healthz/db">Ver /healthz/db →</a>
+      <a class="btn btn-sm btn-ghost" href="/healthz/schema">Esquema →</a>
+    </footer>
+  </article>
+
+  {# --- Errors (http.500 rate) --- #}
+  {% set errors = checks.get("errors", {}) %}
+  {% set err_1h = errors.get("last_1h") or 0 %}
+  {% set err_24h = errors.get("last_24h") or 0 %}
+  <article class="card healthz-card">
+    <header class="card__header">
+      <h2 class="card__title">Errores 500</h2>
+      {{ ui.status_pill(
+        "sin errores" if errors.get("ok") and err_1h == 0 else "alerta",
+        "ok" if errors.get("ok") and err_1h == 0
+          else ("danger" if err_1h > 0 else "warn"),
+      ) }}
+    </header>
+    <dl class="healthz-meta">
+      {% if errors.get("ok") %}
+        <dt>Última hora</dt>
+        <dd>
+          <strong class="{{ 'is-danger' if err_1h > 0 else 'is-ok' }}">
+            {{ err_1h }}
+          </strong>
+        </dd>
+        <dt>Últimas 24h</dt>
+        <dd>{{ err_24h }}</dd>
+      {% else %}
+        <dt>Detalle</dt>
+        <dd><code>{{ errors.get("detail", "error desconocido") }}</code></dd>
+      {% endif %}
+    </dl>
+    <footer class="card__footer">
+      <a class="btn btn-sm btn-ghost" href="/healthz/errors">Ver /healthz/errors →</a>
+      {% if err_1h > 0 %}
+        <a class="btn btn-sm btn-warn" href="/auditoria?action_filter=http.500">
+          Abrir /auditoria filtrado →
+        </a>
+      {% endif %}
+    </footer>
+  </article>
+
+  {# --- Backup freshness --- #}
+  {% set backup = checks.get("backup", {}) %}
+  {% set bk_age = backup.get("age_hours") %}
+  {% set bk_thr = backup.get("threshold_hours") or 24 %}
+  <article class="card healthz-card">
+    <header class="card__header">
+      <h2 class="card__title">Backup</h2>
+      {{ ui.status_pill(
+        "al día" if backup.get("ok") else "vencido",
+        "ok" if backup.get("ok") else "danger",
+      ) }}
+    </header>
+    <dl class="healthz-meta">
+      {% if backup.get("reason") %}
+        <dt>Estado</dt>
+        <dd>{{ backup.reason }}</dd>
+      {% endif %}
+      <dt>Último backup</dt>
+      <dd>{{ backup.get("last_backup_at") or "— (nunca)" }}</dd>
+      {% if bk_age is not none %}
+        <dt>Edad</dt>
+        <dd>
+          <strong class="{{ 'is-danger' if bk_age > bk_thr else 'is-ok' }}">
+            {{ bk_age }} h
+          </strong>
+          (umbral {{ bk_thr }} h)
+        </dd>
+      {% endif %}
+    </dl>
+    <footer class="card__footer">
+      <a class="btn btn-sm btn-ghost" href="/healthz/backup">Ver /healthz/backup →</a>
+      {% if not backup.get("ok") %}
+        <a class="btn btn-sm btn-warn" href="/admin/backup">
+          Forzar backup ahora →
+        </a>
+      {% endif %}
+    </footer>
+  </article>
+
+  {# --- Dependencies (Supabase + R2) --- #}
+  {% set deps = checks.get("deps", {}) %}
+  <article class="card healthz-card">
+    <header class="card__header">
+      <h2 class="card__title">Dependencias externas</h2>
+      {{ ui.status_pill(
+        "ok" if deps.get("ok") else "revisar",
+        "ok" if deps.get("ok") else "warn",
+      ) }}
+    </header>
+    <dl class="healthz-meta">
+      <dt>Supabase</dt>
+      <dd>
+        {% set sb = deps.get("supabase") %}
+        {% if sb is sameas true %}alcanzable ✓
+        {% elif sb is sameas false %}<span class="is-danger">caído</span>
+        {% else %}saltado (sin configurar)
+        {% endif %}
+      </dd>
+      <dt>R2</dt>
+      <dd>
+        {% set r2 = deps.get("r2") %}
+        {% if r2 is sameas true %}alcanzable ✓
+        {% elif r2 is sameas false %}<span class="is-danger">caído</span>
+        {% else %}saltado (sin configurar)
+        {% endif %}
+      </dd>
+    </dl>
+    <footer class="card__footer">
+      <a class="btn btn-sm btn-ghost" href="/healthz/deps">Ver /healthz/deps →</a>
+    </footer>
+  </article>
+
+  {# --- Disk --- #}
+  {% set disk = checks.get("disk", {}) %}
+  {% set dk_pct = disk.get("used_pct") %}
+  {% set dk_free = disk.get("free_gb") %}
+  <article class="card healthz-card">
+    <header class="card__header">
+      <h2 class="card__title">Disco</h2>
+      {{ ui.status_pill(
+        "ok" if disk.get("ok") else "lleno",
+        "ok" if disk.get("ok") else "danger",
+      ) }}
+    </header>
+    <dl class="healthz-meta">
+      {% if dk_pct is not none %}
+        <dt>Uso</dt>
+        <dd>
+          <strong class="{{ 'is-danger' if dk_pct > 90 else 'is-ok' }}">
+            {{ dk_pct }}%
+          </strong>
+        </dd>
+        {% if dk_free is not none %}
+          <dt>Libre</dt>
+          <dd>{{ dk_free }} GB</dd>
+        {% endif %}
+      {% else %}
+        <dt>Detalle</dt>
+        <dd><code>{{ disk.get("detail", "error desconocido") }}</code></dd>
+      {% endif %}
+    </dl>
+  </article>
+  {% endif %}
+</div>
+
+<h2 class="section-heading">Atajos del operador</h2>
+<ul class="link-list">
+  <li><a href="/ops/status">/ops/status</a> — vista general con links útiles</li>
+  <li><a href="/auditoria">/auditoria</a> — log completo de eventos</li>
+  <li><a href="/auditoria/analytics">/auditoria/analytics</a> — top IPs, acciones, operadores</li>
+  <li><a href="/dashboard">/dashboard</a> — métricas del día</li>
+</ul>
+{% endblock %}

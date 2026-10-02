@@ -25,7 +25,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from loguru import logger
 from sqlalchemy import text
 
@@ -404,6 +404,168 @@ def healthz_db(request: Request) -> JSONResponse:
 
         _set_db_up(False)
         return JSONResponse({"db": "error", "detail": str(exc)}, status_code=503)
+
+
+def _summary_check_db(request: Request) -> dict[str, Any]:
+    """Compact DB health for /healthz/summary. Patchable in tests."""
+    from app.rms.db import (
+        CURRENT_SCHEMA_VERSION,
+        schema_version,
+        schema_version_mismatch,
+    )
+
+    engine = request.app.state.engine
+    try:
+        with engine.connect() as conn:
+            ok = conn.execute(text("SELECT 1")).scalar() == 1
+            if not ok:
+                return {"ok": False, "detail": "SELECT 1 failed"}
+            last = conn.execute(
+                text("SELECT MAX(occurred_at) FROM audit_log")
+            ).scalar()
+            actual = schema_version(conn)
+            return {
+                "ok": True,
+                "schema_version": actual,
+                "code_schema_version": CURRENT_SCHEMA_VERSION,
+                "migrations_pending": schema_version_mismatch(conn),
+                "last_audit_at": (
+                    last.isoformat() if hasattr(last, "isoformat") else str(last)
+                ) if last else None,
+            }
+    except Exception as exc:  # noqa: BLE001 — defensive default
+        return {"ok": False, "detail": str(exc)[:200]}
+
+
+def _summary_check_errors(request: Request) -> dict[str, Any]:
+    """http.500 counts in the last 1h and 24h. Patchable in tests."""
+    from datetime import timedelta as _td
+
+    from sqlalchemy import func, select
+
+    from app.rms.config import ASUNCION_TZ
+    from app.rms.models import AuditLog
+
+    try:
+        now = datetime.now(ASUNCION_TZ)
+        with request.app.state.session_factory() as s:
+            n_1h = s.execute(
+                select(func.count())
+                .select_from(AuditLog)
+                .where(
+                    AuditLog.action == "http.500",
+                    AuditLog.occurred_at >= now - _td(hours=1),
+                )
+            ).scalar() or 0
+            n_24h = s.execute(
+                select(func.count())
+                .select_from(AuditLog)
+                .where(
+                    AuditLog.action == "http.500",
+                    AuditLog.occurred_at >= now - _td(hours=24),
+                )
+            ).scalar() or 0
+        return {"ok": True, "last_1h": int(n_1h), "last_24h": int(n_24h)}
+    except Exception as exc:  # noqa: BLE001 — defensive default
+        return {"ok": False, "detail": str(exc)[:200]}
+
+
+def _summary_check_backup(request: Request) -> dict[str, Any]:
+    """Last backup age + freshness. Patchable in tests."""
+    raw_ts = _get_last_backup_at(request)
+    if not raw_ts:
+        return {
+            "ok": False,
+            "last_backup_at": None,
+            "age_hours": None,
+            "reason": "never",
+        }
+    try:
+        last = datetime.fromisoformat(raw_ts)
+        now = datetime.now(last.tzinfo) if last.tzinfo else datetime.now()
+        age_hours = round((now - last).total_seconds() / 3600, 1)
+        return {
+            "ok": age_hours <= BACKUP_STALE_HOURS,
+            "last_backup_at": raw_ts,
+            "age_hours": age_hours,
+            "threshold_hours": BACKUP_STALE_HOURS,
+        }
+    except ValueError:
+        return {"ok": False, "last_backup_at": raw_ts, "reason": "unparseable"}
+
+
+def _summary_check_deps(request: Request) -> dict[str, Any]:
+    """Reachability of Supabase + R2. Patchable in tests."""
+    supabase_url = os.environ.get("SUPABASE_URL")
+    sb_ok = (
+        _check_supabase_reachable(supabase_url) if supabase_url else "skipped"
+    )
+    r2_ok = _check_r2_reachable() if os.environ.get("R2_BUCKET") else "skipped"
+    return {
+        "ok": (sb_ok in (True, "skipped")) and (r2_ok in (True, "skipped")),
+        "supabase": sb_ok,
+        "r2": r2_ok,
+    }
+
+
+def _summary_check_disk(request: Request) -> dict[str, Any]:
+    """Disk usage percent. Patchable in tests."""
+    from app.rms.config import DB_PATH
+
+    try:
+        u = _disk_usage(os.path.dirname(DB_PATH) or ".")
+        used_pct = round(u.used / u.total * 100, 1) if u.total else 0.0
+        return {
+            "ok": used_pct < 90,
+            "used_pct": used_pct,
+            "free_gb": round(u.free / 1024**3, 1),
+        }
+    except Exception as exc:  # noqa: BLE001 — defensive default
+        return {"ok": False, "detail": str(exc)[:200]}
+
+
+def _summary_payload(request: Request) -> dict[str, Any]:
+    """Aggregate every healthz check into one dict for /healthz/summary.
+
+    Each sub-check is patchable via the helpers above. The overall
+    'all_ok' is True only when every check passes.
+    """
+    ready = bool(getattr(request.app.state, "ready", False))
+    if not ready:
+        return {"ready": False, "all_ok": False, "checks": {}}
+
+    checks = {
+        "db": _summary_check_db(request),
+        "errors": _summary_check_errors(request),
+        "backup": _summary_check_backup(request),
+        "deps": _summary_check_deps(request),
+        "disk": _summary_check_disk(request),
+    }
+    all_ok = all(c.get("ok") for c in checks.values())
+    return {"ready": True, "all_ok": all_ok, "checks": checks}
+
+
+@router.get("/healthz/summary", response_class=HTMLResponse)
+def healthz_summary(request: Request) -> HTMLResponse:
+    """Operator one-pager: every check with status pill + drill-down.
+
+    Replaces the operator's habit of opening 6 tabs to diagnose a
+    failure. Each check links to its full JSON endpoint for the deep
+    drill. Public (no PII, no auth) — safe to bookmark.
+
+    Status mapping (for the pill color):
+    - ready=False + each sub-check ok=False → red
+    - all_ok=True → green
+    - otherwise → yellow
+
+    Returns 200 in all cases (the page always loads; the page shows the
+    status). The drill-down JSON endpoints still return 503 on actual
+    failure so UptimeRobot can alarm.
+    """
+    from app.services.template_render import render
+
+    payload = _summary_payload(request)
+    return render(request, "healthz_summary.html", payload)
 
 
 __all__ = ["router"]

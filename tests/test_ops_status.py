@@ -4,13 +4,15 @@ def test_ops_status_renders(client):
     assert resp.status_code == 200
     body = resp.text
     for label in ("/healthz", "/healthz/db", "/healthz/deps",
-                  "/healthz/schema", "/healthz/errors", "/auditoria"):
+                  "/healthz/schema", "/healthz/errors", "/auditoria",
+                  "/healthz/summary"):
         assert label in body, f"Missing {label} in /ops/status"
 
 
 def test_ops_status_lists_each_endpoint_with_purpose(client):
     body = client.get("/ops/status").text
-    for purpose in ("Liveness", "Database", "Schema drift", "Error counter"):
+    for purpose in ("Liveness", "Database", "Schema drift", "Error counter",
+                 "Vista consolidada del sistema"):
         assert purpose in body, f"Missing purpose label: {purpose}"
 
 
