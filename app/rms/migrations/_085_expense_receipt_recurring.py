@@ -49,3 +49,9 @@ def _migration_085_expense_receipt_recurring(conn: Any) -> None:
         atomic_ddl_block(conn, [
             "ALTER TABLE expense ADD COLUMN receipt_url VARCHAR(512)"
         ])
+
+    # BACKLOG #4 (2026-10-02): migrations 085+ shipped without bumping
+    # schema_version, silently breaking fresh installs. Sprint 4.5 fixed
+    # this — each migration MUST bump its own version.
+    from app.rms.db import _bump_schema_version
+    _bump_schema_version(conn, 85)

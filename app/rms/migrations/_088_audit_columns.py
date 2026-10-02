@@ -83,14 +83,19 @@ def _migration_088_audit_columns(conn: Any) -> None:
         for table in owned_tables:
             conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{table}_created ON {table}(created_at)")
             conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{table}_updated ON {table}(updated_at)")
-        print("Created audit column indexes")
-    except Exception as exc:
-        print(f"Indexes may already exist: {exc}")
+    except Exception:
+        # Indexes may already exist from a partial migration run; ignore.
+        pass
+
+    # BACKLOG #4 (2026-10-02): migrations 085+ shipped without bumping
+    # schema_version, silently breaking fresh installs. Sprint 4.5 fixed.
+    from app.rms.db import _bump_schema_version
+    _bump_schema_version(conn, 88)
 
 
 __all__ = [
     "CreatedTimestamp", 
-    "UpdatedTimestamp", 
+    "UpdatedTimestamp",
     "CreatedByUserId", 
     "UpdatedByUserId"
 ]
