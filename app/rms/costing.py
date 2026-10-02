@@ -652,6 +652,21 @@ def void_sale(
                 f"void_after_eod_close:{sale_date.isoformat()}"
             )
 
+    # BACKLOG #1: SaleStockMove table dropped by migration 092. The
+    # stock_movement rows written by apply_sale() are the only audit
+    # ledger now — query them directly instead of the legacy
+    # sale.stock_moves relationship.
+    sale_moves = (
+        session.execute(
+            select(StockMovement).where(
+                StockMovement.reference_id == sale.id,
+                StockMovement.reference_type == "sale",
+            )
+        )
+        .scalars()
+        .all()
+    )
+
     restored: list[tuple[int, float]] = []
     # AGENTS.md hard rule: never use naive datetime.now() — always store UTC
     # so that tz-aware consumers (audit log, /ventas, reports) can convert
@@ -659,10 +674,13 @@ def void_sale(
     # server-local time (UTC on Render), which is 4 hours off from the
     # Asunción bakery's wall clock and breaks "today's sales" queries.
     now_utc = datetime.now(timezone.utc)
-    for move in list(sale.stock_moves):  # copy to avoid mutating during iter
-        # Reverse: qty_delta becomes positive (restored)
-        restored_qty = abs(move.qty_delta)
-        move.qty_delta = restored_qty
+    for move in sale_moves:
+        # Reverse: qty was negative for a sale → positive (restored).
+        # Skip any positive rows (e.g. a prior voided-restore row) — only
+        # the original sale-time rows get reversed again.
+        if move.qty >= 0:
+            continue
+        restored_qty = abs(move.qty)
         ingredient = session.get(Ingredient, move.ingredient_id)
         if ingredient is not None:
             ingredient.stock_qty = (ingredient.stock_qty or 0) + restored_qty
@@ -686,25 +704,11 @@ def void_sale(
     if voided_by:
         sale.voided_by = voided_by
 
-    # US 4.1 — restore packaging ingredient stock + audit row.
-    if sale.packaging_item_id is not None and sale.packaging_qty:
-        pkg = session.get(Ingredient, sale.packaging_item_id)
-        if pkg is not None:
-            restored_qty = float(sale.packaging_qty)
-            pkg.stock_qty = (pkg.stock_qty or 0) + restored_qty
-            restored.append((pkg.id, restored_qty))
-            stock_movement = StockMovement(
-                ingredient_id=pkg.id,
-                movement_type="sale",
-                qty=restored_qty,
-                reason=f"Anulación venta #{sale.id} (packaging)"
-                       + (f" — {reason}" if reason else ""),
-                reference_id=sale.id,
-                reference_type="sale",
-                recorded_at=now_utc,
-                created_by=voided_by,
-            )
-            session.add(stock_movement)
+    # US 4.1 packaging restoration: now handled by the unified loop
+    # above (which reads the packaging StockMovement row written by
+    # apply_sale). The previous explicit packaging block was a safety
+    # net for the broken sale.stock_moves loop; now it's redundant and
+    # would double-restore the packaging stock.
 
     session.commit()
 
