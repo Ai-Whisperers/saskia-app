@@ -22,6 +22,7 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from loguru import logger
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
@@ -912,10 +913,17 @@ async def product_upload_image(
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
 ) -> JSONResponse:
-    """Upload a product image. Stores in app/static/uploads/ and returns the URL.
+    """Upload a product image.
+
+    BACKLOG #37 (2026-10-02): When Supabase Storage is enabled (env
+    configured + reachable), uploads go to the `product-images` bucket
+    and the response carries a public Supabase URL. Otherwise falls
+    back to local `app/static/uploads/` (the prior behavior) so the
+    route stays functional in dev / when the Supabase project is down.
 
     Accepts: png, jpg, jpeg, webp, gif. Max 5 MB.
-    Returns: {"url": "/static/uploads/", "filename": "..."}
+    Returns: {"url": "<public_url>", "filename": "...", "size": N,
+              "backend": "supabase_storage" | "local"}
     """
 
     # Re-use the same auth as the rest of the products router
@@ -943,6 +951,38 @@ async def product_upload_image(
             detail=f"Imagen muy grande ({len(content_bytes) // 1024} KB). Máximo 5 MB.",
         )
 
+    original_name = file.filename or "image"
+
+    # Try Supabase Storage first when enabled.
+    from app.rms.storage import (
+        is_storage_enabled,
+        upload_product_image,
+    )
+
+    if is_storage_enabled():
+        try:
+            result = upload_product_image(
+                content_bytes, file.content_type, original_name
+            )
+            return JSONResponse(result)
+        except ValueError as exc:
+            msg = str(exc)
+            if msg.startswith("unsupported_content_type"):
+                raise HTTPException(status_code=415, detail=msg) from exc
+            if msg == "empty_content":
+                raise HTTPException(status_code=400, detail=msg) from exc
+            if msg.startswith("too_large"):
+                raise HTTPException(status_code=413, detail=msg) from exc
+            raise HTTPException(status_code=500, detail=msg) from exc
+        except Exception as exc:  # noqa: BLE001 — defensive default
+            # Supabase rejected (DNS, network, RLS, 4xx from bad path).
+            # Log + fall back to local storage so the operator's upload
+            # still succeeds. /healthz/summary will surface the supabase
+            # issue separately via the deps probe.
+            logger.exception("supabase storage upload failed, falling back to local")
+            # Don't 503 the user — the local fallback is the safer path.
+
+    # --- Local filesystem fallback ---
     # Generate a unique filename: <random>.<ext>
     ext_map = {
         "image/png": ".png",
@@ -964,7 +1004,14 @@ async def product_upload_image(
     target.write_bytes(content_bytes)
 
     url = f"/static/uploads/{name}"
-    return JSONResponse({"url": url, "filename": name, "size": len(content_bytes)})
+    return JSONResponse(
+        {
+            "url": url,
+            "filename": name,
+            "size": len(content_bytes),
+            "backend": "local",
+        }
+    )
 
 
 # ─── C2 — Public tablet menu (/m/{slug}) ──────────────────────────────────────
