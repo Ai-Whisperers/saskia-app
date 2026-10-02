@@ -280,7 +280,7 @@ def test_fulfill_creates_sales_and_decrements_stock(client, session_factory):
     resp = client.post(f"/pedidos/{pedido_id}/fulfill", follow_redirects=False)
     assert resp.status_code in (302, 303), resp.text
 
-    from app.rms.models import Sale, SaleStockMove
+    from app.rms.models import Sale, StockMovement
 
     with session_factory() as s:
         p = s.execute(select(Pedido)).scalar_one()
@@ -295,7 +295,12 @@ def test_fulfill_creates_sales_and_decrements_stock(client, session_factory):
         assert sale.qty == 2
         assert sale.unit_price_gs == 8000
         # Stock moved (1 stock move for 1 ingredient line × 2/12 × 0.3 = 0.05 kg)
-        moves = s.execute(select(SaleStockMove).where(SaleStockMove.sale_id == sale.id)).scalars().all()
+        moves = s.execute(
+            select(StockMovement).where(
+                StockMovement.reference_id == sale.id,
+                StockMovement.reference_type == "sale",
+            )
+        ).scalars().all()
         assert len(moves) >= 1
         ing_row = s.execute(select(Ingredient).where(Ingredient.id == moves[0].ingredient_id)).scalar_one()
         # Original 10.0 - (2/12)*0.3 = 10.0 - 0.05 = 9.95

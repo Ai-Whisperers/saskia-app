@@ -29,7 +29,7 @@ from app.rms.models import (
     Recipe,
     RecipeLine,
     Sale,
-    SaleStockMove,
+    StockMovement,
     User,
 )
 from app.rms.seed import (
@@ -217,7 +217,9 @@ def test_stock_moves_tied_to_sales_with_correct_signs(session_factory):
     try:
         seed_demo_data(session, seed=42)
 
-        moves = session.execute(select(SaleStockMove)).scalars().all()
+        moves = session.execute(
+            select(StockMovement).where(StockMovement.reference_type == "sale")
+        ).scalars().all()
         assert len(moves) > 0
 
         # Find a voided sale's moves
@@ -226,10 +228,10 @@ def test_stock_moves_tied_to_sales_with_correct_signs(session_factory):
         )
         if voided_sales:
             voided = voided_sales[0]
-            voided_moves = [m for m in moves if m.sale_id == voided.id]
+            voided_moves = [m for m in moves if m.reference_id == voided.id]
             if voided_moves:
                 # At least one voided move should be positive (restoring stock)
-                assert any(m.qty_delta > 0 for m in voided_moves), (
+                assert any(m.qty > 0 for m in voided_moves), (
                     "voided sale should have at least one positive stock move"
                 )
 
@@ -239,9 +241,9 @@ def test_stock_moves_tied_to_sales_with_correct_signs(session_factory):
         )
         if normal_sales:
             normal = normal_sales[0]
-            normal_moves = [m for m in moves if m.sale_id == normal.id]
+            normal_moves = [m for m in moves if m.reference_id == normal.id]
             if normal_moves:
-                assert all(m.qty_delta < 0 for m in normal_moves), (
+                assert all(m.qty < 0 for m in normal_moves), (
                     "normal sale should have all negative stock moves"
                 )
     finally:

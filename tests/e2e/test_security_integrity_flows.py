@@ -72,10 +72,20 @@ def test_rate_limit_burst_leaves_no_partial_rows(client, session_factory):
     # Either no rate limit fired (all 303) or it did — either way the DB
     # must show a whole number of completed sales, no half-writes.
     with session_factory() as s:
-        from app.rms.models import Sale, SaleStockMove
+        from app.rms.models import Sale, StockMovement
 
         n_sales = s.query(Sale).filter_by(product_id=pid).count()
-        n_moves = s.query(SaleStockMove).count()
+        # Count distinct sale reference_ids in StockMovement to handle
+        # multi-line sales (each line creates one StockMovement row) and
+        # voided-sale restores (which add +qty rows under the same
+        # reference_id). Distinct count == number of sales that produced
+        # at least one StockMovement row, regardless of line count.
+        n_moves = (
+            s.query(StockMovement.reference_id)
+            .filter(StockMovement.reference_type == "sale")
+            .distinct()
+            .count()
+        )
     # Atomicity: every sale in the DB has its stock moves (no half-writes).
     # NOTE: if the rate limiter rejects AFTER writing, n_sales may exceed the
     # 303 count — that would be a finding to fix in the limiter ordering.

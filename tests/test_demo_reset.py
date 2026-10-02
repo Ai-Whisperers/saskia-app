@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 
 
 def _seed_synthetic(session, *, n_sales: int = 3):
-    """Insert one product + n_sales sales + matching SaleStockMoves.
+    """Insert one product + n_sales sales + matching StockMovement rows.
 
     Mirrors what `seed_demo_data` does at small scale so we can
     assert the cleanup wipes it.
@@ -26,7 +26,7 @@ def _seed_synthetic(session, *, n_sales: int = 3):
         Product,
         Recipe,
         Sale,
-        SaleStockMove,
+        StockMovement,
     )
 
     ing = Ingredient(name="harina_test", unit="kg", stock_qty=10.0)
@@ -46,11 +46,14 @@ def _seed_synthetic(session, *, n_sales: int = 3):
         )
         session.add(sale)
         session.flush()
-        move = SaleStockMove(
-            sale_id=sale.id,
-            affected_recipe_id=r.id,
+        move = StockMovement(
+            movement_type="sale",
             ingredient_id=ing.id,
-            qty_delta=-0.5,
+            qty=-0.5,
+            reference_id=sale.id,
+            reference_type="sale",
+            affected_recipe_id=r.id,
+            recorded_at=sale.sold_at,
         )
         session.add(move)
     session.flush()
@@ -69,7 +72,7 @@ def test_reset_is_idempotent(client, session_factory):
     with session_factory() as s:
         first = reset_demo_data(s)
     assert first["sales"] == 3
-    assert first["sale_stock_moves"] >= 3
+    assert first["stock_moves_sale"] >= 3
     assert first["audit_seed"] == 0  # we never inserted a seed.complete row
     assert first["app_meta_seed"] == 0  # nor a last_seed_at row
 
@@ -77,7 +80,7 @@ def test_reset_is_idempotent(client, session_factory):
     with session_factory() as s:
         second = reset_demo_data(s)
     assert second["sales"] == 0
-    assert second["sale_stock_moves"] == 0
+    assert second["stock_moves_sale"] == 0
     assert second["audit_seed"] == 0
     assert second["app_meta_seed"] == 0
 
@@ -265,7 +268,7 @@ def test_reset_endpoint_returns_deleted_counts(client, session_factory):
     body = resp.json()
     assert body["ok"] is True
     assert body["deleted"]["sales"] == 2
-    assert body["deleted"]["sale_stock_moves"] >= 2
+    assert body["deleted"]["stock_moves_sale"] >= 2
     assert "invoked_by" in body
 
 

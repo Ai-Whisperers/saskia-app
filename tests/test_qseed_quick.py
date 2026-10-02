@@ -14,12 +14,14 @@ def test_qseed_basic(qseed):
 
 
 def test_qseed_with_sale_creates_stock_move(qseed, session_factory):
-    """with_sale scenario calls apply_sale(), creating a SaleStockMove row."""
+    """with_sale scenario calls apply_sale(), creating a StockMovement row."""
     data = qseed("with_sale")
     sale_id = data["sale"].sale_id
     with session_factory() as s:
-        from app.rms.models import SaleStockMove
-        moves = s.query(SaleStockMove).filter_by(sale_id=sale_id).all()
+        from app.rms.models import StockMovement
+        moves = s.query(StockMovement).filter_by(
+            reference_id=sale_id, reference_type="sale"
+        ).all()
         assert len(moves) >= 1
 
 

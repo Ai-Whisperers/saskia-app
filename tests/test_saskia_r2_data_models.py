@@ -27,7 +27,7 @@ from app.rms.models import (
     Product,
     ProductionPlanOverride,
     ProductionPlanTemplate,
-    SaleStockMove,
+    StockMovement,
 )
 
 # ---------------------------------------------------------------------------
@@ -290,9 +290,14 @@ class TestForecastHorizon:
                     sold_at=datetime.combine(ds, datetime.min.time()).replace(tzinfo=timezone.utc),
                 )
                 s.add(sale); s.flush()
-                s.add(SaleStockMove(
-                    sale_id=sale.id, affected_recipe_id=r.id,
-                    ingredient_id=ing_id, qty_delta=-1.0,
+                s.add(StockMovement(
+                    movement_type="sale",
+                    ingredient_id=ing_id,
+                    qty=-1.0,
+                    reference_id=sale.id,
+                    reference_type="sale",
+                    affected_recipe_id=r.id,
+                    recorded_at=sale.sold_at,
                 ))
             s.commit()
         with session_factory() as s:
@@ -343,9 +348,14 @@ class TestForecastHorizon:
                     sold_at=datetime.combine(ds, datetime.min.time()).replace(tzinfo=timezone.utc),
                 )
                 s.add(sale); s.flush()
-                s.add(SaleStockMove(
-                    sale_id=sale.id, affected_recipe_id=r.id,
-                    ingredient_id=ing_id, qty_delta=-0.2,
+                s.add(StockMovement(
+                    movement_type="sale",
+                    ingredient_id=ing_id,
+                    qty=-0.2,
+                    reference_id=sale.id,
+                    reference_type="sale",
+                    affected_recipe_id=r.id,
+                    recorded_at=sale.sold_at,
                 ))
             s.commit()
         with session_factory() as s:
