@@ -29,6 +29,10 @@ from datetime import datetime, timezone
 from typing import Any
 from app.rms.migrations._084_stock_qty_nonneg import _migration_084_stock_qty_nonneg
 from app.rms.migrations._085_sale_public_token import _migration_085_sale_public_token
+from app.rms.migrations._086_placeholder import _migration_086_placeholder
+from app.rms.migrations._087_placeholder import _migration_087_placeholder
+from app.rms.migrations._088_placeholder import _migration_088_placeholder
+from app.rms.migrations._089_refund_table import _migration_089_refund_table
 
 from loguru import logger
 from sqlalchemy import create_engine, event, text
@@ -4024,6 +4028,10 @@ MIGRATIONS = {
     83: _migration_083_recipe_yield_qty_insert_guard,
     84: _migration_084_stock_qty_nonneg,
     85: _migration_085_sale_public_token,
+    86: _migration_086_placeholder,
+    87: _migration_087_placeholder,
+    88: _migration_088_placeholder,
+    89: _migration_089_refund_table,
 }
 
 
