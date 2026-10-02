@@ -36,6 +36,9 @@ from app.rms.migrations._089_refund_table import _migration_089_refund_table
 from app.rms.migrations._090_stock_movement_affected_recipe_id import (
     _migration_090_stock_movement_affected_recipe_id,
 )
+from app.rms.migrations._091_backfill_stock_movement_recipe import (
+    _migration_091_backfill_stock_movement_recipe,
+)
 
 from loguru import logger
 from sqlalchemy import create_engine, event, text
@@ -4036,6 +4039,7 @@ MIGRATIONS = {
     88: _migration_088_placeholder,
     89: _migration_089_refund_table,
     90: _migration_090_stock_movement_affected_recipe_id,
+    91: _migration_091_backfill_stock_movement_recipe,
 }
 
 

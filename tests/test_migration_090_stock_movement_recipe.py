@@ -80,7 +80,7 @@ def test_stock_movement_affected_recipe_id_has_index(session_factory):
 
 
 def test_migration_090_idempotent(tmp_path):
-    """Re-running init_db on a DB already at schema 90 is a no-op."""
+    """Re-running init_db on a DB already at schema 91 is a no-op."""
     from sqlalchemy import create_engine
 
     from app.rms.db import init_db
@@ -92,4 +92,5 @@ def test_migration_090_idempotent(tmp_path):
     init_db(engine)
     with engine.connect() as conn:
         v = conn.execute(text("SELECT value FROM app_meta WHERE key='schema_version'")).scalar()
-    assert int(v) == 90
+    # Schema is now 91 (after migration 091 backfill).
+    assert int(v) == 91
