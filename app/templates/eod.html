@@ -5,6 +5,11 @@
 <h1>
   <svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg>
   {% if is_range_mode %}Cierre del rango{% else %}Cierre diario{% endif %}
+  {% if not is_range_mode and today_is_closed %}
+  {{ ui.status_pill("Día cerrado", sev="ok") }}
+  {% elif not is_range_mode and open_days %}
+  {{ ui.status_pill("Hay " ~ open_days|length ~ " día(s) sin cerrar", sev="warn") }}
+  {% endif %}
 </h1>
 
 {# ── Weekend-batch range picker (prelaunch roadmap 2026-09-17) ─────── #}

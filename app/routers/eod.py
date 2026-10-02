@@ -107,6 +107,20 @@ def eod_view(
     reorder_count = len(reorder_items)
     reorder_total_gs = sum(i.estimated_cost_gs for i in reorder_items if i.has_price)
 
+    # BACKLOG #15: surface "today is closed" state on the EOD header so the
+    # operator can see at a glance that the day's books are finalized.
+    # eod_is_day_closed returns True iff all mandatory items are checked.
+    from app.rms.eod_closed import eod_get_open_days, eod_is_day_closed
+
+    today_is_closed = eod_is_day_closed(session, today)
+    # 14-day trailing window for the "open days" reminder so the operator
+    # can act on any stale days even when this one is closed.
+    open_days = (
+        eod_get_open_days(session, today - timedelta(days=14))
+        if not today_is_closed
+        else []
+    )
+
     # ── Weekend batch: ?start=&end= ──────────────────────────────────────
     # When the operator passes both start and end (e.g. closing Sat+Sun at
     # once on Monday morning), show a per-day summary instead of the
@@ -176,6 +190,9 @@ def eod_view(
         "today_plan": today_plan,
         "completions": completions,
         "today_iso": today.isoformat(),
+        # BACKLOG #15 — closed-day state surfaced on the page header
+        "today_is_closed": today_is_closed,
+        "open_days": [d.isoformat() for d in open_days],
         "saved_notes": saved_notes,
         # CIE-02: restock context for the close
         "reorder_items": reorder_items_top,
