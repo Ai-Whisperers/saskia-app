@@ -2841,6 +2841,29 @@ Mirrors the working /p/{token} pedido-share pattern (P1-2 hardening):
   test_audit_repair, test_migration_partial_apply_detector,
   test_export_csv).
 
+### Refactor — share /p/{token} and /r/{token} helpers
+Consolidate the duplicated token-shape, expiry-validation, client-IP,
+and rate-limit logic that previously existed in both `pedidos.py` and
+`sales.py` into the single `app/rms/public_tokens.py` module:
+
+- `public_tokens.generate_public_token` is now the one entropy source
+  (was duplicated as `pedidos.generate_public_token`).
+- `public_tokens.is_token_valid` is now the one expiry comparator
+  (was duplicated as `pedidos._is_token_valid(pedido, now)`).
+- `public_tokens.enforce_rate_limit(request, session, action_label)`
+  is now the one rate-limit gate (was duplicated as
+  `pedidos._enforce_public_token_rate_limit` and
+  `sales._enforce_public_recibo_rate_limit`). 30 views / 5 minutes
+  per IP, parameterized by the audit-action label.
+- `public_tokens.client_ip(request)` is now the one XFF-first
+  client-IP helper (was duplicated in both routers).
+- `pedidos.py` retains `generate_public_token` and `_is_token_valid`
+  as one-line wrappers that re-export from `public_tokens` so
+  the 18 P1-2 hardening tests keep passing unchanged.
+- Behavior is identical: 33 tests across the two public routes
+  pass green (`test_p1_b2_public_token_hardening`, `test_k6_*`,
+  `test_public_recibo`); 179 of 179 in the wider regression.
+
 
 ## [Unreleased-pre-templates] — pre-signoff skeleton
 

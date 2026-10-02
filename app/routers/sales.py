@@ -44,10 +44,13 @@ from app.rms.messages import (
     SALE_SKU_REQUIRED,
     SALE_TOO_MANY_ITEMS,
 )
-from app.rms.models import AuditLog, Customer, Product, Sale
+from app.rms.models import Customer, Product, Sale
 from app.rms.money import to_int_gs
-from app.rms.public_tokens import generate_public_token, is_token_valid
-from app.rms.rate_limit import is_disabled as rate_limit_is_disabled
+from app.rms.public_tokens import (
+    enforce_rate_limit as public_token_enforce_rate_limit,
+    generate_public_token,
+    is_token_valid,
+)
 from app.rms.schemas import (
     ALLOWED_CHANNELS,
     CHANNEL_DEFAULT,
@@ -62,57 +65,10 @@ router = APIRouter(prefix="/ventas", dependencies=[Depends(require_login)])
 # BACKLOG #17: public_router for /r/{token} — no auth, no CSRF.
 # Lives at root (mounted via app.include_router in main.py) so the URL
 # is short enough for WhatsApp messages. Mirrors pedidos.public_router.
+# Token generation, expiry validation, client-IP extraction, and
+# rate-limiting all delegate to app.rms.public_tokens so the two
+# public routes can never drift apart.
 public_router = APIRouter()
-
-
-def _public_recibo_client_ip(request: Request) -> str:
-    """Mirror of pedidos._public_pedido_client_ip: prefer XFF first hop.
-
-    Kept duplicated here to avoid cross-router coupling; both routers
-    might diverge in the future (e.g. adding Cloudflare-only headers).
-    """
-    xff = request.headers.get("x-forwarded-for", "")
-    if xff:
-        return xff.split(",")[0].strip()
-    client = request.client
-    return getattr(client, "host", "unknown") if client else "unknown"
-
-
-def _enforce_public_recibo_rate_limit(
-    request: Request, session: Session
-) -> None:
-    """Rate-limit /r/{token} lookups by client IP.
-
-    Defense against brute-forcing the 22-char token (96 bits is
-    uncrackable in practice, but limiting the lookup volume per IP is
-    still cheap insurance). 30 views per 5 minutes, same threshold as
-    pedidos._enforce_public_token_rate_limit.
-
-    Bypassed by AIW_SASKIA_AUTH_DISABLED=1 (test mode).
-    """
-    if rate_limit_is_disabled():
-        return
-    ip = _public_recibo_client_ip(request)
-    when = datetime.now(timezone.utc)
-    threshold = when - timedelta(minutes=5)
-    try:
-        count = (
-            session.query(AuditLog)
-            .filter(
-                AuditLog.action == "public.recibo.view",
-                AuditLog.ip == ip,
-                AuditLog.occurred_at >= threshold,
-            )
-            .count()
-        )
-    except Exception:  # noqa: BLE001 — fail open
-        return  # DB unavailable: don't brick the page
-    if count >= 30:
-        raise HTTPException(
-            status_code=429,
-            detail="Demasiadas solicitudes. Intentá en unos minutos.",
-            headers={"Retry-After": "300"},
-        )
 
 
 def _decorated(s: Sale) -> dict:
@@ -1698,8 +1654,12 @@ def public_recibo(request: Request, token: str) -> HTMLResponse:
     rate-limit and audit hooks.
     """
     with request.app.state.session_factory() as session:
-        # Cheap first — rate-limit before the DB hit.
-        _enforce_public_recibo_rate_limit(request, session)
+        # Cheap first — rate-limit before the DB hit. Shared helper
+        # delegates to AuditLog.action == "public.recibo.view" counting
+        # so /r/{token} and /p/{token} use the same enforcement shape.
+        public_token_enforce_rate_limit(
+            request, session, action_label="public.recibo.view"
+        )
 
         # Sale.id is int PK; look up by public_token so /r/{token} resolves
         # to the sale that owns it. Same shape as public_pedido.

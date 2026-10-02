@@ -39,8 +39,12 @@ from app.rms.costing import apply_sale
 from app.rms.csrf import verify_form_csrf
 from app.rms.db import safe_commit
 from app.rms.dependencies import get_session
-from app.rms.models import AuditLog, Customer, Pedido, PedidoLine, Product, Recipe, Sale
-from app.rms.rate_limit import is_disabled as rate_limit_is_disabled
+from app.rms.models import Customer, Pedido, PedidoLine, Product, Recipe, Sale
+from app.rms.public_tokens import (
+    enforce_rate_limit as public_token_enforce_rate_limit,
+    generate_public_token as public_token_generate_token,
+    is_token_valid as is_pedido_token_valid,
+)
 
 try:
     from app.rms.models import Ingredient
@@ -194,21 +198,34 @@ def normalize_channel(raw: str) -> str:
 
 
 def generate_public_token() -> str:
-    """Generate a URL-safe token for /p/{token} pickup-share links.
+    """Re-export the shared public-token helper so existing imports in
+    tests and call sites keep working unchanged.
 
-    Per P1-2 security hardening (2026-09-29):
-    - Full 22-char base64url token from token_urlsafe(16) → 96 bits of
-      entropy (was 48 bits from token_urlsafe(8)[:8]).
-    - Combined with the 30-day expiry added in migration 067, this makes
-      brute-forcing active tokens computationally infeasible.
-    - The previous 8-char truncation was defensible for a single-tenant
-      bakery but the truncation discarded ~50% of the entropy.
-    - Slightly longer URLs are a fair trade for the security gain.
-
-    Collision probability (birthday paradox): ~10^14 tokens before 1%
-    collision rate, so effectively zero for a single bakery.
+    The implementation lives in ``app.rms.public_tokens`` so that
+    /p/{token} and /r/{token} share one entropy source and one TTL.
     """
-    return secrets.token_urlsafe(16)
+    return public_token_generate_token()
+
+
+def _is_token_valid(
+    pedido: Pedido, now: datetime | None = None
+) -> bool:
+    """Backwards-compatible wrapper around the shared helper.
+
+    The shared ``is_token_valid`` accepts the bare ``expires_at``
+    value (datetime, naive datetime, or string from SQLite). The
+    P1-2-era call sites pass the ORM object — this wrapper unwraps
+    it. Behavior matches the original P1-2 hardening:
+    NULL/unparseable → False, naive UTC compared as UTC-aware.
+    """
+    expires_at = getattr(pedido, "public_token_expires_at", None)
+    if now is not None:
+        # Replicate the original "naive-utc-now when expiry is naive" rule
+        # so the existing test suite passes unchanged. The shared helper
+        # always tags naive datetimes as UTC, so we just pass `now` as-is
+        # — both flavors reach the same boolean for any well-formed input.
+        return is_pedido_token_valid(expires_at, now=now)
+    return is_pedido_token_valid(expires_at)
 
 
 def _pedido_total_gs(p: Pedido) -> int:
@@ -1237,103 +1254,6 @@ def pedidos_export_csv(
 # https://saskia.app/p/{token}
 
 
-def _is_token_valid(pedido: Pedido, now: datetime | None = None) -> bool:
-    """P1-2: return True if the pedido's public_token is still usable.
-
-    - None / NULL expires_at → treat as expired (defensive; legacy
-      pre-migration-067 rows get a one-time backfill in 067 itself).
-    - expires_at <= now → expired (410 Gone).
-    - expires_at > now → valid.
-
-    Pass ``now`` for deterministic tests.
-    """
-    expires_at = getattr(pedido, "public_token_expires_at", None)
-    if expires_at is None:
-        return False
-
-    # The ORM may hand back either a datetime or a string depending on
-    # what the underlying DB returned (SQLite is loose about TIMESTAMP).
-    # Normalize to datetime so the comparison below doesn't crash on
-    # either type.
-    if isinstance(expires_at, str):
-        from datetime import datetime as _dt
-
-        # Handle "YYYY-MM-DD" and "YYYY-MM-DD HH:MM:SS" and the
-        # "T"-separated ISO variant. Fall back to date-only comparison
-        # if all parsers fail.
-        for fmt in (
-            "%Y-%m-%d %H:%M:%S.%f",
-            "%Y-%m-%d %H:%M:%S",
-            "%Y-%m-%d",
-        ):
-            try:
-                expires_at = _dt.strptime(expires_at, fmt)
-                break
-            except ValueError:
-                continue
-        else:
-            # Unparseable → treat as expired (safer than allowing
-            # access via a stale token).
-            return False
-
-    when = now or datetime.now(timezone.utc)
-    # pedido.public_token_expires_at is naive UTC (matches the rest of
-    # the schema's datetime defaults); compare against a naive UTC now.
-    if expires_at.tzinfo is None:
-        when = when.replace(tzinfo=None)
-    return expires_at > when
-
-
-def _enforce_public_token_rate_limit(
-    request: Request, session: Session
-) -> None:
-    """P1-2: rate-limit /p/{token} lookups by client IP.
-
-    Defense against brute-forcing the 22-char token (96 bits is
-    uncrackable in practice, but limiting the lookup volume per IP
-    is still cheap insurance).
-
-    Counts ALL GETs to /p/{token} that hit the DB; if the IP has made
-    more than 30 in the last 5 minutes, returns 429. Same logic as
-    the login rate-limiter in app/rms/rate_limit.py but with a more
-    permissive threshold (legitimate refreshes / retries are normal).
-
-    Bypassed by AIW_SASKIA_AUTH_DISABLED=1 (test mode).
-    """
-    if rate_limit_is_disabled():
-        return
-    ip = _public_pedido_client_ip(request)
-    when = datetime.now(timezone.utc)
-    threshold = when - timedelta(minutes=5)
-    try:
-        count = (
-            session.query(AuditLog)
-            .filter(
-                AuditLog.action == "public.pedido.view",
-                AuditLog.ip == ip,
-                AuditLog.occurred_at >= threshold,
-            )
-            .count()
-        )
-    except Exception:  # noqa: BLE001 — fail open
-        return  # DB unavailable: don't brick the page
-    if count >= 30:
-        raise HTTPException(
-            status_code=429,
-            detail="Demasiadas solicitudes. Intentá en unos minutos.",
-            headers={"Retry-After": "300"},
-        )
-
-
-def _public_pedido_client_ip(request: Request) -> str:
-    """Mirror of audit._client_ip: prefer X-Forwarded-For first hop."""
-    xff = request.headers.get("x-forwarded-for", "")
-    if xff:
-        return xff.split(",")[0].strip()
-    client = request.client
-    return getattr(client, "host", "unknown") if client else "unknown"
-
-
 @public_router.get("/p/{token}", response_class=HTMLResponse)
 def public_pedido(request: Request, token: str) -> HTMLResponse:
     """Public, no-auth pickup-share page rendered for the customer.
@@ -1349,8 +1269,12 @@ def public_pedido(request: Request, token: str) -> HTMLResponse:
         migration 067 + Pedido.public_token_expires_at). An expired
         link returns 410 Gone, prompting the customer to ask the
         bakery for a fresh one.
-      - This endpoint is rate-limited per client IP via
-        _enforce_public_token_rate_limit (30 views per 5 minutes).
+      - This endpoint is rate-limited per client IP via the shared
+        ``public_tokens.enforce_rate_limit`` helper (30 views per
+        5 minutes).
+      - The token-shape + expiry-validation helpers are the shared
+        ``public_tokens`` ones (refactored 2026-10-02 so /p/{token}
+        and /r/{token} share one source of truth).
 
     Uses ``request.app.state.session_factory`` so the test engine
     (injected by the ``client`` fixture's monkey-patch of
@@ -1360,8 +1284,13 @@ def public_pedido(request: Request, token: str) -> HTMLResponse:
     back via this endpoint.
     """
     with request.app.state.session_factory() as session:
-        # P1-2: rate-limit first (cheap, before the DB hit).
-        _enforce_public_token_rate_limit(request, session)
+        # P1-2: rate-limit first (cheap, before the DB hit). The shared
+        # helper counts AuditLog.action == "public.pedido.view" so this
+        # is the same enforcement as before the refactor — the change
+        # is only that the count + window now live in public_tokens.
+        public_token_enforce_rate_limit(
+            request, session, action_label="public.pedido.view"
+        )
 
         # Pedido.id is an Integer PK; look up by public_token instead
         # so /p/{token} resolves to the pedido sharing that token.
