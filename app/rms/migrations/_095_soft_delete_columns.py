@@ -74,14 +74,4 @@ def _migration_095_soft_delete_columns(conn: Any) -> None:
             atomic_ddl_block(conn, [
                 f"CREATE INDEX IF NOT EXISTS idx_deleted_at ON {table}(deleted_at)"
             ])
-        except Exception:
-            # Index may already exist from a partial migration run; ignore.
-            pass
-
-    # BACKLOG #4 (2026-10-02): migrations 085+ shipped without bumping
-    # schema_version, silently breaking fresh installs. Sprint 4.5 fixed.
-    from app.rms.db import _bump_schema_version
-    _bump_schema_version(conn, 95)
-
-
 __all__ = ["ArchivedAt", "ArchivedByUserId"]
