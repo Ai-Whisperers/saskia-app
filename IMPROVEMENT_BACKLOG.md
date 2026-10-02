@@ -69,8 +69,8 @@ the code, and operator-ranked. Status is the latest known state.
 | 32 | Predictive restocking: Poisson regression on `sale_stock_move` → "expected consumption next 3 days" | ❌ TODO | L |
 | 33 | Plan accuracy dashboard from `ProductionCompletion` | ❌ TODO | M |
 | 34 | Waste ROI per ingredient (`WasteLog.cost_gs` ÷ `IngredientPriceEvent` trend) | ❌ TODO | M |
-| 35 | Per-customer reorder rate (Sale ↔ Customer over time) | ❌ TODO | M |
-| 36 | Time-of-day sales heatmap (Sale.sold_at by hour) | ❌ TODO | M |
+| 35 | Per-customer reorder rate (Sale ↔ Customer over time) | ✅ Done 2026-10-02 (Sprint 4.9: `app/rms/sales_intel.py:customer_reorder_rates(session, since_days=90, top_n=10)` returns total_customers + customers_with_2plus_orders + reorder_rate + avg/median gap days + top_repeaters; `/ops/status` page surfaces reorder stats with `≤<code>rate < 20%` early-warning hint; 7 tests in `tests/test_customer_reorder_rates.py`) | — |
+| 36 | Time-of-day sales heatmap (Sale.sold_at by hour) | ✅ Done 2026-10-02 (Sprint 4.8: `app/rms/sales_intel.py:sales_heatmap(session, since_days=90)` returns 7×24 grid bucketed by local weekday + hour; `/reportes/ventas-hora` renders it with CSS hsl() color scale; 5 tests in `tests/test_ventas_hora_heatmap.py`) | — |
 
 ## Tier 7: P3 — Supabase / infra
 
