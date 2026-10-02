@@ -96,4 +96,45 @@ def eod_get_open_days(session: Session, since: date) -> list[date]:
     return open_days
 
 
-__all__ = ["eod_is_day_closed", "eod_get_open_days"]
+class EODClosedError(ValueError):
+    """Raised when an accounting-sensitive write targets a closed day.
+
+    Backed by ValueError so existing `void_sale` callers don't change,
+    but discriminated by class so routers can map it to a 409 Conflict
+    and surface a Spanish-language message to the operator.
+    """
+
+
+def assert_day_open_or_raise(
+    session: Session, day: date | None, *, action: str
+) -> None:
+    """Guard an accounting-sensitive write: raise EODClosedError if `day`
+    is closed.
+
+    Used by sales insert, sales update, waste (merma), inventory
+    adjustment, and any other write that mutates accounting state for a
+    past day. The `void_sale` code path uses an inline check (not this
+    helper) because it raises a different prefix ("void_after_eod_close")
+    — but the underlying logic is the same.
+
+    Args:
+        session: Active SQLAlchemy session.
+        day: The day the write targets. None is treated as "today" (open)
+            — defensive, since some writes may not carry an explicit date.
+        action: Short identifier for the action being attempted. Used in
+            the error message to make debugging trivial.
+
+    Raises:
+        EODClosedError: When `day` is in the past and all EOD checklist
+            items for that day are marked done.
+    """
+    if day is None:
+        return  # Treat unknown date as today — let the call site decide.
+    if not eod_is_day_closed(session, day):
+        return
+    raise EODClosedError(
+        f"eod_closed:{day.isoformat()}:{action}"
+    )
+
+
+__all__ = ["eod_is_day_closed", "eod_get_open_days", "assert_day_open_or_raise", "EODClosedError"]

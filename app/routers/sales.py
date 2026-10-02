@@ -777,6 +777,17 @@ async def sale_create(
     else:
         sold_at_dt = datetime.now(ASUNCION_TZ)
 
+    # BACKLOG #15 part 2 (2026-10-02): block writes against a closed day.
+    # sold_at_dt is Asunción-local; EOD uses the same TZ, so .date()
+    # gives us the local day the operator is billing to.
+    from app.rms.eod_closed import assert_day_open_or_raise
+    try:
+        assert_day_open_or_raise(
+            session, sold_at_dt.date(), action="sale_insert"
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=f"EOD_CLOSED:{e}")
+
     # payment_method: optional, must be in ALLOWED_PAYMENT_METHODS if set
     payment_method_clean = payment_method.strip() or None
     if payment_method_clean is not None and payment_method_clean not in ALLOWED_PAYMENT_METHODS:
@@ -1158,6 +1169,15 @@ async def sale_create_multi(
             ) from e
     else:
         sold_at_dt = datetime.now(ASUNCION_TZ)
+
+    # BACKLOG #15 part 2 (2026-10-02): block writes against a closed day.
+    from app.rms.eod_closed import assert_day_open_or_raise
+    try:
+        assert_day_open_or_raise(
+            session, sold_at_dt.date(), action="sale_insert_multi"
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=f"EOD_CLOSED:{e}")
 
     # ── Customer ──────────────────────────────────────────────────────────
     customer_id = body.customer_id
