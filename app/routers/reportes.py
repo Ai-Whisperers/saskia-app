@@ -360,7 +360,15 @@ def libro_ventas_set_pdf(
     total_gross = sum(r.total_gross_gs for r in rows)
     total_base = sum(r.base_gs for r in rows)
     total_iva = sum(r.iva_gs for r in rows)
-    elements.append(Paragraph(f"Total ventas: Gs. {total_gross:,.0f}", styles["Normal"]))
+    # M1 (2026-10-02): refunds + net for DNIT compliance on the
+    # Libro de Ventas PDF export. Paraguay's fiscal authority requires
+    # refund rows on the same ledger as their originating sales.
+    total_refunds = sum(r.refunds_gs for r in rows)
+    total_net = sum(r.net_gross_gs for r in rows)
+    refund_count = sum(r.refunds_count for r in rows)
+    elements.append(Paragraph(f"Total ventas (bruto): Gs. {total_gross:,.0f}", styles["Normal"]))
+    elements.append(Paragraph(f"Reembolsos ({refund_count} operacion{'es' if refund_count != 1 else ''}): Gs. {total_refunds:,.0f}", styles["Normal"]))
+    elements.append(Paragraph(f"Total ventas (neto): Gs. {total_net:,.0f}", styles["Normal"]))
     elements.append(Paragraph(f"Base imponible: Gs. {total_base:,.0f}", styles["Normal"]))
     elements.append(Paragraph(f"IVA 10%: Gs. {total_iva:,.0f}", styles["Normal"]))
     elements.append(Spacer(1, 0.5 * cm))

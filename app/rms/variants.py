@@ -25,7 +25,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.rms.config import ASUNCION_TZ
-from app.rms.models import Ingredient, IngredientVariant, Sale, SaleStockMove
+from app.rms.models import Ingredient, IngredientVariant, StockMovement
 from app.rms.money import to_decimal
 from app.rms.units import Unit, can_convert, convert_qty
 
@@ -258,16 +258,19 @@ def avg_daily_consumption(
     start = today - timedelta(days=_consumption_lookback_days(horizon_days, today=today))
     end = today
 
+    # BACKLOG #1 (schema 92): replaced SaleStockMove + Sale join with
+    # StockMovement (filtered to movement_type='sale' / reference_type='sale').
+    # The recorded_at column on StockMovement is the sale timestamp.
     rows = session.execute(
-        select(Sale.sold_at, SaleStockMove.qty_delta)
-        .join(SaleStockMove.sale)
-        .where(SaleStockMove.ingredient_id == ingredient_id)
-        .where(Sale.sold_at >= datetime.combine(start, datetime.min.time()))
-        .where(Sale.sold_at <= datetime.combine(end, datetime.max.time()))
+        select(StockMovement.recorded_at, StockMovement.qty)
+        .where(StockMovement.ingredient_id == ingredient_id)
+        .where(StockMovement.movement_type == "sale")
+        .where(StockMovement.recorded_at >= datetime.combine(start, datetime.min.time()))
+        .where(StockMovement.recorded_at <= datetime.combine(end, datetime.max.time()))
     ).all()
     if not rows:
         return 0.0
-    # qty_delta is negative for consumption; absolute value
+    # qty is negative for consumption; absolute value
     total = float(sum(abs(float(q)) for _, q in rows))
     days = max(1, (end - start).days)
     return total / days

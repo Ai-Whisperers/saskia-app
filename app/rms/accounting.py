@@ -185,6 +185,12 @@ class LibroVentasRow:
     invoice_number: int | None = None
     invoice_customer_ruc: str | None = None
     invoice_customer_name: str | None = None
+    # M1 (2026-10-02): refunds per sale — sum of approved refunds that
+    # target this sale. DNIT requires fiscal refund tracking on the
+    # Libro de Ventas. net_gross_gs = total_gross_gs - refunds_gs.
+    refunds_gs: int = 0
+    refunds_count: int = 0
+    net_gross_gs: int = 0
 
 
 def libro_ventas(
@@ -214,6 +220,27 @@ def libro_ventas(
         for p in session.execute(select(Product).where(Product.id.in_(prod_ids))).scalars()
     }
 
+    # M1 (2026-10-02): refunds per sale in this window. Single grouped
+    # query (target_type='sale') avoids N+1. Returns dict[sale_id,
+    # (sum_gs, count)]. Defer Refund import to top of call so we don't
+    # pay the cost on every ledger call.
+    from app.rms.models_legacy import Refund
+    refund_rows = session.execute(
+        select(
+            Refund.target_id,
+            func.coalesce(func.sum(Refund.amount_gs), 0).label("sum_gs"),
+            func.count(Refund.id).label("n"),
+        )
+        .where(
+            Refund.target_type == "sale",
+            Refund.target_id.in_({r.id for r in rows}) if rows else False,
+        )
+        .group_by(Refund.target_id)
+    ).all() if rows else []
+    refunds_by_sale = {
+        rid: (int(s or 0), int(n or 0)) for rid, s, n in refund_rows
+    }
+
     out: list[LibroVentasRow] = []
     for r in rows:
         # AGENTS.md money rule: never use float precision for money.
@@ -230,6 +257,9 @@ def libro_ventas(
             base_out = iva.base_gs
             iva_out = iva.iva_gs
 
+        # M1 (2026-10-02): refunds for this sale (per target_type='sale').
+        refunds_sum, refunds_n = refunds_by_sale.get(r.id, (0, 0))
+        net = max(iva.gross_gs - refunds_sum, 0)
         out.append(
             LibroVentasRow(
                 sale_id=r.id,
@@ -245,6 +275,9 @@ def libro_ventas(
                 invoice_number=getattr(r, "invoice_number", None),
                 invoice_customer_ruc=getattr(r, "invoice_customer_ruc", None),
                 invoice_customer_name=getattr(r, "invoice_customer_name", None),
+                refunds_gs=refunds_sum,
+                refunds_count=refunds_n,
+                net_gross_gs=net,
             )
         )
     return out

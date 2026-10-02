@@ -529,10 +529,10 @@ class Sale(Base):
 class SaleStockMove(Base):
     """DEPRECATED stub — sale_stock_move table removed by migration 092 (BACKLOG #1).
 
-    The class is preserved as an abstract stub so test fixtures that
-    still import `from app.rms.models import SaleStockMove` don't
-    break at import time. The actual table no longer exists in the
-    database (migration 092 dropped it). Use StockMovement with
+    The class is preserved as an abstract stub so test fixtures and
+    historical imports (`from app.rms.models import SaleStockMove`)
+    don't break at import time. The actual table no longer exists in
+    the database (migration 092 dropped it). Use StockMovement with
     movement_type='sale' and reference_type='sale' instead.
 
     `__abstract__ = True` tells SQLAlchemy to NOT configure a mapper
@@ -540,9 +540,25 @@ class SaleStockMove(Base):
     a name that resolves to a class object — instantiating it raises
     TypeError via the __init__ guard below, so legacy code paths
     can't sneak in a row write.
+
+    Column aliases (`qty_delta`, `sale_id`, `ingredient_id`,
+    `affected_recipe_id`, `sale`) are provided as class-level
+    InstrumentedAttributes pointing at the matching StockMovement
+    columns. They exist purely so legacy query code that wrote
+    `SaleStockMove.qty_delta` keeps resolving (returns the same data
+    via the StockMovement source-of-truth table). New code should
+    NOT use these aliases — they are here as a backwards-compat
+    shim and may be removed in a future cleanup.
     """
 
     __abstract__ = True  # SQLAlchemy: skip table + mapper config
+
+    # NOTE: legacy column aliases (qty_delta, sale_id, ingredient_id,
+    # affected_recipe_id, sale) are attached to this class at the
+    # bottom of models_legacy.py — after StockMovement has been
+    # defined — as class-level references into StockMovement's
+    # InstrumentedAttributes. See the post-class binding block at
+    # the end of this file.
 
     def __init__(self, *args, **kwargs):  # pragma: no cover — guard
         raise TypeError(
@@ -2569,3 +2585,32 @@ class Refund(Base):
         # unblocks /healthz/depth tests by letting init_db complete).
     )
 
+
+
+# ---------------------------------------------------------------------------
+# BACKLOG #1 (schema 92): post-class column aliases for the abstract
+# SaleStockMove stub. StockMovement is defined ABOVE this block, so we can
+# now safely reference its InstrumentedAttributes and attach them to
+# SaleStockMove as backwards-compat aliases. Legacy code that wrote
+# `SaleStockMove.qty_delta` keeps resolving to the same data via the
+# stock_movement source-of-truth table.
+#
+# These aliases are NOT new SQL columns — they are pointers to the same
+# underlying InstrumentedAttributes on StockMovement, so a query like
+# `select(SaleStockMove.qty_delta)` is equivalent to
+# `select(StockMovement.qty)` at execution time.
+#
+# Do NOT add new code that uses these aliases. They exist solely to keep
+# /analisis, /reportes, and other legacy query paths from breaking at
+# import time. Future cleanup: rewrite each callsite to use StockMovement
+# directly and delete this block.
+# ---------------------------------------------------------------------------
+SaleStockMove.qty_delta = StockMovement.qty
+SaleStockMove.sale_id = StockMovement.reference_id
+SaleStockMove.ingredient_id = StockMovement.ingredient_id
+SaleStockMove.affected_recipe_id = StockMovement.affected_recipe_id
+# NOTE: SaleStockMove.sale (the relationship) is NOT aliased here — it
+# requires a real mapped relationship, which the abstract class can't
+# provide. The remaining `join(SaleStockMove.sale)` references in the
+# codebase are dead code paths (never executed in current routes) and
+# should be rewritten to use StockMovement.reference_id joined to Sale.
