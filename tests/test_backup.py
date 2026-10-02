@@ -186,9 +186,11 @@ def test_prune_old_backups_empty_dir(tmp_path):
 
 def test_backup_tables_lists_expected_models():
     """All required tables are in the BACKUP_TABLES list (for full coverage)."""
+    # M1 (2026-10-02): `sale_stock_move` was dropped by migration 092
+    # (BACKLOG #1); sale-driven stock-out now lives in `stock_movement`.
     expected_names = {
         "app_meta", "ingredient", "recipe", "recipe_line",
-        "product", "sale", "sale_stock_move", "import_batch",
+        "product", "sale", "stock_movement", "import_batch",
         "audit_log", "customer", "waste_log", "user",
         "tag", "tag_link",
     }
