@@ -45,10 +45,10 @@ the code, and operator-ranked. Status is the latest known state.
 
 | # | Item | Status | Effort |
 |---|---|---|---|
-| 21 | `compute_reorder_list` N+1 (Python loop, 1 query per ingredient) | ❌ TODO | M |
+| 21 | `compute_reorder_list` N+1 (Python loop, 1 query per ingredient) | 🔶 Already optimal (the loop body only reads scalar Ingredient columns — `reorder_point`, `min_stock_qty`, `max_stock_qty`, `stock_qty`, `purchase_price_gs`, `unit`, `name` — no relationship access. One `SELECT` from `ingredient` and pure Python. Not N+1; doc was a misdiagnosis. Confirmed by `tests/test_compute_reorder_list.py`.) | — |
 | 22 | Dashboard aggregates 24h sales in Python (should be `GROUP BY hour(sold_at)`) | ✅ Done (kept Python aggregation because dashboard already loads the Sale list — moving to SQL would require shipping timezone-aware bucketing since `EXTRACT(HOUR ...)` is UTC not Asunción; ALSO fixed a sibling correctness bug: both `_build_hourly_sales_chart` and `_build_payment_methods_donut` previously summed `qty × unit_price` (gross) and overcounted discounted sales — now use `qty × unit_price − discount_gs` post-discount, matching /recibo; 9 unit tests in `tests/test_dashboard_aggregation_discount_fix.py`) | — |
 | 23 | `/productos` list runs `cost_gs` per-product via `product_unit_cost_gs()` — N+1 | ✅ Done (added `batch_compute_prime_cost` in `app/rms/prime_cost.py` that reads eager-loaded `.recipe` and a single ComplianceInfo lookup instead of 3+ session.get calls per product; `/productos` route now uses `selectinload(Product.recipe)` + batched prime cost with per-product fallback on cache miss; 8 unit tests in `tests/test_prime_cost_batched.py` cover agreement with per-product path, ComplianceInfo call count = 1, no Product.get inside the loop, None semantics for missing recipe/yield/labor) | — |
-| 24 | `/recetas` list has no pagination | ❌ TODO | S |
+| 24 | `/recetas` list has no pagination | ✅ Done (backlog doc stale — `app/routers/recipes.py:89` accepts `page` + `page_size=Query(50, ge=1, le=200)`; `count_stmt` returns total for `total_pages`; template renders `pagination.total_pages` controls. Same pattern used by ventas/historial.) | — |
 | 25 | Missing indexes on hot paths: `Sale.sold_at`, `StockMovement.ingredient_id`, `Pedido.customer_phone` | ✅ Done (all three already have indexes: `Sale.sold_at` has `index=True` (models_legacy.py:509); `StockMovement.ingredient_id` covered by composite `ix_stock_movement_ingredient_recorded` (line 1695); `Pedido.customer_phone` has `index=True`) | — |
 
 ## Tier 5: P2 — Data we have but don't use (high analytics value)
@@ -78,7 +78,7 @@ the code, and operator-ranked. Status is the latest known state.
 |---|---|---|---|
 | 37 | No Supabase Storage for product images (URLs to external CDN today) | ❌ TODO | M |
 | 38 | No Supabase RLS for multi-tenant readiness (Tenant table exists) | ❌ TODO | L |
-| 39 | Render backup runs on app-startup, not on cron | ❌ TODO | M |
+| 39 | Render backup runs on app-startup, not on cron | 🔶 Platform constraint (Render free tier has no cron service. Backup runs on `startup` event via `app/services/auto_backup.py`; threshold 24h triggers a re-export; if the app is up continuously, startup fires once. VPS already runs a real cron (03:15 daily, 14-day retention) per AGENTS.md. Workaround on Render: paid cron-job service or external ping (UptimeRobot → /healthz) — neither is in scope here.) | M |
 | 40 | Healthz depth: ping Supabase + R2 + disk | ❌ TODO | M |
 
 ---

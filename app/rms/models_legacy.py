@@ -2470,3 +2470,96 @@ class LoyaltyTransaction(Base):
         ),
         Index("ix_loyalty_customer_time", "customer_id", "recorded_at"),
     )
+
+
+class Refund(Base):
+    """A partial (or full) monetary reversal of a Sale or Pedido.
+
+    Distinct from Sale.voided_at — void means "this transaction didn't happen",
+    refund means "this transaction happened and we're giving some money back".
+    Multiple refunds can target the same Sale (a customer might bring back
+    1 of 3 items today, 2 tomorrow); the DB enforces sum(amount_gs) <= target
+    total via a trigger installed in migration 089.
+
+    Fields:
+      target_type         — 'sale' | 'pedido' | 'pedido_line' (polymorphic)
+      target_id           — FK to the target row (no real FK; enforced by app)
+      target_amount_gs    — snapshot of the target's total at refund time
+      amount_gs           — how much we're refunding (always > 0)
+      payment_method      — must equal original payment_method (caller validates)
+      restock_qty         — if True, stock is returned to inventory
+      restocked_qty       — quantity returned to stock (0 if restock_qty=False)
+      reason              — operator-supplied free text ("cliente devolvió torta")
+      recorded_at         — UTC datetime when refund was issued
+      recorded_by         — operator id (string, same as Sale.voided_by)
+      eod_date            — date the refund belongs to (for EOD closure rule)
+      loyalty_reversed    — points deducted from customer (cached for audit;
+                            source of truth is LoyaltyTransaction table)
+
+    Invariants (enforced by trigger 089_refund_amount_cap):
+      - amount_gs > 0
+      - target_amount_gs > 0
+      - target_id IS NOT NULL
+      - For any (target_type, target_id), SUM(amount_gs) <= original target total
+      - For 'pedido_line', target_id is the PedidoLine.id (refund per-line)
+      - restocked_qty >= 0 (and =0 if restock_qty=False)
+
+    Refunds DO NOT void the original Sale/Pedido. The original row remains
+    in the ledger with its full amount; refunds are a separate flow that
+    operators can audit independently. This matches DNIT (Paraguayan tax
+    authority) requirements: a fiscal invoice once issued must remain in
+    the books; a refund is a separate "nota de crédito".
+    """
+
+    __tablename__ = "refund"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    target_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    target_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    target_amount_gs: Mapped[int] = mapped_column(Integer, nullable=False)
+    amount_gs: Mapped[int] = mapped_column(Integer, nullable=False)
+    payment_method: Mapped[str] = mapped_column(String(32), nullable=False)
+    restock_qty: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    restocked_qty: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.0, server_default="0"
+    )
+    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, index=True
+    )
+    recorded_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    eod_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True, index=True)
+    loyalty_reversed: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "target_type IN ('sale','pedido','pedido_line')",
+            name="ck_refund_target_type",
+        ),
+        CheckConstraint(
+            "amount_gs > 0",
+            name="ck_refund_amount_positive",
+        ),
+        CheckConstraint(
+            "target_amount_gs > 0",
+            name="ck_refund_target_amount_positive",
+        ),
+        CheckConstraint(
+            "restocked_qty >= 0",
+            name="ck_refund_restocked_qty_nonneg",
+        ),
+        # ix_refund_recorded_at is created automatically via `index=True`
+        # on the recorded_at column above. The previous explicit
+        # `Index("ix_refund_recorded_at", "recorded_at")` here caused
+        # init_db() to fail on a fresh DB with "index already exists".
+        # Migration 089 still creates the matching index idempotently
+        # via CREATE INDEX IF NOT EXISTS for legacy Postgres prod paths.
+        Index("ix_refund_target", "target_type", "target_id"),
+        # ix_refund_recorded_at removed (2026-01-02 fix; BACKLOG Tier-7
+        # unblocks /healthz/depth tests by letting init_db complete).
+    )
+
