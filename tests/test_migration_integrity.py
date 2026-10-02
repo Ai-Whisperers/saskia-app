@@ -45,18 +45,67 @@ DB_PY = REPO_ROOT / "app" / "rms" / "db.py"
 
 
 def _collect_migration_definitions() -> dict[str, list[int]]:
-    """AST-scan ``db.py`` and return every ``_migration_NNN_*`` definition
-    along with the source line numbers where it appears.
+    """AST-scan ``db.py`` AND all migration files; return every
+    ``_migration_NNN_*`` definition along with the source line numbers where it appears.
 
     Returns:
         {name: [line_numbers]} where the same name appearing twice is a
         duplicate (the audit's P0 bug).
+
+    NOTE: db.py contains *wrapper* functions for 084+ migrations that
+    defer-import the real impl from app/rms/migrations/. Those wrappers
+    are a deliberate pattern (defer-import to break db.py ↔ migrations
+    circular import), not a duplicate. We detect them by their body —
+    wrappers have exactly one statement, a defer-import + call. Real
+    duplicate definitions have at least one statement that performs DDL
+    or business logic (i.e. is not a pure import-and-forward call).
     """
-    tree = ast.parse(DB_PY.read_text(encoding="utf-8"))
+    def _looks_like_wrapper(tree: ast.AST, func_node: ast.FunctionDef) -> bool:
+        """A wrapper body is a sequence of `from x import y as z` and a
+        single forward call. Real impls touch `conn` or call atomic helpers.
+        """
+        if len(func_node.body) < 2:
+            return False
+        last_stmt = func_node.body[-1]
+        if not isinstance(last_stmt, ast.Expr):
+            return False
+        if not isinstance(last_stmt.value, ast.Call):
+            return False
+        func = last_stmt.value.func
+        if isinstance(func, ast.Name) and func.id.startswith("_migration_"):
+            return True
+        if isinstance(func, ast.Name) and func.id == "_impl":
+            return True
+        return False
+
     out: dict[str, list[int]] = {}
+
+    # Inline migrations in db.py (pre-084, before file-per-migration refactor).
+    # Wrapper functions (defer-import + forward) are excluded — they exist
+    # only to break the db.py ↔ migrations circular import. The real impl
+    # is in app/rms/migrations/_NNN_*.py (collected below).
+    tree = ast.parse(DB_PY.read_text(encoding="utf-8"))
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name.startswith("_migration_"):
+            if _looks_like_wrapper(tree, node):
+                continue
             out.setdefault(node.name, []).append(node.lineno)
+
+    # File-based migrations (084+) live in app/rms/migrations/_NNN_*.py.
+    # These are the source of truth for 084+; db.py wrappers are just
+    # defer-import shims to break db.py ↔ migrations circular import.
+    migrations_dir = REPO_ROOT / "app" / "rms" / "migrations"
+    candidates = list(migrations_dir.glob("_0[8-9]*.py")) + list(migrations_dir.glob("_1*.py"))
+    for path in sorted(candidates):
+        if path.name == "__init__.py":
+            continue
+        try:
+            tree2 = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree2):
+            if isinstance(node, ast.FunctionDef) and node.name.startswith("_migration_"):
+                out.setdefault(node.name, []).append(node.lineno)
     return out
 
 

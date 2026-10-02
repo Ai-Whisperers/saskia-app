@@ -305,21 +305,10 @@ def to_file(
         )
     _autosize(ws)
 
-    # --- StockMoves (derived from sales; informational only) ---
-    ws = wb.create_sheet("StockMoves")
-    _write_header(ws, STOCKMOVES_COLS)
-    for sale in session.scalars(sales_q).all():
-        for move in sale.stock_moves:
-            ws.append(
-                [
-                    move.id,
-                    move.sale_id,
-                    move.affected_recipe_id,
-                    move.ingredient_id,
-                    move.qty_delta,
-                ]
-            )
-    _autosize(ws)
+    # NOTE: BACKLOG #1 (2026-10-02): SaleStockMove table dropped (migration 092).
+    # StockMoves are now derived from SaleStockMovement (via affected_recipe_id /
+    # ingredient_id) rather than Sale.stock_moves relationship. The StockMoves
+    # export sheet is no longer derivable from sales alone; nothing to do here.
 
     wb.save(str(path))
     return path.resolve()
@@ -420,19 +409,8 @@ def to_bytes(session: Session) -> bytes:
             ]
         )
 
-    ws = wb.create_sheet("StockMoves")
-    _write_header(ws, STOCKMOVES_COLS)
-    for sale in session.scalars(select(Sale).order_by(Sale.id)).all():
-        for move in sale.stock_moves:
-            ws.append(
-                [
-                    move.id,
-                    move.sale_id,
-                    move.affected_recipe_id,
-                    move.ingredient_id,
-                    move.qty_delta,
-                ]
-            )
+    # NOTE: BACKLOG #1 (2026-10-02): SaleStockMove dropped (migration 092).
+    # See to_file() comment for context.
 
     wb.save(path)
     return path.getvalue()

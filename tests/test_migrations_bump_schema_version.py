@@ -52,6 +52,7 @@ def test_every_migration_calls_bump_schema_version():
 
     missing = []
     for path in file_migrations:
+        stem = path.stem
         num_str = stem.split("_")[1]
         try:
             v = int(num_str)
