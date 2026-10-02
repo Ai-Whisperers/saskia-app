@@ -276,6 +276,30 @@ async def lifespan(app: FastAPI):
             app.state.migration_status = "failed"
             app.state.migration_error = repr(exc)
             app.state.migration_schema_version = pre
+            # Tier 8.4 (2026-10-01): email the operator so the
+            # migration drift doesn't sit unnoticed. We do this
+            # inline (not in a background task) because the lifespan
+            # is the only point at which we know whether the run
+            # succeeded.
+            try:
+                from app.observability.alerts import dispatch_failure
+
+                dispatch_failure(
+                    title="Falla de migración al arrancar",
+                    body=(
+                        f"Saskia RMS no pudo aplicar las migraciones en el "
+                        f"arranque.\n\n"
+                        f"code_schema_version={CURRENT_SCHEMA_VERSION}\n"
+                        f"db_schema_version={pre}\n"
+                        f"error={exc!r}\n\n"
+                        f"Revisá /healthz/migrate en la app y la salida de "
+                        f"los logs del servicio."
+                    ),
+                    severity="error",
+                )
+            except Exception as alert_exc:  # noqa: BLE001
+                # Never let a broken alert path block the main one.
+                logger.warning(f"migration alert dispatch failed: {alert_exc!r}")
 
     # Phase 1.A — Idempotent password sync from env vars (SASKIA_ADMIN_PASSWORD,
     # SASKIA_USER_PASSWORD, SASKIA_IVAN_TEST_PASSWORD). When the deployment injects
@@ -352,6 +376,26 @@ async def lifespan(app: FastAPI):
         # Don't crash the app on backup failures; the request handlers
         # are independent of this. (Errors are recorded in app_meta.)
         logger.warning(f"backup scheduler failed: {exc!r}")
+        # Tier 8.4 (2026-10-01): email the operator. A backup
+        # failure isn't a customer-facing emergency but it IS
+        # a "your data is at risk" emergency, so the alert path
+        # is critical-severity.
+        try:
+            from app.observability.alerts import dispatch_failure
+
+            dispatch_failure(
+                title="Falla de backup automático",
+                body=(
+                    f"El backup automático en el arranque falló.\n\n"
+                    f"error={exc!r}\n\n"
+                    f"Revisá los logs de la app y el storage remoto. "
+                    f"Las ventas de hoy todavía están en SQLite local; "
+                    f"exportá manualmente si es necesario."
+                ),
+                severity="critical",
+            )
+        except Exception as alert_exc:  # noqa: BLE001
+            logger.warning(f"backup alert dispatch failed: {alert_exc!r}")
     yield
 
 
