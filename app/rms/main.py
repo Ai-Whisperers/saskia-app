@@ -82,6 +82,7 @@ from app.routers import (
     products,
     recipes,
     reorder,
+    refund,  # app/routers/refunds.py → router name "refund"
     reportes,
     sales,
     search,
@@ -661,6 +662,7 @@ app.include_router(recipes.router)
 app.include_router(suppliers.router)
 app.include_router(products.router)
 app.include_router(sales.router)
+app.include_router(refund.router)
 app.include_router(search.router)
 app.include_router(excel_io.router)
 app.include_router(customers.router)
