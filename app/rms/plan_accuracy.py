@@ -104,12 +104,19 @@ class AccuracyReport:
 
     @property
     def under_baked_pct(self) -> float | None:
-        """Share of planned units that were NOT completed."""
+        """Share of planned units that were NOT completed.
+
+        Clamped to [0, 1]: over-baked days (completed > planned) get 0%
+        under-baked (the gap was an over-bake, not an under-bake).
+        """
         if self.total_planned <= 0:
             return None
-        return round(
-            (self.total_planned - self.total_completed) / self.total_planned,
-            4,
+        return max(
+            0.0,
+            round(
+                (self.total_planned - self.total_completed) / self.total_planned,
+                4,
+            ),
         )
 
 
