@@ -65,3 +65,7 @@ from app.rms.models_legacy import (
     WishlistItem,  # noqa: F401 — re-exported via __all__
 )
 from app.rms.models_legacy import __all__ as _legacy_all  # noqa: F401 — re-exported via __all__
+
+# Also export new models not in legacy
+from .closure import MonthlyClosure
+__all__ = _legacy_all + ["MonthlyClosure"]

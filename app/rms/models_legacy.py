@@ -989,6 +989,11 @@ class Expense(Base):
     supplier_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("supplier.id"), nullable=True
     )
+    # Sprint 3.1: receipt URL and recurring period tracking
+    receipt_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    recurring_period: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="once"
+    )
 
     __table_args__ = (
         CheckConstraint("amount_gs >= 0", name="ck_expense_amount_nonneg"),
