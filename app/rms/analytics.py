@@ -446,7 +446,16 @@ def _quick_cost_estimate(session: Session, product: Product) -> int | None:
         ing = session.get(Ingredient, line.line_ref_id)
         if ing is None or ing.purchase_price_gs is None:
             return None
-        batch_cost += line.qty * _D(ing.purchase_price_gs)
+        # BACKLOG #13 (2026-10-02): prefer the moving-average cost when
+        # available — it reflects supplier price drift over the batch's
+        # lifetime. Falls back to purchase_price_gs when avg is NULL
+        # (fresh installs, backfilled rows where the migration ran but
+        # no waste event has fired yet, or legacy data from before v89).
+        price_unit = (
+            ing.avg_cost_gs if ing.avg_cost_gs is not None
+            else ing.purchase_price_gs
+        )
+        batch_cost += line.qty * _D(price_unit)
     return int(batch_cost / _D(recipe.yield_qty))
 
 

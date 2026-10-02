@@ -104,7 +104,30 @@ def record_waste(
     )
     session.add(log)
     # Decrement stock
-    ing.stock_qty = max(0.0, ing.stock_qty - qty_in_stock_unit)
+    old_stock = ing.stock_qty
+    new_stock = max(0.0, old_stock - qty_in_stock_unit)
+    ing.stock_qty = new_stock
+    # BACKLOG #13 (2026-10-02): keep ingredient.avg_cost_gs in sync with
+    # the waste event using the moving-average formula:
+    #   new_avg = ((old_avg * old_stock) - waste_cost) / new_stock
+    # where waste_cost is the cost at the time the waste happened
+    # (already denormalized in `cost_gs`). Falls back to NULL when
+    # new_stock is zero (no basis to compute an average).
+    old_avg = ing.avg_cost_gs
+    if new_stock > 0:
+        if old_avg is not None and old_stock > 0:
+            numerator = (old_avg * old_stock) - cost_gs
+            # Defensive: numerator shouldn't go negative (waste can't
+            # cost more than the stock on hand), but if it does, clamp.
+            numerator = max(0, numerator)
+            ing.avg_cost_gs = int(round(numerator / new_stock))
+        elif ing.purchase_price_gs is not None:
+            # No prior avg — initialize from purchase price.
+            ing.avg_cost_gs = ing.purchase_price_gs
+        # else: leave as None — analytics falls back to purchase_price_gs
+    else:
+        # Stock fully depleted by this waste — no basis for an average.
+        ing.avg_cost_gs = None
     # StockMovement audit record (negative qty = stock out)
     movement = StockMovement(
         ingredient_id=ingredient_id,

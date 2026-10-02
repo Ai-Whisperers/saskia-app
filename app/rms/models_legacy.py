@@ -64,6 +64,12 @@ class Ingredient(Base):
     unit: Mapped[str] = mapped_column(String(16), nullable=False)
     stock_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     purchase_price_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # BACKLOG #13 (2026-10-02): moving-average cost per unit in Gs. NULL
+    # means "not yet computed" — analytics fall back to purchase_price_gs.
+    # Updated on each waste event using the formula
+    #   new_avg = ((old_avg * old_stock) - waste_cost) / new_stock
+    # when new_stock > 0, else NULL.
+    avg_cost_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     purchase_price_updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     last_consumed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     min_stock_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)

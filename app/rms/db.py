@@ -3977,6 +3977,19 @@ def _migration_088_audit_columns(conn: Any) -> None:
     _impl(conn)
 
 
+def _migration_089_ingredient_avg_cost(conn: Any) -> None:
+    """Wire migration 089 from ``migrations/_089_ingredient_avg_cost.py``.
+
+    Sprint 4.4 (BACKLOG #13): adds ``avg_cost_gs`` to ingredient table
+    + backfills from ``purchase_price_gs`` so waste-event moving-average
+    tracking has a sane starting point for existing rows.
+    """
+    from app.rms.migrations._089_ingredient_avg_cost import (
+        _migration_089_ingredient_avg_cost as _impl,
+    )
+    _impl(conn)
+
+
 
 MIGRATIONS = {
     1: _migration_001_initial_schema,
@@ -4067,6 +4080,7 @@ MIGRATIONS = {
     86: _migration_086_monthly_closure,
     87: _migration_087_soft_delete_columns,
     88: _migration_088_audit_columns,
+    89: _migration_089_ingredient_avg_cost,
 }
 
 
