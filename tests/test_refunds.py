@@ -339,7 +339,7 @@ def test_refund_blocked_after_eod_close(refund_session):
 
 def test_refund_with_restock_updates_stock(refund_session):
     """Refund with restock_qty=True should increase ingredient stock_qty."""
-    from app.rms.models_legacy import Ingredient, Recipe, RecipeLine, SaleStockMove
+    from app.rms.models import Ingredient, Recipe, RecipeLine, StockMovement
 
     # Create a minimal ingredient + recipe + sale + stock_move
     ing = Ingredient(name="harina", unit="kg", stock_qty=10.0)
@@ -356,12 +356,16 @@ def test_refund_with_restock_updates_stock(refund_session):
     refund_session.flush()
 
     sale = _make_sale(refund_session, total_gs=10_000, qty=4.0)
-    # Add a stock move: sale of 4 portions consumed 8 kg from ingredient
-    move = SaleStockMove(
-        sale_id=sale.id,
-        affected_recipe_id=recipe.id,
+    # BACKLOG #1 (2026-10-02): sale_stock_move dropped; use StockMovement
+    # with reference_type='sale' for the consumption row.
+    move = StockMovement(
         ingredient_id=ing.id,
-        qty_delta=-8.0,  # consumed 8 kg
+        movement_type="sale",
+        qty=-8.0,  # consumed 8 kg
+        reason=f"Venta #{sale.id}",
+        reference_id=sale.id,
+        reference_type="sale",
+        affected_recipe_id=recipe.id,
     )
     refund_session.add(move)
     refund_session.flush()
@@ -387,10 +391,15 @@ def test_refund_with_restock_updates_stock(refund_session):
 
     # StockMovement row should be recorded with movement_type="adjustment"
     # ("refund" isn't in the ck_stock_movement_type enum — adjustments are
-    # the catch-all for any non-sale change, including refunds-with-restock)
+    # the catch-all for any non-sale change, including refunds-with-restock).
+    # We filter by reference_type='refund_sale' so we don't pick up the
+    # original sale's consumption row (which is reference_type='sale').
     from app.rms.models import StockMovement
     moves = refund_session.scalars(
-        sa_select(StockMovement).where(StockMovement.reference_id == result.refund.id)
+        sa_select(StockMovement).where(
+            StockMovement.reference_id == result.refund.id,
+            StockMovement.reference_type == "refund_sale",
+        )
     ).all()
     assert len(moves) == 1
     assert moves[0].movement_type == "adjustment"

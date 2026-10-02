@@ -213,7 +213,8 @@ def test_table_exports_listed_count():
         "recipe_line",
         "product",
         "sale",
-        "sale_stock_move",
+        # BACKLOG #1: sale_stock_move replaced with stock_movement in the export set.
+        "stock_movement",
         "import_batch",
         "app_meta",
     }

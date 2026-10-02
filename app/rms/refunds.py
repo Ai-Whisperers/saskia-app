@@ -347,7 +347,9 @@ def _restock_for_target(
     """Restore stock for a refunded Sale/PedidoLine. Returns [(ingredient_id, qty), ...].
 
     For Sale targets: distribute the restocked qty proportionally across the
-    SaleStockMove rows (each move covers a recipe ingredient).
+    StockMovement rows (BACKLOG #1, 2026-10-02: sale_stock_move table
+    dropped by migration 092 — read source-of-truth from StockMovement
+    where reference_type='sale' AND reference_id=sale_id).
     For PedidoLine: find the linked recipe and restock its ingredient lines.
     For Pedido (whole pedido refund): restock each PedidoLine's recipe ingredients.
     """
@@ -357,14 +359,22 @@ def _restock_for_target(
         sale = session.get(Sale, target_id)
         if sale is None:
             return []
-        moves = list(sale.stock_moves)
+        # BACKLOG #1 (2026-10-02): sale_stock_move was dropped by migration
+        # 092. Read from StockMovement keyed by reference_type='sale'.
+        # qty is negative for consumption; abs() it for the share calc.
+        moves = session.execute(
+            sa_select(StockMovement).where(
+                StockMovement.reference_id == sale.id,
+                StockMovement.reference_type == "sale",
+            ).order_by(StockMovement.id.asc())
+        ).scalars().all()
         if not moves:
             return []
-        # Distribute restocked_qty across moves proportionally to their |qty_delta|
-        total_delta = sum(abs(m.qty_delta) for m in moves) or 1.0
+        # Distribute restocked_qty across moves proportionally to their |qty|
+        total_delta = sum(abs(m.qty) for m in moves) or 1.0
         restored: list[tuple[int, float]] = []
         for m in moves:
-            share = abs(m.qty_delta) / total_delta * restocked_qty
+            share = abs(m.qty) / total_delta * restocked_qty
             if share <= 0:
                 continue
             ing = session.get(Ingredient, m.ingredient_id)
@@ -412,7 +422,7 @@ def _restock_for_target(
             ing.stock_qty = (ing.stock_qty or 0) + scaled
             session.add(StockMovement(
                 ingredient_id=ing.id,
-                movement_type="refund",
+                movement_type="adjustment",
                 qty=scaled,
                 reason=f"Reembolso línea de pedido #{pl.id}"
                        + (f" — {reason}" if reason else ""),

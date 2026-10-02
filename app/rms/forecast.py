@@ -1,13 +1,9 @@
 """Predictive restocking helpers (BACKLOG #7).
 
-Given 30+ days of `sale_stock_move` rows (qty_delta negative on sale),
-fit a per-ingredient simple forecast:
-- Average daily consumption (over window)
-- Velocity trend (is consumption trending up/down?)
-- Days-of-stock remaining
-- Projected stockout date
-
-Used by /reorder to suggest restock qty + urgency date.
+Reads from stock_movement (sale type, qty<0) after BACKLOG #1
+consolidated sale_stock_move into stock_movement in this session.
+The recorded_at column gives a native time axis (no longer needs
+the Sale.sold_at join the legacy SaleStockMove code had to do).
 """
 
 from __future__ import annotations
@@ -18,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.rms.models import Ingredient, IngredientPriceEvent, Sale, SaleStockMove
+from app.rms.models import Ingredient, IngredientPriceEvent, StockMovement
 
 
 @dataclass
@@ -69,21 +65,21 @@ def forecast_ingredient_consumption(
     recent_cutoff = now - timedelta(days=days_back)
     prior_cutoff = now - timedelta(days=days_back * 2)
 
-    # Recent consumption (positive total of |qty_delta|).
-    # SaleStockMove has no recorded_at column — join to Sale.sold_at.
+    # Recent consumption (positive total of |qty|).
+    # stock_movement has its own recorded_at (no Sale join needed).
     recent_q = session.scalar(
-        select(func.coalesce(func.sum(-SaleStockMove.qty_delta), 0.0))
-        .join(Sale, Sale.id == SaleStockMove.sale_id)
-        .where(SaleStockMove.ingredient_id == ingredient_id)
-        .where(Sale.sold_at >= recent_cutoff)
+        select(func.coalesce(func.sum(-StockMovement.qty), 0.0))
+        .where(StockMovement.ingredient_id == ingredient_id)
+        .where(StockMovement.movement_type == "sale")
+        .where(StockMovement.recorded_at >= recent_cutoff)
     ) or 0.0
 
     prior_q = session.scalar(
-        select(func.coalesce(func.sum(-SaleStockMove.qty_delta), 0.0))
-        .join(Sale, Sale.id == SaleStockMove.sale_id)
-        .where(SaleStockMove.ingredient_id == ingredient_id)
-        .where(Sale.sold_at >= prior_cutoff)
-        .where(Sale.sold_at < recent_cutoff)
+        select(func.coalesce(func.sum(-StockMovement.qty), 0.0))
+        .where(StockMovement.ingredient_id == ingredient_id)
+        .where(StockMovement.movement_type == "sale")
+        .where(StockMovement.recorded_at >= prior_cutoff)
+        .where(StockMovement.recorded_at < recent_cutoff)
     ) or 0.0
 
     avg_daily_recent = recent_q / days_back
@@ -189,23 +185,23 @@ def batch_forecast_ingredients(
     recent_cutoff = now - timedelta(days=days_back)
     prior_cutoff = now - timedelta(days=days_back * 2)
 
-    # Recent consumption per ingredient (single GROUP BY query, joined to Sale
-    # to use sold_at timestamp — SaleStockMove has no recorded_at column).
+    # Recent consumption per ingredient (single GROUP BY query).
+    # stock_movement has its own recorded_at column (no Sale join needed).
     recent_rows = dict(session.execute(
-        select(SaleStockMove.ingredient_id, func.coalesce(func.sum(-SaleStockMove.qty_delta), 0.0))
-        .join(Sale, Sale.id == SaleStockMove.sale_id)
-        .where(SaleStockMove.ingredient_id.in_(ingredient_ids))
-        .where(Sale.sold_at >= recent_cutoff)
-        .group_by(SaleStockMove.ingredient_id)
+        select(StockMovement.ingredient_id, func.coalesce(func.sum(-StockMovement.qty), 0.0))
+        .where(StockMovement.ingredient_id.in_(ingredient_ids))
+        .where(StockMovement.movement_type == "sale")
+        .where(StockMovement.recorded_at >= recent_cutoff)
+        .group_by(StockMovement.ingredient_id)
     ).all())
 
     prior_rows = dict(session.execute(
-        select(SaleStockMove.ingredient_id, func.coalesce(func.sum(-SaleStockMove.qty_delta), 0.0))
-        .join(Sale, Sale.id == SaleStockMove.sale_id)
-        .where(SaleStockMove.ingredient_id.in_(ingredient_ids))
-        .where(Sale.sold_at >= prior_cutoff)
-        .where(Sale.sold_at < recent_cutoff)
-        .group_by(SaleStockMove.ingredient_id)
+        select(StockMovement.ingredient_id, func.coalesce(func.sum(-StockMovement.qty), 0.0))
+        .where(StockMovement.ingredient_id.in_(ingredient_ids))
+        .where(StockMovement.movement_type == "sale")
+        .where(StockMovement.recorded_at >= prior_cutoff)
+        .where(StockMovement.recorded_at < recent_cutoff)
+        .group_by(StockMovement.ingredient_id)
     ).all())
 
     # Last restock price per ingredient (single query)

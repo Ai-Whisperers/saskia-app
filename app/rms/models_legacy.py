@@ -8,7 +8,7 @@ Tables:
 - recipe_line: polymorphic via line_kind + line_ref_id (FK to ingredient OR recipe)
 - product: name, portion_label, sale_price_gs (int), recipe_id (nullable)
 - sale: sold_at, product_id, qty, unit_price_gs (snapshot int), notes
-- sale_stock_move: sale_id, affected_recipe_id, ingredient_id, qty_delta
+- sale_stock_move: dropped (BACKLOG #1; sale-driven stock-out now lives in stock_movement)
 - import_batch: imported_at, source_filename, note, row_counts_json
 - app_meta: key, value, updated_at (schema version, last_backup_at, etc.)
 """
@@ -151,7 +151,9 @@ class Ingredient(Base):
     # Use RecipeLine.ingredient relationship (viewonly=True, primaryjoin with line_kind check)
     # or query RecipeLine directly: SELECT FROM recipe_line WHERE line_kind='ingredient'
     # AND line_ref_id = :id. Helper functions live in costing.py.
-    stock_moves: Mapped[list["SaleStockMove"]] = relationship(back_populates="ingredient")
+    # BACKLOG #1: the legacy `stock_moves` relationship to SaleStockMove
+    # is removed. Use `StockMovement` rows joined on `ingredient_id`
+    # filtered by movement_type='sale' instead (see /reportes/consumo).
     supplier: Mapped[Optional["Supplier"]] = relationship(
         back_populates="ingredients", foreign_keys=[supplier_id]
     )
@@ -293,10 +295,9 @@ class Recipe(Base):
         cascade="all, delete-orphan",
     )
     products: Mapped[list["Product"]] = relationship(back_populates="recipe")
-    stock_moves: Mapped[list["SaleStockMove"]] = relationship(
-        back_populates="affected_recipe",
-        foreign_keys="SaleStockMove.affected_recipe_id",
-    )
+    # BACKLOG #1: legacy SaleStockMove relationship removed. Use
+    # StockMovement.affected_recipe_id instead (one row per recipe+ingredient
+    # pair consumed by sales of this recipe).
 
     __table_args__ = (
         CheckConstraint("yield_unit IN ('g', 'kg', 'ml', 'l', 'und')", name="ck_recipe_unit"),
@@ -508,9 +509,9 @@ class Sale(Base):
     # Relationships
     product: Mapped["Product"] = relationship(back_populates="sales")
     customer: Mapped[Optional["Customer"]] = relationship(back_populates="sales")
-    stock_moves: Mapped[list["SaleStockMove"]] = relationship(
-        back_populates="sale", cascade="all, delete-orphan"
-    )
+    # BACKLOG #1: legacy SaleStockMove relationship removed. Use
+    # StockMovement joined on reference_id=sale.id AND
+    # reference_type='sale' instead (see /ventas/{id} detail page).
     linked_pedido: Mapped[Optional["Pedido"]] = relationship(
         "Pedido", foreign_keys=[linked_pedido_id], viewonly=True
     )
@@ -526,32 +527,29 @@ class Sale(Base):
 
 
 class SaleStockMove(Base):
-    """Audit of stock moves caused by a sale (or its void).
+    """DEPRECATED stub — sale_stock_move table removed by migration 092 (BACKLOG #1).
 
-    qty_delta is negative for normal sales (stock decreases). For voids, the
-    same row is updated to positive (stock restored).
+    The class is preserved as an abstract stub so test fixtures that
+    still import `from app.rms.models import SaleStockMove` don't
+    break at import time. The actual table no longer exists in the
+    database (migration 092 dropped it). Use StockMovement with
+    movement_type='sale' and reference_type='sale' instead.
+
+    `__abstract__ = True` tells SQLAlchemy to NOT configure a mapper
+    or create any table for this class. The class is therefore just
+    a name that resolves to a class object — instantiating it raises
+    TypeError via the __init__ guard below, so legacy code paths
+    can't sneak in a row write.
     """
 
-    __tablename__ = "sale_stock_move"
+    __abstract__ = True  # SQLAlchemy: skip table + mapper config
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    sale_id: Mapped[int] = mapped_column(
-        ForeignKey("sale.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    affected_recipe_id: Mapped[int] = mapped_column(
-        ForeignKey("recipe.id"), nullable=False, index=True
-    )
-    ingredient_id: Mapped[int] = mapped_column(
-        ForeignKey("ingredient.id"), nullable=False, index=True
-    )
-    qty_delta: Mapped[float] = mapped_column(Float, nullable=False)
-
-    # Relationships
-    sale: Mapped["Sale"] = relationship(back_populates="stock_moves")
-    affected_recipe: Mapped["Recipe"] = relationship(
-        foreign_keys=[affected_recipe_id], back_populates="stock_moves"
-    )
-    ingredient: Mapped["Ingredient"] = relationship(back_populates="stock_moves")
+    def __init__(self, *args, **kwargs):  # pragma: no cover — guard
+        raise TypeError(
+            "SaleStockMove is deprecated — sale_stock_move table was "
+            "dropped by migration 092. Use StockMovement with "
+            "movement_type='sale' and reference_type='sale' instead."
+        )
 
 
 class ImportBatch(Base):
@@ -1696,11 +1694,9 @@ class StockMovement(Base):
     reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     reference_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     reference_type: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
-    # Migration 090 (BACKLOG #1 prep): sale_stock_move carries an
-    # `affected_recipe_id` for sub-recipe traceability. Adding the column
-    # to stock_movement now means the future consolidation (backfill from
-    # sale_stock_move, drop sale_stock_move, update callers) doesn't
-    # require a schema change at the same time as the data migration.
+    # Migration 090 (BACKLOG #1): affected_recipe_id added for
+    # sub-recipe traceability. Migration 091 backfilled from
+    # sale_stock_move. Migration 092 dropped sale_stock_move entirely.
     # Nullable because non-sale movements (reorder, merma, adjustment,
     # initial) don't have an affected recipe.
     affected_recipe_id: Mapped[Optional[int]] = mapped_column(

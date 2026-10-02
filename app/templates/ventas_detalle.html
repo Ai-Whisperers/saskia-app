@@ -15,6 +15,7 @@
 {% block title %}Venta #{{ sale.id }} — Saskia RMS{% endblock %}
 
 {% block content %}
+{{ ui.flash_toast(request) }}
 <nav aria-label="breadcrumb" class="breadcrumb">
   <a href="/ventas">Ventas</a>
   <span aria-hidden="true">›</span>
@@ -29,6 +30,17 @@
       Venta anulada el {{ sale.voided_at_str }}
       {% if sale.voided_by %}por <strong>{{ sale.voided_by }}</strong>{% endif %}
       {% if sale.void_reason %}— “{{ sale.void_reason }}”{% endif %}
+    </span>
+  </div>
+{% endif %}
+
+{% if refunds_total_gs and refunds_total_gs > 0 %}
+  <div class="refund-banner" role="status" style="border-left:4px solid var(--color-warning,#f59e0b);background:var(--color-warning-bg,#fffbeb);padding:.5rem .75rem;border-radius:4px;margin-bottom:var(--space-2);display:flex;gap:.5rem;align-items:center;">
+    <svg class="icon" aria-hidden="true"><use href="#icon-refund"/></svg>
+    <span>
+      <strong>Reembolsos parciales:</strong>
+      {{ "{:,}".format(refunds_total_gs) }} Gs. de {{ "{:,}".format(sale.total_gs) }} Gs.
+      ({{ refunds_count }} reembolso{{ '' if refunds_count == 1 else 's' }})
     </span>
   </div>
 {% endif %}
@@ -58,8 +70,64 @@
         <button type="submit" class="btn btn-danger">Anular venta</button>
       </form>
     {% endif %}
+    {% if not sale.voided_at and refunds_remaining_gs and refunds_remaining_gs > 0 %}
+      <button type="button" class="btn btn-secondary"
+              onclick="document.getElementById('refund-form-{{ sale.id }}').toggleAttribute('hidden');">
+        Reembolsar…
+      </button>
+    {% endif %}
   </div>
 </div>
+
+{% if not sale.voided_at and refunds_remaining_gs and refunds_remaining_gs > 0 %}
+<div class="card" id="refund-form-{{ sale.id }}" hidden>
+  <h2 style="font-size:var(--text-lg);margin:0 0 var(--space-2) 0;">
+    Registrar reembolso
+  </h2>
+  <p class="text-muted" style="margin:0 0 var(--space-3) 0;font-size:var(--text-sm);">
+    Reembolso parcial o total. Resta del total facturado y, si se marca
+    "Devolver stock", devuelve ingredientes al inventario. La venta
+    original NO se anula — sigue en el libro de ventas.
+  </p>
+  <form method="post" action="/refunds/"
+        onsubmit="return confirm('¿Registrar reembolso de ' + (this.amount_gs.value || '?') + ' Gs?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="target_type" value="sale">
+    <input type="hidden" name="target_id" value="{{ sale.id }}">
+    <div class="grid grid-2 mb-4">
+      <div class="form-row">
+        <label for="refund-amount-{{ sale.id }}">Monto (Gs.)</label>
+        <input id="refund-amount-{{ sale.id }}" type="number" name="amount_gs"
+               min="1" max="{{ refunds_remaining_gs }}" step="1" required
+               style="padding:.5rem;border:1px solid var(--color-border,#ccc);border-radius:4px;font-family:monospace;">
+        <small class="text-muted">Máx. {{ "{:,}".format(refunds_remaining_gs) }} Gs. (saldo pendiente)</small>
+      </div>
+      <div class="form-row">
+        <label for="refund-reason-{{ sale.id }}">Motivo</label>
+        <input id="refund-reason-{{ sale.id }}" type="text" name="reason"
+               placeholder="Ej: cliente devolvió torta"
+               style="padding:.5rem;border:1px solid var(--color-border,#ccc);border-radius:4px;">
+      </div>
+    </div>
+    <div class="form-row mb-4">
+      <label style="display:flex;gap:.5rem;align-items:center;cursor:pointer;">
+        <input type="checkbox" name="restock_qty" value="on">
+        Devolver stock al inventario
+      </label>
+      <input type="number" name="restocked_qty" min="0" step="0.01" value="0"
+             placeholder="cantidad a devolver"
+             style="padding:.5rem;border:1px solid var(--color-border,#ccc);border-radius:4px;margin-top:.25rem;font-family:monospace;width:12rem;">
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Registrar reembolso</button>
+      <button type="button" class="btn btn-secondary"
+              onclick="document.getElementById('refund-form-{{ sale.id }}').setAttribute('hidden','');">
+        Cancelar
+      </button>
+    </div>
+  </form>
+</div>
+{% endif %}
 
 {% if request.query_params.get('shared') and request.query_params.get('url') %}
 <div class="card" style="border-left:4px solid var(--color-success,#16a34a);background:var(--color-success-bg,#f0fdf4);">
@@ -191,4 +259,49 @@
 <p class="text-muted" style="font-size:var(--text-sm);margin-top:var(--space-3);">
   <a href="/ventas">← Volver al listado</a>
 </p>
+
+{% if refunds %}
+<div class="card">
+  <h2 style="font-size:var(--text-lg);margin:0 0 var(--space-3) 0;">
+    Reembolsos ({{ refunds|length }})
+  </h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th class="num">Monto (Gs.)</th>
+        <th>Método de pago</th>
+        <th>Devolvió stock</th>
+        <th>Motivo</th>
+        <th>Operador</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in refunds %}
+      <tr>
+        <td>{{ r.recorded_at_str }}</td>
+        <td class="num"><strong>{{ "{:,}".format(r.amount_gs) }}</strong></td>
+        <td>{{ r.payment_method or "—" }}</td>
+        <td>
+          {% if r.restock_qty %}
+            <span class="badge" style="background:var(--color-success-bg,#f0fdf4);color:var(--color-success,#16a34a);padding:.15rem .5rem;border-radius:9999px;font-size:var(--text-xs);">
+              sí ({{ r.restocked_qty }})
+            </span>
+          {% else %}
+            <span class="text-muted">no</span>
+          {% endif %}
+        </td>
+        <td>{{ r.reason or "—" }}</td>
+        <td>{{ r.recorded_by or "—" }}</td>
+      </tr>
+      {% endfor %}
+      <tr style="font-weight:bold;background:var(--color-bg-soft,#fafafa);">
+        <td>Total reembolsado</td>
+        <td class="num">{{ "{:,}".format(refunds_total_gs) }} Gs.</td>
+        <td colspan="4"></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+{% endif %}
 {% endblock %}

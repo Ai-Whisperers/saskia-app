@@ -11,8 +11,13 @@
 {{ ui.skeleton_section(id="diario-kpis", variant="kpi", count=6, label="Cargando resumen diario") }}
 <div class="grid grid-3 mb-4" data-loaded-section="diario-kpis">
   <div class="metric-card">
-    <div class="metric-label">Ingresos (Gs.)</div>
+    <div class="metric-label">Ingresos netos (Gs.)</div>
     <div class="metric-value">{{ m.gs(summary.revenue_gross_gs) }}</div>
+    {% if summary.refunds_total_gs > 0 %}
+      <div class="metric-delta is-neutral" style="font-size:var(--text-xs);">
+        −{{ m.gs(summary.refunds_total_gs) }} en {{ summary.refunds_count }} reembolso{{ '' if summary.refunds_count == 1 else 's' }}
+      </div>
+    {% endif %}
   </div>
   <div class="metric-card">
     <div class="metric-label">IVA</div>

@@ -27,7 +27,7 @@ from app.rms.accounting import (
 from app.rms.charts import fmt_short_date, line_chart
 from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
-from app.rms.models import Ingredient, IngredientPriceEvent, Sale, SaleStockMove
+from app.rms.models import Ingredient, IngredientPriceEvent, Sale, StockMovement
 from app.rms.price_history import batch_price_stats, price_history, price_stats
 from app.rms.rate_limit import read_rate_limit_dependency
 from app.rms.sales_intel import customer_retention, sales_by_hour
@@ -425,15 +425,24 @@ def reportes_diario(
 
     # CSV export
     if format == "csv":
-        rows = [["Fecha", "Ventas", "Ingresos brutos (Gs.)", "Base IVA (Gs.)", "IVA (Gs.)", "COGS (Gs.)", "Margen bruto (Gs.)"]]
+        # M1 (2026-10-02): include refund columns so fiscal reports
+        # show NET (gross - refunds) explicitly.
+        rows = [
+            ["Fecha", "Ventas", "Ingresos brutos (Gs.)", "Reembolsos (Gs.)",
+             "Ingresos netos (Gs.)", "Base IVA (Gs.)", "IVA (Gs.)",
+             "COGS (Gs.)", "Margen bruto (Gs.)", "Reembolsos (#)"],
+        ]
         rows.append([
             d.strftime("%Y-%m-%d"),
             str(summary.n_sales),
-            str(summary.revenue_gross_gs),
+            str(summary.revenue_gross_gs + summary.refunds_total_gs),  # gross before subtract
+            str(summary.refunds_total_gs),
+            str(summary.revenue_gross_gs),  # net (after subtract)
             str(summary.revenue_base_gs),
             str(summary.iva_gs),
             str(summary.cogs_gs),
             str(summary.margin_gs),
+            str(summary.refunds_count),
         ])
         buf = io.StringIO()
         writer = csv.writer(buf)
@@ -720,7 +729,8 @@ def reportes_metodos_pago(
     start_date = datetime.fromisoformat(start) if start else None
     end_date = datetime.fromisoformat(end) if end else None
     breakdown = sales_by_payment_method(session, start_date=start_date, end_date=end_date)
-    total_gs = sum(v["total_gs"] for v in breakdown.values())
+    # M1 (2026-10-02): show NET total (subtract refunds) at the top.
+    total_gs = sum(v["net_total_gs"] for v in breakdown.values())
     return render(request, "reportes_metodos_pago.html", {
         "breakdown": breakdown,
         "total_gs": total_gs,
@@ -781,20 +791,13 @@ def reportes_consumo(
     limit: int = Query(20, ge=1, le=100),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    """BACKLOG #26: surface consumption patterns from sale_stock_move.
+    """BACKLOG #26: surface consumption patterns.
 
-    Aggregate `qty_delta` (negative for sales, positive for voids) by
-    ingredient over the last N days. Voids are netted (sum of both
-    directions equals actual stock-out). Excludes voided sales.
-
-    Why the JOIN on Sale.side? Two reasons:
-      - Skip voided sales (joined where Sales has voided_at IS NULL)
-      - Use Sale.sold_at as the time axis (SaleStockMove has no
-        recorded_at column — see __table_args on the model)
-
-    Returns top `limit` ingredients by absolute consumption, ranked by
-    `abs(total_qty)` so heavy voiders (positive) don't hide steady
-    burners (negative) and vice-versa.
+    After BACKLOG #1 (this session), sale_stock_move was consolidated
+    into stock_movement. The read path is now a single-table query on
+    stock_movement filtered to movement_type='sale'. Voided sales are
+    netted automatically (void_sale creates a positive-qty reverse row
+    that cancels the original negative-qty row when summed).
     """
     if days not in _ALLOWED_DAYS:
         raise HTTPException(
@@ -802,28 +805,27 @@ def reportes_consumo(
         )
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    # qty_delta is negative for sales, positive for voids. Net out is
-    # `sum(qty_delta)` — voids offset the original deduction.
-    # `abs(total_qty)` rank orders by magnitude regardless of net direction.
+    # Net consumption: sum(qty) where qty<0 (sales) plus qty>0 (voids)
+    # naturally nets out. `abs(total_qty)` rank orders by magnitude
+    # regardless of net direction.
     q = (
         select(
-            SaleStockMove.ingredient_id,
+            StockMovement.ingredient_id,
             Ingredient.name,
             Ingredient.unit,
-            func.sum(SaleStockMove.qty_delta).label("total_qty"),
-            func.count(SaleStockMove.id).label("n_moves"),
-            func.count(func.distinct(SaleStockMove.sale_id)).label("n_sales"),
+            func.sum(StockMovement.qty).label("total_qty"),
+            func.count(StockMovement.id).label("n_moves"),
+            func.count(func.distinct(StockMovement.reference_id)).label("n_sales"),
         )
-        .join(Ingredient, Ingredient.id == SaleStockMove.ingredient_id)
-        .join(Sale, Sale.id == SaleStockMove.sale_id)
-        .where(Sale.sold_at >= cutoff)
-        .where(Sale.voided_at.is_(None))
+        .join(Ingredient, Ingredient.id == StockMovement.ingredient_id)
+        .where(StockMovement.movement_type == "sale")
+        .where(StockMovement.recorded_at >= cutoff)
         .group_by(
-            SaleStockMove.ingredient_id,
+            StockMovement.ingredient_id,
             Ingredient.name,
             Ingredient.unit,
         )
-        .order_by(func.abs(func.sum(SaleStockMove.qty_delta)).desc())
+        .order_by(func.abs(func.sum(StockMovement.qty)).desc())
         .limit(limit)
     )
 
@@ -850,7 +852,7 @@ def reportes_consumo_csv(
     days: int = Query(30),
     session: Session = Depends(get_session),
 ) -> Response:
-    """CSV variant for /reportes/consumo."""
+    """CSV variant for /reportes/consumo (BACKLOG #1 single-table read)."""
     if days not in _ALLOWED_DAYS:
         raise HTTPException(
             status_code=422, detail=f"días inválido: usá uno de {list(_ALLOWED_DAYS)}"
@@ -858,23 +860,22 @@ def reportes_consumo_csv(
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     q = (
         select(
-            SaleStockMove.ingredient_id,
+            StockMovement.ingredient_id,
             Ingredient.name,
             Ingredient.unit,
-            func.sum(SaleStockMove.qty_delta).label("total_qty"),
-            func.count(SaleStockMove.id).label("n_moves"),
-            func.count(func.distinct(SaleStockMove.sale_id)).label("n_sales"),
+            func.sum(StockMovement.qty).label("total_qty"),
+            func.count(StockMovement.id).label("n_moves"),
+            func.count(func.distinct(StockMovement.reference_id)).label("n_sales"),
         )
-        .join(Ingredient, Ingredient.id == SaleStockMove.ingredient_id)
-        .join(Sale, Sale.id == SaleStockMove.sale_id)
-        .where(Sale.sold_at >= cutoff)
-        .where(Sale.voided_at.is_(None))
+        .join(Ingredient, Ingredient.id == StockMovement.ingredient_id)
+        .where(StockMovement.movement_type == "sale")
+        .where(StockMovement.recorded_at >= cutoff)
         .group_by(
-            SaleStockMove.ingredient_id,
+            StockMovement.ingredient_id,
             Ingredient.name,
             Ingredient.unit,
         )
-        .order_by(func.abs(func.sum(SaleStockMove.qty_delta)).desc())
+        .order_by(func.abs(func.sum(StockMovement.qty)).desc())
     )
     out = io.StringIO()
     out.write("ingredient_id,name,total_qty,n_moves,n_sales,unit\n")

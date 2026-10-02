@@ -32,7 +32,7 @@ from app.rms.models import (
     Product,
     Recipe,
     Sale,
-    SaleStockMove,
+    StockMovement,
 )
 
 log = logging.getLogger("saskia.perf")
@@ -96,7 +96,12 @@ INDEX_HINTS: list[tuple[type, str, bool]] = [
     (Sale, "sold_at", False),
     (Sale, "product_id", False),
     (Sale, "voided_at", False),
-    (SaleStockMove, "ingredient_id", False),
+    # BACKLOG #1: SaleStockMove index hint moved to StockMovement.
+    # The consolidation means queries that used to scan sale_stock_move
+    # now scan stock_movement filtered to movement_type='sale'.
+    (StockMovement, "ingredient_id", False),
+    (StockMovement, "movement_type", False),
+    (StockMovement, "recorded_at", False),
     (Ingredient, "stock_qty", False),
     (AuditLog, "occurred_at", False),
     (AuditLog, "action", False),

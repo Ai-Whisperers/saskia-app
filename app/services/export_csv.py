@@ -12,7 +12,7 @@ Per-table files written:
 - rms-csv-YYYYMMDD-HHMMSS-recipe_line.csv
 - rms-csv-YYYYMMDD-HHMMSS-product.csv
 - rms-csv-YYYYMMDD-HHMMSS-sale.csv
-- rms-csv-YYYYMMDD-HHMMSS-sale_stock_move.csv
+- rms-csv-YYYYMMDD-HHMMSS-stock_movement.csv  (replaces legacy sale_stock_move.csv — see BACKLOG #1)
 - rms-csv-YYYYMMDD-HHMMSS-import_batch.csv
 - rms-csv-YYYYMMDD-HHMMSS-app_meta.csv
 
@@ -45,7 +45,7 @@ from app.rms.models import (
     Recipe,
     RecipeLine,
     Sale,
-    SaleStockMove,
+    StockMovement,
 )
 
 # (filename_suffix, model_class, ordered_columns)
@@ -112,14 +112,19 @@ TABLE_EXPORTS = [
         ],
     ),
     (
-        "sale_stock_move",
-        SaleStockMove,
+        "stock_movement",
+        StockMovement,
         [
             "id",
-            "sale_id",
-            "affected_recipe_id",
             "ingredient_id",
-            "qty_delta",
+            "movement_type",
+            "qty",
+            "reason",
+            "reference_id",
+            "reference_type",
+            "affected_recipe_id",
+            "recorded_at",
+            "created_by",
         ],
     ),
     (

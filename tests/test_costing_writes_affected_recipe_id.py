@@ -15,7 +15,6 @@ from app.rms.models import (
     Product,
     Recipe,
     RecipeLine,
-    SaleStockMove,
     StockMovement,
 )
 
@@ -68,14 +67,24 @@ def test_complete_sale_writes_affected_recipe_id_on_stock_movement(session_facto
             assert row.affected_recipe_id == rec.id, (
                 f"StockMovement row {row.id} has "
                 f"affected_recipe_id={row.affected_recipe_id}, expected {rec.id}. "
-                "costing.py must populate this field (BACKLOG #1 partial)."
+                "costing.py must populate this field (BACKLOG #1 complete)."
             )
 
-        # And SaleStockMove rows must still match (regression guard
-        # for the dual-write not silently breaking).
-        ssm_rows = session.query(SaleStockMove).filter_by(sale_id=result.sale_id).all()
-        assert ssm_rows, "complete_sale did not create any SaleStockMove rows"
-        for row in ssm_rows:
-            assert row.affected_recipe_id == rec.id
+        # BACKLOG #1 (complete): SaleStockMove table is gone — the
+        # test only verifies it is NOT being written to. On fresh
+        # test DBs (post-092), the table doesn't even exist, which is
+        # the strongest possible assertion that it's not being used.
+        # We don't probe by name (cross-engine); instead we verify
+        # the SaleStockMove class is the abstract stub that raises
+        # on instantiation (the intended runtime guard).
+        from app.rms.models import SaleStockMove
+        import pytest
+        with pytest.raises(TypeError):
+            SaleStockMove(
+                sale_id=result.sale_id,
+                affected_recipe_id=1,
+                ingredient_id=1,
+                qty_delta=-1.0,
+            )
     finally:
         session.close()

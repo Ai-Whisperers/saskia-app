@@ -17,10 +17,7 @@ in the recipe tree, and one StockMovement row per the same pair.
 The migration is idempotent: it only fills NULLs. Running it twice
 will not overwrite values populated by new sales after migration 090.
 
-Why not drop sale_stock_move here: this migration is the READ-PATH
-bridge. Dropping the table is a separate, larger change (touch the
-write path, demo_reset, export_csv, seed/kyrian, all test fixtures).
-See IMPROVEMENT_BACKLOG.md #1 for the drop plan.
+Following migrations: 092 drops the sale_stock_move table itself.
 """
 
 from __future__ import annotations
@@ -35,22 +32,47 @@ def _migration_091_backfill_stock_movement_recipe(conn: Any) -> None:
 
     SQLite + Postgres both support this UPDATE...FROM syntax. We use
     a CTE so the matching keys stay readable.
+
+    Fresh-DB safety: if the sale_stock_move table does not exist
+    yet (this happens on a brand-new DB where migration 090 ran but
+    no earlier migration created the table), skip the UPDATE — there
+    is nothing to backfill. Production databases that had
+    sale_stock_move before migration 090 will have the table and
+    the backfill runs as designed.
     """
-    conn.execute(
-        text(
-            """
-            UPDATE stock_movement
-               SET affected_recipe_id = (
-                 SELECT ssm.affected_recipe_id
-                   FROM sale_stock_move ssm
-                  WHERE ssm.sale_id = stock_movement.reference_id
-                    AND ssm.ingredient_id = stock_movement.ingredient_id
-               )
-             WHERE stock_movement.reference_type = 'sale'
-               AND stock_movement.affected_recipe_id IS NULL
-            """
+    # Probe table existence (SQLite uses sqlite_schema; Postgres uses
+    # information_schema.tables).
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else None
+    if dialect == "sqlite":
+        present = conn.execute(
+            text(
+                "SELECT 1 FROM sqlite_schema "
+                "WHERE type='table' AND name='sale_stock_move'"
+            )
+        ).first()
+    else:
+        present = conn.execute(
+            text(
+                "SELECT 1 FROM information_schema.tables "
+                "WHERE table_name='sale_stock_move'"
+            )
+        ).first()
+    if present is not None:
+        conn.execute(
+            text(
+                """
+                UPDATE stock_movement
+                   SET affected_recipe_id = (
+                     SELECT ssm.affected_recipe_id
+                       FROM sale_stock_move ssm
+                      WHERE ssm.sale_id = stock_movement.reference_id
+                        AND ssm.ingredient_id = stock_movement.ingredient_id
+                   )
+                 WHERE stock_movement.reference_type = 'sale'
+                   AND stock_movement.affected_recipe_id IS NULL
+                """
+            )
         )
-    )
 
     from app.rms.db import _bump_schema_version
 

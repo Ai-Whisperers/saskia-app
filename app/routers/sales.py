@@ -540,27 +540,32 @@ async def sale_detail(
 
     Distinct from /recibo (the printable customer receipt):
     - Full nav + breadcrumbs
-    - Action buttons: view recibo, void
+    - Action buttons: view recibo, void, refund
     - Wider layout — fits channel, payment method, customer link
     - Stock-move ledger so the operator can trace what got consumed
+    - Refund history table (M1, 2026-10-02)
 
     Placed before /recibo so the {sale_id} path matches first; FastAPI
     routing prefers more-specific literals, so /{sale_id}/recibo still
     wins for the printable receipt.
     """
     from app.rms.errors import NotFound
-    from app.rms.models import Ingredient, SaleStockMove
+    from app.rms.models import Ingredient, StockMovement
+    from app.rms.refunds import list_refunds_for, sum_refunds_for
 
     sale = session.get(Sale, sale_id)
     if sale is None:
         raise NotFound("venta", id=sale_id)
 
     # Stock-move ledger for this sale (BACKLOG #16 traceability).
-    # Note: SaleStockMove has no timestamp column; order by id (insertion order).
+    # After BACKLOG #1 (this session), the ledger lives in stock_movement
+    # keyed by (reference_id=sale_id, reference_type='sale'). Voids
+    # create a NEW positive-qty row, so both rows show up in the list.
     moves = session.execute(
-        select(SaleStockMove)
-        .where(SaleStockMove.sale_id == sale_id)
-        .order_by(SaleStockMove.id.asc())
+        select(StockMovement)
+        .where(StockMovement.reference_id == sale_id)
+        .where(StockMovement.reference_type == "sale")
+        .order_by(StockMovement.id.asc())
     ).scalars().all()
 
     stock_moves = []
@@ -570,10 +575,29 @@ async def sale_detail(
             "id": sm.id,
             "ingredient_id": sm.ingredient_id,
             "ingredient_name": ing.name if ing else f"#{sm.ingredient_id}",
-            "qty": abs(float(sm.qty_delta)),
+            "qty": abs(float(sm.qty)),
             "unit": ing.unit if ing else "",
             "affected_recipe_id": sm.affected_recipe_id,
-            "recorded_at_str": "—",  # SaleStockMove has no timestamp column
+            "recorded_at_str": sm.recorded_at.isoformat() if sm.recorded_at else "—",
+        })
+
+    # M1: refund history (newest first for the operator table).
+    refund_rows = list_refunds_for(session, "sale", sale_id)
+    refunds_total_gs = sum_refunds_for(session, "sale", sale_id)
+    sale_total = int(sale.unit_price_gs or 0)
+    refunds_remaining_gs = sale_total - refunds_total_gs
+
+    refunds = []
+    for r in sorted(refund_rows, key=lambda x: x.recorded_at, reverse=True):
+        refunds.append({
+            "id": r.id,
+            "amount_gs": int(r.amount_gs),
+            "payment_method": r.payment_method,
+            "restock_qty": bool(r.restock_qty),
+            "restocked_qty": float(r.restocked_qty or 0),
+            "reason": r.reason,
+            "recorded_by": r.recorded_by,
+            "recorded_at_str": r.recorded_at.strftime("%Y-%m-%d %H:%M") if r.recorded_at else "—",
         })
 
     return render(
@@ -582,6 +606,10 @@ async def sale_detail(
         {
             "sale": _decorated(sale),
             "stock_moves": stock_moves,
+            "refunds": refunds,
+            "refunds_total_gs": refunds_total_gs,
+            "refunds_count": len(refunds),
+            "refunds_remaining_gs": refunds_remaining_gs,
         },
     )
 
@@ -1086,7 +1114,7 @@ async def sale_create_multi(
         }
 
     All metadata (customer, payment, invoice, etc.) applies to the
-    parent sale only. Each item gets its own SaleStockMove rows via
+    parent sale only. Each item gets its own stock_movement rows via
     repeated apply_sale() calls within one transaction.
     """
     from pydantic import BaseModel, Field

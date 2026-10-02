@@ -17,7 +17,7 @@ from typing import Final
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.rms.models import Ingredient, SaleStockMove
+from app.rms.models import Ingredient, StockMovement
 
 # ---------------------------------------------------------------------------
 # Dataclass results
@@ -53,7 +53,7 @@ class Overstocked:
 
 
 # ---------------------------------------------------------------------------
-# Consumption rate (from sale_stock_move where qty_delta < 0)
+# Consumption rate (from stock_movement where movement_type='sale', qty<0)
 # ---------------------------------------------------------------------------
 
 _CONSUMPTION_WINDOW_DAYS: Final[int] = 90  # last 90 days
@@ -65,19 +65,23 @@ def _avg_daily_consumption(session: Session, ingredient_id: int,
 
     Returns 0.0 if no consumption.
 
-    Note: SaleStockMove has no timestamp column — uses ALL moves as the
-    dataset, normalized by window_days (default 90).
+    Reads from stock_movement (BACKLOG #1 consolidation — sale_stock_move
+    was merged into stock_movement in this session, so the sale-driven
+    stock-out lives there now with movement_type='sale' and qty<0). The
+    recorded_at column lets us filter by date — no more "use all moves
+    as approximation" workaround that the legacy SaleStockMove code
+    had to use because SaleStockMove had no timestamp.
     """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
     rows = session.execute(
-        select(SaleStockMove.qty_delta).where(
-            SaleStockMove.ingredient_id == ingredient_id,
-            SaleStockMove.qty_delta < 0,
+        select(StockMovement.qty)
+        .where(
+            StockMovement.ingredient_id == ingredient_id,
+            StockMovement.movement_type == "sale",
+            StockMovement.recorded_at >= cutoff,
         )
     ).all()
-    # Filter by date — but SaleStockMove has no timestamp column. Use ALL moves
-    # as the dataset (seed has 90-day window baked in). Returns total divided
-    # by window_days.
-    total = sum(abs(float(r[0])) for r in rows)
+    total = sum(abs(float(r[0])) for r in rows if r[0] is not None and r[0] < 0)
     return total / window_days
 
 
@@ -159,10 +163,10 @@ def dead_stock(session: Session, days_threshold: int = 30) -> list[DeadStock]:
                 ))
             continue
 
-        # Fallback: no SaleStockMove references AND no last_consumed_at set.
+        # Fallback: no stock_movement references AND no last_consumed_at set.
         move_count = session.execute(
-            select(SaleStockMove.id).where(
-                SaleStockMove.ingredient_id == ing.id,
+            select(StockMovement.id).where(
+                StockMovement.ingredient_id == ing.id,
             ).limit(1)
         ).first()
         if move_count is None and float(ing.stock_qty or 0) > 0:

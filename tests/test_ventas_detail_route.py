@@ -9,6 +9,7 @@ from sqlalchemy import text
 def _make_sale(session_factory, *, with_stock_moves=False):
     """Insert a product + sale via the test factories; returns the sale id."""
     from tests.factories import make_ingredient, make_product, make_recipe, make_sale
+    from app.rms.models import StockMovement
 
     sid = None
     with session_factory() as s:
@@ -19,10 +20,17 @@ def _make_sale(session_factory, *, with_stock_moves=False):
         s.flush()
         sid = sale.id
         if with_stock_moves:
-            s.execute(text(
-                "INSERT INTO sale_stock_move (sale_id, affected_recipe_id, ingredient_id, qty_delta) "
-                "VALUES (:sid, :rid, :iid, -0.5)"
-            ), {"sid": sid, "rid": recipe.id, "iid": ing.id})
+            # BACKLOG #1: sale_stock_move replaced with StockMovement.
+            # Use StockMovement to simulate what apply_sale would write
+            s.add(StockMovement(
+                ingredient_id=ing.id,
+                movement_type="sale",
+                qty=-0.5,
+                reason=f"Venta #{sid}",
+                reference_id=sid,
+                reference_type="sale",
+                affected_recipe_id=recipe.id,
+            ))
         s.commit()
     return sid
 
@@ -58,7 +66,7 @@ def test_ventas_detail_shows_voided_banner(client, session_factory):
 
 
 def test_ventas_detail_renders_stock_moves(client, session_factory):
-    """When SaleStockMove rows exist, show the stock-moves card."""
+    """When StockMovement rows exist, show the stock-moves card."""
     sid = _make_sale(session_factory, with_stock_moves=True)
     r = client.get(f"/ventas/{sid}")
     assert r.status_code == 200
