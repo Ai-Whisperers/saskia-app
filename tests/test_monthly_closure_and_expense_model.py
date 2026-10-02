@@ -158,12 +158,12 @@ def test_migration_086_creates_monthly_closure_table():
 # ─── Schema version ──────────────────────────────────────────────────────
 
 
-def test_current_schema_version_is_86():
-    """Sprint 3.1 bumps CURRENT_SCHEMA_VERSION to 86."""
+def test_current_schema_version_is_88():
+    """Sprint 3.1 (85/86) + Sprint 3.2 (87/88) bump CURRENT_SCHEMA_VERSION to 88."""
     from app.rms.config import CURRENT_SCHEMA_VERSION
 
-    assert CURRENT_SCHEMA_VERSION == 86, (
-        f"expected 86, got {CURRENT_SCHEMA_VERSION}"
+    assert CURRENT_SCHEMA_VERSION == 88, (
+        f"expected 88, got {CURRENT_SCHEMA_VERSION}"
     )
 
 

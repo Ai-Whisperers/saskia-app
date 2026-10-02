@@ -1001,6 +1001,10 @@ class Expense(Base):
             "category IN ('INGREDIENT','RENT','UTILITIES','PAYROLL','PACKAGING','OTHER')",
             name="ck_expense_category",
         ),
+        CheckConstraint(
+            "recurring_period IN ('once','monthly','quarterly','yearly')",
+            name="ck_expense_recurring_period",
+        ),
     )
 
     supplier: Mapped[Optional["Supplier"]] = relationship("Supplier")

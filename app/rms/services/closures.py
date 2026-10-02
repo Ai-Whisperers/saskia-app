@@ -39,22 +39,15 @@ class ClosureConflictError(ValueError):
 
 def get_closure(db: Session, period_yyyymm: str) -> MonthlyClosure | None:
     """Get closure for a specific period (YYYY-MM format)."""
-    # Convert YYYY-MM to first day of month
-    try:
-        year, month = map(int, period_yyyymm.split('-'))
-        month_date = date(year, month, 1)
-    except ValueError:
-        raise ClosureValidationError(f"Period must be YYYY-MM format, got: {period_yyyymm}")
-    
     return db.query(MonthlyClosure).filter(
-        MonthlyClosure.month == month_date
+        MonthlyClosure.period_yyyymm == period_yyyymm
     ).first()
 
 
 def list_closures(db: Session, limit: int = 100) -> List[MonthlyClosure]:
     """List closures, newest first."""
     return db.query(MonthlyClosure).order_by(
-        MonthlyClosure.month.desc()
+        MonthlyClosure.period_yyyymm.desc()
     ).limit(limit).all()
 
 
@@ -101,20 +94,27 @@ def close_month(db: Session, period_yyyymm: str, user_id: str | None = None) -> 
     ).scalar() or 0
     
     # Create or update closure
+    snapshot = json.dumps({
+        "period_yyyymm": period_yyyymm,
+        "closed_at": datetime.now(timezone.utc).isoformat(),
+        "total_expenses_gs": total_expenses,
+    })
     if existing:
         existing.closed_at = datetime.now(timezone.utc)
         existing.closed_by_user_id = user_id
         existing.total_expenses_gs = total_expenses
+        existing.snapshot_json = snapshot
         # Reset reopen info when closing again
         existing.reopened_at = None
         existing.reopened_by_user_id = None
         existing.reopen_reason = None
     else:
         closure = MonthlyClosure(
-            month=month_date,
+            period_yyyymm=period_yyyymm,
             total_expenses_gs=total_expenses,
             closed_at=datetime.now(timezone.utc),
-            closed_by_user_id=user_id
+            closed_by_user_id=user_id,
+            snapshot_json=snapshot,
         )
         db.add(closure)
         existing = closure
@@ -247,7 +247,7 @@ def create_closure(db: Session, period_yyyymm: str, total_expenses_gs: int, note
     
     # Check for existing closure
     existing = db.query(MonthlyClosure).filter(
-        MonthlyClosure.month == month_date
+        MonthlyClosure.period_yyyymm == period_yyyymm
     ).first()
     
     if existing:
@@ -255,11 +255,9 @@ def create_closure(db: Session, period_yyyymm: str, total_expenses_gs: int, note
     
     # Create closure
     closure = MonthlyClosure(
-        month=month_date,
+        period_yyyymm=period_yyyymm,
         total_expenses_gs=total_expenses_gs,
-        notes=notes,
-        created_by_user_id=user_id,
-        updated_by_user_id=user_id
+        closed_by_user_id=user_id,
     )
     
     db.add(closure)
