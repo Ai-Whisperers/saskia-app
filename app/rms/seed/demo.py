@@ -700,8 +700,14 @@ def seed_demo_data(
             if product.recipe_id and product.recipe_id in recipe_lines_by_recipe:
                 recipe = recipes_by_id[product.recipe_id]
                 yield_qty = recipe.yield_qty or 1.0
+                # BACKLOG #19 (2026-10-02): recipe_line.qty is Numeric(12,4)
+                # so line.qty is Decimal in Python. Coerce yield_qty and qty
+                # to Decimal so we don't hit "Decimal / float" TypeError.
+                from decimal import Decimal as _D
+                yield_qty_d = _D(str(yield_qty))
+                qty_d = _D(str(qty))
                 for line in recipe_lines_by_recipe[product.recipe_id]:
-                    need = (line.qty / yield_qty) * qty
+                    need = (line.qty / yield_qty_d) * qty_d
                     move = SaleStockMove(
                         sale_id=sale.id,
                         affected_recipe_id=product.recipe_id,
@@ -713,7 +719,10 @@ def seed_demo_data(
 
                     ing_row = session.get(Ingredient, line.line_ref_id)
                     if ing_row is not None:
-                        ing_row.stock_qty = max(0.0, ing_row.stock_qty - need)
+                        # BACKLOG #19: need is Decimal (recipe_line.qty is
+                        # Numeric). stock_qty is Float. Coerce before the
+                        # subtraction so we don't hit `float - Decimal`.
+                        ing_row.stock_qty = max(0.0, float(ing_row.stock_qty) - float(need))
 
             sale_rows.append(sale)
 
@@ -742,8 +751,11 @@ def seed_demo_data(
     if last_product.recipe_id and last_product.recipe_id in recipe_lines_by_recipe:
         recipe = recipes_by_id[last_product.recipe_id]
         yield_qty = recipe.yield_qty or 1.0
+        # BACKLOG #19: coerce to Decimal (line.qty is Numeric).
+        from decimal import Decimal as _D
+        yield_qty_d = _D(str(yield_qty))
         for line in recipe_lines_by_recipe[last_product.recipe_id]:
-            restore = (line.qty / yield_qty) * 2
+            restore = (line.qty / yield_qty_d) * _D(2)
             session.add(
                 SaleStockMove(
                     sale_id=voided.id,

@@ -605,11 +605,17 @@ def test_drive_fixture_decimal_qty_on_recipe_line(session_factory):
         assert leche_line is not None, (
             "Muffin de chocolate should have a Leche entera line (qty=0.25)"
         )
-        assert isinstance(leche_line.qty, float), (
-            f"qty must be float (decimal allowed), got "
+        # BACKLOG #19 (2026-10-02): recipe_line.qty is now Numeric(12, 4).
+        # SQLAlchemy returns Decimal for Numeric types. We accept both
+        # float and Decimal here so legacy test code stays green while
+        # new code benefits from exact-decimal storage.
+        from decimal import Decimal
+        assert isinstance(leche_line.qty, (float, Decimal)), (
+            f"qty must be float or Decimal, got "
             f"{type(leche_line.qty).__name__}: {leche_line.qty!r}"
         )
-        # Use pytest.approx to avoid float drift on round-trip
-        assert leche_line.qty == pytest.approx(0.25)
+        # Use Decimal / float comparison via pytest.approx to avoid
+        # float drift on round-trip
+        assert float(leche_line.qty) == pytest.approx(0.25)
     finally:
         s.close()

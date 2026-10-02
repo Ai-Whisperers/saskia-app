@@ -28,6 +28,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -321,7 +322,7 @@ class RecipeLine(Base):
     )
     line_kind: Mapped[str] = mapped_column(String(16), nullable=False)
     line_ref_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    qty: Mapped[float] = mapped_column(Float, nullable=False)
+    qty: Mapped[float] = mapped_column(Numeric(12, 4), nullable=False)
     # Phase B — T1: per-line unit. Lets Saskia type "250 g" while the linked
     # ingredient is in "kg". Default "" for backward compat (legacy rows assume
     # the ingredient's unit at costing time). Allowed: g, kg, ml, l, und.

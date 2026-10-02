@@ -426,21 +426,28 @@ def top_margin_products(
 
 
 def _quick_cost_estimate(session: Session, product: Product) -> int | None:
-    """Cheap cost estimate per unit. Returns None if recipe not resolvable."""
+    """Cheap cost estimate per unit. Returns None if recipe not resolvable.
+
+    Note: recipe_line.qty is Numeric(12,4) — Python returns Decimal here.
+    We coerce all values to Decimal so the division doesn't raise
+    TypeError (Decimal / float is undefined in Python).
+    """
+    from decimal import Decimal as _D
+
     if product.recipe_id is None:
         return None
     recipe = session.get(Recipe, product.recipe_id)
     if recipe is None or recipe.yield_qty is None or recipe.yield_qty <= 0:
         return None
-    batch_cost = 0
+    batch_cost = _D(0)
     for line in recipe.lines:
         if line.line_kind != "ingredient":
             continue
         ing = session.get(Ingredient, line.line_ref_id)
         if ing is None or ing.purchase_price_gs is None:
             return None
-        batch_cost += line.qty * ing.purchase_price_gs
-    return int(batch_cost / recipe.yield_qty)
+        batch_cost += line.qty * _D(ing.purchase_price_gs)
+    return int(batch_cost / _D(recipe.yield_qty))
 
 
 def ingredient_concentration(session: Session, days: int = 90) -> list[IngredientConcentration]:
