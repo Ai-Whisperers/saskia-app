@@ -238,33 +238,41 @@
 
     <section class="card">
       <h2 style="margin-top:0;">Actividad</h2>
-      <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:var(--space-2);">
-        <li style="display:flex;gap:var(--space-2);align-items:baseline;">
-          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-success);flex-shrink:0;"></span>
-          <span class="text-muted" style="font-size:var(--text-xs);">
-            {{ customer.created_at.strftime("%d/%m/%Y %H:%M") if customer.created_at else "—" }}
+      {# Phase 17 (2026-10-02): unified activity timeline aggregating
+         pedido events, communication log, loyalty ledger, subscription
+         state, and customer lifecycle. Newest first; capped at 25. #}
+      {% if timeline %}
+      <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:var(--space-2);"
+          data-testid="customer-timeline">
+        {% for item in timeline %}
+        <li style="display:flex;gap:var(--space-2);align-items:baseline;" data-kind="{{ item.kind }}">
+          <span aria-hidden="true"
+                style="display:inline-block;width:8px;height:8px;border-radius:50%;
+                       background:var(--color-{% if 'pedido' in item.kind %}accent
+                            {%- elif 'message' in item.kind %}info
+                            {%- elif 'loyalty' in item.kind %}success
+                            {%- elif 'suscripcion' in item.kind %}warning
+                            {%- else %}success{% endif %},var(--color-border));
+                       flex-shrink:0;align-self:center;"></span>
+          <span class="text-muted" style="font-size:var(--text-xs);white-space:nowrap;">
+            {{ item.ts_display }}
           </span>
-          <span style="font-size:var(--text-sm);">Cliente registrado</span>
+          {% if item.href %}
+            <a href="{{ item.href }}" style="font-size:var(--text-sm);">{{ item.label }}</a>
+          {% else %}
+            <span style="font-size:var(--text-sm);">{{ item.label }}</span>
+          {% endif %}
+          {% if item.detail %}
+            <span class="text-muted" style="font-size:var(--text-xs);">
+              · {{ item.detail }}
+            </span>
+          {% endif %}
         </li>
-        {% if stats.last_sale_at %}
-        <li style="display:flex;gap:var(--space-2);align-items:baseline;">
-          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-accent);flex-shrink:0;"></span>
-          <span class="text-muted" style="font-size:var(--text-xs);">
-            {{ stats.last_sale_at.strftime("%d/%m/%Y %H:%M") }}
-          </span>
-          <span style="font-size:var(--text-sm);">Última compra</span>
-        </li>
-        {% endif %}
-        {% if customer.updated_at and customer.updated_at != customer.created_at %}
-        <li style="display:flex;gap:var(--space-2);align-items:baseline;">
-          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-info);flex-shrink:0;"></span>
-          <span class="text-muted" style="font-size:var(--text-xs);">
-            {{ customer.updated_at.strftime("%d/%m/%Y %H:%M") }}
-          </span>
-          <span style="font-size:var(--text-sm);">Perfil actualizado</span>
-        </li>
-        {% endif %}
+        {% endfor %}
       </ul>
+      {% else %}
+      <p class="text-muted" style="font-size:var(--text-sm);margin:0;">Sin actividad registrada todavía.</p>
+      {% endif %}
     </section>
 
     {# T-2026-10-01: reviewer's "right-pane table bloat" rule.

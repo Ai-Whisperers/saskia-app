@@ -605,6 +605,8 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
             }
             for p in phones
         ],
+        # Phase 17 (2026-10-02): unified activity timeline.
+        "timeline": _customer_timeline(session, c.id),
     }
 
 
@@ -1013,6 +1015,18 @@ async def log_suggestion_applied(
         return JSONResponse({"error": "internal"}, status_code=500)
 
 
+# Phase 17 (2026-10-02): customer activity timeline. Built fresh per
+# request — capped at MAX_ITEMS so high-activity customers don't
+# blow up the page. Errors degrade to an empty list so a broken
+# timeline never 500s the detail page.
+def _customer_timeline(session, customer_id: int) -> list[dict]:
+    try:
+        from app.services.customer_timeline import build_customer_timeline
+        return build_customer_timeline(session, customer_id)
+    except Exception:  # pragma: no cover - defensive
+        return []
+
+
 @router.get("/{customer_id}", response_class=HTMLResponse)
 def cliente_detail(
     request: Request,
@@ -1182,6 +1196,10 @@ def cliente_detail(
             "invoice_profiles": detail_payload.get("invoice_profiles", []),
             "addresses": detail_payload.get("addresses", []),
             "phones": detail_payload.get("phones", []),
+            # Phase 17 (2026-10-02): unified activity timeline
+            # aggregating pedido events, communication log, loyalty
+            # ledger, subscription state, and customer lifecycle.
+            "timeline": _customer_timeline(session, customer.id),
         },
     )
 
