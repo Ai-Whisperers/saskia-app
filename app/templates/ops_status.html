@@ -45,4 +45,42 @@
     <code>docs/operations/2026-09-08-render-env-vars.md</code>.</li>
 </ul>
 
+{# BACKLOG #35 (2026-10-02): per-customer reorder stats. Loyalty signal:
+   if reorder_rate drops below 20%, look for product quality / pricing issues.
+   The avg_days_between_orders is the operator's planning cadence — if it
+   creeps up, customers are churning slowly. #}
+<h2>Reorder rate (últimos 90 días)</h2>
+{% set rate_pct = (reorder_stats.reorder_rate * 100) | round(1) %}
+<p>
+  <strong>{{ rate_pct }}%</strong>
+  ({{ reorder_stats.customers_with_2plus_orders }} de {{ reorder_stats.total_customers }} clientes)
+  hicieron más de una compra.
+  Brecha promedio entre compras: <strong>{{ reorder_stats.avg_days_between_orders }} días</strong>
+  (mediana {{ reorder_stats.median_days_between_orders }} d).
+</p>
+{% if reorder_stats.top_repeaters %}
+<table class="table is-hoverable">
+  <thead>
+    <tr>
+      <th>Cliente</th>
+      <th class="num">Pedidos</th>
+      <th class="num">Total ₲</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in reorder_stats.top_repeaters %}
+    <tr>
+      <td>
+        <a href="/clientes/{{ r.customer_id }}">{{ r.customer_name }}</a>
+      </td>
+      <td class="num">{{ r.total_orders }}</td>
+      <td class="num">{{ "{:,}".format(r.total_gs) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="hint">Aún no hay clientes con pedidos repetidos en este período.</p>
+{% endif %}
+
 {% endblock %}

@@ -370,6 +370,119 @@ def sales_summary(session: Session) -> dict:
     }
 
 
+def customer_reorder_rates(
+    session: Session,
+    since_days: int = 90,
+    top_n: int = 10,
+) -> dict:
+    """Per-customer reorder rate + avg gap between orders.
+
+    BACKLOG #35 (2026-10-02): companion to `customer_retention()`,
+    which only counts new vs returning. This helper quantifies
+    repeat-purchase intensity for the loyalty dashboard.
+
+    Definitions:
+    - "reorder" = customer made 2+ orders in the window
+    - "reorder rate" = fraction of customers who reordered
+    - "days between orders" = local-time gap between consecutive
+      orders for the same customer (averaged across all gaps)
+
+    Returns dict with:
+      - total_customers: distinct customer count in window
+      - customers_with_2plus_orders: distinct customers with 2+ sales
+      - reorder_rate: customers_with_2plus / total_customers (0..1)
+      - avg_days_between_orders: mean of all consecutive-order gaps
+      - median_days_between_orders: median of all gaps (0 if no gaps)
+      - top_repeaters: list of {customer_id, customer_name,
+        total_orders, total_gs} sorted by total_orders desc
+
+    No-data case: returns zeros + empty top_repeaters (so templates
+    can render an empty state without special-casing).
+    """
+    from statistics import median
+
+    from sqlalchemy import select
+
+    from app.rms.config import ASUNCION_TZ
+    from app.rms.models import Customer
+
+    cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=since_days)
+
+    # Fetch all valid sales in window: customer_id, sold_at (local), qty,
+    # unit_price_gs, discount_gs. We compute line_total + gaps locally
+    # rather than in SQL — the gap needs the customer's per-row timeline.
+    sales_rows = session.execute(
+        select(
+            Sale.customer_id,
+            Sale.sold_at,
+            Sale.qty,
+            Sale.unit_price_gs,
+            Sale.discount_gs,
+        ).where(
+            Sale.voided_at.is_(None),
+            Sale.customer_id.isnot(None),
+            Sale.sold_at >= cutoff,
+        ).order_by(Sale.customer_id, Sale.sold_at)
+    ).all()
+
+    by_customer: dict[int, list[tuple[datetime, int]]] = {}
+    for cid, sold_at, qty_v, unit_price_v, discount_v in sales_rows:
+        if sold_at is None:
+            continue
+        local_dt = sold_at.astimezone(ASUNCION_TZ) if sold_at.tzinfo else sold_at
+        line_total = int(round(float(unit_price_v or 0) * float(qty_v or 0))) - int(
+            discount_v or 0
+        )
+        by_customer.setdefault(int(cid), []).append((local_dt, line_total))
+
+    total_customers = len(by_customer)
+    repeaters = {cid: orders for cid, orders in by_customer.items() if len(orders) >= 2}
+    customers_with_2plus = len(repeaters)
+
+    reorder_rate = (customers_with_2plus / total_customers) if total_customers else 0.0
+
+    all_gaps_days: list[float] = []
+    for orders in repeaters.values():
+        timestamps = sorted(ts for ts, _ in orders)
+        for prev, curr in zip(timestamps, timestamps[1:]):
+            gap = (curr - prev).total_seconds() / 86400.0
+            if gap >= 0:
+                all_gaps_days.append(gap)
+
+    avg_gap = sum(all_gaps_days) / len(all_gaps_days) if all_gaps_days else 0.0
+    median_gap = float(median(all_gaps_days)) if all_gaps_days else 0.0
+
+    repeater_stats = [
+        {
+            "customer_id": cid,
+            "customer_name": "",
+            "total_orders": len(orders),
+            "total_gs": sum(total for _, total in orders),
+        }
+        for cid, orders in repeaters.items()
+    ]
+    repeater_stats.sort(key=lambda r: (r["total_orders"], r["total_gs"]), reverse=True)
+    repeater_stats = repeater_stats[:top_n]
+
+    if repeater_stats:
+        ids = [r["customer_id"] for r in repeater_stats]
+        names_by_id = {
+            c.id: c.name
+            for c in session.scalars(select(Customer).where(Customer.id.in_(ids))).all()
+        }
+        for r in repeater_stats:
+            r["customer_name"] = names_by_id.get(r["customer_id"], "?")
+
+    return {
+        "total_customers": total_customers,
+        "customers_with_2plus_orders": customers_with_2plus,
+        "reorder_rate": round(reorder_rate, 4),
+        "avg_days_between_orders": round(avg_gap, 1),
+        "median_days_between_orders": round(median_gap, 1),
+        "top_repeaters": repeater_stats,
+    }
+
+
 def customer_retention(
     session: Session,
     start_date: datetime | None = None,
@@ -425,6 +538,8 @@ def customer_retention(
 __all__ = [
     "TrendResult",
     "churning_products",
+    "customer_reorder_rates",
+    "customer_retention",
     "peak_day_of_week",
     "peak_hour",
     "product_affinity",
@@ -432,6 +547,7 @@ __all__ = [
     "sales_by_day_of_week",
     "sales_by_hour",
     "sales_by_month",
+    "sales_heatmap",
     "sales_summary",
     "top_pairs",
 ]

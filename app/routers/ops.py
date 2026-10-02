@@ -41,8 +41,30 @@ def ops_status(request: Request) -> HTMLResponse:
     Open in browser when something looks broken. Every link here is
     a quick jump to a diagnostic page.
     """
+    # BACKLOG #35 (2026-10-02): surface reorder stats on the operator
+    # dashboard so they can spot loyalty trends at a glance. Pure read —
+    # no auth gates beyond the route's require_login dependency.
+    reorder_stats: dict = {
+        "total_customers": 0,
+        "customers_with_2plus_orders": 0,
+        "reorder_rate": 0.0,
+        "avg_days_between_orders": 0.0,
+        "median_days_between_orders": 0.0,
+        "top_repeaters": [],
+    }
+    try:
+        from app.rms.sales_intel import customer_reorder_rates
+
+        with request.app.state.session_factory() as _s:
+            reorder_stats = customer_reorder_rates(_s, since_days=90, top_n=5)
+    except Exception:  # noqa: BLE001 — defensive default
+        # Reorder stats are a dashboard feature, not critical path.
+        # If the query fails, the dashboard still renders with zeros.
+        pass
+
     return render(request, "ops_status.html", {
         "endpoints": _OPERATIONAL_ENDPOINTS,
+        "reorder_stats": reorder_stats,
     })
 
 
