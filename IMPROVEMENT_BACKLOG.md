@@ -60,7 +60,7 @@ the code, and operator-ranked. Status is the latest known state.
 | 28 | `WasteLog.cost_gs` — waste ROI per ingredient | ❌ TODO | M |
 | 29 | `ProductionCompletion.completed_qty` — plan accuracy ML | ❌ TODO | L |
 | 30 | `AuditLog` — unused for analytics (login IPs, time patterns, operator patterns) | ❌ TODO | L |
-| 31 | `PriceHistory` events — 0 rows in live DB, model exists, supplier volatility | ❌ TODO | M |
+| 31 | `PriceHistory` events — 0 rows in live DB, model exists, supplier volatility | ✅ Done (`/reportes/precios` template + /reportes/precios/csv already shipped; ingredient_create() records events; inventory router "Phase B — Q1 core" path records events on save. This session added the last missing wire — `/inventario/{id}/variantes/{id}/editar` previously did `ing.purchase_price_gs = price` directly without a `record_price_event` call, so variant edits on the preferred variant mutated the parent's denormalized price field but wrote no audit row. Now routed through `record_price_event(..., source="manual")` with `if ing.purchase_price_gs != price:` so re-saving the same variant doesn't double-fire. 3 new tests in `tests/test_price_history.py`: edit-route-writes_event_on_price_change, edit-route-records_event_when_price_unchanged (documents sibling's "every save = audit row" contract), variant_edit_preferred_writes_event. 19/19 tests in test_price_history.py pass.) | — |
 
 ## Tier 6: P2 — Predictive / ML
 
