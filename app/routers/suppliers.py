@@ -13,6 +13,7 @@ from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.models import Ingredient, Supplier
 from app.rms.observability import record_audit
+from app.rms.price_history import supplier_volatility
 from app.services.template_render import render
 
 router = APIRouter(prefix="/suppliers", dependencies=[Depends(require_login)])
@@ -96,6 +97,27 @@ def supplier_create(
     )
     session.commit()
     return RedirectResponse(url="/suppliers", status_code=303)
+
+
+@router.get("/volatility", response_class=HTMLResponse)
+def suppliers_volatility(
+    request: Request,
+    days: int = 90,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Per-supplier price volatility leaderboard (BACKLOG #31, 2026-10-02).
+
+    Surfaces the suppliers with the most erratic pricing so the operator
+    can renegotiate or switch. Declared BEFORE /{s_id:int}/... routes so
+    FastAPI matches "/volatility" as a string literal rather than casting
+    it to s_id (which would 422).
+    """
+    days = max(7, min(int(days), 365))
+    rows = supplier_volatility(session, since_days=days)
+    return render(request, "suppliers_volatility.html", {
+        "rows": rows,
+        "days": days,
+    })
 
 
 @router.get("/{s_id}/editar", response_class=HTMLResponse)

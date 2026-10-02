@@ -353,6 +353,134 @@ def batch_cheapest_supplier(
     return result
 
 
+def supplier_volatility(
+    session: Session,
+    since_days: int = 90,
+) -> list[dict]:
+    """Per-supplier price volatility leaderboard.
+
+    BACKLOG #31 (2026-10-02): audit noted 0 IngredientPriceEvent rows
+    in production, but the schema + supplier_id FK exist. This helper
+    ingests whatever price events are present and surfaces:
+
+      - ingredient_count: distinct ingredients the supplier sells
+      - event_count:     total price events in the window
+      - min/max/avg:     ₲ stats across all events
+      - volatility_score:(max-min)/avg — high = erratic pricing
+      - trend_direction: 'up' | 'down' | 'stable'
+                         comparing latest vs first event
+      - days_since_last_event: days between window-end and last event
+      - current_price_gs:        latest event's price
+
+    Sorted by volatility_score desc so the operator sees the most
+    unstable suppliers first. Excludes NULL supplier_id (these are
+    typically bulk imports that didn't tag a supplier — keep them
+    off the leaderboard; the operator can still see them on the
+    global price-history view).
+
+    Returns [] when no suppliers have price events in the window.
+    """
+    from datetime import timezone
+
+    from app.rms.models import IngredientPriceEvent, Supplier
+    from sqlalchemy import func, select
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=since_days)
+    now_utc = datetime.now(timezone.utc)
+
+    # Single query: every (supplier_id, ingredient_id, price_gs,
+    # recorded_at) in the window, ordered so we can compute the
+    # first/last price for trend_direction cheaply.
+    rows = session.execute(
+        select(
+            IngredientPriceEvent.supplier_id,
+            IngredientPriceEvent.ingredient_id,
+            IngredientPriceEvent.price_gs,
+            IngredientPriceEvent.recorded_at,
+        )
+        .where(
+            IngredientPriceEvent.supplier_id.isnot(None),
+            IngredientPriceEvent.recorded_at >= cutoff,
+        )
+        .order_by(
+            IngredientPriceEvent.supplier_id,
+            IngredientPriceEvent.recorded_at,
+        )
+    ).all()
+
+    if not rows:
+        return []
+
+    # Bucket by supplier.
+    by_supplier: dict[int, list[tuple[int, datetime, int]]] = {}
+    for sup_id, ing_id, price_gs, recorded_at in rows:
+        by_supplier.setdefault(int(sup_id), []).append(
+            (int(ing_id), recorded_at, int(price_gs))
+        )
+
+    # Hydrate supplier names in one query.
+    sup_ids = list(by_supplier.keys())
+    names_by_id = {
+        s.id: s.name
+        for s in session.scalars(
+            select(Supplier).where(Supplier.id.in_(sup_ids))
+        ).all()
+    }
+
+    out: list[dict] = []
+    for sup_id, events in by_supplier.items():
+        ingredients = {ing_id for ing_id, _, _ in events}
+        prices = [price for _, _, price in events]
+        first_price = prices[0]
+        last_price = prices[-1]
+        min_p = min(prices)
+        max_p = max(prices)
+        avg_p = sum(prices) / len(prices)
+        # volatility = relative spread. Use avg as denominator; if avg
+        # is zero (all ₲0 events), score 0.
+        if avg_p > 0:
+            volatility = (max_p - min_p) / avg_p
+        else:
+            volatility = 0.0
+        # Trend: compare last to first. 5% threshold for "stable" so
+        # tiny floating-point noise doesn't flip the badge.
+        if first_price > 0:
+            delta_pct = (last_price - first_price) / first_price
+        else:
+            delta_pct = 0.0
+        if delta_pct > 0.05:
+            trend = "up"
+        elif delta_pct < -0.05:
+            trend = "down"
+        else:
+            trend = "stable"
+        # Days since last event (relative to now UTC).
+        last_recorded = events[-1][1]
+        # recorded_at is naive UTC; treat as UTC for diff.
+        if last_recorded.tzinfo is None:
+            last_recorded = last_recorded.replace(tzinfo=timezone.utc)
+        days_stale = max(
+            0, int((now_utc - last_recorded).total_seconds() // 86400)
+        )
+
+        out.append({
+            "supplier_id": sup_id,
+            "supplier_name": names_by_id.get(sup_id, "?"),
+            "ingredient_count": len(ingredients),
+            "event_count": len(events),
+            "min_price_gs": min_p,
+            "max_price_gs": max_p,
+            "avg_price_gs": round(avg_p, 1),
+            "volatility_score": round(volatility, 3),
+            "trend_direction": trend,
+            "days_since_last_event": days_stale,
+            "current_price_gs": last_price,
+        })
+
+    out.sort(key=lambda r: r["volatility_score"], reverse=True)
+    return out
+
+
 __all__ = [
     "batch_cheapest_supplier",
     "batch_price_stats",
@@ -360,4 +488,5 @@ __all__ = [
     "price_history",
     "price_stats",
     "record_price_event",
+    "supplier_volatility",
 ]

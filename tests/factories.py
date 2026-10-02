@@ -154,11 +154,15 @@ def make_ingredient_variant(s, ingredient: Ingredient, *, price_gs: int = 3500,
 
 def make_price_event(s, ingredient: Ingredient, *, price_gs: int = 3000,
                      at: datetime | None = None, source: str = "manual") -> IngredientPriceEvent:
+    # Auto-propagate supplier_id from the ingredient so the price-history
+    # leaderboard has a complete attribution. Tests that need a different
+    # supplier_id (cross-supplier test fixtures) override via kwargs.
     ev = IngredientPriceEvent(
         ingredient_id=ingredient.id,
         price_gs=price_gs,
         recorded_at=at or _now(),
         source=source,
+        supplier_id=getattr(ingredient, "supplier_id", None),
     )
     s.add(ev)
     s.flush()
