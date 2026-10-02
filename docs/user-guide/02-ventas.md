@@ -101,6 +101,49 @@ Si te equivocás (vendiste algo dos veces, o cobraste mal):
 ingredientes se devuelve automáticamente. Es importante no borrar — el
 log de auditoría necesita el registro para que sepamos qué pasó.
 
+> **Anular vs Reembolsar**: anulación borra la venta entera (no hubo
+> cobro real o cobraste mal y devolvés toda la plata). Reembolso es
+> cuando la venta sí existió pero el cliente devuelve algo (1 medialuna
+> de las 3 que compró) y le das una parte de la plata. Para lo segundo,
+> usá **Reembolsar** en la página de detalle de la venta — la próxima
+> sección.
+
+## Reembolsar (devolución parcial o total)
+
+Si la venta **sí ocurrió** y el cliente te devuelve algo (o cobraste de
+más por error), registrá un reembolso en lugar de anular la venta:
+
+1. En el **Historial**, tocá el número `#N` para abrir el detalle de la
+   venta (`/ventas/{id}`).
+2. En la página de detalle, completá el formulario **Reembolsar** (abajo
+   de los totales):
+   - **Monto a reembolsar (Gs.)** — cuánto le devolvés. Puede ser hasta
+     el total de la venta (cap automático, no te deja pasar).
+   - **¿Devolver stock?** — marcala si los ingredientes vuelven al
+     inventario (torta intacta). Si la torta ya está comida, dejala
+     sin marcar y se registra como merma del cliente.
+   - **Motivo** — opcional pero recomendado para auditoría
+     (ej. "cliente devolvió torta").
+3. Tocá **Registrar reembolso**.
+4. La pantalla muestra el reembolso en el historial de la venta, y un
+   flash verde arriba confirma la operación**.
+
+> **Puntos de fidelidad**: si el cliente ganó puntos en esa venta, el
+> reembolso revierte la misma proporción de puntos. No tenés que hacer
+> nada extra — la app lo calcula solo con la fórmula
+> `floor(puntos_ganados × reembolso / total)`.
+
+> **Cierre del día**: una vez que hiciste el cierre diario de la fecha
+> de la venta original, no podés registrar reembolsos nuevos sobre esa
+> venta. La fecha del reembolso debe caer ANTES del cierre.
+
+> **Reporte de auditoría**: el reembolso aparece en
+> [Libro de Ventas](../user-guide/10-reportes.md#libro-de-ventas) con
+> una columna "Reembolso" y una columna "Neto" (= Total − Reembolso)
+> para que el SET vea el descuento. El PDF descargable
+> (`/reportes/libro-ventas/set-pdf`) también incluye los totales
+> brutos, reembolsos y neto.
+
 ## Cómo funciona el stock al vender
 
 Cuando registrás una venta, la app **descuenta automáticamente** los

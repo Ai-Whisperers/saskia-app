@@ -88,11 +88,14 @@ def sample_session(session_factory):
     session.close()
 
 
-def test_export_writes_eight_files(sample_session, tmp_path: Path):
-    """to_dir writes one CSV per table."""
+def test_export_writes_nine_files(sample_session, tmp_path: Path):
+    """to_dir writes one CSV per table.
+
+    M1 (2026-10-02): file count went 8 → 9 with the new refund table.
+    """
     session, _ = sample_session
     written = to_dir(session, tmp_path)
-    assert len(written) == 8
+    assert len(written) == 9
     # All files end with .csv
     assert all(p.suffix == ".csv" for p in written)
     # All files in tmp_path
@@ -100,7 +103,7 @@ def test_export_writes_eight_files(sample_session, tmp_path: Path):
 
 
 def test_export_filenames_share_timestamp(sample_session, tmp_path: Path):
-    """All 8 files in one export share the same timestamp prefix."""
+    """All 9 files in one export share the same timestamp prefix."""
     session, _ = sample_session
     written = to_dir(session, tmp_path)
     # Filenames: rms-csv-YYYYMMDD-HHMMSS-<table>.csv
@@ -187,8 +190,8 @@ def test_export_empty_table_still_writes_header(session_factory, tmp_path: Path)
     """
     session = session_factory()
     written = to_dir(session, tmp_path)
-    # All 8 files written
-    assert len(written) == 8
+    # M1 (2026-10-02): refund table added; file count is 9.
+    assert len(written) == 9
     # Each file has at least the header line
     for p in written:
         with p.open() as f:
@@ -204,8 +207,11 @@ def test_export_empty_table_still_writes_header(session_factory, tmp_path: Path)
 
 
 def test_table_exports_listed_count():
-    """The 8 tables we export are documented."""
-    assert len(TABLE_EXPORTS) == 8
+    """The 9 tables we export are documented.
+
+    M1 (2026-10-02): refund added to the export set.
+    """
+    assert len(TABLE_EXPORTS) == 9
     table_names = {name for name, _, _ in TABLE_EXPORTS}
     assert table_names == {
         "ingredient",
@@ -215,6 +221,8 @@ def test_table_exports_listed_count():
         "sale",
         # BACKLOG #1: sale_stock_move replaced with stock_movement in the export set.
         "stock_movement",
+        # M1 / BACKLOG M1: refund rows exported for DNIT compliance.
+        "refund",
         "import_batch",
         "app_meta",
     }
