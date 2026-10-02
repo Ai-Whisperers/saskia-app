@@ -285,7 +285,7 @@ def reorder_scrape(
     Audit row written (action=read.scraper.run) so the operator can see
     how often this is actually used.
     """
-    from app.rms.scrapers import scrape_all
+    from app.integrations.scrapers import scrape_all
 
     results = scrape_all(q.strip())
     payload = {

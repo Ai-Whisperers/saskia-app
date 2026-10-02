@@ -588,7 +588,7 @@ def sale_lookup_by_sku(
     Returns JSON: {found, product_id, name, sale_price_gs, sku}.
     Used by the scan-to-sell JavaScript handler on /ventas.
     """
-    from app.rms.barcode import get_product_by_sku
+    from app.integrations.barcode import get_product_by_sku
 
     if not sku:
         raise ValidationError(SALE_SKU_REQUIRED, context={"field": "sku"})
@@ -642,7 +642,7 @@ async def sale_create(
     Either product_id (manual selection) or sku (barcode scan) is
     required. If sku is given, we look up the product first.
     """
-    from app.rms.barcode import get_product_by_sku
+    from app.integrations.barcode import get_product_by_sku
     from app.rms.schemas import ALLOWED_PAYMENT_METHODS, MAX_DISCOUNT_GS, MAX_QTY
 
     # SKU path: if sku is provided and product_id is not, look up.
@@ -1400,7 +1400,7 @@ def _fire_printer_for_sale(
     Module-level imports so tests can monkeypatch the printer.
     """
     from app.rms.models import Product, Sale
-    from app.rms.printer import (
+    from app.integrations.printer import (
         config_from_env,
         format_receipt_text,
         send_to_printer,

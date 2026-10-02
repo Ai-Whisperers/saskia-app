@@ -32,7 +32,7 @@ def test_sale_creation_triggers_printer(client, session_factory, monkeypatch):
 
     # Patch the symbol at the source module path (where the
     # _fire_printer_for_sale helper imports it from).
-    monkeypatch.setattr("app.rms.printer.send_to_printer", fake_send)
+    monkeypatch.setattr("app.integrations.printer.send_to_printer", fake_send)
 
     resp = client.post(
         "/ventas/nueva",
@@ -50,7 +50,7 @@ def test_sale_failure_does_not_trigger_printer(client, monkeypatch):
         calls.append(payload)
         return {"sent": True}
 
-    monkeypatch.setattr("app.rms.printer.send_to_printer", fake_send)
+    monkeypatch.setattr("app.integrations.printer.send_to_printer", fake_send)
 
     # Missing product_id → 422
     resp = client.post(
@@ -81,7 +81,7 @@ def test_printer_failure_does_not_break_sale(client, session_factory, monkeypatc
     def fake_fail(payload, config):
         raise RuntimeError("Printer offline")
 
-    monkeypatch.setattr("app.rms.printer.send_to_printer", fake_fail)
+    monkeypatch.setattr("app.integrations.printer.send_to_printer", fake_fail)
 
     resp = client.post(
         "/ventas/nueva",

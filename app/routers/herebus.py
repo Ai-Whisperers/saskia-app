@@ -935,7 +935,7 @@ async def evidencia_importar(
 @benchmarks_router.get("/evidencia/seed-demo", name="evidencia_seed_demo")
 def evidencia_seed_demo_route(session: Session = Depends(get_session)) -> RedirectResponse:
     """Idempotente: siembra las 86 observaciones del research repo (2026-09-30)."""
-    from app.rms.seed_competitor_prices import seed_competitor_prices
+    from app.rms.seed.competitor_prices import seed_competitor_prices
 
     added, skipped = seed_competitor_prices(session)
     logger.info(f"market-intel seed: {added} nuevas, {skipped} ya presentes")

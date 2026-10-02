@@ -15,7 +15,7 @@ from __future__ import annotations
 import socket
 from pathlib import Path
 
-from app.rms.printer import (
+from app.integrations.printer import (
     PrinterConfig,
     PrinterKind,
     config_from_env,

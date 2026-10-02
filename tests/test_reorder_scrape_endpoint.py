@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import sessionmaker
 
-from app.rms.scrapers import ScrapeResult, ScrapedPrice
+from app.integrations.scrapers import ScrapeResult, ScrapedPrice
 
 
 def test_reorder_scrape_empty_query_returns_empty_no_http(client, monkeypatch):
@@ -20,7 +20,7 @@ def test_reorder_scrape_empty_query_returns_empty_no_http(client, monkeypatch):
         return []
 
     # The endpoint imports inside the function, so patch the source module.
-    monkeypatch.setattr("app.rms.scrapers.scrape_all", fake_scrape_all)
+    monkeypatch.setattr("app.integrations.scrapers.scrape_all", fake_scrape_all)
     r = client.post("/reorder/scrape", data={"q": "   "})
     assert r.status_code == 200, r.text
     payload = r.json()
@@ -54,7 +54,7 @@ def test_reorder_scrape_runs_all_sources_and_aggregates(client, monkeypatch):
             ),
         ]
 
-    monkeypatch.setattr("app.rms.scrapers.scrape_all", fake_scrape_all)
+    monkeypatch.setattr("app.integrations.scrapers.scrape_all", fake_scrape_all)
     r = client.post("/reorder/scrape", data={"q": "harina"})
     assert r.status_code == 200, r.text
     payload = r.json()
@@ -88,7 +88,7 @@ def test_reorder_scrape_writes_audit_row(client, monkeypatch, session_factory):
             ),
         ]
 
-    monkeypatch.setattr("app.rms.scrapers.scrape_all", fake_scrape_all)
+    monkeypatch.setattr("app.integrations.scrapers.scrape_all", fake_scrape_all)
     r = client.post("/reorder/scrape", data={"q": "leche"})
     assert r.status_code == 200
     assert r.json()["ok"]
@@ -116,7 +116,7 @@ def test_reorder_scrape_audit_failure_does_not_break_scrape(client, monkeypatch)
     def boom(*a, **kw):
         raise RuntimeError("audit storage on fire")
 
-    monkeypatch.setattr("app.rms.scrapers.scrape_all", fake_scrape_all)
+    monkeypatch.setattr("app.integrations.scrapers.scrape_all", fake_scrape_all)
     monkeypatch.setattr("app.routers.reorder.audit_record", boom)
     r = client.post("/reorder/scrape", data={"q": "azucar"})
     assert r.status_code == 200

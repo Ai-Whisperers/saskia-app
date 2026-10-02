@@ -13,7 +13,7 @@ from datetime import date
 from sqlalchemy import select
 
 from app.rms.models import CompetitorPriceObservation
-from app.rms.seed_competitor_prices import (
+from app.rms.seed.competitor_prices import (
     COMPETITOR_SEED,
     COMPETITOR_SEED_SHOPPINGS,
     seed_competitor_prices,

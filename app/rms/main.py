@@ -308,7 +308,7 @@ async def lifespan(app: FastAPI):
     # queda vacía pero la app arranca igual.
     try:
         from app.rms.db import make_session_factory as _mi_factory
-        from app.rms.seed_competitor_prices import seed_competitor_prices
+        from app.rms.seed.competitor_prices import seed_competitor_prices
 
         with _mi_factory(engine)() as _bs:
             n_added, _n_skipped = seed_competitor_prices(_bs)

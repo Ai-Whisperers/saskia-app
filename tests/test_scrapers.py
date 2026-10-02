@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 from pathlib import Path
 
-from app.rms.scrapers import (
+from app.integrations.scrapers import (
     SCRAPERS,
     ScrapeResult,
     _parse_stock,
@@ -103,7 +103,7 @@ class TestScrapeDispatch:
             called.append(True)
             raise AssertionError("HTTP should not be called for empty query")
 
-        monkeypatch.setattr("app.rms.scrapers.httpx.get", boom)
+        monkeypatch.setattr("app.integrations.scrapers.httpx.get", boom)
         result = scrape_superseis("")
         assert result.matches == ()
         assert result.error is None
@@ -159,7 +159,7 @@ class TestStock:
             def get(self, *a, **kw):
                 raise _hx.ConnectError("dns fail")
 
-        monkeypatch.setattr("app.rms.scrapers._client", lambda: FakeClient())
+        monkeypatch.setattr("app.integrations.scrapers._client", lambda: FakeClient())
         r = scrape_stock("harina")
         assert r.error is not None
         assert "fetch failed" in r.error
@@ -188,7 +188,7 @@ class TestStock:
             def get(self, *a, **kw):
                 return FakeResp()
 
-        monkeypatch.setattr("app.rms.scrapers._client", lambda: FakeClient())
+        monkeypatch.setattr("app.integrations.scrapers._client", lambda: FakeClient())
         r = scrape_stock("harina")
         # Either the live error path or the unavailable-with-hint path
         # is acceptable — what matters is that the user gets a clear

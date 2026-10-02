@@ -15,7 +15,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 
-from app.rms.barcode import (
+from app.integrations.barcode import (
     assign_sku,
     get_product_by_sku,
     normalize_sku,
