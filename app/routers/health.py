@@ -21,7 +21,6 @@ import shutil
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -38,27 +37,6 @@ router = APIRouter()
 def _disk_usage(path: str):
     """Wrapper for shutil.disk_usage — patchable in tests."""
     return shutil.disk_usage(path)
-
-
-def _get_last_backup_at(request: Request):
-    """Read the last_backup_at app_meta row, return ISO string or None.
-
-    BACKLOG #39 (2026-10-02): this helper exposes backup freshness to
-    /healthz/backup. Tests patch it to simulate stale / missing states.
-    """
-    try:
-        from app.rms.models import AppMeta
-        from sqlalchemy import select
-
-        with request.app.state.session_factory() as s:
-            row = s.scalars(
-                select(AppMeta).where(AppMeta.key == "last_backup_at")
-            ).first()
-            return row.value if row else None
-    except Exception:  # noqa: BLE001 — defensive default
-        # On any DB error we report "no backup" rather than failing the
-        # endpoint. The /healthz/db endpoint already surfaces DB issues.
-        return None
 
 
 def _check_supabase_reachable(url: str, timeout: float = 2.0) -> bool:
@@ -323,92 +301,6 @@ def healthz_deps(request: Request) -> JSONResponse | dict:
         return JSONResponse(status_code=503, content=body)
     body["status"] = "ok"
     return body
-
-
-@router.get("/healthz/depth", response_model=None)
-def healthz_depth(request: Request) -> JSONResponse | dict:
-    """Depth-of-stack liveness — pings the things the app needs besides DB.
-
-    BACKLOG #40 (Tier 7): the operator can't tell from /healthz or
-    /healthz/db whether the rest of the stack is healthy. This endpoint
-    probes:
-      - disk_free_bytes: free space in DATA_DIR (the SQLite file lives there)
-      - r2_reachable: HEAD on the R2 bucket (if R2_BUCKET_URL is set)
-      - supabase_reachable: lightweight env-var presence check (a real
-        GET would require auth tokens; we just report "configured" vs
-        "missing", not a network probe).
-
-    Each probe is timed out to 2s so a slow external never wedges the
-    endpoint. Endpoint returns 200 if all probes complete (even if a
-    probe reports FAIL — operators need to see the diagnostic, not a
-    UptimeRobot alert that hides the detail).
-
-    Read-only, no PII. Safe to hit from monitoring.
-    """
-    import shutil as _shutil
-    import concurrent.futures
-
-    ready = getattr(request.app.state, "ready", False)
-    if not ready:
-        return JSONResponse(
-            status_code=503,
-            content={"status": "warming_up", "detail": "App still initializing."},
-        )
-
-    # 1. Disk free in DATA_DIR (default = cwd).
-    from app.rms.config import DATA_DIR
-
-    try:
-        usage = _shutil.disk_usage(DATA_DIR)
-        disk_payload: dict[str, Any] = {
-            "ok": True,
-            "free_bytes": int(usage.free),
-            "total_bytes": int(usage.total),
-            "path": str(DATA_DIR),
-        }
-    except Exception as exc:  # noqa: BLE001 — defensive
-        disk_payload = {"ok": False, "error": str(exc)[:200], "path": str(DATA_DIR)}
-
-    # 2. R2 reachability — HEAD on the bucket URL, 2s timeout. Optional.
-    import urllib.request
-
-    r2_url = os.environ.get("R2_BUCKET_URL")
-    r2_payload: dict[str, Any] = {"configured": bool(r2_url)}
-    if r2_url:
-        try:
-
-            def _head(url: str) -> int:
-                req = urllib.request.Request(url, method="HEAD")
-                with urllib.request.urlopen(req, timeout=2) as resp:
-                    return resp.status
-
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-                future = ex.submit(_head, r2_url)
-                status = future.result(timeout=3)
-            r2_payload.update({"ok": 200 <= status < 400, "status": status})
-        except Exception as exc:  # noqa: BLE001
-            r2_payload.update({"ok": False, "error": str(exc)[:200]})
-    else:
-        r2_payload["ok"] = None  # Not configured — neither ok nor error.
-
-    # 3. Supabase presence (no network probe — auth tokens required).
-    supa_payload = {
-        "url_set": bool(os.environ.get("SUPABASE_URL")),
-        "publishable_set": bool(os.environ.get("SUPABASE_PUBLISHABLE_KEY")),
-        "secret_set": bool(os.environ.get("SUPABASE_SECRET_KEY")),
-    }
-
-    overall_ok = (
-        disk_payload.get("ok") is True
-        and (r2_payload.get("ok") is True or r2_payload.get("ok") is None)
-    )
-
-    return {
-        "status": "ok" if overall_ok else "degraded",
-        "disk": disk_payload,
-        "r2": r2_payload,
-        "supabase_env": supa_payload,
-    }
 
 
 @router.get("/healthz/db")
