@@ -8,7 +8,7 @@ from __future__ import annotations
 import csv
 import io
 import secrets as pysecrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import (
     APIRouter,
@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.auth import require_login_or_disabled as require_login
 from app.rms.costing import batch_products_cost_margin, product_margin, product_unit_cost_gs
 from app.rms.dependencies import get_session
-from app.rms.models import Product, Recipe, Sale
+from app.rms.models import Product, Recipe, Sale, Ingredient, RecipeLine, Customer
 from app.rms.observability import record_audit
 from app.rms.rate_limit import read_rate_limit_dependency
 from app.services.template_render import render
@@ -1163,4 +1163,97 @@ def public_menu_catalog(
             "currency_label": "Gs.",
             "shop_whatsapp": shop_whatsapp,
         },
+    )
+
+
+@router.get("/{p_id}", response_class=HTMLResponse)
+def product_detail(
+    p_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Customer-facing product detail page with metrics, recipes-using, recent sales.
+    
+    URL: /productos/{id}
+    Shows product name, metrics strip, recipes using this product, recent sales.
+    """
+    p = session.get(Product, p_id)
+    if p is None:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    
+    # Compute metrics using existing service modules or direct SQL queries
+    from sqlalchemy import text
+    from app.rms.costing import product_unit_cost_gs, product_margin
+    
+    # Current stock - use direct SQL query since no service function exists
+    stock_query = text("""
+        SELECT COALESCE(SUM(stock_qty), 0.0) 
+        FROM ingredient 
+        WHERE name = (SELECT name FROM product WHERE id = :p_id)
+    """)
+    stock_result = session.execute(stock_query, {"p_id": p_id}).scalar_one_or_none()
+    
+    # Current cost and margin
+    cost = product_unit_cost_gs(session, p_id)
+    margin = product_margin(session, p_id)
+    
+    # 30-day metrics - use direct SQL query since no service function exists
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    
+    # Get last 30 days units sold and revenue
+    sales_metrics = session.execute(
+        select(
+            func.sum(Sale.qty),
+            func.sum(Sale.unit_price_gs * Sale.qty)
+        ).where(
+            Sale.sold_at >= thirty_days_ago,
+            Sale.product_id == p_id
+        ).where(Sale.voided_at.is_(None))
+    ).one()
+    
+    last_30d_units = sales_metrics[0] or 0
+    last_30d_revenue = sales_metrics[1] or 0
+    
+    # Recipes using this product (max 10) - use direct SQL query
+    recipes_query = text("""
+        SELECT DISTINCT r.* FROM recipe r
+        JOIN recipe_line rl ON r.id = rl.line_ref_id
+        WHERE rl.line_ref_id = :p_id AND rl.line_kind = 'ingredient'
+        LIMIT 10
+    """)
+    recipes_using = session.execute(recipes_query, {"p_id": p_id}).fetchall()
+    
+    # Recent sales (last 20, exclude voided) - use direct SQL query
+    recent_sales = session.execute(
+        select(Sale.sold_at, Customer.name, Sale.qty, Sale.unit_price_gs * Sale.qty)
+        .join(Customer, Customer.id == Sale.customer_id, isouter=True)
+        .where(Sale.product_id == p_id)
+        .where(Sale.voided_at.is_(None))
+        .order_by(Sale.sold_at.desc())
+        .limit(20)
+    ).all()
+    
+    # Margin percentage
+    avg_margin_pct = None
+    if margin and margin[1] is not None:
+        avg_margin_pct = margin[1] * 100
+    
+    # Check if out of stock
+    is_out_of_stock = stock_result is not None and stock_result <= 0
+    
+    return render(
+        request,
+        "producto_detalle.html",
+        {
+            "product": p,
+            "current_stock": stock_result,
+            "current_cost": cost,
+            "current_price": p.sale_price_gs,
+            "avg_margin_pct": avg_margin_pct,
+            "last_30d_units": last_30d_units,
+            "last_30d_revenue": last_30d_revenue,
+            "recipes_using": recipes_using,
+            "recent_sales": recent_sales,
+            "is_out_of_stock": is_out_of_stock,
+        }
     )
