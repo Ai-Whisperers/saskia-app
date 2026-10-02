@@ -95,9 +95,9 @@ def close_month(db: Session, period_yyyymm: str, user_id: str | None = None) -> 
     total_expenses = db.query(
         func.sum(Expense.amount_gs).label('total')
     ).filter(
-        Expense.created_at >= start_date,
-        Expense.created_at < end_date,
-        Expense.deleted_at.is_(None)
+        Expense.occurred_at >= start_date,
+        Expense.occurred_at < end_date,
+        Expense.is_voided.is_(False)
     ).scalar() or 0
     
     # Create or update closure
@@ -190,18 +190,18 @@ def compute_month_totals(db: Session, period_yyyymm: str) -> dict:
     
     # Query expenses for the month
     expenses = db.query(Expense).filter(
-        Expense.created_at >= start_date,
-        Expense.created_at < end_date,
-        Expense.deleted_at.is_(None)
+        Expense.occurred_at >= start_date,
+        Expense.occurred_at < end_date,
+        Expense.is_voided.is_(False)
     ).all()
     
     # Calculate totals
     total_gs = sum(exp.amount_gs for exp in expenses)
     by_category = {}
     for exp in expenses:
-        if exp.expense_type not in by_category:
-            by_category[exp.expense_type] = 0
-        by_category[exp.expense_type] += exp.amount_gs
+        if exp.category not in by_category:
+            by_category[exp.category] = 0
+        by_category[exp.category] += exp.amount_gs
     
     return {
         "total_expenses_gs": total_gs,
