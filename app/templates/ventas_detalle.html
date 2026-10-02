@@ -1,0 +1,143 @@
+{# Operator-facing full-width detail view for a single sale.
+
+   Rendered by `GET /ventas/{sale_id}` (BACKLOG #16). Distinct from
+   `/ventas/{sale_id}/recibo` which is the printable A6 receipt; this
+   is a normal-width operator page for helpdesk deep-links and audits.
+#}
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Venta #{{ sale.id }}{% endblock %}
+
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-cart"/></svg>
+  Venta #{{ sale.id }}
+  {% if sale.voided_at %}
+  {{ ui.status_pill("Anulada", sev="warn") }}
+  {% endif %}
+</h1>
+
+<div class="card mb-4">
+  <div class="card-header">
+    <h2 style="margin:0;">Datos de la venta</h2>
+    <div class="text-muted" style="font-size:var(--text-sm);">
+      <a href="/ventas/{{sale.id}}/recibo" target="_blank">Ver recibo imprimible →</a>
+    </div>
+  </div>
+
+  <dl class="kv-grid" style="display:grid;grid-template-columns:max-content 1fr;gap:var(--space-2) var(--space-4);padding:var(--space-3) var(--space-4);">
+    <dt>Fecha</dt>
+    <dd>{{ sale.sold_at_str }}</dd>
+
+    <dt>Producto</dt>
+    <dd>
+      {% if sale.product_name == '(deleted)' %}
+      <span class="text-muted">(producto eliminado)</span>
+      {% else %}
+      {{ sale.product_name }}
+      {% if sale.product_id %}<span class="text-muted">· ID {{ sale.product_id }}</span>{% endif %}
+      {% endif %}
+    </dd>
+
+    <dt>Cantidad</dt>
+    <dd>{{ sale.qty }}</dd>
+
+    <dt>Precio unitario</dt>
+    <dd>{{ m.gs(sale.unit_price_gs) }}</dd>
+
+    {% if sale.discount_gs %}
+    <dt>Descuento</dt>
+    <dd>− {{ m.gs(sale.discount_gs) }}</dd>
+    {% endif %}
+
+    <dt>Total</dt>
+    <dd><strong>{{ m.gs(sale.total_gs - (sale.discount_gs or 0)) }}</strong></dd>
+
+    <dt>Forma de pago</dt>
+    <dd>{{ sale.payment_method or '—' }}</dd>
+
+    <dt>Canal</dt>
+    <dd>{{ sale.channel }}</dd>
+
+    {% if sale.notes %}
+    <dt>Notas</dt>
+    <dd>{{ sale.notes }}</dd>
+    {% endif %}
+  </dl>
+
+  {% if sale.voided_at %}
+  <div class="voided-banner" role="alert"
+       style="margin:var(--space-3) var(--space-4);padding:var(--space-3);border:1px solid var(--color-warn,#c33);border-radius:6px;background:rgba(204,51,51,0.08);">
+    <strong>ANULADA</strong>
+    <span>el {{ sale.voided_at_str }}{% if sale.void_reason %} — {{ sale.void_reason }}{% endif %}</span>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card mb-4">
+  <div class="card-header"><h2 style="margin:0;">Cliente</h2></div>
+  <div style="padding:var(--space-3) var(--space-4);">
+    {% if sale.customer_id %}
+    <a href="/clientes/{{ sale.customer_id }}">{{ sale.customer_name }}</a>
+    {% if sale.customer_phone %}· <span class="text-muted">{{ sale.customer_phone }}</span>{% endif %}
+    {% else %}
+    <span class="text-muted">Cliente no asociado</span>
+    {% endif %}
+  </div>
+
+  {% if loyalty_snapshot %}
+  <dl class="kv-grid" style="display:grid;grid-template-columns:max-content 1fr;gap:var(--space-2) var(--space-4);padding:var(--space-3) var(--space-4);border-top:1px solid var(--color-border);">
+    {% if loyalty_snapshot.earn_points %}
+    <dt>Puntos ganados</dt>
+    <dd>+ {{ loyalty_snapshot.earn_points }} pts</dd>
+    {% endif %}
+    {% if loyalty_snapshot.redeemed_points %}
+    <dt>Puntos canjeados</dt>
+    <dd>− {{ loyalty_snapshot.redeemed_points }} pts ({{ m.gs(loyalty_snapshot.redeemed_discount_gs) }})</dd>
+    {% endif %}
+    <dt>Saldo actual</dt>
+    <dd><strong>{{ loyalty_snapshot.current_balance }} pts</strong></dd>
+  </dl>
+  {% endif %}
+</div>
+
+{% if related_pedido %}
+<div class="card mb-4">
+  <div class="card-header"><h2 style="margin:0;">Pedido asociado</h2></div>
+  <div style="padding:var(--space-3) var(--space-4);">
+    <a href="/pedidos/{{ related_pedido.id }}">Pedido #{{ related_pedido.id }}</a>
+    <span class="text-muted">· {{ related_pedido.customer_name or '' }} · {{ related_pedido.delivery_zone_id or '' }}</span>
+  </div>
+</div>
+{% endif %}
+
+{% if stock_moves %}
+<div class="card mb-4">
+  <div class="card-header"><h2 style="margin:0;">Movimientos de stock ({{ stock_moves|length }})</h2></div>
+  <table class="table is-striped" style="margin:0;">
+    <thead>
+      <tr>
+        <th>Ingrediente</th>
+        <th class="num">Cantidad</th>
+        <th>Fecha</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for mv in stock_moves %}
+      <tr>
+        <td>{{ mv.ingredient_id }}</td>
+        <td class="num">{{ "%.3f"|format(mv.qty) }}</td>
+        <td>{{ mv.recorded_at.strftime('%d/%m/%Y %H:%M') if mv.recorded_at else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div style="display:flex;gap:var(--space-2);margin-top:var(--space-4);">
+  <a href="/ventas/historial" class="btn">← Volver al historial</a>
+  <a href="/ventas/{{sale.id}}/recibo" class="btn btn-primary">Ver recibo</a>
+</div>
+{% endblock %}

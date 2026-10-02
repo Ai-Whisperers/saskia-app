@@ -42,7 +42,7 @@ from app.rms.messages import (
     SALE_SKU_REQUIRED,
     SALE_TOO_MANY_ITEMS,
 )
-from app.rms.models import Customer, Product, Sale
+from app.rms.models import Customer, Product, Sale, StockMovement
 from app.rms.money import to_int_gs
 from app.rms.schemas import (
     ALLOWED_CHANNELS,
@@ -573,6 +573,80 @@ async def sale_receipt(
         {
             "sale": _decorated(sale),
             "loyalty_snapshot": loyalty_snapshot,
+        },
+    )
+
+
+@router.get("/{sale_id:int}", response_class=HTMLResponse)
+async def sale_detail(
+    request: Request,
+    sale_id: int,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Operator-facing full-width detail view for a single sale.
+
+    BACKLOG #16 (2026-10-02): complements the printable A6 receipt
+    (/ventas/{sale_id}/recibo) with a normal-width operator page that
+    shows product, customer, payment method, channel, void metadata,
+    and any loyalty ledger entries tied to the sale. Linkable by URL
+    so /ventas/helpdesk tickets can deep-link to a specific sale.
+    """
+    sale = session.get(Sale, sale_id)
+    if sale is None:
+        raise NotFound("venta", id=sale_id)
+
+    # Loyalty snapshot (same data shape as the receipt route)
+    loyalty_snapshot = None
+    if sale.customer_id:
+        from app.rms.models import Customer as _Cust, LoyaltyTransaction as _LT
+        cust = session.get(_Cust, sale.customer_id)
+        if cust is not None:
+            earn_row = session.execute(
+                select(_LT)
+                .where(_LT.sale_id == sale_id)
+                .where(_LT.reason == "earn_sale")
+                .limit(1)
+            ).scalar_one_or_none()
+            redeemed_row = session.execute(
+                select(_LT)
+                .where(_LT.sale_id == sale_id)
+                .where(_LT.reason == "redeem")
+                .limit(1)
+            ).scalar_one_or_none()
+            earn_abs = int(earn_row.delta) if earn_row else 0
+            redeem_abs = -int(redeemed_row.delta) if redeemed_row else 0
+            loyalty_snapshot = {
+                "customer_name": cust.name or cust.phone or "Cliente",
+                "customer_phone": cust.phone,
+                "customer_id": cust.id,
+                "earn_points": earn_abs,
+                "redeemed_points": redeem_abs,
+                "current_balance": int(cust.loyalty_points or 0),
+                "redeemed_discount_gs": discount_gs_for_points(redeem_abs),
+            }
+
+    # Stock-move audit trail (which ingredients this sale consumed).
+    # Two queries max; both FK-indexed.
+    stock_moves = session.execute(
+        select(StockMovement)
+        .where(StockMovement.reference_id == sale_id)
+        .where(StockMovement.reference_type == "sale")
+    ).scalars().all()
+
+    # Related pedido (if sale came from a pedido fulfillment)
+    related_pedido = None
+    if sale.linked_pedido_id:
+        from app.rms.models import Pedido
+        related_pedido = session.get(Pedido, sale.linked_pedido_id)
+
+    return render(
+        request,
+        "ventas_detalle.html",
+        {
+            "sale": _decorated(sale),
+            "loyalty_snapshot": loyalty_snapshot,
+            "stock_moves": stock_moves,
+            "related_pedido": related_pedido,
         },
     )
 
