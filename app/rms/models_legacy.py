@@ -1696,6 +1696,16 @@ class StockMovement(Base):
     reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     reference_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     reference_type: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    # Migration 090 (BACKLOG #1 prep): sale_stock_move carries an
+    # `affected_recipe_id` for sub-recipe traceability. Adding the column
+    # to stock_movement now means the future consolidation (backfill from
+    # sale_stock_move, drop sale_stock_move, update callers) doesn't
+    # require a schema change at the same time as the data migration.
+    # Nullable because non-sale movements (reorder, merma, adjustment,
+    # initial) don't have an affected recipe.
+    affected_recipe_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("recipe.id"), nullable=True, index=True
+    )
     recorded_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow, index=True
     )

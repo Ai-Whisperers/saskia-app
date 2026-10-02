@@ -68,7 +68,7 @@ BACKUP_THRESHOLD_HOURS = int(os.getenv("AIW_SASKIA_BACKUP_HOURS", "24"))
 KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_SASKIA_KEEP_LOCAL_DAYS", "30"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 85  # 085 = sale.public_token + sale.public_token_expires_at for /r/{token} digital recibo share (BACKLOG #17)
+CURRENT_SCHEMA_VERSION = 90  # 090 = stock_movement.affected_recipe_id for #1 consolidation prep
 
 
 def ensure_dirs() -> None:
