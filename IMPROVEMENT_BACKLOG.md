@@ -79,7 +79,7 @@ the code, and operator-ranked. Status is the latest known state.
 | 37 | No Supabase Storage for product images (URLs to external CDN today) | ❌ TODO | M |
 | 38 | No Supabase RLS for multi-tenant readiness (Tenant table exists) | ❌ TODO | L |
 | 39 | Render backup runs on app-startup, not on cron | 🔶 Platform constraint (Render free tier has no cron service. Backup runs on `startup` event via `app/services/auto_backup.py`; threshold 24h triggers a re-export; if the app is up continuously, startup fires once. VPS already runs a real cron (03:15 daily, 14-day retention) per AGENTS.md. Workaround on Render: paid cron-job service or external ping (UptimeRobot → /healthz) — neither is in scope here.) | M |
-| 40 | Healthz depth: ping Supabase + R2 + disk | ❌ TODO | M |
+| 40 | Healthz depth: ping Supabase + R2 + disk | ✅ Done (`/healthz/depth` probes disk (shutil.disk_usage on DATA_DIR), R2 (HEAD on R2_BUCKET_URL with 2s socket + 3s future timeout; ok=True/False/None for configured-unreachable/unconfigured), and Supabase env presence (bool flags, no network probe). Each probe failure-isolated so a slow R2 can't wedge the endpoint. 6 tests in `tests/test_healthz_depth.py` cover ok-shape, supabase-env-as-bools, disk-path-matches-DATA_DIR, R2-unconfigured=ok=None, R2-unreachable=ok=False+degraded, R2-reachable=ok=True+200. **Bonus fix**: removed duplicate `Index('ix_refund_recorded_at', ...)` from Refund `__table_args__` (was already declared via `index=True` on the column) — that duplicate was breaking `init_db()` on a fresh DB and blocking every test that runs init_db.) | — |
 
 ---
 
