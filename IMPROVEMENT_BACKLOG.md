@@ -55,9 +55,9 @@ the code, and operator-ranked. Status is the latest known state.
 
 | # | Item | Status | Effort |
 |---|---|---|---|
-| 26 | `sale_stock_move` (6,177 rows) — analytics on consumption patterns | ❌ TODO | M |
+| 26 | `sale_stock_move` (6,177 rows) — analytics on consumption patterns | ✅ Done — `/reportes/consumo?days=N` (period toggle 7/30/90/365) + `/reportes/consumo/csv` export read from `StockMovement` filtered to `movement_type='sale'` (post-#1 single-table). Joins `Ingredient` to surface name+unit, aggregates `sum(qty)` + `count(moves)` + `count(distinct reference_id)` (unique sales). 8 tests in `tests/test_reportes_consumo.py`. Net direction comes for free — void_sale creates positive-qty reverse rows that cancel original negative rows. Originally specced against `sale_stock_move`; the Sprint 4.4 work that consolidated to `StockMovement` (BACKLOG #1) re-routed the read path. Marking Done to remove stale tracking. | — |
 | 27 | `Sale.tz` — recorded per sale, never queried | ✅ Done (`/clientes/{id}` renders tz_breakdown via `customers.py:1048-1080`; tests `test_sale_timezone_field.py` + `test_cliente_tz_breakdown.py` 7/7 pass) | — |
-| 28 | `WasteLog.cost_gs` — waste ROI per ingredient | ❌ TODO | M |
+| 28 | `WasteLog.cost_gs` — waste ROI per ingredient | ✅ Done — duplicate of #34 (Sprint 4.10 2026-10-02: `app/rms/sales_intel.py:waste_roi_by_ingredient()` + `/reportes/mermas-cost?days=90` leaderboard + 11 tests in `tests/test_waste_roi.py`). Marking row Done to remove stale duplicate tracking. | — |
 | 29 | `ProductionCompletion.completed_qty` — plan accuracy ML | ❌ TODO | L |
 | 30 | `AuditLog` — unused for analytics (login IPs, time patterns, operator patterns) | ❌ TODO | L |
 | 31 | `PriceHistory` events — 0 rows in live DB, model exists, supplier volatility | ✅ Done 2026-10-02 (Sprint 4.11: `app/rms/price_history.py:supplier_volatility(session, since_days=90)` aggregates per-supplier min/max/avg + volatility_score = (max-min)/avg + trend_direction (up/down/stable via last vs first) + days_since_last_event; `/suppliers/volatility` page renders the leaderboard with volatility color-coded red>50%, green<20%; 12 tests in `tests/test_supplier_volatility.py`. Also fixed `tests/factories.py:make_price_event` to auto-propagate `supplier_id` from the ingredient so the leaderboard has complete attribution.) | — |
