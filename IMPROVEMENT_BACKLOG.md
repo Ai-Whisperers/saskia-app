@@ -60,7 +60,7 @@ the code, and operator-ranked. Status is the latest known state.
 | 28 | `WasteLog.cost_gs` — waste ROI per ingredient | ❌ TODO | M |
 | 29 | `ProductionCompletion.completed_qty` — plan accuracy ML | ❌ TODO | L |
 | 30 | `AuditLog` — unused for analytics (login IPs, time patterns, operator patterns) | ❌ TODO | L |
-| 31 | `PriceHistory` events — 0 rows in live DB, model exists, supplier volatility | ❌ TODO | M |
+| 31 | `PriceHistory` events — 0 rows in live DB, model exists, supplier volatility | ✅ Done 2026-10-02 (Sprint 4.11: `app/rms/price_history.py:supplier_volatility(session, since_days=90)` aggregates per-supplier min/max/avg + volatility_score = (max-min)/avg + trend_direction (up/down/stable via last vs first) + days_since_last_event; `/suppliers/volatility` page renders the leaderboard with volatility color-coded red>50%, green<20%; 12 tests in `tests/test_supplier_volatility.py`. Also fixed `tests/factories.py:make_price_event` to auto-propagate `supplier_id` from the ingredient so the leaderboard has complete attribution.) | — |
 
 ## Tier 6: P2 — Predictive / ML
 
