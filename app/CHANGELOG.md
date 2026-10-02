@@ -5,6 +5,41 @@
 
 ## [Unreleased]
 
+### Added — Tier 8 observability stack (2026-10-01)
+
+- **`app/observability/email.py`** — Resend transactional email wrapper.
+  Stdlib-only (urllib), no new deps. Single ``send_alert(subject, body,
+  severity)`` function. No-op when ``RESEND_API_KEY`` is unset (so dev
+  runs cleanly). HTML-escapes the body so a stray ``<script>`` in a
+  stack trace never becomes a real tag. Subject prefix ``[saskia-{sev}]``
+  for inbox filtering.
+- **`app/observability/alerts.py`** — central dispatch (``dispatch_anomalies``,
+  ``dispatch_failure``) with a ``MAX_ALERTS_PER_DAY=50`` flood-guard.
+- **`app/services/eod_anomaly.py`** — four EOD checks (cash zero with
+  active sales / high voided rate / factura missing number / negative
+  grand total) returning ``Anomaly`` records with severity tiers. Uses
+  raw SQL via ``text()`` to avoid the deprecated SaleStockMove stub
+  class breaking the mapper.
+- **`app/routers/eod.py`** — new ``POST /eod/anomalies/run`` route that
+  runs the detector and dispatches the results.
+- **`app/templates/eod_anomalies.html`** — operator-facing report page
+  listing the anomalies found.
+- **`app/rms/main.py`** — lifespan hooks now email the operator on
+  migration apply failure (severity=error) and backup scheduler
+  failure (severity=critical). Both gated on the email path; never
+  propagate alert exceptions.
+- **`scripts/ci_alert.py`** + **`.github/workflows/ci.yml`** — CI step
+  that pages the operator via Resend when the test suite fails on main.
+  No-op when ``RESEND_API_KEY`` repo secret is unset.
+- **``.env.example`** + **`docs/operations/2026-10-01-observability.md`**
+  — operator runbook: one-time setup, env vars, what each alert means,
+  failure modes.
+
+### Tests
+- 22 new tests across ``tests/test_tier8_email.py``,
+  ``tests/test_tier8_eod_anomaly.py``, ``tests/test_tier8_alerts.py``,
+  ``tests/test_tier8_eod_route.py`` — all pass.
+
 ### Removed — `<saskia-insight-card>` dismiss button
 - **`app/static/saskia-insight-card.js`** — the per-card "Descartar por hoy"
   (×) button was removed from the actionable-insight tile. It rendered as a

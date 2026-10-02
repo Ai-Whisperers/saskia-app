@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Anomalías del cierre{% endblock %}
+{% block content %}
+<div class="container">
+  <h1>Anomalías del cierre</h1>
+
+  {% if anomalies %}
+    <p>Se encontraron <strong>{{ anomalies|length }}</strong> anomalía(s).
+       {{ dispatched }} notificacion(es) enviada(s).</p>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Severidad</th>
+          <th>ID</th>
+          <th>Título</th>
+          <th>Detalle</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in anomalies %}
+          <tr>
+            <td><span class="badge badge-{{ a.severity }}">{{ a.severity }}</span></td>
+            <td><code>{{ a.key }}</code></td>
+            <td>{{ a.title }}</td>
+            <td><pre class="anomaly-body">{{ a.body }}</pre></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="ok-flash">Cierre limpio: no se detectaron anomalías.</p>
+  {% endif %}
+
+  <p><a class="btn btn-ghost" href="/eod">← Volver al cierre</a></p>
+</div>
+{% endblock %}
