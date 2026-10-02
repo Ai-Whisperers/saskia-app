@@ -62,6 +62,9 @@
       {# Phase 1.B — fiscal invoice metadata #}
       <th>Comprobante</th>
       <th>RUC</th>
+      {# M1 (2026-10-02): refund + net columns for DNIT compliance. #}
+      <th class="num">Reembolso (Gs.)</th>
+      <th class="num">Neto (Gs.)</th>
     </tr>
   </thead>
   <tbody>
@@ -83,9 +86,29 @@
         {% endif %}
       </td>
       <td><small>{{ r.invoice_customer_ruc or "—" }}</small></td>
+      <td class="num">
+        {% if r.refunds_gs > 0 %}
+          <span class="text-warning" title="{{ r.refunds_count }} reembolso(s)">{{ m.gs(r.refunds_gs) }}</span>
+        {% else %}
+          <small class="text-muted">—</small>
+        {% endif %}
+      </td>
+      <td class="num"><strong>{{ m.gs(r.net_gross_gs) }}</strong></td>
     </tr>
     {% endfor %}
   </tbody>
+  <tfoot>
+    {% set total_gross = rows | sum(attribute='total_gross_gs') %}
+    {% set total_refunds = rows | sum(attribute='refunds_gs') %}
+    {% set total_net = rows | sum(attribute='net_gross_gs') %}
+    <tr class="table-summary">
+      <td colspan="6"><strong>Total periodo</strong></td>
+      <td class="num"><strong>{{ m.gs(total_gross) }}</strong></td>
+      <td colspan="2"></td>
+      <td class="num"><strong>{{ m.gs(total_refunds) }}</strong></td>
+      <td class="num"><strong>{{ m.gs(total_net) }}</strong></td>
+    </tr>
+  </tfoot>
 </table>
 </div>
 {% else %}

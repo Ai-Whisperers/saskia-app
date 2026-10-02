@@ -1098,7 +1098,10 @@ def inventory_update(
     ing.unit = unit_enum.value
     ing.stock_qty = stock
     ing.min_stock_qty = min_stock
-    ing.purchase_price_gs = price
+    # BACKLOG #31: price event recording happens later in this handler
+    # (see "Phase B — Q1 core" comment around line 1171). Don't pre-write
+    # here — that would double-fire record_price_event and produce two
+    # events per save (sibling already wired the canonical path).
     ing.notes = optional_text(notes, max_len=2000)
 
     # Operator-editable classification (detail page exposes them; form
@@ -1704,8 +1707,13 @@ def ingredient_variant_edit(
     # the parent Ingredient.purchase_price_gs for backwards compatibility.
     if v.preferred:
         ing = session.get(Ingredient, ing_id)
-        if ing is not None:
-            ing.purchase_price_gs = price
+        if ing is not None and ing.purchase_price_gs != price:
+            # BACKLOG #31: route through record_price_event so the
+            # IngredientPriceEvent row + purchase_price_updated_at both
+            # stay in sync. The bare assignment previously bypassed both,
+            # leaving /reportes/precios with 0 history rows for variant
+            # edits on the preferred variant.
+            record_price_event(session, ing.id, price, source="manual")
 
     record_audit(
         request,

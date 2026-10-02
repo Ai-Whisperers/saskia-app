@@ -22,7 +22,7 @@ from app.rms.models import (
     Recipe,
     RecipeLine,
     Sale,
-    SaleStockMove,
+    StockMovement,
 )
 
 # ---------------------------------------------------------------------------
@@ -82,8 +82,11 @@ def _add_ingredient_with_consumption(s, name, stock_qty=1.0,
     s.add(sale)
     s.flush()
     for _ in range(moves):
-        s.add(SaleStockMove(sale_id=sale.id, affected_recipe_id=r.id,
-                            ingredient_id=ing.id, qty_delta=qty_delta))
+        s.add(StockMovement(
+            ingredient_id=ing.id, movement_type="sale", qty=qty_delta,
+            reason=f"Venta #{sale.id}", reference_id=sale.id,
+            reference_type="sale", affected_recipe_id=r.id,
+        ))
     s.commit()
     return ing
 

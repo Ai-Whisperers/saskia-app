@@ -37,7 +37,7 @@ from app.rms.models import (
     Recipe,
     RecipeLine,
     Sale,
-    SaleStockMove,
+    StockMovement,
     Tag,
     TagLink,
     User,
@@ -53,13 +53,18 @@ BACKUP_TABLES: list[type] = [
     RecipeLine,
     Product,
     Sale,
-    SaleStockMove,
     ImportBatch,
     AuditLog,
     Customer,
     WasteLog,
     Tag,
     TagLink,
+    # M1 (2026-10-02): StockMovement is the canonical stock-out ledger
+    # after migration 092 dropped sale_stock_move. It must be backed up
+    # because every sale, refund, and adjustment writes here. Listed
+    # last because RecipeLine + Ingredient already exist (StockMovement
+    # has FKs to both, plus optional FK to Recipe for affected_recipe_id).
+    StockMovement,
 ]
 
 

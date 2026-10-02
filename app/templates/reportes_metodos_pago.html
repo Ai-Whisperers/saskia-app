@@ -42,17 +42,22 @@
     <tr>
       <th>Método de pago</th>
       <th class="num">Cantidad de ventas</th>
-      <th class="num">Total (Gs.)</th>
-      <th class="num">% del total</th>
+      <th class="num">Total facturado (Gs.)</th>
+      <th class="num">Reembolsos (Gs.)</th>
+      <th class="num">Neto (Gs.)</th>
+      <th class="num">% del total neto</th>
     </tr>
   </thead>
   <tbody>
+    {% set total_net_gs = breakdown.values() | sum(attribute='net_total_gs') %}
     {% for method, data in breakdown.items() %}
     <tr>
       <td><strong>{{ method }}</strong></td>
-      <td class="num">{{ data.n_sales }}</td>
+      <td class="num">{{ data.n_sales }}{% if data.n_refunds %} <span class="text-muted">+{{ data.n_refunds }} reemb.</span>{% endif %}</td>
       <td class="num">{{ m.gs(data.total_gs) }}</td>
-      <td class="num">{{ "%.1f"|format((data.total_gs / total_gs * 100) if total_gs > 0 else 0) }}%</td>
+      <td class="num">{{ m.gs(data.refunds_gs) if data.refunds_gs else '—' }}</td>
+      <td class="num"><strong>{{ m.gs(data.net_total_gs) }}</strong></td>
+      <td class="num">{{ "%.1f"|format((data.net_total_gs / total_net_gs * 100) if total_net_gs > 0 else 0) }}%</td>
     </tr>
     {% endfor %}
   </tbody>

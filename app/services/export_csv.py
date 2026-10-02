@@ -12,7 +12,8 @@ Per-table files written:
 - rms-csv-YYYYMMDD-HHMMSS-recipe_line.csv
 - rms-csv-YYYYMMDD-HHMMSS-product.csv
 - rms-csv-YYYYMMDD-HHMMSS-sale.csv
-- rms-csv-YYYYMMDD-HHMMSS-sale_stock_move.csv
+- rms-csv-YYYYMMDD-HHMMSS-stock_movement.csv  (replaces legacy sale_stock_move.csv — see BACKLOG #1)
+- rms-csv-YYYYMMDD-HHMMSS-refund.csv          (M1 / BACKLOG M1; DNIT compliance)
 - rms-csv-YYYYMMDD-HHMMSS-import_batch.csv
 - rms-csv-YYYYMMDD-HHMMSS-app_meta.csv
 
@@ -45,8 +46,9 @@ from app.rms.models import (
     Recipe,
     RecipeLine,
     Sale,
-    SaleStockMove,
+    StockMovement,
 )
+from app.rms.models_legacy import Refund  # M1 (2026-10-02): refund CSV export
 
 # (filename_suffix, model_class, ordered_columns)
 TABLE_EXPORTS = [
@@ -112,14 +114,42 @@ TABLE_EXPORTS = [
         ],
     ),
     (
-        "sale_stock_move",
-        SaleStockMove,
+        "stock_movement",
+        StockMovement,
         [
             "id",
-            "sale_id",
-            "affected_recipe_id",
             "ingredient_id",
-            "qty_delta",
+            "movement_type",
+            "qty",
+            "reason",
+            "reference_id",
+            "reference_type",
+            "affected_recipe_id",
+            "recorded_at",
+            "created_by",
+        ],
+    ),
+    (
+        # M1 (2026-10-02): refund CSV export for DNIT compliance.
+        # Rows in this CSV are monetary reversals of sale/pedido targets;
+        # they're exported with the original Sale/Pedido/Order IDs so an
+        # external auditor can join against rms-csv-sale.csv to compute NET.
+        "refund",
+        Refund,
+        [
+            "id",
+            "target_type",
+            "target_id",
+            "target_amount_gs",
+            "amount_gs",
+            "payment_method",
+            "restock_qty",
+            "restocked_qty",
+            "reason",
+            "recorded_at",
+            "recorded_by",
+            "eod_date",
+            "loyalty_reversed",
         ],
     ),
     (

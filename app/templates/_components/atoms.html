@@ -277,6 +277,14 @@
       'points_invalid': ('error', 'Cantidad de puntos inválida.'),
       'points_insufficient': ('error', 'El cliente no tiene suficientes puntos.'),
       'points_redeemed': ('success', 'Canje registrado.'),
+      'refund_ok': ('success', 'Reembolso registrado.'),
+      'refund_err_voided': ('error', 'La venta ya fue anulada.'),
+      'refund_err_not_found': ('error', 'Venta o pedido no encontrado.'),
+      'refund_err_invalid_target_type': ('error', 'Tipo de reembolso inválido.'),
+      'refund_err_amount_invalid': ('error', 'El monto debe ser mayor a 0.'),
+      'refund_err_cap_exceeded': ('error', 'El reembolso excede el saldo pendiente.'),
+      'refund_err_eod_closed': ('error', 'No se puede reembolsar: el día ya fue cerrado.'),
+      'refund_err_payment_method_mismatch': ('error', 'El método de reembolso debe coincidir con el de la venta.'),
     } %}
     {% set m = messages.get(flash) %}
     {# Loyalty redeem: flash like "points_redeemed:10:10000" — show the discount #}

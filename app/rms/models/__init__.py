@@ -7,6 +7,13 @@ wrong schema, and left db.py with a syntax error. Until the refactor is
 redone properly, this package re-exports the last known-good monolithic
 models.py (commit b9b5288) which the entire app + 2140-test suite runs
 green against. The domain submodules remain on disk for the redo.
+
+BACKLOG #1 (2026-10-02): sale_stock_move has been deprecated. The
+class still exists as a no-table stub (SaleStockMove.__table__ = None)
+so any stale import paths still resolve the symbol, but
+session.add(SaleStockMove(...)) raises InvalidRequestError. The actual
+sale-driven stock-out is now on stock_movement with movement_type='sale'
+and reference_type='sale'. Migration 092 dropped the table itself.
 """
 from app.rms.models_legacy import *  # noqa: F403 — legacy compatibility layer, all names re-exported intentionally
 

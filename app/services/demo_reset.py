@@ -5,7 +5,7 @@ Used by POST /ops/reset-demo-data so Saskia can start fresh before the
 
 What this resets (all synthetic — none is real production data):
 - All Sale rows
-- All SaleStockMove rows (cascade from Sale)
+- Sale-driven StockMovement rows (movement_type='sale', reference_type='sale')
 - AuditLog rows with action='seed.complete' (the seed marker we use to
   identify "this row was produced by the demo seeder, not real activity")
 - AppMeta rows with key='last_seed_at' (only the seed timestamp; we leave
@@ -18,6 +18,8 @@ What this DOES NOT touch:
 - Users (the family accounts + the demo user stay)
 - Other AuditLog rows (login/logout/sales activity — historical signal
   the operator may want to keep)
+- Non-sale StockMovement rows (reorder, merma, adjustment — these are
+  operator-initiated actions, not sale-driven)
 - schema_version, backup timestamps, etc.
 
 Idempotent: re-running deletes 0 rows (the targeted Sale/AuditLog/
@@ -31,7 +33,7 @@ from __future__ import annotations
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from app.rms.models import AppMeta, AuditLog, Sale, SaleStockMove
+from app.rms.models import AppMeta, AuditLog, Sale, StockMovement
 
 
 def reset_demo_data(session: Session) -> dict[str, int]:
@@ -43,25 +45,26 @@ def reset_demo_data(session: Session) -> dict[str, int]:
 
     Counts reported:
       sales             — sale rows deleted
-      sale_stock_moves  — stock-move rows deleted (orphan + cascade)
+      stock_moves_sale  — stock_movement rows deleted (sale type, orphan + cascade)
       audit_seed        — AuditLog rows with action='seed.complete'
       app_meta_seed     — AppMeta rows with key='last_seed_at'
     """
-    # 1. Count SaleStockMove BEFORE deleting Sale so we know how many
-    # existed when the wipe started. The DB will cascade-delete them
-    # on Sale delete, but in case the cascade doesn't fire on some
-    # engine (or in case of orphan moves that no longer reference a
-    # sale), we run a follow-up explicit delete and report the larger
-    # of the two counts.
+    # 1. Count sale-type StockMovement rows BEFORE deleting Sale so we
+    # know how many existed when the wipe started. The DB will not
+    # cascade (no FK from stock_movement to sale), so we run an
+    # explicit delete here.
     stock_moves_before = session.execute(
-        select(func.count(SaleStockMove.id))
+        select(func.count(StockMovement.id))
+        .where(StockMovement.movement_type == "sale")
     ).scalar_one()
 
     sales_deleted = session.execute(delete(Sale)).rowcount
 
-    # Belt-and-suspenders: wipe any remaining stock moves (some engines
-    # may not cascade; SQLite + Postgres do, but be defensive).
-    session.execute(delete(SaleStockMove))
+    # Delete sale-driven StockMovement rows (the read-path equivalent
+    # of the legacy sale_stock_move table — see BACKLOG #1).
+    session.execute(
+        delete(StockMovement).where(StockMovement.movement_type == "sale")
+    )
 
     stock_moves_deleted = stock_moves_before
 
@@ -86,7 +89,7 @@ def reset_demo_data(session: Session) -> dict[str, int]:
         target_id=None,
         detail={
             "sales_deleted": sales_deleted,
-            "sale_stock_moves_deleted": stock_moves_deleted,
+            "stock_moves_sale_deleted": stock_moves_deleted,
             "audit_seed_deleted": audit_seed_deleted,
             "app_meta_seed_deleted": app_meta_seed_deleted,
         },
@@ -96,7 +99,7 @@ def reset_demo_data(session: Session) -> dict[str, int]:
 
     return {
         "sales": sales_deleted,
-        "sale_stock_moves": stock_moves_deleted,
+        "stock_moves_sale": stock_moves_deleted,
         "audit_seed": audit_seed_deleted,
         "app_meta_seed": app_meta_seed_deleted,
     }

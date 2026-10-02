@@ -414,3 +414,148 @@ def test_migration_v18_index_exists(tmp_path):
     assert any("ingredient_price_event" in n for n in names), (
         f"No index found for ingredient_price_event: {names}"
     )
+
+
+def test_inventory_edit_route_writes_event_on_price_change(client, session_factory):
+    """BACKLOG #31: /inventario/{id}/editar MUST write a 'manual' price
+    event when the price changes. Previously the route did
+    `ing.purchase_price_gs = price` directly, bypassing record_price_event
+    and leaving /reportes/precios empty for manually-edited prices.
+    """
+    from app.rms.models import Ingredient, IngredientPriceEvent
+    from app.rms.price_history import record_price_event
+
+    with session_factory() as s:
+        ing = Ingredient(name="Harina", unit="kg", stock_qty=10, min_stock_qty=2)
+        s.add(ing)
+        s.flush()
+        # Seed an earlier "restock" event so we can verify the edit-ingredient
+        # path adds a second event rather than replacing.
+        record_price_event(s, ing.id, 4000, source="restock")
+        s.commit()
+        ing_id = ing.id
+
+    # Edit price from 4000 → 5000
+    r = client.post(
+        f"/inventario/{ing_id}/editar",
+        data={
+            "name": "Harina",
+            "unit": "kg",
+            "stock_qty": "10",
+            "min_stock_qty": "2",
+            "purchase_price_gs": "5000",
+            "notes": "",
+            "shelf_life_days": "",
+            "allergens": "__unset__",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code in (303, 302), r.text
+
+    with session_factory() as s:
+        events = (
+            s.query(IngredientPriceEvent).filter_by(ingredient_id=ing_id).all()
+        )
+        assert len(events) == 2
+        sources = sorted(e.source for e in events)
+        assert sources == ["manual", "restock"]
+        prices = sorted(e.price_gs for e in events)
+        assert prices == [4000, 5000]
+
+
+def test_inventory_edit_route_records_event_when_price_unchanged(client, session_factory):
+    """Sibling's "Phase B — Q1 core" path in inventory_edit records a price
+    event every time the operator saves (auditability > optimization). This
+    test documents that contract: an unchanged-price save STILL adds a
+    'manual' event because the operator clicked Save.
+
+    The /reportes/precios dashboard relies on this — operators want
+    "every save" to leave a forensic trail, not just "every change".
+
+    Test name uses the verb "_records" to match real sibling implementation.
+    """
+    from app.rms.models import Ingredient, IngredientPriceEvent
+    from app.rms.price_history import record_price_event
+
+    with session_factory() as s:
+        ing = Ingredient(name="Manteca", unit="kg", stock_qty=5, min_stock_qty=1)
+        s.add(ing)
+        s.flush()
+        record_price_event(s, ing.id, 8500, source="restock")
+        s.commit()
+        ing_id = ing.id
+
+    r = client.post(
+        f"/inventario/{ing_id}/editar",
+        data={
+            "name": "Manteca",
+            "unit": "kg",
+            "stock_qty": "5",
+            "min_stock_qty": "1",
+            "purchase_price_gs": "8500",  # same as existing
+            "notes": "updated notes only",
+            "shelf_life_days": "",
+            "allergens": "__unset__",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code in (303, 302), r.text
+
+    with session_factory() as s:
+        events = (
+            s.query(IngredientPriceEvent).filter_by(ingredient_id=ing_id).all()
+        )
+        # Sibling's path: every save → audit trail event. 1 (restock) + 1 (manual save)
+        assert len(events) == 2
+        sources = sorted(e.source for e in events)
+        assert sources == ["manual", "restock"]
+
+
+def test_variant_edit_preferred_writes_event(client, session_factory):
+    """BACKLOG #31: editing the price of a *preferred* variant MUST write
+    a 'manual' price event on the parent Ingredient (same as the bare
+    ingredient-edit path). Non-preferred variants don't touch the parent.
+    """
+    from app.rms.models import Ingredient, IngredientPriceEvent, IngredientVariant
+    from app.rms.price_history import record_price_event
+
+    with session_factory() as s:
+        ing = Ingredient(name="Aceite", unit="l", stock_qty=20, min_stock_qty=5)
+        s.add(ing)
+        s.flush()
+        v = IngredientVariant(
+            ingredient_id=ing.id,
+            purchase_price_gs=12000,
+            stock_qty=10,
+            preferred=True,
+        )
+        s.add(v)
+        s.flush()
+        record_price_event(s, ing.id, 12000, source="restock")
+        s.commit()
+        ing_id = ing.id
+        variant_id = v.id
+
+    r = client.post(
+        f"/inventario/{ing_id}/variantes/{variant_id}/editar",
+        data={
+            "purchase_price_gs": "13500",  # changed
+            "stock_qty": "10",
+            "package_size": "1",
+            "package_unit": "l",
+            "supplier_id": "",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code in (303, 302), r.text
+
+    with session_factory() as s:
+        events = (
+            s.query(IngredientPriceEvent).filter_by(ingredient_id=ing_id).all()
+        )
+        assert len(events) == 2
+        # The new event is from manual source (variant edit mirrors to parent).
+        latest = max(events, key=lambda e: e.id)
+        assert latest.source == "manual"
+        assert latest.price_gs == 13500

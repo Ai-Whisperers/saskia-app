@@ -23,7 +23,7 @@ from app.rms.models import (
     Product,
     Recipe,
     Sale,
-    SaleStockMove,
+    StockMovement,
     WasteLog,
 )
 
@@ -119,23 +119,32 @@ def sales_revenue(session: Session,
 def actual_ingredient_consumption(session: Session,
                                    start: datetime,
                                    end: datetime) -> int:
-    """Sum of negative sale_stock_move × ingredient_price.
+    """Sum of negative stock_movement (sale type) × ingredient_price.
 
-    Assumes all stock movement is from sales (no waste / production moves).
+    After BACKLOG #1 (sale_stock_move consolidated into stock_movement
+    in this session), the sale-driven stock-out is recorded on
+    stock_movement with movement_type='sale' and a negative qty. The
+    function uses stock_movement.recorded_at as the time axis (the
+    legacy code used SaleStockMove which had no timestamp column and
+    therefore scanned the whole table — start/end were ignored).
     """
     rows = session.execute(
-        select(SaleStockMove.ingredient_id, SaleStockMove.qty_delta)
+        select(StockMovement.ingredient_id, StockMovement.qty)
+        .where(
+            StockMovement.movement_type == "sale",
+            StockMovement.recorded_at >= start,
+            StockMovement.recorded_at < end,
+        )
     ).all()
-    # No timestamp on SaleStockMove → use all moves as approximation.
     total = 0
-    for ing_id, qty_delta in rows:
-        if qty_delta is None or qty_delta >= 0:
+    for ing_id, qty in rows:
+        if qty is None or qty >= 0:
             continue
         ing = session.get(Ingredient, ing_id)
         if ing is None:
             continue
         price = int(ing.purchase_price_gs or 0)
-        total += int(abs(qty_delta) * price)
+        total += int(abs(qty) * price)
     return total
 
 

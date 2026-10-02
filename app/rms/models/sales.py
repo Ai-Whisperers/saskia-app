@@ -91,31 +91,24 @@ class Sale(Base):
         Index("ix_sale_sold_at_voided", "sold_at", "voided_at"),
     )
 
-class SaleStockMove(Base):
-    """Audit of stock moves caused by a sale (or its void).
+class SaleStockMove:
+    """Deprecated stub — sale_stock_move table removed by migration 092 (BACKLOG #1).
 
-    qty_delta is negative for normal sales (stock decreases). For voids, the
-    same row is updated to positive (stock restored).
+    Placeholder class kept here so any stale test or external code
+    that imports `from app.rms.models.sales import SaleStockMove`
+    still resolves a name. The actual canonical stub is defined in
+    app.rms.models_legacy.SaleStockMove (which SQLAlchemy marks
+    `__abstract__ = True` so it skips mapper config); we re-export
+    here so all import paths point to the same class.
     """
 
-    __tablename__ = "sale_stock_move"
+    def __new__(cls, *args, **kwargs):  # pragma: no cover — guard
+        raise TypeError(
+            "SaleStockMove is deprecated — sale_stock_move table was "
+            "dropped by migration 092. Use StockMovement with "
+            "movement_type='sale' and reference_type='sale' instead."
+        )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    sale_id: Mapped[int] = mapped_column(
-        ForeignKey("sale.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    affected_recipe_id: Mapped[int] = mapped_column(ForeignKey("recipe.id"), nullable=False, index=True)
-    ingredient_id: Mapped[int] = mapped_column(
-        ForeignKey("ingredient.id"), nullable=False, index=True
-    )
-    qty_delta: Mapped[float] = mapped_column(Float, nullable=False)
-
-    # Relationships
-    sale: Mapped["Sale"] = relationship(back_populates="stock_moves")
-    affected_recipe: Mapped["Recipe"] = relationship(  # noqa: F821 — SQLAlchemy 2.0 forward ref
-        foreign_keys=[affected_recipe_id], back_populates="stock_moves"
-    )
-    ingredient: Mapped["Ingredient"] = relationship(back_populates="stock_moves")  # noqa: F821 — SQLAlchemy 2.0 forward ref
 
 class Customer(Base):
     """A customer record (E13).

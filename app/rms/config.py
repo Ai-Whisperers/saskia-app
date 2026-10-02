@@ -68,10 +68,14 @@ BACKUP_THRESHOLD_HOURS = int(os.getenv("AIW_SASKIA_BACKUP_HOURS", "24"))
 KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_SASKIA_KEEP_LOCAL_DAYS", "30"))
 
 # Schema version (hand-rolled migrations; see db.py)
+<<<<<<< HEAD
 CURRENT_SCHEMA_VERSION = 97  # 093-097 (Sprint 4.6 backend-overhaul: Expense/Closure/SoftDelete/Audit/AvgCost)
     # 086 = monthly_closure table (Sprint 3.1 BACKLOG #15)
     # 087 = soft_delete_columns on owned tables (Sprint 3.2)
     # 088 = audit_columns on owned tables (Sprint 3.2)
+=======
+CURRENT_SCHEMA_VERSION = 92  # 092 = DROP sale_stock_move (BACKLOG #1 complete)
+>>>>>>> origin/main
 
 
 def ensure_dirs() -> None:

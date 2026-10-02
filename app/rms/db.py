@@ -27,6 +27,24 @@ import sys
 from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
 from typing import Any
+from app.rms.migrations._084_stock_qty_nonneg import _migration_084_stock_qty_nonneg
+from app.rms.migrations._085_sale_public_token import _migration_085_sale_public_token
+from app.rms.migrations._086_placeholder import _migration_086_placeholder
+from app.rms.migrations._087_placeholder import _migration_087_placeholder
+from app.rms.migrations._088_placeholder import _migration_088_placeholder
+from app.rms.migrations._089_refund_table import _migration_089_refund_table
+from app.rms.migrations._090_stock_movement_affected_recipe_id import (
+    _migration_090_stock_movement_affected_recipe_id,
+)
+from app.rms.migrations._091_backfill_stock_movement_recipe import (
+    _migration_091_backfill_stock_movement_recipe,
+)
+from app.rms.migrations._092_drop_sale_stock_move import _migration_092_drop_sale_stock_move
+from app.rms.migrations._093_expense_receipt_recurring import _migration_093_expense_receipt_recurring
+from app.rms.migrations._094_monthly_closure import _migration_094_monthly_closure
+from app.rms.migrations._095_soft_delete_columns import _migration_095_soft_delete_columns
+from app.rms.migrations._096_audit_columns import _migration_096_audit_columns
+from app.rms.migrations._097_ingredient_avg_cost import _migration_097_ingredient_avg_cost
 
 from loguru import logger
 from sqlalchemy import create_engine, event, text
@@ -4076,6 +4094,14 @@ MIGRATIONS = {
     82: _migration_082_expense,
     83: _migration_083_recipe_yield_qty_insert_guard,
     84: _migration_084_stock_qty_nonneg,
+    85: _migration_085_sale_public_token,
+    86: _migration_086_placeholder,
+    87: _migration_087_placeholder,
+    88: _migration_088_placeholder,
+    89: _migration_089_refund_table,
+    90: _migration_090_stock_movement_affected_recipe_id,
+    91: _migration_091_backfill_stock_movement_recipe,
+    92: _migration_092_drop_sale_stock_move,
     93: _migration_093_expense_receipt_recurring,
     94: _migration_094_monthly_closure,
     95: _migration_095_soft_delete_columns,

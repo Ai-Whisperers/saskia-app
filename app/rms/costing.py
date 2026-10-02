@@ -37,7 +37,6 @@ from app.rms.models import (
     Recipe,
     RecipeLine,
     Sale,
-    SaleStockMove,
     StockMovement,
 )
 from app.rms.money import to_int_gs
@@ -515,31 +514,25 @@ def apply_sale(
             try:
                 # Walk tree, collect (ingredient_id, qty_delta)
                 moves = _compute_stock_moves(session, recipe, qty, set())
-                # KNOWN DUAL-WRITE (Phase 14 #1 — partially addressed):
-                # We write BOTH SaleStockMove and StockMovement for the same
-                # sale. The reasons SaleStockMove is still written:
-                #   - 157 references in app/+ tests/ (accounting COGS,
-                #     export_csv, backup, demo_reset, seed/kyrian, etc.).
-                #   - SaleStockMove.affected_recipe_id records WHICH recipe
-                #     the ingredient came from (sub-recipe traceability),
-                #     which StockMovement does not capture.
-                # Full consolidation = add affected_recipe_id nullable on
-                # StockMovement + migrate SaleStockMove rows + drop the
-                # old table. Estimated scope: ~50 files touched. See
-                # IMPROVEMENT_BACKLOG.md #1 for the full plan.
+                # CONSOLIDATION COMPLETE (BACKLOG #1, this session):
+                # We previously wrote BOTH SaleStockMove and StockMovement
+                # for the same sale. After BACKLOG #1's single-table
+                # consolidation, we write ONLY StockMovement. SaleStockMove
+                # has been removed from the codebase and the migration 092
+                # drop-table is the next step.
+                #
+                # Migration 090 added `affected_recipe_id` as a nullable
+                # column on stock_movement. Migration 091 backfilled
+                # existing rows. New sales populate `affected_recipe_id`
+                # here at write time so the read path (forecast, food_cost,
+                # inventory_intel, /reportes/consumo) can serve from
+                # stock_movement alone.
                 for affected_recipe_id, ingredient_id, qty_delta in moves:
-                    move = SaleStockMove(
-                        sale_id=sale.id,
-                        affected_recipe_id=affected_recipe_id,
-                        ingredient_id=ingredient_id,
-                        qty_delta=-abs(qty_delta),  # negative = stock decrease
-                    )
-                    session.add(move)
                     ingredient = session.get(Ingredient, ingredient_id)
                     if ingredient is not None:
                         ingredient.stock_qty = (ingredient.stock_qty or 0) - abs(qty_delta)
                     stock_moves.append((ingredient_id, -abs(qty_delta)))
-                    # Write StockMovement audit record (negative qty = stock out)
+                    # Write the single StockMovement audit record.
                     stock_movement = StockMovement(
                         ingredient_id=ingredient_id,
                         movement_type="sale",
@@ -547,6 +540,7 @@ def apply_sale(
                         reason=f"Venta #{sale.id}",
                         reference_id=sale.id,
                         reference_type="sale",
+                        affected_recipe_id=affected_recipe_id,
                         recorded_at=sold_at,
                         created_by=None,
                     )

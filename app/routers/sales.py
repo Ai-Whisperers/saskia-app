@@ -12,10 +12,12 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
+from loguru import logger
 from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import require_login_or_disabled as require_login
+from app.rms.audit import record as audit_record
 from app.rms.catalogs import (
     default_channel_code,
     default_payment_method_code,
@@ -44,6 +46,11 @@ from app.rms.messages import (
 )
 from app.rms.models import Customer, Product, Sale, StockMovement
 from app.rms.money import to_int_gs
+from app.rms.public_tokens import (
+    enforce_rate_limit as public_token_enforce_rate_limit,
+    generate_public_token,
+    is_token_valid,
+)
 from app.rms.schemas import (
     ALLOWED_CHANNELS,
     CHANNEL_DEFAULT,
@@ -54,6 +61,14 @@ from app.rms.schemas import (
 from app.services.template_render import render
 
 router = APIRouter(prefix="/ventas", dependencies=[Depends(require_login)])
+
+# BACKLOG #17: public_router for /r/{token} — no auth, no CSRF.
+# Lives at root (mounted via app.include_router in main.py) so the URL
+# is short enough for WhatsApp messages. Mirrors pedidos.public_router.
+# Token generation, expiry validation, client-IP extraction, and
+# rate-limiting all delegate to app.rms.public_tokens so the two
+# public routes can never drift apart.
+public_router = APIRouter()
 
 
 def _decorated(s: Sale) -> dict:
@@ -511,6 +526,90 @@ async def sales_export_csv(
         media_type="text/csv; charset=utf-8",
         headers={
             "Content-Disposition": 'attachment; filename="ventas.csv"',
+        },
+    )
+
+
+@router.get("/{sale_id}", response_class=HTMLResponse)
+async def sale_detail(
+    request: Request,
+    sale_id: int,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Operator-facing single-sale detail page (BACKLOG #16).
+
+    Distinct from /recibo (the printable customer receipt):
+    - Full nav + breadcrumbs
+    - Action buttons: view recibo, void, refund
+    - Wider layout — fits channel, payment method, customer link
+    - Stock-move ledger so the operator can trace what got consumed
+    - Refund history table (M1, 2026-10-02)
+
+    Placed before /recibo so the {sale_id} path matches first; FastAPI
+    routing prefers more-specific literals, so /{sale_id}/recibo still
+    wins for the printable receipt.
+    """
+    from app.rms.errors import NotFound
+    from app.rms.models import Ingredient, StockMovement
+    from app.rms.refunds import list_refunds_for, sum_refunds_for
+
+    sale = session.get(Sale, sale_id)
+    if sale is None:
+        raise NotFound("venta", id=sale_id)
+
+    # Stock-move ledger for this sale (BACKLOG #16 traceability).
+    # After BACKLOG #1 (this session), the ledger lives in stock_movement
+    # keyed by (reference_id=sale_id, reference_type='sale'). Voids
+    # create a NEW positive-qty row, so both rows show up in the list.
+    moves = session.execute(
+        select(StockMovement)
+        .where(StockMovement.reference_id == sale_id)
+        .where(StockMovement.reference_type == "sale")
+        .order_by(StockMovement.id.asc())
+    ).scalars().all()
+
+    stock_moves = []
+    for sm in moves:
+        ing = session.get(Ingredient, sm.ingredient_id) if sm.ingredient_id else None
+        stock_moves.append({
+            "id": sm.id,
+            "ingredient_id": sm.ingredient_id,
+            "ingredient_name": ing.name if ing else f"#{sm.ingredient_id}",
+            "qty": abs(float(sm.qty)),
+            "unit": ing.unit if ing else "",
+            "affected_recipe_id": sm.affected_recipe_id,
+            "recorded_at_str": sm.recorded_at.isoformat() if sm.recorded_at else "—",
+        })
+
+    # M1: refund history (newest first for the operator table).
+    refund_rows = list_refunds_for(session, "sale", sale_id)
+    refunds_total_gs = sum_refunds_for(session, "sale", sale_id)
+    sale_total = int(sale.unit_price_gs or 0)
+    refunds_remaining_gs = sale_total - refunds_total_gs
+
+    refunds = []
+    for r in sorted(refund_rows, key=lambda x: x.recorded_at, reverse=True):
+        refunds.append({
+            "id": r.id,
+            "amount_gs": int(r.amount_gs),
+            "payment_method": r.payment_method,
+            "restock_qty": bool(r.restock_qty),
+            "restocked_qty": float(r.restocked_qty or 0),
+            "reason": r.reason,
+            "recorded_by": r.recorded_by,
+            "recorded_at_str": r.recorded_at.strftime("%Y-%m-%d %H:%M") if r.recorded_at else "—",
+        })
+
+    return render(
+        request,
+        "ventas_detalle.html",
+        {
+            "sale": _decorated(sale),
+            "stock_moves": stock_moves,
+            "refunds": refunds,
+            "refunds_total_gs": refunds_total_gs,
+            "refunds_count": len(refunds),
+            "refunds_remaining_gs": refunds_remaining_gs,
         },
     )
 
@@ -1100,7 +1199,7 @@ async def sale_create_multi(
         }
 
     All metadata (customer, payment, invoice, etc.) applies to the
-    parent sale only. Each item gets its own SaleStockMove rows via
+    parent sale only. Each item gets its own stock_movement rows via
     repeated apply_sale() calls within one transaction.
     """
     from pydantic import BaseModel, Field
@@ -1611,4 +1710,155 @@ async def sale_void(
     return RedirectResponse(url="/ventas/historial?flash=sale_void_ok", status_code=303)
 
 
-__all__ = ["router"]
+__all__ = ["router", "public_router"]
+
+
+# --- BACKLOG #17: /ventas/{id}/share (auth) + /r/{token} (public) ------------
+# Operator-only POST that issues a fresh public_token (and 30-day expiry),
+# then redirects to the detail page with the URL surfaced in the flash
+# banner. The token is regenerated on every call — operators can rotate by
+# clicking "Compartir" again, which immediately invalidates the prior URL.
+
+
+@router.post("/{sale_id}/share")
+def share_sale_recibo(
+    request: Request,
+    sale_id: int,
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Generate (or rotate) a public digital-recibo link for this sale.
+
+    On success, redirect back to the detail page with the URL in the
+    query string so the template can show a copy-paste box. We use a
+    redirect-after-POST pattern so refresh doesn't re-issue the token.
+    """
+    sale = session.get(Sale, sale_id)
+    if sale is None:
+        raise NotFound("venta", id=sale_id)
+
+    from app.rms.public_tokens import issue_token
+
+    token, expires_at = issue_token()
+    sale.public_token = token
+    sale.public_token_expires_at = expires_at
+    sale.public_token_shared_at = datetime.now(timezone.utc)
+    safe_commit(session)
+
+    # Audit the share issuance for forensics.
+    try:
+        audit_record(
+            session,
+            user_id=None,
+            action="write.sale.share",
+            request=request,
+            target_type="sale",
+            target_id=str(sale_id),
+            detail={"public_token_suffix": token[-4:], "expires_at": expires_at.isoformat()},
+        )
+        session.commit()
+    except Exception:  # noqa: BLE001 — audit best-effort
+        session.rollback()
+
+    public_url = f"/r/{token}"
+    return RedirectResponse(
+        url=f"/ventas/{sale_id}?shared=1&url={public_url}",
+        status_code=303,
+    )
+
+
+@public_router.get("/r/{token}", response_class=HTMLResponse)
+def public_recibo(request: Request, token: str) -> HTMLResponse:
+    """Public, no-auth digital-recibo page rendered for the customer.
+
+    Used as a WhatsApp-shareable link so the customer can re-open their
+    receipt at home ("mi número de venta / cliente / tems"). Mirrors
+    public_pedido exactly: same token shape, same 30-day expiry, same
+    rate-limit and audit hooks.
+    """
+    with request.app.state.session_factory() as session:
+        # Cheap first — rate-limit before the DB hit. Shared helper
+        # delegates to AuditLog.action == "public.recibo.view" counting
+        # so /r/{token} and /p/{token} use the same enforcement shape.
+        public_token_enforce_rate_limit(
+            request, session, action_label="public.recibo.view"
+        )
+
+        # Sale.id is int PK; look up by public_token so /r/{token} resolves
+        # to the sale that owns it. Same shape as public_pedido.
+        sale = session.execute(
+            select(Sale)
+            .where(Sale.public_token == token)
+            .options(selectinload(Sale.product), selectinload(Sale.customer))
+        ).scalar_one_or_none()
+        if sale is None:
+            raise HTTPException(
+                status_code=404, detail="Recibo no encontrado"
+            )
+
+        # 410 Gone (not 404) for expired tokens — the customer should
+        # understand the link aged out, not that the sale never existed.
+        if not is_token_valid(sale.public_token_expires_at):
+            raise HTTPException(
+                status_code=410,
+                detail=(
+                    "Este link venció. Pedile a la panadería que te mande "
+                    "uno nuevo."
+                ),
+            )
+
+        # Audit the view for forensics + rate-limit counting.
+        audit_record(
+            session,
+            user_id=None,
+            action="public.recibo.view",
+            request=request,
+            target_type="sale",
+            target_id=str(sale.id),
+            detail={"public_token_suffix": token[-4:]},
+        )
+        try:
+            session.commit()
+        except Exception:  # noqa: BLE001 — audit best-effort
+            session.rollback()
+
+        # Reuse the same recibo.html template the cashier sees. The
+        # public_mode flag hides nav chrome and the "back to history"
+        # button so the customer sees a clean receipt, but keeps the
+        # print stylesheet so they can save as PDF.
+        loyalty_snapshot = None
+        if sale.customer_id:
+            from app.rms.models import Customer as _Cust, LoyaltyTransaction as _LT
+
+            cust = session.get(_Cust, sale.customer_id)
+            if cust is not None:
+                earn_row = session.execute(
+                    select(_LT)
+                    .where(_LT.sale_id == sale.id)
+                    .where(_LT.reason == "earn_sale")
+                    .limit(1)
+                ).scalar_one_or_none()
+                redeemed_row = session.execute(
+                    select(_LT)
+                    .where(_LT.sale_id == sale.id)
+                    .where(_LT.reason == "redeem")
+                    .limit(1)
+                ).scalar_one_or_none()
+                earn_abs = int(earn_row.delta) if earn_row else 0
+                redeem_abs = -int(redeemed_row.delta) if redeemed_row else 0
+                loyalty_snapshot = {
+                    "customer_name": cust.name or cust.phone or "Cliente",
+                    "earn_points": earn_abs,
+                    "redeemed_points": redeem_abs,
+                    "current_balance": int(cust.loyalty_points or 0),
+                    "redeemed_discount_gs": discount_gs_for_points(redeem_abs),
+                }
+
+        return render(
+            request,
+            "recibo.html",
+            {
+                "sale": _decorated(sale),
+                "loyalty_snapshot": loyalty_snapshot,
+                "public_mode": True,
+            },
+        )

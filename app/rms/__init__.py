@@ -4,7 +4,7 @@ The restaurant-management system core. Module structure:
 
 config          — paths, ports, env vars
 db              — engine, session, pragmas (WAL, secure_delete, FK), versioned migrations
-models          — SQLAlchemy ORM (ingredient, recipe_line, recipe, product, sale, sale_stock_move, import_batch)
+models          — SQLAlchemy ORM (ingredient, recipe_line, recipe, product, sale, stock_movement, import_batch; sale_stock_move dropped by migration 092 in BACKLOG #1)
 money           — Decimal helpers + Guaraní formatting (Paraguayan convention)
 units           — Unit enum with aliases (g/kg/ml/l/und)
 costing         — pure functions for recipe cost, product cost, margin

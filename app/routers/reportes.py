@@ -27,7 +27,7 @@ from app.rms.accounting import (
 from app.rms.charts import fmt_short_date, line_chart
 from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
-from app.rms.models import Ingredient, IngredientPriceEvent, Sale
+from app.rms.models import Ingredient, IngredientPriceEvent, Sale, StockMovement
 from app.rms.price_history import batch_price_stats, price_history, price_stats
 from app.rms.rate_limit import read_rate_limit_dependency
 from app.rms.sales_intel import customer_retention, sales_by_hour, sales_heatmap, waste_roi_by_ingredient
@@ -216,6 +216,16 @@ def reportes_index(request: Request) -> HTMLResponse:
             "icon": "#icon-report",
             "url": "/reportes/precios",
         },
+        {
+            "id": "consumo",
+            "name": "Consumo por ingrediente",
+            "desc": "Top ingredientes consumidos por ventas (últimos 7/30/90/365 días).",
+            "help": "Suma los movimientos de stock atribuidos a ventas reales "
+                     "(excluye anuladas). Útil para detectar qué insumos rotan "
+                     "más rápido y planificar reposición.",
+            "icon": "#icon-report",
+            "url": "/reportes/consumo",
+        },
     ]
     return render(request, "reportes.html", {"reports": reports})
 
@@ -350,7 +360,15 @@ def libro_ventas_set_pdf(
     total_gross = sum(r.total_gross_gs for r in rows)
     total_base = sum(r.base_gs for r in rows)
     total_iva = sum(r.iva_gs for r in rows)
-    elements.append(Paragraph(f"Total ventas: Gs. {total_gross:,.0f}", styles["Normal"]))
+    # M1 (2026-10-02): refunds + net for DNIT compliance on the
+    # Libro de Ventas PDF export. Paraguay's fiscal authority requires
+    # refund rows on the same ledger as their originating sales.
+    total_refunds = sum(r.refunds_gs for r in rows)
+    total_net = sum(r.net_gross_gs for r in rows)
+    refund_count = sum(r.refunds_count for r in rows)
+    elements.append(Paragraph(f"Total ventas (bruto): Gs. {total_gross:,.0f}", styles["Normal"]))
+    elements.append(Paragraph(f"Reembolsos ({refund_count} operacion{'es' if refund_count != 1 else ''}): Gs. {total_refunds:,.0f}", styles["Normal"]))
+    elements.append(Paragraph(f"Total ventas (neto): Gs. {total_net:,.0f}", styles["Normal"]))
     elements.append(Paragraph(f"Base imponible: Gs. {total_base:,.0f}", styles["Normal"]))
     elements.append(Paragraph(f"IVA 10%: Gs. {total_iva:,.0f}", styles["Normal"]))
     elements.append(Spacer(1, 0.5 * cm))
@@ -415,15 +433,24 @@ def reportes_diario(
 
     # CSV export
     if format == "csv":
-        rows = [["Fecha", "Ventas", "Ingresos brutos (Gs.)", "Base IVA (Gs.)", "IVA (Gs.)", "COGS (Gs.)", "Margen bruto (Gs.)"]]
+        # M1 (2026-10-02): include refund columns so fiscal reports
+        # show NET (gross - refunds) explicitly.
+        rows = [
+            ["Fecha", "Ventas", "Ingresos brutos (Gs.)", "Reembolsos (Gs.)",
+             "Ingresos netos (Gs.)", "Base IVA (Gs.)", "IVA (Gs.)",
+             "COGS (Gs.)", "Margen bruto (Gs.)", "Reembolsos (#)"],
+        ]
         rows.append([
             d.strftime("%Y-%m-%d"),
             str(summary.n_sales),
-            str(summary.revenue_gross_gs),
+            str(summary.revenue_gross_gs + summary.refunds_total_gs),  # gross before subtract
+            str(summary.refunds_total_gs),
+            str(summary.revenue_gross_gs),  # net (after subtract)
             str(summary.revenue_base_gs),
             str(summary.iva_gs),
             str(summary.cogs_gs),
             str(summary.margin_gs),
+            str(summary.refunds_count),
         ])
         buf = io.StringIO()
         writer = csv.writer(buf)
@@ -742,7 +769,8 @@ def reportes_metodos_pago(
     start_date = datetime.fromisoformat(start) if start else None
     end_date = datetime.fromisoformat(end) if end else None
     breakdown = sales_by_payment_method(session, start_date=start_date, end_date=end_date)
-    total_gs = sum(v["total_gs"] for v in breakdown.values())
+    # M1 (2026-10-02): show NET total (subtract refunds) at the top.
+    total_gs = sum(v["net_total_gs"] for v in breakdown.values())
     return render(request, "reportes_metodos_pago.html", {
         "breakdown": breakdown,
         "total_gs": total_gs,
@@ -794,6 +822,113 @@ def _precio_rows(session: Session, days: int) -> list[dict]:
             "last_event_at": last_ts_map.get(iid),
         })
     return rows
+
+
+@router.get("/consumo", response_class=HTMLResponse)
+def reportes_consumo(
+    request: Request,
+    days: int = Query(30),
+    limit: int = Query(20, ge=1, le=100),
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """BACKLOG #26: surface consumption patterns.
+
+    After BACKLOG #1 (this session), sale_stock_move was consolidated
+    into stock_movement. The read path is now a single-table query on
+    stock_movement filtered to movement_type='sale'. Voided sales are
+    netted automatically (void_sale creates a positive-qty reverse row
+    that cancels the original negative-qty row when summed).
+    """
+    if days not in _ALLOWED_DAYS:
+        raise HTTPException(
+            status_code=422, detail=f"días inválido: usá uno de {list(_ALLOWED_DAYS)}"
+        )
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    # Net consumption: sum(qty) where qty<0 (sales) plus qty>0 (voids)
+    # naturally nets out. `abs(total_qty)` rank orders by magnitude
+    # regardless of net direction.
+    q = (
+        select(
+            StockMovement.ingredient_id,
+            Ingredient.name,
+            Ingredient.unit,
+            func.sum(StockMovement.qty).label("total_qty"),
+            func.count(StockMovement.id).label("n_moves"),
+            func.count(func.distinct(StockMovement.reference_id)).label("n_sales"),
+        )
+        .join(Ingredient, Ingredient.id == StockMovement.ingredient_id)
+        .where(StockMovement.movement_type == "sale")
+        .where(StockMovement.recorded_at >= cutoff)
+        .group_by(
+            StockMovement.ingredient_id,
+            Ingredient.name,
+            Ingredient.unit,
+        )
+        .order_by(func.abs(func.sum(StockMovement.qty)).desc())
+        .limit(limit)
+    )
+
+    rows_raw = session.execute(q).all()
+    rows = [
+        {
+            "ingredient_id": ing_id,
+            "name": ing_name,
+            "unit": ing_unit or "",
+            "total_qty": float(total_qty or 0.0),
+            "abs_qty": abs(float(total_qty or 0.0)),
+            "n_moves": int(n_moves or 0),
+            "n_sales": int(n_sales or 0),
+        }
+        for ing_id, ing_name, ing_unit, total_qty, n_moves, n_sales in rows_raw
+    ]
+    return render(
+        request, "reportes_consumo.html", {"rows": rows, "days": days, "limit": limit}
+    )
+
+
+@router.get("/consumo/csv")
+def reportes_consumo_csv(
+    days: int = Query(30),
+    session: Session = Depends(get_session),
+) -> Response:
+    """CSV variant for /reportes/consumo (BACKLOG #1 single-table read)."""
+    if days not in _ALLOWED_DAYS:
+        raise HTTPException(
+            status_code=422, detail=f"días inválido: usá uno de {list(_ALLOWED_DAYS)}"
+        )
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    q = (
+        select(
+            StockMovement.ingredient_id,
+            Ingredient.name,
+            Ingredient.unit,
+            func.sum(StockMovement.qty).label("total_qty"),
+            func.count(StockMovement.id).label("n_moves"),
+            func.count(func.distinct(StockMovement.reference_id)).label("n_sales"),
+        )
+        .join(Ingredient, Ingredient.id == StockMovement.ingredient_id)
+        .where(StockMovement.movement_type == "sale")
+        .where(StockMovement.recorded_at >= cutoff)
+        .group_by(
+            StockMovement.ingredient_id,
+            Ingredient.name,
+            Ingredient.unit,
+        )
+        .order_by(func.abs(func.sum(StockMovement.qty)).desc())
+    )
+    out = io.StringIO()
+    out.write("ingredient_id,name,total_qty,n_moves,n_sales,unit\n")
+    for ing_id, name, unit, total_qty, n_moves, n_sales in session.execute(q).all():
+        out.write(
+            f"{ing_id},{name},{float(total_qty or 0):.4f},{int(n_moves or 0)},"
+            f"{int(n_sales or 0)},{unit or ''}\n"
+        )
+    return Response(
+        content=out.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="consumo.csv"'},
+    )
 
 
 @router.get("/precios", response_class=HTMLResponse)

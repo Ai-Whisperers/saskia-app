@@ -1,12 +1,17 @@
 {# Printable single-sale receipt (A6-friendly, narrow).
 
-   Rendered by `GET /ventas/{sale_id}/recibo`. Operator hits ⌘P / Ctrl+P
-   to print or save as PDF; the print stylesheet in app.css hides the nav.
+   Rendered by `GET /ventas/{sale_id}/recibo` (operator) and
+   `GET /r/{token}` (BACKLOG #17, public digital share).
+   Operator hits ⌘P / Ctrl+P to print or save as PDF; the print
+   stylesheet in app.css hides the nav.
 #}
 {% extends "base.html" %}
 {% import "_components/atoms.html" as ui %}
 {% import "_components/macros.html" as m %}
-{% block title %}Recibo #{{ sale.id }}{% endblock %}
+{% block title %}
+{% if public_mode %}Recibo #{{ sale.id }} · Saskia RMS
+{% else %}Recibo #{{ sale.id }}{% endif %}
+{% endblock %}
 
 {% block content %}
 <style>
@@ -33,8 +38,15 @@
   /* Voided banner must print */
   .voided-banner { display: flex !important; page-break-before: avoid; }
 }
+
+/* BACKLOG #17 — public_mode hides nav chrome for the customer-facing
+   receipt. The "Imprimir" button stays so the customer can still save
+   the page as PDF. */
+{% if public_mode %}
+.public-shell { padding-top: var(--space-4); }
+{% endif %}
 </style>
-<div class="container" style="max-width: 360px;">
+<div class="container {% if public_mode %}public-shell{% endif %}" style="max-width: 360px;">
 
   {% if sale.voided_at %}
   <div class="voided-banner" role="alert" aria-label="Recibo anulado">
@@ -164,7 +176,13 @@
       <svg class="icon" aria-hidden="true"><use href="#icon-print"/></svg>
       Imprimir
     </button>
+    {% if not public_mode %}
     <a href="/ventas" class="btn btn-ghost mt-2 no-print">Volver al historial</a>
+    {% else %}
+    <p class="text-muted" style="font-size:var(--text-xs); margin-top:var(--space-3);">
+      Recibo digital · Saskia RMS
+    </p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

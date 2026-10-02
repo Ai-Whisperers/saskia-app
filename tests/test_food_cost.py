@@ -22,7 +22,7 @@ from app.rms.models import (
     Recipe,
     RecipeLine,
     Sale,
-    SaleStockMove,
+    StockMovement,
     WasteLog,
 )
 
@@ -124,8 +124,11 @@ def test_actual_consumption_computes(session_factory):
         s.flush()
         # 5 negative moves of 0.1kg = 0.5kg × 1000 Gs/kg = 500
         for _ in range(5):
-            s.add(SaleStockMove(sale_id=sale.id, affected_recipe_id=p.recipe_id,
-                                ingredient_id=ing.id, qty_delta=-0.1))
+            s.add(StockMovement(
+                ingredient_id=ing.id, movement_type="sale", qty=-0.1,
+                reason=f"Venta #{sale.id}", reference_id=sale.id,
+                reference_type="sale", affected_recipe_id=p.recipe_id,
+            ))
         s.commit()
         cost = actual_ingredient_consumption(s, now - timedelta(hours=1),
                                              now + timedelta(hours=1))
@@ -140,8 +143,11 @@ def test_actual_consumption_ignores_positive_moves(session_factory):
         sale = Sale(sold_at=now, product_id=p.id, qty=1, unit_price_gs=5000)
         s.add(sale)
         s.flush()
-        s.add(SaleStockMove(sale_id=sale.id, affected_recipe_id=p.recipe_id,
-                            ingredient_id=ing.id, qty_delta=+0.5))  # void
+        s.add(StockMovement(
+            ingredient_id=ing.id, movement_type="sale", qty=+0.5,
+            reason=f"Anulación venta #{sale.id}", reference_id=sale.id,
+            reference_type="sale", affected_recipe_id=p.recipe_id,
+        ))  # void reversal
         s.commit()
         cost = actual_ingredient_consumption(s, now - timedelta(hours=1),
                                              now + timedelta(hours=1))
@@ -184,8 +190,11 @@ def test_food_cost_report_basic(session_factory):
         sale = Sale(sold_at=now, product_id=p.id, qty=2, unit_price_gs=5000)
         s.add(sale)
         s.flush()
-        s.add(SaleStockMove(sale_id=sale.id, affected_recipe_id=p.recipe_id,
-                            ingredient_id=ing.id, qty_delta=-0.2))
+        s.add(StockMovement(
+            ingredient_id=ing.id, movement_type="sale", qty=-0.2,
+            reason=f"Venta #{sale.id}", reference_id=sale.id,
+            reference_type="sale", affected_recipe_id=p.recipe_id,
+        ))
         s.commit()
 
         report = food_cost_report(s, period_days=30)

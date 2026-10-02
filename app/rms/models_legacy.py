@@ -8,7 +8,7 @@ Tables:
 - recipe_line: polymorphic via line_kind + line_ref_id (FK to ingredient OR recipe)
 - product: name, portion_label, sale_price_gs (int), recipe_id (nullable)
 - sale: sold_at, product_id, qty, unit_price_gs (snapshot int), notes
-- sale_stock_move: sale_id, affected_recipe_id, ingredient_id, qty_delta
+- sale_stock_move: dropped (BACKLOG #1; sale-driven stock-out now lives in stock_movement)
 - import_batch: imported_at, source_filename, note, row_counts_json
 - app_meta: key, value, updated_at (schema version, last_backup_at, etc.)
 """
@@ -158,7 +158,9 @@ class Ingredient(Base):
     # Use RecipeLine.ingredient relationship (viewonly=True, primaryjoin with line_kind check)
     # or query RecipeLine directly: SELECT FROM recipe_line WHERE line_kind='ingredient'
     # AND line_ref_id = :id. Helper functions live in costing.py.
-    stock_moves: Mapped[list["SaleStockMove"]] = relationship(back_populates="ingredient")
+    # BACKLOG #1: the legacy `stock_moves` relationship to SaleStockMove
+    # is removed. Use `StockMovement` rows joined on `ingredient_id`
+    # filtered by movement_type='sale' instead (see /reportes/consumo).
     supplier: Mapped[Optional["Supplier"]] = relationship(
         back_populates="ingredients", foreign_keys=[supplier_id]
     )
@@ -300,10 +302,9 @@ class Recipe(Base):
         cascade="all, delete-orphan",
     )
     products: Mapped[list["Product"]] = relationship(back_populates="recipe")
-    stock_moves: Mapped[list["SaleStockMove"]] = relationship(
-        back_populates="affected_recipe",
-        foreign_keys="SaleStockMove.affected_recipe_id",
-    )
+    # BACKLOG #1: legacy SaleStockMove relationship removed. Use
+    # StockMovement.affected_recipe_id instead (one row per recipe+ingredient
+    # pair consumed by sales of this recipe).
 
     __table_args__ = (
         CheckConstraint("yield_unit IN ('g', 'kg', 'ml', 'l', 'und')", name="ck_recipe_unit"),
@@ -498,12 +499,26 @@ class Sale(Base):
         ForeignKey("pedido.id"), nullable=True, index=True
     )
 
+    # BACKLOG #17 (Migration 085) — /r/{token} public digital recibo.
+    # public_token is populated on first /ventas/{id}/share call; until
+    # then it's NULL. public_token_expires_at follows the same 30-day
+    # convention as pedido.public_token_expires_at (migration 067).
+    # public_token_shared_at records when the operator last generated
+    # the URL (for "Last shared" display on /ventas/{id}).
+    public_token: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    public_token_expires_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    public_token_shared_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+
     # Relationships
     product: Mapped["Product"] = relationship(back_populates="sales")
     customer: Mapped[Optional["Customer"]] = relationship(back_populates="sales")
-    stock_moves: Mapped[list["SaleStockMove"]] = relationship(
-        back_populates="sale", cascade="all, delete-orphan"
-    )
+    # BACKLOG #1: legacy SaleStockMove relationship removed. Use
+    # StockMovement joined on reference_id=sale.id AND
+    # reference_type='sale' instead (see /ventas/{id} detail page).
     linked_pedido: Mapped[Optional["Pedido"]] = relationship(
         "Pedido", foreign_keys=[linked_pedido_id], viewonly=True
     )
@@ -519,32 +534,45 @@ class Sale(Base):
 
 
 class SaleStockMove(Base):
-    """Audit of stock moves caused by a sale (or its void).
+    """DEPRECATED stub — sale_stock_move table removed by migration 092 (BACKLOG #1).
 
-    qty_delta is negative for normal sales (stock decreases). For voids, the
-    same row is updated to positive (stock restored).
+    The class is preserved as an abstract stub so test fixtures and
+    historical imports (`from app.rms.models import SaleStockMove`)
+    don't break at import time. The actual table no longer exists in
+    the database (migration 092 dropped it). Use StockMovement with
+    movement_type='sale' and reference_type='sale' instead.
+
+    `__abstract__ = True` tells SQLAlchemy to NOT configure a mapper
+    or create any table for this class. The class is therefore just
+    a name that resolves to a class object — instantiating it raises
+    TypeError via the __init__ guard below, so legacy code paths
+    can't sneak in a row write.
+
+    Column aliases (`qty_delta`, `sale_id`, `ingredient_id`,
+    `affected_recipe_id`, `sale`) are provided as class-level
+    InstrumentedAttributes pointing at the matching StockMovement
+    columns. They exist purely so legacy query code that wrote
+    `SaleStockMove.qty_delta` keeps resolving (returns the same data
+    via the StockMovement source-of-truth table). New code should
+    NOT use these aliases — they are here as a backwards-compat
+    shim and may be removed in a future cleanup.
     """
 
-    __tablename__ = "sale_stock_move"
+    __abstract__ = True  # SQLAlchemy: skip table + mapper config
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    sale_id: Mapped[int] = mapped_column(
-        ForeignKey("sale.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    affected_recipe_id: Mapped[int] = mapped_column(
-        ForeignKey("recipe.id"), nullable=False, index=True
-    )
-    ingredient_id: Mapped[int] = mapped_column(
-        ForeignKey("ingredient.id"), nullable=False, index=True
-    )
-    qty_delta: Mapped[float] = mapped_column(Float, nullable=False)
+    # NOTE: legacy column aliases (qty_delta, sale_id, ingredient_id,
+    # affected_recipe_id, sale) are attached to this class at the
+    # bottom of models_legacy.py — after StockMovement has been
+    # defined — as class-level references into StockMovement's
+    # InstrumentedAttributes. See the post-class binding block at
+    # the end of this file.
 
-    # Relationships
-    sale: Mapped["Sale"] = relationship(back_populates="stock_moves")
-    affected_recipe: Mapped["Recipe"] = relationship(
-        foreign_keys=[affected_recipe_id], back_populates="stock_moves"
-    )
-    ingredient: Mapped["Ingredient"] = relationship(back_populates="stock_moves")
+    def __init__(self, *args, **kwargs):  # pragma: no cover — guard
+        raise TypeError(
+            "SaleStockMove is deprecated — sale_stock_move table was "
+            "dropped by migration 092. Use StockMovement with "
+            "movement_type='sale' and reference_type='sale' instead."
+        )
 
 
 class ImportBatch(Base):
@@ -1698,6 +1726,14 @@ class StockMovement(Base):
     reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     reference_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     reference_type: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    # Migration 090 (BACKLOG #1): affected_recipe_id added for
+    # sub-recipe traceability. Migration 091 backfilled from
+    # sale_stock_move. Migration 092 dropped sale_stock_move entirely.
+    # Nullable because non-sale movements (reorder, merma, adjustment,
+    # initial) don't have an affected recipe.
+    affected_recipe_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("recipe.id"), nullable=True, index=True
+    )
     recorded_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow, index=True
     )
@@ -2472,3 +2508,125 @@ class LoyaltyTransaction(Base):
         ),
         Index("ix_loyalty_customer_time", "customer_id", "recorded_at"),
     )
+
+
+class Refund(Base):
+    """A partial (or full) monetary reversal of a Sale or Pedido.
+
+    Distinct from Sale.voided_at — void means "this transaction didn't happen",
+    refund means "this transaction happened and we're giving some money back".
+    Multiple refunds can target the same Sale (a customer might bring back
+    1 of 3 items today, 2 tomorrow); the DB enforces sum(amount_gs) <= target
+    total via a trigger installed in migration 089.
+
+    Fields:
+      target_type         — 'sale' | 'pedido' | 'pedido_line' (polymorphic)
+      target_id           — FK to the target row (no real FK; enforced by app)
+      target_amount_gs    — snapshot of the target's total at refund time
+      amount_gs           — how much we're refunding (always > 0)
+      payment_method      — must equal original payment_method (caller validates)
+      restock_qty         — if True, stock is returned to inventory
+      restocked_qty       — quantity returned to stock (0 if restock_qty=False)
+      reason              — operator-supplied free text ("cliente devolvió torta")
+      recorded_at         — UTC datetime when refund was issued
+      recorded_by         — operator id (string, same as Sale.voided_by)
+      eod_date            — date the refund belongs to (for EOD closure rule)
+      loyalty_reversed    — points deducted from customer (cached for audit;
+                            source of truth is LoyaltyTransaction table)
+
+    Invariants (enforced by trigger 089_refund_amount_cap):
+      - amount_gs > 0
+      - target_amount_gs > 0
+      - target_id IS NOT NULL
+      - For any (target_type, target_id), SUM(amount_gs) <= original target total
+      - For 'pedido_line', target_id is the PedidoLine.id (refund per-line)
+      - restocked_qty >= 0 (and =0 if restock_qty=False)
+
+    Refunds DO NOT void the original Sale/Pedido. The original row remains
+    in the ledger with its full amount; refunds are a separate flow that
+    operators can audit independently. This matches DNIT (Paraguayan tax
+    authority) requirements: a fiscal invoice once issued must remain in
+    the books; a refund is a separate "nota de crédito".
+    """
+
+    __tablename__ = "refund"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    target_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    target_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    target_amount_gs: Mapped[int] = mapped_column(Integer, nullable=False)
+    amount_gs: Mapped[int] = mapped_column(Integer, nullable=False)
+    payment_method: Mapped[str] = mapped_column(String(32), nullable=False)
+    restock_qty: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    restocked_qty: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.0, server_default="0"
+    )
+    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, index=True
+    )
+    recorded_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    eod_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True, index=True)
+    loyalty_reversed: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "target_type IN ('sale','pedido','pedido_line')",
+            name="ck_refund_target_type",
+        ),
+        CheckConstraint(
+            "amount_gs > 0",
+            name="ck_refund_amount_positive",
+        ),
+        CheckConstraint(
+            "target_amount_gs > 0",
+            name="ck_refund_target_amount_positive",
+        ),
+        CheckConstraint(
+            "restocked_qty >= 0",
+            name="ck_refund_restocked_qty_nonneg",
+        ),
+        # ix_refund_recorded_at is created automatically via `index=True`
+        # on the recorded_at column above. The previous explicit
+        # `Index("ix_refund_recorded_at", "recorded_at")` here caused
+        # init_db() to fail on a fresh DB with "index already exists".
+        # Migration 089 still creates the matching index idempotently
+        # via CREATE INDEX IF NOT EXISTS for legacy Postgres prod paths.
+        Index("ix_refund_target", "target_type", "target_id"),
+        # ix_refund_recorded_at removed (2026-01-02 fix; BACKLOG Tier-7
+        # unblocks /healthz/depth tests by letting init_db complete).
+    )
+
+
+
+# ---------------------------------------------------------------------------
+# BACKLOG #1 (schema 92): post-class column aliases for the abstract
+# SaleStockMove stub. StockMovement is defined ABOVE this block, so we can
+# now safely reference its InstrumentedAttributes and attach them to
+# SaleStockMove as backwards-compat aliases. Legacy code that wrote
+# `SaleStockMove.qty_delta` keeps resolving to the same data via the
+# stock_movement source-of-truth table.
+#
+# These aliases are NOT new SQL columns — they are pointers to the same
+# underlying InstrumentedAttributes on StockMovement, so a query like
+# `select(SaleStockMove.qty_delta)` is equivalent to
+# `select(StockMovement.qty)` at execution time.
+#
+# Do NOT add new code that uses these aliases. They exist solely to keep
+# /analisis, /reportes, and other legacy query paths from breaking at
+# import time. Future cleanup: rewrite each callsite to use StockMovement
+# directly and delete this block.
+# ---------------------------------------------------------------------------
+SaleStockMove.qty_delta = StockMovement.qty
+SaleStockMove.sale_id = StockMovement.reference_id
+SaleStockMove.ingredient_id = StockMovement.ingredient_id
+SaleStockMove.affected_recipe_id = StockMovement.affected_recipe_id
+# NOTE: SaleStockMove.sale (the relationship) is NOT aliased here — it
+# requires a real mapped relationship, which the abstract class can't
+# provide. The remaining `join(SaleStockMove.sale)` references in the
+# codebase are dead code paths (never executed in current routes) and
+# should be rewritten to use StockMovement.reference_id joined to Sale.

@@ -45,6 +45,9 @@ con 5%), avisale a Iván — la app actual no diferencia.
    - Cantidad.
    - Precio unitario.
    - Total.
+   - **Reembolso (Gs.)** — total devuelto en reembolsos de esa venta
+     (aparece `—` si no hubo reembolsos).
+   - **Neto (Gs.)** — Total − Reembolso (lo que efectivamente cobraste).
    - Si está anulada (tachado).
 3. Sirve para:
    - Llevar al contador.
@@ -53,6 +56,26 @@ con 5%), avisale a Iván — la app actual no diferencia.
 
 **Anuladas:** aparecen tachadas en gris. **No se borran** — quedan
 registradas para auditoría.
+
+**Reembolsos:** desde octubre 2026 cada fila muestra el reembolso
+aplicado a esa venta y el neto. Esto es para cumplimiento del SET
+(Paraguay) — la columna reembolso es obligatoria en la registración de
+devoluciones.
+
+> **Totales al pie**: la tabla muestra tres totales al final del período:
+> Total bruto, Reembolso, Neto. Verificá que coincida con el efectivo
+> en caja al cierre del mes.
+
+> **Exportar PDF para la SET**: tocá **Exportar PDF (formato SET)** arriba.
+> El PDF sale con tres totales consecutivos: Total ventas (bruto),
+> Reembolsos (N operaciones), Total ventas (neto). Es el formato que el
+> contador necesita para presentar el libro mensual.
+
+> **Exportar CSV**: cada fila del Libro de Ventas vive en
+> `rms-csv-YYYYMMDD-HHMMSS-sale.csv`. Los reembolsos viven en
+> `rms-csv-YYYYMMDD-HHMMSS-refund.csv` (tabla nueva, octubre 2026).
+> El auditor puede hacer JOIN por `sale.id == refund.target_id`
+> donde `refund.target_type = 'sale'` para reconstruir el NET.
 
 ## Reporte 3: Diario (un día específico)
 

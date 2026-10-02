@@ -30,7 +30,7 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.rms.models import Customer, Ingredient, Product, Sale, SaleStockMove
+from app.rms.models import Customer, Ingredient, Product, Sale, StockMovement
 from app.rms.money import to_int_gs
 
 # --- Tax config ---
@@ -185,6 +185,12 @@ class LibroVentasRow:
     invoice_number: int | None = None
     invoice_customer_ruc: str | None = None
     invoice_customer_name: str | None = None
+    # M1 (2026-10-02): refunds per sale — sum of approved refunds that
+    # target this sale. DNIT requires fiscal refund tracking on the
+    # Libro de Ventas. net_gross_gs = total_gross_gs - refunds_gs.
+    refunds_gs: int = 0
+    refunds_count: int = 0
+    net_gross_gs: int = 0
 
 
 def libro_ventas(
@@ -214,6 +220,27 @@ def libro_ventas(
         for p in session.execute(select(Product).where(Product.id.in_(prod_ids))).scalars()
     }
 
+    # M1 (2026-10-02): refunds per sale in this window. Single grouped
+    # query (target_type='sale') avoids N+1. Returns dict[sale_id,
+    # (sum_gs, count)]. Defer Refund import to top of call so we don't
+    # pay the cost on every ledger call.
+    from app.rms.models_legacy import Refund
+    refund_rows = session.execute(
+        select(
+            Refund.target_id,
+            func.coalesce(func.sum(Refund.amount_gs), 0).label("sum_gs"),
+            func.count(Refund.id).label("n"),
+        )
+        .where(
+            Refund.target_type == "sale",
+            Refund.target_id.in_({r.id for r in rows}) if rows else False,
+        )
+        .group_by(Refund.target_id)
+    ).all() if rows else []
+    refunds_by_sale = {
+        rid: (int(s or 0), int(n or 0)) for rid, s, n in refund_rows
+    }
+
     out: list[LibroVentasRow] = []
     for r in rows:
         # AGENTS.md money rule: never use float precision for money.
@@ -230,6 +257,9 @@ def libro_ventas(
             base_out = iva.base_gs
             iva_out = iva.iva_gs
 
+        # M1 (2026-10-02): refunds for this sale (per target_type='sale').
+        refunds_sum, refunds_n = refunds_by_sale.get(r.id, (0, 0))
+        net = max(iva.gross_gs - refunds_sum, 0)
         out.append(
             LibroVentasRow(
                 sale_id=r.id,
@@ -245,6 +275,9 @@ def libro_ventas(
                 invoice_number=getattr(r, "invoice_number", None),
                 invoice_customer_ruc=getattr(r, "invoice_customer_ruc", None),
                 invoice_customer_name=getattr(r, "invoice_customer_name", None),
+                refunds_gs=refunds_sum,
+                refunds_count=refunds_n,
+                net_gross_gs=net,
             )
         )
     return out
@@ -252,19 +285,27 @@ def libro_ventas(
 
 @dataclass
 class DailySummary:
-    """One day's revenue/IVA/cost/margin."""
+    """One day's revenue/IVA/cost/margin.
+
+    Refunds (M1, 2026-10-02) subtract from gross revenue + IVA so the daily
+    report shows NET (not gross) figures. The refund total is exposed as
+    `refunds_total_gs` so operators can see what was reversed separately.
+    """
 
     date: datetime
     n_sales: int
-    revenue_gross_gs: int
+    revenue_gross_gs: int  # NET — already subtracting refunds
     revenue_base_gs: int
-    iva_gs: int
-    cogs_gs: int  # Cost of goods sold (recipe cost x qty)
+    iva_gs: int  # NET — already subtracting refunds
+    cogs_gs: int  # Cost of goods sold (recipe cost x qty); NET — refunds that restocked are subtracted
     margin_gs: int
     # Real expenses pulled from the `expense` table (Phase 14, 2026-10-01).
     # The field name keeps the `_placeholder_` suffix for one release so
     # dashboards reading the old name don't 500 — see migration 082.
     expenses_placeholder_gs: int = 0
+    # M1 refund subtotals (Phase 14+).
+    refunds_total_gs: int = 0  # total amount refunded this day (all targets)
+    refunds_count: int = 0  # number of refund transactions this day
 
 
 def expenses_in_window(
@@ -310,19 +351,42 @@ def daily_summary(
 
     sales = sales_in_window(session, start=start, end=end, end_inclusive=False)
 
-    revenue_gross = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales)
-    iva = extract_iva(revenue_gross, tax_mode=tax_mode)
+    revenue_gross_int = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales)
+    iva = extract_iva(revenue_gross_int, tax_mode=tax_mode)
 
-    # COGS via SaleStockMove (qty_delta is negative on sales).
-    # We sum abs(qty_delta) * ingredient.purchase_price_gs at query time.
-    # Note: SaleStockMove has no created_at column, so we filter via sale FK.
-    # The join: SaleStockMove -> Sale -> filtered by date.
+    # M1 (2026-10-02): refunds subtract from gross revenue + IVA so the
+    # daily report shows NET (not gross). Refunds in window: WHERE
+    # recorded_at >= start AND recorded_at < end. We subtract the full
+    # refunded amount from revenue_gross and the same proportion from
+    # base + IVA (so the net IVA matches the net gross).
+    from app.rms.models_legacy import Refund
+    refunds_in_window = session.execute(
+        select(
+            func.coalesce(func.sum(Refund.amount_gs), 0).label("total"),
+            func.count(Refund.id).label("count"),
+        ).where(
+            Refund.recorded_at >= start,
+            Refund.recorded_at < end,
+        )
+    ).one()
+    refunds_total_gs = int(refunds_in_window.total or 0)
+    refunds_count = int(refunds_in_window.count or 0)
+    net_revenue_gross = revenue_gross_int - refunds_total_gs
+    # Net IVA mirrors net gross (same tax_mode extraction on the smaller base).
+    net_iva = extract_iva(net_revenue_gross, tax_mode=tax_mode)
+
+    # COGS via StockMovement (BACKLOG #1, 2026-10-02: sale_stock_move was
+    # dropped by migration 092; sale-driven consumption rows live in
+    # stock_movement keyed by reference_type='sale'). qty is negative for
+    # consumption so we abs() it. Join: StockMovement -> Ingredient for
+    # purchase_price_gs. Filter by Sale.sold_at in window and Sale not voided.
     cogs = session.execute(
-        select(func.coalesce(func.sum(func.abs(SaleStockMove.qty_delta) * Ingredient.purchase_price_gs), 0))
-        .select_from(SaleStockMove)
-        .join(Sale, Sale.id == SaleStockMove.sale_id)
-        .join(Ingredient, Ingredient.id == SaleStockMove.ingredient_id)
+        select(func.coalesce(func.sum(func.abs(StockMovement.qty) * Ingredient.purchase_price_gs), 0))
+        .select_from(StockMovement)
+        .join(Sale, Sale.id == StockMovement.reference_id)
+        .join(Ingredient, Ingredient.id == StockMovement.ingredient_id)
         .where(
+            StockMovement.reference_type == "sale",
             Sale.sold_at >= start,
             Sale.sold_at < end,
             Sale.voided_at.is_(None),
@@ -338,13 +402,15 @@ def daily_summary(
     return DailySummary(
         date=start,
         n_sales=len(sales),
-        revenue_gross_gs=iva.gross_gs,
-        revenue_base_gs=iva.base_gs,
-        iva_gs=iva.iva_gs,
+        revenue_gross_gs=net_revenue_gross,
+        revenue_base_gs=net_iva.base_gs,
+        iva_gs=net_iva.iva_gs,
         cogs_gs=int(cogs),
-        margin_gs=iva.gross_gs - int(cogs),
+        margin_gs=net_revenue_gross - int(cogs),
         # Real value (was 0):
         expenses_placeholder_gs=expenses_total,
+        refunds_total_gs=refunds_total_gs,
+        refunds_count=refunds_count,
     )
 
 
@@ -379,21 +445,20 @@ def product_margin_summary(
     for s in sales:
         buckets.setdefault(s.product_id, []).append(s)
 
-    # Aggregate per product via SaleStockMove (which carries the
-    # ingredient-level cost; recipe-level aggregation is done by joining
-    # on Sale.product_id via the Sale relation).
-    # Approach: for each (product_id, ingredient_id), compute cost =
-    # abs(qty_delta) * ingredient.purchase_price_gs, then sum per product.
+    # Aggregate per product via StockMovement (BACKLOG #1, 2026-10-02:
+    # sale_stock_move dropped by migration 092; consumption rows live in
+    # stock_movement keyed by reference_type='sale'). For each
+    # (product_id, ingredient_id), cost = abs(qty) * ingredient.purchase_price_gs.
     cost_rows = session.execute(
         select(
             Sale.product_id,
             func.coalesce(
-                func.sum(func.abs(SaleStockMove.qty_delta) * Ingredient.purchase_price_gs),
+                func.sum(func.abs(StockMovement.qty) * Ingredient.purchase_price_gs),
                 0,
             ),
         )
-        .join(SaleStockMove, SaleStockMove.sale_id == Sale.id)
-        .join(Ingredient, Ingredient.id == SaleStockMove.ingredient_id)
+        .join(StockMovement, (StockMovement.reference_id == Sale.id) & (StockMovement.reference_type == "sale"))
+        .join(Ingredient, Ingredient.id == StockMovement.ingredient_id)
         .where(
             Sale.sold_at >= start_date,
             Sale.sold_at <= end_date,
@@ -449,11 +514,16 @@ def cross_period_comparison(
         revenue = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales)
         iva = extract_iva(revenue)
         cogs = session.execute(
-            select(func.coalesce(func.sum(func.abs(SaleStockMove.qty_delta) * Ingredient.purchase_price_gs), 0))
-            .select_from(SaleStockMove)
-            .join(Sale, Sale.id == SaleStockMove.sale_id)
-            .join(Ingredient, Ingredient.id == SaleStockMove.ingredient_id)
-            .where(Sale.sold_at >= s_start, Sale.sold_at < s_end, Sale.voided_at.is_(None))
+            select(func.coalesce(func.sum(func.abs(StockMovement.qty) * Ingredient.purchase_price_gs), 0))
+            .select_from(StockMovement)
+            .join(Sale, Sale.id == StockMovement.reference_id)
+            .join(Ingredient, Ingredient.id == StockMovement.ingredient_id)
+            .where(
+                StockMovement.reference_type == "sale",
+                Sale.sold_at >= s_start,
+                Sale.sold_at < s_end,
+                Sale.voided_at.is_(None),
+            )
         ).scalar() or 0
         return {
             "n_sales": len(sales),
@@ -538,7 +608,13 @@ def sales_by_payment_method(
     start_date: datetime | None = None,
     end_date: datetime | None = None,
 ) -> dict[str, dict]:
-    """Breakdown of sales by payment method."""
+    """Breakdown of sales by payment method.
+
+    M1 (2026-10-02): refunds subtract from each payment method's total.
+    A refund's payment_method MUST match the original sale's (enforced
+    by app.rms.refunds.create_refund), so we subtract refunds in the
+    SAME date window from the same payment_method bucket.
+    """
     if end_date is None:
         end_date = datetime.now(timezone.utc)
     if start_date is None:
@@ -558,13 +634,50 @@ def sales_by_payment_method(
         .group_by(Sale.payment_method)
     ).all()
 
+    # M1: refund subtotals by payment_method in same window
+    from app.rms.models_legacy import Refund
+    refund_rows = session.execute(
+        select(
+            Refund.payment_method,
+            func.coalesce(func.sum(Refund.amount_gs), 0).label("refunds_gs"),
+            func.count(Refund.id).label("n_refunds"),
+        )
+        .where(
+            Refund.recorded_at >= start_date,
+            Refund.recorded_at <= end_date,
+        )
+        .group_by(Refund.payment_method)
+    ).all()
+    refunds_by_method: dict[str, dict] = {
+        r.payment_method or "SIN METODO": {
+            "refunds_gs": int(r.refunds_gs or 0),
+            "n_refunds": int(r.n_refunds or 0),
+        }
+        for r in refund_rows
+    }
+
     result = {}
     for payment_method, n_sales, total_gs in rows:
         key = payment_method or "SIN METODO"
+        refunds = refunds_by_method.pop(key, {"refunds_gs": 0, "n_refunds": 0})
         result[key] = {
             "n_sales": n_sales,
             "total_gs": int(total_gs or 0),
+            "refunds_gs": refunds["refunds_gs"],
+            "n_refunds": refunds["n_refunds"],
+            "net_total_gs": int(total_gs or 0) - refunds["refunds_gs"],
         }
+
+    # Refund buckets that didn't have matching sales (rare but possible)
+    for key, refunds in refunds_by_method.items():
+        result[key] = {
+            "n_sales": 0,
+            "total_gs": 0,
+            "refunds_gs": refunds["refunds_gs"],
+            "n_refunds": refunds["n_refunds"],
+            "net_total_gs": -refunds["refunds_gs"],
+        }
+
     return result
 
 
