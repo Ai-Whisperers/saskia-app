@@ -19,7 +19,7 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale, SaleStockMove, StockMovement
+from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale, StockMovement
 from app.rms.money import to_int_gs
 
 # --- Public dataclasses ---
@@ -110,15 +110,16 @@ def stock_turnover(
         return None
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    # Sum qty_delta over the period (negative values)
+    # Sum qty over the period (negative values). Use StockMovement (the
+    # unified ledger since BACKLOG #1 migration 090) instead of the
+    # dropped SaleStockMove stub.
     consumed = session.execute(
-        select(func.coalesce(func.sum(SaleStockMove.qty_delta), 0.0)).where(
-            SaleStockMove.ingredient_id == ingredient_id,
-            SaleStockMove.qty_delta < 0,
-            SaleStockMove.sale_id.is_not(None),
+        select(func.coalesce(func.sum(StockMovement.qty), 0.0)).where(
+            StockMovement.ingredient_id == ingredient_id,
+            StockMovement.qty < 0,
+            StockMovement.reference_type == "sale",
+            StockMovement.recorded_at >= cutoff.replace(tzinfo=None),
         )
-        .join(Sale, Sale.id == SaleStockMove.sale_id)
-        .where(Sale.sold_at >= cutoff.replace(tzinfo=None))
     ).scalar() or 0.0
     consumed_abs = abs(float(consumed))
 
@@ -164,18 +165,19 @@ def batch_stock_turnover(
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
-    # Single query: get consumed qty for all ingredients at once
+    # Single query: get consumed qty for all ingredients at once. Use
+    # StockMovement (the unified ledger since BACKLOG #1 migration 090)
+    # instead of the dropped SaleStockMove stub.
     consumed_rows = dict(
         session.execute(
-            select(SaleStockMove.ingredient_id, func.coalesce(func.sum(SaleStockMove.qty_delta), 0.0))
+            select(StockMovement.ingredient_id, func.coalesce(func.sum(StockMovement.qty), 0.0))
             .where(
-                SaleStockMove.ingredient_id.in_(ingredient_ids),
-                SaleStockMove.qty_delta < 0,
-                SaleStockMove.sale_id.is_not(None),
+                StockMovement.ingredient_id.in_(ingredient_ids),
+                StockMovement.qty < 0,
+                StockMovement.reference_type == "sale",
+                StockMovement.recorded_at >= cutoff.replace(tzinfo=None),
             )
-            .join(Sale, Sale.id == SaleStockMove.sale_id)
-            .where(Sale.sold_at >= cutoff.replace(tzinfo=None))
-            .group_by(SaleStockMove.ingredient_id)
+            .group_by(StockMovement.ingredient_id)
         ).all()
     )
 
@@ -472,14 +474,20 @@ def ingredient_concentration(session: Session, days: int = 90) -> list[Ingredien
     from the period consumption * (365 / days).
     """
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    # Use StockMovement (unified ledger since BACKLOG #1 migration 090)
+    # instead of the dropped SaleStockMove stub. StockMovement.qty is
+    # already signed (negative for sales), so we negate to get the
+    # positive "consumed" amount for cost calculations.
     rows = session.execute(
         select(
-            SaleStockMove.ingredient_id,
-            func.coalesce(func.sum(-SaleStockMove.qty_delta), 0.0).label("consumed"),
+            StockMovement.ingredient_id,
+            func.coalesce(func.sum(-StockMovement.qty), 0.0).label("consumed"),
         )
-        .join(Sale, Sale.id == SaleStockMove.sale_id)
-        .where(Sale.sold_at >= cutoff.replace(tzinfo=None))
-        .group_by(SaleStockMove.ingredient_id)
+        .where(
+            StockMovement.reference_type == "sale",
+            StockMovement.recorded_at >= cutoff.replace(tzinfo=None),
+        )
+        .group_by(StockMovement.ingredient_id)
     ).all()
 
     costs: list[tuple[int, str, int]] = []
