@@ -61,6 +61,9 @@ build-backend = "hatchling.build"
 packages = ["app"]
 
 # Pytest config
+# Coverage floor 35% matches .github/workflows/ci.yml. Both must agree.
+# Strategy: docs/plans/2026-10-01-phase14-coverage-strategy.md
+# Grows 35% → 80% via Tier 5/6/7 work (per the plan's growth table).
 [tool.pytest.ini_options]
 addopts = "-v --tb=short -p no:randomly --cov=app --cov-report=term-missing --cov-fail-under=35"
 testpaths = ["tests"]

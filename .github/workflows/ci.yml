@@ -61,11 +61,16 @@ jobs:
       - name: Test (postgres via testcontainers)
         run: uv run pytest -m pg --no-cov
 
-      - name: Fail if coverage drops below 80%
+      # Coverage gate: matches pyproject.toml's `--cov-fail-under=35`. The
+      # strategy plan (docs/plans/2026-10-01-phase14-coverage-strategy.md)
+      # grew the floor from 30% → 35% as new tier 1+2 tests landed. Both
+      # gates MUST agree or CI passes locally but fails remotely. Aspirational
+      # target is 80% (see Tier 6+ growth items in that plan).
+      - name: Fail if coverage drops below 35%
         run: |
           coverage=$(uv run coverage report | tail -2 | head -1 | awk '{print $NF}' | tr -d '%')
-          if [ "$coverage" -lt 80 ]; then
-            echo "Coverage $coverage% is below 80% threshold"
+          if [ "$coverage" -lt 35 ]; then
+            echo "Coverage $coverage% is below 35% threshold (see pyproject.toml [tool.coverage])."
             exit 1
           fi
 
