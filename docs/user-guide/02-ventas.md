@@ -112,6 +112,27 @@ manteca, etc., en las proporciones correctas.
 > mal y tu stock queda incorrecto. Es importante mantener las recetas
 > actualizadas — ver [06-recetas.md](06-recetas.md).
 
+## Compartir un recibo por WhatsApp (recibo digital)
+
+Si el cliente quiere el recibo en el celular (en vez del ticket
+impreso), generá un link compartible:
+
+1. Abrí la venta en **Historial** → tocá el número `#N` para ir al
+   detalle (`/ventas/{id}`).
+2. Tocá **Compartir recibo** (botón azul, al lado de "Ver recibo imprimible").
+3. Aparece un cuadro con la URL — tocá **Copiar** (queda copiada al portapapeles).
+4. Pegala en el chat de WhatsApp del cliente.
+
+El cliente abre el link en su navegador y ve el mismo recibo
+imprimible que vos, sin login. **El link vence en 30 días** y cada
+clic en "Compartir" genera uno nuevo (así podés rotarlo si te
+equivocaste). Para anular una venta, andá a **Anular venta** arriba —
+el recibo compartido devolverá 410 Gone.
+
+> **PedidosYa maneja su propio recibo** — Saskia comparte el tuyo
+> cuando el pedido vino por mostrador/WhatsApp. Para pedidos PedidosYa,
+> el recibo del cliente se lo manda PedidosYa.
+
 ## Errores comunes
 
 | Error | Qué significa | Qué hacer |
