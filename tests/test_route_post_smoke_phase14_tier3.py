@@ -76,7 +76,6 @@ ROUTE_CATALOG = [
     ['excel_io.py', 'excel_import', '/excel/importar', False, 'post'],
     ['health.py', 'healthz_migrate', '/healthz/migrate', False, 'post'],
     ['health.py', 'admin_migrate', '/admin/migrate', False, 'post'],
-    ['insights.py', 'dismiss_insight', '/{insight_id}/dismiss', True, 'post'],
     ['inventory.py', 'ingredient_toggle_packaging', '/inventario/{ing_id}/toggle-packaging', True, 'post'],
     ['inventory.py', 'carga_inicial_save', '/inventario/carga-inicial', False, 'post'],
     ['inventory.py', 'inventory_create', '/inventario/nuevo', False, 'post'],

@@ -8,9 +8,8 @@ Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m
 Requirements:
 - Each insight renders when its condition is true
 - Each insight hides when its condition is false
-- Dismissed insights don't show again today
 - The card has the action button linking to the right place
-- csrf_token required for dismiss
+- Dismiss endpoint was removed (replaced by simpler "always show" model)
 """
 
 from __future__ import annotations
@@ -172,35 +171,12 @@ def test_dashboard_render_insights(client: TestClient, session: Session) -> None
     assert 'saskia-insight-card' in content
 
 
-def test_insights_dismiss_endpoint_requires_csrf(client: TestClient) -> None:
-    """POST /api/insights/{id}/dismiss requires csrf_token."""
-    # Test without CSRF token (should fail)
+def test_insights_dismiss_endpoint_removed(client: TestClient) -> None:
+    """POST /api/insights/{id}/dismiss was removed when the dismiss button was
+    removed from <saskia-insight-card>. The route must 404 so we don't leave a
+    dead endpoint in the API surface."""
     response = client.post("/api/insights/restock_urgent/dismiss", data={})
-    assert response.status_code == 400
-    body = response.text
-    # Accept either English or Spanish error message
-    assert ("CSRF token required" in body) or ("csrf_token" in body)
-    
-    # Test with CSRF token (should work, but we can't guarantee the actual token)
-    # In practice, the token comes from a form field in the actual page
-    response = client.post(
-        "/api/insights/restock_urgent/dismiss",
-        data={"csrf_token": "test-token"}
-    )
-    # This might work even with a fake token because we're not validating it in tests
-    # The real validation happens in production with signed cookies
-
-
-def test_insights_dismiss_endpoint_records_audit(client: TestClient, session: Session) -> None:
-    """Dismiss endpoint exists and accepts requests (dev mode allows invalid CSRF)."""
-    # The endpoint exists at /api/insights/{id}/dismiss and is POSTable.
-    # In dev mode (where CSRF may be loosely validated), it returns 200.
-    response = client.post(
-        "/api/insights/restock_urgent/dismiss",
-        data={"csrf_token": "test-token"}
-    )
-    # Endpoint exists and reachable — any status (200 or CSRF error) is acceptable
-    assert response.status_code in [200, 400, 403, 419]
+    assert response.status_code == 404
 
 
 def test_insight_card_javascript_loaded(client: TestClient) -> None:

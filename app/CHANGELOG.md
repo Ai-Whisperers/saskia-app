@@ -5,6 +5,22 @@
 
 ## [Unreleased]
 
+### Removed — `<saskia-insight-card>` dismiss button
+- **`app/static/saskia-insight-card.js`** — the per-card "Descartar por hoy"
+  (×) button was removed from the actionable-insight tile. It rendered as a
+  large, unstyled default-browser `<button>` containing an SVG with no
+  width/height attribute, so the close-icon sprite ballooned to the button's
+  default size and broke the card layout. The action button ("Reordenar")
+  remains; the operator dismisses the insight by acting on it.
+- **`app/routers/insights.py`** — the now-unused
+  `POST /api/insights/{id}/dismiss` endpoint was removed along with its
+  CSRF + audit hook. The router still exposes `GET /api/insights/` for the
+  dashboard fetch.
+- **Tests updated** (`tests/test_p1_b7_insights.py`,
+  `tests/test_route_post_smoke_phase14_tier3.py`): the two dismiss-endpoint
+  tests are replaced by a single `test_insights_dismiss_endpoint_removed`
+  asserting the route now 404s, and the route smoke list drops the entry.
+
 ### Fixed — DB-level guard for INSERT (recipe yield_qty, recipe_line qty)
 - **Migration 083** (`app/rms/db.py`) closes the gap left by migration
   028. Migration 028 created triggers on `UPDATE OF yield_qty` /
