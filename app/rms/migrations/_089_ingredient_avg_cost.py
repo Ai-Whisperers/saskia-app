@@ -21,6 +21,8 @@ on both dialects).
 """
 from typing import Any
 
+from sqlalchemy import text
+
 
 def _migration_089_ingredient_avg_cost(conn: Any) -> None:
     """Add avg_cost_gs column to ingredient table (idempotent).
@@ -28,7 +30,7 @@ def _migration_089_ingredient_avg_cost(conn: Any) -> None:
     Also backfills from purchase_price_gs where avg_cost_gs is NULL and
     purchase_price_gs is not NULL — conservative initial value.
     """
-    from sqlalchemy import text
+    from app.rms.db import atomic_ddl_block
 
     dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
 
@@ -48,17 +50,18 @@ def _migration_089_ingredient_avg_cost(conn: Any) -> None:
         # PRAGMA table_info: cid, name, type, notnull, dflt_value, pk
         existing = {row[1] for row in existing_cols}
 
+    # BACKLOG #4 (2026-10-02): wrap DDL in atomic_ddl_block so each
+    # ADD COLUMN/UPDATE is its own SAVEPOINT on Postgres (DDL auto-commits
+    # there). On SQLite, the helper just runs the SQL directly.
     if "avg_cost_gs" not in existing:
-        conn.execute(
-            text("ALTER TABLE ingredient ADD COLUMN avg_cost_gs INTEGER")
-        )
+        atomic_ddl_block(conn, [
+            "ALTER TABLE ingredient ADD COLUMN avg_cost_gs INTEGER"
+        ])
 
     # Backfill from purchase_price_gs (conservative initial value).
     # Idempotent: WHERE avg_cost_gs IS NULL skips already-filled rows.
-    conn.execute(
-        text(
-            "UPDATE ingredient "
-            "SET avg_cost_gs = purchase_price_gs "
-            "WHERE avg_cost_gs IS NULL AND purchase_price_gs IS NOT NULL"
-        )
-    )
+    atomic_ddl_block(conn, [
+        "UPDATE ingredient "
+        "SET avg_cost_gs = purchase_price_gs "
+        "WHERE avg_cost_gs IS NULL AND purchase_price_gs IS NOT NULL"
+    ])

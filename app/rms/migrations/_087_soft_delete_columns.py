@@ -40,40 +40,42 @@ def _migration_087_soft_delete_columns(conn: Any) -> None:
 
     Applies to:
     - Ingredient (ingredient)
-    - Product (product) 
+    - Product (product)
     - Recipe (recipe)
     - Customer (customer)
     - Supplier (supplier)
 
     Excludes audit/event tables.
     """
+    # BACKLOG #4 (2026-10-02): wrap each DDL statement in atomic_ddl_block
+    # so Postgres DDL auto-commits are isolated per-statement.
+    from app.rms.db import atomic_ddl_block
+
     # NOTE: These table names must match actual SQLAlchemy model table names
     owned_tables = ["ingredient", "product", "recipe", "customer", "supplier"]
-    
+
     # Add columns if they don't exist (idempotent)
     for table in owned_tables:
         try:
-            conn.execute(
+            atomic_ddl_block(conn, [
                 f"ALTER TABLE {table} ADD COLUMN deleted_at TIMESTAMP WITH TIME ZONE"
-            )
-            conn.execute(
+            ])
+            atomic_ddl_block(conn, [
                 f"ALTER TABLE {table} ADD COLUMN deleted_by_user_id VARCHAR(64)"
-            )
+            ])
             print(f"Added soft-delete columns to {table}")
         except Exception as exc:
             # Column likely already exists - idempotent continue
             print(f"Soft-delete columns exist on {table}: {exc}")
-    
+
     # Set index on deleted_at for performance
-    try:
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_deleted_at ON ingredient(deleted_at)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_deleted_at ON product(deleted_at)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_deleted_at ON recipe(deleted_at)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_deleted_at ON customer(deleted_at)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_deleted_at ON supplier(deleted_at)")
-        print("Created deleted_at indexes")
-    except Exception as exc:
-        print(f"Indexes may already exist: {exc}")
+    for table in owned_tables:
+        try:
+            atomic_ddl_block(conn, [
+                f"CREATE INDEX IF NOT EXISTS idx_deleted_at ON {table}(deleted_at)"
+            ])
+        except Exception as exc:
+            print(f"Indexes may already exist on {table}: {exc}")
 
 
 __all__ = ["ArchivedAt", "ArchivedByUserId"]

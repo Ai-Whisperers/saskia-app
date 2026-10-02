@@ -11,13 +11,15 @@ Both columns are nullable for backwards compatibility.
 
 from typing import Any
 
+from sqlalchemy import text
+
 
 def _migration_085_expense_receipt_recurring(conn: Any) -> None:
     """Add recurring_period and receipt_url columns to expense table.
 
     Idempotent: checks for column existence before adding.
     """
-    from sqlalchemy import text
+    from app.rms.db import atomic_ddl_block
 
     dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
 
@@ -35,28 +37,15 @@ def _migration_085_expense_receipt_recurring(conn: Any) -> None:
         # PRAGMA table_info returns: cid, name, type, notnull, dflt_value, pk
         existing = {row[1] for row in existing_cols}
 
+    # BACKLOG #4 (2026-10-02): wrap each ADD COLUMN in atomic_ddl_block so
+    # Postgres DDL auto-commits are isolated per-statement.
     if "recurring_period" not in existing:
-        if dialect == "postgresql":
-            conn.execute(
-                text(
-                    "ALTER TABLE expense ADD COLUMN recurring_period VARCHAR(32) "
-                    "DEFAULT 'once' NOT NULL"
-                )
-            )
-        else:
-            conn.execute(
-                text(
-                    "ALTER TABLE expense ADD COLUMN recurring_period VARCHAR(32) "
-                    "DEFAULT 'once' NOT NULL"
-                )
-            )
+        atomic_ddl_block(conn, [
+            "ALTER TABLE expense ADD COLUMN recurring_period VARCHAR(32) "
+            "DEFAULT 'once' NOT NULL"
+        ])
 
     if "receipt_url" not in existing:
-        if dialect == "postgresql":
-            conn.execute(
-                text("ALTER TABLE expense ADD COLUMN receipt_url VARCHAR(512)")
-            )
-        else:
-            conn.execute(
-                text("ALTER TABLE expense ADD COLUMN receipt_url VARCHAR(512)")
-            )
+        atomic_ddl_block(conn, [
+            "ALTER TABLE expense ADD COLUMN receipt_url VARCHAR(512)"
+        ])
