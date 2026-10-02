@@ -87,6 +87,61 @@
       </div>
     </fieldset>
 
+    {# Phase 16 (2026-10-02): Teléfonos del cliente (1:N).
+       Un cliente puede tener varios: personal, WhatsApp, oficina, etc.
+       El cashier agrega / marca como predeterminado / elimina desde acá.
+       POSTs a /clientes/api/{id}/phones endpoints. #}
+    <fieldset style="margin-top:var(--space-4);border:1px solid var(--border);border-radius:8px;padding:var(--space-3);">
+      <legend style="font-weight:600;padding:0 var(--space-2);">Teléfonos</legend>
+      {% if customer_phones %}
+      <table class="table" style="margin-bottom:var(--space-2);">
+        <thead><tr><th>Etiqueta</th><th>Tipo</th><th>Número</th><th></th></tr></thead>
+        <tbody>
+        {% for ph in customer_phones %}
+          <tr data-phone-id="{{ ph.id }}" {% if not ph.is_active %}class="muted" style="opacity:0.5;"{% endif %}>
+            <td>{{ ph.label or '—' }}{% if ph.is_default %} <span class="badge badge-neutral">predet.</span>{% endif %}{% if not ph.is_active %} <span class="badge">inactivo</span>{% endif %}</td>
+            <td><span class="badge">{{ ph.kind }}</span></td>
+            <td><code>{{ ph.phone }}</code></td>
+            <td>
+              {% if ph.is_active and not ph.is_default %}
+              <button type="button" class="btn btn-sm phone-default" data-phone-id="{{ ph.id }}"
+                      aria-label="Marcar {{ ph.phone }} como predeterminado">★</button>
+              {% endif %}
+              {% if ph.is_active %}
+              <button type="button" class="btn btn-sm btn-danger-ghost phone-del" data-phone-id="{{ ph.id }}"
+                      aria-label="Eliminar teléfono {{ ph.phone }}">✕</button>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="muted" style="margin:0 0 var(--space-2);font-size:var(--text-sm);">Sin teléfonos guardados.</p>
+      {% endif %}
+      <div style="display:grid;grid-template-columns:140px 1fr 1fr auto;gap:var(--space-2);align-items:end;">
+        <div>
+          <label for="phone-label">Etiqueta</label>
+          <input type="text" id="phone-label" placeholder="Personal" maxlength="48" style="margin-top:4px;">
+        </div>
+        <div>
+          <label for="phone-kind">Tipo</label>
+          <select id="phone-kind" style="margin-top:4px;">
+            <option value="mobile">Móvil</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="work">Trabajo</option>
+            <option value="home">Casa</option>
+            <option value="other">Otro</option>
+          </select>
+        </div>
+        <div>
+          <label for="phone-number">Número</label>
+          <input type="text" id="phone-number" placeholder="+595 981 123 456" maxlength="32" style="margin-top:4px;">
+        </div>
+        <button type="button" id="phone-add" class="btn btn-sm btn-secondary">+ Agregar teléfono</button>
+      </div>
+    </fieldset>
+
     <fieldset style="margin-top:var(--space-4);border:1px solid var(--border);border-radius:8px;padding:var(--space-3);">
       <legend style="font-weight:600;padding:0 var(--space-2);">Direcciones de delivery</legend>
       {% if addresses %}
@@ -342,6 +397,64 @@
         if (!r.ok) throw new Error("fallo");
         window.location.reload();
       }).catch(function () { alert("No se pudo marcar como predeterminada."); });
+    });
+  });
+
+  // Phase 16 (2026-10-02): Teléfonos CRUD (Personal / WhatsApp / etc.)
+  var phoneAdd = document.getElementById("phone-add");
+  if (phoneAdd) {
+    phoneAdd.addEventListener("click", function () {
+      var label = document.getElementById("phone-label").value.trim();
+      var kind = document.getElementById("phone-kind").value;
+      var num   = document.getElementById("phone-number").value.trim();
+      if (!num) { alert("Escribí el número de teléfono."); return; }
+      fetch("/clientes/api/" + cid + "/phones", {
+        method: "POST",
+        headers: {"Content-Type": "application/json",
+                  "X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value},
+        body: JSON.stringify({phone: num, kind: kind, label: label || null})
+      }).then(function (r) {
+        if (!r.ok) {
+          return r.json().then(function (j) {
+            throw new Error(j.error || ("Error " + r.status));
+          });
+        }
+        window.location.reload();
+      }).catch(function (e) { alert("No se pudo guardar el teléfono: " + e.message); });
+    });
+  }
+  document.querySelectorAll(".phone-default").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      fetch("/clientes/api/" + cid + "/phones/" + btn.dataset.phoneId + "/default", {
+        method: "POST",
+        headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
+      }).then(function (r) {
+        if (!r.ok) throw new Error("fallo");
+        window.location.reload();
+      }).catch(function () { alert("No se pudo marcar como predeterminado."); });
+    });
+  });
+  document.querySelectorAll(".phone-del").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var doDel = function () {
+        fetch("/clientes/api/" + cid + "/phones/" + btn.dataset.phoneId, {
+          method: "DELETE",
+          headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
+        }).then(function (r) {
+          if (!r.ok) throw new Error("fallo");
+          window.location.reload();
+        }).catch(function () { alert("No se pudo eliminar."); });
+      };
+      if (window.SaskiaConfirmModal) {
+        SaskiaConfirmModal.show({
+          title: "¿Eliminar este teléfono?",
+          body: "El teléfono se marca como inactivo y se puede reactivar desde la base de datos.",
+          confirmLabel: "Eliminar",
+          danger: true
+        }).then(function (ok) { if (ok) doDel(); });
+      } else {
+        doDel();
+      }
     });
   });
 

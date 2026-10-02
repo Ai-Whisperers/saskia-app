@@ -89,6 +89,11 @@ class CustomerPrefill:
     # /pedidos/nuevo "Perfil de facturación" dropdown. Empty list is OK
     # (the cashier falls back to typing RUC + Razón social manually).
     invoice_profiles: list[dict] = field(default_factory=list)
+    # Phase 16 (2026-10-02): list of phones the customer has. Empty when
+    # the customer has 0 phones. The frontend renders a picker dropdown
+    # when length >= 2; with 1 phone the field stays as a plain text
+    # input. Matches the address UX.
+    available_phones: list[dict] = field(default_factory=list)
     # Loyalty balance + projected points (Phase 8 — for the banner)
     loyalty_points_balance: int = 0
     loyalty_points_projected: int = 0
@@ -246,6 +251,33 @@ def compute_customer_defaults(
         out.invoice_ruc = all_profiles[0].ruc_ci
     if all_profiles and not out.invoice_name:
         out.invoice_name = all_profiles[0].razon_social
+
+    # --- Phones (Phase 16) — every active phone the customer has.
+    # Out.phone stays as the default (kept on Customer.phone for legacy).
+    # The frontend renders a dropdown when length >= 2; with 1 phone
+    # the field stays as a plain text input. Matches the address UX.
+    from app.rms.models import CustomerPhone as _Phone
+    all_phones = session.execute(
+        select(_Phone)
+        .where(_Phone.customer_id == customer_id)
+        .where(_Phone.is_active.is_(True))
+        .order_by(_Phone.is_default.desc(), _Phone.sort_order.asc(), _Phone.id.asc())
+    ).scalars().all()
+    out.available_phones = [
+        {
+            "id": p.id,
+            "phone": p.phone,
+            "kind": p.kind,
+            "label": p.label,
+            "is_default": bool(p.is_default),
+        }
+        for p in all_phones
+    ]
+    # If a default phone exists, prefer its value (which may differ from
+    # the legacy Customer.phone column if legacy was not synced).
+    if all_phones:
+        default = next((p for p in all_phones if p.is_default), all_phones[0])
+        out.phone = default.phone
 
     addr = _default_address(session, customer_id)
     if addr:

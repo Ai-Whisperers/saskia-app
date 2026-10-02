@@ -1166,6 +1166,53 @@ class CustomerInvoiceProfile(Base):
         return f"<CustomerInvoiceProfile {self.id} c={self.customer_id} {self.alias!r} {self.ruc_ci!r}>"
 
 
+class CustomerPhone(Base):
+    """Multiple phones per customer (Phase 16, 2026-10-02).
+
+    A single customer can have many phones: their own mobile, a work
+    line, a WhatsApp-only number, the spouse's phone. The legacy
+    `Customer.phone` column was a single value; this 1:N table lets the
+    cashier pick which one to use for an order (and lets delivery
+    confirm a separate WhatsApp number than the primary contact).
+
+    Fields the cashier + delivery dispatcher need:
+      phone (E.164-ish VARCHAR(32) — keeps '+' and ' ' for readability)
+      kind  (mobile / whatsapp / work / home / other)
+      label (operator-facing "Línea personal", "Oficina", etc.)
+      is_default (used by prefill to auto-pick)
+      is_active (soft-disable; never hard-delete audit history)
+      sort_order (lowest first; tied to is_default precedence)
+
+    The legacy `Customer.phone` column stays for backward compat — the
+    application layer keeps it in sync with the row marked is_default.
+    """
+
+    __tablename__ = "customer_phone"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("customer.id"), nullable=False, index=True
+    )
+    phone: Mapped[str] = mapped_column(String(32), nullable=False)
+    # kind: app-layer enum — see CHECK constraint in migration 098
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, default="mobile")
+    label: Mapped[Optional[str]] = mapped_column(String(48), nullable=True)
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    customer: Mapped["Customer"] = relationship()
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<CustomerPhone {self.id} c={self.customer_id} {self.phone!r} kind={self.kind!r}>"
+
+
 class DeliveryZone(Base):
     """A delivery zone (HEREBUS ZONAS_DELIVERY sheet).
 

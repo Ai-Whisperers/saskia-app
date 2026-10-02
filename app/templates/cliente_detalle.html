@@ -133,7 +133,25 @@
     <section class="card">
       <h2 style="margin-top:0;">Contacto</h2>
       <div style="display:flex;flex-direction:column;gap:var(--space-3);">
-        {% if customer.phone %}
+        {% if phones %}
+        <div>
+          <div class="text-muted" style="font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;">Teléfonos</div>
+          <div style="display:flex;flex-direction:column;gap:var(--space-1);margin-top:4px;">
+            {% for ph in phones %}
+            {% set _ph = ph.phone|replace(' ', '')|replace('+', '')|replace('-', '') %}
+            {% if _ph|length > 0 and _ph[0] == '0' %}{% set _ph = _ph[1:] %}{% endif %}
+            <div style="display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;">
+              <a href="tel:{{ ph.phone }}" class="btn btn-sm btn-ghost" style="gap:0.25rem;">
+                📞 {{ ph.phone }}
+                {% if ph.is_default %}<span class="badge badge-neutral">predet.</span>{% endif %}
+              </a>
+              <span class="badge">{{ ph.kind }}{% if ph.label %} · {{ ph.label }}{% endif %}</span>
+              <a href="https://wa.me/595{{ _ph }}" target="_blank" rel="noopener" class="btn btn-sm btn-ghost" style="gap:0.25rem;">💬 WhatsApp</a>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% elif customer.phone %}
         <div>
           <div class="text-muted" style="font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;">Teléfono</div>
           <div style="display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;margin-top:2px;">

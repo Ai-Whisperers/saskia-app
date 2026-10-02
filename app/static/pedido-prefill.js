@@ -79,6 +79,34 @@
     }
   }
 
+  // Phase 16 (2026-10-02): phone picker — populates the datalist
+  // #customer-phones with all the customer's active phones so the
+  // cashier can pick from a dropdown or type a new number. Same
+  // pattern as the address picker above.
+  function renderPhonePicker(phones) {
+    const phoneList = document.getElementById("customer-phones");
+    const phoneInput = document.getElementById("customer_phone");
+    if (!phoneList) return;
+    if (!Array.isArray(phones) || phones.length === 0) {
+      phoneList.innerHTML = "";
+      return;
+    }
+    phoneList.innerHTML = phones
+      .map((p) => {
+        const kind = p.kind ? p.kind + " · " : "";
+        const lbl = p.label ? p.label + " — " : "";
+        const num = p.phone || "";
+        const def = p.is_default ? " ★" : "";
+        // value=number (what gets inserted), text=label/kind (what shows)
+        return `<option value="${num.replace(/"/g, "&quot;")}">${lbl.replace(/</g, "&lt;")}${kind.replace(/</g, "&lt;")}${num.replace(/</g, "&lt;")}${def}</option>`;
+      })
+      .join("");
+    // Single phone → autofill input. Multiple → leave to operator.
+    if (phoneInput && !phoneInput.value && phones.length === 1) {
+      phoneInput.value = phones[0].phone || "";
+    }
+  }
+
   // ---- Phase 8: loyalty banner ----
   function renderLoyaltyBanner(prefill) {
     let banner = document.getElementById("loyalty-banner");
@@ -232,6 +260,7 @@
     // Phase 7 — render the address picker dropdown if the customer
     // has 2+ saved addresses.
     renderAddressPicker(prefill.available_addresses || []);
+    renderPhonePicker(prefill.available_phones || []);
 
     // Phase 8 — render the loyalty banner with current balance +
     // projected points for this pedido.

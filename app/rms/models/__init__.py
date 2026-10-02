@@ -30,6 +30,7 @@ from app.rms.models_legacy import (
     DateRangePreset,  # noqa: F401 — re-exported via __all__
     CustomerAddress,  # noqa: F401 — re-exported via __all__
     CustomerInvoiceProfile,  # noqa: F401 — Phase 13 multiple invoice profiles
+    CustomerPhone,  # noqa: F401 — Phase 16 multi-phone per customer
     DeliveryZone,  # noqa: F401 — re-exported via __all__
     Expense,  # noqa: F401 — Phase 14 operating-expense rows
     ImportBatch,  # noqa: F401 — re-exported via __all__

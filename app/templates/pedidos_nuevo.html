@@ -255,8 +255,10 @@
              name="customer_phone"
              class="customer-combobox-phone"
              placeholder="+595 9XX XXXXX"
+             list="customer-phones"
              autocomplete="off"
              value="{{ preset_customer.phone or '' if preset_customer else '' }}">
+      <datalist id="customer-phones"></datalist>
     </div>
     <div class="form-row">
       <label for="customer_picked_hint">Cliente seleccionado</label>

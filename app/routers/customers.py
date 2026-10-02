@@ -528,7 +528,7 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
     # for the customer. The cashier sees them on /clientes/{id}; the
     # /pedidos/nuevo prefill also reads them from the same helper. We
     # keep the JSON-API surface aligned with the HTML surface.
-    from app.rms.models import CustomerAddress as _CA, CustomerInvoiceProfile as _CIP
+    from app.rms.models import CustomerAddress as _CA, CustomerInvoiceProfile as _CIP, CustomerPhone as _CPH
     profiles = session.scalars(
         select(_CIP)
         .where(_CIP.customer_id == c.id)
@@ -539,6 +539,15 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
         select(_CA)
         .where(_CA.customer_id == c.id)
         .order_by(_CA.is_default.desc(), _CA.id)
+    ).all()
+    # Phase 16 (2026-10-02): phones (1:N) — every active phone the
+    # customer has, default first. The prefill (appservices/
+    # customer_prefill.py) reads this to populate /pedidos/nuevo.
+    phones = session.scalars(
+        select(_CPH)
+        .where(_CPH.customer_id == c.id)
+        .where(_CPH.is_active.is_(True))
+        .order_by(_CPH.is_default.desc(), _CPH.sort_order.asc(), _CPH.id.asc())
     ).all()
     return {
         "id": c.id,
@@ -585,6 +594,16 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
                 "delivery_instructions": a.delivery_instructions,
             }
             for a in addresses
+        ],
+        "phones": [
+            {
+                "id": p.id,
+                "phone": p.phone,
+                "kind": p.kind,
+                "label": p.label,
+                "is_default": bool(p.is_default),
+            }
+            for p in phones
         ],
     }
 
@@ -1162,6 +1181,7 @@ def cliente_detail(
             # customer has without opening the edit form.
             "invoice_profiles": detail_payload.get("invoice_profiles", []),
             "addresses": detail_payload.get("addresses", []),
+            "phones": detail_payload.get("phones", []),
         },
     )
 
@@ -1266,6 +1286,18 @@ def cliente_edit(
         .where(CustomerInvoiceProfile.is_active.is_(True))
         .order_by(CustomerInvoiceProfile.is_default.desc(), CustomerInvoiceProfile.alias)
     ).all()
+    # Phase 16 (2026-10-02): phones (1:N) for the management fieldset
+    from app.rms.models import CustomerPhone
+    customer_phones = session.scalars(
+        select(CustomerPhone)
+        .where(CustomerPhone.customer_id == customer_id)
+        .order_by(
+            CustomerPhone.is_default.desc(),
+            CustomerPhone.is_active.desc(),
+            CustomerPhone.sort_order.asc(),
+            CustomerPhone.id.asc(),
+        )
+    ).all()
     return render(
         request,
         "cliente_editar.html",
@@ -1277,6 +1309,7 @@ def cliente_edit(
             "zones": zones,
             "zone_names": zone_names,
             "invoice_profiles": invoice_profiles,
+            "customer_phones": customer_phones,
             "how_found_options": sorted(ALLOWED_HOW_FOUND),
             "channel_options": sorted(ALLOWED_CHANNELS),
         },
@@ -1733,3 +1766,182 @@ def address_set_default_api(
     addr.is_default = True
     session.commit()
     return JSONResponse({"ok": True, "id": addr.id, "is_default": True})
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Phase 16 (2026-10-02): Customer phone CRUD endpoints.
+# Customer can have many phones (mobile / whatsapp / work / home / other).
+# Use the service layer (app/services/customer_contacts.py) which keeps
+# Customer.phone (legacy single-value) in sync with the is_default row.
+# ──────────────────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/api/{customer_id}/phones",
+    response_class=JSONResponse,
+)
+def phones_list_api(
+    customer_id: int,
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    from app.services.customer_contacts import list_phones, get_default_phone
+
+    customer = session.get(Customer, customer_id)
+    if customer is None:
+        return JSONResponse({"error": "customer_not_found"}, status_code=404)
+    rows = list_phones(session, customer_id)
+    default = get_default_phone(session, customer_id)
+    return JSONResponse(
+        {
+            "phones": [
+                {
+                    "id": p.id,
+                    "phone": p.phone,
+                    "kind": p.kind,
+                    "label": p.label,
+                    "is_default": p.is_default,
+                    "is_active": p.is_active,
+                    "sort_order": p.sort_order,
+                }
+                for p in rows
+            ],
+            "default_phone_id": default.id if default else None,
+            "legacy_phone": customer.phone,
+        }
+    )
+
+
+@router.post(
+    "/api/{customer_id}/phones",
+    response_class=JSONResponse,
+)
+async def phones_add_api(
+    customer_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    from app.services.customer_contacts import add_phone
+
+    if customer_id <= 0:
+        return JSONResponse({"error": "invalid_customer_id"}, status_code=400)
+
+    payload: dict = {}
+    try:
+        ctype = (request.headers.get("content-type") or "").lower()
+        if "application/json" in ctype:
+            payload = await request.json() or {}
+        else:
+            # Read raw body and try JSON; fall back to form parse
+            body_bytes = await request.body()
+            try:
+                import json as _json
+                payload = _json.loads(body_bytes or b"{}") or {}
+            except Exception:  # noqa: BLE001
+                from urllib.parse import parse_qs
+                parsed = parse_qs(body_bytes.decode("utf-8", errors="ignore"))
+                payload = {k: v[0] for k, v in parsed.items()}
+    except Exception:  # noqa: BLE001
+        payload = {}
+
+    phone_raw = (payload.get("phone") or "").strip()
+    if not phone_raw:
+        return JSONResponse({"error": "phone_required"}, status_code=400)
+    kind = (payload.get("kind") or "mobile").strip()
+    label = (payload.get("label") or None)
+    is_default_raw = payload.get("is_default")
+    is_default = (
+        is_default_raw
+        if isinstance(is_default_raw, bool)
+        else str(is_default_raw or "").lower() in ("1", "true", "on", "yes")
+    )
+
+    try:
+        row = add_phone(
+            session,
+            customer_id,
+            phone_raw,
+            kind=kind,
+            label=label,
+            is_default=is_default,
+        )
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+    record_audit(
+        request,
+        session=session,
+        action="write.customer.phone.add",
+        target_type="customer",
+        target_id=customer_id,
+        detail={"phone_id": row.id, "phone": row.phone, "kind": row.kind,
+                "is_default": row.is_default},
+    )
+    session.commit()
+    return JSONResponse(
+        {
+            "ok": True,
+            "phone": {
+                "id": row.id,
+                "phone": row.phone,
+                "kind": row.kind,
+                "label": row.label,
+                "is_default": row.is_default,
+                "is_active": row.is_active,
+            },
+        }
+    )
+
+
+@router.delete(
+    "/api/{customer_id}/phones/{phone_id}",
+    response_class=JSONResponse,
+)
+def phones_delete_api(
+    customer_id: int,
+    phone_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    from app.services.customer_contacts import remove_phone
+
+    if not remove_phone(session, customer_id, phone_id):
+        return JSONResponse({"error": "not_found_or_inactive"}, status_code=404)
+
+    record_audit(
+        request,
+        session=session,
+        action="write.customer.phone.remove",
+        target_type="customer",
+        target_id=customer_id,
+        detail={"phone_id": phone_id},
+    )
+    session.commit()
+    return JSONResponse({"ok": True})
+
+
+@router.post(
+    "/api/{customer_id}/phones/{phone_id}/default",
+    response_class=JSONResponse,
+)
+def phones_set_default_api(
+    customer_id: int,
+    phone_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    from app.services.customer_contacts import set_default_phone
+
+    if not set_default_phone(session, customer_id, phone_id):
+        return JSONResponse({"error": "not_found_or_inactive"}, status_code=404)
+
+    record_audit(
+        request,
+        session=session,
+        action="write.customer.phone.set_default",
+        target_type="customer",
+        target_id=customer_id,
+        detail={"phone_id": phone_id},
+    )
+    session.commit()
+    return JSONResponse({"ok": True, "id": phone_id, "is_default": True})
+
