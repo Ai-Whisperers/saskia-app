@@ -17,6 +17,10 @@ state. They only report liveness and DB mode. Safe to hit.
 from __future__ import annotations
 
 import os
+import shutil
+import urllib.error
+import urllib.parse
+import urllib.request
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -25,6 +29,62 @@ from loguru import logger
 from sqlalchemy import text
 
 router = APIRouter()
+
+
+# --- Dependency-probe helpers (BACKLOG #40) ---
+
+
+def _disk_usage(path: str):
+    """Wrapper for shutil.disk_usage — patchable in tests."""
+    return shutil.disk_usage(path)
+
+
+def _check_supabase_reachable(url: str, timeout: float = 2.0) -> bool:
+    """HEAD the Supabase auth health endpoint. Returns True on 2xx/3xx.
+
+    BACKLOG #40 (2026-10-02): live-site incident showed auth sign-in
+    silently broke when SUPABASE_URL was misconfigured; an external
+    probe in /healthz/deps makes the outage visible in UptimeRobot.
+    """
+    if not url:
+        return False
+    parsed = urllib.parse.urlparse(url)
+    health = f"{parsed.scheme}://{parsed.netloc}/auth/v1/health"
+    try:
+        req = urllib.request.Request(health, method="HEAD")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return 200 <= resp.status < 400
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return False
+
+
+def _check_r2_reachable(timeout: float = 2.0) -> bool:
+    """List objects in the R2 bucket — proves bucket + creds + network.
+
+    Returns False if R2 isn't set up (caller treats as 'skipped' first).
+    """
+    try:
+        from app.services.r2_backup import (
+            load_r2_settings,
+            make_boto3_client,
+        )
+    except ImportError:
+        return False
+    settings = load_r2_settings()
+    if settings is None:
+        return False
+    try:
+        client = make_boto3_client(settings)
+        # head_bucket is the cheapest call — confirms creds + bucket exist
+        # without enumerating objects. The boto3 client is typed loosely
+        # as `object` upstream, so we cast for type-checker clarity.
+        client.head_bucket(Bucket=settings.bucket)  # type: ignore[attr-defined]
+        return True
+    except Exception:  # noqa: BLE001 — defensive default
+        return False
+
+
+# --- Original endpoints ---
 
 
 def _healthz_payload() -> dict[str, Any]:
@@ -129,14 +189,23 @@ def healthz_errors(request: Request) -> JSONResponse:
 
 @router.get("/healthz/deps", response_model=None)
 def healthz_deps(request: Request) -> JSONResponse | dict:
-    """Dependency fingerprint for debugging env mismatches on Render.
+    """Dependency fingerprint + reachability for debugging on the VPS.
 
-    Reports presence + sha256 prefix of key env vars (never the values)
-    and importable package versions. Public: safe metadata only.
+    BACKLOG #40 (2026-10-02): expanded from env fingerprints only to
+    actually probe Supabase (auth), R2 (bucket), and disk space.
 
-    Gated on app.state.ready: returns 503 if app is still warming up,
-    so probes during the cold-start window correctly distinguish
-    "broken" from "warming up".
+    Reports:
+    - env var presence + sha256 fingerprints (no values)
+    - package versions
+    - supabase: {ok, url} — True/False/"skipped"
+    - r2: {ok, bucket} — True/False/"skipped"
+    - disk: {total_gb, used_gb, free_gb, used_pct, path}
+
+    "skipped" means the dep isn't configured (dev box / local test) —
+    not a 503. False means configured + unreachable = 503 + alarm.
+
+    Public endpoint (no PII, just metadata). Gated on app.state.ready
+    so probes during cold-start distinguish "broken" from "warming up".
     """
     ready = getattr(request.app.state, "ready", False)
     if not ready:
@@ -159,12 +228,79 @@ def healthz_deps(request: Request) -> JSONResponse | dict:
             pkgs[pkg] = md.version(pkg)
         except Exception:  # noqa: BLE001 — defensive default
             pkgs[pkg] = "NOT INSTALLED"
-    return {
+
+    # --- Supabase reachability ---
+    sb_env_url = os.environ.get("SUPABASE_URL", "")
+    if not sb_env_url:
+        supabase_block: dict = {"ok": "skipped", "reason": "SUPABASE_URL not set"}
+    else:
+        supabase_block = {
+            "ok": _check_supabase_reachable(sb_env_url, timeout=2.0),
+            "url_host": urllib.parse.urlparse(sb_env_url).netloc,
+        }
+
+    # --- R2 reachability ---
+    try:
+        from app.services.r2_backup import load_r2_settings
+
+        settings = load_r2_settings()
+    except ImportError:
+        settings = None
+    if settings is None:
+        r2_block: dict = {"ok": "skipped", "reason": "R2 config not found"}
+    else:
+        r2_block = {
+            "ok": _check_r2_reachable(timeout=2.0),
+            "bucket": settings.bucket,
+        }
+
+    # --- Disk usage ---
+    # The app stores DB + state under this root. On VPS: /opt/data.
+    # On dev boxes: /tmp. Report on whatever exists.
+    disk_root = "/opt/data" if os.path.isdir("/opt/data") else "/tmp"
+    try:
+        usage = _disk_usage(disk_root)
+        total_gb = usage.total / (1024**3)
+        used_gb = usage.used / (1024**3)
+        free_gb = usage.free / (1024**3)
+        used_pct = round(100.0 * usage.used / usage.total, 1) if usage.total else 0.0
+    except OSError as exc:
+        disk_block: dict = {"error": str(exc), "path": disk_root}
+        total_gb = used_gb = free_gb = used_pct = 0  # for 503 logic below
+    else:
+        disk_block = {
+            "total_gb": round(total_gb, 2),
+            "used_gb": round(used_gb, 2),
+            "free_gb": round(free_gb, 2),
+            "used_pct": used_pct,
+            "path": disk_root,
+            "alarm_threshold_pct": 90,
+        }
+        if used_pct >= 90:
+            disk_block["alarm"] = "disk_full"
+
+    # --- Decide HTTP status ---
+    # 503 only when a *configured* dep is unreachable (not when skipped).
+    bad = []
+    if supabase_block.get("ok") is False:
+        bad.append("supabase")
+    if r2_block.get("ok") is False:
+        bad.append("r2")
+    body: dict[str, Any] = {
         "SUPABASE_URL": fp("SUPABASE_URL"),
         "SUPABASE_PUBLISHABLE_KEY": fp("SUPABASE_PUBLISHABLE_KEY"),
         "SUPABASE_SECRET_KEY": fp("SUPABASE_SECRET_KEY"),
         "packages": pkgs,
+        "supabase": supabase_block,
+        "r2": r2_block,
+        "disk": disk_block,
     }
+    if bad:
+        body["status"] = "deps_unreachable"
+        body["unreachable"] = bad
+        return JSONResponse(status_code=503, content=body)
+    body["status"] = "ok"
+    return body
 
 
 @router.get("/healthz/db")
