@@ -253,9 +253,58 @@ def test_summary_check_deps_skips_when_no_env(client):
     finally:
         for k, v in saved.items():
             os.environ[k] = v
-    assert result["supabase"] == "skipped"
+    assert result["supabase"]["ok"] == "skipped"
     assert result["r2"] == "skipped"
     assert result["ok"] is True
+
+
+def test_summary_check_deps_supabase_dns_error_visible(client, monkeypatch):
+    """When supabase probe returns DNSError, summary includes error_class.
+
+    Locks the new diagnostic shape so operators see "DNSError: Name or
+    service not known" instead of a generic "caído".
+    """
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    from app.routers import health as hb
+    monkeypatch.setattr(
+        hb, "_check_supabase_reachable",
+        lambda url, timeout=2.0: {
+            "ok": False,
+            "http_status": None,
+            "error_class": "DNSError",
+            "latency_ms": 23,
+            "reason": "Name or service not known",
+        },
+    )
+    result = hb._summary_check_deps(_MockRequest())
+    assert result["ok"] is False
+    assert result["supabase"]["error_class"] == "DNSError"
+    assert "Name or service not known" in result["supabase"]["reason"]
+
+
+def test_healthz_summary_renders_supabase_error_class(client, monkeypatch):
+    """When supabase probe fails with DNSError, the template shows it.
+
+    Operator UX win: before, /healthz/summary said "caído". Now it says
+    "caído DNSError: Name or service not known" — which immediately
+    tells the operator to check DNS, not the supabase project.
+    """
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    from app.routers import health as hb
+    monkeypatch.setattr(
+        hb, "_check_supabase_reachable",
+        lambda url, timeout=2.0: {
+            "ok": False,
+            "http_status": None,
+            "error_class": "DNSError",
+            "latency_ms": 23,
+            "reason": "Name or service not known",
+        },
+    )
+    resp = client.get("/healthz/summary")
+    body = resp.text
+    assert "DNSError" in body, f"DNSError not surfaced in {body[:500]}"
+    assert "Name or service not known" in body
 
 
 def test_summary_payload_keys(client):

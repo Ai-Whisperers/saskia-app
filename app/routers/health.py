@@ -61,23 +61,90 @@ def _get_last_backup_at(request: Request):
         return None
 
 
-def _check_supabase_reachable(url: str, timeout: float = 2.0) -> bool:
-    """HEAD the Supabase auth health endpoint. Returns True on 2xx/3xx.
+def _check_supabase_reachable(
+    url: str, timeout: float = 2.0
+) -> dict[str, Any]:
+    """GET the Supabase auth health endpoint. Returns a diagnostic dict.
 
-    BACKLOG #40 (2026-10-02): live-site incident showed auth sign-in
-    silently broke when SUPABASE_URL was misconfigured; an external
-    probe in /healthz/deps makes the outage visible in UptimeRobot.
+    The Supabase auth API (GoTrue) only accepts GET on /auth/v1/health
+    per its openapi.yaml — HEAD returns 405 Method Not Allowed, which
+    is the exact failure the operator dashboard was surfacing for
+    weeks. We previously did HEAD, which meant a perfectly healthy
+    project would report ok=False in /healthz/summary.
+
+    Return shape:
+      ok: bool | "skipped"  (True only on HTTP 2xx)
+      http_status: int | None  (HTTP status if a response was received)
+      error_class: str | None  (URLError reason / exception class)
+      latency_ms: int | None   (round-trip time on success)
+      reason: str | None       (operator-readable failure cause)
+
+    Tests patch this function; the return contract is pinned in
+    test_healthz_summary.py + test_healthz_deps_depth.py.
     """
     if not url:
-        return False
+        return {"ok": "skipped", "reason": "SUPABASE_URL not set"}
     parsed = urllib.parse.urlparse(url)
     health = f"{parsed.scheme}://{parsed.netloc}/auth/v1/health"
+    import time as _time
+
+    t0 = _time.monotonic()
     try:
-        req = urllib.request.Request(health, method="HEAD")
+        req = urllib.request.Request(health, method="GET")
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return 200 <= resp.status < 400
-    except (urllib.error.URLError, TimeoutError, OSError):
-        return False
+            latency_ms = int((_time.monotonic() - t0) * 1000)
+            ok = 200 <= resp.status < 300
+            return {
+                "ok": ok,
+                "http_status": resp.status,
+                "latency_ms": latency_ms,
+                "reason": (
+                    None
+                    if ok
+                    else f"HTTP {resp.status} from auth health endpoint"
+                ),
+            }
+    except urllib.error.HTTPError as e:
+        # HEAD returned 405 in production; GET can also hit 401/403 if
+        # the API key is missing. Surface the actual status.
+        latency_ms = int((_time.monotonic() - t0) * 1000)
+        return {
+            "ok": False,
+            "http_status": e.code,
+            "latency_ms": latency_ms,
+            "error_class": "HTTPError",
+            "reason": f"HTTP {e.code} {e.reason}",
+        }
+    except urllib.error.URLError as e:
+        latency_ms = int((_time.monotonic() - t0) * 1000)
+        reason_str = str(e.reason) if e.reason else "unknown"
+        # Distinguish DNS NXDOMAIN vs connect refused vs SSL error.
+        if "Name or service not known" in reason_str or "nodename" in reason_str:
+            error_class = "DNSError"
+        elif "Connection refused" in reason_str:
+            error_class = "ConnectRefused"
+        elif "timed out" in reason_str or "timeout" in reason_str.lower():
+            error_class = "Timeout"
+        elif "SSL" in reason_str or "certificate" in reason_str.lower():
+            error_class = "SSLError"
+        else:
+            error_class = "URLError"
+        return {
+            "ok": False,
+            "http_status": None,
+            "latency_ms": latency_ms,
+            "error_class": error_class,
+            "reason": reason_str[:200],
+        }
+    except (TimeoutError, OSError) as e:
+        latency_ms = int((_time.monotonic() - t0) * 1000)
+        return {
+            "ok": False,
+            "http_status": None,
+            "latency_ms": latency_ms,
+            "error_class": type(e).__name__,
+            "reason": str(e)[:200],
+        }
 
 
 def _check_r2_reachable(timeout: float = 2.0) -> bool:
@@ -256,9 +323,14 @@ def healthz_deps(request: Request) -> JSONResponse | dict:
     if not sb_env_url:
         supabase_block: dict = {"ok": "skipped", "reason": "SUPABASE_URL not set"}
     else:
+        sb_probe = _check_supabase_reachable(sb_env_url, timeout=2.0)
         supabase_block = {
-            "ok": _check_supabase_reachable(sb_env_url, timeout=2.0),
+            "ok": sb_probe.get("ok"),
             "url_host": urllib.parse.urlparse(sb_env_url).netloc,
+            "http_status": sb_probe.get("http_status"),
+            "error_class": sb_probe.get("error_class"),
+            "latency_ms": sb_probe.get("latency_ms"),
+            "reason": sb_probe.get("reason"),
         }
 
     # --- R2 reachability ---
@@ -495,15 +567,27 @@ def _summary_check_backup(request: Request) -> dict[str, Any]:
 
 
 def _summary_check_deps(request: Request) -> dict[str, Any]:
-    """Reachability of Supabase + R2. Patchable in tests."""
+    """Reachability of Supabase + R2. Patchable in tests.
+
+    Returns {ok, supabase: dict, r2: dict|bool|"skipped"} where each
+    inner dict includes the probe class (DNSError / Timeout / HTTPError
+    / ConnectRefused / SSLError) and reason. The summary page shows
+    those fields when a dep is down — operators stop guessing "why
+    is supabase unreachable".
+    """
     supabase_url = os.environ.get("SUPABASE_URL")
-    sb_ok = (
-        _check_supabase_reachable(supabase_url) if supabase_url else "skipped"
-    )
+    if supabase_url:
+        sb = _check_supabase_reachable(supabase_url)
+    else:
+        sb = {"ok": "skipped", "reason": "SUPABASE_URL not set"}
     r2_ok = _check_r2_reachable() if os.environ.get("R2_BUCKET") else "skipped"
+
+    # overall ok: skipped counts as ok; only False is a fail
+    sb_overall = sb.get("ok") in (True, "skipped")
+    r2_overall = r2_ok in (True, "skipped")
     return {
-        "ok": (sb_ok in (True, "skipped")) and (r2_ok in (True, "skipped")),
-        "supabase": sb_ok,
+        "ok": sb_overall and r2_overall,
+        "supabase": sb,
         "r2": r2_ok,
     }
 

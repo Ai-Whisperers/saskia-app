@@ -96,18 +96,85 @@ def test_healthz_deps_supabase_skipped_without_url(client, monkeypatch):
 
 
 def test_healthz_deps_supabase_unreachable_returns_503(client, monkeypatch):
-    """When SUPABASE_URL is set but unreachable, /healthz/deps returns 503."""
+    """When SUPABASE_URL is set but unreachable, /healthz/deps returns 503.
+
+    The helper now returns a diagnostic dict instead of a bare bool —
+    we patch it with the failure shape (ok=False, error_class=URLError)
+    so the JSON body surfaces the real cause to UptimeRobot / operators.
+    """
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
-    # Patch the http client to fail
     from app.routers import health as health_module
     monkeypatch.setattr(
         health_module, "_check_supabase_reachable",
-        lambda url, timeout=2.0: False,
+        lambda url, timeout=2.0: {
+            "ok": False,
+            "http_status": None,
+            "error_class": "URLError",
+            "latency_ms": None,
+            "reason": "Name or service not known",
+        },
     )
     resp = client.get("/healthz/deps")
     body = resp.json()
     assert body["supabase"]["ok"] is False
+    assert body["supabase"]["error_class"] == "URLError"
     assert resp.status_code == 503
+
+
+def test_healthz_deps_supabase_healthy_returns_200(client, monkeypatch):
+    """When supabase probe returns ok=True, no 503 from /healthz/deps.
+
+    Locks the GET-not-HEAD change: HEAD was returning 405 from Supabase
+    auth health endpoint (per its openapi.yaml), masking healthy projects
+    as down. With GET + 200, the probe should report reachable.
+    """
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    from app.routers import health as health_module
+    monkeypatch.setattr(
+        health_module, "_check_supabase_reachable",
+        lambda url, timeout=2.0: {
+            "ok": True,
+            "http_status": 200,
+            "error_class": None,
+            "latency_ms": 42,
+            "reason": None,
+        },
+    )
+    resp = client.get("/healthz/deps")
+    body = resp.json()
+    assert body["supabase"]["ok"] is True
+    assert body["supabase"]["http_status"] == 200
+    assert body["supabase"]["latency_ms"] == 42
+    # /healthz/deps only 503s if a configured dep is False; here supabase
+    # is True so the overall status is ok (r2 stays "skipped" since no
+    # R2 config in this test).
+    assert resp.status_code == 200
+
+
+def test_healthz_deps_supabase_405_now_reports_diagnostics(client, monkeypatch):
+    """GET 405 (the historical HEAD-fallback bug) is now surfaced clearly.
+
+    Previously: 405 was caught by the bool helper, returned False, no
+    diagnostic. Now the JSON includes http_status=405 + reason. The
+    operator sees "HTTP 405 Method Not Allowed" instead of a generic
+    'unreachable'.
+    """
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    from app.routers import health as health_module
+    monkeypatch.setattr(
+        health_module, "_check_supabase_reachable",
+        lambda url, timeout=2.0: {
+            "ok": False,
+            "http_status": 405,
+            "error_class": "HTTPError",
+            "latency_ms": 30,
+            "reason": "HTTP 405 Method Not Allowed",
+        },
+    )
+    resp = client.get("/healthz/deps")
+    body = resp.json()
+    assert body["supabase"]["http_status"] == 405
+    assert "Method Not Allowed" in body["supabase"]["reason"]
 
 
 def test_healthz_deps_r2_block_present(client):

@@ -145,6 +145,8 @@
 
   {# --- Dependencies (Supabase + R2) --- #}
   {% set deps = checks.get("deps", {}) %}
+  {% set sb = deps.get("supabase") %}
+  {% set sb_ok = sb.get("ok") if sb is mapping else True %}
   <article class="card healthz-card">
     <header class="card__header">
       <h2 class="card__title">Dependencias externas</h2>
@@ -156,9 +158,15 @@
     <dl class="healthz-meta">
       <dt>Supabase</dt>
       <dd>
-        {% set sb = deps.get("supabase") %}
-        {% if sb is sameas true %}alcanzable ✓
-        {% elif sb is sameas false %}<span class="is-danger">caído</span>
+        {% if sb_ok is sameas true %}alcanzable ✓
+        {% elif sb_ok is sameas false %}
+          <span class="is-danger">caído</span>
+          {% if sb.get("error_class") %}
+            <code class="healthz-error-class">{{ sb.error_class }}</code>
+          {% endif %}
+          {% if sb.get("reason") %}
+            <br><code class="healthz-error-reason">{{ sb.reason }}</code>
+          {% endif %}
         {% else %}saltado (sin configurar)
         {% endif %}
       </dd>
