@@ -105,6 +105,10 @@ def close_month(db: Session, period_yyyymm: str, user_id: str | None = None) -> 
         existing.closed_at = datetime.now(timezone.utc)
         existing.closed_by_user_id = user_id
         existing.total_expenses_gs = total_expenses
+        # Reset reopen info when closing again
+        existing.reopened_at = None
+        existing.reopened_by_user_id = None
+        existing.reopen_reason = None
     else:
         closure = MonthlyClosure(
             month=month_date,
@@ -137,17 +141,22 @@ def reopen_month(db: Session, period_yyyymm: str, reason: str, user_id: str | No
         ClosureConflictError: If period is not closed
     """
     if not reason:
-        raise ClosureValidationError("Reopen reason is required")
+        raise ClosureValidationError("reason is required")
     
     closure = get_closure(db, period_yyyymm)
     if not closure:
-        raise ClosureConflictError(f"No closure found for {period_yyyymm}")
+        raise ClosureConflictError(f"Period {period_yyyymm} is not closed")
+    
+    # If already reopened, that's the conflict (check before "is_open")
+    if closure.reopened_at is not None:
+        raise ClosureConflictError(f"Period {period_yyyymm} is already reopened")
     
     if closure.is_open:
         raise ClosureConflictError(f"Period {period_yyyymm} is not closed")
     
     closure.reopened_at = datetime.now(timezone.utc)
     closure.reopened_by_user_id = user_id
+    closure.reopen_reason = reason
     closure.closed_at = None
     closure.closed_by_user_id = None
     
@@ -172,13 +181,15 @@ def compute_month_totals(db: Session, period_yyyymm: str) -> dict:
     # Convert period to date range
     try:
         year, month = map(int, period_yyyymm.split('-'))
-        month_date = date(year, month, 1)
         
         # Validate month
         if month < 1 or month > 12:
             raise ClosureValidationError(f"Invalid month: {period_yyyymm}")
+        if year < 1900 or year > 3000:
+            raise ClosureValidationError(f"Invalid year: {period_yyyymm}")
+        month_date = date(year, month, 1)
             
-    except ValueError:
+    except (ValueError, AttributeError):
         raise ClosureValidationError(f"Period must be YYYY-MM format, got: {period_yyyymm}")
     
     # Calculate date range
