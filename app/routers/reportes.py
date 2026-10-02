@@ -30,7 +30,7 @@ from app.rms.dependencies import get_session
 from app.rms.models import Ingredient, IngredientPriceEvent, Sale
 from app.rms.price_history import batch_price_stats, price_history, price_stats
 from app.rms.rate_limit import read_rate_limit_dependency
-from app.rms.sales_intel import customer_retention, sales_by_hour, sales_heatmap
+from app.rms.sales_intel import customer_retention, sales_by_hour, sales_heatmap, waste_roi_by_ingredient
 from app.services.template_render import render
 
 # BACKLOG #10: rate-limit all /reportes/* reads at 30/min/IP. Reports
@@ -702,6 +702,29 @@ def reportes_ventas_hora(
         "heatmap_max": max_cell,
         "weekday_labels": weekday_labels,
         "heatmap_range_days": 90,
+    })
+
+
+@router.get("/mermas-cost", response_class=HTMLResponse)
+def reportes_mermas_cost(
+    request: Request,
+    days: int = 90,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Per-ingredient waste cost leaderboard (BACKLOG #34, 2026-10-02).
+
+    Surfaces the biggest money-leaking ingredients so the operator
+    can act (rotate stock faster, renegotiate supplier, accept smaller
+    portion sizes). Default 90-day window; cap at 365 to keep the
+    query bounded.
+    """
+    days = max(7, min(int(days), 365))
+    rows = waste_roi_by_ingredient(session, since_days=days)
+    total_waste = sum(r["total_waste_gs"] for r in rows)
+    return render(request, "reportes_mermas_cost.html", {
+        "rows": rows,
+        "days": days,
+        "total_waste_gs": total_waste,
     })
 
 

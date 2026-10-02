@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Final
 
-from sqlalchemy import select
+from sqlalchemy import Integer, func, select
 from sqlalchemy.orm import Session
 
 from app.rms.models import Product, Sale
@@ -535,6 +535,137 @@ def customer_retention(
     }
 
 
+def _waste_per_ingredient_rows(
+    session: Session,
+    since: datetime,
+) -> list[dict]:
+    """Raw aggregate: ingredient_id, total_waste_gs, event_count.
+
+    Helper for `waste_roi_by_ingredient` (joins on Ingredient for
+    the unit + name) and the trend helpers.
+    """
+    from app.rms.models import Ingredient, WasteLog
+    from sqlalchemy import func, select
+
+    rows = session.execute(
+        select(
+            WasteLog.ingredient_id,
+            func.coalesce(func.sum(WasteLog.cost_gs), 0).label("total_waste_gs"),
+            func.count(WasteLog.id).label("event_count"),
+        )
+        .where(WasteLog.recorded_at >= since)
+        .group_by(WasteLog.ingredient_id)
+    ).all()
+    if not rows:
+        return []
+    # One-shot hydration of names + units.
+    ids = [int(r[0]) for r in rows]
+    ingredients = {
+        i.id: (i.name, i.unit)
+        for i in session.scalars(select(Ingredient).where(Ingredient.id.in_(ids))).all()
+    }
+    out: list[dict] = []
+    for ing_id, total_waste, count in rows:
+        name, unit = ingredients.get(int(ing_id), ("?", "?"))
+        out.append({
+            "ingredient_id": int(ing_id),
+            "ingredient_name": name,
+            "unit": unit,
+            "total_waste_gs": int(total_waste),
+            "event_count": int(count),
+        })
+    return out
+
+
+def waste_roi_by_ingredient(
+    session: Session,
+    since_days: int = 90,
+) -> list[dict]:
+    """Per-ingredient waste cost over the window.
+
+    BACKLOG #34 (2026-10-02): waste ROI per ingredient. We don't
+    compute the full "ROI" formula since we don't have a clean
+    "consumed-at-cost" series (RecipeLine.qty × ingredient price at
+    sale time would need a complex join). What we DO have reliably is
+    WasteLog.cost_gs, which is denormalized at insert time using the
+    ingredient's price snapshot — so total_waste_gs is the most
+    accurate waste-money figure available.
+
+    waste_pct = total_waste_gs / (total_waste_gs + total_consumed_gs)
+    — but total_consumed_gs requires walking Sale → RecipeLine →
+    IngredientPriceEvent, which is expensive. For v1 we report the
+    waste stats and let the operator eyeball the % against their
+    known daily revenue from `/avikeled/dashboard`.
+
+    Returns a list of dicts sorted by total_waste_gs desc so the
+    operator can spot the biggest money leaks first.
+    """
+    from app.rms.config import ASUNCION_TZ
+
+    cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=since_days)
+    rows = _waste_per_ingredient_rows(session, cutoff)
+
+    out: list[dict] = []
+    for r in rows:
+        avg = (r["total_waste_gs"] / r["event_count"]) if r["event_count"] else 0.0
+        out.append({
+            **r,
+            "total_consumed_gs": 0,  # v1: leave to operator's dashboard
+            "waste_pct": 0.0,        # v1: can't compute without consumed
+            "avg_waste_per_event_gs": round(avg, 1),
+            "window_days": since_days,
+        })
+    out.sort(key=lambda r: r["total_waste_gs"], reverse=True)
+    return out
+
+
+def waste_vs_purchase_trend(
+    session: Session,
+    ingredient_id: int,
+    since_days: int = 180,
+) -> list[dict]:
+    """Per-month waste cost trend for one ingredient.
+
+    Returns list of {year, month, cost_gs, event_count} rows. Months
+    with zero waste are NOT included (lets the chart render gaps
+    cleanly).
+    """
+    from sqlalchemy import func, select
+
+    from app.rms.config import ASUNCION_TZ
+    from app.rms.models import WasteLog
+
+    cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=since_days)
+    # strftime works on both SQLite and Postgres; equivalent to
+    # EXTRACT(YEAR FROM ...) for the bucketing we need.
+    year_expr = func.cast(func.strftime("%Y", WasteLog.recorded_at), Integer)
+    month_expr = func.cast(func.strftime("%m", WasteLog.recorded_at), Integer)
+    rows = session.execute(
+        select(
+            year_expr.label("y"),
+            month_expr.label("m"),
+            func.sum(WasteLog.cost_gs).label("cost_gs"),
+            func.count(WasteLog.id).label("event_count"),
+        )
+        .where(
+            WasteLog.ingredient_id == ingredient_id,
+            WasteLog.recorded_at >= cutoff,
+        )
+        .group_by("y", "m")
+        .order_by("y", "m")
+    ).all()
+
+    return [
+        {
+            "year": int(y),
+            "month": int(m),
+            "cost_gs": int(cost_gs or 0),
+            "event_count": int(count),
+        }
+        for y, m, cost_gs, count in rows
+    ]
+
+
 __all__ = [
     "TrendResult",
     "churning_products",
@@ -550,4 +681,6 @@ __all__ = [
     "sales_heatmap",
     "sales_summary",
     "top_pairs",
+    "waste_roi_by_ingredient",
+    "waste_vs_purchase_trend",
 ]
