@@ -46,7 +46,7 @@ from app.rms.models import (
     Recipe,
     RecipeLine,
     Sale,
-    SaleStockMove,
+    StockMovement,
     User,
 )
 from app.rms.models.channels import Channel
@@ -663,7 +663,7 @@ def seed_demo_data(
 
     # Generate sales over the period.
     sale_rows: list[Sale] = []
-    stock_move_rows: list[SaleStockMove] = []
+    stock_move_rows: list[StockMovement] = []
 
     BATCH_SIZE = 25  # commit every N days to avoid long-running transactions
 
@@ -708,11 +708,14 @@ def seed_demo_data(
                 qty_d = _D(str(qty))
                 for line in recipe_lines_by_recipe[product.recipe_id]:
                     need = (line.qty / yield_qty_d) * qty_d
-                    move = SaleStockMove(
-                        sale_id=sale.id,
-                        affected_recipe_id=product.recipe_id,
+                    move = StockMovement(
+                        movement_type="sale",
                         ingredient_id=line.line_ref_id,
-                        qty_delta=-need,
+                        qty=-need,
+                        reference_id=sale.id,
+                        reference_type="sale",
+                        affected_recipe_id=product.recipe_id,
+                        recorded_at=sold_at,
                     )
                     session.add(move)
                     stock_move_rows.append(move)
@@ -757,11 +760,14 @@ def seed_demo_data(
         for line in recipe_lines_by_recipe[last_product.recipe_id]:
             restore = (line.qty / yield_qty_d) * _D(2)
             session.add(
-                SaleStockMove(
-                    sale_id=voided.id,
-                    affected_recipe_id=last_product.recipe_id,
+                StockMovement(
+                    movement_type="sale",
                     ingredient_id=line.line_ref_id,
-                    qty_delta=+restore,
+                    qty=+restore,
+                    reference_id=voided.id,
+                    reference_type="sale",
+                    affected_recipe_id=last_product.recipe_id,
+                    recorded_at=voided.sold_at,
                 )
             )
 
@@ -868,7 +874,7 @@ def _delete_seeded_data(session: Session) -> None:
         PedidoLine,
         Pedido,
         Customer,
-        SaleStockMove,
+        StockMovement,
         Sale,
         ImportBatch,
         Product,
