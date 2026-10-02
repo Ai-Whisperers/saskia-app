@@ -3916,14 +3916,14 @@ triggers don't fire on INSERT. Same for `recipe_line.qty`.
     _bump_schema_version(conn, 83)
 
 
-def _migration_085_expense_receipt_recurring(conn: Any) -> None:
-    """Wire migration 085 from ``migrations/_085_expense_receipt_recurring.py``.
+def _migration_093_expense_receipt_recurring(conn: Any) -> None:
+    """Wire migration 085 from ``migrations/_093_expense_receipt_recurring.py``.
 
     The actual SQLAlchemy + PRAGMA logic lives in that module; here we
     defer-import to avoid the circular import (db.py ↔ migrations package).
     """
-    from app.rms.migrations._085_expense_receipt_recurring import (
-        _migration_085_expense_receipt_recurring as _impl,
+    from app.rms.migrations._093_expense_receipt_recurring import (
+        _migration_093_expense_receipt_recurring as _impl,
     )
     _impl(conn)
 
@@ -3941,51 +3941,51 @@ def _migration_084_stock_qty_nonneg(conn: Any) -> None:
     _impl(conn)
 
 
-def _migration_086_monthly_closure(conn: Any) -> None:
-    """Wire migration 086 from ``migrations/_086_monthly_closure.py``.
+def _migration_094_monthly_closure(conn: Any) -> None:
+    """Wire migration 086 from ``migrations/_094_monthly_closure.py``.
 
     The actual CREATE TABLE logic lives in that module; here we
     defer-import to avoid the circular import.
     """
-    from app.rms.migrations._086_monthly_closure import (
-        _migration_086_monthly_closure as _impl,
+    from app.rms.migrations._094_monthly_closure import (
+        _migration_094_monthly_closure as _impl,
     )
     _impl(conn)
 
 
-def _migration_087_soft_delete_columns(conn: Any) -> None:
-    """Wire migration 087 from ``migrations/_087_soft_delete_columns.py``.
+def _migration_095_soft_delete_columns(conn: Any) -> None:
+    """Wire migration 087 from ``migrations/_095_soft_delete_columns.py``.
 
     Sprint 3.2: adds ``deleted_at`` + ``deleted_by_user_id`` to owned
     tables (ingredient, product, recipe, customer, supplier).
     """
-    from app.rms.migrations._087_soft_delete_columns import (
-        _migration_087_soft_delete_columns as _impl,
+    from app.rms.migrations._095_soft_delete_columns import (
+        _migration_095_soft_delete_columns as _impl,
     )
     _impl(conn)
 
 
-def _migration_088_audit_columns(conn: Any) -> None:
-    """Wire migration 088 from ``migrations/_088_audit_columns.py``.
+def _migration_096_audit_columns(conn: Any) -> None:
+    """Wire migration 088 from ``migrations/_096_audit_columns.py``.
 
     Sprint 3.2: adds ``created_at`` / ``created_by_user_id`` /
     ``updated_at`` / ``updated_by_user_id`` to owned tables.
     """
-    from app.rms.migrations._088_audit_columns import (
-        _migration_088_audit_columns as _impl,
+    from app.rms.migrations._096_audit_columns import (
+        _migration_096_audit_columns as _impl,
     )
     _impl(conn)
 
 
-def _migration_089_ingredient_avg_cost(conn: Any) -> None:
-    """Wire migration 089 from ``migrations/_089_ingredient_avg_cost.py``.
+def _migration_097_ingredient_avg_cost(conn: Any) -> None:
+    """Wire migration 089 from ``migrations/_097_ingredient_avg_cost.py``.
 
     Sprint 4.4 (BACKLOG #13): adds ``avg_cost_gs`` to ingredient table
     + backfills from ``purchase_price_gs`` so waste-event moving-average
     tracking has a sane starting point for existing rows.
     """
-    from app.rms.migrations._089_ingredient_avg_cost import (
-        _migration_089_ingredient_avg_cost as _impl,
+    from app.rms.migrations._097_ingredient_avg_cost import (
+        _migration_097_ingredient_avg_cost as _impl,
     )
     _impl(conn)
 
@@ -4076,11 +4076,11 @@ MIGRATIONS = {
     82: _migration_082_expense,
     83: _migration_083_recipe_yield_qty_insert_guard,
     84: _migration_084_stock_qty_nonneg,
-    85: _migration_085_expense_receipt_recurring,
-    86: _migration_086_monthly_closure,
-    87: _migration_087_soft_delete_columns,
-    88: _migration_088_audit_columns,
-    89: _migration_089_ingredient_avg_cost,
+    93: _migration_093_expense_receipt_recurring,
+    94: _migration_094_monthly_closure,
+    95: _migration_095_soft_delete_columns,
+    96: _migration_096_audit_columns,
+    97: _migration_097_ingredient_avg_cost,
 }
 
 

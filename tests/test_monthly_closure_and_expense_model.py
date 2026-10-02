@@ -116,7 +116,7 @@ def test_migrations_085_and_086_are_registered():
     assert 86 in MIGRATIONS, "migration 086 not registered"
 
 
-def test_migration_085_is_callable():
+def test_migration_093_is_callable():
     """Migration 085 must be callable and have docstring."""
     from app.rms.db import MIGRATIONS
 
@@ -125,7 +125,7 @@ def test_migration_085_is_callable():
     assert m.__doc__, "migration 085 missing docstring"
 
 
-def test_migration_086_is_callable():
+def test_migration_094_is_callable():
     """Migration 086 must be callable and have docstring."""
     from app.rms.db import MIGRATIONS
 
@@ -134,10 +134,10 @@ def test_migration_086_is_callable():
     assert m.__doc__, "migration 086 missing docstring"
 
 
-def test_migration_085_idempotent_via_prag_table_info():
+def test_migration_093_idempotent_via_prag_table_info():
     """The 085 implementation must be idempotent (PRAGMA table_info gate)."""
     # Import the underlying module, not the db.py re-export
-    import app.rms.migrations._085_expense_receipt_recurring as m085
+    import app.rms.migrations._093_expense_receipt_recurring as m085
 
     src = open(m085.__file__).read()
     assert "PRAGMA table_info" in src, (
@@ -145,9 +145,9 @@ def test_migration_085_idempotent_via_prag_table_info():
     )
 
 
-def test_migration_086_creates_monthly_closure_table():
+def test_migration_094_creates_monthly_closure_table():
     """The 086 implementation must CREATE TABLE monthly_closure."""
-    import app.rms.migrations._086_monthly_closure as m086
+    import app.rms.migrations._094_monthly_closure as m086
 
     src = open(m086.__file__).read()
     assert "CREATE TABLE" in src and "monthly_closure" in src, (

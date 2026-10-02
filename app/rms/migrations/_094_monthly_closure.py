@@ -13,7 +13,7 @@ Creates the monthly_closure table to track closed accounting periods:
 from typing import Any
 
 
-def _migration_086_monthly_closure(conn: Any) -> None:
+def _migration_094_monthly_closure(conn: Any) -> None:
     """Create monthly_closure table."""
     from sqlalchemy import text
 
@@ -69,4 +69,4 @@ def _migration_086_monthly_closure(conn: Any) -> None:
     # BACKLOG #4 (2026-10-02): migrations 085+ shipped without bumping
     # schema_version, silently breaking fresh installs. Sprint 4.5 fixed.
     from app.rms.db import _bump_schema_version
-    _bump_schema_version(conn, 86)
+    _bump_schema_version(conn, 94)

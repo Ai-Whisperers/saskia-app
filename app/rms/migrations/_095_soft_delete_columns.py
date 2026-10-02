@@ -35,7 +35,7 @@ ArchivedAt: Mapped[Optional[datetime]] = mapped_column(
 )
 
 
-def _migration_087_soft_delete_columns(conn: Any) -> None:
+def _migration_095_soft_delete_columns(conn: Any) -> None:
     """Add soft-delete columns to owned tables.
 
     Applies to:
@@ -81,7 +81,7 @@ def _migration_087_soft_delete_columns(conn: Any) -> None:
     # BACKLOG #4 (2026-10-02): migrations 085+ shipped without bumping
     # schema_version, silently breaking fresh installs. Sprint 4.5 fixed.
     from app.rms.db import _bump_schema_version
-    _bump_schema_version(conn, 87)
+    _bump_schema_version(conn, 95)
 
 
 __all__ = ["ArchivedAt", "ArchivedByUserId"]

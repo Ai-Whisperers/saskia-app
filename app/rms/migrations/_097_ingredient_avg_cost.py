@@ -24,7 +24,7 @@ from typing import Any
 from sqlalchemy import text
 
 
-def _migration_089_ingredient_avg_cost(conn: Any) -> None:
+def _migration_097_ingredient_avg_cost(conn: Any) -> None:
     """Add avg_cost_gs column to ingredient table (idempotent).
 
     Also backfills from purchase_price_gs where avg_cost_gs is NULL and
@@ -69,4 +69,4 @@ def _migration_089_ingredient_avg_cost(conn: Any) -> None:
     # BACKLOG #4 (2026-10-02): migrations 085+ shipped without bumping
     # schema_version, silently breaking fresh installs. Sprint 4.5 fixed.
     from app.rms.db import _bump_schema_version
-    _bump_schema_version(conn, 89)
+    _bump_schema_version(conn, 97)

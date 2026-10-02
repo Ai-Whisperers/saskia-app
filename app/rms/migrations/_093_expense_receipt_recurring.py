@@ -14,7 +14,7 @@ from typing import Any
 from sqlalchemy import text
 
 
-def _migration_085_expense_receipt_recurring(conn: Any) -> None:
+def _migration_093_expense_receipt_recurring(conn: Any) -> None:
     """Add recurring_period and receipt_url columns to expense table.
 
     Idempotent: checks for column existence before adding.
@@ -54,4 +54,4 @@ def _migration_085_expense_receipt_recurring(conn: Any) -> None:
     # schema_version, silently breaking fresh installs. Sprint 4.5 fixed
     # this — each migration MUST bump its own version.
     from app.rms.db import _bump_schema_version
-    _bump_schema_version(conn, 85)
+    _bump_schema_version(conn, 93)
