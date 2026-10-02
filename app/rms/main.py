@@ -738,6 +738,9 @@ app.include_router(pedidos.public_router)
 # C2 — public tablet menu at /m/{slug}. Mounted at root so the URL
 # stays short enough for a 1280×720 walk-in tablet to type / display.
 app.include_router(products.public_router)
+# BACKLOG #17 — public digital recibo at /r/{token}. Mounted at root so
+# the URL is short enough for WhatsApp messages (saskia-vps.paragu-ai.com/r/{token}).
+app.include_router(sales.public_router)
 app.include_router(pedidos.router)
 
 # Dev-only routes (gated by env var, never enabled in production)

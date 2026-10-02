@@ -12,10 +12,12 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
+from loguru import logger
 from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import require_login_or_disabled as require_login
+from app.rms.audit import record as audit_record
 from app.rms.catalogs import (
     default_channel_code,
     default_payment_method_code,
@@ -42,8 +44,10 @@ from app.rms.messages import (
     SALE_SKU_REQUIRED,
     SALE_TOO_MANY_ITEMS,
 )
-from app.rms.models import Customer, Product, Sale
+from app.rms.models import AuditLog, Customer, Product, Sale
 from app.rms.money import to_int_gs
+from app.rms.public_tokens import generate_public_token, is_token_valid
+from app.rms.rate_limit import is_disabled as rate_limit_is_disabled
 from app.rms.schemas import (
     ALLOWED_CHANNELS,
     CHANNEL_DEFAULT,
@@ -54,6 +58,61 @@ from app.rms.schemas import (
 from app.services.template_render import render
 
 router = APIRouter(prefix="/ventas", dependencies=[Depends(require_login)])
+
+# BACKLOG #17: public_router for /r/{token} — no auth, no CSRF.
+# Lives at root (mounted via app.include_router in main.py) so the URL
+# is short enough for WhatsApp messages. Mirrors pedidos.public_router.
+public_router = APIRouter()
+
+
+def _public_recibo_client_ip(request: Request) -> str:
+    """Mirror of pedidos._public_pedido_client_ip: prefer XFF first hop.
+
+    Kept duplicated here to avoid cross-router coupling; both routers
+    might diverge in the future (e.g. adding Cloudflare-only headers).
+    """
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    client = request.client
+    return getattr(client, "host", "unknown") if client else "unknown"
+
+
+def _enforce_public_recibo_rate_limit(
+    request: Request, session: Session
+) -> None:
+    """Rate-limit /r/{token} lookups by client IP.
+
+    Defense against brute-forcing the 22-char token (96 bits is
+    uncrackable in practice, but limiting the lookup volume per IP is
+    still cheap insurance). 30 views per 5 minutes, same threshold as
+    pedidos._enforce_public_token_rate_limit.
+
+    Bypassed by AIW_SASKIA_AUTH_DISABLED=1 (test mode).
+    """
+    if rate_limit_is_disabled():
+        return
+    ip = _public_recibo_client_ip(request)
+    when = datetime.now(timezone.utc)
+    threshold = when - timedelta(minutes=5)
+    try:
+        count = (
+            session.query(AuditLog)
+            .filter(
+                AuditLog.action == "public.recibo.view",
+                AuditLog.ip == ip,
+                AuditLog.occurred_at >= threshold,
+            )
+            .count()
+        )
+    except Exception:  # noqa: BLE001 — fail open
+        return  # DB unavailable: don't brick the page
+    if count >= 30:
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas solicitudes. Intentá en unos minutos.",
+            headers={"Retry-After": "300"},
+        )
 
 
 def _decorated(s: Sale) -> dict:
@@ -1573,4 +1632,151 @@ async def sale_void(
     return RedirectResponse(url="/ventas/historial?flash=sale_void_ok", status_code=303)
 
 
-__all__ = ["router"]
+__all__ = ["router", "public_router"]
+
+
+# --- BACKLOG #17: /ventas/{id}/share (auth) + /r/{token} (public) ------------
+# Operator-only POST that issues a fresh public_token (and 30-day expiry),
+# then redirects to the detail page with the URL surfaced in the flash
+# banner. The token is regenerated on every call — operators can rotate by
+# clicking "Compartir" again, which immediately invalidates the prior URL.
+
+
+@router.post("/{sale_id}/share")
+def share_sale_recibo(
+    request: Request,
+    sale_id: int,
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Generate (or rotate) a public digital-recibo link for this sale.
+
+    On success, redirect back to the detail page with the URL in the
+    query string so the template can show a copy-paste box. We use a
+    redirect-after-POST pattern so refresh doesn't re-issue the token.
+    """
+    sale = session.get(Sale, sale_id)
+    if sale is None:
+        raise NotFound("venta", id=sale_id)
+
+    from app.rms.public_tokens import issue_token
+
+    token, expires_at = issue_token()
+    sale.public_token = token
+    sale.public_token_expires_at = expires_at
+    sale.public_token_shared_at = datetime.now(timezone.utc)
+    safe_commit(session)
+
+    # Audit the share issuance for forensics.
+    try:
+        audit_record(
+            session,
+            user_id=None,
+            action="write.sale.share",
+            request=request,
+            target_type="sale",
+            target_id=str(sale_id),
+            detail={"public_token_suffix": token[-4:], "expires_at": expires_at.isoformat()},
+        )
+        session.commit()
+    except Exception:  # noqa: BLE001 — audit best-effort
+        session.rollback()
+
+    public_url = f"/r/{token}"
+    return RedirectResponse(
+        url=f"/ventas/{sale_id}?shared=1&url={public_url}",
+        status_code=303,
+    )
+
+
+@public_router.get("/r/{token}", response_class=HTMLResponse)
+def public_recibo(request: Request, token: str) -> HTMLResponse:
+    """Public, no-auth digital-recibo page rendered for the customer.
+
+    Used as a WhatsApp-shareable link so the customer can re-open their
+    receipt at home ("mi número de venta / cliente / tems"). Mirrors
+    public_pedido exactly: same token shape, same 30-day expiry, same
+    rate-limit and audit hooks.
+    """
+    with request.app.state.session_factory() as session:
+        # Cheap first — rate-limit before the DB hit.
+        _enforce_public_recibo_rate_limit(request, session)
+
+        # Sale.id is int PK; look up by public_token so /r/{token} resolves
+        # to the sale that owns it. Same shape as public_pedido.
+        sale = session.execute(
+            select(Sale)
+            .where(Sale.public_token == token)
+            .options(selectinload(Sale.product), selectinload(Sale.customer))
+        ).scalar_one_or_none()
+        if sale is None:
+            raise HTTPException(
+                status_code=404, detail="Recibo no encontrado"
+            )
+
+        # 410 Gone (not 404) for expired tokens — the customer should
+        # understand the link aged out, not that the sale never existed.
+        if not is_token_valid(sale.public_token_expires_at):
+            raise HTTPException(
+                status_code=410,
+                detail=(
+                    "Este link venció. Pedile a la panadería que te mande "
+                    "uno nuevo."
+                ),
+            )
+
+        # Audit the view for forensics + rate-limit counting.
+        audit_record(
+            session,
+            user_id=None,
+            action="public.recibo.view",
+            request=request,
+            target_type="sale",
+            target_id=str(sale.id),
+            detail={"public_token_suffix": token[-4:]},
+        )
+        try:
+            session.commit()
+        except Exception:  # noqa: BLE001 — audit best-effort
+            session.rollback()
+
+        # Reuse the same recibo.html template the cashier sees. The
+        # public_mode flag hides nav chrome and the "back to history"
+        # button so the customer sees a clean receipt, but keeps the
+        # print stylesheet so they can save as PDF.
+        loyalty_snapshot = None
+        if sale.customer_id:
+            from app.rms.models import Customer as _Cust, LoyaltyTransaction as _LT
+
+            cust = session.get(_Cust, sale.customer_id)
+            if cust is not None:
+                earn_row = session.execute(
+                    select(_LT)
+                    .where(_LT.sale_id == sale.id)
+                    .where(_LT.reason == "earn_sale")
+                    .limit(1)
+                ).scalar_one_or_none()
+                redeemed_row = session.execute(
+                    select(_LT)
+                    .where(_LT.sale_id == sale.id)
+                    .where(_LT.reason == "redeem")
+                    .limit(1)
+                ).scalar_one_or_none()
+                earn_abs = int(earn_row.delta) if earn_row else 0
+                redeem_abs = -int(redeemed_row.delta) if redeemed_row else 0
+                loyalty_snapshot = {
+                    "customer_name": cust.name or cust.phone or "Cliente",
+                    "earn_points": earn_abs,
+                    "redeemed_points": redeem_abs,
+                    "current_balance": int(cust.loyalty_points or 0),
+                    "redeemed_discount_gs": discount_gs_for_points(redeem_abs),
+                }
+
+        return render(
+            request,
+            "recibo.html",
+            {
+                "sale": _decorated(sale),
+                "loyalty_snapshot": loyalty_snapshot,
+                "public_mode": True,
+            },
+        )

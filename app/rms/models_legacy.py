@@ -491,6 +491,20 @@ class Sale(Base):
         ForeignKey("pedido.id"), nullable=True, index=True
     )
 
+    # BACKLOG #17 (Migration 085) — /r/{token} public digital recibo.
+    # public_token is populated on first /ventas/{id}/share call; until
+    # then it's NULL. public_token_expires_at follows the same 30-day
+    # convention as pedido.public_token_expires_at (migration 067).
+    # public_token_shared_at records when the operator last generated
+    # the URL (for "Last shared" display on /ventas/{id}).
+    public_token: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    public_token_expires_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    public_token_shared_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+
     # Relationships
     product: Mapped["Product"] = relationship(back_populates="sales")
     customer: Mapped[Optional["Customer"]] = relationship(back_populates="sales")

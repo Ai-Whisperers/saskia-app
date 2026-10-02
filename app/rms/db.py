@@ -28,6 +28,7 @@ from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
 from typing import Any
 from app.rms.migrations._084_stock_qty_nonneg import _migration_084_stock_qty_nonneg
+from app.rms.migrations._085_sale_public_token import _migration_085_sale_public_token
 
 from loguru import logger
 from sqlalchemy import create_engine, event, text
@@ -4022,6 +4023,7 @@ MIGRATIONS = {
     82: _migration_082_expense,
     83: _migration_083_recipe_yield_qty_insert_guard,
     84: _migration_084_stock_qty_nonneg,
+    85: _migration_085_sale_public_token,
 }
 
 

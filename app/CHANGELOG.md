@@ -2799,6 +2799,48 @@ inventory (backend + middleware; see `docs/FRONTEND_MIDDLEWARE_AUDIT.md`):
   `test_ventas_detail_route` (7), plus 6 regression checks
   (manual version pin). Total: 7+4+10+9+3+10+4+7
 
+### Added — BACKLOG #17: digital recibo share (public /r/{token})
+Customer-facing share of recibo for WhatsApp / email handoff.
+Mirrors the working /p/{token} pedido-share pattern (P1-2 hardening):
+
+- **Migration 085** (`app/rms/db.py` + `_085_sale_public_token.py`) adds
+  `public_token` (VARCHAR 64), `public_token_expires_at` (TIMESTAMP),
+  `public_token_shared_at` (TIMESTAMP) to the `sale` table; backfills
+  `sold_at + 30 days` for legacy rows; creates
+  `ix_sale_token_expires` index. Schema bump: 84 → 85.
+- **Shared token helper** (`app/rms/public_tokens.py`) — `generate_public_token()`
+  (22-char base64url, 96 bits entropy), `issue_token(now, ttl)`,
+  `is_token_valid(expires_at, now)` handling naive / ISO / SQLite
+  datetime-string shapes. Same entropy + TTL as pedido tokens.
+- **Operator endpoint** `POST /ventas/{sale_id}/share` (auth) — issues
+  a fresh token + 30-day expiry, audits `write.sale.share`, redirects
+  to `/ventas/{id}?shared=1&url=/r/{token}`. Each call rotates the token.
+- **Public endpoint** `GET /r/{token}` (no auth, rate-limited 30/5min via
+  `public.recibo.view` audit count, audited per-view) — returns the same
+  `recibo.html` template the cashier sees with `public_mode=True`
+  (hides nav chrome + "back-to-history" button); 404 for unknown token,
+  **410 Gone** for expired token.
+- **UI** — "Compartir recibo" button on `/ventas/{id}` (next to the
+  existing "Ver recibo imprimible" link); on success a green banner
+  with the URL + copy-to-clipboard button.
+- **Tests** — 15 in `tests/test_public_recibo.py`: 7 unit (token shape,
+  entropy, expiry, naive-datetime, string-shape parsing, issue_token)
+  + 8 integration (share redirect shape, token persisted with 30-day
+  expiry, token rotation invalidates prior URL, 404 unknown token,
+  410 expired token, audit row created, share button on detail page).
+
+### Test results
+- 15 new tests pass in `test_public_recibo.py`.
+- 135 regression tests pass in the curated suite
+  (test_public_recibo, test_ventas_detail_route, test_user_guide_version,
+  test_settings_audit, test_k6_public_pedido_token_lookup,
+  test_p1_b2_public_token_hardening, test_sales_export,
+  test_auditoria_filters, test_reorder_scrape_ui, test_db_check_constraints,
+  test_atomic_ddl_block, test_healthz, test_healthz_db_documented,
+  test_stock_qty_nonneg, test_audit_log, test_audit_prune,
+  test_audit_repair, test_migration_partial_apply_detector,
+  test_export_csv).
+
 
 ## [Unreleased-pre-templates] — pre-signoff skeleton
 
