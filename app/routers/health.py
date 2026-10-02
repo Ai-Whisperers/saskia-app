@@ -21,6 +21,7 @@ import shutil
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -37,6 +38,27 @@ router = APIRouter()
 def _disk_usage(path: str):
     """Wrapper for shutil.disk_usage — patchable in tests."""
     return shutil.disk_usage(path)
+
+
+def _get_last_backup_at(request: Request):
+    """Read the last_backup_at app_meta row, return ISO string or None.
+
+    BACKLOG #39 (2026-10-02): this helper exposes backup freshness to
+    /healthz/backup. Tests patch it to simulate stale / missing states.
+    """
+    try:
+        from app.rms.models import AppMeta
+        from sqlalchemy import select
+
+        with request.app.state.session_factory() as s:
+            row = s.scalars(
+                select(AppMeta).where(AppMeta.key == "last_backup_at")
+            ).first()
+            return row.value if row else None
+    except Exception:  # noqa: BLE001 — defensive default
+        # On any DB error we report "no backup" rather than failing the
+        # endpoint. The /healthz/db endpoint already surfaces DB issues.
+        return None
 
 
 def _check_supabase_reachable(url: str, timeout: float = 2.0) -> bool:
