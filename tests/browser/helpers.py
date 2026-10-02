@@ -73,7 +73,7 @@ def pw_page(browser, request):
     db_module.make_engine_dialect = lambda *a, **k: engine
 
     # seed a small world through the factories
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
     with sf() as s:
         cat = make_catalog(s, price_gs=10_000)  # product+recipe+ingredient

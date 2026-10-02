@@ -68,32 +68,30 @@ from app.rms.tagging.vocabulary import (
     TAG_ALIASES,
     TAG_ALLERGEN_BLOCKERS,
 )
+from app.rms.tags import STARTER_TAGS  # re-export for db.py
 
 __all__ = [
-    # vocabulary
     "ALLERGEN_DISPLAY_ORDER",
     "ALLERGEN_KEYWORDS",
     "CANONICAL_ALLERGENS",
     "CANONICAL_DIETARY_TAGS",
     "CUSTOMER_ALLERGEN_WORDS",
     "NEUTRAL_INGREDIENT_KEYWORDS",
+    "STARTER_TAGS",
     "TAG_ALIASES",
     "TAG_ALLERGEN_BLOCKERS",
-    # classify
     "infer_allergens",
     "infer_dietary_tags",
     "ingredient_blocks",
     "normalize",
     "normalize_all",
     "validate_ingredient",
-    # derive
     "LineTarget",
     "TagDerivation",
     "cascade_refresh",
     "derive_recipe_tags",
     "refresh_recipe_tag_cache",
     "walk_recipe_tree",
-    # audit
     "audit_all_ingredients",
     "audit_recipe_tags",
     "backfill_validation_issues",

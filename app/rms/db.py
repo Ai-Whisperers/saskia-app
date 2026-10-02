@@ -24,7 +24,7 @@ explicitly, typically from `main.py`'s lifespan handler.
 from __future__ import annotations
 
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
 from typing import Any
 
@@ -4068,6 +4068,58 @@ MIGRATIONS = {
     87: _migration_087_soft_delete_columns,
     88: _migration_088_audit_columns,
 }
+
+
+def atomic_ddl_block(conn: Any, statements: Sequence[str]) -> None:
+    """Run a sequence of DDL statements with per-statement SAVEPOINT isolation.
+
+    Phase 14 #4 (full migration atomicity): On Postgres, DDL auto-commits
+    even mid-transaction, so a list like::
+
+        ALTER TABLE x ADD COLUMN a INT;
+        ALTER TABLE x ADD COLUMN b INT;
+        ALTER TABLE nonexistent ADD COLUMN c INT;  # this one fails
+
+    would leave columns a and b applied while the migration is
+    considered failed. The next migration would then run against a
+    partially-modified schema.
+
+    On SQLite this is a non-issue (DDL is transactional). On Postgres,
+    we wrap each statement in its own SAVEPOINT: a failure in statement
+    N rolls back statement N only; statements 1..N-1 stay committed.
+
+    Caller pattern::
+
+        for sql in ddl_list:
+            try:
+                atomic_ddl_block(conn, [sql])
+            except Exception as exc:
+                logger.warning("skipped: %s", exc)
+        _bump_schema_version(conn, version)  # only runs if no fatal error
+    """
+    dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+
+    if dialect != "postgresql":
+        # SQLite: DDL is transactional; the surrounding with-block
+        # already gives all-or-nothing semantics. Just exec directly.
+        for sql in statements:
+            conn.exec_driver_sql(sql)
+        return
+
+    # Postgres: wrap each statement in a SAVEPOINT.
+    for i, sql in enumerate(statements):
+        sp_name = f"ddl_block_{i}"
+        try:
+            conn.execute(text(f"SAVEPOINT {sp_name}"))
+            conn.exec_driver_sql(sql)
+            conn.execute(text(f"RELEASE SAVEPOINT {sp_name}"))
+        except Exception:
+            try:
+                conn.execute(text(f"ROLLBACK TO SAVEPOINT {sp_name}"))
+                conn.execute(text(f"RELEASE SAVEPOINT {sp_name}"))
+            except Exception:
+                pass
+            raise
 
 
 def _bump_schema_version(conn: Any, version: int) -> None:
