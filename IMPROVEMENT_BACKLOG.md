@@ -79,7 +79,7 @@ the code, and operator-ranked. Status is the latest known state.
 | 37 | No Supabase Storage for product images (URLs to external CDN today) | ❌ TODO | M |
 | 38 | No Supabase RLS for multi-tenant readiness (Tenant table exists) | ❌ TODO | L |
 | 39 | Render backup runs on app-startup, not on cron | ❌ TODO | M |
-| 40 | Healthz depth: ping Supabase + R2 + disk | ❌ TODO | M |
+| 40 | Healthz depth: ping Supabase + R2 + disk | ✅ Done 2026-10-02 (Sprint 4.6: `/healthz/deps` now actively probes Supabase `/auth/v1/health`, R2 head_bucket, and reports disk usage with 90% alarm threshold. `app/routers/health.py:_check_supabase_reachable` + `_check_r2_reachable` + `_disk_usage` helpers. "skipped" vs False distinguishes dev box from prod outage. 8 tests in `tests/test_healthz_deps_depth.py`; all 91 healthz tests pass.) | — |
 
 ---
 

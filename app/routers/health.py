@@ -21,6 +21,7 @@ import shutil
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -37,6 +38,27 @@ router = APIRouter()
 def _disk_usage(path: str):
     """Wrapper for shutil.disk_usage — patchable in tests."""
     return shutil.disk_usage(path)
+
+
+def _get_last_backup_at(request: Request):
+    """Read the last_backup_at app_meta row, return ISO string or None.
+
+    BACKLOG #39 (2026-10-02): this helper exposes backup freshness to
+    /healthz/backup. Tests patch it to simulate stale / missing states.
+    """
+    try:
+        from app.rms.models import AppMeta
+        from sqlalchemy import select
+
+        with request.app.state.session_factory() as s:
+            row = s.scalars(
+                select(AppMeta).where(AppMeta.key == "last_backup_at")
+            ).first()
+            return row.value if row else None
+    except Exception:  # noqa: BLE001 — defensive default
+        # On any DB error we report "no backup" rather than failing the
+        # endpoint. The /healthz/db endpoint already surfaces DB issues.
+        return None
 
 
 def _check_supabase_reachable(url: str, timeout: float = 2.0) -> bool:
@@ -537,5 +559,138 @@ def admin_migrate(request: Request) -> object:
             "schema_version": new_version,
             "code_schema_version": CURRENT_SCHEMA_VERSION,
             "in_sync": new_version == CURRENT_SCHEMA_VERSION,
+        },
+    )
+
+
+# --- BACKLOG #39 (2026-10-02): backup status + manual backup endpoint ---
+#
+# `run_backup` was originally only called from the lifespan handler. If the
+# app stays up for weeks without restart, no backup ever runs. This
+# pair of endpoints exposes backup freshness to UptimeRobot (GET) and
+# gives the operator a manual trigger (POST) — matching the existing
+# /admin/migrate pattern.
+#
+# Threshold semantics:
+#   - last_backup_at IS NULL           → stale (503)
+#   - last_backup_at > 24h ago         → stale (503)
+#   - last_backup_at <= 24h ago        → ok (200)
+# Both behaviors match the run_backup() gate that already checks
+# BACKUP_THRESHOLD_HOURS in app/rms/config.py.
+
+
+BACKUP_STALE_HOURS = 24  # kept in sync with BACKUP_THRESHOLD_HOURS
+
+
+@router.get("/healthz/backup", response_model=None)
+def healthz_backup(request: Request) -> JSONResponse:
+    """Report last successful backup.
+
+    Status:
+    - 200: backup ran within BACKUP_STALE_HOURS
+    - 503: backup is stale (>24h old) or never ran
+
+    UptimeRobot treats 503 as "down" — operators get paged on stale
+    backups the same way they would for any outage. Body includes
+    last_backup_at (ISO), stale flag, age_hours, threshold_hours so the
+    operator dashboard can render a precise countdown.
+    """
+    ready = getattr(request.app.state, "ready", False)
+    if not ready:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "warming_up", "detail": "App still initializing."},
+        )
+
+    raw = _get_last_backup_at(request)
+    age_hours: float | None = None
+    stale = True  # default: missing = stale
+
+    if raw:
+        try:
+            last = datetime.fromisoformat(raw)
+            now = datetime.now(last.tzinfo) if last.tzinfo else datetime.now()
+            age = now - last
+            age_hours = round(age.total_seconds() / 3600, 1)
+            stale = age_hours > BACKUP_STALE_HOURS
+        except ValueError:
+            # Unparseable stored date → treat as stale.
+            stale = True
+
+    body: dict[str, Any] = {
+        "status": "stale" if stale else "ok",
+        "last_backup_at": raw,
+        "age_hours": age_hours,
+        "stale": stale,
+        "threshold_hours": BACKUP_STALE_HOURS,
+        "hint": (
+            "POST /admin/backup to trigger an immediate backup (auth required)."
+            if stale
+            else None
+        ),
+    }
+    return JSONResponse(
+        status_code=503 if stale else 200,
+        content=body,
+    )
+
+
+def _run_backup_admin(request: Request):
+    """Run run_backup in a fresh session; returns a BackupResult.
+
+    Extracted from admin_backup() so tests can patch it (mocking at
+    the request.app.state.session_factory level is more invasive).
+    """
+    from app.rms.config import DB_PATH
+
+    from app.services.backup_scheduler import run_backup
+
+    with request.app.state.session_factory() as _s:
+        return run_backup(_s, DB_PATH)
+
+
+@router.post("/admin/backup")
+def admin_backup(request: Request) -> object:
+    """Operator escape hatch: trigger run_backup() now.
+
+    Auth: requires an authenticated admin session (same as /admin/migrate).
+    The endpoint runs the backup synchronously (returns when run_backup
+    finishes) so the operator gets the result in the response body.
+    For long backups, hit this from a script with a generous timeout.
+
+    Returns:
+    - 200: {status: backup_complete, local_path, r2_uploaded, r2_key, ...}
+    - 401: not logged in
+    - 500: a backup step raised (R2 outage, disk full, etc.)
+    """
+    from app.auth import current_user_id, is_auth_disabled
+
+    # Honor the test bypass — production leaves SASKIA_TEST_AUTH_DISABLED unset.
+    user_id = current_user_id(request)
+    if user_id is None and not is_auth_disabled():
+        return JSONResponse(
+            status_code=401,
+            content={"error": "authentication_required", "hint": "Login first."},
+        )
+
+    try:
+        result = _run_backup_admin(request)
+    except Exception as exc:  # noqa: BLE001 — defensive default
+        logger.exception("admin_backup failed")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "backup_failed", "detail": str(exc)[:500]},
+        )
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "backup_complete",
+            "local_path": str(result.local_path) if result.local_path else None,
+            "r2_uploaded": result.r2_uploaded,
+            "r2_key": result.r2_key,
+            "local_pruned": result.local_pruned,
+            "skipped": result.skipped,
+            "reason": result.reason,
         },
     )
