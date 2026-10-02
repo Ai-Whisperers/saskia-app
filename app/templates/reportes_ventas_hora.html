@@ -43,6 +43,60 @@
   </tbody>
 </table>
 </div>
+
+{# BACKLOG #36 (2026-10-02): day-of-week × hour heatmap. Each cell's
+   background intensity is proportional to count/heatmap_max so the
+   operator sees the busy slots at a glance. The CSS hue stays constant
+   (blue) and only the saturation/lightness varies, so color-blind
+   users can still rank cells by darkness. #}
+<h2 class="mt-5">
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Mapa de calor — Día de semana × Hora
+</h2>
+<p class="text-muted">Últimos {{ heatmap_range_days }} días. Cada celda es una franja horaria; el color indica cuántas.</p>
+
+<style>
+    .heatmap-grid {
+      display: grid;
+      grid-template-columns: 60px repeat(24, 1fr);
+      gap: 2px;
+      font-size: 0.75rem;
+      max-width: 900px;
+    }
+    .heatmap-grid > div {
+      text-align: center;
+      padding: 4px 2px;
+      border-radius: 2px;
+      color: #1f2937;
+    }
+    .heatmap-cell {
+      min-height: 28px;
+    }
+    .heatmap-axis {
+      color: #6b7280;
+      font-weight: 600;
+    }
+  </style>
+
+<div class="heatmap-grid" role="table" aria-label="Mapa de calor ventas por día y hora">
+  <div class="heatmap-axis"></div>
+  {% for hour in range(24) %}
+  <div class="heatmap-axis">{{ "%02d"|format(hour) }}</div>
+  {% endfor %}
+  {% for dow in range(7) %}
+  <div class="heatmap-axis">{{ weekday_labels[dow] }}</div>
+  {% for hour in range(24) %}
+  {% set count = heatmap[dow][hour] %}
+  {% set intensity = (count / heatmap_max) if heatmap_max else 0 %}
+  <div class="heatmap-cell"
+       title="{{ weekday_labels[dow] }} {{ "%02d:00"|format(hour) }} — {{ count }} venta(s)"
+       style="background: hsl(217, 80%, {{ (95 - intensity * 60) | int }}%);">
+    {% if count > 0 %}{{ count }}{% endif %}
+  </div>
+  {% endfor %}
+  {% endfor %}
+</div>
+
 {% else %}
 {{ ui.empty_state(title="No hay ventas registradas", icon="icon-report") }}
 {% endif %}

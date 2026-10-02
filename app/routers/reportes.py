@@ -30,7 +30,7 @@ from app.rms.dependencies import get_session
 from app.rms.models import Ingredient, IngredientPriceEvent, Sale
 from app.rms.price_history import batch_price_stats, price_history, price_stats
 from app.rms.rate_limit import read_rate_limit_dependency
-from app.rms.sales_intel import customer_retention, sales_by_hour
+from app.rms.sales_intel import customer_retention, sales_by_hour, sales_heatmap
 from app.services.template_render import render
 
 # BACKLOG #10: rate-limit all /reportes/* reads at 30/min/IP. Reports
@@ -687,12 +687,21 @@ def reportes_ventas_hora(
     request: Request,
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    """Sales by hour of day."""
+    """Sales by hour of day + day-of-week × hour heatmap (BACKLOG #36)."""
     by_hour = sales_by_hour(session)
     peak_hour = max(by_hour.items(), key=lambda kv: kv[1])[0] if any(v > 0 for v in by_hour.values()) else -1
+    # Heatmap: weekday × hour. Mon..Sun × 0..23.
+    heatmap = sales_heatmap(session, since_days=90)
+    # Find the max for the heatmap's color scale (avoid div-by-zero).
+    max_cell = max((c for row in heatmap for c in row), default=0) or 1
+    weekday_labels = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
     return render(request, "reportes_ventas_hora.html", {
         "by_hour": by_hour,
         "peak_hour": peak_hour,
+        "heatmap": heatmap,
+        "heatmap_max": max_cell,
+        "weekday_labels": weekday_labels,
+        "heatmap_range_days": 90,
     })
 
 

@@ -48,6 +48,45 @@ def sales_by_day_of_week(session: Session) -> dict[int, int]:
     return {d: counts.get(d, 0) for d in range(7)}
 
 
+def sales_heatmap(session: Session, since_days: int = 90) -> list[list[int]]:
+    """Day-of-week × hour grid of sale counts for the last `since_days`.
+
+    Output shape: `grid[weekday][hour] = count`, weekday 0..6 (Mon..Sun),
+    hour 0..23. Local-time bucketing so operators see Asunción hours.
+
+    BACKLOG #36 (2026-10-02): original `/reportes/ventas-hora` was a
+    bar chart by hour only. This adds the day-of-week dimension so
+    operators can spot "Friday 18-21h is the busy slot" patterns.
+
+    No-data case: returns a 7×24 grid of zeros (so the template can
+    render an empty heatmap without special-casing).
+    """
+    from app.rms.config import ASUNCION_TZ
+
+    cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=since_days)
+    # `cutoff` is tz-aware (ASUNCION_TZ); Sale.sold_at is UTC tz-aware.
+    # Comparing tz-aware to tz-naive raises; convert if needed.
+    rows = session.execute(
+        select(Sale.sold_at).where(
+            Sale.voided_at.is_(None),
+            Sale.sold_at >= cutoff,
+        )
+    ).all()
+
+    grid: list[list[int]] = [[0 for _ in range(24)] for _ in range(7)]
+    for (sold_at,) in rows:
+        if sold_at is None:
+            continue
+        local_dt = sold_at.astimezone(ASUNCION_TZ) if sold_at.tzinfo else sold_at
+        grid[local_dt.weekday()][local_dt.hour] += 1
+    return grid
+
+
+# Internal alias so tests can patch the in-progress helper without
+# conflicting with any future public name.
+_sales_heatmap = sales_heatmap
+
+
 def sales_by_month(session: Session) -> dict[str, int]:
     """Count of sales per YYYY-MM."""
     rows = session.execute(
