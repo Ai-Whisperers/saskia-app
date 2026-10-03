@@ -170,15 +170,17 @@ Asunción local TZ.
    Pass `options` as a list of integers (e.g. [7, 30, 90, 180]) and `current` as
    the currently active value. Renders a GET form with hidden params for any
    extra filters (preserves them in the URL). Each chip is a submit button. -#}
-{% macro days_filter(options, current, name="days", extra_params="", label="Período", id="days-filter") -%}
+{% macro days_filter(options, current, name="days", extra_params="", label="Período", id="days-filter", data_saskia_state=None, data_saskia_page=None) -%}
 {%- set qp = request.query_params.multi_items() if request is defined else [] -%}
-<form method="get" class="filter-bar days-filter" id="{{ id }}" aria-label="{{ label }}">
+<form method="get" class="filter-bar days-filter" id="{{ id }}" aria-label="{{ label }}"
+      {% if data_saskia_page %}data-saskia-page="{{ data_saskia_page }}"{% endif %}>
   <span class="days-filter__label">{{ label }}:</span>
   <div class="days-filter__chips" role="group" aria-label="{{ label }}">
     {%- for opt in options -%}
     <button type="submit" name="{{ name }}" value="{{ opt }}"
             class="chip{% if opt == current %} chip--active{% endif %}"
-            {% if opt == current %}aria-current="true"{% endif %}>
+            {% if opt == current %}aria-current="true"{% endif %}
+            {% if data_saskia_state %}data-saskia-state="{{ data_saskia_state }}"{% endif %}>
       {{ opt }}d
     </button>
     {%- endfor -%}

@@ -296,8 +296,10 @@
   {% include "_components/confirm_modal.html" %}
   <saskia-toast-stack></saskia-toast-stack>
 
-  {# ── Global JS: search modal, notification center, Cmd+K ── #}
+  {# ── Global JS: search modal, notification center, Cmd+K, cross-page state ── #}
   <script src="/static/shortcuts.js" defer></script>
+  <script src="/static/form-dirty.js" defer></script>
+  <script src="/static/state-preservation.js" defer></script>
   <script src="/static/app.js?v={{ asset_version() }}" defer></script>
   <script src="/static/app-components.js?v={{ asset_version() }}" defer></script>
   <script src="/static/saskia-date.js?v={{ asset_version() }}" defer></script>
