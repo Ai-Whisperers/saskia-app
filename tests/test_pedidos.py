@@ -14,7 +14,7 @@ Phase 3 of the 2026-09-17 prelaunch roadmap. Covers:
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import select

@@ -29,7 +29,6 @@ def test_ventas_nueva_triggers_backup_check(authed_client):
 
 def test_pedidos_fulfill_no_500_when_backup_missing(authed_client, session_factory):
     """Pedidos fulfill must succeed even if backup dir missing (degraded mode)."""
-    from datetime import date, timezone
 
     from app.rms.models import Pedido, PedidoLine, Product
 

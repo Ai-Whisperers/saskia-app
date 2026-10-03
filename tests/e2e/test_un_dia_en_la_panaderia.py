@@ -175,7 +175,6 @@ def test_price_change_never_rewrites_sale_history(client, session_factory):
 
 def test_pedido_lifecycle_through_routes(client, session_factory):
     """pedido create → confirm → fulfill via HTTP; snapshot price holds."""
-    from datetime import date, timezone
 
     with session_factory() as s:
         ing = make_ingredient(s, stock_qty=50.0)

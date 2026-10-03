@@ -102,7 +102,7 @@ def test_menu_hides_order_ui_without_whatsapp(client):
 
 def test_menu_shows_order_ui_with_whatsapp(session_factory, client):
     """Setting shop_whatsapp turns on the per-item + Agregar buttons."""
-    from datetime import datetime as _dt, timezone
+    from datetime import datetime as _dt
 
     from app.rms.models import Product, Recipe, SettingsKV
 

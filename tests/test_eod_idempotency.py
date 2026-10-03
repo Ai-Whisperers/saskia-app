@@ -7,7 +7,7 @@ Per SASKIA_TEST_PLAN.md §5 #13 — POST /eod/completar must:
 """
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 
 def test_eod_completar_first_call_succeeds(authed_client):

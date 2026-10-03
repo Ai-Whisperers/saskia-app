@@ -51,7 +51,7 @@ def test_merma_rapida_desde_modal_registra(authed_client, session_factory):
 
 
 def test_produccion_manana_muestra_pedidos(authed_client, session_factory):
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     from app.rms.config import ASUNCION_TZ
 

@@ -564,7 +564,6 @@ def test_productos_list_still_renders(authed_client, session_factory):
 
 def test_other_public_routes_unaffected(client, session_factory):
     """C2 #28: /p/{token} still works (regression guard for router mount order)."""
-    from datetime import date
 
     from app.rms.models import Pedido
 

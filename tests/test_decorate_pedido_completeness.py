@@ -11,7 +11,6 @@ The fix is twofold:
    (list, board, recibo, pedido_publico) renders identically.
 """
 import inspect
-from datetime import date
 
 from sqlalchemy import inspect as sqla_inspect
 

@@ -358,7 +358,7 @@ def test_patch_ingredientes_updates_stock_qty(session_factory):
 
 def test_patch_ingredientes_price_update_sets_timestamp(session_factory):
     """Purchase price update → automatic purchase_price_updated_at = now."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     from app.rms.models import Ingredient
     from app.services.import_xlsx import from_workbook

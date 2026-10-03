@@ -11,7 +11,7 @@ This test guards against regressions:
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 from app.rms.models import Pedido
 

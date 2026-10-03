@@ -57,7 +57,7 @@ def test_detalle_suggestions_card_renders_when_multiple_suggestions(client, qsee
     days directly, so the rule engine fires BOTH cumpleaños + puntos
     dormidos — keeping both.
     """
-    from datetime import date, timedelta, timezone
+    from datetime import timedelta
 
     from app.rms.models import Customer
 
@@ -81,7 +81,7 @@ def test_detalle_suggestions_button_has_csrf_and_kind(client, qseed, session_fac
     """Each 'Aplicar sugerencia' button is a form POST that targets
     the suggestion-applied endpoint and carries the suggestion kind +
     discount_pct as hidden inputs."""
-    from datetime import date, timedelta
+    from datetime import timedelta
 
     from app.rms.models import Customer
 

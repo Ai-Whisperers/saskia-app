@@ -21,7 +21,7 @@ Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m
 """
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 from sqlalchemy import select

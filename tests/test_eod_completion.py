@@ -8,8 +8,6 @@ cover the persistence half: ProductionCompletion model, POST
 
 from __future__ import annotations
 
-from datetime import date
-
 import pytest
 from sqlalchemy import select
 
@@ -99,7 +97,7 @@ def test_post_completar_rejects_unknown_product(client):
 
 def test_eod_view_shows_completion_in_hecho_column(client, session_factory, product_id):
     """GET /eod pre-fills the Hecho input with the recorded value."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
     from datetime import datetime as _dt
 
     # Seed sales so the forecast produces a plan row for this product.

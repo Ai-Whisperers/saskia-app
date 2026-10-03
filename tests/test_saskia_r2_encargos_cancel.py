@@ -38,7 +38,7 @@ from app.rms.models import (
 
 
 def _asuncion_today() -> date:
-    from datetime import datetime, timezone
+    from datetime import datetime
     from zoneinfo import ZoneInfo
     return datetime.utcnow().astimezone(ZoneInfo("America/Asuncion")).date()
 

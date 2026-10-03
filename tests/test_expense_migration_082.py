@@ -15,6 +15,8 @@ from app.rms.accounting import daily_summary, expenses_in_window
 from app.rms.config import DB_PATH
 from app.rms.db import init_db
 from app.rms.models import Expense
+
+
 def test_expense_table_exists_with_expected_columns():
     """Migration 082 created the table with the expected schema."""
     engine = create_engine(f"sqlite:///{DB_PATH}")

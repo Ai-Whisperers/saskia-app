@@ -22,7 +22,7 @@ Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -236,7 +236,7 @@ def test_forecast_sample_stats_zero_when_no_sales(session_factory) -> None:
 
 def test_manana_override_bulk_roundtrip(client, session_factory) -> None:
     """POST /produccion/override-bulk writes date-scoped overrides (one commit)."""
-    from datetime import date, timedelta
+    from datetime import timedelta
 
     from app.rms.models import ProductionPlanOverride
 

@@ -483,7 +483,6 @@ async def reorder_upload_prices(
 
     import csv
     import io
-    from datetime import date as _date
     from datetime import datetime as _datetime
 
     reader = csv.DictReader(io.StringIO(text))

@@ -13,7 +13,7 @@ def _asuncion_today() -> date:
     Seeding with datetime.utcnow().date() diverges near midnight UTC and flakes the
     day count by one.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     return datetime.now(ASUNCION_TZ).date()
 from app.routers.dashboard import _compliance_alerts

@@ -57,7 +57,7 @@ def test_communication_log_indexes_exist(session_factory):
 
 def test_communication_log_check_constraints(session_factory):
     """Enum constraints reject invalid direction/channel/status values."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from app.rms.models import CommunicationLog, Customer
 

@@ -37,7 +37,6 @@ def test_inventory_adjust_no_rate_limit_in_test(authed_client):
 
 def test_produccion_override_no_rate_limit_in_test(authed_client):
     """Repeated produccion/override POSTs should not 429 in test env."""
-    from datetime import date, timezone
 
     # Hit the endpoint many times
     for i in range(5):

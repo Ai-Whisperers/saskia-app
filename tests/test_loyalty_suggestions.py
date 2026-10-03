@@ -551,7 +551,7 @@ def test_cliente_api_with_lapsed_bronze_returns_vuelve_pronto(
     session_factory, client, qseed
 ):
     """End-to-end: a BRONZE customer with last sale 30 days ago → 'vuelve_pronto'."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     from app.rms.customers import ensure_customer
     from app.rms.models import Product, Sale
@@ -610,7 +610,7 @@ def test_cliente_api_with_dormant_points_returns_puntos_dormidos(
         # API endpoint also suppresses a lone points-dormant
         # suggestion. Add a birthday in 3 days so the cumple_cerca
         # rule fires alongside it.
-        from datetime import date, timedelta
+        from datetime import timedelta
         cust_db.birthday = (datetime.utcnow().date() + timedelta(days=3)).strftime("%m-%d")
         s.commit()
         cust_id = cust.id

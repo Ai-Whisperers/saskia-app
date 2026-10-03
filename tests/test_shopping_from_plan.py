@@ -13,7 +13,7 @@ Covers the three pieces added this sprint:
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -117,7 +117,7 @@ def _build_subrecipe_world(session):
 
     # Seed tomorrow's override (10 units) so the day plan has real qty —
     # otherwise forecast=0 and the route flow finds no shortages.
-    from datetime import datetime as _dt, timezone
+    from datetime import datetime as _dt
 
     from app.rms.models import ProductionPlanOverride
 

@@ -15,6 +15,7 @@ Skip if the file already has `, timezone` somewhere in its datetime imports
 or any plain `import datetime; datetime.timezone` access pattern.
 """
 from __future__ import annotations
+
 import re
 import subprocess
 

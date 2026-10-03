@@ -6,8 +6,6 @@ semantics, NOT the production_plan_override table).
 """
 from __future__ import annotations
 
-from datetime import date
-
 import pytest
 from sqlalchemy import select
 

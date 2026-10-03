@@ -6,8 +6,6 @@ and the delta computation produces sensible results.
 """
 from __future__ import annotations
 
-from datetime import date
-
 from sqlalchemy import select
 
 from app.rms.models import Ingredient, MarketPriceReference

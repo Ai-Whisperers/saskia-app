@@ -153,7 +153,6 @@ def test_refund_partial_then_full_works(refund_session):
 
 def test_refund_db_trigger_catches_bypass(refund_engine):
     """Direct INSERT bypassing the service layer must also fail via DB trigger."""
-    from datetime import date
 
     from sqlalchemy.exc import IntegrityError
 

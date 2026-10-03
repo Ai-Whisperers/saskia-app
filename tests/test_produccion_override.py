@@ -1,7 +1,7 @@
 """Produccion override endpoint tests."""
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 
 from app.rms.models import ProductionCompletion
 
