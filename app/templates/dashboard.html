@@ -121,7 +121,7 @@
 {{ ui.skeleton_section(id="dashboard-channels", variant="line", count=4, label="Cargando ventas por canal") }}
 <div data-loaded-section="dashboard-channels">
 {% if by_channel %}
-<table class="table is-striped">
+<table class="table is-striped sortable">
   <thead><tr><th>Canal</th><th class="num">Ingresos Gs.</th></tr></thead>
   <tbody>
     {% for ch, rev in by_channel.items() %}

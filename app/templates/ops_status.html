@@ -12,7 +12,7 @@
 
 {{ ui.skeleton_section(id="ops-status-table", variant="line", count=6, label="Cargando estado de operaciones") }}
 <div data-loaded-section="ops-status-table">
-<table class="table is-hoverable">
+<table class="table is-hoverable sortable">
   <thead>
     <tr><th>Endpoint</th><th>Propósito</th><th class="actions">Acción</th></tr>
   </thead>
@@ -59,7 +59,7 @@
   (mediana {{ reorder_stats.median_days_between_orders }} d).
 </p>
 {% if reorder_stats.top_repeaters %}
-<table class="table is-hoverable">
+<table class="table is-hoverable sortable">
   <thead>
     <tr>
       <th>Cliente</th>
