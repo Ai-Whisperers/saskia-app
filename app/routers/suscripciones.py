@@ -122,7 +122,7 @@ def suscripciones_list(
     # then pausadas, then canceladas. Most-recently-updated first.
     order = {"activa": 0, "pausada": 1, "cancelada": 2}
 
-    def _sort_key(s: Suscripcion):
+    def _sort_key(s: Suscripcion) -> tuple[int, str, float]:
         cust_name = (s.customer.name if s.customer else "").lower()
         return (order.get(s.status, 9), cust_name, -(s.updated_at.timestamp() if s.updated_at else 0))
 

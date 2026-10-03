@@ -35,12 +35,12 @@ router = APIRouter()
 # --- Dependency-probe helpers (BACKLOG #40) ---
 
 
-def _disk_usage(path: str):
+def _disk_usage(path: str) -> Any:
     """Wrapper for shutil.disk_usage — patchable in tests."""
     return shutil.disk_usage(path)
 
 
-def _get_last_backup_at(request: Request):
+def _get_last_backup_at(request: Request) -> str | None:
     """Read the last_backup_at app_meta row, return ISO string or None.
 
     BACKLOG #39 (2026-10-02): this helper exposes backup freshness to
@@ -882,14 +882,14 @@ def healthz_backup(request: Request) -> JSONResponse:
     )
 
 
-def _run_backup_admin(request: Request):
+def _run_backup_admin(request: Request) -> "BackupResult":
     """Run run_backup in a fresh session; returns a BackupResult.
 
     Extracted from admin_backup() so tests can patch it (mocking at
     the request.app.state.session_factory level is more invasive).
     """
     from app.rms.config import DB_PATH
-    from app.services.backup_scheduler import run_backup
+    from app.services.backup_scheduler import BackupResult, run_backup  # noqa: F401 — used in return-type annotation
 
     with request.app.state.session_factory() as _s:
         return run_backup(_s, DB_PATH)

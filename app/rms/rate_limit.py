@@ -26,6 +26,7 @@ app/routers/auth.py.
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -306,7 +307,11 @@ def record_read_heavy(session: Session, request: object, route_tag: str) -> None
         logger.warning(f"record_read_heavy({route_tag}) audit write failed")
 
 
-def read_rate_limit_dependency(max_per_minute: int, window_seconds: int = 60, route_tag: str = "default"):
+def read_rate_limit_dependency(
+    max_per_minute: int,
+    window_seconds: int = 60,
+    route_tag: str = "default",
+) -> Callable:
     """Return a FastAPI dependency that gates a route on the read limiter.
 
     Usage:

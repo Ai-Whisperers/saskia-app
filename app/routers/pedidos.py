@@ -251,7 +251,7 @@ def _int_or_none(value: Any) -> int | None:
         return None
 
 
-def _parse_date_or_none(value: Any):
+def _parse_date_or_none(value: Any) -> date | None:
     """Phase 13: parse a YYYY-MM-DD date string. Returns None for empty
     or invalid. The Pedido column is Date (not DateTime), so callers
     receive a date object back."""
@@ -282,7 +282,7 @@ def _ventana_text_for(pedido_or_decorated: Any) -> str:
     Accepts both a Pedido ORM row and a decorated dict (the detail
     handler passes the decorated version that already has string dates).
     """
-    def g(k: Any):
+    def g(k: Any) -> Any:
         # ORM-row style (attribute access) or dict-style (key access)
         try:
             v = getattr(pedido_or_decorated, k)

@@ -6,6 +6,7 @@ Per dev plan §9 Task 5.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 
@@ -501,7 +502,7 @@ async def sales_export_csv(
     sales_q = _build_filtered_sales_query(q=q, product_id=product_id, days=days)
     sales = session.scalars(sales_q).all()
 
-    def _row_stream():
+    def _row_stream() -> Iterator[str]:
         from app.rms.streaming_csv import stream_csv_rows
 
         header = [

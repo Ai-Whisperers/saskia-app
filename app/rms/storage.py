@@ -28,11 +28,15 @@ import hashlib
 import logging
 import os
 import urllib.error
+from typing import TYPE_CHECKING
 import urllib.request
 from pathlib import Path
 from typing import Final
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from supabase import Client
 
 PRODUCT_IMAGE_BUCKET: Final[str] = "product-images"
 ALLOWED_CONTENT_TYPES: Final[set[str]] = {
@@ -80,7 +84,7 @@ def is_storage_enabled() -> bool:
         return False
 
 
-def _supabase_admin():
+def _supabase_admin() -> "Client":
     """Lazy-import the service-role client (mirrors auth_supabase.py)."""
     from app.auth_supabase import get_supabase_admin
 
