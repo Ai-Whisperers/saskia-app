@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-03
 **Branch:** `feat/phase-3-m1-product-detail` (continues Phase 22/35/36 work)
-**Status:** tests-first; nothing implemented until each batch has its tests committed
+**Status:** **15/17 DONE · 2 SKIPPED · 17 commits** on the branch
 **Owner:** Iván (operator), Hermes (impl)
 
 ---
@@ -370,5 +370,22 @@ I will stop, report the blocker, and ask before proceeding.
 - `tests/test_P22_dashboard_kpi_target_indicators.py::test_dashboard_kpi_no_data_fallback*` — 4 fail
 - `tests/e2e/test_dark_routes_batch.py::test_planner_compute_shows_shortage_and_materializes_shopping_list` — Decimal/float TypeError in `/produccion-planner/compute`
 
-**P1 + P2 batches: not yet started.** Plan file: `docs/plans/2026-10-03-ux-hardening-plan.md`.
+**P1 + P2 batches:** COMPLETED. Final tally:
+
+| Batch | Done | Skipped | Reason skipped |
+|-------|------|---------|---------------|
+| P0 (8 items) | 7 | 1 | P0.8: `/admin/load-demo` route doesn't exist |
+| P1 (5 items) | 5 | 0 | — |
+| P2 (4 items) | 3 | 1 | P2.2: `/admin/health/deps` route not implemented (env-leak guard for `/healthz/deps` passes) |
+
+**Verification (full P0–P2 regression suite, no pre-existing tests):**
+```
+tests/test_P32_*.py tests/test_P33_*.py tests/test_P34_*.py tests/test_P35_*.py
+tests/test_P36_*.py tests/test_P37_*.py tests/test_P38_*.py tests/test_P39_*.py
+tests/test_P40_*.py tests/test_P41_*.py tests/test_P42_*.py tests/test_P43_*.py
+tests/test_P17_*.py
+→ 21 passed, 2 skipped in 18.67s
+```
+
+Branch is ready for review. Plan file: `docs/plans/2026-10-03-ux-hardening-plan.md`.
 
