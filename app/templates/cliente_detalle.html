@@ -101,7 +101,7 @@
           {% if sub.preferred_time %}
             · {{ sub.preferred_time }}
           {% endif %}
-          · Gs. {{ "{:,}".format(sub.price_gs).replace(",", ".") }}
+          · {{ m.gs_full(sub.price_gs) }}
         </div>
         <div style="margin-top:var(--space-1);">{{ sub.product_summary }}</div>
         {% if sub.notes %}<small class="text-muted">{{ sub.notes }}</small>{% endif %}
@@ -271,7 +271,7 @@
         {% endif %}
         <div class="text-muted">
           {{ tz_breakdown | length }} zona{{ 's' if tz_breakdown|length != 1 else '' }}
-          · Gs. {{ "{:,}".format(top_tz[1].total_gs) }} principal
+          · {{ m.gs_full(top_tz[1].total_gs) }} principal
         </div>
       </div>
     </section>
@@ -455,7 +455,7 @@
             <span style="flex:0 0 auto;"><a href="/pedidos/{{ p.id }}">#{{ p.id }}</a></span>
             <span style="flex:0 0 auto;color:var(--text-muted);font-size:var(--text-sm);">{{ p.promised_date.strftime("%d/%m/%Y") if p.promised_date else "—" }}</span>
             <span style="flex:0 0 auto;">{{ ui.status_pill(p.status_label, p.status_sev) }}</span>
-            <span style="flex:1;text-align:right;font-variant-numeric:tabular-nums;">Gs. {{ "{:,}".format(p.total_gs or 0) }}</span>
+            <span style="flex:1;text-align:right;font-variant-numeric:tabular-nums;">{{ m.gs_full(p.total_gs or 0) }}</span>
             <a href="/pedidos/nuevo?customer_id={{ customer.id }}&from={{ p.id }}"
                class="btn btn-sm"
                title="Re-petir este pedido"
@@ -470,7 +470,7 @@
               {% for ln in p.top_lines %}
               <li style="display:flex;justify-content:space-between;padding:2px 0;">
                 <span{% if not ln.product_exists %} class="text-muted" style="text-decoration:line-through"{% endif %}>{{ ln.product_name }}</span>
-                <span class="text-muted">{{ ln.qty }} × Gs. {{ "{:,}".format(ln.unit_price_gs) }}</span>
+                <span class="text-muted">{{ ln.qty }} × {{ m.gs_full(ln.unit_price_gs) }}</span>
               </li>
               {% endfor %}
               {% if p.line_count > p.top_lines | length %}
