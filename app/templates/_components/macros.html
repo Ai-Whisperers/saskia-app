@@ -97,6 +97,7 @@
 </saskia-combo>
 {%- endmacro %}
 
+<<<<<<< HEAD
 
 
 {# url_with_filters(request, overrides_dict) — build a URL that preserves
@@ -124,3 +125,36 @@
     {{- '' -}}
   {%- endif -%}
 {%- endmacro -%}
+=======
+{# Phase 23: Form field help text component
+   Usage:
+     {{ m.form_help("Ingresá el precio en guaraníes (sin puntos)", kind="info") }}
+     {{ m.form_help("Este campo es obligatorio", kind="error") }}
+     {{ m.form_help("Máx. 100 caracteres", kind="info", id="name-help") }}
+   The id parameter should match the input's aria-describedby for a11y. #}
+{% macro form_help(text, kind="info", id=None, icon=None, inline=False) -%}
+<small class="form-help form-help--{{ kind }}{% if inline %} form-help--inline{% endif %}"
+       {% if id %}id="{{ id }}"{% endif %}>
+  {%- if icon %}
+  <svg class="form-help__icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
+  {%- endif %}
+  {{ text }}
+</small>
+{%- endmacro %}
+
+{# Phase 23: Required/optional label indicator #}
+{% macro field_label(text, required=False, optional=False) -%}
+<label class="form-label{% if required %} form-label--required{% elif optional %} form-label--optional{% endif %}">
+  {{ text }}
+</label>
+{%- endmacro %}
+
+{# Phase 23: Character counter for inputs
+   Usage: {{ m.char_counter("name", max=100) }} #}
+{% macro char_counter(name, max, current=0) -%}
+<div class="form-counter" data-counter-for="{{ name }}" data-counter-max="{{ max }}">
+  <span class="form-counter__text">Máx. {{ max }} caracteres</span>
+  <span class="form-counter__count">{{ current }}/{{ max }}</span>
+</div>
+{%- endmacro %}
+>>>>>>> 4eb6b721 (Phase 23: form help text + perf monitor (sortable 69/75))
