@@ -13,7 +13,7 @@ Covers the three pieces added this sprint:
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -117,14 +117,14 @@ def _build_subrecipe_world(session):
 
     # Seed tomorrow's override (10 units) so the day plan has real qty —
     # otherwise forecast=0 and the route flow finds no shortages.
-    from datetime import datetime as _dt
+    from datetime import datetime as _dt, timezone
 
     from app.rms.models import ProductionPlanOverride
 
     session.add(
         ProductionPlanOverride(
             product_id=prod.id,
-            for_date=date.today() + timedelta(days=1),
+            for_date=datetime.utcnow().date() + timedelta(days=1),
             qty=10.0,
             updated_at=_dt.utcnow(),
         )
@@ -143,7 +143,7 @@ def test_plan_includes_subrecipe_ingredients(session_factory, subrecipe_world):
 def _assert_plan(session, subrecipe_world):
     from app.rms.production import plan_production
 
-    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = datetime.utcnow().date() + timedelta(days=1)
     plan = plan_production(session, for_date=tomorrow, manual_forecast={subrecipe_world["product"].id: 10})
     by_ing = {ln.ingredient_id: ln for ln in plan.lines}
 
@@ -158,7 +158,7 @@ def _assert_plan(session, subrecipe_world):
 def test_from_production_plan_creates_shortage_items(session_factory, subrecipe_world, client):
     from app.rms.models import ShoppingListItem
 
-    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = datetime.utcnow().date() + timedelta(days=1)
     resp = client.post(
         "/shopping-list/from-production-plan",
         data={"for_date": tomorrow.isoformat()},
@@ -188,7 +188,7 @@ def test_from_production_plan_is_idempotent(session_factory, subrecipe_world, cl
     """Calling twice must NOT duplicate rows — it tops up or leaves as-is."""
     from app.rms.models import ShoppingListItem
 
-    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = datetime.utcnow().date() + timedelta(days=1)
     client.post("/shopping-list/from-production-plan", data={"for_date": tomorrow.isoformat()})
     client.post("/shopping-list/from-production-plan", data={"for_date": tomorrow.isoformat()})
 
@@ -214,7 +214,7 @@ def test_shopping_list_groups_by_supplier(session_factory, subrecipe_world, clie
         queso.supplier_id = sup.id
         session.commit()
 
-    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = datetime.utcnow().date() + timedelta(days=1)
     client.post("/shopping-list/from-production-plan", data={"for_date": tomorrow.isoformat()})
 
     resp = client.get("/shopping-list")
@@ -228,7 +228,7 @@ def test_shopping_list_groups_by_supplier(session_factory, subrecipe_world, clie
 
 def test_produccion_page_has_send_to_list_button(client, subrecipe_world):
     """The day view carries the one-click button (POST target + label)."""
-    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = datetime.utcnow().date() + timedelta(days=1)
     resp = client.get(f"/produccion?for_date={tomorrow.isoformat()}")
     assert resp.status_code == 200
     assert "/shopping-list/from-production-plan" in resp.text

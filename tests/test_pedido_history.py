@@ -58,7 +58,7 @@ def test_timeline_includes_audit_status_change(qseed, session_factory):
         pedido_id = pedido.id
 
         # Manually create an audit row (simulating a status transition)
-        from datetime import datetime
+        from datetime import datetime, timezone
         s.add(AuditLog(
             occurred_at=datetime.utcnow(),
             user_id="test-operator",

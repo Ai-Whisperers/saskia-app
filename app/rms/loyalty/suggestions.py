@@ -153,7 +153,7 @@ def suggest_for_customer(
       (stable). Empty list when no rule fires.
     """
     if today is None:
-        today = _dt.date.today()
+        today = _dt.datetime.now(_dt.UTC).date()
 
     out: list[Suggestion] = []
 

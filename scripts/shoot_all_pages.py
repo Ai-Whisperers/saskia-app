@@ -39,7 +39,7 @@ def boot_app():
     sf = make_session_factory(engine)
 
     # Seed a rich little world so pages show real content
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
     from tests.factories import (
         ing_line,

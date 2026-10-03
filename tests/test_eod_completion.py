@@ -38,10 +38,10 @@ def test_upsert_creates_then_updates(session_factory, product_id):
         s.execute(select(Product)).scalars().first()
 
     with session_factory() as s:
-        upsert_completion(s, product_id=product_id, for_date=date.today(), completed_qty=5.0)
+        upsert_completion(s, product_id=product_id, for_date=datetime.now(_UTC).date(), completed_qty=5.0)
         s.commit()
     with session_factory() as s:
-        upsert_completion(s, product_id=product_id, for_date=date.today(), completed_qty=7.5)
+        upsert_completion(s, product_id=product_id, for_date=datetime.now(_UTC).date(), completed_qty=7.5)
         s.commit()
 
     with session_factory() as s:
@@ -59,7 +59,7 @@ def test_upsert_rejects_negative(session_factory, product_id):
 
     with session_factory() as s:
         with pytest.raises(ValueError):
-            upsert_completion(s, product_id=product_id, for_date=date.today(), completed_qty=-1.0)
+            upsert_completion(s, product_id=product_id, for_date=datetime.now(_UTC).date(), completed_qty=-1.0)
 
 
 # --- HTTP route ---
@@ -69,7 +69,7 @@ def test_post_completar_route_creates_row(client, session_factory, product_id):
     """POST /eod/completar → 303 + row in DB."""
     r = client.post(
         "/eod/completar",
-        data={"product_id": str(product_id), "for_date": date.today().isoformat(), "completed_qty": "3.5"},
+        data={"product_id": str(product_id), "for_date": datetime.now(_UTC).date().isoformat(), "completed_qty": "3.5"},
         follow_redirects=False,
     )
     assert r.status_code == 303, r.text
@@ -84,7 +84,7 @@ def test_post_completar_route_creates_row(client, session_factory, product_id):
 def test_post_completar_rejects_negative_qty(client, product_id):
     r = client.post(
         "/eod/completar",
-        data={"product_id": str(product_id), "for_date": date.today().isoformat(), "completed_qty": "-2"},
+        data={"product_id": str(product_id), "for_date": datetime.now(_UTC).date().isoformat(), "completed_qty": "-2"},
     )
     assert r.status_code == 400
 
@@ -92,7 +92,7 @@ def test_post_completar_rejects_negative_qty(client, product_id):
 def test_post_completar_rejects_unknown_product(client):
     r = client.post(
         "/eod/completar",
-        data={"product_id": "999999", "for_date": date.today().isoformat(), "completed_qty": "1"},
+        data={"product_id": "999999", "for_date": datetime.now(_UTC).date().isoformat(), "completed_qty": "1"},
     )
     assert r.status_code == 404
 
@@ -104,13 +104,13 @@ def test_eod_view_shows_completion_in_hecho_column(client, session_factory, prod
 
     # Seed sales so the forecast produces a plan row for this product.
     # /eod reads ASUNCION today, so seed the completion for that date —
-    # UTC date.today() diverges near midnight and the pre-fill vanishes.
+    # UTC datetime.now(_UTC).date() diverges near midnight and the pre-fill vanishes.
     from app.rms.config import ASUNCION_TZ
     from app.rms.eod_completions import upsert_completion
     from app.rms.models import Sale
     today_asuncion = _dt.now(ASUNCION_TZ).date()
     with session_factory() as s:
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
         for i in range(5):
             s.add(Sale(
                 product_id=product_id, qty=2.0,

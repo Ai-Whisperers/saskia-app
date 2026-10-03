@@ -16,6 +16,7 @@ sale into a pedido to escalate a one-off sale into a recurring order.
 from __future__ import annotations
 
 import datetime as _dt
+from datetime import timezone
 
 
 def _kyrian_customer_id(session_factory):

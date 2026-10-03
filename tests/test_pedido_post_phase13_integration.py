@@ -28,7 +28,7 @@ def test_post_pedido_persists_delivery_preference_window(client, session_factory
     structured-address fields persists them on the Pedido row, and the
     detail page renders the ventana via ventana_text()."""
     pid = _seed_product(session_factory)
-    target = (date.today() + timedelta(days=2)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=2)).isoformat()
 
     idem = "phase13-window-1"
     data = {
@@ -88,8 +88,8 @@ def test_post_pedido_persists_scheduled_preference(client, session_factory):
     """delivery_preference=scheduled + scheduled_date + ventana start/end
     → all 3 fields persisted, detail shows the date + (no es garantía)."""
     pid = _seed_product(session_factory, name="Phase13SchedProd", price=8000)
-    target = (date.today() + timedelta(days=3)).isoformat()
-    schedule_for = (date.today() + timedelta(days=7)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=3)).isoformat()
+    schedule_for = (datetime.utcnow().date() + timedelta(days=7)).isoformat()
 
     idem = "phase13-scheduled-1"
     data = {
@@ -134,7 +134,7 @@ def test_post_pedido_persists_scheduled_preference(client, session_factory):
 def test_post_pedido_asap_persists_with_preference_asap(client, session_factory):
     """ASAP: detail page shows 'Lo antes posible' or equivalent."""
     pid = _seed_product(session_factory, name="Phase13Asap", price=5000)
-    target = (date.today() + timedelta(days=1)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
     data = {
         "customer_name": "Cliente ASAP",
         "promised_date": target,

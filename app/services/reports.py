@@ -293,7 +293,7 @@ def _resolve_daily_range(
     Presets: "7d" | "30d" | "90d" | "current_month" | "last_month".
     ``today`` is a test seam; production callers pass nothing.
     """
-    today = today or date.today()
+    today = today or datetime.now(timezone.utc).date()
     if preset == "7d":
         return today - timedelta(days=6), today
     if preset == "30d":

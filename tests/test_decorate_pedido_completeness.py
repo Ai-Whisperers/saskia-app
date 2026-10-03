@@ -25,7 +25,7 @@ def _make_pedido(session_factory):
     with session_factory() as s:
         p = Pedido(
             customer_name="Fase14 Cliente",
-            promised_date=date.today(),
+            promised_date=datetime.now(_UTC).date(),
             promised_time="15:00",  # bound as string — sqlite3 stdlib rejects time()
             channel="whatsapp",
             payment_intent="efectivo",

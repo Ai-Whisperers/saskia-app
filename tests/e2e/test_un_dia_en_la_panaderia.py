@@ -175,7 +175,7 @@ def test_price_change_never_rewrites_sale_history(client, session_factory):
 
 def test_pedido_lifecycle_through_routes(client, session_factory):
     """pedido create → confirm → fulfill via HTTP; snapshot price holds."""
-    from datetime import date
+    from datetime import date, timezone
 
     with session_factory() as s:
         ing = make_ingredient(s, stock_qty=50.0)
@@ -185,7 +185,7 @@ def test_pedido_lifecycle_through_routes(client, session_factory):
         s.commit()
         pid, cid = prod.id, cust.id
 
-    today = date.today().isoformat()
+    today = datetime.utcnow().date().isoformat()
     r = flows.create_pedido(
         client, promised_date=today,
         lines=[{"product_id": pid, "qty": 3, "unit_price_gs": 12000}],

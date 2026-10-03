@@ -14,7 +14,7 @@ Refs: Saskia review round 1 (Thu 18-sep) — Q2 (c) calendar dashboard.
 # allow-hardcoded-dates: production calendar asserts on a fixed week
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 
 from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale
 from app.rms.production import plan_production
@@ -44,7 +44,7 @@ def _seed_product_with_recipe_and_sales(session_factory) -> int:
         prod = Product(name="Muffin", sale_price_gs=2500, recipe_id=rec.id)
         s.add(prod)
         s.flush()
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
         for i in range(5):
             s.add(
                 Sale(
@@ -129,7 +129,7 @@ def test_day_view_backward_compat(client, session_factory):
 
 def test_week_view_renders_seven_cells(client, session_factory):
     _seed_product_with_recipe_and_sales(session_factory)
-    monday = date.today()
+    monday = datetime.utcnow().date()
     while monday.weekday() != 0:
         monday -= timedelta(days=1)
     r = client.get(f"/produccion?view=week&week={monday.isoformat()}")
@@ -142,7 +142,7 @@ def test_week_view_renders_seven_cells(client, session_factory):
 def test_month_view_renders_day_count(client, session_factory):
     _seed_product_with_recipe_and_sales(session_factory)
     import calendar as _cal
-    today = date.today()
+    today = datetime.utcnow().date()
     r = client.get(f"/produccion?view=month&month={today.strftime('%Y-%m')}")
     assert r.status_code == 200
     # Month view renders a plain table with day-number headers (<th class="num">N</th>)
@@ -177,7 +177,7 @@ def test_override_re_renders_with_manual_qty(client, session_factory):
     pid = _seed_product_with_recipe_and_sales(session_factory)
     r = client.post(
         "/produccion/override",
-        data={"for_date": date.today().isoformat(), "product_id": str(pid), "qty": "10"},
+        data={"for_date": datetime.utcnow().date().isoformat(), "product_id": str(pid), "qty": "10"},
         follow_redirects=False,
     )
     assert r.status_code == 303
@@ -197,7 +197,7 @@ def test_override_rejects_negative(client, session_factory):
     pid = _seed_product_with_recipe_and_sales(session_factory)
     r = client.post(
         "/produccion/override",
-        data={"for_date": date.today().isoformat(), "product_id": str(pid), "qty": "-1"},
+        data={"for_date": datetime.utcnow().date().isoformat(), "product_id": str(pid), "qty": "-1"},
     )
     assert r.status_code == 400
 
@@ -205,6 +205,6 @@ def test_override_rejects_negative(client, session_factory):
 def test_override_rejects_unknown_product(client, session_factory):
     r = client.post(
         "/produccion/override",
-        data={"for_date": date.today().isoformat(), "product_id": "999999", "qty": "1"},
+        data={"for_date": datetime.utcnow().date().isoformat(), "product_id": "999999", "qty": "1"},
     )
     assert r.status_code == 404

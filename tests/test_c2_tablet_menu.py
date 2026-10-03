@@ -571,7 +571,7 @@ def test_other_public_routes_unaffected(client, session_factory):
     with session_factory() as s:
         pedido = Pedido(
             customer_name="Compat Customer",
-            promised_date=date.today(),
+            promised_date=datetime.utcnow().date(),
             channel="mostrador",
             public_token="c2compat",
             public_token_expires_at=_datetime_now_plus_30d(),

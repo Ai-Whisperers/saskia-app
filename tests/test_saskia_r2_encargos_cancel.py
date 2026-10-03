@@ -17,7 +17,7 @@ CIE-01 acceptance criteria:
 - Already-voided sales still raise ValueError (idempotency preserved).
 """
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -40,7 +40,7 @@ from app.rms.models import (
 def _asuncion_today() -> date:
     from datetime import datetime, timezone
     from zoneinfo import ZoneInfo
-    return datetime.now(timezone.utc).astimezone(ZoneInfo("America/Asuncion")).date()
+    return datetime.utcnow().astimezone(ZoneInfo("America/Asuncion")).date()
 
 
 def _seed_pedido(
@@ -68,7 +68,7 @@ def _seed_pedido(
             customer_name=customer_name,
             customer_phone="0981112222",
             # Seed in ASUNCIÓN local date — the /produccion route filters by
-            # Asunción today (_asuncion_today). Using date.today() (host
+            # Asunción today (_asuncion_today). Using datetime.utcnow().date() (host
             # local/UTC) diverges near midnight and flakes the suite.
             promised_date=promised_date or _asuncion_today(),
             promised_time=promised_time,
@@ -108,7 +108,7 @@ def test_produccion_day_excludes_other_dates(client, session_factory):
     """US 4.4 — pedidos for OTHER dates do not appear in today's view."""
     # Pedido for tomorrow
     _seed_pedido(session_factory, status="pending",
-                 promised_date=date.today() + timedelta(days=1))
+                 promised_date=datetime.utcnow().date() + timedelta(days=1))
     resp = client.get("/produccion")
     assert resp.status_code == 200
     body = resp.text
@@ -192,7 +192,7 @@ def _seed_sale(session_factory) -> int:
             product_id=p.id,
             qty=2,
             unit_price_gs=10000,
-            sold_at=datetime.now(timezone.utc),
+            sold_at=datetime.utcnow(),
             channel="mostrador",
         )
         s.add(sale)
@@ -358,7 +358,7 @@ def test_void_sale_restores_stock_with_reason(session_factory):
         s.flush()
         sale = Sale(
             product_id=p.id, qty=5, unit_price_gs=10000,
-            sold_at=datetime.now(timezone.utc),
+            sold_at=datetime.utcnow(),
         )
         s.add(sale)
         s.flush()
@@ -367,7 +367,7 @@ def test_void_sale_restores_stock_with_reason(session_factory):
             qty=-100.0,  # sold 100g
             reason=f"Sale #{sale.id}",
             reference_id=sale.id, reference_type="sale",
-            recorded_at=datetime.now(timezone.utc),
+            recorded_at=datetime.utcnow(),
         ))
         s.commit()
         sale_id = sale.id

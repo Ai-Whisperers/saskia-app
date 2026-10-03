@@ -32,7 +32,7 @@ def test_public_pedido_token_returns_200(client, session_factory):
         pedido = Pedido(
             customer_name="K6 Test Customer",
             customer_phone="+595991234567",
-            promised_date=date.today(),
+            promised_date=datetime.utcnow().date(),
             promised_time="14:00",
             channel="whatsapp",
             status="pending",
@@ -68,7 +68,7 @@ def test_public_pedido_integer_path_returns_404(client, session_factory):
     with session_factory() as s:
         pedido = Pedido(
             customer_name="K6 PK Test",
-            promised_date=date.today(),
+            promised_date=datetime.utcnow().date(),
             channel="mostrador",
             public_token="k6pk01",
             public_token_expires_at=_live_token(),
@@ -98,7 +98,7 @@ def test_public_pedido_tampered_token_returns_404(client, session_factory):
     with session_factory() as s:
         pedido = Pedido(
             customer_name="K6 Tamper Test",
-            promised_date=date.today(),
+            promised_date=datetime.utcnow().date(),
             channel="mostrador",
             public_token="aaaa1111",
         )
@@ -118,7 +118,7 @@ def test_public_pedido_no_auth_required(client, session_factory):
     with session_factory() as s:
         pedido = Pedido(
             customer_name="K6 No Auth",
-            promised_date=date.today(),
+            promised_date=datetime.utcnow().date(),
             channel="whatsapp",
             public_token="k6noauth",
             public_token_expires_at=_live_token(),

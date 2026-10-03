@@ -102,18 +102,18 @@ def write_shop_whatsapp(
     _user=Depends(require_login_or_disabled),
 ) -> object:
     """Set/clear the menu-order WhatsApp number. Stored digits-only."""
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     from app.rms.models import SettingsKV
 
     digits = "".join(c for c in payload.phone if c.isdigit())
     row = session.get(SettingsKV, "shop_whatsapp")
     if row is None:
-        row = SettingsKV(key="shop_whatsapp", value_json=digits, updated_at=datetime.utcnow())
+        row = SettingsKV(key="shop_whatsapp", value_json=digits, updated_at=datetime.now(timezone.utc))
         session.add(row)
     else:
         row.value_json = digits
-        row.updated_at = datetime.utcnow()
+        row.updated_at = datetime.now(timezone.utc)
     session.commit()
     return {"phone": digits, "ordering_enabled": bool(digits)}
 

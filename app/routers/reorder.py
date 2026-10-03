@@ -514,7 +514,7 @@ async def reorder_upload_prices(
         )
     }
 
-    today = _date.today()
+    today = _datetime.now(timezone.utc).date()
     imported = 0
     skipped = 0
     errors: list[dict] = []

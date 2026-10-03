@@ -108,7 +108,7 @@ def _seed_product_with_recipe(
         # Seed enough sales history that the rolling-14-day average lands
         # near `avg_daily_sales` for tomorrow.
         for d in range(1, 15):
-            sold_day = date.today() - timedelta(days=d)
+            sold_day = datetime.utcnow().date() - timedelta(days=d)
             s.add(
                 Sale(
                     product_id=prod.id,
@@ -133,7 +133,7 @@ def test_forecast_api_returns_plan_rows(client, session_factory):
     pid = _seed_product_with_recipe(
         session_factory, name="ForecastCroissant", avg_daily_sales=10.0
     )
-    target = (date.today() + timedelta(days=1)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
 
     resp = client.get(
         f"/produccion/api/forecast?for_date={target}&product_id={pid}"
@@ -153,7 +153,7 @@ def test_forecast_api_returns_plan_rows(client, session_factory):
 def test_forecast_api_without_product_id_returns_all(client, session_factory):
     """No product_id filter → returns the full plan."""
     _seed_product_with_recipe(session_factory, name="ForecastMuffin", avg_daily_sales=5.0)
-    target = (date.today() + timedelta(days=1)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
 
     resp = client.get(f"/produccion/api/forecast?for_date={target}")
     assert resp.status_code == 200
@@ -172,7 +172,7 @@ def test_forecast_api_filters_to_single_product(client, session_factory):
     """product_id filter narrows to just that row."""
     p1 = _seed_product_with_recipe(session_factory, name="FiltA", avg_daily_sales=10.0)
     _seed_product_with_recipe(session_factory, name="FiltB", avg_daily_sales=20.0)
-    target = (date.today() + timedelta(days=1)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
 
     resp = client.get(f"/produccion/api/forecast?for_date={target}&product_id={p1}")
     assert resp.status_code == 200
@@ -233,7 +233,7 @@ def test_pedidos_nuevo_renders_line_stock_warning_row(client):
 def test_post_pedido_with_idempotency_key_creates_one_pedido(client, session_factory):
     """First POST with a key creates the pedido and stamps the cache row."""
     pid = _seed_product(session_factory, name="IdemProd", price=12000)
-    target = (date.today() + timedelta(days=1)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
     idem_key = "11111111-1111-4111-8111-111111111111"
 
     resp = client.post(
@@ -276,7 +276,7 @@ def test_post_pedido_with_idempotency_key_creates_one_pedido(client, session_fac
 def test_post_pedido_repeated_idempotency_key_redirects_to_original(client, session_factory):
     """Second POST with the same key → 303 to the original pedido, no new pedido."""
     pid = _seed_product(session_factory, name="IdemProd2", price=8000)
-    target = (date.today() + timedelta(days=1)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
     idem_key = "22222222-2222-4222-8222-222222222222"
 
     data = {
@@ -322,7 +322,7 @@ def test_post_pedido_repeated_idempotency_key_redirects_to_original(client, sess
 def test_post_pedido_without_idempotency_key_still_works(client, session_factory):
     """No key → still creates (back-compat: form works without it)."""
     pid = _seed_product(session_factory, name="NoKey", price=10000)
-    target = (date.today() + timedelta(days=1)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
 
     resp = client.post(
         "/pedidos/nuevo",
@@ -348,7 +348,7 @@ def test_post_pedido_without_idempotency_key_still_works(client, session_factory
 def test_post_pedido_different_idempotency_keys_create_distinct_pedidos(client, session_factory):
     """Two requests, two different keys → two pedidos (no false dedup)."""
     pid = _seed_product(session_factory, name="TwoKeys", price=5000)
-    target = (date.today() + timedelta(days=1)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
 
     for key in ["key-aaa-001", "key-bbb-002"]:
         resp = client.post(

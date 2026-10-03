@@ -20,7 +20,7 @@ from __future__ import annotations
 import secrets
 import uuid as _uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
 
 from app.rms.models import (
@@ -49,7 +49,7 @@ def _uniq(prefix: str) -> str:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.utcnow()
 
 
 def gs(n) -> "Decimal":
@@ -405,7 +405,7 @@ def make_pedido(
     if promised_date is None:
         from datetime import datetime as _dt
 
-        promised_date = _dt.now(timezone.utc).astimezone(
+        promised_date = _dt.utcnow().astimezone(
             __import__("zoneinfo").ZoneInfo("America/Asuncion")
         ).date()
     ped = Pedido(

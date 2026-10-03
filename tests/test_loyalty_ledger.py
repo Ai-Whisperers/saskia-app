@@ -157,7 +157,7 @@ def test_redeem_points_raises_on_zero_or_negative(session_factory):
 
 def test_reverse_points_for_void_writes_negative_ledger(session_factory, qseed):
     """When a sale that earned points is voided, reverse the points via a void_reversal ledger row."""
-    from datetime import datetime as _dt
+    from datetime import datetime as _dt, timezone
 
     from app.rms.costing import apply_sale
     from app.rms.customers import (

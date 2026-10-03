@@ -515,7 +515,7 @@ def test_cliente_api_payload_suggestions_have_correct_shape(
     from app.rms.customers import ensure_customer
     from app.rms.models import Customer
 
-    today = _dt.date.today()
+    today = _dt.datetime.now(_dt.UTC).date()
     bday_str = (today + _dt.timedelta(days=4)).strftime("%Y-%m-%d")
     with session_factory() as s:
         cust = ensure_customer(s, "Cliente Birthday", phone="+595****0302")
@@ -556,8 +556,8 @@ def test_cliente_api_with_lapsed_bronze_returns_vuelve_pronto(
     from app.rms.customers import ensure_customer
     from app.rms.models import Product, Sale
 
-    _dt.date.today()
-    thirty_days_ago = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
+    _dt.datetime.now(_dt.UTC).date()
+    thirty_days_ago = datetime.utcnow().replace(tzinfo=None) - timedelta(days=30)
 
     with session_factory() as s:
         cust = ensure_customer(s, "Cliente Lapsed", phone="+595****0303")
@@ -611,7 +611,7 @@ def test_cliente_api_with_dormant_points_returns_puntos_dormidos(
         # suggestion. Add a birthday in 3 days so the cumple_cerca
         # rule fires alongside it.
         from datetime import date, timedelta
-        cust_db.birthday = (date.today() + timedelta(days=3)).strftime("%m-%d")
+        cust_db.birthday = (datetime.utcnow().date() + timedelta(days=3)).strftime("%m-%d")
         s.commit()
         cust_id = cust.id
 

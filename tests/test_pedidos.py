@@ -59,7 +59,7 @@ def test_pedido_model_persists_with_lines(session_factory):
         p = Pedido(
             customer_name="Cliente W",
             customer_phone="+595999111",
-            promised_date=datetime.combine(date.today() + timedelta(days=1), datetime.min.time()),
+            promised_date=datetime.combine(datetime.utcnow().date() + timedelta(days=1), datetime.min.time()),
             promised_time="10:00",
             channel="whatsapp",
             status="pending",
@@ -101,7 +101,7 @@ def test_public_token_unique_per_pedido(session_factory):
 
     from app.rms.models import Pedido
 
-    tomorrow = datetime.combine(date.today() + timedelta(days=1), datetime.min.time())
+    tomorrow = datetime.combine(datetime.utcnow().date() + timedelta(days=1), datetime.min.time())
     with session_factory() as s:
         s.add(Pedido(customer_name="A", promised_date=tomorrow, public_token="tok-1"))
         s.add(Pedido(customer_name="B", promised_date=tomorrow, public_token="tok-2"))
@@ -121,7 +121,7 @@ def test_pedidos_list_groups_by_recency(session_factory, client):
     """/pedidos list splits rows into Hoy/Mañana, Esta semana, Pendientes viejos."""
     from app.rms.models import Pedido
 
-    today = date.today()
+    today = datetime.utcnow().date()
     with session_factory() as s:
         s.add(Pedido(customer_name="Hoy", promised_date=datetime.combine(today, datetime.min.time()), public_token="tk-hoy"))
         s.add(Pedido(customer_name="Manana", promised_date=datetime.combine(today + timedelta(days=1), datetime.min.time()), public_token="tk-man"))
@@ -150,7 +150,7 @@ def test_pedidos_list_excludes_fulfilled_past_due(session_factory, client):
     """fulfilled past-due pedidos don't surface in the pendientes_viejos bucket."""
     from app.rms.models import Pedido
 
-    today = date.today()
+    today = datetime.utcnow().date()
     with session_factory() as s:
         s.add(Pedido(
             customer_name="YA-ENTREGADO",
@@ -184,7 +184,7 @@ def test_create_pedido_with_two_lines(client, session_factory):
         data={
             "customer_name": "Cliente A",
             "customer_phone": "+595 9XX XXXX",
-            "promised_date": (date.today() + timedelta(days=1)).isoformat(),
+            "promised_date": (datetime.utcnow().date() + timedelta(days=1)).isoformat(),
             "promised_time": "10:00",
             "channel": "whatsapp",
             "payment_intent": "efectivo",
@@ -221,7 +221,7 @@ def test_create_pedido_requires_at_least_one_line(client):
         "/pedidos/nuevo",
         data={
             "customer_name": "Vacío",
-            "promised_date": (date.today() + timedelta(days=1)).isoformat(),
+            "promised_date": (datetime.utcnow().date() + timedelta(days=1)).isoformat(),
         },
         follow_redirects=False,
     )
@@ -255,7 +255,7 @@ def test_fulfill_creates_sales_and_decrements_stock(client, session_factory):
         product_id = prod.id
 
     # Create pedido with one line: 2 muffins @ 8000
-    pdate = (date.today() + timedelta(days=1)).isoformat()
+    pdate = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
     resp = client.post(
         "/pedidos/nuevo",
         data={
@@ -314,7 +314,7 @@ def test_fulfill_multi_line_creates_multiple_sales(client, session_factory):
     p1 = _seed_product(session_factory, name="Pan", price=5000)
     p2 = _seed_product(session_factory, name="Torta", price=30000)
 
-    pdate = (date.today() + timedelta(days=1)).isoformat()
+    pdate = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
     resp = client.post(
         "/pedidos/nuevo",
         data={
@@ -349,7 +349,7 @@ def test_status_transition_pending_to_confirmed_to_ready_to_fulfilled(client, se
     from app.rms.models import Pedido
 
     pid = _seed_product(session_factory)
-    pdate = (date.today() + timedelta(days=1)).isoformat()
+    pdate = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
     resp = client.post(
         "/pedidos/nuevo",
         data={
@@ -386,7 +386,7 @@ def test_invalid_transition_fulfilled_to_ready_returns_error(client, session_fac
     from app.rms.models import Pedido
 
     pid = _seed_product(session_factory)
-    pdate = (date.today() + timedelta(days=1)).isoformat()
+    pdate = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
     client.post(
         "/pedidos/nuevo",
         data={
@@ -424,7 +424,7 @@ def test_invalid_status_value_returns_422(client, session_factory):
         "/pedidos/nuevo",
         data={
             "customer_name": "Y",
-            "promised_date": (date.today() + timedelta(days=1)).isoformat(),
+            "promised_date": (datetime.utcnow().date() + timedelta(days=1)).isoformat(),
             "line_product_id": [str(pid)],
             "line_qty": ["1"],
             "line_unit_price_gs": ["0"],
@@ -447,7 +447,7 @@ def test_cancel_from_pending(client, session_factory):
         "/pedidos/nuevo",
         data={
             "customer_name": "CancelMe",
-            "promised_date": (date.today() + timedelta(days=1)).isoformat(),
+            "promised_date": (datetime.utcnow().date() + timedelta(days=1)).isoformat(),
             "line_product_id": [str(pid)],
             "line_qty": ["1"],
             "line_unit_price_gs": ["0"],
@@ -477,7 +477,7 @@ def test_public_pickup_page_works_without_login(client, session_factory):
         "/pedidos/nuevo",
         data={
             "customer_name": "WhatsApp Customer",
-            "promised_date": (date.today() + timedelta(days=1)).isoformat(),
+            "promised_date": (datetime.utcnow().date() + timedelta(days=1)).isoformat(),
             "line_product_id": [str(pid)],
             "line_qty": ["2"],
             "line_unit_price_gs": ["5000"],
@@ -520,7 +520,7 @@ def test_audit_log_records_pedido_create_and_fulfill(client, session_factory):
         "/pedidos/nuevo",
         data={
             "customer_name": "AuditMe",
-            "promised_date": (date.today() + timedelta(days=1)).isoformat(),
+            "promised_date": (datetime.utcnow().date() + timedelta(days=1)).isoformat(),
             "line_product_id": [str(pid)],
             "line_qty": ["1"],
             "line_unit_price_gs": ["0"],

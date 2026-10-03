@@ -246,7 +246,7 @@ def seed_kyrian(s: Session) -> KyrianBundle:
     zone = _ensure_zone(s)
 
     # 3. Customer — full profile.
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
     customer = Customer(
         name=KYRIAN_NAME,
         phone=KYRIAN_PHONE,

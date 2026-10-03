@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -95,7 +95,7 @@ def _make_sale(session, *, total_gs: int = 10_000, payment_method: str = "efecti
         product_id=1,
         qty=qty,
         unit_price_gs=total_gs,
-        sold_at=datetime.now(timezone.utc),
+        sold_at=datetime.utcnow(),
         payment_method=payment_method,
         customer_id=customer_id,
         discount_gs=0,
@@ -104,7 +104,7 @@ def _make_sale(session, *, total_gs: int = 10_000, payment_method: str = "efecti
         tz="America/Asuncion",
     )
     if voided:
-        sale.voided_at = datetime.now(timezone.utc)
+        sale.voided_at = datetime.utcnow()
     session.add(sale)
     session.flush()
     return sale
@@ -169,7 +169,7 @@ def test_refund_db_trigger_catches_bypass(refund_engine):
             "INSERT INTO refund (target_type, target_id, target_amount_gs, amount_gs, "
             "payment_method, restock_qty, restocked_qty, recorded_at, loyalty_reversed, eod_date) "
             "VALUES ('sale', :sid, 1000, 1000, 'efectivo', 0, 0, :ts, 0, :d)"
-        ), {"sid": sale_id, "ts": datetime.now(timezone.utc), "d": date.today()})
+        ), {"sid": sale_id, "ts": datetime.utcnow(), "d": datetime.utcnow().date()})
 
     # Second insert: 1500 — must fail (would total 2500 > 1000)
     with pytest.raises(IntegrityError):
@@ -178,7 +178,7 @@ def test_refund_db_trigger_catches_bypass(refund_engine):
                 "INSERT INTO refund (target_type, target_id, target_amount_gs, amount_gs, "
                 "payment_method, restock_qty, restocked_qty, recorded_at, loyalty_reversed, eod_date) "
                 "VALUES ('sale', :sid, 1000, 1500, 'efectivo', 0, 0, :ts, 0, :d)"
-            ), {"sid": sale_id, "ts": datetime.now(timezone.utc), "d": date.today()})
+            ), {"sid": sale_id, "ts": datetime.utcnow(), "d": datetime.utcnow().date()})
 
 
 # --- 2. Voided sale rejection ---------------------------------------------
@@ -244,7 +244,7 @@ def test_refund_amount_zero_blocked_by_db(refund_engine):
                     "INSERT INTO refund (target_type, target_id, target_amount_gs, amount_gs, "
                     "payment_method, restock_qty, restocked_qty, recorded_at, loyalty_reversed) "
                     "VALUES ('sale', :sid, 5000, 0, 'efectivo', 0, 0, :ts, 0)"
-                ), {"sid": sale.id, "ts": datetime.now(timezone.utc)})
+                ), {"sid": sale.id, "ts": datetime.utcnow()})
 
 
 # --- 5. Loyalty proportional reversal ------------------------------------
@@ -317,7 +317,7 @@ def test_refund_blocked_after_eod_close(refund_session):
     from app.rms.refunds import RefundError, create_refund
 
     sale = _make_sale(refund_session, total_gs=5_000)
-    sale.sold_at = datetime.now(timezone.utc) - timedelta(days=2)
+    sale.sold_at = datetime.utcnow() - timedelta(days=2)
     refund_session.flush()
 
     # Mark EOD closed for that day (all checklist items value="1")

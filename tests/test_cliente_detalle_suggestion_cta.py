@@ -57,7 +57,7 @@ def test_detalle_suggestions_card_renders_when_multiple_suggestions(client, qsee
     days directly, so the rule engine fires BOTH cumpleaños + puntos
     dormidos — keeping both.
     """
-    from datetime import date, timedelta
+    from datetime import date, timedelta, timezone
 
     from app.rms.models import Customer
 
@@ -67,7 +67,7 @@ def test_detalle_suggestions_card_renders_when_multiple_suggestions(client, qsee
     with session_factory() as s:
         cust = s.get(Customer, cid)
         # Birthday in 3 days → triggers cumpleaños_cerca
-        cust.birthday = (date.today() + timedelta(days=3)).strftime("%m-%d")
+        cust.birthday = (datetime.utcnow().date() + timedelta(days=3)).strftime("%m-%d")
         s.commit()
 
     r = client.get(f"/clientes/{cid}")
@@ -91,7 +91,7 @@ def test_detalle_suggestions_button_has_csrf_and_kind(client, qseed, session_fac
     with session_factory() as s:
         cust = s.get(Customer, cid)
         # Add a 2nd suggestion trigger so the card renders
-        cust.birthday = (date.today() + timedelta(days=3)).strftime("%m-%d")
+        cust.birthday = (datetime.utcnow().date() + timedelta(days=3)).strftime("%m-%d")
         s.commit()
 
     r = client.get(f"/clientes/{cid}")

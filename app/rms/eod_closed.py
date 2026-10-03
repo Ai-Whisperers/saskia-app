@@ -40,14 +40,14 @@ from app.rms.workflow import fresh_eod_checklist
 
 # Default EOD clock — Asuncion (UTC-4 year-round). Same TZ used by eod.py.
 def _today_local() -> date:
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     try:
         from app.rms.config import ASUNCION_TZ
         return datetime.now(ASUNCION_TZ).date()
     except ImportError:
         # Fallback if config module is unavailable in tests.
-        return datetime.utcnow().date()
+        return datetime.now(timezone.utc).date()
 
 
 def eod_is_day_closed(session: Session, day: date) -> bool:

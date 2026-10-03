@@ -40,7 +40,7 @@ def test_pedidos_detail_page_loads(authed_client, session_factory):
     with session_factory() as s:
         pedido = Pedido(
             customer_name="Bulk Test",
-            promised_date=date.today(),
+            promised_date=datetime.now(_UTC).date(),
             channel="mostrador",
             status="pending",
         )

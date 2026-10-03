@@ -22,7 +22,7 @@ Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -36,7 +36,7 @@ def _seed_product_with_sales(session_factory, *, name: str, n_sales: int, days_s
         prod = Product(name=name, sale_price_gs=2500)
         s.add(prod)
         s.flush()
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
         # Spread sales across days_span days (use distinct days)
         for i in range(n_sales):
             day_offset = (i * days_span // n_sales) if n_sales > 0 else 0
@@ -95,7 +95,7 @@ def test_production_plan_includes_confidence(session_factory) -> None:
     from app.rms.production import plan_production
     _seed_product_with_sales(session_factory, name="Chipa_test", n_sales=10, days_span=7)
     with session_factory() as s:
-        plan = plan_production(s, for_date=date.today() + timedelta(days=1))
+        plan = plan_production(s, for_date=datetime.utcnow().date() + timedelta(days=1))
     assert plan.rows
     for row in plan.rows:
         assert hasattr(row, "confidence_pct"), "ProductionRow must have confidence_pct"
@@ -108,7 +108,7 @@ def test_production_plan_manual_override_gets_100_confidence(session_factory) ->
     _seed_product_with_sales(session_factory, name="Chipa_manual", n_sales=5, days_span=3)
     with session_factory() as s:
         plan = plan_production(
-            s, for_date=date.today() + timedelta(days=1),
+            s, for_date=datetime.utcnow().date() + timedelta(days=1),
             manual_forecast={1: 50.0},  # forces manual source
         )
     assert plan.rows
@@ -124,7 +124,7 @@ def test_production_plan_rounds_up_whole_pieces(session_factory) -> None:
     # 7 sales × 0.3 qty each = 2.1 → should round up to 3
     _seed_product_with_sales(session_factory, name="Medialuna_test", n_sales=7, days_span=7, qty_per_sale=0.3)
     with session_factory() as s:
-        plan = plan_production(s, for_date=date.today() + timedelta(days=1))
+        plan = plan_production(s, for_date=datetime.utcnow().date() + timedelta(days=1))
     assert plan.rows
     for row in plan.rows:
         if row.forecast_source == "rolling_14d_avg":
@@ -243,7 +243,7 @@ def test_manana_override_bulk_roundtrip(client, session_factory) -> None:
     pid = _seed_product_with_sales(
         session_factory, name="Bulk_ov_prod", n_sales=12, days_span=7
     )
-    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = datetime.utcnow().date() + timedelta(days=1)
 
     r = client.post(
         "/produccion/override-bulk",

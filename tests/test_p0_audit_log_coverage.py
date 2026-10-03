@@ -410,7 +410,7 @@ def test_supplier_delete_audited(authed_client, session_factory):
 
 def test_eod_save_audited(authed_client, session_factory):
     """POST /eod/check writes a write.eod.checklist.save audit row."""
-    date.today().isoformat()
+    datetime.utcnow().date().isoformat()
     r = authed_client.post(
         "/eod/check",
         data={
@@ -439,7 +439,7 @@ def test_eod_complete_audited(authed_client, session_factory, qseed):
     """POST /eod/completar writes a write.eod.complete audit row."""
     data = qseed("basic")
     product_id = data["product"].id
-    today = date.today().isoformat()
+    today = datetime.utcnow().date().isoformat()
 
     r = authed_client.post(
         "/eod/completar",
@@ -535,7 +535,7 @@ def test_production_override_audited(authed_client, session_factory, qseed):
     """POST /produccion/override writes a write.production.override.set row."""
     data = qseed("basic")
     product_id = data["product"].id
-    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    tomorrow = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
 
     r = authed_client.post(
         "/produccion/override",
@@ -569,7 +569,7 @@ def test_production_completion_audited(authed_client, session_factory, qseed):
     """
     data = qseed("basic")
     product_id = data["product"].id
-    today = date.today().isoformat()
+    today = datetime.utcnow().date().isoformat()
 
     r = authed_client.post(
         "/eod/completar",

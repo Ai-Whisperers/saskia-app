@@ -14,7 +14,7 @@ from pathlib import Path
 # Make app package importable when running pytest from project root.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import pytest

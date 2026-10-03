@@ -497,7 +497,7 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
         # this, sales rung up after 21:00 PY (UTC-03) show as 1 day
         # later than they should, off-by-one on every LAPSED + birthday
         # rule.
-        from datetime import datetime
+        from datetime import datetime, timezone
 
         from app.rms.config import ASUNCION_TZ
         today_asuncion = datetime.now(ASUNCION_TZ).date()

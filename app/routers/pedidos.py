@@ -866,7 +866,7 @@ async def pedidos_create(
             session.add(_AppMeta(
                 key=f"pedido_idem:{idempotency_key}",
                 value="pending",
-                updated_at=datetime.utcnow().isoformat(),
+                updated_at=datetime.now(timezone.utc).isoformat(),
             ))
             session.flush()
         except IntegrityError:
@@ -1066,7 +1066,7 @@ async def pedidos_create(
         # P1-2: token expires 30 days from creation. Set at insert time
         # so the customer can always see "expires X" from the moment
         # the pedido is created (not from when migration 067 ran).
-        public_token_expires_at=datetime.utcnow() + timedelta(days=30),
+        public_token_expires_at=datetime.now(timezone.utc) + timedelta(days=30),
     )
     session.add(pedido)
     session.flush()  # assigns pedido.id
@@ -1173,7 +1173,7 @@ async def pedidos_create(
                         "request_id": getattr(request.state, "request_id", "") or "",
                     }
                 ),
-                updated_at=datetime.utcnow().isoformat(),
+                updated_at=datetime.now(timezone.utc).isoformat(),
             )
         )
         safe_commit(session)
@@ -1438,7 +1438,7 @@ async def pedido_publico_comprobante(
         # Store relative path so it survives data-dir moves.
         relative_path = f"payment_receipts/{pedido.id}/{stored_name}"
         pedido.payment_receipt_path = relative_path
-        pedido.payment_receipt_uploaded_at = datetime.utcnow()
+        pedido.payment_receipt_uploaded_at = datetime.now(timezone.utc)
         session.commit()
 
         # Rate-limit-style audit: every upload is recorded even though the
@@ -2130,7 +2130,7 @@ def pedidos_duplicate(
         notes=original.notes,
         public_token=generate_public_token(),
         # P1-2: see create_pedido above — same 30-day expiry policy.
-        public_token_expires_at=datetime.utcnow() + timedelta(days=30),
+        public_token_expires_at=datetime.now(timezone.utc) + timedelta(days=30),
     )
     session.add(copy)
     session.flush()

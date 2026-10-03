@@ -28,7 +28,7 @@ Functions tested:
 from __future__ import annotations
 
 import math
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 
 import hypothesis.strategies as st
 import pytest
@@ -50,14 +50,14 @@ ratios_01 = st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infin
 
 # Dates in the last 5 years
 recent_dates = st.dates(
-    min_value=date.today() - timedelta(days=5 * 365),
-    max_value=date.today()
+    min_value=datetime.utcnow().date() - timedelta(days=5 * 365),
+    max_value=datetime.utcnow().date()
 )
 
 # Datetimes in the last 5 years with UTC timezone
 recent_datetimes = st.datetimes(
-    min_value=datetime.now(timezone.utc) - timedelta(days=5 * 365),
-    max_value=datetime.now(timezone.utc)
+    min_value=datetime.utcnow() - timedelta(days=5 * 365),
+    max_value=datetime.utcnow()
 )
 
 # Day of week (0-6 for Monday-Sunday)

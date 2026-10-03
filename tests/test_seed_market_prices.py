@@ -41,7 +41,7 @@ def test_seed_market_prices_inserts_all_rows(session_factory):
         session.query(MarketPriceReference).delete()
         session.commit()
 
-        today = date.today()
+        today = datetime.now(_UTC).date()
         matched = 0
         for name, unit, price_gs, source, notes in MARKET_REFERENCE_SEED:
             ing = next(
@@ -79,7 +79,7 @@ def test_seed_is_idempotent(session_factory):
 
         for _ in range(2):
             session.query(MarketPriceReference).delete()
-            today = date.today()
+            today = datetime.now(_UTC).date()
             for name, unit, price_gs, source, notes in MARKET_REFERENCE_SEED:
                 ing = next(
                     (i for n_, i in existing.items() if n_.lower() == name.lower()), None

@@ -51,7 +51,7 @@ def test_shift_execute_creates_completion_rows(
     authed_client, session_factory, product_id, other_product_id
 ):
     """POST /produccion/shift-execute must upsert ProductionCompletion per product."""
-    today = date.today()
+    today = datetime.now(_UTC).date()
 
     r = authed_client.post(
         "/produccion/shift-execute",
@@ -80,7 +80,7 @@ def test_shift_execute_updates_existing_completion(
     """Re-recording the same (product, date) MUST update in place (upsert)."""
     from app.rms.eod_completions import upsert_completion
 
-    today = date.today()
+    today = datetime.now(_UTC).date()
     with session_factory() as s:
         upsert_completion(s, product_id=product_id, for_date=today, completed_qty=3.0)
         s.commit()
@@ -106,7 +106,7 @@ def test_shift_execute_updates_existing_completion(
 
 def test_shift_execute_skips_unknown_product_id(authed_client, session_factory):
     """A bogus product_id in the form must be silently skipped."""
-    today = date.today()
+    today = datetime.now(_UTC).date()
     r = authed_client.post(
         "/produccion/shift-execute",
         data={"for_date": today.isoformat(), "completed_99999": "5"},
@@ -116,7 +116,7 @@ def test_shift_execute_skips_unknown_product_id(authed_client, session_factory):
 
 def test_shift_execute_ignores_invalid_qty(authed_client, session_factory, product_id):
     """Non-numeric qty must be skipped, not crash."""
-    today = date.today()
+    today = datetime.now(_UTC).date()
     r = authed_client.post(
         "/produccion/shift-execute",
         data={"for_date": today.isoformat(), f"completed_{product_id}": "abc"},
@@ -144,7 +144,7 @@ def test_shift_execute_does_not_write_plan_override(
     """
     from app.rms.models import ProductionPlanOverride
 
-    today = date.today()
+    today = datetime.now(_UTC).date()
     r = authed_client.post(
         "/produccion/shift-execute",
         data={"for_date": today.isoformat(), f"completed_{product_id}": "7"},
@@ -171,7 +171,7 @@ def test_ad_hoc_creates_completion_with_adhoc_tag(
     authed_client, session_factory, product_id
 ):
     """POST /produccion/ad-hoc must record a ProductionCompletion with notes='ad_hoc'."""
-    today = date.today()
+    today = datetime.now(_UTC).date()
     r = authed_client.post(
         "/produccion/ad-hoc",
         data={
@@ -200,7 +200,7 @@ def test_ad_hoc_creates_completion_with_adhoc_tag(
 
 def test_ad_hoc_rejects_zero_qty(authed_client, product_id):
     """qty <= 0 must return 400."""
-    today = date.today()
+    today = datetime.now(_UTC).date()
     r = authed_client.post(
         "/produccion/ad-hoc",
         data={
@@ -215,7 +215,7 @@ def test_ad_hoc_rejects_zero_qty(authed_client, product_id):
 
 def test_ad_hoc_404_unknown_product(authed_client):
     """Unknown product_id must return 404."""
-    today = date.today()
+    today = datetime.now(_UTC).date()
     r = authed_client.post(
         "/produccion/ad-hoc",
         data={
@@ -235,7 +235,7 @@ def test_day_view_renders_completed_qty(authed_client, session_factory, product_
     """The day view must render pre-filled completed_qty from ProductionCompletion."""
     from app.rms.eod_completions import upsert_completion
 
-    today = date.today()
+    today = datetime.now(_UTC).date()
     with session_factory() as s:
         upsert_completion(s, product_id=product_id, for_date=today, completed_qty=7.5)
         s.commit()
@@ -253,7 +253,7 @@ def test_day_view_renders_adhoc_row(authed_client, session_factory, product_id):
     """A completion WITHOUT a plan row must render with badge Ad-hoc/Extra."""
     from app.rms.eod_completions import upsert_completion
 
-    today = date.today()
+    today = datetime.now(_UTC).date()
     with session_factory() as s:
         upsert_completion(
             s,

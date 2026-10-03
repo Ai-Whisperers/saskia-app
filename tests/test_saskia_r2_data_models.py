@@ -278,7 +278,7 @@ class TestForecastHorizon:
         from app.rms.variants import days_until_short
 
         n = _unique_name("depleted")
-        today = date.today()
+        today = datetime.utcnow().date()
         # Plant an ingredient at 5kg with horizon=14. Plant 7 days of 1kg
         # consumption via direct SaleStockMove rows (bypassing apply_sale
         # so we don't need a recipe).
@@ -350,7 +350,7 @@ class TestForecastHorizon:
         n = _unique_name("plenty")
         rname = _unique_name("r-ok")
         pname = _unique_name("p-ok")
-        today = date.today()
+        today = datetime.utcnow().date()
         with session_factory() as s:
             r = Recipe(name=rname, yield_qty=1.0, yield_unit="kg")
             s.add(r)
@@ -429,15 +429,15 @@ class TestForkWeek:
         with session_factory() as s:
             s.add(ProductionPlanOverride(
                 product_id=product.id, for_date=monday,
-                qty=10.0, updated_at=datetime.now(timezone.utc), updated_by="op",
+                qty=10.0, updated_at=datetime.utcnow(), updated_by="op",
             ))
             s.add(ProductionPlanOverride(
                 product_id=product.id, for_date=monday + timedelta(days=2),  # Wed
-                qty=4.0, updated_at=datetime.now(timezone.utc), updated_by="op",
+                qty=4.0, updated_at=datetime.utcnow(), updated_by="op",
             ))
             s.add(ProductionPlanOverride(
                 product_id=product2.id, for_date=monday,
-                qty=5.0, updated_at=datetime.now(timezone.utc), updated_by="op",
+                qty=5.0, updated_at=datetime.utcnow(), updated_by="op",
             ))
             s.commit()
 
@@ -480,11 +480,11 @@ class TestForkWeek:
         with session_factory() as s:
             s.add(ProductionPlanOverride(
                 product_id=product.id, for_date=monday,
-                qty=3.0, updated_at=datetime.now(timezone.utc), updated_by="op",
+                qty=3.0, updated_at=datetime.utcnow(), updated_by="op",
             ))
             s.add(ProductionPlanOverride(
                 product_id=product.id, for_date=monday + timedelta(days=1),  # Tue
-                qty=5.0, updated_at=datetime.now(timezone.utc), updated_by="op",
+                qty=5.0, updated_at=datetime.utcnow(), updated_by="op",
             ))
             s.commit()
             product_id = product.id

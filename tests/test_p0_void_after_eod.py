@@ -44,7 +44,7 @@ def mark_yesterday_closed(session_factory, yesterday: date) -> None:
     # Skip notes_for_tomorrow — it's a text input, not a checkbox.
     checkable_items = [item for item in items if item.key != "notes_for_tomorrow"]
     assert len(checkable_items) >= 9, f"Expected at least 9 checkable EOD items, got {len(checkable_items)}"
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = datetime.utcnow().isoformat()
     with session_factory() as s:
         for item in checkable_items:
             key = f"eod_check_{yesterday.isoformat()}_{item.key}"
@@ -100,7 +100,7 @@ def test_eod_is_day_closed_returns_false_with_partial_checklist(session_factory,
     with session_factory() as s:
         for item in checkable_items[:-1]:  # Skip the last checkable item
             key = f"eod_check_{yesterday.isoformat()}_{item.key}"
-            s.add(AppMeta(key=key, value="1", updated_at=datetime.now(timezone.utc).isoformat()))
+            s.add(AppMeta(key=key, value="1", updated_at=datetime.utcnow().isoformat()))
         s.commit()
         assert eod_is_day_closed(s, yesterday) is False
 
@@ -119,7 +119,7 @@ def test_eod_is_day_closed_ignores_notes_for_tomorrow(session_factory, yesterday
     from app.rms.workflow import fresh_eod_checklist
     checkable_items = [item for item in fresh_eod_checklist() if item.key != "notes_for_tomorrow"]
     assert len(checkable_items) >= 9, f"Expected ≥9 checkable items, got {len(checkable_items)}"
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = datetime.utcnow().isoformat()
     with session_factory() as s:
         for item in checkable_items:
             key = f"eod_check_{yesterday.isoformat()}_{item.key}"
@@ -131,7 +131,7 @@ def test_eod_is_day_closed_ignores_notes_for_tomorrow(session_factory, yesterday
 
 def test_eod_is_day_closed_returns_false_for_future_date(session_factory) -> None:
     """Future dates are never closed."""
-    future = date.today() + timedelta(days=7)
+    future = datetime.utcnow().date() + timedelta(days=7)
     with session_factory() as s:
         assert eod_is_day_closed(s, future) is False
 

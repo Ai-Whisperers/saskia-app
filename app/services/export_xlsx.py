@@ -127,7 +127,7 @@ def _resolve_export_range(
     """
     if period in (None, "", "all", "full"):
         return None, None
-    today = today or date.today()
+    today = today or datetime.now(timezone.utc).date()
     if period == "today":
         local_start = datetime.combine(today, time.min)
         local_end = datetime.combine(today, time.max)
