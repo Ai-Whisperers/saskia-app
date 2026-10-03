@@ -967,7 +967,7 @@ async def log_suggestion_applied(
             # JSON path (customer_picker.js uses keepalive fetch)
             try:
                 payload = await request.json()
-            except Exception:
+            except Exception:  # noqa: BLE001 — defensive: malformed JSON body just means empty payload
                 payload = {}
             kind = (str((payload or {}).get("kind") or "unknown").strip() or "unknown")
             pct = (payload or {}).get("discount_pct")

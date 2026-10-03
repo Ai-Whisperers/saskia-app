@@ -260,7 +260,7 @@ def _parse_superseis(html: str) -> list[ScrapedPrice]:
     parser = _SuperseisProductParser()
     try:
         parser.feed(html)
-    except Exception as e:  # never raise from inside the parser
+    except Exception as e:  # noqa: BLE001 — never raise from inside the parser
         logger.warning("superseis parser error: %s", e)
         return []
     out: list[ScrapedPrice] = []

@@ -158,8 +158,7 @@ def _configure_logging() -> None:
                 diagnose=False,  # never leak env vars to disk
                 format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <7} | {extra[request_id]} | {extra[user_id]} | {name}:{function}:{line} | {message}",
             )
-        except Exception as exc:
-            # Never break startup over a logging config failure.
+        except Exception as exc:  # noqa: BLE001 — defensive default: never break startup over a logging config failure.
             sys.stderr.write(
                 f"WARN: could not initialise log file sink at {log_file!r}: {exc!r}\n"
             )

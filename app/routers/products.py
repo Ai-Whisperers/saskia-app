@@ -231,9 +231,7 @@ def products_list(
     # before. Falls back to the per-product path only on cache misses.
     try:
         prime_batch = batch_compute_prime_cost(session, list(products))
-    except Exception:
-        # Defensive: if the batch path raises on a malformed product,
-        # fall back to per-product so the list page still loads.
+    except Exception:  # noqa: BLE001 — defensive: if the batch path raises on a malformed product, fall back to per-product so the list page still loads.
         prime_batch = {}
     decorated = []
     for p in products:

@@ -323,7 +323,7 @@ def reorder_scrape(
             },
         )
         session.commit()
-    except Exception:
+    except Exception:  # noqa: BLE001 — defensive: don't fail the scrape over an audit miss
         session.rollback()  # don't fail the scrape over an audit miss
     return JSONResponse(payload)
 

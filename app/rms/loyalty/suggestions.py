@@ -412,5 +412,5 @@ def redeemed_on_last_visit(session: Any, customer_id: int) -> bool:
             .limit(1)
         ).scalar_one_or_none()
         return redeem is not None
-    except Exception:
+    except Exception:  # noqa: BLE001 — return False on any DB error (rewards write collides etc.)
         return False

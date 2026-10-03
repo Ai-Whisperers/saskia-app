@@ -149,6 +149,8 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а"]
     "S",       # bandit relaxed for tests
     "DTZ",     # tests use naive datetime for fixture math (legacy contract)
     "B011",    # tests assert on raises(NotImplementedError) sometimes
+    "PERF401", # tests: build-then-iterate is fine, no need for list comp
+    "BLE001",  # tests: defensive excepts are fine in fixture setup / teardown
 ]
 "app/migrations/**/*.py" = [
     "E402", "ANN", "S608",   # migration SQL is hand-rolled
@@ -167,12 +169,21 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а"]
     "S",       # bandit relaxed — ad-hoc curl/subprocess patterns
     "DTZ",     # smoke scripts use naive datetime for ad-hoc timing
     "E501",    # long console lines are fine in smoke output
+    "BLE001",  # smoke scripts intentionally swallow broad excepts
 ]
 "scripts/*.py" = [
     "ANN",     # scripts are ad-hoc utilities, no need for annotations
     "S",       # bandit relaxed — scripts intentionally shell out / curl
     "BLE001",  # scripts may swallow errors with broad except
     "DTZ",     # scripts use naive datetime for ad-hoc timing
+]
+"docs/**/*.py" = [
+    "BLE001",  # docs helper scripts: same rationale as scripts/
+    "S",       # docs scripts: ad-hoc Playwright patterns
+    "E501",    # long console output lines are fine
+]
+"run_migration.py" = [
+    "BLE001",  # ad-hoc top-level migration runner, errors are diagnostic
 ]
 "app/rms/db.py" = [
     "S608",            # SQL builder helpers (text() calls are intentional)

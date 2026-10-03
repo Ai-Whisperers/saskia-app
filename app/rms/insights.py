@@ -290,8 +290,7 @@ def build_actionable_insights(session: Session) -> list[dict]:
             insight = insight_func(session)
             if insight:
                 insights.append(insight)
-        except Exception as e:
-            # Log but don't break the dashboard
+        except Exception as e:  # noqa: BLE001 — log but don't break the dashboard
             from loguru import logger
             logger.debug(f"Actionable insight calculation failed: {e}")
 
