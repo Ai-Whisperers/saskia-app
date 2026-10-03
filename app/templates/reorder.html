@@ -263,7 +263,10 @@ function updateBulkBtn() {
                              {%- endif -%}
                            ]'></saskia-combo>
             <div id="scrape-results-{{ item.ingredient_id }}" class="scrape-results" hidden></div>
-            <button type="submit" class="btn btn-sm btn-primary confirm-btn" aria-label="Confirmar reponer {{ fmt.entity_name(item) }}">
+            <button type="submit" class="btn btn-sm btn-primary confirm-btn"
+                    {# P-32.3: block submit on rows with no supplier attached. #}
+                    {% if not supplier_info[0] %}disabled data-blocked="no-supplier" title="Asigná un proveedor antes de reponer"{% endif %}
+                    aria-label="Confirmar reponer {{ fmt.entity_name(item) }}">
               <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
               Reponer
             </button>
