@@ -1,0 +1,60 @@
+/* Phase 32: Form validation styles */
+
+input.is-invalid,
+select.is-invalid,
+textarea.is-invalid,
+.saskia-combo.is-invalid {
+    border-color: var(--color-danger, #dc2626) !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 10'%3E%3Cpath fill='%23dc2626' d='M6 0L0 10h12L6 0zm0 3v3m0 2v.01'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+    padding-right: calc(1.5em + 0.75rem);
+}
+
+input.is-valid,
+select.is-valid,
+textarea.is-valid,
+.saskia-combo.is-valid {
+    border-color: var(--color-success, #16a34a) !important;
+}
+
+.invalid-feedback {
+    display: none;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875em;
+    color: var(--color-danger, #dc2626);
+}
+
+.invalid-feedback[style*="block"] {
+    display: block !important;
+}
+
+input.is-invalid:focus,
+select.is-invalid:focus,
+textarea.is-invalid:focus {
+    box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.25);
+}
+
+input.is-valid:focus,
+select.is-valid:focus,
+textarea.is-valid:focus {
+    box-shadow: 0 0 0 0.2rem rgba(22, 163, 74, 0.25);
+}
+
+/* Show feedback when parent has is-invalid */
+.is-invalid + .invalid-feedback,
+.is-invalid ~ .invalid-feedback {
+    display: block;
+}
+
+[data-theme="dark"] input.is-invalid,
+[data-theme="dark"] select.is-invalid,
+[data-theme="dark"] textarea.is-invalid {
+    background-color: rgba(220, 38, 38, 0.1);
+}
+
+[data-theme="dark"] .invalid-feedback {
+    color: #f87171;
+}
