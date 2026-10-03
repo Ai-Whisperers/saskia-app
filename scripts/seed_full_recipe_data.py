@@ -29,11 +29,11 @@ Run with::
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
 import sys
+from typing import Any
 
 # Allow running from project root without installing the package
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

@@ -30,7 +30,6 @@ Each import is a separate function so you can call any one individually
 after a partial run, e.g. `importlib.import_module(...).import_ingredients(...)`.
 """
 from __future__ import annotations
-from typing import Any
 
 import argparse
 import json
@@ -40,6 +39,7 @@ import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 # Make app importable when running from the project root
 PROJECT = Path(__file__).resolve().parent.parent

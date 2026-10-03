@@ -39,7 +39,7 @@ def _migration_085_sale_public_token(conn: Any) -> None:
         conn.execute(
             text("ALTER TABLE sale ADD COLUMN public_token VARCHAR(64)")
         )
-    except Exception:  # noqa: BLE001, S110 — column may already exist
+    except Exception:  # noqa: S110 — column may already exist
         pass
 
     # 2. Add public_token_expires_at column (nullable; matches /p/{token} pattern)
@@ -47,7 +47,7 @@ def _migration_085_sale_public_token(conn: Any) -> None:
         conn.execute(
             text("ALTER TABLE sale ADD COLUMN public_token_expires_at TIMESTAMP")
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:  # noqa: S110
         pass
 
     # 3. Add public_token_shared_at column — when did the share happen.
@@ -56,7 +56,7 @@ def _migration_085_sale_public_token(conn: Any) -> None:
         conn.execute(
             text("ALTER TABLE sale ADD COLUMN public_token_shared_at TIMESTAMP")
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:  # noqa: S110
         pass
 
     # 4. Backfill: existing sales get sold_at + 30 days as a one-time grace
@@ -94,7 +94,7 @@ def _migration_085_sale_public_token(conn: Any) -> None:
                 ),
                 {"exp": expires, "sid": row.id},
             )
-    except Exception:  # noqa: BLE001, S110 — best-effort backfill
+    except Exception:  # noqa: S110 — best-effort backfill
         pass
 
     # 5. Index for fast "is this token still valid" lookups.
@@ -105,7 +105,7 @@ def _migration_085_sale_public_token(conn: Any) -> None:
                 "ON sale (public_token, public_token_expires_at)"
             )
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:  # noqa: S110
         pass
 
     _bump_schema_version(conn, 85)

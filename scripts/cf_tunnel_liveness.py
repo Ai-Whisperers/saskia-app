@@ -87,7 +87,7 @@ def probe_public() -> tuple[bool, str]:
         return False, f"public /healthz unreachable: {exc}"
     except (json.JSONDecodeError, ValueError) as exc:
         return False, f"public /healthz non-JSON: {exc}"
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return False, f"public /healthz unexpected: {exc}"
 
 
@@ -135,7 +135,7 @@ def probe_local() -> tuple[bool, str]:
             return True, f"local /healthz/db ok (schema {data['schema_version']})"
     except URLError as exc:
         return False, f"local /healthz/db unreachable: {exc}"
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return False, f"local /healthz/db error: {exc}"
 
 

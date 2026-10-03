@@ -1,4 +1,5 @@
 from typing import Any
+
 #!/usr/bin/env python3
 """Diagnose Supabase + Render state for Saskia RMS.
 

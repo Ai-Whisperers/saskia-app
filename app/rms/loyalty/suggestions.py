@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import datetime as _dt
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 # T-2026-10-01: use the live discount rate (POINTS_VALUE_GS) instead of
 # the old hardcoded 1000 Gs/point that gave a 100% return rate.

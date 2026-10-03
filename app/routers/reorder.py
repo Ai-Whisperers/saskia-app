@@ -483,7 +483,8 @@ async def reorder_upload_prices(
 
     import csv
     import io
-    from datetime import datetime as _datetime, timezone
+    from datetime import datetime as _datetime
+    from datetime import timezone
 
     reader = csv.DictReader(io.StringIO(text))
     required = {"ingredient_name", "supplier_name", "price_gs"}

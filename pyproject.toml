@@ -147,10 +147,14 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а"]
     "E402",    # test files may have non-top imports
     "ANN",     # test ergonomics — don't annotate every helper
     "S",       # bandit relaxed for tests
-    "DTZ005",  # tests use datetime.now() without TZ for "today" arithmetic
+    "DTZ",     # tests use naive datetime for fixture math (legacy contract)
     "B011",    # tests assert on raises(NotImplementedError) sometimes
 ]
 "app/migrations/**/*.py" = [
+    "E402", "ANN", "S608",   # migration SQL is hand-rolled
+    "BLE001",                # migrations swallow known schema errors
+]
+"app/rms/migrations/**/*.py" = [
     "E402", "ANN", "S608",   # migration SQL is hand-rolled
     "BLE001",                # migrations swallow known schema errors
 ]

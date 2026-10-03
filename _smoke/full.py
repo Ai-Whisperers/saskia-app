@@ -15,9 +15,9 @@ Tests these flows:
  12. Settings: list, update
 """
 from __future__ import annotations
-from typing import Any
 
 import time
+from typing import Any
 
 import requests
 

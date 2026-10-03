@@ -11,13 +11,13 @@ Usage:
 Output: <dir>/*.png + index.html (contact sheet) + summary.json
 """
 from __future__ import annotations
-from typing import Any
 
 import json
 import sys
 import threading
 import time
 from pathlib import Path
+from typing import Any
 
 OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "docs/user-guide/screenshots/all-pages")
 CHROME = "/opt/hermes/.playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell"
@@ -205,12 +205,12 @@ def main():
                 page.goto(base + path)
                 try:
                     page.wait_for_load_state("networkidle")
-                except Exception:  # noqa: BLE001 — slow assets shouldn't kill the shot
+                except Exception:
                     pass
                 page.wait_for_timeout(250)
                 page.screenshot(path=str(OUT / f"{name}.png"), full_page=True)
                 status = "ok"
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 status = f"ERROR: {exc}"[:120]
             summary[path] = {"file": f"{name}.png", "status": status}
             print(f"  {path:42s} {status}")
@@ -245,7 +245,7 @@ def main():
                     status = f"ok ({len(body)} bytes)"
                 else:
                     status = f"HTTP {resp.status}"
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 status = f"ERROR: {exc}"[:80]
             summary[f"EXPORT {path}"] = {"file": fname, "status": status}
             print(f"  {path:42s} {status}")

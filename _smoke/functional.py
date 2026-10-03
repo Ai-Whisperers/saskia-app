@@ -12,10 +12,10 @@ Tests the FULL flow of every important feature, not just page rendering:
   - Settings: update → verify change
 """
 from __future__ import annotations
-from typing import Any
 
 import time
 from pathlib import Path
+from typing import Any
 
 import requests
 

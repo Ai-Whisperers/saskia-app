@@ -10,13 +10,13 @@ Hits every GET + POST route registered in the FastAPI app. Verifies:
 This is the "does everything actually work" test.
 """
 from __future__ import annotations
-from typing import Any
 
 import json
 import re
 import sys
 import time
 from collections import defaultdict
+from typing import Any
 
 import requests
 
