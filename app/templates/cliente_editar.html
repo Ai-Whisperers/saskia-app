@@ -221,7 +221,9 @@
         Restricciones = NUNCA violar (aparece como alerta rojo en pedidos y ventas).
         Preferencias = qué aprueba y en qué orden (rank 1 = ofrecer primero).
       </p>
-      <label style="font-weight:600;display:block;margin:var(--space-2) 0 var(--space-1);">Restricciones</label>
+      <label style="font-weight:600;display:block;margin:var(--space-2) 0 var(--space-1);">
+        Restricciones ({{ dietary_profile.restrictions|length }})
+      </label>
       <div style="display:flex;flex-wrap:wrap;gap:var(--space-2);">
         {% for tag in dietary_tag_options %}
         <label style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:4px 12px;cursor:pointer;">
@@ -232,7 +234,9 @@
         {% endfor %}
       </div>
 
-      <label style="font-weight:600;display:block;margin:var(--space-3) 0 var(--space-1);">Preferencias (orden de aprobación)</label>
+      <label style="font-weight:600;display:block;margin:var(--space-3) 0 var(--space-1);">
+        Preferencias (orden de aprobación) ({{ dietary_profile.preferences|length }})
+      </label>
       <div id="dietary-prefs-rows">
         {% for pref in dietary_profile.preferences %}
         <div class="dietary-pref-row" style="display:grid;grid-template-columns:60px 1fr 2fr auto;gap:var(--space-2);margin-bottom:var(--space-2);align-items:center;">
