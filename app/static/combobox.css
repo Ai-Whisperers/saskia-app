@@ -758,3 +758,10 @@ a.kpi-strip__item:focus-visible {
     border-radius: 4px;
     transition: width 0.3s ease;
 }
+
+/* === Additional flex utilities (Phase 22 #15) === */
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+.flex-wrap { flex-wrap: wrap; }
+.gap-1 { gap: var(--space-1); }
+.gap-3 { gap: var(--space-3); }
