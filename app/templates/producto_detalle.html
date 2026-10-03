@@ -3,21 +3,21 @@
 
 {% block content %}
 <div class="app-content">
-  <div class="container mx-auto p-4 max-w-6xl">
+  <div class="container card-page">
     <!-- Product Header -->
-    <div class="card mb-6">
+    <div class="card mb-4">
       <div class="card-body">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="row-between" style="display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:center;justify-content:space-between;">
           <div>
-            <h1 class="text-2xl font-bold mb-2">{{ product.name }}</h1>
+            <h1>{{ product.name }}</h1>
             {% if product.category %}
             <span class="badge badge-primary">{{ product.category }}</span>
             {% endif %}
             {% if not product.is_available %}
-            <span class="badge badge-warning mx-2">Sin stock</span>
+            <span class="badge badge-warning" style="margin-left:var(--space-1);">Sin stock</span>
             {% endif %}
           </div>
-          <div class="flex gap-2">
+          <div class="row-actions" style="display:flex;gap:var(--space-2);">
             <a href="/productos/{{ product.id }}/editar" class="btn btn-primary">
               <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
               Editar
@@ -34,46 +34,46 @@
     </div>
 
     <!-- Metrics Strip -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="kpi-strip" style="margin-bottom:var(--space-4);">
       <div class="metric-card">
-        <div class="metric-label">Stock actual</div>
-        <div class="metric-value">{{ "%.2f"|format(current_stock or 0)|replace(".", ",") }} und</div>
+        <div class="metric-card__label">Stock actual</div>
+        <div class="metric-card__value">{{ "%.2f"|format(current_stock or 0)|replace(".", ",") }} und</div>
       </div>
       <div class="metric-card">
-        <div class="metric-label">Costo actual (Gs.)</div>
-        <div class="metric-value">{{ m.gs(current_cost) }}</div>
+        <div class="metric-card__label">Costo actual (Gs.)</div>
+        <div class="metric-card__value">{{ m.gs(current_cost) }}</div>
       </div>
       <div class="metric-card">
-        <div class="metric-label">Precio actual (Gs.)</div>
-        <div class="metric-value">{{ m.gs(product.sale_price_gs) }}</div>
+        <div class="metric-card__label">Precio actual (Gs.)</div>
+        <div class="metric-card__value">{{ m.gs(product.sale_price_gs) }}</div>
       </div>
       <div class="metric-card">
-        <div class="metric-label">Margen %</div>
-        <div class="metric-value{% if avg_margin_pct is not none and avg_margin_pct < 0 %} text-red-600{% elif avg_margin_pct is not none and avg_margin_pct < 20 %} text-yellow-600{% endif %}">
+        <div class="metric-card__label">Margen %</div>
+        <div class="metric-card__value{% if avg_margin_pct is not none and avg_margin_pct < 0 %} danger{% elif avg_margin_pct is not none and avg_margin_pct < 20 %} warn{% endif %}">
           {{ "%.1f"|format(avg_margin_pct) if avg_margin_pct is not none else "-" }}%
         </div>
       </div>
     </div>
 
     <!-- Two Column Section -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);margin-bottom:var(--space-4);">
       <!-- Left: Recipes Using -->
       <div class="card">
         <div class="card-body">
-          <h3 class="card-title mb-4">Uso en recetas</h3>
+          <h3 class="card-title">Uso en recetas</h3>
           {% if recipes_using %}
-            <div class="space-y-2">
+            <ul style="list-style:none;padding:0;margin:0;">
               {% for recipe in recipes_using %}
-              <div class="flex items-center justify-between py-2 border-b last:border-b-0">
+              <li style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border, #eee);">
                 <span>{{ recipe.name }}</span>
                 <a href="/recetas/{{ recipe.id }}" class="btn btn-ghost btn-sm">
                   Ver receta
                 </a>
-              </div>
+              </li>
               {% endfor %}
-            </div>
+            </ul>
           {% else %}
-            <p class="text-muted">No se usa en ninguna receta todavía.</p>
+            <p class="muted">No se usa en ninguna receta todavía.</p>
           {% endif %}
         </div>
       </div>
@@ -81,15 +81,15 @@
       <!-- Right: 30-Day Sales -->
       <div class="card">
         <div class="card-body">
-          <h3 class="card-title mb-4">Ventas últimos 30 días</h3>
-          <div class="grid grid-cols-2 gap-4">
+          <h3 class="card-title">Ventas últimos 30 días</h3>
+          <div class="kpi-strip" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
             <div class="insight-card">
-              <div class="insight-label">Unidades vendidas</div>
-              <div class="insight-value">{{ last_30d_units }}</div>
+              <div class="insight-card__label">Unidades vendidas</div>
+              <div class="insight-card__value">{{ last_30d_units }}</div>
             </div>
             <div class="insight-card">
-              <div class="insight-label">Ingresos (Gs.)</div>
-              <div class="insight-value">{{ m.gs(last_30d_revenue) }}</div>
+              <div class="insight-card__label">Ingresos (Gs.)</div>
+              <div class="insight-card__value">{{ m.gs(last_30d_revenue) }}</div>
             </div>
           </div>
         </div>
@@ -124,7 +124,7 @@
             </table>
           </div>
         {% else %}
-          <p class="text-muted">No hay ventas recientes de este producto.</p>
+          <p class="muted">No hay ventas recientes de este producto.</p>
         {% endif %}
       </div>
     </div>
