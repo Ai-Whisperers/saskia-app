@@ -892,7 +892,7 @@ async def sale_create(
             session, sold_at_dt.date(), action="sale_insert"
         )
     except ValueError as e:
-        raise HTTPException(status_code=409, detail=f"EOD_CLOSED:{e}")
+        raise HTTPException(status_code=409, detail=f"EOD_CLOSED:{e}") from None
 
     # payment_method: optional, must be in ALLOWED_PAYMENT_METHODS if set
     payment_method_clean = payment_method.strip() or None
@@ -1283,7 +1283,7 @@ async def sale_create_multi(
             session, sold_at_dt.date(), action="sale_insert_multi"
         )
     except ValueError as e:
-        raise HTTPException(status_code=409, detail=f"EOD_CLOSED:{e}")
+        raise HTTPException(status_code=409, detail=f"EOD_CLOSED:{e}") from None
 
     # ── Customer ──────────────────────────────────────────────────────────
     customer_id = body.customer_id

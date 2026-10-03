@@ -479,7 +479,7 @@ async def reorder_upload_prices(
             raise HTTPException(
                 status_code=400,
                 detail="No se pudo decodificar el CSV. Usá UTF-8.",
-            )
+            ) from None
 
     import csv
     import io

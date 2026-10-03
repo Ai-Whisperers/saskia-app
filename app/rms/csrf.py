@@ -86,7 +86,7 @@ async def verify_form_csrf(request: Request) -> None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="csrf_form_unreadable",
-        )
+        ) from None
     form_token = form.get("_csrf_token") or form.get("csrf_token")
     if not form_token or not isinstance(form_token, str):
         raise HTTPException(
@@ -100,7 +100,7 @@ async def verify_form_csrf(request: Request) -> None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="missing_or_invalid_csrf_token",
-        )
+        ) from None
     if not secrets.compare_digest(cookie_payload, form_payload):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -162,7 +162,7 @@ async def csrf_cookie_middleware(request: Request, call_next: object) -> Respons
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="missing_or_invalid_csrf_token",
-                )
+                ) from None
             if not secrets.compare_digest(cookie_payload, header_payload):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,

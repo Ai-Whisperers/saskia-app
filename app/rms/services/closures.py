@@ -67,7 +67,7 @@ def close_month(db: Session, period_yyyymm: str, user_id: str | None = None) -> 
         year, month = map(int, period_yyyymm.split('-'))
         month_date = date(year, month, 1)
     except ValueError:
-        raise ClosureValidationError(f"Period must be YYYY-MM format, got: {period_yyyymm}")
+        raise ClosureValidationError(f"Period must be YYYY-MM format, got: {period_yyyymm}") from None
 
     # Check if already closed
     existing = get_closure(db, period_yyyymm)
@@ -186,7 +186,7 @@ def compute_month_totals(db: Session, period_yyyymm: str) -> dict:
         month_date = date(year, month, 1)
 
     except (ValueError, AttributeError):
-        raise ClosureValidationError(f"Period must be YYYY-MM format, got: {period_yyyymm}")
+        raise ClosureValidationError(f"Period must be YYYY-MM format, got: {period_yyyymm}") from None
 
     # Calculate date range
     start_date = month_date
@@ -239,7 +239,7 @@ def create_closure(db: Session, period_yyyymm: str, total_expenses_gs: int, note
         year, month = map(int, period_yyyymm.split('-'))
         date(year, month, 1)
     except ValueError:
-        raise ClosureValidationError(f"Period must be YYYY-MM format, got: {period_yyyymm}")
+        raise ClosureValidationError(f"Period must be YYYY-MM format, got: {period_yyyymm}") from None
 
     # Check for existing closure
     existing = db.query(MonthlyClosure).filter(

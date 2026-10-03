@@ -487,7 +487,7 @@ async def produccion_override_bulk(
     try:
         for_date = date.fromisoformat(raw_for_date)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Fecha inválida")
+        raise HTTPException(status_code=400, detail="Fecha inválida") from None
 
     user_id = str(current_user_id(request) or "operator")
 
