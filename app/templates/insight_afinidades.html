@@ -10,6 +10,13 @@
      actions=m.insights_nav('afinidades')
    ) }}
 
+{# Phase 22: generic Excel export (uses global /excel/exportar endpoint) #}
+<div class="insight-export" style="margin: 0 0 var(--space-3) 0;">
+  {{ ui.excel_export_btn(endpoint='/excel/exportar?source=insights&key=afinidades',
+                          label='Exportar Excel') }}
+</div>
+
+
 {% if pairs %}
 {{ ui.skeleton_section(id="insight-afinidades-table", variant="line", count=6, label="Cargando afinidades") }}
 <div data-loaded-section="insight-afinidades-table">

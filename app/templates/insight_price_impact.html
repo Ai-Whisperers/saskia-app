@@ -10,6 +10,13 @@
      actions=m.insights_nav('price_impact')
    ) }}
 
+{# Phase 22: generic Excel export (uses global /excel/exportar endpoint) #}
+<div class="insight-export" style="margin: 0 0 var(--space-3) 0;">
+  {{ ui.excel_export_btn(endpoint='/excel/exportar?source=insights&key=price-impact',
+                          label='Exportar Excel') }}
+</div>
+
+
 <h2>Recetas afectadas ({{ impact.affected_recipes|length }})</h2>
 {% if impact.affected_recipes %}
 {{ ui.skeleton_section(id="insight-price-impact-table", variant="line", count=6, label="Cargando impacto de precios") }}

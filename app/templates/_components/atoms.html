@@ -424,3 +424,13 @@
             {% if value is not none %}value="{{ value }}"{% endif %}>
   {%- endif %}
 {%- endmacro %}
+
+{# Phase 22: Generic Excel export button — links to /excel/exportar or a
+   custom endpoint. Use when a page doesn't have its own export. #}
+{% macro excel_export_btn(endpoint='/excel/exportar', label='Exportar Excel', filename='reporte.xlsx') -%}
+<a href="{{ endpoint }}" class="btn btn-secondary" download="{{ filename }}"
+   aria-label="{{ label }}">
+  <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+  {{ label }}
+</a>
+{%- endmacro %}

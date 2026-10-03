@@ -10,6 +10,13 @@
      actions=m.insights_nav('food_cost')
    ) }}
 
+{# Phase 22: generic Excel export (uses global /excel/exportar endpoint) #}
+<div class="insight-export" style="margin: 0 0 var(--space-3) 0;">
+  {{ ui.excel_export_btn(endpoint='/excel/exportar?source=insights&key=food-cost',
+                          label='Exportar Excel') }}
+</div>
+
+
 <div class="grid grid-4 mb-4" style="gap:var(--space-3);">
   <div class="metric-card"><div class="metric-label">Teórico</div><div class="metric-value">{{ m.gs(v.theoretical_gs) }}</div></div>
   <div class="metric-card"><div class="metric-label">Uso real</div><div class="metric-value">{{ m.gs(v.actual_ingredient_gs) }}</div></div>
@@ -21,7 +28,7 @@
 </div>
 
 <form method="get" class="mb-4" style="display:flex;gap:var(--space-2);align-items:end;">
-  <label>Días <input type="number" name="days" value="{{ days }}" min="1" max="365" style="width:90px;"></label>
+  {{ m.days_filter(options=[7, 30, 60, 90, 180], current=days|int, name="days") }}
   <button class="btn btn-primary" type="submit">Recalcular</button>
 </form>
 

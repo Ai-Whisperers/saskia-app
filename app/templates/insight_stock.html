@@ -10,6 +10,13 @@
      actions=m.insights_nav('stock')
    ) }}
 
+{# Phase 22: generic Excel export (uses global /excel/exportar endpoint) #}
+<div class="insight-export" style="margin: 0 0 var(--space-3) 0;">
+  {{ ui.excel_export_btn(endpoint='/excel/exportar?source=insights&key=stock',
+                          label='Exportar Excel') }}
+</div>
+
+
 <h2 style="font-size:1.05rem;margin-top:var(--space-4);">💀 Stock muerto</h2>
 {% if dead %}
 {{ ui.skeleton_section(id="insight-stock-table", variant="line", count=6, label="Cargando stock") }}
