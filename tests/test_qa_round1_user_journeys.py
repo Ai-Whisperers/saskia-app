@@ -141,12 +141,12 @@ def test_restock_chain_price_event_to_insight_card(client, session_factory):
 def test_mixed_unit_recipe_costs_and_plans_consistently(session_factory):
     """Recipe 'Pan' with mixed units (Saskia's T1 complaint):
     - harina stored in kg @ 5000 Gs/kg, recipe line 500 g
-    - leche stored in l  @ 8000 Gs/l,  recipe line 250 ml
+    - leche stored in line  @ 8000 Gs/line,  recipe line 250 ml
     - yield 12 und
 
     Batch cost via costing walk = 0.5×5000 + 0.25×8000 = 4500 Gs.
     plan_production for 24 portions (2 batches) must require exactly
-    1.0 kg harina and 0.5 l leche — same normalization, both engines.
+    1.0 kg harina and 0.5 line leche — same normalization, both engines.
     """
     from app.rms.costing import recipe_batch_cost_gs
     from app.rms.models import Product, Recipe, RecipeLine
@@ -208,10 +208,10 @@ def test_mixed_unit_recipe_costs_and_plans_consistently(session_factory):
         )
         # lines are keyed by ingredient name in the plan output
         harina_line = next(
-            (l for l in plan.lines if "Harina" in l.ingredient_name), None
+            (line for line in plan.lines if "Harina" in line.ingredient_name), None
         )
         leche_line = next(
-            (l for l in plan.lines if "Leche" in l.ingredient_name), None
+            (line for line in plan.lines if "Leche" in line.ingredient_name), None
         )
         assert harina_line is not None, f"no harina line in {plan.lines}"
         assert leche_line is not None, f"no leche line in {plan.lines}"

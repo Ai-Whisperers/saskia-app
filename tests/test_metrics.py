@@ -52,22 +52,22 @@ def test_record_populates_histogram_buckets():
 
     # Find the bucket lines for /api/test
     bucket_lines = [
-        l for l in out.split("\n")
-        if "rms_request_duration_seconds_bucket" in l and 'path="/api/test"' in l
+        line for line in out.split("\n")
+        if "rms_request_duration_seconds_bucket" in line and 'path="/api/test"' in l
     ]
     # 11 buckets (10 finite + 1 +Inf)
     assert len(bucket_lines) == len(_BUCKETS_S) + 1
 
     # 50ms bucket (≤ 50ms) — 0 because 60ms > 50ms
-    bucket_50 = [l for l in bucket_lines if 'le="0.05"' in l]
+    bucket_50 = [line for line in bucket_lines if 'le="0.05"' in line]
     assert bucket_50[0].endswith(" 0.0") or bucket_50[0].endswith(" 0")
 
     # 100ms bucket (≤ 100ms) — 1 because 60ms ≤ 100ms
-    bucket_100 = [l for l in bucket_lines if 'le="0.1"' in l]
+    bucket_100 = [line for line in bucket_lines if 'le="0.1"' in line]
     assert bucket_100[0].endswith(" 1.0") or bucket_100[0].endswith(" 1")
 
     # +Inf bucket — always 1
-    bucket_inf = [l for l in bucket_lines if 'le="+Inf"' in l]
+    bucket_inf = [line for line in bucket_lines if 'le="+Inf"' in line]
     assert bucket_inf[0].endswith(" 1.0") or bucket_inf[0].endswith(" 1")
 
 
@@ -76,11 +76,11 @@ def test_histogram_sum_and_count():
     record_request("/x", "GET", 200, 0.2)
     out = render()
     # Sum should be 0.3 (within rounding)
-    sum_line = [l for l in out.split("\n") if "rms_request_duration_seconds_sum" in l and 'path="/x"' in l]
+    sum_line = [line for line in out.split("\n") if "rms_request_duration_seconds_sum" in line and 'path="/x"' in line]
     assert len(sum_line) == 1
     assert sum_line[0].endswith(" 0.300000") or sum_line[0].endswith(" 0.3")
     # Count should be 2
-    count_line = [l for l in out.split("\n") if "rms_request_duration_seconds_count" in l and 'path="/x"' in l]
+    count_line = [line for line in out.split("\n") if "rms_request_duration_seconds_count" in line and 'path="/x"' in line]
     assert count_line[0].endswith(" 2")
 
 
@@ -99,7 +99,7 @@ def test_app_info_emitted_when_set():
     assert 'version="1.0"' in out
     assert out.count('rms_app_info{') == 1
     # The line must end with " 1" (Prometheus info-gauge convention)
-    info_line = [l for l in out.split("\n") if l.startswith("rms_app_info{")]
+    info_line = [line for line in out.split("\n") if line.startswith("rms_app_info{")]
     assert info_line[0].endswith(" 1")
 
 

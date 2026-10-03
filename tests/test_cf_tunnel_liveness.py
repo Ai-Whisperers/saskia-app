@@ -90,7 +90,7 @@ def test_quiet_mode_one_line(capsys, monkeypatch):
     mod.main(["--quiet"])
     captured = capsys.readouterr()
     # Allow trailing newline (one newline after one print())
-    lines = [l for l in captured.out.split("\n") if l.strip()]
+    lines = [line for line in captured.out.split("\n") if line.strip()]
     assert len(lines) == 1
     assert lines[0].startswith("cf-tunnel-liveness[")
 

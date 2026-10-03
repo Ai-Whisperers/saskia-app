@@ -120,7 +120,7 @@ def test_csv_export_filters_by_days(client, seeded_sales):
     body = resp.content.decode("utf-8-sig")
     # Day-1 sales: 2 p1 + 1 p2; day-0: 1 p1 voided + 1 p2 active
     # days=1 should include day=0 only (today); that's 2 rows
-    data_rows = [l for l in body.split("\n") if l.strip()][1:]  # skip header
+    data_rows = [line for line in body.split("\n") if line.strip()][1:]  # skip header
     assert len(data_rows) == 2
 
 
@@ -130,7 +130,7 @@ def test_csv_export_filters_by_product(client, seeded_sales):
     resp = client.get(f"/ventas/export.csv?product_id={p1_id}")
     assert resp.status_code == 200
     body = resp.content.decode("utf-8-sig")
-    data_rows = [l for l in body.split("\n") if l.strip()][1:]
+    data_rows = [line for line in body.split("\n") if line.strip()][1:]
     assert len(data_rows) == 3  # all 3 p1 sales (including the voided)
 
 

@@ -95,7 +95,7 @@ def fix_file(path: str, line_nums: list[int]) -> int:
         # Check expr is not control-flow heavy. Skip if a control keyword
         # starts a line (statement head), not when it's inside a string
         # or ternary expression.
-        expr_lines = [l.strip() for l in expr.split('\n') if l.strip()]
+        expr_lines = [line.strip() for line in expr.split('\n') if line.strip()]
         control_found = False
         for el in expr_lines:
             first = el.split()[0] if el else ''

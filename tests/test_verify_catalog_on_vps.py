@@ -104,7 +104,7 @@ def test_quiet_one_line_output(tmp_path, capsys):
     )
     mod.main(["--db", db, "--code-schema-version", "83", "--quiet"])
     captured = capsys.readouterr()
-    lines = [l for l in captured.out.split("\n") if l.strip()]
+    lines = [line for line in captured.out.split("\n") if line.strip()]
     assert len(lines) == 1
     assert lines[0].startswith("vps-catalog-verify[OK]")
 
