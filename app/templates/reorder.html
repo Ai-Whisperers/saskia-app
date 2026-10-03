@@ -221,6 +221,10 @@ function updateBulkBtn() {
           <div class="currency-input-wrap">
             <input type="number" id="rp-{{ item.ingredient_id }}" name="price_gs" step="100" min="0" size="6" inputmode="numeric" class="currency-input price-input"
                    value="{{ item.purchase_price_gs if item.purchase_price_gs is not none else '' }}"
+                   {# P-32.2: cheapest-price hint for JS auto-fill on supplier change.
+                      Empty string when no history → JS no-ops. #}
+                   data-cheapest-price="{{ cheapest.avg_price_gs if cheapest and cheapest.avg_price_gs is not none else '' }}"
+                   data-cheapest-supplier-id="{{ cheapest.supplier_id if cheapest and cheapest.supplier_id is not none else '' }}"
                    aria-label="Precio pagado por {{ item.unit }} de {{ fmt.entity_name(item) }}">
           </div>
         </td>
