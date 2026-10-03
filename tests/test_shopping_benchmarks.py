@@ -35,10 +35,6 @@ def client():
 
 
 
-@pytest.fixture
-def client():
-    return TestClient(app)
-
 
 def test_benchmarks_import_present(dump):
     """Verify 17 benchmarks were imported from HEREBUS_Analisis."""

@@ -435,50 +435,6 @@ def test_d17_recetas_api_units_returns_existing_shape(client):
     # Real values exist (g, kg, ml, l, und)
     values = [r["value"] for r in data["results"]]
     assert any(v in values for v in ["g", "kg", "ml", "l", "und"])
-
-def test_d17_first_adoption_inventario_unit_uses_saskia_combo(client):
-    """Closes D17: inventario/nuevo uses <saskia-combo> for unit picker."""
-    status, body = _get(client, "/inventario/nuevo")
-    assert status == 200
-    # Renders <saskia-combo> element via macro, NOT legacy saskia-combo div
-    assert "<saskia-combo" in body
-    assert 'name="unit"' in body
-    assert "/recetas/api/units?q=" in body
-    # Legacy combo DIV (v1) should be gone for unit — the custom element
-    # keeps data-source as a compat alias emitted by the macro itself.
-    import re as _re
-    assert not _re.search(r'<div[^>]+data-source="/recetas/api/units"', body)
-
-
-def test_d17_saskia_combo_field_mapping_serves_js(client):
-    """The combo field-mapping logic is present in the served JS."""
-    rsp = client.get("/static/saskia-combo.js")
-    body = rsp.read().decode("utf-8", errors="replace")
-    assert rsp.status in (200,), f"saskia-combo.js returned {rsp.status}"
-    assert "value-field" in body
-    assert "label-field" in body
-    assert "observedAttributes" in body
-
-
-def test_d17_macro_supports_value_field_label_field(client):
-    """The ui.combo_field() macro renders value-field/label-field attributes."""
-    status, body = _get(client, "/dev/combo-smoke")
-    assert status == 200
-    # Real DB endpoint wired
-    assert "/productos/api/search?q=" in body
-
-
-def test_d17_recetas_api_units_returns_existing_shape(client):
-    """/recetas/api/units returns the {value, display} shape expected by combo."""
-    rsp = client.get("/recetas/api/units?q=")
-    body = rsp.read().decode("utf-8", errors="replace")
-    assert rsp.status in (200,)
-    import json as _j
-    data = _j.loads(body)
-    assert "results" in data
-    values = [r["value"] for r in data["results"]]
-    assert any(v in values for v in ["g", "kg", "ml", "l", "und"])
-
 def test_d17_merma_uses_saskia_combo_for_reason(client):
     """D17: merma.html replaces legacy div with <saskia-combo> for reason filter."""
     status, body = _get(client, "/merma")

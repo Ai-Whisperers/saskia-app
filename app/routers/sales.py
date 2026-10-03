@@ -684,7 +684,7 @@ async def sale_receipt(
 
 
 @router.get("/{sale_id:int}", response_class=HTMLResponse)
-async def sale_detail(
+async def sale_detail_int(
     request: Request,
     sale_id: int,
     session: Session = Depends(get_session),
