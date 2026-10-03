@@ -21,6 +21,17 @@
     <a href="/productos" class="btn">Ver catálogo</a>
   </div>
 </section>
+{# P-35.1: even in empty state, show the group structure so a first-run
+   admin sees where the KPIs will land once data is loaded. #}
+<section class="kpi-group" data-group="dinero" hidden>
+  <h3 class="kpi-group__title">Dinero</h3>
+</section>
+<section class="kpi-group" data-group="actividad" hidden>
+  <h3 class="kpi-group__title">Actividad</h3>
+</section>
+<section class="kpi-group" data-group="costos" hidden>
+  <h3 class="kpi-group__title">Costos</h3>
+</section>
 {% else %}
 
 {# ── Alertas de margen ──────────────────────────────────────────────── #}
@@ -41,31 +52,16 @@
 </div>
 {% endif %}
 
-<div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
+<div class="kpi-row" style="display:flex;flex-direction:column;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
   {{ ui.skeleton_section(id="dashboard-kpis", variant="kpi", count=4, label="Cargando indicadores del mes") }}
-  <div class="kpi-strip" data-loaded-section="dashboard-kpis">
+  <div data-loaded-section="dashboard-kpis">
+    {# P-35.1: KPIs grouped into 3 named sections so operator's eye can
+       prioritize. Money / Actividad / Costos. #}
+    <section class="kpi-group" data-group="dinero">
+      <h3 class="kpi-group__title">Dinero</h3>
+      <div class="kpi-strip" style="flex-wrap:wrap;">
   {{ ui.metric_card(label="Ingresos", value=m.gs(revenue_gs), compact=True) }}
-  {{ ui.metric_card(label="Porciones vendidas", value=portions, compact=True) }}
-  {# P-22 / audit #7: target visual feedback on KPIs with objectives.
-     target = actual / goal ratio (1.0 = at target). direction='low' means
-     lower actual is better (cost/waste); 'high' means higher actual is
-     better (margin/recurrence). Only set target when we have actual data
-     (food_cost_pct/gross_margin_pct are None when no recipe costing). #}
-  {% if food_cost_pct is not none %}
-    {{ ui.metric_card(
-         label="Costo de materia prima %",
-         value='%.1f%%'|format(food_cost_pct),
-         target=(food_cost_pct / 35)|round(2),
-         target_direction='low',
-         target_label='objetivo: ≤35%',
-         compact=True) }}
-  {% else %}
-    {{ ui.metric_card(
-         label="Costo de materia prima %",
-         value='sin escandallo',
-         sub='objetivo: 35%',
-         compact=True) }}
-  {% endif %}
+  {{ ui.metric_card(label="Ticket promedio", value=m.gs(avg_order_gs), compact=True) }}
   {% if gross_margin_pct is not none %}
     {{ ui.metric_card(
          label="Margen bruto %",
@@ -81,6 +77,11 @@
          sub='objetivo: 60%',
          compact=True) }}
   {% endif %}
+      </div>
+    </section>
+    <section class="kpi-group" data-group="actividad">
+      <h3 class="kpi-group__title">Actividad</h3>
+      <div class="kpi-strip" style="flex-wrap:wrap;">
   {{ ui.metric_card(label="Clientes únicos", value=unique_customers, compact=True) }}
   {{ ui.metric_card(
        label="Recurrencia %",
@@ -89,7 +90,27 @@
        target_direction='high',
        target_label='objetivo: ≥30%',
        compact=True) }}
-  {{ ui.metric_card(label="Ticket promedio", value=m.gs(avg_order_gs), compact=True) }}
+  {{ ui.metric_card(label="Porciones vendidas", value=portions, compact=True) }}
+      </div>
+    </section>
+    <section class="kpi-group" data-group="costos">
+      <h3 class="kpi-group__title">Costos</h3>
+      <div class="kpi-strip" style="flex-wrap:wrap;">
+  {% if food_cost_pct is not none %}
+    {{ ui.metric_card(
+         label="Costo de materia prima %",
+         value='%.1f%%'|format(food_cost_pct),
+         target=(food_cost_pct / 35)|round(2),
+         target_direction='low',
+         target_label='objetivo: ≤35%',
+         compact=True) }}
+  {% else %}
+    {{ ui.metric_card(
+         label="Costo de materia prima %",
+         value='sin escandallo',
+         sub='objetivo: 35%',
+         compact=True) }}
+  {% endif %}
   {{ ui.metric_card(label="Merma", value=m.gs(waste_gs), compact=True) }}
   {{ ui.metric_card(
        label="Merma %",
@@ -98,6 +119,8 @@
        target_direction='low',
        target_label='objetivo: ≤5%',
        compact=True) }}
+      </div>
+    </section>
   </div>
 </div>
 
