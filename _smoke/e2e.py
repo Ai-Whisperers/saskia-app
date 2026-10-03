@@ -166,7 +166,7 @@ def test_post(path, data, session, **kwargs):
     return r
 
 
-def main():
+def main() -> int:
     routes = discover_routes()
     print(f"Discovered {len(routes)} routes. Starting E2E smoke test...\n")
 

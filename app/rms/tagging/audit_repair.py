@@ -89,7 +89,7 @@ def repair_ingredient(ing) -> list[str]:
     to_remove: set[str] = set()
 
     for issue in issues:
-        for substring, allergen_trigger, tags_drop in _REPAIR_RULES:
+        for substring, _allergen_trigger, tags_drop in _REPAIR_RULES:
             if substring in issue:
                 to_remove |= tags_drop
                 break

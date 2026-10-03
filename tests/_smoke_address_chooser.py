@@ -144,7 +144,7 @@ def test_no_duplicate_pickers_across_paths(client, session_factory):
         c1 = make_customer(s, name="SwitchA", phone="+595****7101")
         c2 = make_customer(s, name="SwitchB", phone="+595****7102")
         s.commit()
-        cid1, cid2 = c1.id, c2.id
+        cid1, _cid2 = c1.id, c2.id
 
     r = client.get(f"/pedidos/nuevo?customer_id={cid1}")
     body = r.text

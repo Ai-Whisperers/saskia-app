@@ -96,11 +96,11 @@ def to_decimal(s):
     if s in (None, "", "∅"):
         return None
     if isinstance(s, (int, float)):
-        return int(round(s))
+        return round(s)
     s = str(s).replace(",", ".").strip()
     if not s:
         return None
-    return int(round(float(s)))
+    return round(float(s))
 
 
 def to_date(s, fmt="%d/%m/%Y"):
@@ -305,15 +305,15 @@ def import_ingredients(session, dump) -> int:
     for row in sheet[1:]:
         if not row or not row[idx.get(" ", 0) or 0]:
             continue
-        ext_code = row[idx.get(" ", 0)]
+        row[idx.get(" ", 0)]
         name = row[idx["Ingrediente"]]
         if not name:
             continue
         category = row[idx.get("Categoría", 0)]
         unit = row[idx.get("Unidad", 0)]
-        pkg_qty = to_decimal(row[idx.get("Tamaño de compra", 0)])
+        to_decimal(row[idx.get("Tamaño de compra", 0)])
         bulk_price = to_decimal(row[idx.get("Precio de compra (₲)", 0)])
-        unit_price = to_decimal(row[idx.get("Precio por unidad (₲)", 0)])
+        to_decimal(row[idx.get("Precio por unidad (₲)", 0)])
         stock = to_decimal(row[idx.get("Stock actual", 0)]) or 0
         min_stock = to_decimal(row[idx.get("Stock mínimo", 0)]) or 10
         reorder = str(row[idx.get("Reorder?", 0)]).lower() in ("true", "sí", "1")
@@ -432,10 +432,10 @@ def import_recipes(session, dump) -> int:
 
         # Add lines
         for line_row in lines:
-            ing_ext = line_row[idx["Ingrediente ID"]]
+            line_row[idx["Ingrediente ID"]]
             qty = to_decimal(line_row[idx["Cantidad"]]) or 0
             unit = line_row[idx["Unidad"]] or "g"
-            position = int(to_decimal(line_row[idx["Orden"]]) or 0)
+            int(to_decimal(line_row[idx["Orden"]]) or 0)
 
             # Skip 0-qty lines (these violate ck_line_qty_positive — e.g. some optional
             # ingredients in the spreadsheet have qty=0 meaning "as needed")
@@ -639,7 +639,7 @@ def import_waste(session) -> int:
     ]
 
     n = 0
-    for (name, qty, unit, cost, reason), dt in zip(rows, waste_dates):
+    for (name, qty, _unit, cost, reason), dt in zip(rows, waste_dates, strict=False):
         # Look up by direct name first, then fuzzy map
         ing = ing_map.get(name.lower())
         if not ing:
@@ -968,7 +968,7 @@ def import_bank_transactions(session) -> int:
                 continue
             currency = parts[1]  # 'EUR'
             posted_date = parts[2]  # '20250919'
-            balance_after_str = parts[4]
+            parts[4]
             try:
                 amount = float(parts[6].replace(",", "."))
             except (ValueError, IndexError):

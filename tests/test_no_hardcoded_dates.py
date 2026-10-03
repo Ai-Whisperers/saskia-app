@@ -85,7 +85,7 @@ def test_no_hardcoded_dates_in_tests(test_path: Path) -> None:
         if stripped.startswith("#"):
             continue
         for pat in DATE_PATTERNS:
-            for m in pat.finditer(line):
+            for _m in pat.finditer(line):
                 findings.append((line_no, line.strip()[:80]))
 
     if findings:

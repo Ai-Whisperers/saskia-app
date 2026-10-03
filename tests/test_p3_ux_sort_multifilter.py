@@ -110,9 +110,9 @@ def test_recetas_ingredient_multi_and_semantics(client, session_factory):
         a = make_ingredient(s, name="IngMulti A UX")
         b = make_ingredient(s, name="IngMulti B UX")
         c = make_ingredient(s, name="IngMulti C UX")
-        r_ab = make_recipe(s, name="Rec AB UX", lines=[
+        make_recipe(s, name="Rec AB UX", lines=[
             ing_line(ingredient=a, qty=1), ing_line(ingredient=b, qty=1)])
-        r_a = make_recipe(s, name="Rec A UX", lines=[ing_line(ingredient=a, qty=1)])
+        make_recipe(s, name="Rec A UX", lines=[ing_line(ingredient=a, qty=1)])
         s.commit()
         a_id, b_id, c_id = a.id, b.id, c.id
 

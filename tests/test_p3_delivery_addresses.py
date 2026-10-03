@@ -135,7 +135,7 @@ def test_product_is_favorite_filter(client, session_factory):
     with session_factory() as s:
         fav = make_product(s, name="FavPan UX", sale_price_gs=8000)
         fav.is_favorite = True
-        plain = make_product(s, name="FavCafe UX", sale_price_gs=12000)
+        make_product(s, name="FavCafe UX", sale_price_gs=12000)
         s.commit()
     r = client.get("/ventas?fav=1")
     assert r.status_code == 200

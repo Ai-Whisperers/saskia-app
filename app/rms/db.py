@@ -2637,7 +2637,7 @@ def _migration_062_audit_repair(conn: Any) -> None:
         eng = _make_engine()
         SessionLocal = make_session_factory(eng)
         with SessionLocal() as s:
-            changes = repair_all_ingredients(s)
+            repair_all_ingredients(s)
             # Re-backfill the validation_issues column so the audit page
             # reflects the new state immediately.
             from app.rms.tagging.audit import backfill_validation_issues

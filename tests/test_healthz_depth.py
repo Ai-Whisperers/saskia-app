@@ -46,7 +46,7 @@ def test_healthz_depth_includes_supabase_env(client: TestClient) -> None:
     assert "publishable_set" in body["supabase_env"]
     assert "secret_set" in body["supabase_env"]
     # All booleans, never strings
-    for k, v in body["supabase_env"].items():
+    for v in body["supabase_env"].values():
         assert isinstance(v, bool)
 
 

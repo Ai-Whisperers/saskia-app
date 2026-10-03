@@ -556,7 +556,7 @@ def test_cliente_api_with_lapsed_bronze_returns_vuelve_pronto(
     from app.rms.customers import ensure_customer
     from app.rms.models import Product, Sale
 
-    today = _dt.date.today()
+    _dt.date.today()
     thirty_days_ago = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
 
     with session_factory() as s:

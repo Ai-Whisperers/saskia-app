@@ -38,7 +38,7 @@ def _check_all_with_key(client: TestClient, idempotency_key: str):
 
 
 def _audit_rows_for_today(session_factory, action: str) -> list:
-    today = datetime.now(ASUNCION_TZ).date().isoformat()
+    datetime.now(ASUNCION_TZ).date().isoformat()
     with session_factory() as s:
         rows = list(s.scalars(
             select(AuditLog).where(AuditLog.action == action)

@@ -92,14 +92,14 @@ def _migration_084_stock_qty_nonneg(conn: Any) -> None:
 
 def run_post_migration(session) -> dict[str, int]:
     """Post-migration hook for migration 084.
-    
+
     Returns statistics about the migration.
     """
     stats = {}
 
     # Count ingredients that were backfilled
     try:
-        result = session.execute(text(
+        session.execute(text(
             "SELECT COUNT(*) as count FROM ingredient WHERE stock_qty = 0 "
             "AND EXISTS (SELECT 1 FROM ingredient WHERE stock_qty < 0 LIMIT 1)"
         )).fetchone()

@@ -38,7 +38,7 @@ VALID_RECURRING = frozenset({
 
 def create_expense(db: Session, occurred_at: datetime, amount_gs: int, category: str, description: str | None = None, supplier_id: int | None = None, receipt_url: str | None = None, recurring_period: str | None = None, created_by: str | None = None) -> Expense:
     """Create a new expense.
-    
+
     Args:
         db: Database session
         occurred_at: When the expense occurred (must be tz-aware)
@@ -49,10 +49,10 @@ def create_expense(db: Session, occurred_at: datetime, amount_gs: int, category:
         receipt_url: Optional receipt link
         recurring_period: Optional recurring period ('once', 'monthly', etc.)
         created_by: Who created the expense
-        
+
     Returns:
         Expense: Created expense record
-        
+
     Raises:
         ExpenseValidationError: For invalid data
     """
@@ -89,14 +89,14 @@ def create_expense(db: Session, occurred_at: datetime, amount_gs: int, category:
 
 def list_expenses(db: Session, limit: int = 100, category: str | None = None, supplier_id: int | None = None, include_voided: bool = False) -> List[Expense]:
     """List expenses with optional filtering.
-    
+
     Args:
         db: Database session
         limit: Maximum number of results
         category: Filter by category (optional)
         supplier_id: Filter by supplier ID (optional)
         include_voided: Include voided expenses (default: False)
-        
+
     Returns:
         List[Expense]: Matching expenses
     """
@@ -116,7 +116,7 @@ def list_expenses(db: Session, limit: int = 100, category: str | None = None, su
 
 def update_expense(db: Session, expense_id: int, description: str | None = None, amount_gs: int | None = None, category: str | None = None, receipt_url: str | None = None, recurring_period: str | None = None) -> Expense:
     """Update an expense.
-    
+
     Args:
         db: Database session
         expense_id: ID of expense to update
@@ -125,10 +125,10 @@ def update_expense(db: Session, expense_id: int, description: str | None = None,
         category: New category (optional)
         receipt_url: New receipt URL (optional)
         recurring_period: New recurring period (optional)
-        
+
     Returns:
         Expense: Updated expense
-        
+
     Raises:
         ExpenseValidationError: If expense not found or is voided
     """
@@ -164,12 +164,12 @@ def update_expense(db: Session, expense_id: int, description: str | None = None,
 
 def void_expense(db: Session, expense_id: int, reason: str | None = None) -> None:
     """Void an expense (soft delete).
-    
+
     Args:
         db: Database session
         expense_id: ID of expense to void
         reason: Reason for voiding (appended to description)
-        
+
     Raises:
         ExpenseValidationError: If expense not found or already voided
     """
@@ -190,11 +190,11 @@ def void_expense(db: Session, expense_id: int, reason: str | None = None) -> Non
 
 def total_expenses_gs(db: Session, expenses: List[Expense]) -> int:
     """Calculate total amount from a list of expenses, skipping voided ones.
-    
+
     Args:
         db: Database session (not used, but kept for interface consistency)
         expenses: List of expense objects
-        
+
     Returns:
         int: Total amount in Guaraníes (voided expenses excluded)
     """

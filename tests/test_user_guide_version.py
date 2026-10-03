@@ -104,7 +104,7 @@ def test_each_section_references_screenshot():
 
 def test_no_placeholder_strings_remain():
     """No 'placeholder screenshot' or 'placeholder image' should remain in user-guide."""
-    for section in SECTIONS + ["README.md"]:
+    for section in [*SECTIONS, "README.md"]:
         path = UG / section
         text = path.read_text(encoding="utf-8").lower()
         assert "placeholder screenshot" not in text, (

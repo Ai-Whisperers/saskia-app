@@ -321,7 +321,7 @@ def test_dairy_free_alias_blocks_vegano_via_lactose_free_normalization():
 
 
 def test_validate_no_issues_when_consistent():
-    ing = _ing("Harina de almendras", allergens="gluten,nuts", dietary_tags="vegano")
+    _ing("Harina de almendras", allergens="gluten,nuts", dietary_tags="vegano")
     # It's a contradiction, but the function checks specific patterns
     # Let's test a clean one.
     clean = _ing("Harina de arroz", allergens="", dietary_tags="sin gluten,vegano")

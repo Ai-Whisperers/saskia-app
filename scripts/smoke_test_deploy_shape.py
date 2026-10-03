@@ -38,7 +38,7 @@ def wait_for_port(host: str, port: int, *, timeout_s: int = 30) -> bool:
     return False
 
 
-def main():
+def main() -> int | None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--port",

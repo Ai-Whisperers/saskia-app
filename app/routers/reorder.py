@@ -99,7 +99,7 @@ def reorder_view(
     # All active suppliers, ordered by name ASC. The template iterates
     # this list once to render every dropdown identically.
     all_suppliers = session.scalars(
-        select(Supplier).where(Supplier.is_active == True).order_by(Supplier.name)
+        select(Supplier).where(Supplier.is_active).order_by(Supplier.name)
     ).all()
     supplier_options = [
         {"id": s.id, "name": s.name, "phone": s.phone or ""} for s in all_suppliers

@@ -410,7 +410,7 @@ def test_supplier_delete_audited(authed_client, session_factory):
 
 def test_eod_save_audited(authed_client, session_factory):
     """POST /eod/check writes a write.eod.checklist.save audit row."""
-    today = date.today().isoformat()
+    date.today().isoformat()
     r = authed_client.post(
         "/eod/check",
         data={

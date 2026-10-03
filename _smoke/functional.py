@@ -47,7 +47,7 @@ def section(title):
     print(f"\n{CYAN}{title}{RESET}")
 
 
-def main():
+def main() -> int:
     session = requests.Session()
     session.get(BASE + "/inicio")
     csrf = session.cookies.get("csrf_token", "")

@@ -52,7 +52,7 @@ def test_alias_keys_are_unique_normalized():
     """No two keys should map to the same value under different case/hyphen forms."""
     seen = set()
     for src in TAG_ALIASES:
-        key = src.strip().lower().replace("-", " ").replace("_", " ")
+        src.strip().lower().replace("-", " ").replace("_", " ")
         # Allow multiple forms of the same canonical tag (sin gluten / sin-gluten / gluten_free).
         # But no duplicate EXACT key.
         assert src not in seen, f"duplicate alias key: {src!r}"

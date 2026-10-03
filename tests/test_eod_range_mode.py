@@ -67,7 +67,7 @@ def test_eod_range_mode_aggregates_sales(client, session_factory):
         product = make_sellable(s)
         today = datetime.now(timezone.utc)
         # 2 sales × Gs. 10000 = Gs. 20000 total
-        for i in range(2):
+        for _i in range(2):
             s.add(Sale(
                 product_id=product.id, qty=1.0, unit_price_gs=10000,
                 sold_at=today - timedelta(days=1), voided_at=None,

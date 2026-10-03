@@ -132,14 +132,6 @@ def test_missing_comprehensive_xss_suite():
     # that tests all form inputs, search fields, headers, etc.
 
     # Common XSS vectors that should be tested:
-    xss_vectors = [
-        "<script>alert(1)</script>",
-        "javascript:alert(1)",
-        "<img src=x onerror=alert(1)>",
-        "<svg onload=alert(1)>",
-        "'><script>alert(1)</script>'",
-        "1 <script>alert(1)</script>"
-    ]
 
     # These vectors should be tested against:
     # - All form input fields (customer name, product description, etc.)

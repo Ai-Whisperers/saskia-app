@@ -56,7 +56,6 @@ def test_pos_redeem_deducts_points_and_writes_ledger_row(
         p = Product(name="POSRedeem", sale_price_gs=50_000, sku="POS-001")
         s.add(p)
         s.commit()
-        pid = p.id
 
     # POST: redeem 10 points
     resp = client.post(
@@ -121,7 +120,6 @@ def test_pos_redeem_zero_points_is_noop(session_factory, client, qseed):
         p = Product(name="POSNoRedeem", sale_price_gs=30_000, sku="POS-002")
         s.add(p)
         s.commit()
-        pid = p.id
 
     resp = client.post(
         "/ventas/nueva",

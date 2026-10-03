@@ -189,12 +189,6 @@ class MockSession:
 def test_stock_turnover_basic_properties(ingredient_id, days, current_stock, consumed_qty):
     """Test basic properties of stock_turnover calculations."""
     # Create mock ingredient data
-    mock_ingredient = {
-        'id': ingredient_id,
-        'name': 'Test Ingredient',
-        'unit': 'kg',
-        'stock_qty': current_stock,
-    }
 
     # Calculate expected values
     avg_stock = max(current_stock, (current_stock + consumed_qty) / 2) or 0.01
@@ -274,7 +268,7 @@ def test_margin_erosion_alerts_price_delta_properties(threshold_pct, old_price, 
     price_delta_pct = ((new_price - old_price) / old_price * 100)
 
     # Absolute value should be compared to threshold
-    should_alert = abs(price_delta_pct) >= threshold_pct * 100
+    abs(price_delta_pct) >= threshold_pct * 100
 
     # Price delta should be calculable for any non-zero old price
     assert isinstance(price_delta_pct, (int, float))
@@ -331,7 +325,7 @@ def test_ingredient_concentration_properties(days, ingredient_costs):
         return
 
     # Calculate total cost
-    total_cost = sum(ingredient_costs)
+    sum(ingredient_costs)
 
     # Each ingredient's share should be in [0, 1]
     # (In real implementation: each IngredientConcentration.share_pct ∈ [0, 1])
@@ -409,7 +403,7 @@ def test_monthly_stockout_report_properties(year, month, ingredients_data):
     """Test properties of monthly stockout report."""
     try:
         # Mock session with ingredient data
-        mock_session = MockSession()
+        MockSession()
 
         # Each ingredient should have consistent properties
         for ing_data in ingredients_data:
@@ -440,7 +434,7 @@ def test_monthly_close_summary_financial_properties(year, month, sales_data):
     """Test financial properties of monthly close summary."""
     try:
         # Mock session
-        mock_session = MockSession()
+        MockSession()
 
         # Test that financial calculations are consistent
         # (In real implementation:
@@ -487,7 +481,7 @@ def test_month_label_properties(year, month):
     """Test properties of month label generation."""
     try:
         # Validate first
-        start, end = reports._validate_year_month(year, month)
+        _start, _end = reports._validate_year_month(year, month)
 
         # Month label should be reasonable string
         label = reports.month_label(year, month)
@@ -510,7 +504,7 @@ def test_days_in_month_properties(year, month):
     """Test properties of days_in_month calculation."""
     try:
         # Validate first
-        start, end = reports._validate_year_month(year, month)
+        _start, _end = reports._validate_year_month(year, month)
 
         # Get days in month
         days = reports.days_in_month(year, month)
@@ -625,7 +619,7 @@ def test_weighted_average_properties(amounts, weights):
     if total_weight == 0:
         return  # Avoid division by zero
 
-    weighted_sum = sum(a * w for a, w in zip(amounts, weights))
+    weighted_sum = sum(a * w for a, w in zip(amounts, weights, strict=False))
     weighted_avg = weighted_sum / total_weight
 
     # Handle potential floating point issues

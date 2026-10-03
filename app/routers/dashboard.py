@@ -723,7 +723,7 @@ async def dashboard(
             # B2 (2026-10-01): day-of-week-aware forecast headline
             "forecast_tomorrow_label": _tomorrow_label,
             "forecast_tomorrow_date": _tomorrow_date.isoformat(),
-            "forecast_units": int(round(_forecast_units)),
+            "forecast_units": round(_forecast_units),
             "forecast_revenue_gs": _forecast_revenue_gs,
             "forecast_products_count": _forecast_products_count,
             "forecast_top": _forecast_top,

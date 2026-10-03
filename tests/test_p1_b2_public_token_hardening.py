@@ -159,7 +159,7 @@ def _build_active_pedido(session_factory) -> tuple[int, str]:
 
 def test_public_pedido_returns_410_for_expired_token(client, session_factory) -> None:
     """An expired /p/{token} returns 410 Gone (not 200, not 404)."""
-    pid, token = _build_expired_pedido(session_factory)
+    _pid, token = _build_expired_pedido(session_factory)
 
     r = client.get(f"/p/{token}")
     assert r.status_code == 410, f"Expected 410, got {r.status_code}: {r.text[:200]}"
@@ -174,7 +174,7 @@ def test_public_pedido_returns_404_for_unknown_token(client) -> None:
 
 def test_public_pedido_returns_200_for_active_token(client, session_factory) -> None:
     """An active /p/{token} still works (happy path regression check)."""
-    pid, token = _build_active_pedido(session_factory)
+    _pid, token = _build_active_pedido(session_factory)
 
     r = client.get(f"/p/{token}")
     assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text[:200]}"
@@ -184,7 +184,7 @@ def test_comprobante_returns_410_for_expired_token(client, session_factory) -> N
     """An expired /p/{token}/comprobante upload returns 410 Gone."""
     import io as _io
 
-    pid, token = _build_expired_pedido(session_factory)
+    _pid, token = _build_expired_pedido(session_factory)
 
     # Use raw multipart (no CSRF wrapper) — 410 must fire BEFORE CSRF
     # or form parsing so the expiry check doesn't depend on auth state.
@@ -214,7 +214,7 @@ def test_public_pedido_rate_limit_after_30_views(client, session_factory) -> Non
     try:
         # Build a fresh pedido to hit (rate limit fires before lookup,
         # but we need valid tokens to keep status 200 vs 404 noise).
-        pid, token = _build_active_pedido(session_factory)
+        _pid, token = _build_active_pedido(session_factory)
 
         # First 30 requests: 200 (or other valid status)
         for i in range(30):

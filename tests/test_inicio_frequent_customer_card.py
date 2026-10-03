@@ -25,7 +25,7 @@ def _kyrian_id(session_factory, qseed):
 
 def test_inicio_renders_frequent_customer_card(client, qseed, session_factory):
     """Kyrian's seed creates 14 sales in the last 30d → she's a regular."""
-    cid = _kyrian_id(session_factory, qseed)
+    _kyrian_id(session_factory, qseed)
     r = client.get("/inicio")
     assert r.status_code == 200
     html = r.text
@@ -44,7 +44,7 @@ def test_inicio_card_has_pedido_cta(client, qseed, session_factory):
 
 def test_inicio_card_shows_visit_count(client, qseed, session_factory):
     """Each row displays the visit count + lifetime spend."""
-    cid = _kyrian_id(session_factory, qseed)
+    _kyrian_id(session_factory, qseed)
     r = client.get("/inicio")
     html = r.text
     # Look for visit count pattern — should be a number >= 1 followed by "visita"

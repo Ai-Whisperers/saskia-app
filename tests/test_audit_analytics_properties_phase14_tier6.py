@@ -100,7 +100,7 @@ def test_n_login_failures_sums_all_ips(
             n_logins_success=s,
         )
         for i, (f, s) in enumerate(
-            zip(n_logins_failed_per_ip[:n], n_logins_success_per_ip[:n]),
+            zip(n_logins_failed_per_ip[:n], n_logins_success_per_ip[:n], strict=False),
         )
     ]
     report = AuditAnalyticsReport(

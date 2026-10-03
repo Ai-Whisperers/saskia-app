@@ -153,7 +153,7 @@ def test_margin_erosion_alerts_returns_sorted_list(qseed):
     (most negative first = biggest erosion). Catches: an ORDER BY mistake
     after a migration.
     """
-    data = qseed("with_sale")  # creates a sale + price changes over time
+    qseed("with_sale")  # creates a sale + price changes over time
     rows = analytics.margin_erosion_alerts(qseed.session_factory(), threshold_pct=5.0)
     assert isinstance(rows, list)
     # If we have 2+ rows, the natural sort invariant should hold: rows
@@ -170,7 +170,7 @@ def test_margin_erosion_alerts_returns_sorted_list(qseed):
 @settings(max_examples=10, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_day_of_week_heatmap_returns_bounded_buckets(qseed, days):
     """day_of_week_heatmap returns 0..7 buckets, each with non-negative counts."""
-    data = qseed("with_sale")
+    qseed("with_sale")
     rows = analytics.day_of_week_heatmap(qseed.session_factory(), days=days)
     assert isinstance(rows, list)
     assert 0 <= len(rows) <= 7
@@ -190,7 +190,7 @@ def test_day_of_week_heatmap_returns_bounded_buckets(qseed, days):
 @settings(max_examples=10, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_top_margin_products_respects_n_top(qseed, n):
     """top_margin_products returns at most n rows (param is `limit`)."""
-    data = qseed("basic")
+    qseed("basic")
     rows = analytics.top_margin_products(qseed.session_factory(), days=30, limit=n)
     assert isinstance(rows, list)
     assert len(rows) <= n, f"got {len(rows)} rows, n={n}"
@@ -205,7 +205,7 @@ def test_ingredient_concentration_returns_normalized_rows(qseed):
     """ingredient_concentration returns rows whose share_pct is in [0, 1]
     (it's a fraction of total consumption).
     """
-    data = qseed("with_sale")
+    qseed("with_sale")
     rows = analytics.ingredient_concentration(qseed.session_factory(), days=30)
     assert isinstance(rows, list)
     for r in rows:
@@ -218,7 +218,7 @@ def test_ingredient_concentration_returns_normalized_rows(qseed):
 def test_recipe_complexity_returns_non_negative(qseed):
     """recipe_complexity returns rows with non-negative line_count and cost.
     """
-    data = qseed("with_complex_recipe")
+    qseed("with_complex_recipe")
     rows = analytics.recipe_complexity(qseed.session_factory())
     assert isinstance(rows, list)
     for r in rows:

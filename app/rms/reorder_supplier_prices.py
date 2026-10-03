@@ -70,7 +70,7 @@ def get_supplier_price_options(
     # alphabetically so the operator can scan visually — not by price,
     # because right now we only have one price per ingredient (the parent).
     suppliers = session.scalars(
-        select(Supplier).where(Supplier.is_active == True).order_by(Supplier.name)
+        select(Supplier).where(Supplier.is_active).order_by(Supplier.name)
     ).all()
 
     effective_id = ing.locked_supplier_id or ing.last_purchase_supplier_id or ing.supplier_id

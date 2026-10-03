@@ -89,7 +89,7 @@ def normalize(path: Path, marker: str) -> bool:
     lines = text.splitlines(keepends=True)
     out = []
     inserted = False
-    for i, line in enumerate(lines):
+    for _i, line in enumerate(lines):
         out.append(line)
         if not inserted and line.strip().startswith("import pytest"):
             out.append(f"\npytestmark = pytest.mark.{marker}\n")

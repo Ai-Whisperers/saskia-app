@@ -36,7 +36,6 @@ def _make_address(session_factory, customer_id, address_text, is_default=False):
 def _csrf_token(client):
     """Pull the CSRF token from the cliente_editar form. The conftest
     client fixture sets one when auth is bypassed."""
-    cid = 1  # placeholder — caller will navigate to the right page
     r = client.get("/clientes/1/editar")
     if r.status_code != 200:
         return None

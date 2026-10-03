@@ -77,7 +77,7 @@ def test_semaphor_safety_empty_data(client, session_factory):
 def test_semaphor_safety_computed(client, session_factory):
     """If food_cost data is present, the template computes the semáforo colors."""
     # Insert test data that will cause actual > theoretical (red state)
-    with session_factory() as session:
+    with session_factory():
         # This should make actual_food_cost_pct > theoretical_food_cost_pct * 1.20
         # The exact test depends on the actual food_cost computation
         # For now, just confirm the math happens in the template

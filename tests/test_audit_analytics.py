@@ -35,7 +35,7 @@ def test_empty_db_returns_zero_report(audit_session):
 
 
 def test_top_ips_aggregates_correctly(audit_session):
-    now = datetime.now(timezone.utc)
+    datetime.now(timezone.utc)
     for _ in range(5):
         _add(audit_session, action="login.success", ip="1.2.3.4", user_id="u1")
     for _ in range(3):

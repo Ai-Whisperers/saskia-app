@@ -108,13 +108,13 @@ def extract_pattern(path: Path) -> tuple[int, str, str]:
             j = i
             while j < len(lines) - 1:
                 next_line = lines[j].strip()
-                if next_line.startswith("description:") or next_line.startswith("- pattern:"):
+                if next_line.startswith(("description:", "- pattern:")):
                     break
                 if next_line.startswith("#") or not next_line:
                     j += 1
                     continue
                 # Continuation
-                if next_line.startswith("'") or next_line.startswith('"'):
+                if next_line.startswith(("'", '"')):
                     # Closing quote ends the pattern; check
                     block_pattern = block_pattern.rstrip()
                     # Append remaining lines until quote closes or description starts
@@ -133,7 +133,7 @@ def extract_pattern(path: Path) -> tuple[int, str, str]:
                 block_pattern = ""
                 block_pattern_line = 0
                 block_description = ""
-            elif line.startswith("- pattern:") or line.startswith("patterns:") or line.startswith("deny_patterns:"):
+            elif line.startswith(("- pattern:", "patterns:", "deny_patterns:")):
                 in_block = False
                 block_pattern = ""
                 block_pattern_line = 0

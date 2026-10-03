@@ -95,7 +95,7 @@ def test_wishlist_dir_scanning_works():
     # Confirm the wishlist dir exists for the script to scan
     raw = REPO_ROOT / "docs" / "wishlist" / "raw"
     triaged = REPO_ROOT / "docs" / "wishlist" / "triaged"
-    rejected = REPO_ROOT / "docs" / "wishlist" / "rejected"
+    REPO_ROOT / "docs" / "wishlist" / "rejected"
     assert raw.exists() or triaged.exists(), (
         "wishlist directory missing — refresh.sh has nothing to count"
     )

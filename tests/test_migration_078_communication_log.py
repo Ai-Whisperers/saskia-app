@@ -163,7 +163,6 @@ def test_communication_log_set_null_on_pedido_delete(session_factory):
         )
         s.add(msg); s.commit()
         msg_id = msg.id
-        pid = p.id
 
         # Delete the pedido
         s.delete(p)
@@ -171,7 +170,7 @@ def test_communication_log_set_null_on_pedido_delete(session_factory):
 
         # The message still exists; pedido_id was nulled
         s.expire_all()
-        m2 = s.get(Message := __import__("app.rms.models", fromlist=["CommunicationLog"]).CommunicationLog, msg_id)
+        m2 = s.get(_Message := __import__("app.rms.models", fromlist=["CommunicationLog"]).CommunicationLog, msg_id)
         assert m2 is not None
         assert m2.pedido_id is None
         assert m2.customer_id == c.id  # customer FK still intact

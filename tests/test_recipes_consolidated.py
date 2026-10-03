@@ -193,7 +193,7 @@ def _seed_recipe_tree(session_factory):
 
 def test_recipe_detail_consolidada_view_renders(client, session_factory):
     """?vista=consolidada renders the exploded list; default is estructural."""
-    r_id, azucar_id = _seed_recipe_tree(session_factory)
+    r_id, _azucar_id = _seed_recipe_tree(session_factory)
 
     resp = client.get(f"/recetas/{r_id}?vista=consolidada")
     assert resp.status_code == 200

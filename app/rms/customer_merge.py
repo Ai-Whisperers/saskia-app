@@ -114,8 +114,6 @@ def customer_merge(
 
     result = MergeResult(target_id=target.id)
 
-    original_phone = target.phone
-    original_email = target.email
     original_notes = target.notes
 
     # 3. Reassign Sales + Pedidos per source.

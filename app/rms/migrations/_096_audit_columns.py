@@ -44,7 +44,7 @@ def _migration_096_audit_columns(conn: Any) -> None:
 
     Applies to:
     - Ingredient (ingredient)
-    - Product (product) 
+    - Product (product)
     - Recipe (recipe)
     - Customer (customer)
     - Supplier (supplier)

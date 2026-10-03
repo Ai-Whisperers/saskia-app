@@ -252,7 +252,7 @@ def test_consolidate_merges_duplicate_ingredients(session_factory, subrecipe_wor
         )
         session.add_all([s1, s2])
         session.commit()
-        id1, id2 = s1.id, s2.id
+        _id1, _id2 = s1.id, s2.id
 
     with session_factory() as session:
         deleted = consolidate_open_items(session)

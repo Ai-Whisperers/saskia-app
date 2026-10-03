@@ -29,8 +29,6 @@ def test_effective_ingredients_api_explodes_subrecipes(client, session_factory):
         ))
         s.commit()
         rid = base.id
-        crema_id = crema.id
-        crema_yield = crema.yield_qty
 
     r = client.get(f"/recetas/api/{rid}/effective-ingredients")
     assert r.status_code == 200

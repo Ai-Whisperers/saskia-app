@@ -75,7 +75,6 @@ def test_produccion_manana_muestra_pedidos(authed_client, session_factory):
         s.add(PedidoLine(pedido_id=ped.id, product_id=p.id, qty=3,
                          unit_price_gs=8000, fulfilled_qty=0))
         s.commit()
-        pid = ped.id
     finally:
         s.close()
     r = authed_client.get("/produccion/manana")

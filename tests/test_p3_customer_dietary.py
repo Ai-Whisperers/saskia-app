@@ -175,7 +175,7 @@ def test_cliente_editar_form_renders_profile_ui(client, session_factory):
 
 def test_pedidos_nuevo_has_dietary_alert_element(client, session_factory):
     with session_factory() as s:
-        p = make_product(s, name="DietPedProd UX")
+        make_product(s, name="DietPedProd UX")
         s.commit()
     r = client.get("/pedidos/nuevo")
     assert r.status_code == 200

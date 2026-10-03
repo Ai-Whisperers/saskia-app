@@ -102,7 +102,7 @@ def test_quiet_one_line_output(tmp_path, capsys):
         counts={"ingredient": 76, "recipe": 22, "supplier": 8,
                 "delivery_zone": 6, "customer": 12},
     )
-    rc = mod.main(["--db", db, "--code-schema-version", "83", "--quiet"])
+    mod.main(["--db", db, "--code-schema-version", "83", "--quiet"])
     captured = capsys.readouterr()
     lines = [l for l in captured.out.split("\n") if l.strip()]
     assert len(lines) == 1
@@ -116,6 +116,6 @@ def test_quiet_marks_fail_when_counts_low(tmp_path, capsys):
         schema_version="83",
         counts={"ingredient": 5},  # way below minimum 70
     )
-    rc = mod.main(["--db", db, "--code-schema-version", "83", "--quiet"])
+    mod.main(["--db", db, "--code-schema-version", "83", "--quiet"])
     captured = capsys.readouterr()
     assert "[FAIL]" in captured.out

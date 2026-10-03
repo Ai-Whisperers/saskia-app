@@ -352,7 +352,7 @@ def daily_summary(
     sales = sales_in_window(session, start=start, end=end, end_inclusive=False)
 
     revenue_gross_int = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales)
-    iva = extract_iva(revenue_gross_int, tax_mode=tax_mode)
+    extract_iva(revenue_gross_int, tax_mode=tax_mode)
 
     # M1 (2026-10-02): refunds subtract from gross revenue + IVA so the
     # daily report shows NET (not gross). Refunds in window: WHERE

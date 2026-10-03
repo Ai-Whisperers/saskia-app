@@ -75,7 +75,7 @@ def consolidate_open_items(session: Session) -> int:
         buckets.setdefault((it.ingredient_id, it.unit), []).append(it)
 
     deleted = 0
-    for (ing_id, _unit), rows in buckets.items():
+    for rows in buckets.values():
         if len(rows) < 2:
             # Still clean float garbage in single rows.
             for it in rows:

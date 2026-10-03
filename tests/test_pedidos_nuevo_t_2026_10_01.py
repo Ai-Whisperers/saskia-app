@@ -188,7 +188,7 @@ def test_forecast_api_filters_to_single_product(client, session_factory):
 
 def test_pedidos_nuevo_renders_delivery_zones_data_block(client, session_factory):
     """The template ships a <script id="delivery-zones-data"> with each zone's min_order."""
-    zid = _seed_zone(
+    _seed_zone(
         session_factory,
         code="Z-DP-1",
         name="Asunción Centro",

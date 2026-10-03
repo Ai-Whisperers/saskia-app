@@ -34,7 +34,7 @@ def test_plan_auto_no_sugiere_ocultos(session_factory):
 
     s = sessionmaker(bind=session_factory.kw["bind"])()
     try:
-        activo, oculto = _seed(s)
+        _activo, _oculto = _seed(s)
         plan = plan_production(s)
         nombres = {r.product_name for r in plan.rows if r.qty_to_produce > 0}
         assert any("activo" in n for n in nombres), f"activo debería planificar: {nombres}"
@@ -54,7 +54,7 @@ def test_plan_override_fuerza_oculto(client, session_factory):
 
     s = sessionmaker(bind=session_factory.kw["bind"])()
     try:
-        activo, oculto = _seed(s)
+        _activo, oculto = _seed(s)
         manana = datetime.now(ASUNCION_TZ).date() + timedelta(days=1)
         upsert_override(s, for_date=manana, product_id=oculto.id, qty=6.0, updated_by="test")
         plan = plan_production(s, for_date=manana)

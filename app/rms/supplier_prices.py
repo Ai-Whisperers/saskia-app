@@ -228,7 +228,7 @@ def get_price_comparison(
 
     # Compute deltas + sort + filter to the requested supplier's ingredients.
     result: list[PriceComparisonGroup] = []
-    for ing_id, g in groups.items():
+    for g in groups.values():
         # De-dup by supplier — if the same supplier appears twice for one
         # ingredient (multiple package variants), keep the cheapest entry.
         by_supplier: dict[int, _SupplierPrice] = {}

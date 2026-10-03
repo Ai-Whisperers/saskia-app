@@ -120,7 +120,7 @@ def record_waste(
             # Defensive: numerator shouldn't go negative (waste can't
             # cost more than the stock on hand), but if it does, clamp.
             numerator = max(0, numerator)
-            ing.avg_cost_gs = int(round(numerator / new_stock))
+            ing.avg_cost_gs = round(numerator / new_stock)
         elif ing.purchase_price_gs is not None:
             # No prior avg — initialize from purchase price.
             ing.avg_cost_gs = ing.purchase_price_gs

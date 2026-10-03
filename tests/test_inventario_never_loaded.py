@@ -62,7 +62,7 @@ def test_filtro_estado_sincargar(client, session_factory):
 def test_carga_inicial_view_lists_and_saves(authed_client, session_factory):
     s = sessionmaker(bind=session_factory.kw["bind"])()
     try:
-        agotado, nunca, ok = _seed(s)
+        _agotado, nunca, _ok = _seed(s)
         nunca_id = nunca.id
     finally:
         s.close()

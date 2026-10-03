@@ -591,7 +591,7 @@ async def carga_inicial_save(
     """Save bulk initial stock. Form fields: qty_<id> per row (blank = skip)."""
     from app.auth import current_user_id
 
-    user_id = current_user_id(request) or "operator"
+    current_user_id(request) or "operator"
     saved = 0
     form = await request.form()
     for key in list(form.keys()):

@@ -5,7 +5,7 @@ Sprint 3.1: Expense CRUD + MonthlyClosure
 MonthlyClosure operations:
 - create_closure()
 - get_closure()
-- list_closures() 
+- list_closures()
 - close_month()
 - reopen_month()
 - compute_month_totals()
@@ -49,15 +49,15 @@ def list_closures(db: Session, limit: int = 100) -> List[MonthlyClosure]:
 
 def close_month(db: Session, period_yyyymm: str, user_id: str | None = None) -> MonthlyClosure:
     """Close a monthly period.
-    
+
     Args:
         db: Database session
         period_yyyymm: Period in YYYY-MM format
         user_id: User performing the closure
-        
+
     Returns:
         MonthlyClosure: Created or updated closure
-        
+
     Raises:
         ClosureValidationError: For invalid period format
         ClosureConflictError: If period is already closed
@@ -122,16 +122,16 @@ def close_month(db: Session, period_yyyymm: str, user_id: str | None = None) -> 
 
 def reopen_month(db: Session, period_yyyymm: str, reason: str, user_id: str | None = None) -> MonthlyClosure:
     """Reopen a closed monthly period.
-    
+
     Args:
         db: Database session
         period_yyyymm: Period in YYYY-MM format
         reason: Reason for reopening (required)
         user_id: User performing the reopen
-        
+
     Returns:
         MonthlyClosure: Updated closure
-        
+
     Raises:
         ClosureValidationError: For invalid format or missing reason
         ClosureConflictError: If period is not closed
@@ -163,14 +163,14 @@ def reopen_month(db: Session, period_yyyymm: str, reason: str, user_id: str | No
 
 def compute_month_totals(db: Session, period_yyyymm: str) -> dict:
     """Calculate expense totals for a month.
-    
+
     Args:
         db: Database session
         period_yyyymm: Period in YYYY-MM format
-        
+
     Returns:
         dict: With keys: total_expenses_gs, expense_row_count, expenses_by_category
-        
+
     Raises:
         ClosureValidationError: For invalid period format
     """
@@ -219,17 +219,17 @@ def compute_month_totals(db: Session, period_yyyymm: str) -> dict:
 
 def create_closure(db: Session, period_yyyymm: str, total_expenses_gs: int, notes: str | None = None, user_id: str | None = None) -> MonthlyClosure:
     """Create a new closure record.
-    
+
     Args:
         db: Database session
         period_yyyymm: Period in YYYY-MM format
         total_expenses_gs: Total expenses for the period
         notes: Optional notes
         user_id: User creating the closure
-        
+
     Returns:
         MonthlyClosure: Created closure
-        
+
     Raises:
         ClosureValidationError: For invalid period format
         ClosureConflictError: If closure already exists
@@ -237,7 +237,7 @@ def create_closure(db: Session, period_yyyymm: str, total_expenses_gs: int, note
     # Convert period to date
     try:
         year, month = map(int, period_yyyymm.split('-'))
-        month_date = date(year, month, 1)
+        date(year, month, 1)
     except ValueError:
         raise ClosureValidationError(f"Period must be YYYY-MM format, got: {period_yyyymm}")
 

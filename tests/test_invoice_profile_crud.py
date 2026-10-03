@@ -97,7 +97,7 @@ def test_delete_non_default_profile_soft_deletes(client, session_factory):
     """Soft-delete sets is_active=False; row remains queryable but
     excluded from active lists."""
     cid = _make_customer(client, session_factory)
-    r1 = client.post(
+    client.post(
         f"/clientes/api/{cid}/invoice-profiles",
         json={"ruc_ci": "80011111-1", "razon_social": "Default S.A."},
     ).json()

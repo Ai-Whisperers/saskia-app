@@ -76,4 +76,4 @@ from app.rms.models_legacy import __all__ as _legacy_all
 # Also export new models not in legacy
 from .closure import MonthlyClosure
 
-__all__ = _legacy_all + ["MonthlyClosure"]
+__all__ = [*_legacy_all, "MonthlyClosure"]

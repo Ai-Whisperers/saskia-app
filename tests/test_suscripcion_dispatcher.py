@@ -96,7 +96,7 @@ def test_dispatcher_skips_paused(session_factory):
     """A paused suscripcion doesn't generate."""
     with session_factory() as s:
         c = _make_customer(s, "Paused Sub")
-        sub = _make_sub(s, c.id, status="pausada")
+        _make_sub(s, c.id, status="pausada")
 
         from app.services.suscripcion_dispatcher import generate_weekly_pedidos
         result = generate_weekly_pedidos(s)

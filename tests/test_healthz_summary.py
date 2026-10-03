@@ -172,7 +172,7 @@ def test_summary_check_backup_marks_stale_for_old_timestamp():
     """_summary_check_backup correctly maps age > 24h → ok=False."""
     from app.routers import health as hb
     fake_req = _MockRequest()
-    now_iso = datetime.now(ASUNCION_TZ).isoformat()
+    datetime.now(ASUNCION_TZ).isoformat()
     old_iso = (datetime.now(ASUNCION_TZ) - timedelta(hours=48)).isoformat()
     with patch.object(hb, "_get_last_backup_at", return_value=old_iso):
         result = hb._summary_check_backup(fake_req)

@@ -149,7 +149,7 @@ def test_daily_sales_series_top_product_by_qty(session_factory, qseed):
     """Day's top product is the one with the most qty sold."""
     Session = session_factory
     data = qseed("with_sale")
-    p1 = data["product"]
+    data["product"]
     # Need a second product — use qseed's recipe product as a starting
     # point; create another via qseed's underlying helpers.
     with Session() as s:

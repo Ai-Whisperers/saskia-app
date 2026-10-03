@@ -8,6 +8,7 @@ Answers:
 
 from __future__ import annotations
 
+import itertools
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -430,7 +431,7 @@ def customer_reorder_rates(
         if sold_at is None:
             continue
         local_dt = sold_at.astimezone(ASUNCION_TZ) if sold_at.tzinfo else sold_at
-        line_total = int(round(float(unit_price_v or 0) * float(qty_v or 0))) - int(
+        line_total = round(float(unit_price_v or 0) * float(qty_v or 0)) - int(
             discount_v or 0
         )
         by_customer.setdefault(int(cid), []).append((local_dt, line_total))
@@ -444,7 +445,7 @@ def customer_reorder_rates(
     all_gaps_days: list[float] = []
     for orders in repeaters.values():
         timestamps = sorted(ts for ts, _ in orders)
-        for prev, curr in zip(timestamps, timestamps[1:]):
+        for prev, curr in itertools.pairwise(timestamps):
             gap = (curr - prev).total_seconds() / 86400.0
             if gap >= 0:
                 all_gaps_days.append(gap)

@@ -2209,22 +2209,22 @@ __all__ = [
     "AuditLog",
     "BankTransaction",
     "Base",
-    "CommunicationLog",
     # Static-content-audit fix — migration 039
     "Category",
     # Static-content-audit Phase 4 — migrations 041, 042
     "Channel",
-    "ComplianceInfo",
+    "CommunicationLog",
     # market-intel 2026-09-30 — evidencia de competencia retail
     "CompetitorPriceObservation",
+    "ComplianceInfo",
     "Customer",
     # Phase 13 (2026-10-01): structured address fields on CustomerAddress
     "CustomerAddress",
     # Phase 13 (2026-10-01): multiple invoice profiles per customer
     "CustomerInvoiceProfile",
-    "DeliveryZone",
     # Static-content-audit Phase 9 — migration 048
     "DateRangePreset",
+    "DeliveryZone",
     "ImportBatch",
     "Ingredient",
     "IngredientPriceEvent",

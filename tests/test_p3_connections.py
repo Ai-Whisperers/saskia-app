@@ -68,7 +68,6 @@ def test_dashboard_shows_upcoming_birthday(client, session_factory):
         c.birthday = mmdd
         c.marketing_consent = True
         s.commit()
-        cid = c.id
     r = client.get("/")
     assert r.status_code == 200
     body = r.text
@@ -81,7 +80,6 @@ def test_dashboard_hides_old_birthdays(client, session_factory):
         c = make_customer(s, name="OldBday UX", phone="")
         c.birthday = "01-01"  # unless today is early Jan, not within 7 days
         s.commit()
-        cid = c.id
     r = client.get("/")
     body = r.text
     # Only fails if run Jan 1-7; acceptable test-time caveat

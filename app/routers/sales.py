@@ -1425,7 +1425,7 @@ async def sale_create_multi(
             # the discount can never exceed the line subtotal.
             from app.rms.money import to_decimal
 
-            subtotal_gs = int(
+            int(
                 (to_decimal(item.qty) * to_decimal(unit_price))
                 .quantize(Decimal("1"), rounding=ROUND_HALF_UP)
             )

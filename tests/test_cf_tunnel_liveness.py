@@ -87,7 +87,7 @@ def test_local_broken_outranks_dns(capsys, monkeypatch):
 def test_quiet_mode_one_line(capsys, monkeypatch):
     """--quiet output is exactly one line (cron log aggregator friendly)."""
     mod = _patch_probes(monkeypatch, public_ok=True, dns_ok=True, local_ok=True)
-    rc = mod.main(["--quiet"])
+    mod.main(["--quiet"])
     captured = capsys.readouterr()
     # Allow trailing newline (one newline after one print())
     lines = [l for l in captured.out.split("\n") if l.strip()]
@@ -97,7 +97,7 @@ def test_quiet_mode_one_line(capsys, monkeypatch):
 
 def test_quiet_mode_marks_failure_class(capsys, monkeypatch):
     mod = _patch_probes(monkeypatch, public_ok=False, dns_ok=True, local_ok=True)
-    rc = mod.main(["--quiet"])
+    mod.main(["--quiet"])
     captured = capsys.readouterr()
     assert "[FAIL]" in captured.out
     assert "public=FAIL" in captured.out

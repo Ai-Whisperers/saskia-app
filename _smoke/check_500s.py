@@ -41,7 +41,7 @@ print(json.dumps(routes))
     return json.loads(r.stdout)
 
 
-def main():
+def main() -> int:
     routes = discover_routes()
     # Filter out API JSON endpoints (those are tested separately)
     html_routes = [r for r in routes if "GET" in r["methods"] and "/api" not in r["path"]]

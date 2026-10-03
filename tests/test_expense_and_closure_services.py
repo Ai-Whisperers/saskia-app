@@ -219,9 +219,9 @@ def test_void_expense_double_void_raises(session_factory):
 
 def test_total_expenses_gs_skips_voided(session_factory):
     with session_factory() as s:
-        e1 = create_expense(s, occurred_at=_now(), amount_gs=100, category="RENT")
+        create_expense(s, occurred_at=_now(), amount_gs=100, category="RENT")
         e2 = create_expense(s, occurred_at=_now(), amount_gs=200, category="OTHER")
-        e3 = create_expense(s, occurred_at=_now(), amount_gs=300, category="RENT")
+        create_expense(s, occurred_at=_now(), amount_gs=300, category="RENT")
         s.commit()
 
     with session_factory() as s:
