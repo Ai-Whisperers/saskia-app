@@ -20,7 +20,8 @@ def seed_product(session_factory):
                 portion_label="1 und",
                 iva_rate=iva_rate,
             )
-            s.add(p); s.commit()
+            s.add(p)
+            s.commit()
             s.refresh(p)
             return p.id
 
@@ -134,7 +135,8 @@ class TestInvoiceSnapshotFactura:
             ci = s.get(ComplianceInfo, 1)
             ci.iva_default_rate = "5"
             p = Product(name="Default-test", sale_price_gs=10000, portion_label="1 und", iva_rate="")
-            s.add(p); s.commit()
+            s.add(p)
+            s.commit()
             pid = p.id
         with Session() as s:
             snap = compute_invoice_snapshot(
@@ -231,7 +233,8 @@ class TestSaleInvoiceFieldsRoundTrip:
                 iva_base_gs=22727,
                 iva_amount_gs=2273,
             )
-            s.add(sale); s.commit()
+            s.add(sale)
+            s.commit()
             s.refresh(sale)
             assert sale.invoice_type == "factura"
             assert sale.invoice_number == 42

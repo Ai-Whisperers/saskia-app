@@ -128,7 +128,8 @@ def test_pedido_create_with_combobox_customer(qseed, authed_client):
         if ing is None:
             ing = Ingredient(name="harina QA", unit="kg", stock_qty=10,
                              min_stock_qty=1, purchase_price_gs=3000)
-            s.add(ing); s.flush()
+            s.add(ing)
+            s.flush()
         prod = s.query(Product).filter_by(name="Producto QA").first()
         if prod is None:
             prod = Product(name="Producto QA", sale_price_gs=2500, is_available=True)

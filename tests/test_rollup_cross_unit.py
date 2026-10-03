@@ -33,7 +33,8 @@ def _make_ingredient(session_factory, name, unit, **kwargs):
 
     with session_factory() as s:
         ing = Ingredient(name=name, unit=unit, **kwargs)
-        s.add(ing); s.flush()
+        s.add(ing)
+        s.flush()
         ing_id = ing.id
         safe_commit(s)
     return ing_id

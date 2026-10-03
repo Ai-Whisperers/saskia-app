@@ -157,13 +157,15 @@ def test_daily_sales_series_top_product_by_qty(session_factory, qseed):
         from app.rms.models import Ingredient, Product, Recipe, RecipeLine
         ing = s.query(Ingredient).first()
         rec2 = Recipe(name="Otra Receta", yield_qty=5.0, yield_unit="und")
-        s.add(rec2); s.flush()
+        s.add(rec2)
+        s.flush()
         s.add(RecipeLine(
             recipe_id=rec2.id, line_kind="ingredient",
             line_ref_id=ing.id, qty=0.2, line_unit="kg",
         ))
         p2 = Product(name="Otro Producto", recipe_id=rec2.id, sale_price_gs=2000)
-        s.add(p2); s.flush()
+        s.add(p2)
+        s.flush()
         s.commit()
         p2_id = p2.id
 

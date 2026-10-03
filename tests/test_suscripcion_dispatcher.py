@@ -24,7 +24,8 @@ from app.rms.models import (
 
 def _make_customer(s, name="Sub Test", phone="0997000001"):
     c = Customer(name=name, phone=phone)
-    s.add(c); s.flush()
+    s.add(c)
+    s.flush()
     return c
 
 
@@ -42,7 +43,8 @@ def _make_sub(s, customer_id, **kw):
     )
     defaults.update(kw)
     sub = Suscripcion(**defaults)
-    s.add(sub); s.flush()
+    s.add(sub)
+    s.flush()
     return sub
 
 
@@ -164,7 +166,8 @@ def test_http_dispatch_creates_pedidos(client, session_factory):
     """POST /suscripciones/dispatch generates pending pedidos."""
     with session_factory() as s:
         c = Customer(name="HTTP Sub", phone="0997000002")
-        s.add(c); s.flush()
+        s.add(c)
+        s.flush()
         cid = c.id
         _make_sub(s, cid)
         s.commit()  # ← flush only persists within this session
@@ -187,7 +190,8 @@ def test_http_dispatch_idempotent(client, session_factory):
     """POST twice → still 1 pedido, second shows in skipped_already_done."""
     with session_factory() as s:
         c = Customer(name="HTTP Idempotent Sub", phone="0997000003")
-        s.add(c); s.flush()
+        s.add(c)
+        s.flush()
         _make_sub(s, c.id)
         s.commit()
 

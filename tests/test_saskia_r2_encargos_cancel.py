@@ -61,7 +61,8 @@ def _seed_pedido(
     with session_factory() as s:
         c = Customer(name=customer_name, phone="0981112222")
         p = Product(name=product_name, sale_price_gs=50000, recipe_id=None)
-        s.add_all([c, p]); s.flush()
+        s.add_all([c, p])
+        s.flush()
         pedido = Pedido(
             customer_id=c.id,
             customer_name=customer_name,
@@ -78,7 +79,8 @@ def _seed_pedido(
             # unique index on pedido.public_token fails when seeding N pedidos.
             public_token=_secrets.token_urlsafe(8)[:8],
         )
-        s.add(pedido); s.flush()
+        s.add(pedido)
+        s.flush()
         s.add(PedidoLine(
             pedido_id=pedido.id, product_id=p.id,
             qty=qty, unit_price_gs=50000,
@@ -184,7 +186,8 @@ def test_produccion_day_no_pedidos_means_no_panel(client, session_factory):
 def _seed_sale(session_factory) -> int:
     with session_factory() as s:
         p = Product(name="BrownieAudit", sale_price_gs=10000, recipe_id=None)
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         sale = Sale(
             product_id=p.id,
             qty=2,
@@ -192,7 +195,8 @@ def _seed_sale(session_factory) -> int:
             sold_at=datetime.now(timezone.utc),
             channel="mostrador",
         )
-        s.add(sale); s.commit()
+        s.add(sale)
+        s.commit()
         return sale.id
 
 
@@ -238,9 +242,11 @@ def test_void_sale_appends_reason_to_stock_movement(session_factory):
     with session_factory() as s:
         ing = Ingredient(name="CIE_Flour_audit", stock_qty=1000.0, unit="g")
         p = Product(name="CIE_Brownie_audit", sale_price_gs=10000, recipe_id=None)
-        s.add_all([ing, p]); s.flush()
+        s.add_all([ing, p])
+        s.flush()
         rcp = Recipe(name="CIE_Brownie_recipe", yield_qty=1, yield_unit="und")
-        s.add(rcp); s.flush()
+        s.add(rcp)
+        s.flush()
         p.recipe_id = rcp.id
         s.add(RecipeLine(
             recipe_id=rcp.id, line_kind="ingredient",
@@ -341,18 +347,21 @@ def test_void_sale_restores_stock_with_reason(session_factory):
     # Set up: 1 ingredient, product with recipe, sale decrements stock
     with session_factory() as s:
         ing = Ingredient(name="CIE_Flour", stock_qty=1000.0, unit="g")
-        s.add(ing); s.flush()
+        s.add(ing)
+        s.flush()
         # We don't actually need a recipe to test void restore; apply_sale
         # expects ingredient-level stock moves. Use the existing sale path
         # which writes stock_moves. We'll instead create the StockMove rows
         # directly to test the void restore path.
         p = Product(name="CIE_Brownie", sale_price_gs=10000, recipe_id=None)
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         sale = Sale(
             product_id=p.id, qty=5, unit_price_gs=10000,
             sold_at=datetime.now(timezone.utc),
         )
-        s.add(sale); s.flush()
+        s.add(sale)
+        s.flush()
         s.add(StockMovement(
             ingredient_id=ing.id, movement_type="sale",
             qty=-100.0,  # sold 100g

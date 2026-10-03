@@ -103,7 +103,8 @@ def test_service_cascades_on_pedido_delete(qseed, session_factory):
 
     with session_factory() as s:
         c = Customer(name="Cascade Test", phone="0999000001")
-        s.add(c); s.flush()
+        s.add(c)
+        s.flush()
 
         p = Pedido(
             customer_id=c.id, customer_name="Cascade Test",
@@ -111,7 +112,8 @@ def test_service_cascades_on_pedido_delete(qseed, session_factory):
             promised_date=datetime.now(ASUNCION_TZ).date(),
             status="pending", public_token="cascade-delete-test-token-177",
         )
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         pid = p.id
 
         # Record 3 events on this pedido

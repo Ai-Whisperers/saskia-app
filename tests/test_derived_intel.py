@@ -252,7 +252,8 @@ def test_substitutes_tag_preservation_priority(session_factory):
         marg_v = _ing(s, "Margarina vegana", price=2500, dietary="vegano,sin lactosa")
         for n in range(3):
             r = Recipe(name=f"Rec cooc {n}", yield_qty=5, yield_unit="und")
-            s.add(r); s.flush()
+            s.add(r)
+            s.flush()
             s.add(RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=manteca.id, qty=100))
             s.add(RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=marg_v.id, qty=100))
         s.commit()

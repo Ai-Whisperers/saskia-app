@@ -438,14 +438,17 @@ def test_sale_without_price_override_uses_catalog_price(client, session_factory)
         # Build a small recipe tree so apply_sale can compute stock moves
         ing = Ingredient(name="Harina vl-test", unit="kg", stock_qty=10.0,
                          purchase_price_gs=5000)
-        s.add(ing); s.flush()
+        s.add(ing)
+        s.flush()
         recipe = Recipe(name="Receta vl-test", yield_qty=10, yield_unit="und")
-        s.add(recipe); s.flush()
+        s.add(recipe)
+        s.flush()
         s.add(RecipeLine(recipe_id=recipe.id, line_kind="ingredient",
                          line_ref_id=ing.id, qty=0.1, line_unit="kg"))
         prod = Product(name="Producto vl-test", sale_price_gs=12500,
                        is_available=True, recipe_id=recipe.id)
-        s.add(prod); s.commit()
+        s.add(prod)
+        s.commit()
         prod_id = prod.id
 
     payload = {

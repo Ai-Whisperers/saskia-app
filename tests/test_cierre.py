@@ -38,17 +38,24 @@ def seed_month_data(session_factory):
     def _seed():
         with Session() as s:
             ing = Ingredient(name="harina", unit="kg", stock_qty=10.0, purchase_price_gs=5000)
-            s.add(ing); s.commit(); s.refresh(ing)
+            s.add(ing)
+            s.commit()
+            s.refresh(ing)
 
             r = Recipe(name="Muffin test", yield_qty=10, yield_unit="und", family="pastelería")
-            s.add(r); s.commit(); s.refresh(r)
+            s.add(r)
+            s.commit()
+            s.refresh(r)
 
             rl = RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=ing.id, qty=0.5, line_unit="kg")
-            s.add(rl); s.commit()
+            s.add(rl)
+            s.commit()
 
             p = Product(name="Muffin test", sale_price_gs=25000, portion_label="1 und",
                         recipe_id=r.id, iva_rate="10")
-            s.add(p); s.commit(); s.refresh(p)
+            s.add(p)
+            s.commit()
+            s.refresh(p)
 
             # 5 sales in Sept 2026
             for d in (5, 10, 15, 20, 25):
@@ -179,7 +186,9 @@ class TestCierreFactura:
         Session = session_factory
         with Session() as s:
             p = Product(name="Producto con IVA", sale_price_gs=25000, portion_label="1 und", iva_rate="10")
-            s.add(p); s.commit(); s.refresh(p)
+            s.add(p)
+            s.commit()
+            s.refresh(p)
             sale = Sale(
                 product_id=p.id,
                 qty=1.0,
@@ -190,7 +199,8 @@ class TestCierreFactura:
                 iva_base_gs=22727,
                 iva_amount_gs=2273,
             )
-            s.add(sale); s.commit()
+            s.add(sale)
+            s.commit()
 
         with Session() as s:
             close = compute_monthly_close(s, 2026, 9)

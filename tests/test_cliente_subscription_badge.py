@@ -49,7 +49,8 @@ def test_cliente_detail_no_subscription_banner_for_new_customer(client, session_
     from app.rms.models import Customer
     with session_factory() as s:
         c = Customer(name="Sin Suscripcion", phone="0991110000")
-        s.add(c); s.commit()
+        s.add(c)
+        s.commit()
         cid = c.id
     r = client.get(f"/clientes/{cid}")
     assert r.status_code == 200

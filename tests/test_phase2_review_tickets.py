@@ -130,7 +130,8 @@ def test_mer_01_grams_in_merma_form():
     s = sf()
     try:
         ing = Ingredient(name="harina", unit="kg", stock_qty=5.0, purchase_price_gs=3000)
-        s.add(ing); s.commit()
+        s.add(ing)
+        s.commit()
         ing_id = ing.id
         starting_stock = ing.stock_qty
     finally:
@@ -178,7 +179,8 @@ def test_mer_01_milliliters_in_merma_form():
     s = sf()
     try:
         ing = Ingredient(name="leche", unit="l", stock_qty=2.0, purchase_price_gs=8000)
-        s.add(ing); s.commit()
+        s.add(ing)
+        s.commit()
         ing_id = ing.id
     finally:
         s.close()
@@ -222,7 +224,8 @@ def test_mer_01_cross_family_conversion_rejected():
     s = sf()
     try:
         ing = Ingredient(name="huevos", unit="und", stock_qty=12.0)
-        s.add(ing); s.commit()
+        s.add(ing)
+        s.commit()
         ing_id = ing.id
     finally:
         s.close()

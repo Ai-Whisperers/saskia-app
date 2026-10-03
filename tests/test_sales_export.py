@@ -25,15 +25,19 @@ def seeded_sales(session_factory):
     """Seed 5 sales + 1 voided sale + 2 products for the export tests."""
     with session_factory() as s:
         ing = Ingredient(name="Harina test", unit="kg", purchase_price_gs=5000, stock_qty=100)
-        s.add(ing); s.flush()
+        s.add(ing)
+        s.flush()
         recipe = Recipe(name="Torta test", yield_qty=1, yield_unit="kg", prep_minutes=30)
-        s.add(recipe); s.flush()
+        s.add(recipe)
+        s.flush()
         line = RecipeLine(recipe_id=recipe.id, line_kind="ingredient", line_ref_id=ing.id, qty=2)
-        s.add(line); s.flush()
+        s.add(line)
+        s.flush()
 
         p1 = Product(name="Torta chocolate", sku="TOR-CHOC", sale_price_gs=50000, recipe_id=recipe.id)
         p2 = Product(name="Torta vainilla", sku="TOR-VAIN", sale_price_gs=45000, recipe_id=recipe.id)
-        s.add_all([p1, p2]); s.flush()
+        s.add_all([p1, p2])
+        s.flush()
 
         now = datetime.now(ASUNCION_TZ)
         # 3 p1 sales + 2 p2 sales + 1 voided p1 sale
@@ -54,7 +58,8 @@ def test_ventas_renders_summary_card(client, session_factory):
     """/ventas/historial includes the totals card for active (non-voided) sales."""
     with session_factory() as s:
         p = Product(name="Apenas", sale_price_gs=1000, recipe_id=None)
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         now = datetime.now(ASUNCION_TZ)
         s.add(Sale(product_id=p.id, qty=2, unit_price_gs=1000, sold_at=now, voided_at=None))
         s.commit()

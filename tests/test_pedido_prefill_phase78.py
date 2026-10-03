@@ -44,7 +44,8 @@ def test_available_addresses_empty_for_new_customer(session_factory):
 
     with session_factory() as s:
         c = Customer(name="Sin Direccion", phone="0991112222")
-        s.add(c); s.commit()
+        s.add(c)
+        s.commit()
         cid = c.id
     with session_factory() as s:
         out = compute_customer_defaults(s, cid, today=date(2026, 10, 1))
@@ -106,7 +107,8 @@ def test_loyalty_projected_zero_when_no_clone_lines(session_factory):
 
     with session_factory() as s:
         c = Customer(name="Sin Historial", phone="0992223333", loyalty_points=42)
-        s.add(c); s.commit()
+        s.add(c)
+        s.commit()
         cid = c.id
     with session_factory() as s:
         out = compute_customer_defaults(s, cid, today=date(2026, 10, 1))

@@ -54,9 +54,11 @@ def product(session_factory):
     iname = _unique_name("i-s8")
     with session_factory() as s:
         ing = Ingredient(name=iname, unit="kg", stock_qty=10.0)
-        s.add(ing); s.flush()
+        s.add(ing)
+        s.flush()
         r = Recipe(name=rname, yield_qty=1.0, yield_unit="kg")
-        s.add(r); s.flush()
+        s.add(r)
+        s.flush()
         s.add(RecipeLine(
             recipe_id=r.id, line_kind="ingredient", line_ref_id=ing.id,
             qty=0.2,
@@ -64,7 +66,8 @@ def product(session_factory):
         p = Product(
             name=pname, sku=pname, sale_price_gs=5000, recipe_id=r.id,
         )
-        s.add(p); s.commit()
+        s.add(p)
+        s.commit()
         return p
 
 
@@ -77,7 +80,8 @@ def box(session_factory):
             name=name, unit="und", stock_qty=20.0, purchase_price_gs=1500,
             is_packaging=True,
         )
-        s.add(ing); s.commit()
+        s.add(ing)
+        s.commit()
         return ing
 
 
@@ -90,7 +94,8 @@ def bag(session_factory):
             name=name, unit="und", stock_qty=100.0, purchase_price_gs=200,
             is_packaging=True,
         )
-        s.add(ing); s.commit()
+        s.add(ing)
+        s.commit()
         return ing
 
 
@@ -166,7 +171,9 @@ class TestApplySaleWithPackaging:
             ing = Ingredient(
                 name=n, unit="kg", stock_qty=5.0, is_packaging=False,
             )
-            s.add(ing); s.commit(); ing_id = ing.id
+            s.add(ing)
+            s.commit()
+            ing_id = ing.id
         with session_factory() as s:
             with pytest.raises(ValueError, match="not flagged as packaging"):
                 apply_sale(
@@ -298,7 +305,9 @@ class TestTogglePackaging:
         n = _unique_name("toggle-test")
         with session_factory() as s:
             ing = Ingredient(name=n, unit="und", stock_qty=1.0, is_packaging=False)
-            s.add(ing); s.commit(); ing_id = ing.id
+            s.add(ing)
+            s.commit()
+            ing_id = ing.id
         # First toggle → True
         resp = client.post(
             f"/inventario/{ing_id}/toggle-packaging",
@@ -354,7 +363,8 @@ class TestSalePOSTPackaging:
                 sold_at=datetime.now(timezone.utc),
                 packaging_item_id=box_id, packaging_qty=2.0,
             )
-            s.commit(); sale_id = r.sale_id
+            s.commit()
+            sale_id = r.sale_id
         with session_factory() as s:
             sale = s.get(Sale, sale_id)
             assert sale.packaging_item_id == box_id

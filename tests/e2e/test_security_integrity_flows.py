@@ -264,5 +264,8 @@ def test_concurrent_fulfill_and_adjust_race(client, session_factory):
 
     t1 = threading.Thread(target=_fulfiller)
     t2 = threading.Thread(target=_adjuster)
-    t1.start(); t2.start(); t1.join(); t2.join()
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
     assert not errors, errors

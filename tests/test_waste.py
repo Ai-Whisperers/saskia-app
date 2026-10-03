@@ -243,7 +243,9 @@ def test_record_recipe_waste_creates_one_log_per_ingredient(session_factory):
         assert len(result.waste_logs) == 3
 
         # Stock decremented
-        s.refresh(flour); s.refresh(sugar); s.refresh(eggs)
+        s.refresh(flour)
+        s.refresh(sugar)
+        s.refresh(eggs)
         assert flour.stock_qty == pytest.approx(9.0)  # 10 - 1.0
         assert sugar.stock_qty == pytest.approx(9.4)  # 10 - 0.6
         assert eggs.stock_qty == pytest.approx(92.0)  # 100 - 8
@@ -275,7 +277,8 @@ def test_record_recipe_waste_rejects_missing_yield(session_factory):
     s = session_factory()
     try:
         rec = Recipe(name="NoYield", yield_qty=None, yield_unit="und")
-        s.add(rec); s.flush()
+        s.add(rec)
+        s.flush()
         with pytest.raises(ValueError, match="sin rendimiento"):
             record_recipe_waste(
                 s, recipe_id=rec.id, batch_qty=1.0, reason=WasteReason.OTRA
@@ -288,7 +291,8 @@ def test_record_recipe_waste_rejects_zero_batch(session_factory):
     s = session_factory()
     try:
         rec = Recipe(name="x", yield_qty=12, yield_unit="und")
-        s.add(rec); s.flush()
+        s.add(rec)
+        s.flush()
         with pytest.raises(ValueError, match="mayor a 0"):
             record_recipe_waste(
                 s, recipe_id=rec.id, batch_qty=0.0, reason=WasteReason.OTRA

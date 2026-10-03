@@ -43,7 +43,8 @@ def _FakeSupabaseForIntegration():
             self._refresh[refresh] = email
 
         def sign_in_with_password(self, creds):
-            email = creds.get("username") or creds.get("email"); pw = creds.get("password", "")
+            email = creds.get("username") or creds.get("email")
+            pw = creds.get("password", "")
             if self.users.get(email) != pw:
                 raise Exception("Invalid login credentials")
             uid = next(

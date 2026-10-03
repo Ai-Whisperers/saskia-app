@@ -30,14 +30,17 @@ def _seed_min_sales(session_factory, days_back: int = 14):
             min_stock_qty=1.0,
             purchase_price_gs=3000,
         )
-        s.add(ing); s.flush()
+        s.add(ing)
+        s.flush()
         rec = Recipe(name="Muffin dashboard", yield_qty=12, yield_unit="und")
-        s.add(rec); s.flush()
+        s.add(rec)
+        s.flush()
         s.add(RecipeLine(recipe_id=rec.id, line_kind="ingredient",
                           line_ref_id=ing.id, qty=0.3, line_unit="kg"))
         s.flush()
         p = Product(name="Muffin dashboard", sale_price_gs=2500, recipe_id=rec.id)
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         # Multiple sales across the last 30 days, going through apply_sale
         # so SaleStockMove rows are created (drives concentration + turnover).
         from datetime import datetime, timedelta, timezone

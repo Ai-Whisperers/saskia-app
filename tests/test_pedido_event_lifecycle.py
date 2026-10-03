@@ -24,12 +24,14 @@ def test_timeline_includes_pedido_events(session_factory):
         # Create a pedido + 3 events
         from app.rms.models import Customer
         c = Customer(name="Timeline Test", phone="0999000002")
-        s.add(c); s.flush()
+        s.add(c)
+        s.flush()
         p = Pedido(customer_id=c.id, customer_name="Timeline Test",
                    customer_phone="0999000002",
                    promised_date=datetime.now(ASUNCION_TZ).date(),
                    status="pending", public_token="tl-test-1")
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
 
         # Three events at distinct timestamps
         t0 = datetime.now(ASUNCION_TZ) - timedelta(minutes=30)
@@ -81,12 +83,14 @@ def test_timeline_handles_no_events(session_factory):
     with session_factory() as s:
         from app.rms.models import Customer
         c = Customer(name="No Events", phone="0999000003")
-        s.add(c); s.flush()
+        s.add(c)
+        s.flush()
         p = Pedido(customer_id=c.id, customer_name="No Events",
                    customer_phone="0999000003",
                    promised_date=datetime.now(ASUNCION_TZ).date(),
                    status="pending", public_token="no-events-1")
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         s.commit()
         pid = p.id
 
@@ -105,9 +109,11 @@ def test_pedido_create_writes_created_and_line_added(client, session_factory):
     with session_factory() as s:
         # Always create a product fresh in this test
         prod = Product(name="Lifecycle Test Product", sale_price_gs=10000)
-        s.add(prod); s.flush()
+        s.add(prod)
+        s.flush()
         c = Customer(name="HTTP Test", phone="0999000004")
-        s.add(c); s.flush()
+        s.add(c)
+        s.flush()
         cid = c.id
         pid_prod = prod.id
         s.commit()

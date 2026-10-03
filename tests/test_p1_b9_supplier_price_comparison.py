@@ -49,7 +49,8 @@ def make_variant_prices(session_factory):
                         name=ing_name, unit="kg", stock_qty=10.0,
                         min_stock_qty=1.0,
                     )
-                    s.add(ing); s.flush()
+                    s.add(ing)
+                    s.flush()
 
                 ing_map: dict[str, dict] = {}
                 for sup_name, price_gs in spec["variants"].items():
@@ -60,7 +61,8 @@ def make_variant_prices(session_factory):
                     )
                     if sup is None:
                         sup = Supplier(name=sup_name, is_active=True)
-                        s.add(sup); s.flush()
+                        s.add(sup)
+                        s.flush()
                     variant = IngredientVariant(
                         ingredient_id=ing.id,
                         supplier_id=sup.id,
@@ -69,7 +71,8 @@ def make_variant_prices(session_factory):
                         purchase_price_gs=price_gs,
                         preferred=(price_gs == min(spec["variants"].values())),
                     )
-                    s.add(variant); s.flush()
+                    s.add(variant)
+                    s.flush()
                     ing_map[sup_name] = {
                         "supplier_id": sup.id,
                         "variant_id": variant.id,

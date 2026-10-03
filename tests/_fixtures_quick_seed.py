@@ -40,7 +40,8 @@ def _make_quick_ingredient(s, name: str = "harina QA",
         name=name, unit=unit, stock_qty=stock_qty,
         min_stock_qty=min_stock_qty, purchase_price_gs=purchase_price_gs,
     )
-    s.add(ing); s.flush()
+    s.add(ing)
+    s.flush()
     return ing
 
 
@@ -50,7 +51,8 @@ def _make_quick_recipe(s, name: str, ing: Ingredient | None,
     if existing:
         return existing
     rec = Recipe(name=name, yield_qty=yield_qty, yield_unit=yield_unit)
-    s.add(rec); s.flush()
+    s.add(rec)
+    s.flush()
     if ing is not None:
         s.add(RecipeLine(
             recipe_id=rec.id, line_kind="ingredient",
@@ -69,7 +71,8 @@ def _make_quick_product(s, name: str, recipe: Recipe | None,
         name=name, sale_price_gs=sale_price_gs,
         recipe_id=recipe.id if recipe else None,
     )
-    s.add(p); s.flush()
+    s.add(p)
+    s.flush()
     return p
 
 
@@ -148,7 +151,8 @@ def quick_seed(session_factory, scenario: str = "basic",
                 channel="whatsapp",
                 notes="Pedido de prueba",
             )
-            s.add(ped); s.flush()
+            s.add(ped)
+            s.flush()
             out["pedido"] = ped
 
         elif scenario == "with_voided_sale":
@@ -219,7 +223,8 @@ def _make_or_get_customer(s, name: str) -> Customer:
     if c:
         return c
     c = Customer(name=name, phone="0980000000")
-    s.add(c); s.flush()
+    s.add(c)
+    s.flush()
     return c
 
 
@@ -228,7 +233,8 @@ def _make_or_get_supplier(s, name: str) -> Supplier:
     if sup:
         return sup
     sup = Supplier(name=name, phone="021000000")
-    s.add(sup); s.flush()
+    s.add(sup)
+    s.flush()
     return sup
 
 

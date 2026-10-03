@@ -15,7 +15,8 @@ def test_weekly_template_repeats_across_weeks(app_engine):
     sf = sessionmaker(bind=app_engine)
     with sf() as s:
         prod = Product(name="Muffin", sale_price_gs=2500)
-        s.add(prod); s.commit()
+        s.add(prod)
+        s.commit()
         pid = prod.id
 
     # Set Monday (weekday=0) qty to 12
@@ -55,7 +56,8 @@ def test_override_only_affects_one_date(app_engine):
     sf = sessionmaker(bind=app_engine)
     with sf() as s:
         prod = Product(name="Muffin", sale_price_gs=2500)
-        s.add(prod); s.commit()
+        s.add(prod)
+        s.commit()
         pid = prod.id
 
     # Set Monday (every Monday) qty to 12
@@ -103,7 +105,9 @@ def test_template_plus_auto_forecast_coexist(app_engine):
     with sf() as s:
         prod_a = Product(name="Muffin (template)", sale_price_gs=2500)
         prod_b = Product(name="Cookie (forecast)", sale_price_gs=1500)
-        s.add(prod_a); s.add(prod_b); s.commit()
+        s.add(prod_a)
+        s.add(prod_b)
+        s.commit()
         pa_id, pb_id = prod_a.id, prod_b.id
 
     # Sales for Cookie so it gets auto-forecasted
@@ -264,7 +268,8 @@ def test_get_weekly_template_returns_empty_for_unset_days(app_engine):
     sf = sessionmaker(bind=app_engine)
     with sf() as s:
         prod = Product(name="Muffin", sale_price_gs=2500)
-        s.add(prod); s.commit()
+        s.add(prod)
+        s.commit()
         pid = prod.id
 
     # Only set Monday

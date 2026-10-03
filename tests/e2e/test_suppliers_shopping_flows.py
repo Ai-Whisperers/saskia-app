@@ -97,7 +97,8 @@ def test_delete_item(client, session_factory):
         s.commit()
         from app.rms.models import ShoppingListItem
         item = ShoppingListItem(ingredient_id=ing.id, qty_to_buy=1.0, unit="kg")
-        s.add(item); s.commit()
+        s.add(item)
+        s.commit()
         item_id = item.id
 
     assert client.post(f"/shopping-list/{item_id}/delete",

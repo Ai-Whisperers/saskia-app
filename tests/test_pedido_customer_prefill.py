@@ -26,7 +26,8 @@ def test_pedido_create_writes_back_customer_contact(session_factory, client):
 
     with session_factory() as s:
         rec = Recipe(name="R wb", yield_qty=1, yield_unit="und")
-        s.add(rec); s.flush()
+        s.add(rec)
+        s.flush()
         p = Product(name="Pan wb", recipe_id=rec.id, sale_price_gs=5000,
                     is_available=True, tablet_visible=True)
         s.add(p)

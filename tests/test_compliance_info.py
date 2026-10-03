@@ -102,7 +102,8 @@ class TestProductTaxHACCPColumns:
         Session = session_factory
         with Session() as s:
             p = Product(name="Donación test", sale_price_gs=0, portion_label="1 und", iva_rate="exento")
-            s.add(p); s.commit()
+            s.add(p)
+            s.commit()
             s.refresh(p)
             assert p.iva_rate == "exento"
 
@@ -118,7 +119,8 @@ class TestProductTaxHACCPColumns:
                 rspa_number="12345/2024",
                 rspa_expiry="2027-12-31",
             )
-            s.add(p); s.commit()
+            s.add(p)
+            s.commit()
             s.refresh(p)
             assert p.requires_rspa is True
             assert p.rspa_number == "12345/2024"
@@ -133,7 +135,8 @@ class TestProductTaxHACCPColumns:
                 portion_label="1 kg",
                 yield_percentage=0.85,
             )
-            s.add(p); s.commit()
+            s.add(p)
+            s.commit()
             s.refresh(p)
             assert p.yield_percentage == 0.85
 

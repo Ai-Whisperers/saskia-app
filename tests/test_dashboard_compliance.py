@@ -127,7 +127,8 @@ class TestRSPAPerProduct:
                 rspa_number="12345/2024",
                 rspa_expiry=(date.today() - timedelta(days=10)).isoformat(),
             )
-            s.add(p); s.commit()
+            s.add(p)
+            s.commit()
             alerts = _compliance_alerts(s)
         rspa_alerts = [a for a in alerts if "R.S.P.A." in a["message"] and "Pan lactal" in a["message"]]
         assert len(rspa_alerts) == 1
@@ -148,7 +149,8 @@ class TestRSPAPerProduct:
                 rspa_number="99999/2024",
                 rspa_expiry=(date.today() + timedelta(days=20)).isoformat(),
             )
-            s.add(p); s.commit()
+            s.add(p)
+            s.commit()
             alerts = _compliance_alerts(s)
         rspa_alerts = [a for a in alerts if "R.S.P.A." in a["message"]]
         assert len(rspa_alerts) == 1
@@ -169,7 +171,8 @@ class TestRSPAPerProduct:
                 requires_rspa=False,
                 rspa_expiry=(date.today() - timedelta(days=100)).isoformat(),
             )
-            s.add(p); s.commit()
+            s.add(p)
+            s.commit()
             alerts = _compliance_alerts(s)
         rspa_alerts = [a for a in alerts if "R.S.P.A." in a["message"]]
         assert len(rspa_alerts) == 0

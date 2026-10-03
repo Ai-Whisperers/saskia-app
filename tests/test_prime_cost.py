@@ -34,7 +34,9 @@ def setup_product_with_recipe(session_factory):
                     stock_qty=10.0,
                     purchase_price_gs=ing_def["price"],
                 )
-                s.add(ing); s.commit(); s.refresh(ing)
+                s.add(ing)
+                s.commit()
+                s.refresh(ing)
                 ing_ids.append((ing.id, ing_def["qty"]))
 
             # Create recipe
@@ -45,7 +47,9 @@ def setup_product_with_recipe(session_factory):
                 yield_percentage=yield_pct,
                 direct_labor_minutes=labor_minutes,
             )
-            s.add(r); s.commit(); s.refresh(r)
+            s.add(r)
+            s.commit()
+            s.refresh(r)
 
             for ing_id, qty in ing_ids:
                 rl = RecipeLine(
@@ -65,7 +69,9 @@ def setup_product_with_recipe(session_factory):
                 portion_label="1 und",
                 recipe_id=r.id,
             )
-            s.add(p); s.commit(); s.refresh(p)
+            s.add(p)
+            s.commit()
+            s.refresh(p)
             return p.id
 
     return _setup
@@ -89,7 +95,9 @@ class TestPrimeCostBasic:
         Session = session_factory
         with Session() as s:
             p = Product(name="Manual item", sale_price_gs=5000, portion_label="1 und")
-            s.add(p); s.commit(); s.refresh(p)
+            s.add(p)
+            s.commit()
+            s.refresh(p)
             pc = compute_prime_cost(s, p.id)
         assert pc.materials_cost_gs is None
         assert pc.prime_cost_gs is None
@@ -99,7 +107,9 @@ class TestPrimeCostBasic:
         Session = session_factory
         with Session() as s:
             p = Product(name="Free sample", sale_price_gs=0, portion_label="1 und")
-            s.add(p); s.commit(); s.refresh(p)
+            s.add(p)
+            s.commit()
+            s.refresh(p)
             pc = compute_prime_cost(s, p.id)
         assert pc.sale_price_gs == 0  # Stored, not None
         assert pc.gross_margin_pct is None  # Can't compute pct when sale is 0
@@ -208,13 +218,19 @@ class TestPrimeCostEdgeCases:
         Session = session_factory
         with Session() as s:
             ing = Ingredient(name="mystery", unit="kg", stock_qty=5.0, purchase_price_gs=None)
-            s.add(ing); s.commit(); s.refresh(ing)
+            s.add(ing)
+            s.commit()
+            s.refresh(ing)
             r = Recipe(name="R", yield_qty=10, yield_unit="und")
-            s.add(r); s.commit(); s.refresh(r)
+            s.add(r)
+            s.commit()
+            s.refresh(r)
             rl = RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=ing.id, qty=1.0)
             s.add(rl)
             p = Product(name="P", sale_price_gs=5000, portion_label="1 und", recipe_id=r.id)
-            s.add(p); s.commit(); s.refresh(p)
+            s.add(p)
+            s.commit()
+            s.refresh(p)
             pc = compute_prime_cost(s, p.id)
         assert pc.materials_cost_gs is None
         assert any("Faltan precios" in n for n in pc.notes)

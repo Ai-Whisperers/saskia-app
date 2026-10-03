@@ -116,7 +116,8 @@ class TestIngredientVariantRollup:
         n = _unique_name("legacy")
         with session_factory() as s:
             ing = Ingredient(name=n, unit="kg", stock_qty=42.0)
-            s.add(ing); s.commit()
+            s.add(ing)
+            s.commit()
             ing_id = ing.id
         from app.rms.variants import rollup_ingredient_stock
         with session_factory() as s:
@@ -135,7 +136,9 @@ class TestIngredientVariantRollup:
             ing = Ingredient(
                 name=n, unit="kg", purchase_price_gs=8500, stock_qty=11.5,
             )
-            s.add(ing); s.flush(); ing_id = ing.id
+            s.add(ing)
+            s.flush()
+            ing_id = ing.id
             s.add_all([
                 IngredientVariant(
                     ingredient_id=ing_id, package_size=1.0, package_unit="kg",
@@ -168,7 +171,9 @@ class TestIngredientVariantRollup:
         n = _unique_name("price")
         with session_factory() as s:
             ing = Ingredient(name=n, unit="kg", purchase_price_gs=0)
-            s.add(ing); s.flush(); ing_id = ing.id
+            s.add(ing)
+            s.flush()
+            ing_id = ing.id
             s.add_all([
                 IngredientVariant(
                     ingredient_id=ing_id, package_size=1.0, package_unit="kg",
@@ -191,12 +196,14 @@ class TestIngredientVariantRollup:
         n = _unique_name("pref")
         with session_factory() as s:
             ing = Ingredient(name=n, unit="kg", stock_qty=0.0)
-            s.add(ing); s.flush()
+            s.add(ing)
+            s.flush()
             v1 = IngredientVariant(
                 ingredient_id=ing.id, package_size=1.0, package_unit="kg",
                 purchase_price_gs=1000, preferred=True, stock_qty=0.0,
             )
-            s.add(v1); s.commit()  # commit so the new session can see it
+            s.add(v1)
+            s.commit()  # commit so the new session can see it
             ing_id = ing.id
         # Now insert another variant flagged preferred — the DB trigger
         # should clear v1.preferred and set v2.preferred.
@@ -206,7 +213,8 @@ class TestIngredientVariantRollup:
                 ingredient_id=ing2.id, package_size=2.0, package_unit="kg",
                 purchase_price_gs=2000, preferred=True, stock_qty=0.0,
             )
-            s.add(v2); s.commit()
+            s.add(v2)
+            s.commit()
         with session_factory() as s:
             all_v = s.scalars(
                 select(IngredientVariant)
@@ -230,7 +238,9 @@ class TestForecastHorizon:
         n = _unique_name("horizon")
         with session_factory() as s:
             ing = Ingredient(name=n, unit="kg", stock_qty=1.0)
-            s.add(ing); s.commit(); ing_id = ing.id
+            s.add(ing)
+            s.commit()
+            ing_id = ing.id
         with session_factory() as s:
             ing2 = s.get(Ingredient, ing_id)
             h = forecast_horizon_days(ing2)
@@ -244,7 +254,9 @@ class TestForecastHorizon:
             ing = Ingredient(
                 name=n, unit="kg", stock_qty=1.0, forecast_horizon_days=21,
             )
-            s.add(ing); s.commit(); ing_id = ing.id
+            s.add(ing)
+            s.commit()
+            ing_id = ing.id
         with session_factory() as s:
             ing2 = s.get(Ingredient, ing_id)
             assert forecast_horizon_days(ing2) == 21
@@ -254,7 +266,9 @@ class TestForecastHorizon:
         n = _unique_name("horizon3")
         with session_factory() as s:
             ing = Ingredient(name=n, unit="kg", stock_qty=1.0)
-            s.add(ing); s.commit(); ing_id = ing.id
+            s.add(ing)
+            s.commit()
+            ing_id = ing.id
         with session_factory() as s:
             ing2 = s.get(Ingredient, ing_id)
             assert forecast_horizon_days(ing2, default=30) == 30
@@ -273,15 +287,19 @@ class TestForecastHorizon:
         iname = n
         with session_factory() as s:
             r = Recipe(name=rname, yield_qty=1.0, yield_unit="kg")
-            s.add(r); s.flush()
+            s.add(r)
+            s.flush()
             p = Product(name=pname, sku=pname, recipe_id=r.id,
                         sale_price_gs=1000)
-            s.add(p); s.flush()
+            s.add(p)
+            s.flush()
             ing = Ingredient(
                 name=iname, unit="kg", stock_qty=5.0, forecast_horizon_days=14,
             )
-            s.add(ing); s.flush()
-            s.commit(); ing_id = ing.id
+            s.add(ing)
+            s.flush()
+            s.commit()
+            ing_id = ing.id
             for d in range(7):
                 ds = today - timedelta(days=d)
                 sale = Sale(
@@ -289,7 +307,8 @@ class TestForecastHorizon:
                     unit_price_gs=1000,
                     sold_at=datetime.combine(ds, datetime.min.time()).replace(tzinfo=timezone.utc),
                 )
-                s.add(sale); s.flush()
+                s.add(sale)
+                s.flush()
                 s.add(StockMovement(
                     movement_type="sale",
                     ingredient_id=ing_id,
@@ -314,7 +333,9 @@ class TestForecastHorizon:
         n = _unique_name("dead")
         with session_factory() as s:
             ing = Ingredient(name=n, unit="kg", stock_qty=10.0)
-            s.add(ing); s.commit(); ing_id = ing.id
+            s.add(ing)
+            s.commit()
+            ing_id = ing.id
         with session_factory() as s:
             res = days_until_short(s, ing_id)
         assert res is not None
@@ -332,14 +353,18 @@ class TestForecastHorizon:
         today = date.today()
         with session_factory() as s:
             r = Recipe(name=rname, yield_qty=1.0, yield_unit="kg")
-            s.add(r); s.flush()
+            s.add(r)
+            s.flush()
             p = Product(name=pname, sku=pname, recipe_id=r.id,
                         sale_price_gs=1000)
-            s.add(p); s.flush()
+            s.add(p)
+            s.flush()
             ing = Ingredient(
                 name=n, unit="kg", stock_qty=100.0, forecast_horizon_days=14,
             )
-            s.add(ing); s.flush(); ing_id = ing.id
+            s.add(ing)
+            s.flush()
+            ing_id = ing.id
             for d in range(14):
                 ds = today - timedelta(days=d)
                 sale = Sale(
@@ -347,7 +372,8 @@ class TestForecastHorizon:
                     unit_price_gs=1000,
                     sold_at=datetime.combine(ds, datetime.min.time()).replace(tzinfo=timezone.utc),
                 )
-                s.add(sale); s.flush()
+                s.add(sale)
+                s.flush()
                 s.add(StockMovement(
                     movement_type="sale",
                     ingredient_id=ing_id,
@@ -375,7 +401,9 @@ def product(session_factory):
             name=_unique_name("prod"), sku=_unique_name("sku"),
             sale_price_gs=1000,
         )
-        s.add(p); s.commit(); return p
+        s.add(p)
+        s.commit()
+        return p
 
 
 @pytest.fixture
@@ -385,7 +413,9 @@ def product2(session_factory):
             name=_unique_name("prod2"), sku=_unique_name("sku2"),
             sale_price_gs=2000,
         )
-        s.add(p); s.commit(); return p
+        s.add(p)
+        s.commit()
+        return p
 
 
 class TestForkWeek:

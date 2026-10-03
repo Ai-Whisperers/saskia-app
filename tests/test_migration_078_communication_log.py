@@ -63,7 +63,8 @@ def test_communication_log_check_constraints(session_factory):
 
     with session_factory() as s:
         c = Customer(name="Comm Test", phone="0998000001")
-        s.add(c); s.flush()
+        s.add(c)
+        s.flush()
 
         # Invalid direction → CHECK violation
         with pytest.raises(Exception) as exc_info:
@@ -74,7 +75,8 @@ def test_communication_log_check_constraints(session_factory):
                 body="hi",
                 ts_sent=datetime.utcnow(),
             )
-            s.add(bad); s.commit()
+            s.add(bad)
+            s.commit()
         s.rollback()
         # Make sure the bad row is gone
         assert "ck_communication_log_direction" in str(exc_info.value) or \
@@ -90,7 +92,8 @@ def test_communication_log_check_constraints(session_factory):
                 body="hi",
                 ts_sent=datetime.utcnow(),
             )
-            s.add(bad); s.commit()
+            s.add(bad)
+            s.commit()
         s.rollback()
         assert "ck_communication_log_channel" in str(exc_info.value) or \
                "CHECK" in str(exc_info.value) or \
@@ -106,7 +109,8 @@ def test_communication_log_check_constraints(session_factory):
                 status="bounced",  # not in the enum
                 ts_sent=datetime.utcnow(),
             )
-            s.add(bad); s.commit()
+            s.add(bad)
+            s.commit()
         s.rollback()
         assert "ck_communication_log_status" in str(exc_info.value) or \
                "CHECK" in str(exc_info.value) or \
@@ -121,7 +125,8 @@ def test_communication_log_cascades_on_customer_delete(session_factory):
 
     with session_factory() as s:
         c = Customer(name="Cascade Comm Test", phone="0998000002")
-        s.add(c); s.flush()
+        s.add(c)
+        s.flush()
         for i in range(3):
             s.add(CommunicationLog(
                 direction="outbound", channel="whatsapp",
@@ -149,19 +154,22 @@ def test_communication_log_set_null_on_pedido_delete(session_factory):
 
     with session_factory() as s:
         c = Customer(name="Pedido Comm Test", phone="0998000003")
-        s.add(c); s.flush()
+        s.add(c)
+        s.flush()
         p = Pedido(customer_id=c.id, customer_name=c.name,
                    customer_phone=c.phone,
                    promised_date=datetime.utcnow().date(),
                    status="pending", public_token="comm-test-ped")
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         msg = CommunicationLog(
             direction="outbound", channel="whatsapp",
             customer_id=c.id, pedido_id=p.id,
             body="hello", status="sent",
             ts_sent=datetime.utcnow(),
         )
-        s.add(msg); s.commit()
+        s.add(msg)
+        s.commit()
         msg_id = msg.id
 
         # Delete the pedido

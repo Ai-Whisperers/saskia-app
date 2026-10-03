@@ -24,20 +24,25 @@ def _seed_min_catalog(session_factory):
     try:
         ing = Ingredient(name="harina smoke", unit="kg", stock_qty=10.0, min_stock_qty=2.0,
                          purchase_price_gs=3000)
-        s.add(ing); s.flush()
+        s.add(ing)
+        s.flush()
         rec = Recipe(name="Muffin smoke", yield_qty=12, yield_unit="und")
-        s.add(rec); s.flush()
+        s.add(rec)
+        s.flush()
         rl = RecipeLine(recipe_id=rec.id, line_kind="ingredient",
                         line_ref_id=ing.id, qty=0.3, line_unit="kg")
-        s.add(rl); s.flush()
+        s.add(rl)
+        s.flush()
         prod = Product(name="Muffin smoke", sale_price_gs=2500, recipe_id=rec.id)
-        s.add(prod); s.flush()
+        s.add(prod)
+        s.flush()
         # Sale so the plan auto-forecasts
         from app.rms.models import Sale
         s.add(Sale(sold_at=datetime.now(timezone.utc), product_id=prod.id,
                    qty=3, unit_price_gs=2500))
         c = Customer(name="Cliente smoke", phone="0981234500")
-        s.add(c); s.commit()
+        s.add(c)
+        s.commit()
         return ing.id, rec.id, prod.id, c.id
     finally:
         s.close()

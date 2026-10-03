@@ -18,7 +18,8 @@ def test_recipe_yield_qty_zero_at_update_rejected(session_factory):
     with sf() as s:
         # Insert with NULL (draft) — allowed
         r = Recipe(name="Receta Draft", yield_qty=None, yield_unit="und")
-        s.add(r); s.commit()
+        s.add(r)
+        s.commit()
         rid = r.id
 
     # UPDATE to 0 — rejected
@@ -39,7 +40,8 @@ def test_recipe_yield_qty_negative_at_update_rejected(session_factory):
     sf = session_factory
     with sf() as s:
         r = Recipe(name="Receta Draft 2", yield_qty=None, yield_unit="und")
-        s.add(r); s.commit()
+        s.add(r)
+        s.commit()
         rid = r.id
 
     with sf() as s:
@@ -58,7 +60,8 @@ def test_recipe_yield_qty_positive_at_update_allowed(session_factory):
     sf = session_factory
     with sf() as s:
         r = Recipe(name="Receta Draft OK", yield_qty=None, yield_unit="und")
-        s.add(r); s.commit()
+        s.add(r)
+        s.commit()
         rid = r.id
 
     with sf() as s:
@@ -101,11 +104,14 @@ def test_recipe_line_qty_negative_at_update_rejected(session_factory):
     sf = session_factory
     with sf() as s:
         ing = Ingredient(name="test_rl", unit="kg", stock_qty=10, min_stock_qty=1, purchase_price_gs=3000)
-        s.add(ing); s.flush()
+        s.add(ing)
+        s.flush()
         rec = Recipe(name="r1_rl", yield_qty=12, yield_unit="und")
-        s.add(rec); s.flush()
+        s.add(rec)
+        s.flush()
         rl = RecipeLine(recipe_id=rec.id, line_kind="ingredient", line_ref_id=ing.id, qty=0.3, line_unit="kg")
-        s.add(rl); s.commit()
+        s.add(rl)
+        s.commit()
         rl_id = rl.id
 
     with sf() as s:
@@ -158,9 +164,11 @@ def test_recipe_line_insert_with_zero_qty_rejected(session_factory):
     with sf() as s:
         ing = Ingredient(name="test_rl_zero", unit="kg", stock_qty=10,
                          min_stock_qty=1, purchase_price_gs=3000)
-        s.add(ing); s.flush()
+        s.add(ing)
+        s.flush()
         rec = Recipe(name="r_zero_qty", yield_qty=12, yield_unit="und")
-        s.add(rec); s.flush()
+        s.add(rec)
+        s.flush()
         rl = RecipeLine(recipe_id=rec.id, line_kind="ingredient",
                         line_ref_id=ing.id, qty=0, line_unit="kg")
         s.add(rl)
@@ -180,9 +188,11 @@ def test_recipe_line_insert_with_negative_qty_rejected(session_factory):
     with sf() as s:
         ing = Ingredient(name="test_rl_neg", unit="kg", stock_qty=10,
                          min_stock_qty=1, purchase_price_gs=3000)
-        s.add(ing); s.flush()
+        s.add(ing)
+        s.flush()
         rec = Recipe(name="r_neg_qty", yield_qty=12, yield_unit="und")
-        s.add(rec); s.flush()
+        s.add(rec)
+        s.flush()
         rl = RecipeLine(recipe_id=rec.id, line_kind="ingredient",
                         line_ref_id=ing.id, qty=-0.5, line_unit="kg")
         s.add(rl)

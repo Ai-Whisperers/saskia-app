@@ -331,7 +331,8 @@ def test_inventario_editar_empty_name_returns_spanish_400(client, session_factor
     from app.rms.models import Ingredient
     with session_factory() as s:
         ing = Ingredient(name="test ing", unit="kg", stock_qty=1.0)
-        s.add(ing); s.commit()
+        s.add(ing)
+        s.commit()
         ing_id = ing.id
 
     r = client.post(f"/inventario/{ing_id}/editar", data={
@@ -346,7 +347,8 @@ def test_inventario_editar_invalid_unit_returns_spanish_400(client, session_fact
     from app.rms.models import Ingredient
     with session_factory() as s:
         ing = Ingredient(name="test invalid unit", unit="kg", stock_qty=1.0)
-        s.add(ing); s.commit()
+        s.add(ing)
+        s.commit()
         ing_id = ing.id
 
     r = client.post(f"/inventario/{ing_id}/editar", data={
@@ -422,7 +424,8 @@ def test_recetas_empty_lines_rejected_with_reason(client, session_factory):
     from app.rms.models import Recipe
     with session_factory() as s:
         r = Recipe(name="Test empty recipe", yield_qty=12, yield_unit="und")
-        s.add(r); s.commit()
+        s.add(r)
+        s.commit()
         rid = r.id
 
     # POST with one empty line — should fail with 400 not silent save
@@ -466,7 +469,8 @@ def test_inventory_adjust_zero_no_longer_silent(client, session_factory):
     from app.rms.models import Ingredient
     with session_factory() as s:
         ing = Ingredient(name="adj zero test", unit="kg", stock_qty=10.0)
-        s.add(ing); s.commit()
+        s.add(ing)
+        s.commit()
         ing_id = ing.id
 
     r = client.post(f"/inventario/{ing_id}/ajustar", data={
@@ -505,7 +509,8 @@ def test_reorder_registrar_accepts_qty_unit(client, app_engine):
     with sf() as s:
         ing = Ingredient(name="reorder unit test", unit="kg",
                          stock_qty=0.0, min_stock_qty=1.0, purchase_price_gs=3000)
-        s.add(ing); s.commit()
+        s.add(ing)
+        s.commit()
         ing_id = ing.id
         starting_stock = ing.stock_qty
 

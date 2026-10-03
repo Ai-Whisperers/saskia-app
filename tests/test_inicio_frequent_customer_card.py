@@ -72,13 +72,15 @@ def test_inicio_card_displays_at_most_5(client, qseed, session_factory):
         prod = s.execute(__import__("sqlalchemy").text("SELECT id FROM product LIMIT 1")).scalar()
         if prod is None:
             p = Product(name="Bulk Product", sale_price_gs=10000)
-            s.add(p); s.flush()
+            s.add(p)
+            s.flush()
             prod = p.id
 
         now = datetime.now(ASUNCION_TZ)
         for i in range(7):
             c = Customer(name=f"Regular {i:02d}", phone=f"099{i:08d}")
-            s.add(c); s.flush()
+            s.add(c)
+            s.flush()
             for j in range(3):
                 apply_sale(
                     session=s,

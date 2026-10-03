@@ -45,13 +45,15 @@ def test_apply_sale_sets_linked_pedido_id(session_factory):
 
     with session_factory() as s:
         c = Customer(name="Test Buyer", phone="0990001111")
-        s.add(c); s.flush()
+        s.add(c)
+        s.flush()
         cid = c.id
 
         p = Pedido(customer_id=cid, customer_name="Test Buyer", customer_phone="0990001111",
                    promised_date=datetime.utcnow().date(), status="pending",
                    public_token="test-linked-token-176")
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         pid = p.id
 
         # Pick first product
@@ -61,7 +63,8 @@ def test_apply_sale_sets_linked_pedido_id(session_factory):
             # No products in test DB — make one
             from app.rms.models import Product
             prod_row = Product(name="Test Product", sale_price_gs=10000)
-            s.add(prod_row); s.flush()
+            s.add(prod_row)
+            s.flush()
             prod = prod_row.id
 
         result = apply_sale(
@@ -141,12 +144,14 @@ def test_apply_sale_default_linked_pedido_is_none(session_factory):
 
     with session_factory() as s:
         c = Customer(name="POS Customer", phone="0992223333")
-        s.add(c); s.flush()
+        s.add(c)
+        s.flush()
         from app.rms.models import Product
         prod = s.execute(text("SELECT id FROM product LIMIT 1")).scalar()
         if prod is None:
             p = Product(name="POS Product", sale_price_gs=5000)
-            s.add(p); s.flush()
+            s.add(p)
+            s.flush()
             prod = p.id
 
         r = apply_sale(

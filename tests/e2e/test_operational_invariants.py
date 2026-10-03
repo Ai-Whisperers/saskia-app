@@ -125,7 +125,10 @@ def test_concurrent_sales_reconcile_stock(client, session_factory):
 
     t1 = threading.Thread(target=_burst, args=("t1",))
     t2 = threading.Thread(target=_burst, args=("t2",))
-    t1.start(); t2.start(); t1.join(); t2.join()
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
 
     assert not errors, errors
     with session_factory() as s:
