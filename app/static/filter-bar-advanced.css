@@ -1,0 +1,180 @@
+/* Phase 25: Advanced filter bar component */
+
+.filter-bar-advanced {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--color-bg-elevated, #f8f8f8);
+    border: 1px solid var(--color-border, #e0e0e0);
+    border-radius: var(--radius, 8px);
+    margin-bottom: var(--space-3, 1rem);
+    flex-wrap: wrap;
+}
+
+.filter-bar-advanced__group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-bar-advanced__label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--color-muted, #666);
+    white-space: nowrap;
+}
+
+.filter-bar-advanced__search {
+    flex: 1;
+    min-width: 200px;
+    position: relative;
+}
+
+.filter-bar-advanced__search input {
+    width: 100%;
+    padding: 8px 12px 8px 36px;
+    border: 1px solid var(--color-border, #e0e0e0);
+    border-radius: var(--radius, 4px);
+    background: var(--color-bg, #fff);
+    color: var(--color-foreground, #333);
+    font-size: 0.95rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.filter-bar-advanced__search input:focus {
+    outline: none;
+    border-color: var(--color-primary, #4a90e2);
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.15);
+}
+
+.filter-bar-advanced__search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    color: var(--color-muted, #666);
+    pointer-events: none;
+}
+
+.filter-bar-advanced__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.filter-bar-advanced__count {
+    font-size: 0.85rem;
+    color: var(--color-muted, #666);
+    padding: 0 8px;
+    white-space: nowrap;
+}
+
+.filter-bar-advanced__clear {
+    font-size: 0.85rem;
+    color: var(--color-danger, #ef4444);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.15s ease;
+}
+
+.filter-bar-advanced__clear:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.filter-bar-advanced__clear:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.filter-bar-advanced__saved {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.filter-bar-advanced__saved select {
+    font-size: 0.85rem;
+    padding: 4px 8px;
+    border: 1px solid var(--color-border, #e0e0e0);
+    border-radius: 4px;
+    background: var(--color-bg, #fff);
+}
+
+/* Active filter count badge */
+.filter-bar-advanced__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--color-primary, #4a90e2);
+    color: white;
+    border-radius: 10px;
+    margin-left: 4px;
+}
+
+/* Dark mode */
+[data-theme="dark"] .filter-bar-advanced {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .filter-bar-advanced__search input {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="dark"] .filter-bar-advanced__label,
+[data-theme="dark"] .filter-bar-advanced__count,
+[data-theme="dark"] .filter-bar-advanced__search-icon {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+[data-theme="dark"] .filter-bar-advanced__saved select {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Print: hide filter bar */
+@media print {
+    .filter-bar-advanced {
+        display: none;
+    }
+}
+
+/* Mobile: stack vertically */
+@media (max-width: 768px) {
+    .filter-bar-advanced {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-bar-advanced__search {
+        width: 100%;
+    }
+
+    .filter-bar-advanced__actions {
+        margin-left: 0;
+        justify-content: space-between;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .filter-bar-advanced__search input,
+    .filter-bar-advanced__clear {
+        transition: none;
+    }
+}

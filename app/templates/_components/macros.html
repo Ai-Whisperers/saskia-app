@@ -346,3 +346,61 @@ Asunción local TZ.
 </nav>
 {%- endif -%}
 {%- endmacro %}
+
+{# Phase 25: Advanced filter bar
+   Usage:
+     {{ m.filter_bar_advanced(
+          search=search, search_placeholder="Buscar pedidos...",
+          search_target="#pedidos-tbody", results_count=count,
+          show_clear=true, clear_url="/pedidos") }}
+   Provides a unified search + filter UI for list pages. #}
+{% macro filter_bar_advanced(search="", search_placeholder="Buscar…", search_target=None,
+                              results_count=None, show_clear=True, clear_url=None,
+                              form_action=None, form_method="get", saved_filters=None) -%}
+<form class="filter-bar-advanced" method="{{ form_method }}"
+      {% if form_action %}action="{{ form_action }}"{% endif %}
+      role="search" aria-label="Filtros">
+  <div class="filter-bar-advanced__search">
+    <svg class="filter-bar-advanced__search-icon" aria-hidden="true">
+      <use href="#icon-search"/>
+    </svg>
+    <input type="search" name="q" value="{{ search }}"
+           placeholder="{{ search_placeholder }}"
+           aria-label="{{ search_placeholder }}"
+           {% if search_target %}data-search-highlight="{{ search_target }}"{% endif %}
+           autocomplete="off">
+  </div>
+
+  {% if saved_filters %}
+  <div class="filter-bar-advanced__saved">
+    <label class="filter-bar-advanced__label" for="saved-filter">Filtros guardados:</label>
+    <select id="saved-filter" name="saved">
+      <option value="">— Elegir —</option>
+      {% for sf in saved_filters %}
+      <option value="{{ sf.id }}">{{ sf.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+
+  <div class="filter-bar-advanced__actions">
+    {% if results_count is not none %}
+    <span class="filter-bar-advanced__count" aria-live="polite">
+      {{ results_count }} resultado{% if results_count != 1 %}s{% endif %}
+    </span>
+    {% endif %}
+
+    {% if show_clear and (search or saved_filters) %}
+    <a href="{{ clear_url or form_action or '#' }}"
+       class="filter-bar-advanced__clear" aria-label="Limpiar filtros">
+      <svg class="icon" aria-hidden="true" style="width:14px;height:14px;vertical-align:middle;margin-right:2px;">
+        <use href="#icon-x"/>
+      </svg>
+      Limpiar
+    </a>
+    {% endif %}
+
+    <button type="submit" class="btn btn-primary btn-sm">Aplicar</button>
+  </div>
+</form>
+{%- endmacro %}
