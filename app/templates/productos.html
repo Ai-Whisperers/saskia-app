@@ -160,7 +160,7 @@
     {% for p in products %}
     <tr data-id="{{ p.id }}" class="{% if p.is_dead %}row-dead{% endif %}">
       <td class="col-checkbox"><input type="checkbox" name="selected" value="{{ p.id }}" aria-label="Seleccionar {{ fmt.entity_name(p) }}"></td>
-      <td class="col-thumb">{% if p.image_url %}<img src="{{ p.image_url }}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;" alt="" loading="lazy">{% else %}<span style="display:inline-block;width:32px;height:32px;border-radius:4px;background:var(--color-surface-subtle);text-align:center;line-height:32px;color:var(--color-text-muted);font-size:10px;">—</span>{% endif %}</td>
+      <td class="col-thumb">{% if p.image_url %}<img src="{{ p.image_url }}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;" alt="" loading="lazy" decoding="async">{% else %}<span style="display:inline-block;width:32px;height:32px;border-radius:4px;background:var(--color-surface-subtle);text-align:center;line-height:32px;color:var(--color-text-muted);font-size:10px;">—</span>{% endif %}</td>
       <td class="col-name">
         <strong>{{ fmt.entity_name(p) }}</strong>
         {% if p.is_dead %}{{ ui.status_pill("Sin ventas", sev="warn") }}{% endif %}

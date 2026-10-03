@@ -42,7 +42,7 @@
   <div class="recipe-image-wrapper mb-3">
     <img src="{{ recipe.image_url }}"
          alt="{{ fmt.entity_name(recipe) }}"
-         loading="lazy"
+         loading="lazy" decoding="async"
          style="width:100%;max-height:250px;aspect-ratio:16/9;object-fit:cover;border-radius:var(--radius-lg);border:1px solid var(--color-border);">
   </div>
   {% endif %}

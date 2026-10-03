@@ -53,7 +53,7 @@
         <article class="menu-publico__card">
           {% if item.image_url %}
           <img class="menu-publico__thumb" src="{{ item.image_url }}" alt="{{ item.name }}"
-               loading="lazy" width="80" height="80">
+               loading="lazy" decoding="async" width="80" height="80">
           {% else %}
           <span class="menu-publico__thumb menu-publico__thumb--fallback" aria-hidden="true">
             <svg class="icon" style="width:32px;height:32px;color:var(--color-text-muted);">

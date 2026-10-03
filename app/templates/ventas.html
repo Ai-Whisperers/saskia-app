@@ -297,7 +297,7 @@
                 {% if not q.is_available %}disabled aria-disabled="true"{% endif %}
                 aria-label="{{ fmt.entity_name(q) }} — {{ m.gs(q.sale_price_gs) }}">
           {%- if q.image_url -%}
-            <img class="qs-thumb" src="{{ q.image_url }}" alt="" loading="lazy" width="44" height="44">
+            <img class="qs-thumb" src="{{ q.image_url }}" alt="" loading="lazy" decoding="async" width="44" height="44">
           {%- endif -%}
           <span class="qs-name">{{ fmt.entity_name(q) }}</span>
           <span class="price-gs qs-price">Gs. {{ m.gs(q.sale_price_gs) }}</span>

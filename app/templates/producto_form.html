@@ -133,7 +133,7 @@
     <div class="image-upload-area" id="image-upload-area">
       <div class="image-preview" id="image-preview">
         {% if product and product.image_url %}
-          <img src="{{ product.image_url }}" alt="Imagen del producto" id="image-preview-img">
+          <img src="{{ product.image_url }}" alt="Imagen del producto" id="image-preview-img" loading="lazy" decoding="async">
           <button type="button" class="btn btn-sm btn-danger-ghost" id="image-remove">Quitar imagen</button>
         {% else %}
           <div class="image-empty" id="image-empty">
@@ -488,7 +488,7 @@
       return;
     }
     preview.innerHTML =
-      '<img src="' + url + '" alt="Imagen del producto" id="image-preview-img">' +
+      '<img src="' + url + '" alt="Imagen del producto" id="image-preview-img" loading="lazy" decoding="async">' +
       '<button type="button" class="btn btn-sm btn-danger-ghost" id="image-remove">Quitar imagen</button>';
     wireRemove();
   }

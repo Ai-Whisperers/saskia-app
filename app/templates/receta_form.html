@@ -71,7 +71,7 @@
 <div style="margin-bottom:var(--space-4);display:flex;align-items:center;gap:var(--space-3);">
   <div style="position:relative;display:inline-block;" id="recipe-photo-zone">
     {% if recipe.image_url %}
-      <img src="{{ recipe.image_url }}" alt="{{ recipe.name }}" style="max-height:120px;border-radius:var(--radius);object-fit:cover;">
+      <img src="{{ recipe.image_url }}" alt="{{ recipe.name }}" style="max-height:120px;border-radius:var(--radius);object-fit:cover;" loading="lazy" decoding="async">
     {% else %}
       <div style="width:120px;height:120px;background:var(--color-surface-subtle);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:var(--color-text-muted);font-size:var(--text-sm);text-align:center;padding:1rem;">Sin foto</div>
     {% endif %}

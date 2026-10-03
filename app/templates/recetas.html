@@ -122,7 +122,7 @@
                 <button type="button" class="recipe-thumb" data-recipe-photo
                         data-src="{{ r.image_url }}" data-name="{{ fmt.entity_name(r) }}"
                         aria-label="Ver foto de {{ fmt.entity_name(r) }}">
-                  <img src="{{ r.image_url }}" alt="{{ fmt.entity_name(r) }}">
+                  <img src="{{ r.image_url }}" alt="{{ fmt.entity_name(r) }}" loading="lazy" decoding="async">
                 </button>
               {% else %}
                 <span class="muted" aria-label="Sin foto">—</span>
@@ -201,7 +201,7 @@
       </button>
     </div>
     <div class="modal-body" style="text-align:center;">
-      <img id="recipe-photo-img" src="" alt="" style="max-width:100%;height:auto;border-radius:var(--radius);">
+      <img id="recipe-photo-img" src="" alt="" style="max-width:100%;height:auto;border-radius:var(--radius);" loading="lazy" decoding="async">
     </div>
   </div>
 </dialog>
