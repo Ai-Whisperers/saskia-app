@@ -1392,63 +1392,129 @@ def cliente_update(
         validate_phone,
     )
 
+    # P3.1: server-side validation should re-render the form with
+    # preserved values, not raise HTTPException 400 (which loses input).
+    from fastapi import HTTPException as _HE
+
+    form_values = {
+        "name": name, "phone": phone, "email": email,
+        "cedula": cedula, "notes": notes,
+        "birthday": birthday, "how_found": how_found,
+        "preferred_channel": preferred_channel,
+        "marketing_consent": marketing_consent,
+        "invoice_name": invoice_name, "invoice_ruc": invoice_ruc,
+        "dietary_restriction": dietary_restriction,
+        "dietary_prefs_payload": dietary_prefs_payload,
+        "dietary_confirm_always": dietary_confirm_always,
+    }
+    form_error: str | None = None
+
+    def _re_render_edit(error_msg: str) -> object:
+        """Re-render the edit form with preserved values + the error."""
+        from app.rms.customer_dietary import load_profile
+        from app.rms.tagging.vocabulary import CANONICAL_DIETARY_TAGS
+        from app.rms.models import CustomerAddress, DeliveryZone, CustomerInvoiceProfile
+
+        # Re-load the data the GET route loads, so the template renders fully.
+        profile = load_profile(
+            customer.dietary_restrictions,
+            customer.dietary_preferences,
+            customer.dietary_confirm_always,
+        )
+        addresses = session.scalars(
+            select(CustomerAddress)
+            .where(CustomerAddress.customer_id == customer_id)
+            .order_by(CustomerAddress.is_default.desc(), CustomerAddress.id)
+        ).all()
+        zones = session.scalars(
+            select(DeliveryZone).where(DeliveryZone.is_active.is_(True)).order_by(DeliveryZone.position)
+        ).all()
+        invoice_profiles_list = session.scalars(
+            select(CustomerInvoiceProfile)
+            .where(CustomerInvoiceProfile.customer_id == customer_id)
+            .where(CustomerInvoiceProfile.is_active.is_(True))
+            .order_by(CustomerInvoiceProfile.is_default.desc(), CustomerInvoiceProfile.alias)
+        ).all()
+
+        return render(
+            request,
+            "cliente_editar.html",
+            {
+                "customer": customer,
+                "dietary_profile": profile,
+                "dietary_tag_options": sorted(CANONICAL_DIETARY_TAGS),
+                "addresses": addresses,
+                "zones": zones,
+                "zone_names": {z.id: z.name for z in zones},
+                "invoice_profiles": invoice_profiles_list,
+                "how_found_options": sorted(ALLOWED_HOW_FOUND),
+                "channel_options": sorted(ALLOWED_CHANNELS),
+                "form_values": form_values,
+                "form_error": error_msg,
+            },
+        )
+
     customer = session.get(Customer, customer_id)
     if customer is None:
         return RedirectResponse(url="/clientes", status_code=303)
-    customer.name = require_text(name, field="nombre", max_len=120)
-    customer.phone = validate_phone(phone)
-    customer.email = validate_email(email)
-    customer.cedula = validate_cedula(cedula)
-    customer.notes = optional_text(notes, max_len=2000)
 
-    # P3 dietary profile: restrictions (canonical tags, cleaned), ordered
-    # preferences (JSON), confirm-always flag.
-    from app.rms.customer_dietary import (
-        format_preferences,
-        format_restrictions,
-        parse_preferences,
-    )
-    from app.rms.tagging.vocabulary import CANONICAL_DIETARY_TAGS
-
-    clean_restrictions = [
-        r.strip() for r in dietary_restriction
-        if r.strip() in CANONICAL_DIETARY_TAGS
-    ]
-    customer.dietary_restrictions = format_restrictions(clean_restrictions) or None
+    # Run validations inside a single try-block so we re-render on any failure.
     try:
-        prefs = parse_preferences(dietary_prefs_payload)
-    except Exception:  # noqa: BLE001 — malformed JSON from a stale tab
-        prefs = []
-    customer.dietary_preferences = format_preferences(prefs) if prefs else None
-    customer.dietary_confirm_always = dietary_confirm_always == "1"
+        customer.name = require_text(name, field="nombre", max_len=120)
+        customer.phone = validate_phone(phone)
+        customer.email = validate_email(email)
+        customer.cedula = validate_cedula(cedula)
+        customer.notes = optional_text(notes, max_len=2000)
 
-    # P3 profile batch
-    from app.rms.validation import optional_choice
-    # Birthday: accept DD-MM or DD-MM-AAAA (as hinted in the form) and
-    # normalize to MM-DD for the dashboard's month-day comparison.
-    import re as _re
-    bd = (birthday or "").strip()
-    if bd:
-        m_bd = _re.match(r"^(\d{1,2})-(\d{1,2})(?:-(\d{4}))?$", bd)
-        if not m_bd:
-            from fastapi import HTTPException as _HE
-            raise _HE(status_code=400, detail="Cumpleaños inválido: usá DD-MM o DD-MM-AAAA")
-        dd, mm = int(m_bd.group(1)), int(m_bd.group(2))
-        if not (1 <= dd <= 31 and 1 <= mm <= 12):
-            from fastapi import HTTPException as _HE
-            raise _HE(status_code=400, detail="Cumpleaños inválido: día/mes fuera de rango")
-        customer.birthday = f"{mm:02d}-{dd:02d}"
-    else:
-        customer.birthday = None
-    customer.how_found = optional_choice(
-        how_found, ALLOWED_HOW_FOUND, field="how_found"
-    )
-    customer.preferred_channel = optional_choice(
-        preferred_channel, ALLOWED_CHANNELS, field="canal preferido"
-    )
-    customer.marketing_consent = marketing_consent == "1"
-    customer.invoice_name = optional_text(invoice_name, max_len=120)
-    customer.invoice_ruc = optional_text(invoice_ruc, max_len=20)
+        # P3 dietary profile: restrictions (canonical tags, cleaned), ordered
+        # preferences (JSON), confirm-always flag.
+        from app.rms.customer_dietary import (
+            format_preferences,
+            format_restrictions,
+            parse_preferences,
+        )
+        from app.rms.tagging.vocabulary import CANONICAL_DIETARY_TAGS
+
+        clean_restrictions = [
+            r.strip() for r in dietary_restriction
+            if r.strip() in CANONICAL_DIETARY_TAGS
+        ]
+        customer.dietary_restrictions = format_restrictions(clean_restrictions) or None
+        try:
+            prefs = parse_preferences(dietary_prefs_payload)
+        except Exception:  # noqa: BLE001 — malformed JSON from a stale tab
+            prefs = []
+        customer.dietary_preferences = format_preferences(prefs) if prefs else None
+        customer.dietary_confirm_always = dietary_confirm_always == "1"
+
+        # P3 profile batch
+        from app.rms.validation import optional_choice
+        # Birthday: accept DD-MM or DD-MM-AAAA (as hinted in the form) and
+        # normalize to MM-DD for the dashboard's month-day comparison.
+        import re as _re
+        bd = (birthday or "").strip()
+        if bd:
+            m_bd = _re.match(r"^(\d{1,2})-(\d{1,2})(?:-(\d{4}))?$", bd)
+            if not m_bd:
+                raise _HE(status_code=400, detail="Cumpleaños inválido: usá DD-MM o DD-MM-AAAA")
+            dd, mm = int(m_bd.group(1)), int(m_bd.group(2))
+            if not (1 <= dd <= 31 and 1 <= mm <= 12):
+                raise _HE(status_code=400, detail="Cumpleaños inválido: día/mes fuera de rango")
+            customer.birthday = f"{mm:02d}-{dd:02d}"
+        else:
+            customer.birthday = None
+        customer.how_found = optional_choice(
+            how_found, ALLOWED_HOW_FOUND, field="how_found"
+        )
+        customer.preferred_channel = optional_choice(
+            preferred_channel, ALLOWED_CHANNELS, field="canal preferido"
+        )
+        customer.marketing_consent = marketing_consent == "1"
+        customer.invoice_name = optional_text(invoice_name, max_len=120)
+        customer.invoice_ruc = optional_text(invoice_ruc, max_len=20)
+    except _HE as e:
+        # Re-render the form with the user's typed values + the error.
+        return _re_render_edit(str(e.detail))
     session.commit()
     record_audit(
         request,
