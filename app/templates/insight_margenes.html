@@ -3,19 +3,14 @@
 {% import "_components/macros.html" as m %}
 {% block title %}Márgenes{% endblock %}
 {% block content %}
-<h1>Deriva de márgenes</h1>
-<p class="text-muted">Precio de venta observado (primera vs última venta del período) contra el costo de receta actual. Márgenes que bajan = costo subiendo más rápido que el precio.</p>
+{{ ui.page_header(
+     title='Deriva de márgenes',
+     desc='Precio de venta observado (primera vs última venta del período) contra el costo de receta actual. Márgenes que bajan = costo subiendo más rápido que el precio.',
+     crumbs=[('Reportes', '/dashboard'), ('Márgenes', None)],
+     actions=m.insights_nav('margenes')
+   ) }}
 
-<form method="get" action="/reportes/margenes" style="display:flex;gap:.5rem;align-items:center;margin-bottom:var(--space-3);">
-  <label for="days-select" class="sr-only">Período</label>
-  <select name="days" id="days-select" class="filter-toolbar__select" style="height:36px;max-width:180px;" onchange="this.form.submit()">
-    <option value="7" {% if days == 7 %}selected{% endif %}>Últimos 7 días</option>
-    <option value="30" {% if days == 30 %}selected{% endif %}>Últimos 30 días</option>
-    <option value="90" {% if days == 90 %}selected{% endif %}>Últimos 90 días</option>
-    <option value="180" {% if days == 180 %}selected{% endif %}>Últimos 180 días</option>
-  </select>
-  <noscript><button type="submit" class="btn btn-primary">Filtrar</button></noscript>
-</form>
+{{ m.days_filter(options=[7, 30, 90, 180], current=days|int, name="days", id="margenes-days-filter", label="Período") }}
 
 <div class="form-actions mb-3">
   <span class="text-muted" style="font-size:var(--text-sm);">Ordenado: peor margen primero</span>

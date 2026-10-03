@@ -3,8 +3,12 @@
 {% import "_components/macros.html" as m %}
 {% block title %}Impacto de precio{% endblock %}
 {% block content %}
-<h1>Impacto: {{ impact.ingredient_name }}</h1>
-<p class="text-muted">{{ m.gs(old_price) }} → {{ m.gs(new_price) }} por unidad base.</p>
+{{ ui.page_header(
+     title='Impacto: ' ~ impact.ingredient_name,
+     desc=m.gs(old_price) ~ ' → ' ~ m.gs(new_price) ~ ' por unidad base.',
+     crumbs=[('Reportes', '/dashboard'), ('Impacto de precio', None)],
+     actions=m.insights_nav('price_impact')
+   ) }}
 
 <h2>Recetas afectadas ({{ impact.affected_recipes|length }})</h2>
 {% if impact.affected_recipes %}

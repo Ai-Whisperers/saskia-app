@@ -240,17 +240,25 @@
               data-testid="quick-receipt-{{ i.id }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           {% if _variants %}
-            <select name="variant_id"
-                    data-saskia-combo="variant-picker"
-                    aria-label="Variante recibida de {{ fmt.entity_name(i) }}"
-                    style="padding:var(--space-1) var(--space-2);border:1px solid var(--color-border);border-radius:4px;font-size:var(--text-xs);max-width:140px;">
-              {% for v in _variants %}
-                <option value="{{ v.id }}"{% if v.preferred %} selected{% endif %}
-                        title="{{ v.supplier_name or 'Sin proveedor' }} · {{ '{:,}'.format(v.purchase_price_gs|int) if v.purchase_price_gs else '—' }}">
-                  {{ v.package_size }}{{ v.package_unit }}{% if v.preferred %} ★{% endif %}
-                </option>
-              {% endfor %}
-            </select>
+            {%- set _preferred = (_variants|selectattr('preferred')|first) -%}
+            {%- set _v_src = [] -%}
+            {%- for v in _variants -%}
+              {%- set _label = v.package_size ~ v.package_unit -%}
+              {%- if v.preferred -%}
+                {%- set _label = _label ~ ' ★' -%}
+              {%- endif -%}
+              {%- set _ = _v_src.append({
+                   'value': v.id|string,
+                   'label': _label,
+                 }) -%}
+            {%- endfor -%}
+            <saskia-combo name="variant_id"
+                          value=((_preferred.id|string) if _preferred else '')
+                          src='{{ _v_src | tojson }}'
+                          placeholder="Paquete…"
+                          aria-label="Variante recibida de {{ fmt.entity_name(i) }}"
+                          style="padding:var(--space-1) var(--space-2);border:1px solid var(--color-border);border-radius:4px;font-size:var(--text-xs);max-width:140px;">
+            </saskia-combo>
           {% endif %}
           <input type="number" name="adjustment" min="0" max="99999" step="0.01"
                  required

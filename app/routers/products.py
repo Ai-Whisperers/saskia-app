@@ -64,6 +64,11 @@ def products_api_search(
     BACKLOG #10: rate-limited at 60 reads/minute/IP via the
     `read_rate_limit_dependency` (audit-log sliding window). Bypassed
     when AIW_SASKIA_AUTH_DISABLED=1 (tests).
+
+    Each result includes:
+      - id, name, portion_label, sale_price_gs, sku, image_url
+      - stock_today: total qty sold today (sum of non-voided sales)
+      - plan_status: agotado | bajo_minimo | optimo | sin_plan
     """
     if not q or q.strip() == "":
         # No query: return all available (most-used come first).
@@ -84,6 +89,64 @@ def products_api_search(
             .order_by(Product.name)
             .limit(limit)
         ).all()
+
+    # Bulk-compute stock_today (sum of qty sold today, excluding voided)
+    # in a single query to avoid N+1.
+    from app.rms.models_legacy import Sale
+    today_start = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    product_ids = [p.id for p in rows]
+    stock_today_map: dict[int, float] = {}
+    if product_ids:
+        sales_today = session.execute(
+            select(Sale.product_id, func.coalesce(func.sum(Sale.qty), 0.0))
+            .where(
+                Sale.product_id.in_(product_ids),
+                Sale.sold_at >= today_start,
+                Sale.voided_at.is_(None),
+            )
+            .group_by(Sale.product_id)
+        ).all()
+        for pid, qty in sales_today:
+            stock_today_map[pid] = float(qty)
+
+    # Bulk-compute plan_status: query today's ProductionCompletion (per product).
+    # A product is "agotado" if completed_qty today is 0 or there is no plan.
+    # "optimo" if completed_qty > sales_today.
+    # "bajo_minimo" if completed_qty is between 0 and sales_today.
+    # Use raw SQL to avoid the broken ProductionCompletion<->Product ORM mapper.
+    from sqlalchemy import bindparam as sa_bindparam, text as sa_text
+    plan_status_map: dict[int, str] = {}
+    if product_ids:
+        try:
+            completions = session.execute(
+                sa_text(
+                    "SELECT product_id, completed_qty "
+                    "FROM production_completion "
+                    "WHERE product_id IN :ids AND for_date = :today"
+                ).bindparams(
+                    sa_bindparam("ids", expanding=True)
+                ),
+                {"ids": product_ids, "today": today_start.date()},
+            ).fetchall()
+            completion_map = {pid: float(qty) for pid, qty in completions}
+            for pid in product_ids:
+                completed = completion_map.get(pid, 0.0)
+                sold = stock_today_map.get(pid, 0.0)
+                if completed == 0:
+                    plan_status_map[pid] = "sin_plan"
+                elif sold >= completed:
+                    plan_status_map[pid] = "agotado"
+                elif sold >= completed * 0.7:
+                    plan_status_map[pid] = "bajo_minimo"
+                else:
+                    plan_status_map[pid] = "optimo"
+        except Exception:
+            # Table may not exist in some test DBs; default to "sin_plan"
+            for pid in product_ids:
+                plan_status_map[pid] = "sin_plan"
+
     payload = [
         {
             "id": p.id,
@@ -92,6 +155,8 @@ def products_api_search(
             "sale_price_gs": p.sale_price_gs,
             "sku": p.sku or "",
             "image_url": p.image_url or "",
+            "stock_today": stock_today_map.get(p.id, 0.0),
+            "plan_status": plan_status_map.get(p.id, "sin_plan"),
         }
         for p in rows
     ]

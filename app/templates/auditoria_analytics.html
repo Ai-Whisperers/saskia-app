@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
 {% block title %}Analítica de auditoría{% endblock %}
 {% block content %}
 <h1>
@@ -14,18 +15,7 @@
   frecuencia, actividad por operador, y tasa de fallo de login.
 </p>
 
-<form method="get" action="/auditoria/analytics" class="filter-bar">
-  <label>
-    Período:
-    <select name="days" onchange="this.form.submit()">
-      {% for opt in [7, 14, 30, 60, 90] %}
-      <option value="{{ opt }}" {% if opt == days %}selected{% endif %}>
-        Últimos {{ opt }} días
-      </option>
-      {% endfor %}
-    </select>
-  </label>
-</form>
+{{ m.days_filter(options=[7, 14, 30, 60, 90], current=days|int, name="days", id="auditoria-analytics-days-filter", label="Período") }}
 
 <div class="kpi-row grid-4 mb-4">
   <div class="card kpi">

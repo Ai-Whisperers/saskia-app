@@ -54,6 +54,45 @@
     {% endif %}
   </div>
 
+  {# Phase 22: production progress strip (day view only).
+     Derives % complete, batches done, batches late from the plan_rows
+     already in context — no extra round-trip. #}
+  {%- if view == 'day' and plan_rows_view -%}
+    {%- set total_qty = 0 -%}
+    {%- set total_done = 0 -%}
+    {%- set total_late = 0 -%}
+    {%- set items_total = plan_rows_view|length -%}
+    {%- for r in plan_rows_view -%}
+      {%- set total_qty = total_qty + r.qty_to_produce -%}
+      {%- set total_done = total_done + r.completed_qty -%}
+      {%- if r.qty_to_produce > r.completed_qty and r.pending_pedido_qty > 0 -%}
+        {%- set total_late = total_late + 1 -%}
+      {%- endif -%}
+    {%- endfor -%}
+    {%- set pct = (100 * total_done / total_qty)|int if total_qty > 0 else 0 -%}
+    <div class="kpi-strip produccion-progress" role="group" aria-label="Progreso de producción del día">
+      <div class="kpi-strip__item kpi-strip__item--success" aria-label="Porcentaje completado">
+        <span class="kpi-strip__label">Completado</span>
+        <span class="kpi-strip__value">{{ pct }}%</span>
+        <div class="kpi-strip__bar" aria-hidden="true">
+          <div class="kpi-strip__bar-fill" style="width: {{ pct }}%;"></div>
+        </div>
+      </div>
+      <div class="kpi-strip__item" aria-label="Lotes planeados">
+        <span class="kpi-strip__label">Lotes</span>
+        <span class="kpi-strip__value">{{ items_total }}</span>
+      </div>
+      <div class="kpi-strip__item kpi-strip__item--info" aria-label="Unidades producidas">
+        <span class="kpi-strip__label">Unidades listas</span>
+        <span class="kpi-strip__value">{{ '%.0f'|format(total_done) }}</span>
+      </div>
+      <div class="kpi-strip__item kpi-strip__item--danger" aria-label="Lotes atrasados con pedidos pendientes">
+        <span class="kpi-strip__label">Atrasados con pedido</span>
+        <span class="kpi-strip__value">{{ total_late }}</span>
+      </div>
+    </div>
+  {%- endif -%}
+
   <nav class="view-tabs" aria-label="Cambiar vista" role="tablist"
        style="display:inline-flex; gap: var(--space-1); padding: 2px; background: var(--color-surface-subtle); border-radius: var(--radius);">
     <a href="/produccion?view=day" class="btn btn-sm {% if view == 'day' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'day' else 'false' }}">Día</a>
@@ -387,13 +426,21 @@
     <h3 style="margin: 0 0 var(--space-3) 0;">Horneado extra</h3>
     <div class="form-row" style="margin-bottom: var(--space-3);">
       <label for="adhoc-product" style="display: block; margin-bottom: var(--space-1); font-weight: bold;">Producto</label>
-      <select name="product_id" id="adhoc-product" required class="combo-input"
-              style="width: 100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;">
-        <option value="">— Elegí producto —</option>
-        {% for p in products_for_adhoc %}
-          <option value="{{ p.id }}">{{ p.name }}</option>
-        {% endfor %}
-      </select>
+      {# Phase 21: native <select> killed. The combo owns its own trigger
+         UI; on change it fills the form. #}
+      {%- set adhoc_src = [{'value': '', 'label': '— Elegí producto —'}] -%}
+      {%- for p in products_for_adhoc -%}
+        {%- set _ = adhoc_src.append({'value': p.id|string, 'label': p.name}) -%}
+      {%- endfor -%}
+      <saskia-combo id="adhoc-product"
+                    name="product_id"
+                    src='{{ adhoc_src | tojson }}'
+                    placeholder="— Elegí producto —"
+                    required
+                    aria-label="Producto para cierre ad-hoc"
+                    class="combo-input"
+                    style="width: 100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;">
+      </saskia-combo>
     </div>
     <div class="form-row" style="margin-bottom: var(--space-3);">
       <label for="adhoc-qty" style="display: block; margin-bottom: var(--space-1); font-weight: bold;">Cantidad horneada</label>

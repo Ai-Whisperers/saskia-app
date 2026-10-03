@@ -1,9 +1,14 @@
 {% extends "base.html" %}
 {% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
 {% block title %}Afinidades{% endblock %}
 {% block content %}
-<h1>Afinidades de productos</h1>
-<p class="text-muted">Productos que se venden juntos (misma canasta: ventas dentro de 2 horas). Útil para combos y para el pedido sugerido.</p>
+{{ ui.page_header(
+     title='Afinidades de productos',
+     desc='Productos que se venden juntos (misma canasta: ventas dentro de 2 horas). Útil para combos y para el pedido sugerido.',
+     crumbs=[('Reportes', '/dashboard'), ('Afinidades', None)],
+     actions=m.insights_nav('afinidades')
+   ) }}
 
 {% if pairs %}
 {{ ui.skeleton_section(id="insight-afinidades-table", variant="line", count=6, label="Cargando afinidades") }}

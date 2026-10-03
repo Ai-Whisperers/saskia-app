@@ -3,8 +3,12 @@
 {% import "_components/macros.html" as m %}
 {% block title %}Costo teórico vs real{% endblock %}
 {% block content %}
-<h1>Costo teórico vs real ({{ days }} días)</h1>
-<p class="text-muted">Teórico = ventas × costo de receta. Real = movimientos de stock + merma. La brecha = porciones extra, merma no registrada o faltantes.</p>
+{{ ui.page_header(
+     title='Costo teórico vs real (' ~ days ~ ' días)',
+     desc='Teórico = ventas × costo de receta. Real = movimientos de stock + merma. La brecha = porciones extra, merma no registrada o faltantes.',
+     crumbs=[('Reportes', '/dashboard'), ('Costo ↔ Real', None)],
+     actions=m.insights_nav('food_cost')
+   ) }}
 
 <div class="grid grid-4 mb-4" style="gap:var(--space-3);">
   <div class="metric-card"><div class="metric-label">Teórico</div><div class="metric-value">{{ m.gs(v.theoretical_gs) }}</div></div>

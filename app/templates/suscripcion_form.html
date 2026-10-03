@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
 {% block title %}{{ 'Editar' if mode == 'edit' else 'Nueva' }} suscripción{% endblock %}
 {% block content %}
 {{ ui.page_header(
@@ -21,15 +22,26 @@
 
   <div class="form-row">
     <label for="customer_id">Cliente *</label>
-    <select id="customer_id" name="customer_id" required {% if not customers %}disabled{% endif %}>
-      <option value="">— Seleccionar cliente —</option>
-      {% for c in customers %}
-      <option value="{{ c.id }}"
-              {% if (suscripcion and suscripcion.customer_id == c.id) or (mode == 'new' and loop.first and not customers|length) %}selected{% endif %}>
-        {{ fmt.entity_name(c) }}{% if c.phone %} — {{ c.phone }}{% endif %}
-      </option>
-      {% endfor %}
-    </select>
+    {# ── Phase 21: customer_id combo (static src from server) ── #}
+    {%- set cust_src = [{'value': '', 'label': '— Seleccionar cliente —'}] -%}
+    {%- for c in customers -%}
+      {%- set _ = cust_src.append({
+           'value': c.id|string,
+           'label': fmt.entity_name(c) ~ (' — ' ~ c.phone if c.phone else '')
+         }) -%}
+    {%- endfor -%}
+    {%- set cust_value = '' -%}
+    {%- if suscripcion -%}
+      {%- set cust_value = suscripcion.customer_id|string -%}
+    {%- elif mode == 'new' and customers and customers[0] -%}
+      {%- set cust_value = customers[0].id|string -%}
+    {%- endif -%}
+    {{ m.static_combo(name='customer_id',
+      options=cust_src,
+      value=cust_value,
+      placeholder='— Seleccionar cliente —',
+      id='customer_id',
+      required=(customers|length > 0)) }}
   </div>
 
   <div class="form-row">
@@ -42,41 +54,36 @@
   <div class="grid grid-2">
     <div class="form-row">
       <label for="cadence">Cadencia *</label>
-      <select id="cadence" name="cadence" required>
-        {% for value, label in cadences %}
-        <option value="{{ value }}"
-                {% if (suscripcion and suscripcion.cadence == value) or (mode == 'new' and value == 'semanal') %}selected{% endif %}>
-          {{ label }}
-        </option>
-        {% endfor %}
-      </select>
+      {{ m.static_combo(name='cadence',
+      options=[(value, label) for value, label in cadences],
+      value=(suscripcion.cadence if suscripcion else 'semanal'),
+      placeholder='—',
+      id='cadence',
+      required=True) }}
     </div>
 
     <div class="form-row">
       <label for="status">Estado</label>
-      <select id="status" name="status">
-        {% for value, label in statuses %}
-        <option value="{{ value }}"
-                {% if (suscripcion and suscripcion.status == value) or (mode == 'new' and value == 'activa') %}selected{% endif %}>
-          {{ label }}
-        </option>
-        {% endfor %}
-      </select>
+      {{ m.static_combo(name='status',
+      options=[(value, label) for value, label in statuses],
+      value=(suscripcion.status if suscripcion else 'activa'),
+      placeholder='—',
+      id='status') }}
     </div>
   </div>
 
   <div class="grid grid-2">
     <div class="form-row">
       <label for="preferred_day_of_week">Día preferido</label>
-      <select id="preferred_day_of_week" name="preferred_day_of_week">
-        <option value="">— Sin día fijo —</option>
-        {% for dow, label in dow_labels.items() %}
-        <option value="{{ dow }}"
-                {% if suscripcion and suscripcion.preferred_day_of_week == dow %}selected{% endif %}>
-          {{ label }}
-        </option>
-        {% endfor %}
-      </select>
+      {%- set dow_src = [{'value': '', 'label': '— Sin día fijo —'}] -%}
+    {%- for dow, label in dow_labels.items() -%}
+      {%- set _ = dow_src.append({'value': dow, 'label': label}) -%}
+    {%- endfor -%}
+    {{ m.static_combo(name='preferred_day_of_week',
+      options=dow_src,
+      value=(suscripcion.preferred_day_of_week if suscripcion else ''),
+      placeholder='— Sin día fijo —',
+      id='preferred_day_of_week') }}
     </div>
 
     <div class="form-row">

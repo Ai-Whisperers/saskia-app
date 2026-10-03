@@ -30,6 +30,13 @@ from app.seed.kyrian import (
     KYRIAN_CEDULA,
     KYRIAN_NAME,
 )
+from app.seed.catalog import (
+    seed_catalog,
+    INGREDIENTS_BY_SLUG,
+    RECIPES_BY_SLUG,
+    RECIPES_BY_ID,
+    PRODUCTS_BY_SLUG,
+)
 
 __all__ = [
     "KyrianBundle",
@@ -38,4 +45,9 @@ __all__ = [
     "KYRIAN_EMAIL",
     "KYRIAN_CEDULA",
     "KYRIAN_NAME",
+    "seed_catalog",
+    "INGREDIENTS_BY_SLUG",
+    "RECIPES_BY_SLUG",
+    "RECIPES_BY_ID",
+    "PRODUCTS_BY_SLUG",
 ]

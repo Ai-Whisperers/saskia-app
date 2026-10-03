@@ -3,8 +3,12 @@
 {% import "_components/macros.html" as m %}
 {% block title %}Stock — rotación y muerto{% endblock %}
 {% block content %}
-<h1>Rotación y stock muerto</h1>
-<p class="text-muted">Últimos {{ days }} días. El stock muerto es dinero en la estantería: insumos sin consumo en {{ dead_days }} días.</p>
+{{ ui.page_header(
+     title='Rotación y stock muerto',
+     desc='Últimos ' ~ days ~ ' días. El stock muerto es dinero en la estantería: insumos sin consumo en ' ~ dead_days ~ ' días.',
+     crumbs=[('Reportes', '/dashboard'), ('Rotación', None)],
+     actions=m.insights_nav('stock')
+   ) }}
 
 <h2 style="font-size:1.05rem;margin-top:var(--space-4);">💀 Stock muerto</h2>
 {% if dead %}

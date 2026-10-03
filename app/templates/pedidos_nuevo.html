@@ -11,6 +11,28 @@
      crumbs=[('Pedidos', '/pedidos'), ('Nuevo', None)]
    ) }}
 
+{# Phase 22: progress stepper so the cashier knows where they are in
+   the form. Anchors to the 4 major sections of the page. #}
+{%- set steps = [
+     ('cliente', 'Cliente'),
+     ('items',   'Ítems'),
+     ('entrega', 'Entrega'),
+     ('notas',   'Notas'),
+   ]
+-%}
+<nav class="pedido-stepper" aria-label="Pasos del pedido">
+  <ol class="pedido-stepper__list" role="list">
+    {%- for step_id, label in steps %}
+    <li class="pedido-stepper__item">
+      <a href="#section-{{ step_id }}" class="pedido-stepper__link" data-step="{{ step_id }}">
+        <span class="pedido-stepper__number" aria-hidden="true">{{ loop.index }}</span>
+        <span class="pedido-stepper__label">{{ label }}</span>
+      </a>
+    </li>
+    {%- endfor %}
+  </ol>
+</nav>
+
 <form method="post" action="/pedidos/nuevo" id="pedido-form" novalidate>
   {# T-2026-10-01: idempotency key generated client-side on first
      submit, then locked in. Backend deduplicates POSTs that arrive
@@ -25,8 +47,8 @@
      - typing a free-form name creates a "new" customer at submit time
      - works without JS (POSTs both customer_name + customer_id)
   #}
-  <div class="form-row">
-    <label for="customer_picker_input">Cliente</label>
+  <div class="form-row" id="section-cliente">
+  <label for="customer_picker_input">Cliente</label>
     {{ ui.combo_field(
       name='customer_id',
       placeholder='María González — escribí para buscar',
@@ -460,7 +482,7 @@
     </div>
 
     {# ── Phase 13: ventana preferida de entrega (not a delivery promise) ── #}
-    <fieldset class="ventana-preferida">
+    <fieldset class="ventana-preferida" id="section-entrega">
       <legend>Ventana de entrega</legend>
       <label class="radio-row">
         <input type="radio" name="delivery_preference" value="asap" checked>
@@ -495,19 +517,26 @@
     {# ── Phase 13: multi-profile facturación (RUC + Razón Social paired) ── #}
     <div class="form-row" id="invoice-profile-row">
       <label for="customer_invoice_profile_select">Perfil de facturación</label>
-      {# Server-render the dropdown with the customer's saved profiles
-         (default first, then by alias). The hidden field below carries
-         the chosen id; the cashier sees alias + RUC + razón social in
-         the dropdown. #}
-      <select id="customer_invoice_profile_select" name="customer_invoice_profile_select">
-        <option value="">— usar RUC/CI manual (a continuación) —</option>
-        {% for p in customer_prefill.get("invoice_profiles", []) %}
-        <option value="{{ p.id }}" data-ruc="{{ p.ruc_ci|e }}"
-                data-razon="{{ p.razon_social|e }}" data-tipo="{{ p.tipo_documento|e }}">
-          {{ p.label }} — {{ p.ruc_ci|e }}
-        </option>
-        {% endfor %}
-      </select>
+      {# Phase 21: native <select> killed — emit <saskia-combo> with
+         src= built from the customer's saved profiles. The combo
+         owns the trigger UI; the hidden field below still carries
+         the chosen id for the form submission. #}
+      {%- set invoice_src = [{'value': '', 'label': '— usar RUC/CI manual (a continuación) —'}] -%}
+      {%- for p in customer_prefill.get("invoice_profiles", []) -%}
+        {%- set _ = invoice_src.append({
+             'value': p.id|string,
+             'label': p.label ~ ' — ' ~ (p.ruc_ci or ''),
+             'ruc': p.ruc_ci or '',
+             'razon': p.razon_social or '',
+             'tipo': p.tipo_documento or '',
+           }) -%}
+      {%- endfor -%}
+      <saskia-combo id="customer_invoice_profile_select"
+                    name="customer_invoice_profile_select"
+                    src='{{ invoice_src | tojson }}'
+                    placeholder="Elegí un perfil o usá el RUC manual"
+                    aria-label="Perfil de facturación">
+      </saskia-combo>
       <input type="hidden" id="customer_invoice_profile_id" name="customer_invoice_profile_id" value="">
       <small class="muted">
         Cada cliente puede tener varios perfiles (Personal / Empresa / etc.).
@@ -562,7 +591,7 @@
     })();
   </script>
 
-  <h2 style="margin-top: var(--space-5);">
+  <h2 style="margin-top: var(--space-5);" id="section-items">
     <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
     Ítems del pedido
   </h2>
@@ -585,7 +614,8 @@
             placeholder='Escribí para buscar (muffin, factura, pan…)',
             endpoint='/productos/api/search/',
             value_field='id',
-            label_field='name'
+            label_field='name',
+            row_label='productRowLabel'
           ) }}
         </td>
         <td class="num">
@@ -619,7 +649,7 @@
     Agregar ítem
   </button>
 
-  <div class="form-actions mt-4">
+  <div class="form-actions mt-4" id="section-notas">
     <button type="submit" class="btn btn-primary" id="submit-btn">
       <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
       Crear pedido
@@ -627,6 +657,42 @@
     <a href="/pedidos" class="btn btn-ghost">Cancelar</a>
   </div>
 </form>
+
+{# Phase 22: stepper scroll-spy. Highlights the current step in the
+   nav as the operator scrolls through the form. #}
+<script>
+(function() {
+  var stepper = document.querySelector('.pedido-stepper');
+  if (!stepper) return;
+  var links = stepper.querySelectorAll('.pedido-stepper__link');
+  var sections = Array.from(links).map(function(link) {
+    return document.getElementById(link.getAttribute('href').slice(1));
+  }).filter(Boolean);
+
+  function setActive(idx) {
+    links.forEach(function(link, i) {
+      link.classList.toggle('pedido-stepper__link--active', i === idx);
+    });
+  }
+
+  // Highlight based on which section is most visible
+  function onScroll() {
+    if (!sections.length) return;
+    var scrollY = window.scrollY + 100;
+    var activeIdx = 0;
+    for (var i = 0; i < sections.length; i++) {
+      var rect = sections[i].getBoundingClientRect();
+      var top = rect.top + window.scrollY;
+      if (top <= scrollY) {
+        activeIdx = i;
+      }
+    }
+    setActive(activeIdx);
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+})();
+</script>
 
 <template id="line-row-template">
   <tr class="line-row">

@@ -73,13 +73,42 @@
     const name = row.name || row.label || '';
     const yieldQty = row.yield_qty || row.yield || '';
     const yieldUnit = row.yield_unit || row.unit || '';
-    const sub = yieldQty ? `Rinde ${yieldQty}${yieldUnit ? ' ' + yieldUnit : ''}` : '';
+    const image = row.image_url || '';
+    const portionsToday = typeof row.portions_today === 'number'
+      ? row.portions_today : null;
+    const batchesToday = typeof row.batches_today === 'number'
+      ? row.batches_today : null;
+
+    // Yield sub-line: "Rinde 12 und"
+    const sub = yieldQty
+      ? `Rinde ${yieldQty}${yieldUnit ? ' ' + yieldUnit : ''}`
+      : '';
+
+    // Portions-today badge (Phase 20 merma picker upgrade)
+    let portionBadge = '';
+    if (portionsToday !== null && portionsToday > 0) {
+      portionBadge = '<span class="combo-row-badge combo-row-stock is-ok">' +
+        escapeHtml(formatStock(portionsToday)) + ' hoy</span>';
+    } else if (batchesToday !== null && batchesToday === 0) {
+      portionBadge = '<span class="combo-row-badge combo-row-stock is-neutral">sin prod. hoy</span>';
+    }
+
+    // Image thumbnail (Phase 20)
+    const img = image
+      ? '<img class="combo-row-img" src="' + escapeHtml(image) +
+        '" alt="" loading="lazy" onerror="this.style.display=\'none\'">'
+      : '<span class="combo-row-img combo-row-img--placeholder" aria-hidden="true"></span>';
+
     return (
-      '<span class="combo-row combo-row--recipe"><span class="combo-row-main">' +
-      escapeHtml(name) +
+      '<span class="combo-row combo-row--recipe">' +
+      img +
+      '<span class="combo-row-body">' +
+      '<span class="combo-row-main">' + escapeHtml(name) + '</span>' +
       (sub
-          ? '</span><span class="combo-row-sub">' + escapeHtml(sub) + '</span>'
-          : '</span>') +
+          ? '<span class="combo-row-sub">' + escapeHtml(sub) + '</span>'
+          : '') +
+      '</span>' +
+      portionBadge +
       '</span>'
     );
   }
@@ -94,13 +123,50 @@
     if (!row) return '';
     const name = row.name || row.label || '';
     const price = row.sale_price_gs || row.price || '';
-    const sub = price ? formatGs(price) : '';
+    const image = row.image_url || '';
+    const stockToday = typeof row.stock_today === 'number' ? row.stock_today : null;
+    const planStatus = row.plan_status || 'sin_plan';
+
+    // Status badge (color-coded)
+    const statusMap = {
+      'optimo': { label: 'Óptimo', cls: 'is-ok' },
+      'bajo_minimo': { label: 'Bajo mín.', cls: 'is-low' },
+      'agotado': { label: 'Agotado', cls: 'is-out' },
+      'sin_plan': { label: 'Sin plan', cls: 'is-neutral' },
+    };
+    const status = statusMap[planStatus] || statusMap['sin_plan'];
+
+    // Stock badge: show if we have any signal
+    let stockBadge = '';
+    if (stockToday !== null && stockToday > 0) {
+      stockBadge = '<span class="combo-row-badge combo-row-stock is-ok">' +
+        escapeHtml(formatStock(stockToday)) + ' hoy</span>';
+    } else if (stockToday === 0) {
+      stockBadge = '<span class="combo-row-badge combo-row-stock is-neutral">0 hoy</span>';
+    }
+
+    // Image thumbnail
+    const img = image
+      ? '<img class="combo-row-img" src="' + escapeHtml(image) +
+        '" alt="" loading="lazy" onerror="this.style.display=\'none\'">'
+      : '<span class="combo-row-img combo-row-img--placeholder" aria-hidden="true"></span>';
+
+    // Price sub-line
+    const priceSub = price
+      ? '<span class="combo-row-sub">' + escapeHtml(formatGs(price)) + '</span>'
+      : '';
+
     return (
-      '<span class="combo-row"><span class="combo-row-main">' +
-      escapeHtml(name) +
-      (sub
-          ? '</span><span class="combo-row-sub">' + escapeHtml(sub) + '</span>'
-          : '</span>') +
+      '<span class="combo-row combo-row--product">' +
+      img +
+      '<span class="combo-row-body">' +
+      '<span class="combo-row-main">' + escapeHtml(name) + '</span>' +
+      priceSub +
+      '</span>' +
+      '<span class="combo-row-badge combo-row-status ' + status.cls + '">' +
+      escapeHtml(status.label) +
+      '</span>' +
+      stockBadge +
       '</span>'
     );
   }

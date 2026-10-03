@@ -34,6 +34,8 @@
     <span class="field-error" id="name-error" style="color:var(--color-danger);font-size:var(--text-xs);display:block;margin-top:.25rem;"></span>
   </div>
 
+  {# Phase 21: group related fields into a 2-column grid so the form
+     doesn't dominate the viewport. 12 form-rows in 1 col was 1700px tall. #}
   <div class="form-row">
     <label for="sku">SKU / Código de barras</label>
     <div style="display:flex;gap:var(--space-2);align-items:center;">
@@ -76,37 +78,39 @@
     <small class="muted">Se rellena automáticamente si elegís una receta.</small>
   </div>
 
-  <div class="form-row">
-    <label for="sale_price_gs">Precio de venta (Gs.)</label>
-    <div class="currency-input-wrap">
-      <input type="number" id="sale_price_gs" name="sale_price_gs" required step="1" min="0" inputmode="numeric" class="currency-input"
-             value="{{ request.query_params.get('sale_price_gs', product.sale_price_gs if product else '0') }}"
-             placeholder="8000"
-             hx-post="/api/validate/product" hx-trigger="blur" hx-include="closest form"
-             onhtmx:after-request="handleProductValidation(this, event)">
+  <div class="grid grid-3">
+    <div class="form-row">
+      <label for="sale_price_gs">Precio de venta (Gs.)</label>
+      <div class="currency-input-wrap">
+        <input type="number" id="sale_price_gs" name="sale_price_gs" required step="1" min="0" inputmode="numeric" class="currency-input"
+               value="{{ request.query_params.get('sale_price_gs', product.sale_price_gs if product else '0') }}"
+               placeholder="8000"
+               hx-post="/api/validate/product" hx-trigger="blur" hx-include="closest form"
+               onhtmx:after-request="handleProductValidation(this, event)">
+      </div>
+      <span class="field-error" id="sale_price_gs-error" style="color:var(--color-danger);font-size:var(--text-xs);display:block;margin-top:.25rem;"></span>
+      <small class="muted" id="price-suggestion"></small>
     </div>
-    <span class="field-error" id="sale_price_gs-error" style="color:var(--color-danger);font-size:var(--text-xs);display:block;margin-top:.25rem;"></span>
-    <small class="muted" id="price-suggestion"></small>
-  </div>
 
-  <div class="form-row">
-    <label for="mayorista_price_gs">Precio mayorista (Gs.)</label>
-    <div class="currency-input-wrap">
-      <input type="number" id="mayorista_price_gs" name="mayorista_price_gs" step="0.01" min="0" inputmode="numeric" class="currency-input"
-             value="{{ product.mayorista_price_gs if product and product.mayorista_price_gs is not none else '' }}"
-             placeholder="Mayorista (opcional)">
+    <div class="form-row">
+      <label for="mayorista_price_gs">Precio mayorista (Gs.)</label>
+      <div class="currency-input-wrap">
+        <input type="number" id="mayorista_price_gs" name="mayorista_price_gs" step="0.01" min="0" inputmode="numeric" class="currency-input"
+               value="{{ product.mayorista_price_gs if product and product.mayorista_price_gs is not none else '' }}"
+               placeholder="Mayorista (opcional)">
+      </div>
+      <small class="muted">Precio B2B para ventas por cantidad. Dejá en blanco si no aplica.</small>
     </div>
-    <small class="muted">Precio B2B para ventas por cantidad. Dejá en blanco si no aplica.</small>
-  </div>
 
-  <div class="form-row">
-    <label for="iva_rate">IVA%</label>
-    <select id="iva_rate" name="iva_rate" class="form-control" style="max-width:200px;">
-      <option value="10" {% if (product and product.iva_rate=='10') or (not product) %}selected{% endif %}>10%</option>
-      <option value="5" {% if product and product.iva_rate=='5' %}selected{% endif %}>5%</option>
-      <option value="0" {% if product and product.iva_rate=='0' %}selected{% endif %}>0%</option>
-      <option value="exento" {% if product and product.iva_rate=='exento' %}selected{% endif %}>Exento</option>
-    </select>
+    <div class="form-row">
+      <label for="iva_rate">IVA%</label>
+      {%- set iva_value = ('10' if not product else (product.iva_rate|string)) -%}
+      {{ m.static_combo(name='iva_rate',
+        options=[('10','10%'),('5','5%'),('0','0%'),('exento','Exento')],
+        value=iva_value,
+        placeholder='—',
+        id='iva_rate') }}
+    </div>
   </div>
 
   <div class="form-row">
@@ -183,16 +187,18 @@
         </label>
       </div>
       <div id="rspa-fields" style="display:{% if product and product.requires_rspa %}block{% else %}none{% endif %};">
-        <div class="form-row">
-          <label for="rspa_number">Nº Registro RSPA</label>
-          <input type="text" id="rspa_number" name="rspa_number" maxlength="30"
-                 value="{{ product.rspa_number if product and product.rspa_number else '' }}">
-        </div>
-        <div class="form-row">
-          <label for="rspa_expiry">Vencimiento RSPA</label>
-          <!-- lint_tier1-disable-next-line — regulatory date (RSPA expiry) -->
-          <input type="date" id="rspa_expiry" name="rspa_expiry"
-                 value="{{ product.rspa_expiry if product and product.rspa_expiry else '' }}">
+        <div class="grid grid-2">
+          <div class="form-row">
+            <label for="rspa_number">Nº Registro RSPA</label>
+            <input type="text" id="rspa_number" name="rspa_number" maxlength="30"
+                   value="{{ product.rspa_number if product and product.rspa_number else '' }}">
+          </div>
+          <div class="form-row">
+            <label for="rspa_expiry">Vencimiento RSPA</label>
+            <!-- lint_tier1-disable-next-line — regulatory date (RSPA expiry) -->
+            <input type="date" id="rspa_expiry" name="rspa_expiry"
+                   value="{{ product.rspa_expiry if product and product.rspa_expiry else '' }}">
+          </div>
         </div>
       </div>
     </div>

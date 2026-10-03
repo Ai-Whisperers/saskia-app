@@ -3,8 +3,12 @@
 {% import "_components/macros.html" as m %}
 {% block title %}Demanda prevista{% endblock %}
 {% block content %}
-<h1>Demanda prevista (mañana)</h1>
-<p class="text-muted">Promedio 56d × factor del día × tendencia 14d. Batches = unidades ÷ rinde de receta.</p>
+{{ ui.page_header(
+     title='Demanda prevista (mañana)',
+     desc='Promedio 56d × factor del día × tendencia 14d. Batches = unidades ÷ rinde de receta.',
+     crumbs=[('Reportes', '/dashboard'), ('Demanda', None)],
+     actions=m.insights_nav('demand')
+   ) }}
 
 {% if forecasts %}
 {{ ui.skeleton_section(id="insight-demand-table", variant="line", count=6, label="Cargando demanda") }}

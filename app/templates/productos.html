@@ -292,13 +292,14 @@
       <p id="bulk-edit-count" style="margin-bottom:var(--space-3);font-weight:600;"></p>
       <div class="form-row" style="margin-bottom:var(--space-3);">
         <label for="bulk-action-select">Acción</label>
-        <select id="bulk-action-select" class="form-select" style="height:var(--input-height);" onchange="toggleBulkValueField()">
-          <option value="">Elegí una acción…</option>
-          <option value="price_pct">Ajustar precio (%)</option>
-          <option value="set_availability_true">Marcar disponibles</option>
-          <option value="set_availability_false">Marcar no disponibles</option>
-          <option value="set_category">Cambiar categoría</option>
-        </select>
+        {{ m.static_combo(name='bulk_action',
+      options=[('','Elegí una acción…'),
+               ('price_pct','Ajustar precio (%)'),
+               ('set_availability_true','Marcar disponibles'),
+               ('set_availability_false','Marcar no disponibles'),
+               ('set_category','Cambiar categoría')],
+      placeholder='Elegí una acción…',
+      id='bulk-action-select') }}
       </div>
       <div class="form-row" id="bulk-value-row" style="margin-bottom:var(--space-3);display:none;">
         <label for="bulk-value-input" id="bulk-value-label">Valor</label>
@@ -407,7 +408,10 @@ function openBulkEditModal() {
 }
 
 function toggleBulkValueField() {
-  var action = document.getElementById('bulk-action-select').value;
+  // Phase 21: read from <saskia-combo> instead of native <select>.
+  var combo = document.getElementById('bulk-action-select');
+  var action = combo && typeof combo.getValue === 'function'
+    ? combo.getValue() : (combo ? combo.value : '');
   var valueRow = document.getElementById('bulk-value-row');
   var numInput = document.getElementById('bulk-value-input');
   var catInput = document.getElementById('bulk-category-input');
@@ -433,7 +437,10 @@ function toggleBulkValueField() {
 function submitBulkEdit() {
   var ids = getSelectedIds();
   if (ids.length === 0) return;
-  var action = document.getElementById('bulk-action-select').value;
+  // Phase 21: read from <saskia-combo> instead of native <select>.
+  var combo = document.getElementById('bulk-action-select');
+  var action = combo && typeof combo.getValue === 'function'
+    ? combo.getValue() : (combo ? combo.value : '');
   if (!action) {
     var err = document.getElementById('bulk-error');
     err.textContent = 'Elegí una acción.';
@@ -573,6 +580,15 @@ document.querySelectorAll('.mf-panel input[type=radio]').forEach(function(radio)
     if (form) form.submit();
   });
 });
+
+// Phase 21: wire <saskia-combo> change events to existing handlers
+document.addEventListener('DOMContentLoaded', function() {
+  var bulk = document.getElementById('bulk-action-select');
+  if (bulk) {
+    bulk.addEventListener('change', toggleBulkValueField);
+  }
+});
+
 </script>
 
 <style>

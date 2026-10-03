@@ -179,21 +179,27 @@
         <textarea id="notes" name="notes" rows="2" placeholder="Alias de transferencia, observaciones…"></textarea>
       </div>
 
-      {# ── Sticky footer with submit button ── #}
-      <div class="pos-sticky-footer" id="pos-sticky-footer">
-        <button type="button" class="btn btn-ghost" onclick="clearCart()">
-          <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
-          Cancelar
-        </button>
-        <a href="/ventas/historial" class="btn btn-ghost">
-          <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
-          Ver historial
-        </a>
-        <button type="submit" form="sale-form" class="btn btn-primary" id="sale-submit-btn" disabled>
-          <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-          <span id="submit-label">Registrá venta</span>
-          <span id="submit-count" style="display:none"></span>
-        </button>
+      {# ── Sticky footer with cart total + submit button ── #}
+      <div class="pos-sticky-footer" id="pos-sticky-footer" role="region" aria-label="Resumen de venta">
+        <div class="pos-sticky-footer__totals" aria-live="polite">
+          <span class="pos-sticky-footer__count" id="sticky-count">0 ítems</span>
+          <strong class="pos-sticky-footer__total" id="sticky-total">Gs. 0</strong>
+        </div>
+        <div class="pos-sticky-footer__actions">
+          <button type="button" class="btn btn-ghost" onclick="clearCart()">
+            <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
+            Cancelar
+          </button>
+          <a href="/ventas/historial" class="btn btn-ghost">
+            <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
+            Ver historial
+          </a>
+          <button type="submit" form="sale-form" class="btn btn-primary" id="sale-submit-btn" disabled>
+            <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+            <span id="submit-label">Registrá venta</span>
+            <span id="submit-count" style="display:none"></span>
+          </button>
+        </div>
       </div>
 
     </form>{# /sale-form #}
@@ -686,6 +692,11 @@
       cartItems.style.display  = 'none';
       cartEmpty.style.display  = '';
       cartCount.style.display  = 'none';
+      // Phase 22: reset sticky footer too
+      var stickyTotal0 = document.getElementById('sticky-total');
+      var stickyCount0 = document.getElementById('sticky-count');
+      if (stickyTotal0) stickyTotal0.textContent = 'Gs. 0';
+      if (stickyCount0) stickyCount0.textContent = '0 ítems';
       if (submitBtn)   submitBtn.disabled = true;
       if (submitLabel) submitLabel.textContent = 'Registrá venta';
       if (submitCount) submitCount.style.display = 'none';
@@ -747,6 +758,11 @@
       cartTotalEl.parentNode.insertBefore(discRow, cartTotalEl);
 
       cartTotalEl.textContent = fmtGs(total);
+      // Phase 22: also reflect in the sticky footer
+      var stickyTotal = document.getElementById('sticky-total');
+      var stickyCount = document.getElementById('sticky-count');
+      if (stickyTotal) stickyTotal.textContent = fmtGs(total);
+      if (stickyCount) stickyCount.textContent = n + (n === 1 ? ' ítem' : ' ítems');
       if (submitBtn)   submitBtn.disabled = false;
       if (submitLabel) submitLabel.textContent = 'Registrá venta';
       if (submitCount) { submitCount.textContent = ' (' + n + ' ítem' + (n !== 1 ? 's' : '') + ')'; submitCount.style.display = ''; }

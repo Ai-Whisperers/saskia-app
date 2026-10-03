@@ -107,6 +107,40 @@
 </div>
 
 {# ─────────────────────────────────────────────────────────────────────
+   KPI STRIP — at-a-glance counts the cashier wants on entry.
+   Uses the existing metric-card system so it visually matches the
+   inicio / dashboard. Each KPI links to the matching filter scope.
+   ───────────────────────────────────────────────────────────────────── #}
+{%- set kpi_pending = groups["hoy_manana"]|selectattr("status", "equalto", "pending")|list|length
+        + groups["esta_semana"]|selectattr("status", "equalto", "pending")|list|length
+        + groups["pendientes_viejos"]|selectattr("status", "equalto", "pending")|list|length -%}
+{%- set kpi_confirmed = groups["hoy_manana"]|selectattr("status", "equalto", "confirmed")|list|length
+        + groups["esta_semana"]|selectattr("status", "equalto", "confirmed")|list|length
+        + groups["pendientes_viejos"]|selectattr("status", "equalto", "confirmed")|list|length -%}
+{%- set kpi_ready = groups["hoy_manana"]|selectattr("status", "equalto", "ready")|list|length
+        + groups["esta_semana"]|selectattr("status", "equalto", "ready")|list|length
+        + groups["pendientes_viejos"]|selectattr("status", "equalto", "ready")|list|length -%}
+{%- set kpi_hoy = groups["hoy_manana"]|length -%}
+<div class="kpi-strip pedidos-kpi" role="group" aria-label="Resumen de pedidos">
+  <a href="/pedidos?status_filter=pendientes&search={{ search }}" class="kpi-strip__item kpi-strip__item--warn" aria-label="Ver pedidos pendientes">
+    <span class="kpi-strip__label">Pendientes</span>
+    <span class="kpi-strip__value">{{ kpi_pending }}</span>
+  </a>
+  <a href="/pedidos?status_filter=pendientes&search={{ search }}" class="kpi-strip__item kpi-strip__item--info" aria-label="Ver pedidos confirmados">
+    <span class="kpi-strip__label">Confirmados</span>
+    <span class="kpi-strip__value">{{ kpi_confirmed }}</span>
+  </a>
+  <a href="/pedidos?status_filter=pendientes&search={{ search }}" class="kpi-strip__item kpi-strip__item--success" aria-label="Ver pedidos listos">
+    <span class="kpi-strip__label">Listos</span>
+    <span class="kpi-strip__value">{{ kpi_ready }}</span>
+  </a>
+  <div class="kpi-strip__item kpi-strip__item--danger" aria-label="Pedidos para hoy o mañana">
+    <span class="kpi-strip__label">Hoy / Mañana</span>
+    <span class="kpi-strip__value">{{ kpi_hoy }}</span>
+  </div>
+</div>
+
+{# ─────────────────────────────────────────────────────────────────────
    MASTER DATA TABLE — single card, single table, single empty state.
    Rows carry `data-period=` so the period chips filter client-side
    without a server round-trip. The bulk-action toolbar below is shown

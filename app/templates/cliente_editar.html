@@ -49,21 +49,19 @@
         </div>
         <div>
           <label for="how_found">¿Cómo nos encontró?</label>
-          <select id="how_found" name="how_found" style="margin-top:4px;">
-            <option value="">—</option>
-            {% for opt in how_found_options %}
-            <option value="{{ opt }}" {% if customer.how_found == opt %}selected{% endif %}>{{ opt|title }}</option>
-            {% endfor %}
-          </select>
+          {{ m.static_combo(name='how_found',
+            options=[('', '—')] + [(o, o|title) for o in how_found_options],
+            value=customer.how_found or '',
+            placeholder='—',
+            id='how_found') }}
         </div>
         <div>
           <label for="preferred_channel">Canal preferido</label>
-          <select id="preferred_channel" name="preferred_channel" style="margin-top:4px;">
-            <option value="">—</option>
-            {% for opt in channel_options %}
-            <option value="{{ opt }}" {% if customer.preferred_channel == opt %}selected{% endif %}>{{ opt|title }}</option>
-            {% endfor %}
-          </select>
+          {{ m.static_combo(name='preferred_channel',
+            options=[('', '—')] + [(o, o|title) for o in channel_options],
+            value=customer.preferred_channel or '',
+            placeholder='—',
+            id='preferred_channel') }}
         </div>
         <div style="display:flex;align-items:end;">
           <label style="display:flex;align-items:center;gap:var(--space-2);padding-bottom:22px;">
@@ -126,13 +124,13 @@
         </div>
         <div>
           <label for="phone-kind">Tipo</label>
-          <select id="phone-kind" style="margin-top:4px;">
-            <option value="mobile">Móvil</option>
-            <option value="whatsapp">WhatsApp</option>
-            <option value="work">Trabajo</option>
-            <option value="home">Casa</option>
-            <option value="other">Otro</option>
-          </select>
+          <saskia-combo id="phone-kind" name="phone-kind" src='[
+            {"value":"mobile","label":"Móvil"},
+            {"value":"whatsapp","label":"WhatsApp"},
+            {"value":"work","label":"Trabajo"},
+            {"value":"home","label":"Casa"},
+            {"value":"other","label":"Otro"}
+          ]' value="mobile" placeholder="Tipo…" aria-label="Tipo de teléfono"></saskia-combo>
         </div>
         <div>
           <label for="phone-number">Número</label>
@@ -177,10 +175,10 @@
         </div>
         <div>
           <label for="addr-zone">Zona</label>
-          <select id="addr-zone" style="margin-top:4px;">
-            <option value="">—</option>
-            {% for z in zones %}<option value="{{ z.id }}">{{ z.name }}</option>{% endfor %}
-          </select>
+          <saskia-combo id="addr-zone" name="addr-zone" src='[
+            {"value":"","label":"—"}
+            {%- for z in zones %},{"value":"{{ z.id }}","label":"{{ z.name|e }}"}{% endfor -%}
+          ]' placeholder="Zona…" aria-label="Zona"></saskia-combo>
         </div>
         <button type="button" id="addr-add" class="btn btn-sm btn-secondary">+ Agregar</button>
       </div>

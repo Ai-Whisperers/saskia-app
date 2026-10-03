@@ -165,3 +165,72 @@ Asunción local TZ.
   {%- if is_cur %}<small aria-hidden="true">{% if current_dir == 'asc' %}▲{% else %}▼{% endif %}</small>{% endif -%}
 </a>
 {%- endmacro %}
+
+{# Date-range filter chip row. Replaces native <select> for "Últimos N días" pickers.
+   Pass `options` as a list of integers (e.g. [7, 30, 90, 180]) and `current` as
+   the currently active value. Renders a GET form with hidden params for any
+   extra filters (preserves them in the URL). Each chip is a submit button. -#}
+{% macro days_filter(options, current, name="days", extra_params="", label="Período", id="days-filter") -%}
+{%- set qp = request.query_params.multi_items() if request is defined else [] -%}
+<form method="get" class="filter-bar days-filter" id="{{ id }}" aria-label="{{ label }}">
+  <span class="days-filter__label">{{ label }}:</span>
+  <div class="days-filter__chips" role="group" aria-label="{{ label }}">
+    {%- for opt in options -%}
+    <button type="submit" name="{{ name }}" value="{{ opt }}"
+            class="chip{% if opt == current %} chip--active{% endif %}"
+            {% if opt == current %}aria-current="true"{% endif %}>
+      {{ opt }}d
+    </button>
+    {%- endfor -%}
+  </div>
+  {%- for k, v in qp if k != name -%}
+  <input type="hidden" name="{{ k }}" value="{{ v }}">
+  {%- endfor -%}
+  {% if extra_params %}{{ extra_params|safe }}{% endif %}
+</form>
+{%- endmacro %}
+
+{# Insights navigation: tabs between the 6 insight pages. Active page
+   gets aria-current=page and the active class. Use as page-header
+   action slot. #}
+{% macro insights_nav(current) -%}
+{%- set insights = [
+  ("demand",      "Demanda",      "/reportes/demanda"),
+  ("food_cost",   "Costo ↔ Real", "/reportes/food-cost"),
+  ("freshness",   "Frescura",     "/reportes/frescura"),
+  ("margenes",    "Márgenes",     "/reportes/margenes"),
+  ("price_impact","Impacto $",    "/reportes/impacto-precio"),
+  ("stock",       "Rotación",     "/reportes/stock"),
+  ("afinidades",  "Afinidades",   "/reportes/afinidades"),
+] -%}
+<nav class="insights-nav" aria-label="Insights">
+  {%- for key, label, href in insights %}
+  <a href="{{ href }}" class="insights-nav__link{% if key == current %} insights-nav__link--active{% endif %}"{% if key == current %} aria-current="page"{% endif %}>{{ label }}</a>
+  {%- endfor %}
+</nav>
+{%- endmacro %}
+
+{# Static-option combo. Pass options as list of (value, label) tuples
+   or a list of {value, label} dicts. Replaces banned native <select>
+   for fixed-enum pickers. The combo JS still owns the trigger button
+   + chevron + filter UX. #}
+{% macro static_combo(name, options, value=None, label=None, placeholder='Elegí…', id=None, required=False) -%}
+{%- set src = [] -%}
+{%- for opt in options -%}
+  {%- if opt is mapping -%}
+    {%- set _ = src.append({'value': opt.value, 'label': opt.label}) -%}
+  {%- else -%}
+    {%- set _ = src.append({'value': opt[0], 'label': opt[1]}) -%}
+  {%- endif -%}
+{%- endfor -%}
+<saskia-combo
+  {% if id %}id="{{ id }}"{% endif %}
+  name="{{ name }}"
+  {% if value is not none %}value="{{ value }}"{% endif %}
+  {% if label %}display="{{ label }}"{% endif %}
+  src='{{ src | tojson }}'
+  placeholder="{{ placeholder }}"
+  {% if required %}required{% endif %}
+  aria-label="{{ label or name }}">
+</saskia-combo>
+{%- endmacro %}

@@ -2,6 +2,7 @@
 {% block title %}Riesgos · Saskia RMS{% endblock %}
 {% block content %}
 {% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
 <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
   <div>
     <h1>⚠️ Registro de riesgos</h1>
@@ -35,14 +36,11 @@
     </div>
     <div class="form-row">
       <label for="risk-category">Categoría</label>
-      <select id="risk-category" name="category">
-        <option value="">—</option>
-        <option value="operacional">Operacional</option>
-        <option value="externo">Externo</option>
-        <option value="comercial">Comercial</option>
-        <option value="legal">Legal</option>
-        <option value="personal">Personal</option>
-      </select>
+      {{ m.static_combo(name='category',
+      options=[('','—'),('operacional','Operacional'),('externo','Externo'),
+               ('comercial','Comercial'),('legal','Legal'),('personal','Personal')],
+      placeholder='Categoría…',
+      id='risk-category') }}
     </div>
     <div class="form-row">
       <label for="risk-probability">Probabilidad (1-5)</label>

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
 {% block title %}Volatilidad de precios por proveedor{% endblock %}
 {% block content %}
 <h1>
@@ -12,18 +13,7 @@
   con precios erráticos que conviene renegociar.
 </p>
 
-<form method="get" action="/suppliers/volatility" class="filter-bar">
-  <label>
-    Período:
-    <select name="days" onchange="this.form.submit()">
-      {% for opt in [30, 60, 90, 180, 365] %}
-      <option value="{{ opt }}" {% if opt == days %}selected{% endif %}>
-        Últimos {{ opt }} días
-      </option>
-      {% endfor %}
-    </select>
-  </label>
-</form>
+{{ m.days_filter(options=[30, 60, 90, 180, 365], current=days|int, name="days", id="suppliers-volatility-days-filter", label="Período") }}
 
 {% if rows %}
 {{ ui.skeleton_section(id="supplier-volatility-table", variant="line", count=5, label="Cargando volatilidad") }}

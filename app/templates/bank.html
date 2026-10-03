@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
 {% block title %}Bank · Saskia RMS{% endblock %}
 {% block content %}
 {{ ui.page_header("🏦 Movimientos bancarios", desc="Dutch EUR (JGHM VAN DER POL) + PY Guaraní (SASKIA WEISS VANDER)")
@@ -206,11 +207,10 @@
         {% else %}
           <form method="post" action="/bank/{{ tx.id }}/reconcile" class="d-inline-flex">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <select name="with_type" class="form-select form-select-sm me-1" style="width:auto;">
-              <option value="pedido">Pedido</option>
-              <option value="gasto">Gasto</option>
-              <option value="ingreso">Ingreso</option>
-            </select>
+            {{ m.static_combo(name='with_type',
+      options=[('pedido','Pedido'),('gasto','Gasto'),('ingreso','Ingreso')],
+      placeholder='Tipo…',
+      id='bank-with-type') }}
             <input type="number" name="with_id" placeholder="ID" class="form-control form-control-sm me-1" style="width:80px;" min="1">
             <button type="submit" class="btn btn-sm btn-primary">✓</button>
           </form>

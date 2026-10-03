@@ -96,6 +96,24 @@
   /* Mispriced row highlight for vs-mercado */
   .mispriced-row { background: rgba(239, 68, 68, 0.08) !important; }
 
+
+  /* Phase 20: card row-actions */
+  .card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+    border-top: 1px solid #333;
+    padding-top: var(--space-2);
+    margin-top: var(--space-1);
+  }
+  .card-actions .btn-sm {
+    padding: .3em .6em;
+    font-size: .8rem;
+    min-height: 28px;
+  }
+  .card-actions .inline-form { display: inline-block; margin: 0; padding: 0; }
+
   /* JS clock blink on update */
   .clock-live { font-variant-numeric: tabular-nums; }
 </style>
@@ -112,6 +130,50 @@
 </div>
 
 <h1><svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>  Cocina — pedidos del día</h1>
+
+{# Phase 22 KPI strip: at-a-glance for the cashier / kitchen.
+   Counts derived from the already-grouped kanban columns (no extra
+   round-trip). Each KPI is also a quick filter that scrolls to and
+   highlights the matching pedidos. #}
+{%- set all_active = kanban_pending + kanban_confirmed + kanban_ready -%}
+{%- set stale = now -%}
+{%- set stale_count = 0 -%}
+{%- for col in [kanban_pending, kanban_confirmed, kanban_ready] -%}
+  {%- for p in col -%}
+    {%- if p.created_at and (now - p.created_at).total_seconds() > 3600 -%}
+      {%- set stale_count = stale_count + 1 -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endfor -%}
+<div class="kpi-strip board-kpi" role="group" aria-label="Resumen de pedidos activos">
+  <a href="#board-kanban" class="kpi-strip__item kpi-strip__item--info" aria-label="Ver pedidos pendientes">
+    <span class="kpi-strip__label">Pendientes</span>
+    <span class="kpi-strip__value">{{ kanban_pending|length }}</span>
+  </a>
+  <a href="#board-kanban" class="kpi-strip__item kpi-strip__item--info" aria-label="Ver pedidos confirmados">
+    <span class="kpi-strip__label">Confirmados</span>
+    <span class="kpi-strip__value">{{ kanban_confirmed|length }}</span>
+  </a>
+  <a href="#board-kanban" class="kpi-strip__item kpi-strip__item--success" aria-label="Ver pedidos listos">
+    <span class="kpi-strip__label">Listos</span>
+    <span class="kpi-strip__value">{{ kanban_ready|length }}</span>
+  </a>
+  <div class="kpi-strip__item kpi-strip__item--danger" aria-label="Pedidos con más de una hora de espera">
+    <span class="kpi-strip__label">Stale &gt; 1h</span>
+    <span class="kpi-strip__value">{{ stale_count }}</span>
+  </div>
+  <div class="kpi-strip__item" aria-label="Total de pedidos hoy">
+    <span class="kpi-strip__label">Total hoy</span>
+    <span class="kpi-strip__value">{{ pedidos_hoy|length }}</span>
+  </div>
+</div>
+
+{%- if stale_count > 0 -%}
+<div class="board-urgent-banner" role="alert" aria-live="assertive">
+  <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+  <span><strong>{{ stale_count }} pedido{{ 's' if stale_count != 1 else '' }}</strong> lleva{{ 'n' if stale_count != 1 else '' }} más de 1 hora sin avance. Empezá por los más antiguos.</span>
+</div>
+{%- endif -%}
 
 <div class="board-filters" role="group" aria-label="Filtrar pedidos">
   <button type="button" class="filter-btn active" data-filter="all">Todos</button>
@@ -260,6 +322,36 @@
     </ul>
     <div class="card-elapsed{% if elapsed_minutes > 60 %} long{% endif %}">
       ⏱ {{ elapsed_minutes }} min
+    </div>
+    {# Phase 20: row actions so the cashier can advance the order from
+       the board without opening the detail page. CSRF token + POST forms
+       to /pedidos/{id}/status. See saskia-page-flow-completion skill. #}
+    <div class="card-actions">
+      <a class="btn btn-sm" href="/pedidos/{{ p.id }}">Abrir</a>
+      {% if p.customer %}
+      <a class="btn btn-sm btn-ghost" href="/clientes/{{ p.customer.id }}">
+        👤 {{ p.customer.name|truncate(15) }}
+      </a>
+      {% endif %}
+      {% if p.status == 'pending' %}
+      <form method="post" action="/pedidos/{{ p.id }}/status" class="inline-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="new" value="confirmed">
+        <button type="submit" class="btn btn-sm btn-primary"
+                aria-label="Confirmar pedido #{{ p.id }}">
+          ✓ Confirmar
+        </button>
+      </form>
+      {% elif p.status == 'confirmed' %}
+      <form method="post" action="/pedidos/{{ p.id }}/status" class="inline-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="new" value="ready">
+        <button type="submit" class="btn btn-sm btn-ok"
+                aria-label="Marcar pedido #{{ p.id }} como listo">
+          🛎 Listo
+        </button>
+      </form>
+      {% endif %}
     </div>
   </div>
   {% endfor %}

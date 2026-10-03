@@ -210,6 +210,21 @@ def quick_seed(session_factory, scenario: str = "basic",
             result = seed_kyrian(s)
             out["kyrian"] = result
 
+        elif scenario == "with_catalog":
+            # Phase 17 — comprehensive catalog (ingredients + recipes + products).
+            # Idempotent. See app/seed/catalog.py.
+            from app.seed.catalog import seed_catalog
+            result = seed_catalog(s)
+            out["catalog"] = result
+
+        elif scenario == "with_full":
+            # Both catalog and Kyrian. Order: catalog first so Kyrian's
+            # product references (chipa, etc.) exist.
+            from app.seed.catalog import seed_catalog
+            from app.seed.kyrian import seed_kyrian
+            out["catalog"] = seed_catalog(s)
+            out["kyrian"] = seed_kyrian(s)
+
         s.commit()
     return out
 

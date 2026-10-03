@@ -301,3 +301,460 @@ saskia-combo.is-disabled .saskia-combo {
 saskia-combo[hidden] {
   display: none !important;
 }
+
+/* Product row (with image + status + stock badges) — T-2026-10-02 */
+.combo-row--product,
+saskia-combo .combo-row--product {
+  gap: var(--space-2, 0.5rem);
+}
+.combo-row-img,
+saskia-combo .combo-row-img {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md, 6px);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--color-surface-subtle, #f3f4f6);
+  border: 1px solid var(--color-border, #e5e7eb);
+}
+.combo-row-img--placeholder,
+saskia-combo .combo-row-img--placeholder {
+  display: inline-block;
+  background:
+    linear-gradient(135deg,
+      var(--color-surface-subtle, #f3f4f6) 25%,
+      transparent 25%,
+      transparent 50%,
+      var(--color-surface-subtle, #f3f4f6) 50%,
+      var(--color-surface-subtle, #f3f4f6) 75%,
+      transparent 75%,
+      transparent
+    );
+  background-size: 8px 8px;
+}
+.combo-row-body,
+saskia-combo .combo-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.combo-row-status,
+saskia-combo .combo-row-status {
+  font-size: var(--text-xs, 0.7rem);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill, 999px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.combo-row-status.is-ok,
+saskia-combo .combo-row-status.is-ok {
+  background: var(--color-success-soft, rgba(34, 197, 94, 0.12));
+  color: var(--color-success-fg, #166534);
+}
+.combo-row-status.is-low,
+saskia-combo .combo-row-status.is-low {
+  background: var(--color-warn-soft, rgba(245, 158, 11, 0.12));
+  color: var(--color-warn-fg, #92400e);
+}
+.combo-row-status.is-out,
+saskia-combo .combo-row-status.is-out {
+  background: var(--color-danger-soft, rgba(239, 68, 68, 0.12));
+  color: var(--color-danger-fg, #991b1b);
+}
+.combo-row-status.is-neutral,
+saskia-combo .combo-row-status.is-neutral {
+  background: var(--color-surface-subtle, #f3f4f6);
+  color: var(--color-text-muted, #6b7280);
+}
+.combo-row-stock.is-neutral,
+saskia-combo .combo-row-stock.is-neutral {
+  background: var(--color-surface-subtle, #f3f4f6);
+  color: var(--color-text-muted, #6b7280);
+}
+
+/* === Days filter chip row (Phase 20) === */
+.days-filter {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-3);
+}
+
+.days-filter__label {
+    font-size: var(--text-sm);
+    color: var(--muted-foreground);
+    font-weight: 500;
+}
+
+.days-filter__chips {
+    display: inline-flex;
+    gap: 4px;
+    background: var(--muted);
+    padding: 4px;
+    border-radius: var(--radius-md, 8px);
+}
+
+.days-filter .chip {
+    background: transparent;
+    color: var(--foreground);
+    border: 0;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    min-height: 32px;
+}
+
+.days-filter .chip:hover {
+    background: var(--accent);
+}
+
+.days-filter .chip--active {
+    background: var(--primary, #1f6feb);
+    color: white;
+}
+
+.days-filter .chip--active:hover {
+    background: var(--primary, #1f6feb);
+    filter: brightness(0.9);
+}
+
+.days-filter .chip:focus-visible {
+    outline: 2px solid var(--ring, #1f6feb);
+    outline-offset: 2px;
+}
+
+/* === Insights nav (Phase 21) === */
+.insights-nav {
+    display: inline-flex;
+    gap: 2px;
+    background: var(--muted);
+    padding: 4px;
+    border-radius: var(--radius-md, 8px);
+    flex-wrap: wrap;
+}
+
+.insights-nav__link {
+    padding: 6px 12px;
+    border-radius: 6px;
+    color: var(--foreground);
+    text-decoration: none;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.insights-nav__link:hover {
+    background: var(--accent);
+}
+
+.insights-nav__link--active {
+    background: var(--primary, #1f6feb);
+    color: white;
+}
+
+.insights-nav__link--active:hover {
+    background: var(--primary, #1f6feb);
+    filter: brightness(0.9);
+}
+
+.insights-nav__link:focus-visible {
+    outline: 2px solid var(--ring, #1f6feb);
+    outline-offset: 2px;
+}
+
+/* === KPI strip (Phase 21) === */
+.kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+.kpi-strip__item {
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-3) var(--space-4);
+    background: var(--card, #fff);
+    border: 1px solid var(--border);
+    border-left-width: 4px;
+    border-radius: var(--radius);
+    text-decoration: none;
+    color: var(--foreground);
+    min-height: 70px;
+    transition: background 0.1s, transform 0.1s;
+}
+
+a.kpi-strip__item:hover {
+    background: var(--accent);
+    transform: translateY(-1px);
+}
+
+a.kpi-strip__item:focus-visible {
+    outline: 2px solid var(--ring, #1f6feb);
+    outline-offset: 2px;
+}
+
+.kpi-strip__label {
+    font-size: var(--text-sm, 0.875rem);
+    color: var(--muted-foreground);
+    margin-bottom: var(--space-1);
+}
+
+.kpi-strip__value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.kpi-strip__item--warn { border-left-color: var(--color-warn, #c08400); }
+.kpi-strip__item--info { border-left-color: var(--color-info, #1f6feb); }
+.kpi-strip__item--success { border-left-color: var(--color-success, #16a34a); }
+.kpi-strip__item--danger { border-left-color: var(--color-danger, #dc2626); }
+
+/* === Pedido detail split-pane (Phase 21) === */
+.pedido-split {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+    gap: var(--space-4);
+    align-items: start;
+}
+
+.pedido-split__data {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-width: 0;
+}
+
+.pedido-split__actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    position: sticky;
+    top: var(--space-3);
+    max-height: calc(100vh - var(--space-4));
+    overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+    .pedido-split {
+        grid-template-columns: 1fr;
+    }
+    .pedido-split__actions {
+        position: static;
+        max-height: none;
+    }
+}
+
+/* === Pedido board urgent banner (Phase 22) === */
+.board-urgent-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    background: var(--color-danger, #dc2626);
+    color: white;
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius);
+    margin-bottom: var(--space-4);
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2);
+}
+
+.board-urgent-banner svg {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+}
+
+.board-kpi {
+    margin-bottom: var(--space-3);
+}
+
+/* === KPI strip progress bar (Phase 22) === */
+.kpi-strip__bar {
+    width: 100%;
+    height: 6px;
+    background: var(--muted, #e5e7eb);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: var(--space-1);
+}
+
+.kpi-strip__bar-fill {
+    height: 100%;
+    background: var(--color-success, #16a34a);
+    transition: width 0.3s ease-out;
+}
+
+.kpi-strip__item--success .kpi-strip__bar-fill { background: var(--color-success, #16a34a); }
+.kpi-strip__item--danger .kpi-strip__bar-fill { background: var(--color-danger, #dc2626); }
+.kpi-strip__item--info .kpi-strip__bar-fill { background: var(--color-info, #1f6feb); }
+.kpi-strip__item--warn .kpi-strip__bar-fill { background: var(--color-warn, #c08400); }
+
+/* === POS sticky footer (Phase 22) === */
+.pos-sticky-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.pos-sticky-footer__totals {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.pos-sticky-footer__count {
+    font-size: var(--text-xs, 0.75rem);
+    color: var(--muted-foreground);
+}
+
+.pos-sticky-footer__total {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--foreground);
+}
+
+.pos-sticky-footer__actions {
+    display: inline-flex;
+    gap: var(--space-2);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 600px) {
+    .pos-sticky-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .pos-sticky-footer__totals {
+        align-items: center;
+        text-align: center;
+    }
+    .pos-sticky-footer__actions {
+        justify-content: center;
+    }
+}
+
+/* === Pedido form stepper (Phase 22) === */
+.pedido-stepper {
+    background: var(--card, #fff);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--space-3);
+    margin-bottom: var(--space-4);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.pedido-stepper__list {
+    display: flex;
+    gap: var(--space-2);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    overflow-x: auto;
+}
+
+.pedido-stepper__item {
+    flex: 1;
+    min-width: 0;
+}
+
+.pedido-stepper__link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius);
+    color: var(--muted-foreground);
+    text-decoration: none;
+    transition: background 0.1s;
+}
+
+.pedido-stepper__link:hover {
+    background: var(--accent);
+    color: var(--foreground);
+}
+
+.pedido-stepper__link--active {
+    background: var(--primary, #1f6feb);
+    color: white;
+}
+
+.pedido-stepper__number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--muted, #e5e7eb);
+    color: var(--foreground);
+    font-weight: 600;
+    font-size: var(--text-sm);
+    flex-shrink: 0;
+}
+
+.pedido-stepper__link--active .pedido-stepper__number {
+    background: white;
+    color: var(--primary, #1f6feb);
+}
+
+.pedido-stepper__label {
+    font-size: var(--text-sm);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 600px) {
+    .pedido-stepper__label {
+        display: none;
+    }
+    .pedido-stepper__link {
+        justify-content: center;
+    }
+}
+
+/* === EOD progress bar (Phase 22) === */
+.eod-progress {
+    background: var(--card, #fff);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--space-3);
+    margin-bottom: var(--space-3);
+}
+.eod-progress__label {
+    font-size: var(--text-sm);
+    color: var(--muted-foreground);
+    margin-bottom: var(--space-2);
+    display: flex;
+    align-items: center;
+}
+.eod-progress__bar {
+    width: 100%;
+    height: 8px;
+    background: var(--muted, #e5e7eb);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.eod-progress__fill {
+    height: 100%;
+    background: var(--success, #16a34a);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
