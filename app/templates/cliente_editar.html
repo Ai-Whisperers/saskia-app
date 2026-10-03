@@ -311,10 +311,21 @@
        data-confirm-body="Los cambios sin guardar se perderán."
        data-confirm-ok="Descartar"
        data-confirm-danger="false">Descartar cambios</a>
-    <a href="/clientes/{{ customer.id }}" class="btn btn-ghost">Cancelar</a>
-    <button type="submit" class="btn btn-primary">
+    {# P3.7: split save into 'back to detail' (default) and 'keep editing'.
+       A <input type='hidden' name='redirect_to'> is filled in by the button
+       the operator clicks; the server reads it after a successful save. #}
+    <input type="hidden" name="redirect_to" id="redirect-to" value="/clientes/{{ customer.id }}">
+    <button type="submit" name="intent" value="back"
+            class="btn btn-primary" data-save-back
+            onclick="document.getElementById('redirect-to').value='/clientes/{{ customer.id }}';">
       <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-      Guardar cambios
+      Guardar y volver al detalle
+    </button>
+    <button type="submit" name="intent" value="stay"
+            class="btn btn-secondary" data-save-stay
+            onclick="document.getElementById('redirect-to').value='/clientes/{{ customer.id }}/editar';">
+      <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+      Guardar y seguir editando
     </button>
   </div>
 </form>

@@ -1525,9 +1525,15 @@ def cliente_update(
         detail={"name": customer.name},
     )
     session.commit()
-    return RedirectResponse(
-        url=f"/clientes/{customer_id}?flash=Cliente+actualizado", status_code=303
-    )
+    # P3.7: respect the operator's chosen redirect target
+    # (default = back to detail; "stay" = back to edit).
+    intent = (str(form.get("intent") or "back")).strip()
+    redirect_to = (str(form.get("redirect_to") or "")).strip()
+    if intent == "stay" and redirect_to.startswith(f"/clientes/{customer_id}/editar"):
+        url = f"/clientes/{customer_id}/editar?flash=Cliente+actualizado"
+    else:
+        url = f"/clientes/{customer_id}?flash=Cliente+actualizado"
+    return RedirectResponse(url=url, status_code=303)
 
 
 @router.post("/bulk-eliminar")
