@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import pytest
 from sqlalchemy import text
 
 
 def _make_sale(session_factory, *, with_stock_moves=False):
     """Insert a product + sale via the test factories; returns the sale id."""
-    from tests.factories import make_ingredient, make_product, make_recipe, make_sale
     from app.rms.models import StockMovement
+    from tests.factories import make_ingredient, make_product, make_recipe, make_sale
 
     sid = None
     with session_factory() as s:

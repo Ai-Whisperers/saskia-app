@@ -3,7 +3,6 @@
 import pytest
 
 
-
 def test_product_api_search_returns_matches(qseed, authed_client):
     """GET /productos/api/search?q=muffin returns matching products."""
     data = qseed("basic")

@@ -544,8 +544,9 @@ def _waste_per_ingredient_rows(
     Helper for `waste_roi_by_ingredient` (joins on Ingredient for
     the unit + name) and the trend helpers.
     """
+    from sqlalchemy import select
+
     from app.rms.models import Ingredient, WasteLog
-    from sqlalchemy import func, select
 
     rows = session.execute(
         select(
@@ -630,7 +631,7 @@ def waste_vs_purchase_trend(
     with zero waste are NOT included (lets the chart render gaps
     cleanly).
     """
-    from sqlalchemy import func, select
+    from sqlalchemy import select
 
     from app.rms.config import ASUNCION_TZ
     from app.rms.models import WasteLog

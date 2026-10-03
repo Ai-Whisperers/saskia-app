@@ -25,8 +25,6 @@ Idempotent: re-running does nothing once all tags are consistent.
 
 from typing import Any
 
-from sqlalchemy import text
-
 from app.rms.db import _bump_schema_version
 
 

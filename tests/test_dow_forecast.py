@@ -199,9 +199,9 @@ def test_dow_forecast_12_week_window_smooths_recent_shift(session_factory, qseed
 
 def test_dow_forecast_does_not_count_voided_sales(session_factory, qseed):
     """Voided sales should not contribute to the DOW forecast."""
-    from app.rms.production import forecast_sales
     from app.rms.db import safe_commit
     from app.rms.models import Sale
+    from app.rms.production import forecast_sales
 
     data = qseed("basic")
     prod_id = data["product"].id

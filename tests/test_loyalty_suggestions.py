@@ -552,6 +552,7 @@ def test_cliente_api_with_lapsed_bronze_returns_vuelve_pronto(
 ):
     """End-to-end: a BRONZE customer with last sale 30 days ago → 'vuelve_pronto'."""
     from datetime import datetime, timedelta, timezone
+
     from app.rms.customers import ensure_customer
     from app.rms.models import Product, Sale
 

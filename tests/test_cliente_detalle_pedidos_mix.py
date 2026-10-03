@@ -14,9 +14,6 @@ regularly?"
 
 from __future__ import annotations
 
-import datetime as _dt
-from decimal import Decimal
-
 
 def _kyrian_customer_id(session_factory):
     """Return the Kyrian customer id from the with_kyrian_full seed."""

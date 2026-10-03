@@ -36,7 +36,6 @@ from app.rms.plan_accuracy import (
     ProductAccuracySummary,
 )
 
-
 # --- strategies ---
 
 # Non-negative floats, including 0 and small denormals.

@@ -382,8 +382,9 @@ def supplier_volatility(
     """
     from datetime import timezone
 
+    from sqlalchemy import select
+
     from app.rms.models import IngredientPriceEvent, Supplier
-    from sqlalchemy import func, select
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=since_days)
     now_utc = datetime.now(timezone.utc)

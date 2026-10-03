@@ -2,10 +2,8 @@
 from __future__ import annotations
 
 import json
-import re
 import subprocess
 import sys
-import time
 from collections import defaultdict
 from pathlib import Path
 

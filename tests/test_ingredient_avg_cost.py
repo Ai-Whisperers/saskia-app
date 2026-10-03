@@ -21,8 +21,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import inspect, select
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import inspect
 
 
 @pytest.fixture
@@ -60,7 +59,6 @@ def test_avg_cost_gs_column_exists(fresh_db):
 
 def test_avg_cost_gs_defaults_to_null_on_new_insert(session_factory):
     """A new Ingredient without avg_cost_gs should default to NULL."""
-    from app.rms.models import Ingredient
     s = session_factory()
     try:
         ing = _seed_ingredient(s, name="harina-null", avg_cost_gs=None)
@@ -166,8 +164,8 @@ def test_record_waste_preserves_avg_when_purchase_price_changes(session_factory)
 def test_analytics_falls_back_to_purchase_price_when_avg_is_null(session_factory):
     """When avg_cost_gs is NULL (legacy data, fresh install), analytics
     should fall back to purchase_price_gs so behaviour doesn't change."""
-    from app.rms.models import Ingredient, Product, Recipe, RecipeLine
     from app.rms.analytics import _quick_cost_estimate
+    from app.rms.models import Product, Recipe, RecipeLine
 
     s = session_factory()
     try:

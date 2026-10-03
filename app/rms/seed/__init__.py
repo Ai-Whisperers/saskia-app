@@ -19,13 +19,13 @@ from app.rms.seed.demo import (
 )
 
 __all__ = [
-    "competitor_prices",
-    "competitor_seed",
-    "competitor_shoppings",
     "DEMO_USER_PASSWORD",
     "DEMO_USER_USERNAME",
     "INGREDIENTS",
     "PRODUCTS",
     "RECIPES",
+    "competitor_prices",
+    "competitor_seed",
+    "competitor_shoppings",
     "seed_demo_data",
 ]

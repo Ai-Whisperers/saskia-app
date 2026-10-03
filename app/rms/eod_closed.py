@@ -37,6 +37,7 @@ from sqlalchemy.orm import Session
 from app.rms.models import AppMeta
 from app.rms.workflow import fresh_eod_checklist
 
+
 # Default EOD clock — Asuncion (UTC-4 year-round). Same TZ used by eod.py.
 def _today_local() -> date:
     from datetime import datetime
@@ -137,4 +138,4 @@ def assert_day_open_or_raise(
     )
 
 
-__all__ = ["eod_is_day_closed", "eod_get_open_days", "assert_day_open_or_raise", "EODClosedError"]
+__all__ = ["EODClosedError", "assert_day_open_or_raise", "eod_get_open_days", "eod_is_day_closed"]

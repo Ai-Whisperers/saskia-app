@@ -16,8 +16,8 @@ from app.rms.config import ASUNCION_TZ
 
 
 def _kyrian_id(session_factory, qseed):
-    from app.seed.kyrian import KYRIAN_PHONE
     from app.rms.models import Customer
+    from app.seed.kyrian import KYRIAN_PHONE
     qseed("with_kyrian_full")
     with session_factory() as s:
         return s.query(Customer).filter_by(phone=KYRIAN_PHONE).one().id
@@ -64,8 +64,8 @@ def test_inicio_empty_state_for_fresh_db(client):
 def test_inicio_card_displays_at_most_5(client, qseed, session_factory):
     """The card limits to top 5 (the 'regulars_count_total' shows full count)."""
     # Add 7 extra customers with 3+ sales each so we exceed 5
-    from app.rms.models import Customer, Product
     from app.rms.costing import apply_sale
+    from app.rms.models import Customer, Product
 
     qseed("with_kyrian_full")
     with session_factory() as s:

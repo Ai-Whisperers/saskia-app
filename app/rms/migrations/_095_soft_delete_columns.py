@@ -17,19 +17,16 @@ Implementation strategy:
 """
 
 from datetime import datetime
-from datetime import timezone
 from typing import Any, Optional
 
 from sqlalchemy import DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.rms.models.common import SoftDeletable
-
 # Who archived the record - text to support both Supabase UUID and local int
 ArchivedByUserId: Mapped[Optional[str]] = mapped_column(
     String(64), nullable=True, default=None
 )
-# When archived - UTC timestamp for consistency  
+# When archived - UTC timestamp for consistency
 ArchivedAt: Mapped[Optional[datetime]] = mapped_column(
     DateTime(timezone=True), nullable=True, default=None, index=True
 )

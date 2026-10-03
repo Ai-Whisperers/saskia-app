@@ -15,8 +15,6 @@ giving some money back" (partial, with optional restock).
 """
 from __future__ import annotations
 
-from typing import Annotated
-
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from loguru import logger
@@ -26,8 +24,8 @@ from sqlalchemy.orm import Session
 from app.auth import current_user_id, require_login_or_disabled
 from app.rms.dependencies import get_session
 from app.rms.refunds import (
-    RefundError,
     VALID_TARGET_TYPES,
+    RefundError,
     create_refund,
     get_refund,
     list_refunds_for,

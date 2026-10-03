@@ -33,7 +33,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, event, select as sa_select, text
+from sqlalchemy import select as sa_select
+from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -114,7 +115,7 @@ def _make_sale(session, *, total_gs: int = 10_000, payment_method: str = "efecti
 
 def test_refund_cap_rejects_when_exceeded(refund_session):
     """sum(amount_gs) > target_amount_gs must raise (DB or service)."""
-    from app.rms.refunds import create_refund, RefundError
+    from app.rms.refunds import RefundError, create_refund
 
     sale = _make_sale(refund_session, total_gs=10_000)
 
@@ -153,8 +154,9 @@ def test_refund_partial_then_full_works(refund_session):
 def test_refund_db_trigger_catches_bypass(refund_engine):
     """Direct INSERT bypassing the service layer must also fail via DB trigger."""
     from datetime import date
+
     from sqlalchemy.exc import IntegrityError
-    from app.rms.models_legacy import Sale
+
     SessionLocal = sessionmaker(bind=refund_engine)
     s = SessionLocal()
     sale = _make_sale(s, total_gs=1_000)
@@ -184,7 +186,7 @@ def test_refund_db_trigger_catches_bypass(refund_engine):
 
 def test_refund_voided_sale_rejected(refund_session):
     """A sale with voided_at set cannot be refunded (voids are separate from refunds)."""
-    from app.rms.refunds import create_refund, RefundError
+    from app.rms.refunds import RefundError, create_refund
 
     sale = _make_sale(refund_session, total_gs=5_000, voided=True)
     with pytest.raises(RefundError) as exc_info:
@@ -196,7 +198,7 @@ def test_refund_voided_sale_rejected(refund_session):
 
 
 def test_refund_unknown_sale_rejected(refund_session):
-    from app.rms.refunds import create_refund, RefundError
+    from app.rms.refunds import RefundError, create_refund
 
     with pytest.raises(RefundError) as exc_info:
         create_refund(refund_session, "sale", 99_999_999, 1_000, recorded_by="op")
@@ -204,7 +206,7 @@ def test_refund_unknown_sale_rejected(refund_session):
 
 
 def test_refund_invalid_target_type_rejected(refund_session):
-    from app.rms.refunds import create_refund, RefundError
+    from app.rms.refunds import RefundError, create_refund
 
     with pytest.raises(RefundError) as exc_info:
         create_refund(refund_session, "totally_not_valid", 1, 1_000, recorded_by="op")
@@ -216,8 +218,8 @@ def test_refund_invalid_target_type_rejected(refund_session):
 
 def test_refund_amount_must_be_positive(refund_session):
     """amount_gs <= 0 must raise (caught by either service or DB)."""
-    from app.rms.refunds import create_refund, RefundError
-    from sqlalchemy.exc import IntegrityError
+
+    from app.rms.refunds import RefundError, create_refund
 
     sale = _make_sale(refund_session, total_gs=5_000)
     # Service-layer check
@@ -228,9 +230,8 @@ def test_refund_amount_must_be_positive(refund_session):
 
 def test_refund_amount_zero_blocked_by_db(refund_engine):
     """DB trigger catches amount_gs=0 even if service is bypassed."""
-    from datetime import date
     from sqlalchemy.exc import IntegrityError
-    from app.rms.models_legacy import Sale
+
     SessionLocal = sessionmaker(bind=refund_engine)
     s = SessionLocal()
     sale = _make_sale(s, total_gs=5_000)
@@ -255,8 +256,8 @@ def test_refund_loyalty_reverses_proportionally(refund_session):
     With POINTS_PER_GS = 1/1000, a sale of 10_000 Gs earns 10 points.
     A 25% refund (2_500 Gs) should reverse floor(10 * 0.25) = 2 points.
     """
-    from app.rms.models_legacy import Customer, LoyaltyTransaction
     from app.rms.loyalty.ledger import award_points
+    from app.rms.models_legacy import Customer, LoyaltyTransaction
     from app.rms.refunds import create_refund
 
     # Create a customer
@@ -313,7 +314,7 @@ def test_sum_refunds_for_aggregates_correctly(refund_session):
 
 def test_refund_blocked_after_eod_close(refund_session):
     """A refund on a day whose EOD has been closed must be rejected."""
-    from app.rms.refunds import create_refund, RefundError
+    from app.rms.refunds import RefundError, create_refund
 
     sale = _make_sale(refund_session, total_gs=5_000)
     sale.sold_at = datetime.now(timezone.utc) - timedelta(days=2)

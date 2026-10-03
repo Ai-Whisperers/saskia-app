@@ -33,10 +33,6 @@ def make_variant_prices(session_factory):
     "variant_id": .., "price_gs": ..}}} so tests can look up IDs by name.
     """
     from app.rms.models import Ingredient, IngredientVariant, Supplier
-    from app.rms.supplier_prices import (
-        get_price_comparison,
-        total_potential_savings,
-    )
 
     def _make(ingredient_specs):
         out: dict[str, dict[str, dict]] = {}

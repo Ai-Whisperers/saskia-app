@@ -62,7 +62,6 @@ def _mk_price_event(session, ingredient_id, price_gs, days_ago=0):
 
 def test_migration_068_adds_menu_tags_and_backfills(app_engine):
     """Column exists; legacy family copied into menu_tags on backfill."""
-    from app.rms.models import Recipe
 
     with __import__("app.rms.db", fromlist=["make_session_factory"]).make_session_factory(app_engine)() as s:
         # Migration runs during init_db (app_engine fixture); column usable.

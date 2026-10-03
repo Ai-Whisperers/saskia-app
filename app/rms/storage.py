@@ -100,7 +100,7 @@ def _ensure_bucket(bucket: str) -> None:
             bucket,
             options={"public": True},
         )
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         msg = str(exc).lower()
         if "already exists" in msg or "duplicate" in msg:
             return

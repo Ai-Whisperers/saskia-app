@@ -12,12 +12,12 @@ Covers:
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 import pytest
 
 from app.rms.db import make_engine
-from app.rms.models_legacy import ProductionCompletion, Product
+from app.rms.models_legacy import Product, ProductionCompletion
 from app.rms.plan_accuracy import (
     compute_plan_accuracy,
     date_range_presets,

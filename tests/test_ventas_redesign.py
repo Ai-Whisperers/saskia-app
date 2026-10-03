@@ -432,7 +432,7 @@ def test_sale_without_price_override_uses_catalog_price(client, session_factory)
     catalog. This guards against the override accidentally overriding
     everything.
     """
-    from app.rms.models import Product, Recipe, RecipeLine, Sale, Ingredient
+    from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale
 
     with session_factory() as s:
         # Build a small recipe tree so apply_sale can compute stock moves

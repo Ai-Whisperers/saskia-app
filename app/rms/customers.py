@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -297,7 +297,7 @@ def decorate_history(session: Session, sales: list) -> list[dict]:
 # existing ``from app.rms.customers import award_points`` callers
 # keep working without breakage. New code should import from
 # ``app.rms.loyalty`` directly.
-from app.rms.loyalty import (  # noqa: E402, F401
+from app.rms.loyalty import (
     POINTS_PER_GS,
     TIER_THRESHOLDS,
     LoyaltyTier,
@@ -317,8 +317,8 @@ __all__ = [
     "award_points",
     "batch_customer_stats",
     "customer_purchase_history",
-    "decorate_history",
     "customer_stats",
+    "decorate_history",
     "ensure_customer",
     "find_customer_by_phone",
     "get_customer",

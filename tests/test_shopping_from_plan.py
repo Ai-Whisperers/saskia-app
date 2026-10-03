@@ -73,7 +73,6 @@ def _mk_product(s, name, recipe_id, price=10000, visible=True):
 @pytest.fixture()
 def subrecipe_world(session_factory):
     """Product → recipe with a sub-recipe (masa + glaseado sharing azúcar)."""
-    from app.rms.models import RecipeLine
 
     with session_factory() as session:
         yield _build_subrecipe_world(session)
@@ -118,8 +117,9 @@ def _build_subrecipe_world(session):
 
     # Seed tomorrow's override (10 units) so the day plan has real qty —
     # otherwise forecast=0 and the route flow finds no shortages.
-    from app.rms.models import ProductionPlanOverride
     from datetime import datetime as _dt
+
+    from app.rms.models import ProductionPlanOverride
 
     session.add(
         ProductionPlanOverride(
@@ -135,7 +135,6 @@ def _build_subrecipe_world(session):
 
 def test_plan_includes_subrecipe_ingredients(session_factory, subrecipe_world):
     """The glaze's azúcar + queso MUST appear in the day plan lines."""
-    from app.rms.production import plan_production
 
     with session_factory() as session:
         _assert_plan(session, subrecipe_world)
@@ -205,7 +204,7 @@ def test_from_production_plan_is_idempotent(session_factory, subrecipe_world, cl
 
 def test_shopping_list_groups_by_supplier(session_factory, subrecipe_world, client):
     """Named supplier group sorts first; None-supplier group last."""
-    from app.rms.models import Supplier, ShoppingListItem
+    from app.rms.models import Supplier
 
     with session_factory() as session:
         sup = Supplier(name="Distribuidora Central", phone="0981112223")
@@ -238,8 +237,8 @@ def test_produccion_page_has_send_to_list_button(client, subrecipe_world):
 
 def test_consolidate_merges_duplicate_ingredients(session_factory, subrecipe_world):
     """consolidate_open_items merges open rows sharing (ingredient, unit)."""
-    from app.routers.shopping import consolidate_open_items
     from app.rms.models import ShoppingListItem
+    from app.routers.shopping import consolidate_open_items
 
     with session_factory() as session:
         queso = session.merge(subrecipe_world["queso"])

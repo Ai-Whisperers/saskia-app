@@ -4,7 +4,6 @@ NOTE 2026-09-29: Combo conversion not yet shipped.
 """
 
 import pytest
-
 from fastapi.testclient import TestClient
 
 pytestmark = pytest.mark.xfail(

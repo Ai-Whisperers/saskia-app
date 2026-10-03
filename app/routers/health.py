@@ -47,8 +47,9 @@ def _get_last_backup_at(request: Request):
     /healthz/backup. Tests patch it to simulate stale / missing states.
     """
     try:
-        from app.rms.models import AppMeta
         from sqlalchemy import select
+
+        from app.rms.models import AppMeta
 
         with request.app.state.session_factory() as s:
             row = s.scalars(
@@ -888,7 +889,6 @@ def _run_backup_admin(request: Request):
     the request.app.state.session_factory level is more invasive).
     """
     from app.rms.config import DB_PATH
-
     from app.services.backup_scheduler import run_backup
 
     with request.app.state.session_factory() as _s:

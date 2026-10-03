@@ -129,15 +129,15 @@ def _peak_dow_helper(session: Session) -> int:
 def restock_urgent(session: Session) -> dict | None:
     """Find ingredients with <3 days of stock, pre-populated reorder."""
     from app.rms.inventory_intel import low_stock_alerts
-    
+
     alerts = low_stock_alerts(session, top_n=1)
     if not alerts:
         return None
-    
+
     alert = alerts[0]
     if alert.days_of_stock is None or alert.days_of_stock >= 3:
         return None
-    
+
     # Pre-populate the ingredient in the reorder URL
     return {
         "id": "restock_urgent",
@@ -153,18 +153,20 @@ def restock_urgent(session: Session) -> dict | None:
 def bestseller_drop(session: Session) -> dict | None:
     """Find top-10 products that sold <50% of trailing 7d avg."""
     from datetime import datetime, timedelta, timezone
-    from sqlalchemy import select
-    from app.rms.models import Sale, Product
-    from app.rms.money import to_int_gs
+
     from app.config import ASUNCION_TZ
-    
+    from sqlalchemy import select
+
+    from app.rms.models import Product, Sale
+    from app.rms.money import to_int_gs
+
     now_local = datetime.now(ASUNCION_TZ)
     end_utc = now_local.astimezone(timezone.utc).replace(tzinfo=None)
     start_utc = (now_local - timedelta(days=7)).astimezone(timezone.utc).replace(tzinfo=None)
-    
+
     # Get all products
     products = list(session.scalars(select(Product)).all())
-    
+
     for product in products[:10]:  # Check only top 10 by name for simplicity
         # Sales in last 7 days
         recent_sales = session.scalars(
@@ -175,12 +177,12 @@ def bestseller_drop(session: Session) -> dict | None:
                 Sale.voided_at.is_(None)
             )
         ).all()
-        
+
         recent_total = sum(
             to_int_gs(float(str(s.qty)) * float(str(s.unit_price_gs)))
             for s in recent_sales if s.unit_price_gs is not None
         )
-        
+
         # Sales in prior 7 days for comparison
         prior_start_utc = start_utc - timedelta(days=7)
         prior_sales = session.scalars(
@@ -191,12 +193,12 @@ def bestseller_drop(session: Session) -> dict | None:
                 Sale.voided_at.is_(None)
             )
         ).all()
-        
+
         prior_total = sum(
             to_int_gs(float(str(s.qty)) * float(str(s.unit_price_gs)))
             for s in prior_sales if s.unit_price_gs is not None
         )
-        
+
         # Check if recent is <50% of prior avg (if prior had sales)
         if prior_total > 0 and recent_total < prior_total * 0.5:
             return {
@@ -208,59 +210,61 @@ def bestseller_drop(session: Session) -> dict | None:
                 "severity": "warn",
                 "icon": "icon-chart-line-down"
             }
-    
+
     return None
 
 
 def cash_flow_warning(session: Session) -> dict | None:
     """If past day 25 AND month-to-date revenue <60% of last month's same window."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timezone
+
+    from app.config import ASUNCION_TZ
+    from app.rms.dashboard import _period_window
     from sqlalchemy import select
+
     from app.rms.models import Sale
     from app.rms.money import to_int_gs
-    from app.config import ASUNCION_TZ
-    from app.rms.dashboard import _period_window, _compute_window_totals
-    
+
     now_local = datetime.now(ASUNCION_TZ)
     day_of_month = now_local.day
-    
+
     # Only trigger past day 25
     if day_of_month < 25:
         return None
-    
+
     # Get current month-to-date
     month_start, month_end = _period_window("month")
     month_start_utc = month_start.astimezone(timezone.utc).replace(tzinfo=None)
     month_end_utc = month_end.astimezone(timezone.utc).replace(tzinfo=None)
-    
+
     month_sales = session.scalars(
         select(Sale).where(
             Sale.sold_at >= month_start_utc,
             Sale.sold_at <= month_end_utc
         )
     ).all()
-    
+
     current_month_revenue = sum(
         to_int_gs(float(str(s.qty)) * float(str(s.unit_price_gs)))
         for s in month_sales if s.unit_price_gs is not None
     )
-    
+
     # Get previous month same window
     prev_month_start = month_start.replace(day=1)
     prev_month_end = prev_month_start + (month_end - month_start)
-    
+
     prev_month_sales = session.scalars(
         select(Sale).where(
             Sale.sold_at >= prev_month_start.astimezone(timezone.utc).replace(tzinfo=None),
             Sale.sold_at <= prev_month_end.astimezone(timezone.utc).replace(tzinfo=None)
         )
     ).all()
-    
+
     prev_month_revenue = sum(
         to_int_gs(float(str(s.qty)) * float(str(s.unit_price_gs)))
         for s in prev_month_sales if s.unit_price_gs is not None
     )
-    
+
     # Check if <60% of previous month
     if prev_month_revenue > 0 and current_month_revenue < prev_month_revenue * 0.6:
         return {
@@ -272,14 +276,14 @@ def cash_flow_warning(session: Session) -> dict | None:
             "severity": "danger",
             "icon": "icon-warn"
         }
-    
+
     return None
 
 
 def build_actionable_insights(session: Session) -> list[dict]:
     """Build the 3 actionable insights for the dashboard."""
     insights = []
-    
+
     # Check each insight
     for insight_func in [restock_urgent, bestseller_drop, cash_flow_warning]:
         try:
@@ -290,12 +294,12 @@ def build_actionable_insights(session: Session) -> list[dict]:
             # Log but don't break the dashboard
             from loguru import logger
             logger.debug(f"Actionable insight calculation failed: {e}")
-    
+
     return insights
 
 
 __all__ = [
     "InsightsPanel",
-    "build_insights",
     "build_actionable_insights",
+    "build_insights",
 ]

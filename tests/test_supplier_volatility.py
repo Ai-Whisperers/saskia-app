@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-import pytest
-
 from app.rms.config import ASUNCION_TZ
 from app.rms.price_history import supplier_volatility
 from tests.factories import (

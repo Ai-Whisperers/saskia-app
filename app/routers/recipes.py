@@ -10,7 +10,12 @@ only handles single values.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    StreamingResponse,
+)
 from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -638,11 +643,11 @@ async def recipe_detail(
                 seen.add(a_clean)
                 aggregated_allergens.append(a_clean)
 
-    from app.rms.tag_algebra import derive_recipe_tags as _derive_tags
     # UI-V2 dual view: ?vista=estructural (default, assembly) vs
     # ?vista=consolidada (exploded purchase list). Both computed here;
     # the template toggles which table renders.
     from app.rms.recipes_consolidated import explode_recipe
+    from app.rms.tag_algebra import derive_recipe_tags as _derive_tags
 
     vista = (request.query_params.get("vista") or "estructural").lower()
     if vista not in ("estructural", "consolidada"):
@@ -1236,8 +1241,9 @@ def recipes_export_csv(
     """Export all recipes as a CSV download (streaming)."""
     from datetime import datetime, timezone
 
-    from app.rms.streaming_csv import stream_csv_rows
     from starlette.responses import StreamingResponse
+
+    from app.rms.streaming_csv import stream_csv_rows
 
     recipes = session.scalars(select(Recipe).order_by(Recipe.name)).all()
 

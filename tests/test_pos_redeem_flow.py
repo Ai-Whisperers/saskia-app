@@ -215,7 +215,7 @@ def test_pos_redeem_combined_with_manual_discount(session_factory, client, qseed
     """Points discount + manual discount add together; both applied."""
     from app.rms.customers import ensure_customer
     from app.rms.loyalty import award_points
-    from app.rms.models import Customer, LoyaltyTransaction, Product, Sale
+    from app.rms.models import Customer, Product, Sale
 
     with session_factory() as s:
         cust = ensure_customer(s, "Cliente POS Combo", phone="+595****0204")
@@ -309,7 +309,6 @@ def test_pos_redeem_uses_post_discount_total_for_award(
     """The points redeemed REDUCE the sale total, and points are earned
     on the POST-discount total (industry norm)."""
     from app.rms.customers import ensure_customer
-    from app.rms.loyalty import award_points
     from app.rms.models import Customer, LoyaltyTransaction, Product, Sale
 
     with session_factory() as s:

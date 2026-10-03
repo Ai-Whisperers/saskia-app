@@ -13,8 +13,7 @@ out of scope for the test suite.
 """
 from __future__ import annotations
 
-import pytest
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, text
 
 
 def _init_db_to_92():

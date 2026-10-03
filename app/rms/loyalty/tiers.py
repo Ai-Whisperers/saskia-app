@@ -42,4 +42,4 @@ def tier_for_spend(lifetime_spend_gs: int) -> LoyaltyTier:
     return LoyaltyTier.BRONZE
 
 
-__all__ = ["LoyaltyTier", "TIER_THRESHOLDS", "tier_for_spend"]
+__all__ = ["TIER_THRESHOLDS", "LoyaltyTier", "tier_for_spend"]

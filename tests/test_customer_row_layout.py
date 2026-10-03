@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import re
 
-
 # ── CSS bundle contains the new customer-row classes ─────────────────
 
 def test_combobox_css_includes_customer_row_classes(client):

@@ -29,8 +29,8 @@ from app.rms.reorder_supplier_prices import get_supplier_price_options
 from app.rms.supplier_history import (
     LOCK_THRESHOLD,
     get_effective_supplier_id,
-    record_purchase_supplier,
     lock_supplier,
+    record_purchase_supplier,
     unlock_supplier,
 )
 from app.services.template_render import render
@@ -483,7 +483,8 @@ async def reorder_upload_prices(
 
     import csv
     import io
-    from datetime import date as _date, datetime as _datetime
+    from datetime import date as _date
+    from datetime import datetime as _datetime
 
     reader = csv.DictReader(io.StringIO(text))
     required = {"ingredient_name", "supplier_name", "price_gs"}

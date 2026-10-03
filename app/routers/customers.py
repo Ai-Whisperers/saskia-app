@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Body, Depends, Form, HTTPException, Path, Query, Request, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Path, Query, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
@@ -30,9 +30,9 @@ from app.rms.customers import (
 )
 from app.rms.dependencies import get_session
 from app.rms.models import Customer
+from app.rms.nav import status_es
 from app.rms.observability import record_audit
 from app.rms.rate_limit import read_rate_limit_dependency
-from app.rms.nav import status_es
 from app.services.template_render import render
 
 router = APIRouter(prefix="/clientes", dependencies=[Depends(require_login)])
@@ -85,6 +85,7 @@ def cliente_new_submit(
     who clicks the topbar "+ Cliente" link. Returns 422-style form re-render
     with `error` when validation fails; otherwise 303 to /clientes/{id}.
     """
+    from app.rms.customers import ensure_customer
     from app.rms.validation import (
         optional_text,
         require_text,
@@ -92,7 +93,6 @@ def cliente_new_submit(
         validate_email,
         validate_phone,
     )
-    from app.rms.customers import ensure_customer
 
     try:
         clean_name = require_text(name, field="nombre", max_len=120)
@@ -498,6 +498,7 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
         # later than they should, off-by-one on every LAPSED + birthday
         # rule.
         from datetime import datetime
+
         from app.rms.config import ASUNCION_TZ
         today_asuncion = datetime.now(ASUNCION_TZ).date()
         suggestions_raw = suggest_for_customer(
@@ -528,7 +529,8 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
     # for the customer. The cashier sees them on /clientes/{id}; the
     # /pedidos/nuevo prefill also reads them from the same helper. We
     # keep the JSON-API surface aligned with the HTML surface.
-    from app.rms.models import CustomerAddress as _CA, CustomerInvoiceProfile as _CIP
+    from app.rms.models import CustomerAddress as _CA
+    from app.rms.models import CustomerInvoiceProfile as _CIP
     profiles = session.scalars(
         select(_CIP)
         .where(_CIP.customer_id == c.id)
@@ -1105,7 +1107,8 @@ def cliente_detail(
     # history) so we get consistent rankings across pages.
     from sqlalchemy import func as sa_func
 
-    from app.rms.models import Product as ProductModel, Sale as SaleModel
+    from app.rms.models import Product as ProductModel
+    from app.rms.models import Sale as SaleModel
 
     top_products_rows = session.execute(
         select(
@@ -1215,7 +1218,7 @@ async def cliente_redeem_points(
             actor=str(current_user_id(request) or "operator"),
             notes=notes,
         )
-    except ValueError as e:
+    except ValueError:
         # Insufficient points (most common). Flash and redirect.
         return RedirectResponse(
             url=f"/clientes/{customer_id}?flash=points_insufficient",
@@ -1290,7 +1293,6 @@ async def address_create_api(
     session: Session = Depends(get_session),
 ) -> JSONResponse:
     """P3 profile: add a delivery address from the client edit form."""
-    import json as _json
 
     from app.rms.models import CustomerAddress
 
@@ -1423,10 +1425,11 @@ def cliente_update(
     customer.dietary_confirm_always = dietary_confirm_always == "1"
 
     # P3 profile batch
-    from app.rms.validation import optional_choice
     # Birthday: accept DD-MM or DD-MM-AAAA (as hinted in the form) and
     # normalize to MM-DD for the dashboard's month-day comparison.
     import re as _re
+
+    from app.rms.validation import optional_choice
     bd = (birthday or "").strip()
     if bd:
         m_bd = _re.match(r"^(\d{1,2})-(\d{1,2})(?:-(\d{4}))?$", bd)
@@ -1605,7 +1608,7 @@ async def invoice_profile_create_api(
     session: Session = Depends(get_session),
 ) -> JSONResponse:
     """Add a new invoice profile (RUC/CI + razón social + tipo)."""
-    import json as _json
+
     from app.rms.models import CustomerInvoiceProfile
 
     cust = session.get(Customer, customer_id)

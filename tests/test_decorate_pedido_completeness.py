@@ -11,7 +11,8 @@ The fix is twofold:
    (list, board, recibo, pedido_publico) renders identically.
 """
 import inspect
-from datetime import date, time
+from datetime import date
+
 from sqlalchemy import inspect as sqla_inspect
 
 
@@ -19,6 +20,7 @@ def _make_pedido(session_factory):
     """Insert a minimal pedido via the ORM (default values fill NOT NULLs)
     and return its id."""
     import uuid as _uuid
+
     from app.rms.models import Pedido
     with session_factory() as s:
         p = Pedido(

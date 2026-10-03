@@ -11,7 +11,6 @@ Forbids:
 Run:  .venv/bin/python scripts/lint_tier1.py
 Exit 0 = clean; non-zero = violations found.
 """
-import re
 import sys
 from pathlib import Path
 

@@ -7,9 +7,7 @@ against a mocked source.
 """
 from __future__ import annotations
 
-from sqlalchemy.orm import sessionmaker
-
-from app.integrations.scrapers import ScrapeResult, ScrapedPrice
+from app.integrations.scrapers import ScrapedPrice, ScrapeResult
 
 
 def test_reorder_scrape_empty_query_returns_empty_no_http(client, monkeypatch):

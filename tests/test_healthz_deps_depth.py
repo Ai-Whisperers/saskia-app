@@ -23,7 +23,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 DiskUsageMock = namedtuple("DiskUsageMock", ["total", "used", "free"])
 
 

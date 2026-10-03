@@ -14,8 +14,8 @@ from datetime import date
 
 
 def _kyrian_id(session_factory, qseed):
-    from app.seed.kyrian import KYRIAN_PHONE
     from app.rms.models import Customer
+    from app.seed.kyrian import KYRIAN_PHONE
     qseed("with_kyrian_full")
     with session_factory() as s:
         return s.query(Customer).filter_by(phone=KYRIAN_PHONE).one().id

@@ -7,11 +7,13 @@ place. NOT a pytest test — just a one-shot script for the dev to run.
 from __future__ import annotations
 
 import os
+
 os.environ.setdefault("AIW_SASKIA_INTERNAL_ROUTES", "1")
 os.environ.setdefault("SASKIA_TEST_AUTH_DISABLED", "1")
 
 import tempfile
 from pathlib import Path
+
 tmp = Path(tempfile.mkdtemp())
 os.environ["AIW_SASKIA_DB_PATH"] = str(tmp / "test.sqlite")
 os.environ["AIW_SASKIA_DATA_DIR"] = str(tmp / "data")
@@ -20,6 +22,7 @@ os.environ["AIW_SASKIA_LOG_DIR"] = str(tmp / "logs")
 
 from app.rms import main as main_module
 from app.rms.db import init_db, make_engine, make_session_factory
+
 engine = make_engine(f"sqlite:///{tmp}/test.sqlite")
 init_db(engine)
 sf = make_session_factory(engine)
@@ -30,10 +33,12 @@ def _make_for_test(url=None, *, for_tests=False):
 main_module.make_engine_dialect = _make_for_test
 
 from app.rms.seed import seed_demo_data
+
 with sf() as s:
     seed_demo_data(s)
 
 from fastapi.testclient import TestClient
+
 with TestClient(main_module.app, raise_server_exceptions=False) as c:
     main_module.app.state.engine = engine
     main_module.app.state.session_factory = sf

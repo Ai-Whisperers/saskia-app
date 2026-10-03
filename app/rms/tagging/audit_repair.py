@@ -27,7 +27,6 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-
 # (issue_text_substring, allergen_trigger, tags_to_remove)
 # Order matters: more-specific rules first.
 #
@@ -76,8 +75,7 @@ def repair_ingredient(ing) -> list[str]:
           espresso → 'bebidas' and #70 Jengibre fresco → 'especias' are
           caught by this rule.)
     """
-    from app.rms.ingredient_intel import infer_category
-    from app.rms.tagging.classify import normalize, validate_ingredient
+    from app.rms.tagging.classify import validate_ingredient
 
     issues = validate_ingredient(ing)
     if not issues:
@@ -119,7 +117,7 @@ def repair_ingredient(ing) -> list[str]:
                     continue
                 if (ing.category or "").lower() == stored and inferred in {
                     "grasas", "lácteos", "harinas", "endulzantes", "frutas",
-                    "carnes", "pescados", "lácteos", "especias", "otros",
+                    "carnes", "pescados", "especias", "otros",
                     "leudantes", "huevos", "decoración", "frutos-secos",
                     "líquidos", "semillas",
                 }:
@@ -148,7 +146,7 @@ def repair_all_ingredients(session: Session) -> dict[int, list[str]]:
     return out
 
 
-__all__ = ["repair_ingredient", "repair_all_ingredients"]
+__all__ = ["repair_all_ingredients", "repair_ingredient"]
 
 
 # Suppress unused: select is imported in the function above (lazy) — but

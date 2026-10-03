@@ -5,12 +5,12 @@ Tests for the new customer invoice-profile CRUD endpoints:
   POST /clientes/api/{customer_id}/invoice-profiles/{pid}/default
   DELETE /clientes/api/{customer_id}/invoice-profiles/{pid}
 """
-import json
 
 
 def _make_customer(client, session_factory):
     """Insert a customer via ORM and return its id."""
     import uuid as _uuid
+
     from app.rms.models import Customer
     name = "Phase14Inv " + _uuid.uuid4().hex[:6]
     with session_factory() as s:

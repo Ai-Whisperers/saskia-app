@@ -14,8 +14,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from datetime import datetime, timezone
 
-import pytest
-
 from app.rms.config import ASUNCION_TZ
 from app.rms.models import Customer, Sale
 

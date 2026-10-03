@@ -17,9 +17,8 @@ Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
-import pytest
 from sqlalchemy import select
 
 from app.rms.eod_closed import eod_is_day_closed
@@ -57,7 +56,6 @@ def test_eod_save_succeeds_when_all_items_checked(client) -> None:
 def test_day_not_closed_when_only_some_items_checked(client, session_factory) -> None:
     """Only some items checked → day NOT marked closed."""
     _check_only_first_today(client)
-    from datetime import date as _date
     from app.rms.config import ASUNCION_TZ
     today = datetime.now(ASUNCION_TZ).date()
     with session_factory() as s:
@@ -98,8 +96,6 @@ def test_eod_save_succeeds_when_backup_throws(client, session_factory, monkeypat
 def test_backup_audit_row_contains_trigger_tag(client, session_factory) -> None:
     """When a backup runs (not skipped), the audit row detail contains 'eod_checklist_complete'."""
     # Force a backup by clearing last_backup_at metadata
-    from datetime import date as _date
-    from app.rms.config import ASUNCION_TZ
     with session_factory() as s:
         row = s.scalar(select(AppMeta).where(AppMeta.key == "last_backup_at"))
         if row:

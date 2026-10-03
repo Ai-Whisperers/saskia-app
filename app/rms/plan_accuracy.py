@@ -27,13 +27,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
-from typing import Sequence
 
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
-from app.rms.config import ASUNCION_TZ
-from app.rms.models_legacy import ProductionCompletion, Product, Sale
+from app.rms.models_legacy import Product, ProductionCompletion, Sale
 
 
 @dataclass(frozen=True)

@@ -77,8 +77,9 @@ def test_complete_sale_writes_affected_recipe_id_on_stock_movement(session_facto
         # We don't probe by name (cross-engine); instead we verify
         # the SaleStockMove class is the abstract stub that raises
         # on instantiation (the intended runtime guard).
-        from app.rms.models import SaleStockMove
         import pytest
+
+        from app.rms.models import SaleStockMove
         with pytest.raises(TypeError):
             SaleStockMove(
                 sale_id=result.sale_id,

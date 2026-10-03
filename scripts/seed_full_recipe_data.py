@@ -33,27 +33,24 @@ from __future__ import annotations
 import json
 import os
 import sys
-from typing import Iterable
 
 # Allow running from project root without installing the package
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.rms.db import (  # noqa: E402
+from app.rms.db import (
     init_db,
     make_engine,
     make_session_factory,
     schema_version,
 )
-from app.rms.models import Ingredient, Recipe, TagLink  # noqa: E402
-from app.rms.recipe_intel import (  # noqa: E402
+from app.rms.models import Ingredient, Recipe, TagLink
+from app.rms.recipe_intel import (
     classify_recipe,
     infer_difficulty,
     infer_recipe_family,
     recipe_ingredient_count,
-    recipe_yield_grams,
 )
-from app.rms.tags import ensure_tag  # noqa: E402
-
+from app.rms.tags import ensure_tag
 
 # ---------------------------------------------------------------------------
 # 1. Recipe instructions seed (19 clean recipes)

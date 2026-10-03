@@ -4,7 +4,6 @@ Smoke test: the Phase 14 mobile breakpoint rules made it into the
 served CSS bundle. Catches the regression class where someone
 restructures the stylesheet and silently drops the @media block.
 """
-import re
 
 
 def test_mobile_grid_2_col_rule_in_app_css():

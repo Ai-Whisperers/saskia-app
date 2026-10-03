@@ -21,11 +21,9 @@ from __future__ import annotations
 import os
 import sys
 from datetime import datetime, timezone
-from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -107,8 +105,8 @@ def _make_refund(s, *, target_type, target_id, amount_gs,
 
 def test_daily_summary_subtracts_refunds(acc_session):
     """One sale + one full refund = NET revenue 0, not gross."""
+
     from app.rms.accounting import daily_summary
-    from datetime import date
 
     sale = _make_sale(acc_session, total_gs=10_000)
     _make_refund(acc_session, target_type="sale", target_id=sale.id, amount_gs=10_000)
@@ -157,8 +155,9 @@ def test_daily_summary_refund_on_different_day_doesnt_affect_today(acc_session):
     Fiscal practice: the day of the refund is when money actually left, so
     that's the day's revenue-impacting event.
     """
-    from app.rms.accounting import daily_summary
     from datetime import timedelta
+
+    from app.rms.accounting import daily_summary
 
     yesterday = datetime.now(timezone.utc) - timedelta(days=2)
     sale = _make_sale(acc_session, total_gs=10_000, sold_at=yesterday)

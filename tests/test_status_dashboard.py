@@ -9,8 +9,6 @@ Pins the dashboard refresh to:
 from __future__ import annotations
 
 import re
-import shutil
-import subprocess
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -29,7 +27,6 @@ def test_status_template_exists():
 
 def test_refresh_script_exists_and_executable():
     assert REFRESH_SH.exists()
-    import os
     import stat
     mode = REFRESH_SH.stat().st_mode
     assert mode & stat.S_IXUSR, "refresh.sh must be executable"

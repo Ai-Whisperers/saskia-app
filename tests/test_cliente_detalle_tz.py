@@ -1,5 +1,5 @@
 """Regression: /clientes/{id} 500 TypeError (naive vs aware datetime, ref 9da40358ea00)."""
-from datetime import datetime, timezone
+from datetime import datetime
 
 from tests.factories import make_customer, make_product
 

@@ -1,5 +1,6 @@
-from app.rms.db import make_engine
 from sqlalchemy import text
+
+from app.rms.db import make_engine
 
 eng = make_engine()
 with eng.connect() as c:

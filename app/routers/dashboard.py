@@ -33,8 +33,16 @@ from app.rms.config import ASUNCION_TZ
 from app.rms.constants import DEFAULT_TAX_REGIME
 from app.rms.costing import batch_products_cost_margin, batch_recipes_cost
 from app.rms.dependencies import get_session
-from app.rms.insights import build_insights, build_actionable_insights
-from app.rms.models import Ingredient, Product, Recipe, RiskItem, Sale, ShoppingListItem, WishlistItem
+from app.rms.insights import build_actionable_insights, build_insights
+from app.rms.models import (
+    Ingredient,
+    Product,
+    Recipe,
+    RiskItem,
+    Sale,
+    ShoppingListItem,
+    WishlistItem,
+)
 from app.rms.money import to_int_gs
 from app.services.template_render import render
 
@@ -574,6 +582,7 @@ async def dashboard(
     # None when there's not enough data so the UI can render an empty
     # state instead of misleading numbers.
     from datetime import datetime as _dt_b2
+
     from app.rms.config import ASUNCION_TZ as _tz_b2
     from app.rms.production import forecast_sales as _fs_b2
     _tomorrow_date = (_dt_b2.now(_tz_b2) + timedelta(days=1)).date()

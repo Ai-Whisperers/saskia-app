@@ -27,9 +27,9 @@ from app.rms.models_legacy import (
     CommunicationLog,  # noqa: F401 — re-exported via __all__
     ComplianceInfo,  # noqa: F401 — re-exported via __all__
     Customer,  # noqa: F401 — re-exported via __all__
-    DateRangePreset,  # noqa: F401 — re-exported via __all__
     CustomerAddress,  # noqa: F401 — re-exported via __all__
     CustomerInvoiceProfile,  # noqa: F401 — Phase 13 multiple invoice profiles
+    DateRangePreset,  # noqa: F401 — re-exported via __all__
     DeliveryZone,  # noqa: F401 — re-exported via __all__
     Expense,  # noqa: F401 — Phase 14 operating-expense rows
     ImportBatch,  # noqa: F401 — re-exported via __all__
@@ -71,8 +71,9 @@ from app.rms.models_legacy import (
     WasteLog,  # noqa: F401 — re-exported via __all__
     WishlistItem,  # noqa: F401 — re-exported via __all__
 )
-from app.rms.models_legacy import __all__ as _legacy_all  # noqa: F401 — re-exported via __all__
+from app.rms.models_legacy import __all__ as _legacy_all
 
 # Also export new models not in legacy
 from .closure import MonthlyClosure
+
 __all__ = _legacy_all + ["MonthlyClosure"]

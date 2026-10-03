@@ -22,7 +22,6 @@ from app.rms.customer_dietary import (
 )
 from tests.factories import make_customer, make_product
 
-
 # ── Parsing helpers ──────────────────────────────────────────────────────
 
 def test_parse_restrictions_dedupes_and_strips():
@@ -169,7 +168,7 @@ def test_cliente_editar_form_renders_profile_ui(client, session_factory):
     assert "dietary-pref-add" in body
     assert "dietary_confirm_always" in body
     # the saved restriction is pre-checked
-    assert 'value="vegano" checked' in body or 'checked' in body and 'vegano' in body
+    assert 'value="vegano" checked' in body or ('checked' in body and 'vegano' in body)
 
 
 # ── Pedidos form: dietary alert markup present ───────────────────────────

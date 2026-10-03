@@ -21,25 +21,20 @@ Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work \\
 """
 from __future__ import annotations
 
-import re
 from datetime import date, datetime, timedelta
 
-import pytest
 from sqlalchemy import select
 
 from app.rms.models import (
     AppMeta,
-    Customer,
     DeliveryZone,
     Ingredient,
     Pedido,
-    PedidoLine,
     Product,
     Recipe,
     RecipeLine,
     Sale,
 )
-
 
 # --------------------------------------------------------------------------- #
 # Fixtures / helpers

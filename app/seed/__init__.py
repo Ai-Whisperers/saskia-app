@@ -23,19 +23,19 @@ will overwrite his record.
 """
 
 from app.seed.kyrian import (
+    KYRIAN_CEDULA,
+    KYRIAN_EMAIL,
+    KYRIAN_NAME,
+    KYRIAN_PHONE,
     KyrianBundle,
     seed_kyrian,
-    KYRIAN_PHONE,
-    KYRIAN_EMAIL,
-    KYRIAN_CEDULA,
-    KYRIAN_NAME,
 )
 
 __all__ = [
+    "KYRIAN_CEDULA",
+    "KYRIAN_EMAIL",
+    "KYRIAN_NAME",
+    "KYRIAN_PHONE",
     "KyrianBundle",
     "seed_kyrian",
-    "KYRIAN_PHONE",
-    "KYRIAN_EMAIL",
-    "KYRIAN_CEDULA",
-    "KYRIAN_NAME",
 ]

@@ -9,12 +9,12 @@ Run once via SSH+docker exec:
     docker cp apply_v056.py <container>:/tmp/
     docker exec <container> python3 /tmp/apply_v056.py
 """
+from sqlalchemy import inspect
+
 from app.rms.db import make_engine
 from app.rms.migrations._056_bank_reconciliation import (
     _migration_056_bank_reconciliation,
-    _add_col_if_missing,
 )
-from sqlalchemy import inspect, text
 
 eng = make_engine()
 with eng.begin() as conn:

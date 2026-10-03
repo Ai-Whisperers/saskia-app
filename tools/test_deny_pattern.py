@@ -25,7 +25,6 @@ import re
 import sys
 from pathlib import Path
 
-
 PATTERN_FILE_DEFAULT = Path("/opt/data/profiles/ivan/custom-dangerous-patterns.yaml")
 PATTERN_PROPOSED = Path(
     "/opt/data/profiles/ivan/cache/custom-dangerous-patterns.yaml.proposed"
@@ -119,7 +118,6 @@ def extract_pattern(path: Path) -> tuple[int, str, str]:
                     # Closing quote ends the pattern; check
                     block_pattern = block_pattern.rstrip()
                     # Append remaining lines until quote closes or description starts
-                    pass
                 j += 1
         elif in_block:
             if line.startswith("description:"):

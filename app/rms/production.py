@@ -15,7 +15,6 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
-from decimal import Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -24,10 +23,8 @@ from app.rms.models import (
     Ingredient,
     Product,
     Recipe,
-    RecipeLine,
     Sale,
 )
-from app.rms.units import normalize_recipe_line_qty
 
 
 @dataclass

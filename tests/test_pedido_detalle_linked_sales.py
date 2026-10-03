@@ -30,7 +30,6 @@ from app.rms.models import (
 @pytest.fixture
 def pedido_with_linked_sale(session_factory) -> tuple[int, int, int]:
     """A fulfilled pedido with 1 linked sale + 1 LoyaltyTransaction (earn_sale)."""
-    from sqlalchemy.orm import Session
     with session_factory() as s:
         cust = Customer(name="LinkedCust", phone="+595****5001")
         s.add(cust)
@@ -83,7 +82,6 @@ def pedido_with_linked_sale(session_factory) -> tuple[int, int, int]:
 @pytest.fixture
 def pedido_no_sales(session_factory) -> int:
     """A pending pedido with no linked sales yet."""
-    from sqlalchemy.orm import Session
     with session_factory() as s:
         cust = Customer(name="NoSalesCust", phone="+595****5002")
         s.add(cust)
@@ -171,7 +169,6 @@ def test_pedido_detalle_no_loyalty_shows_empty_state(client, pedido_no_sales) ->
 
 def test_pedido_detalle_does_not_break_when_no_customer(client, session_factory) -> None:
     """/pedidos/{id} renders safely when pedido has no customer (anonymous)."""
-    from sqlalchemy.orm import Session
     with session_factory() as s:
         pedido = Pedido(
             customer_id=None,
@@ -189,14 +186,13 @@ def test_pedido_detalle_does_not_break_when_no_customer(client, session_factory)
     assert resp.status_code == 200
     body = resp.text
     # The customer-ficha link is conditional — must NOT appear
-    assert "/clientes/" not in body or f"/clientes/None" not in body, (
+    assert "/clientes/" not in body or "/clientes/None" not in body, (
         "Anonymous pedido must not link to a /clientes/None"
     )
 
 
 def test_pedido_detalle_redeem_loyalty_subtraction(client, session_factory) -> None:
     """/pedidos/{id} subtracts redeemed points from the net impact."""
-    from sqlalchemy.orm import Session
     with session_factory() as s:
         cust = Customer(name="RedeemCust", phone="+595****5003", loyalty_points=120)
         s.add(cust)

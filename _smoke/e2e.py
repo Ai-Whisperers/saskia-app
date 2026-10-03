@@ -16,8 +16,6 @@ import re
 import sys
 import time
 from collections import defaultdict
-from pathlib import Path
-from urllib.parse import urlparse
 
 import requests
 
@@ -388,14 +386,14 @@ def main():
     # Verify it appears in the list
     r = session.get(BASE + "/inventario")
     if test_ing_name in r.text:
-        ok(f"LIST: new ingredient appears in /inventario")
+        ok("LIST: new ingredient appears in /inventario")
     else:
-        fail(f"LIST: new ingredient NOT in /inventario page", r.status_code, r.text[:300])
+        fail("LIST: new ingredient NOT in /inventario page", r.status_code, r.text[:300])
 
     # Search via combo API
     r = session.get(BASE + "/inventario/api/search", params={"q": test_ing_name[:8]})
     if r.status_code == 200 and test_ing_name in r.text:
-        ok(f"SEARCH: combo API finds new ingredient")
+        ok("SEARCH: combo API finds new ingredient")
     else:
         warn(f"SEARCH: combo API didn't find new ingredient (status={r.status_code})")
 
@@ -423,9 +421,9 @@ def main():
     # Bank add (we already did, but verify the bank list now includes it)
     r = session.get(BASE + "/bank")
     if "Test supplier" in r.text:
-        ok(f"LIST: bank add persisted")
+        ok("LIST: bank add persisted")
     else:
-        warn(f"LIST: bank add NOT visible (maybe paginated)")
+        warn("LIST: bank add NOT visible (maybe paginated)")
 
     # ─── 13. SUMMARY ───────────────────────────────────────────────
     print(f"\n{CYAN}{'=' * 70}{RESET}")

@@ -244,11 +244,21 @@ def test_routes_wired_with_dependency() -> None:
     """The 4 /api/search routes + /reportes/* all carry the read limiter."""
     from app.routers import (
         customers as customers_mod,
-        inventory as inventory_mod,
-        products as products_mod,
-        recipes as recipes_mod,
-        reportes as reportes_mod,
+    )
+    from app.routers import (
         insights_derived as insights_derived_mod,
+    )
+    from app.routers import (
+        inventory as inventory_mod,
+    )
+    from app.routers import (
+        products as products_mod,
+    )
+    from app.routers import (
+        recipes as recipes_mod,
+    )
+    from app.routers import (
+        reportes as reportes_mod,
     )
 
     # /api/search routes (4 of them)

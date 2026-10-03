@@ -437,8 +437,8 @@ def suscripciones_dispatch(
     POST (not GET) because it's a write — creates Pedido rows + AppMeta
     dedupe keys + per-petido_event 'created' rows.
     """
-    from app.services.suscripcion_dispatcher import generate_weekly_pedidos
     from app.auth import current_user_id
+    from app.services.suscripcion_dispatcher import generate_weekly_pedidos
 
     actor = str(current_user_id(request) or "operator")
     result = generate_weekly_pedidos(session, actor=actor)

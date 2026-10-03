@@ -15,12 +15,8 @@ from sqlalchemy import select
 
 from app.rms.models import (
     Customer,
-    CustomerAddress,
-    LoyaltyTransaction,
     Pedido,
     PedidoLine,
-    Sale,
-    Suscripcion,
 )
 from app.seed.kyrian import (
     KYRIAN_CEDULA,
@@ -62,8 +58,7 @@ def test_with_kyrian_full_creates_expected_dataset(qseed, session_factory):
     # Sales match the lines on fulfilled pedidos. The session is closed
     # by the time we run this assertion, so we count lines via SQL
     # rather than relying on the lazy-loaded relationship.
-    from sqlalchemy import select, func
-    from app.rms.models import PedidoLine
+    from sqlalchemy import func, select
     with session_factory() as s:
         line_count = s.execute(
             select(func.count()).select_from(PedidoLine)
@@ -162,7 +157,6 @@ def test_seed_kyrian_replaces_prior_data(session_factory):
     Pre-create a garbage pedido attributed to Kyrian's phone number,
     then re-run the seed. The garbage pedido should be gone.
     """
-    from app.rms.models import Pedido
 
     sf = session_factory
     with sf() as s:
@@ -216,8 +210,8 @@ def test_seed_records_pedido_events(qseed, session_factory):
     Without this, the timeline on /pedidos/{id} would be empty for the
     demo data — a confusing first impression.
     """
+    from app.rms.models import PedidoEvent
     from app.seed.kyrian import KYRIAN_PHONE
-    from app.rms.models import Customer, Pedido, PedidoEvent
 
     qseed("with_kyrian_full")
     with session_factory() as s:

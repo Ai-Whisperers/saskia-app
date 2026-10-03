@@ -13,7 +13,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 import pytest
-from sqlalchemy import select
 
 from app.rms.models import Customer, Pedido, Product, Sale, Suscripcion
 
@@ -21,7 +20,6 @@ from app.rms.models import Customer, Pedido, Product, Sale, Suscripcion
 @pytest.fixture
 def customer_with_sub(session_factory) -> int:
     """Customer with 1 active suscripción, 1 open pedido, 1 sale."""
-    from sqlalchemy.orm import Session
     with session_factory() as s:  # type: Session
         cust = Customer(name="Sub Customer", phone="+595****9100")
         s.add(cust)
@@ -55,7 +53,6 @@ def customer_with_sub(session_factory) -> int:
 @pytest.fixture
 def customer_no_extras(session_factory) -> int:
     """Customer with NO subscription, NO open pedido, NO sale."""
-    from sqlalchemy.orm import Session
     with session_factory() as s:
         cust = Customer(name="Plain Customer", phone="+595****9200")
         s.add(cust)

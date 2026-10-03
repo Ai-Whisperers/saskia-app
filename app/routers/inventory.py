@@ -5,12 +5,10 @@ Per dev plan §9 Task 3.
 
 from __future__ import annotations
 
-import csv
-import io
 from datetime import datetime, timezone
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Form, Query, Request, Response
+from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from loguru import logger
 from sqlalchemy import func, select

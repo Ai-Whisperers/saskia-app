@@ -6,20 +6,20 @@ with a marker so it can be skipped in CI via ``-m 'not network'``.
 """
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from app.integrations.scrapers import (
     SCRAPERS,
     ScrapeResult,
+    _normalize_price,
     _parse_stock,
     _parse_superseis,
-    _normalize_price,
     scrape_all,
     scrape_stock,
     scrape_superseis,
 )
-
 
 # ---------------------------------------------------------------------------
 # Pure helpers
@@ -169,7 +169,6 @@ class TestStock:
         because the parser isn't reliable for ASP.NET VIEWSTATE sites.
         This ensures the /reorder UI shows the CSV hint instead of 'no
         results'."""
-        import httpx as _hx
 
         class FakeResp:
             status_code = 200

@@ -18,14 +18,11 @@ Implementation strategy:
 3. Application code sets ``*_by_user_id`` explicitly
 """
 
-from datetime import datetime
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy import DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
-
-from app.rms.models.common import AuditColumns
 
 # Standard audit field types for consistency
 CreatedTimestamp: Mapped[datetime] = mapped_column(
@@ -56,7 +53,7 @@ def _migration_096_audit_columns(conn: Any) -> None:
     """
     # NOTE: These table names must match actual SQLAlchemy model table names
     owned_tables = ["ingredient", "product", "recipe", "customer", "supplier"]
-    
+
     # Add columns if they don't exist (idempotent)
     for table in owned_tables:
         try:
@@ -77,7 +74,7 @@ def _migration_096_audit_columns(conn: Any) -> None:
         except Exception as exc:
             # Columns likely already exist - idempotent continue
             print(f"Audit columns exist on {table}: {exc}")
-    
+
     # Set indexes for performance on timestamp columns
     try:
         for table in owned_tables:
@@ -94,8 +91,8 @@ def _migration_096_audit_columns(conn: Any) -> None:
 
 
 __all__ = [
-    "CreatedTimestamp", 
-    "UpdatedTimestamp",
-    "CreatedByUserId", 
-    "UpdatedByUserId"
+    "CreatedByUserId",
+    "CreatedTimestamp",
+    "UpdatedByUserId",
+    "UpdatedTimestamp"
 ]

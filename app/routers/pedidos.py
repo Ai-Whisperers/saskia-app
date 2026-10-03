@@ -18,15 +18,14 @@ path stays short when shared over WhatsApp: `https://saskia.app/p/AbCd1234`.
 """
 from __future__ import annotations
 
-import secrets
 import json
+import secrets
 from collections.abc import Iterable
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Query, Request, UploadFile
-from fastapi.responses import JSONResponse
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from loguru import logger
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, selectinload
@@ -42,7 +41,11 @@ from app.rms.dependencies import get_session
 from app.rms.models import Customer, Pedido, PedidoLine, Product, Recipe, Sale
 from app.rms.public_tokens import (
     enforce_rate_limit as public_token_enforce_rate_limit,
+)
+from app.rms.public_tokens import (
     generate_public_token as public_token_generate_token,
+)
+from app.rms.public_tokens import (
     is_token_valid as is_pedido_token_valid,
 )
 
@@ -54,7 +57,6 @@ from decimal import Decimal
 
 from app.rms.money import to_int_gs
 from app.rms.schemas import ALLOWED_PAYMENT_METHODS
-from app.services.template_render import render
 
 # Phase 3: customer-prefill service for /pedidos/nuevo
 from app.services.customer_prefill import customer_defaults_as_json
@@ -64,6 +66,7 @@ from app.services.pedido_history import (
     build_pedido_timeline,
     customer_recent_pedidos,
 )
+from app.services.template_render import render
 
 router = APIRouter(prefix="/pedidos", dependencies=[Depends(require_login)])
 
@@ -263,8 +266,10 @@ def _parse_date_or_none(value: Any):
 
 
 from app.services.customer_address import (
-    ventana_text as _ventana_text_helper,
     PARAGUAY_DEPARTMENTS,
+)
+from app.services.customer_address import (
+    ventana_text as _ventana_text_helper,
 )
 
 
@@ -1549,7 +1554,8 @@ def pedidos_detail(
     # fulfilled_sale_id which only pointed at the FIRST sale). The
     # detail page now shows the full set so the operator can verify
     # each line was fulfilled.
-    from app.rms.models import LoyaltyTransaction, Sale as SaleModel
+    from app.rms.models import LoyaltyTransaction
+    from app.rms.models import Sale as SaleModel
 
     linked_sales: list[dict] = []
     if pedido.customer_id:

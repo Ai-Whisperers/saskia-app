@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import pytest
 
-
 # ───────────────────────── helpers ─────────────────────────
 
 def _mk_ingredient(session, name: str, unit: str = "g", allergens=None, **kw):

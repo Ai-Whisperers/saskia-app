@@ -17,12 +17,10 @@ prod-only check; the helpers below mock the network.
 """
 from __future__ import annotations
 
-import io
 import urllib.error
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 PNG_1X1 = (
     b"\x89PNG\r\n\x1a\n"  # PNG magic
@@ -189,7 +187,7 @@ def test_upload_idempotent_when_bucket_exists(monkeypatch):
     with patch.dict("sys.modules", {
         "app.auth_supabase": fake_storage_module,
     }):
-        from app.rms.storage import _ensure_bucket, PRODUCT_IMAGE_BUCKET
+        from app.rms.storage import PRODUCT_IMAGE_BUCKET, _ensure_bucket
 
         # Should not raise.
         _ensure_bucket(PRODUCT_IMAGE_BUCKET)

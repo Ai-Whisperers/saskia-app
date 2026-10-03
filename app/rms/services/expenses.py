@@ -12,12 +12,11 @@ Expense operations:
 Standalone functions (not classes) for easier testing.
 """
 
-from datetime import date, datetime, timezone
-from typing import List, Optional
-from decimal import Decimal
+from datetime import datetime
+from typing import List
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
 
 from app.rms.models import Expense
 
@@ -25,7 +24,6 @@ from app.rms.models import Expense
 # Validation errors
 class ExpenseValidationError(ValueError):
     """Raised for invalid expense operations."""
-    pass
 
 
 # Valid enums
@@ -61,16 +59,16 @@ def create_expense(db: Session, occurred_at: datetime, amount_gs: int, category:
     # Validate inputs
     if not occurred_at.tzinfo:
         raise ExpenseValidationError("tz-aware")
-    
+
     if amount_gs <= 0:
         raise ExpenseValidationError("amount_gs must be > 0")
-    
+
     if category not in VALID_CATEGORIES:
         raise ExpenseValidationError(f"category must be one of {VALID_CATEGORIES}")
-    
+
     if recurring_period and recurring_period not in VALID_RECURRING:
         raise ExpenseValidationError(f"recurring_period must be one of {VALID_RECURRING}")
-    
+
     # Create expense
     expense = Expense(
         occurred_at=occurred_at,
@@ -82,7 +80,7 @@ def create_expense(db: Session, occurred_at: datetime, amount_gs: int, category:
         recurring_period=recurring_period or "once",
         created_by=created_by
     )
-    
+
     db.add(expense)
     db.commit()
     db.refresh(expense)
@@ -103,16 +101,16 @@ def list_expenses(db: Session, limit: int = 100, category: str | None = None, su
         List[Expense]: Matching expenses
     """
     query = db.query(Expense)
-    
+
     if not include_voided:
         query = query.filter(Expense.is_voided.is_(False))
-    
+
     if category:
         query = query.filter(Expense.category == category)
-    
+
     if supplier_id:
         query = query.filter(Expense.supplier_id == supplier_id)
-    
+
     return query.order_by(Expense.created_at.desc()).limit(limit).all()
 
 
@@ -137,10 +135,10 @@ def update_expense(db: Session, expense_id: int, description: str | None = None,
     expense = db.query(Expense).filter(Expense.id == expense_id).first()
     if not expense:
         raise ExpenseValidationError(f"Expense {expense_id} not found")
-    
+
     if expense.is_voided:
         raise ExpenseValidationError("Cannot update voided expense")
-    
+
     # Apply updates
     if description is not None:
         expense.description = description
@@ -158,7 +156,7 @@ def update_expense(db: Session, expense_id: int, description: str | None = None,
         if recurring_period not in VALID_RECURRING:
             raise ExpenseValidationError(f"recurring_period must be one of {VALID_RECURRING}")
         expense.recurring_period = recurring_period
-    
+
     db.commit()
     db.refresh(expense)
     return expense
@@ -178,15 +176,15 @@ def void_expense(db: Session, expense_id: int, reason: str | None = None) -> Non
     expense = db.query(Expense).filter(Expense.id == expense_id).first()
     if not expense:
         raise ExpenseValidationError(f"Expense {expense_id} not found")
-    
+
     if expense.is_voided:
         raise ExpenseValidationError("Expense is already voided")
-    
+
     # Mark as voided
     expense.is_voided = True
     reason_text = reason or "voided"
     expense.description = f"{expense.description} | voided: {reason_text}"
-    
+
     db.commit()
 
 
@@ -210,7 +208,7 @@ def get_expense_types(db: Session) -> List[str]:
     ).filter(
         Expense.deleted_at.is_(None)
     ).all()
-    
+
     return [row[0] for row in result]
 
 
@@ -223,14 +221,14 @@ def get_recurring_expenses(db: Session) -> List[Expense]:
 
 
 __all__ = [
-    "ExpenseValidationError",
     "VALID_CATEGORIES",
     "VALID_RECURRING",
+    "ExpenseValidationError",
     "create_expense",
-    "list_expenses", 
-    "update_expense",
-    "void_expense",
-    "total_expenses_gs",
     "get_expense_types",
-    "get_recurring_expenses"
+    "get_recurring_expenses",
+    "list_expenses",
+    "total_expenses_gs",
+    "update_expense",
+    "void_expense"
 ]

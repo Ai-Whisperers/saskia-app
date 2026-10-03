@@ -7,6 +7,7 @@ Compares the version header in docs/user-guide/README.md against:
 Exits non-zero if the manual is stale.
 """
 from __future__ import annotations
+
 import re
 import subprocess
 import sys

@@ -11,8 +11,8 @@ Covers:
 """
 from app.services.customer_address import (
     compose_address_text,
-    ventana_text,
     default_invoice_profile_payload,
+    ventana_text,
 )
 
 
@@ -124,8 +124,8 @@ def test_schema_version_is_at_least_81():
     """Phase 13: migrations 079 (structured address), 080 (invoice
     profiles), and 081 (delivery window) require CURRENT_SCHEMA_VERSION
     ≥ 81. After init_db on a fresh DB, schema_version == 81."""
-    from app.rms.db import init_db
     from app.rms.config import CURRENT_SCHEMA_VERSION
+    from app.rms.db import init_db
     assert CURRENT_SCHEMA_VERSION >= 81, (
         f"Expected CURRENT_SCHEMA_VERSION ≥ 81, got {CURRENT_SCHEMA_VERSION}"
     )
@@ -136,7 +136,8 @@ def test_schema_version_is_at_least_81():
     init_db(eng)
     # We don't import init_db here without engine; use a quick smoke
     # through the live DB initialiser path with a tmp file.
-    import tempfile, os
+    import os
+    import tempfile
     fd, path = tempfile.mkstemp(suffix=".sqlite")
     os.close(fd)
     try:

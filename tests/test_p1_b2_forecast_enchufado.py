@@ -25,10 +25,8 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 
 import pytest
-from sqlalchemy import select
 
 from app.rms.models import Product, Sale
-
 
 # --- helpers ---
 
@@ -186,10 +184,10 @@ def test_manana_route_includes_override_form(client, session_factory) -> None:
 
 def test_manana_route_renders_seasonal_note_when_event_matches(client) -> None:
     """If a seasonal calendar event falls tomorrow, the page shows the note."""
-    from app.rms.workflow import SeasonalEvent, SEASONAL_CALENDAR_2026
-    from app.rms.config import ASUNCION_TZ
-    from datetime import date as _date
     from unittest.mock import patch
+
+    from app.rms.config import ASUNCION_TZ
+    from app.rms.workflow import SeasonalEvent
 
     tomorrow = datetime.now(ASUNCION_TZ).date() + timedelta(days=1)
     fake_event = SeasonalEvent(
@@ -238,8 +236,9 @@ def test_forecast_sample_stats_zero_when_no_sales(session_factory) -> None:
 
 def test_manana_override_bulk_roundtrip(client, session_factory) -> None:
     """POST /produccion/override-bulk writes date-scoped overrides (one commit)."""
-    from app.rms.models import ProductionPlanOverride
     from datetime import date, timedelta
+
+    from app.rms.models import ProductionPlanOverride
 
     pid = _seed_product_with_sales(
         session_factory, name="Bulk_ov_prod", n_sales=12, days_span=7

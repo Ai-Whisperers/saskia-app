@@ -15,7 +15,7 @@ P2: client name title-cased in h1 + breadcrumb.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 from tests.factories import make_customer, make_product
 

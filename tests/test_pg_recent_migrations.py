@@ -94,8 +94,9 @@ def test_audit_log_jsonb_roundtrip_preserves_dict(pg_session):
     Reproduces the 2026-09-04 hotfix: row_counts_json was rendered as
     str on SQLite but as dict on PG, breaking /healthz/db JSON output.
     """
-    from app.rms.models import AuditLog
     from datetime import datetime, timezone
+
+    from app.rms.models import AuditLog
 
     payload = {"action": "test.pg_jsonb", "count": 42, "tags": ["a", "b"]}
     row = AuditLog(

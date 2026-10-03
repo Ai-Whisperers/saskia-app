@@ -19,13 +19,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import pytest
 
 
 def test_suggestion_applied_writes_ledger_row(client, session_factory):
     """Happy path: POST logs a suggestion_applied row."""
-    from app.rms.models import Customer, LoyaltyTransaction
     from sqlalchemy import select as _sa_select
+
+    from app.rms.models import Customer, LoyaltyTransaction
 
     with session_factory() as s:
         c = Customer(name="Test Cust", phone="0981123456", loyalty_points=50)
@@ -66,8 +66,9 @@ def test_suggestion_applied_does_not_crash_on_bad_payload(
     client, session_factory
 ):
     """Empty payload → still 200, falls back to defaults (kind=unknown)."""
-    from app.rms.models import Customer, LoyaltyTransaction
     from sqlalchemy import select as _sa_select
+
+    from app.rms.models import Customer, LoyaltyTransaction
 
     with session_factory() as s:
         c = Customer(name="Test Cust 2", phone="0981567890", loyalty_points=0)

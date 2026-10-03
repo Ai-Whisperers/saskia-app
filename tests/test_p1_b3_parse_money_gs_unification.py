@@ -25,7 +25,6 @@ from fastapi import HTTPException
 from app.rms.money import parse_gs
 from app.rms.validation import parse_money_gs
 
-
 # ─── Canonical grammar (parse_gs) — locked in tests ──────────────────────
 
 

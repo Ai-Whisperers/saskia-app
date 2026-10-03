@@ -57,7 +57,6 @@ def test_bank_reconcile_sets_reconciled_by_from_session(client, session_factory)
     from datetime import datetime, timezone
 
     from app.rms.models import BankTransaction
-    from sqlalchemy import select
 
     with session_factory() as s:
         # Create a fresh transaction so this test is self-contained.

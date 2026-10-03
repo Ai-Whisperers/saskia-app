@@ -58,7 +58,6 @@ from sqlalchemy.exc import OperationalError, ProgrammingError
 from app.rms.config import ASUNCION_TZ
 from app.rms.models import PedidoEvent
 
-
 # Keep in lock-step with the CK_pedido_event_type constraint
 # (see app/rms/models_legacy.py PedidoEvent class).
 VALID_EVENT_TYPES: frozenset[str] = frozenset({

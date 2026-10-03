@@ -41,7 +41,6 @@ from sqlalchemy.orm import Session
 from app.rms.models import Sale
 from app.rms.models_legacy import Pedido, PedidoLine, Refund
 
-
 # Valid target_type values (mirror the model CheckConstraint)
 VALID_TARGET_TYPES = frozenset({"sale", "pedido", "pedido_line"})
 
@@ -296,8 +295,8 @@ def _reverse_points_proportional(
     Only reverses the EARN for this sale; never touches unrelated redeem rows
     (mirroring the void-reversal contract from reverse_points_for_void).
     """
-    from app.rms.models import LoyaltyTransaction
     from app.rms.customers import get_customer
+    from app.rms.models import LoyaltyTransaction
 
     if sale_total_gs <= 0:
         return 0
@@ -469,8 +468,8 @@ def _restock_for_target(
 
 __all__ = [
     "VALID_TARGET_TYPES",
-    "RefundResult",
     "RefundError",
+    "RefundResult",
     "create_refund",
     "get_refund",
     "list_refunds_for",

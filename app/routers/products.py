@@ -905,7 +905,7 @@ async def products_import_csv(
     })
 
 
-__all__ = ["router", "public_router"]
+__all__ = ["public_router", "router"]
 
 @router.post("/upload-image")
 async def product_upload_image(
@@ -974,7 +974,7 @@ async def product_upload_image(
             if msg.startswith("too_large"):
                 raise HTTPException(status_code=413, detail=msg) from exc
             raise HTTPException(status_code=500, detail=msg) from exc
-        except Exception as exc:  # noqa: BLE001 — defensive default
+        except Exception:  # noqa: BLE001 — defensive default
             # Supabase rejected (DNS, network, RLS, 4xx from bad path).
             # Log + fall back to local storage so the operator's upload
             # still succeeds. /healthz/summary will surface the supabase

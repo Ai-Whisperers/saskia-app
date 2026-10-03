@@ -230,7 +230,7 @@ def test_nudge_hidden_when_data_complete(client, session_factory):
         s.add(CustomerAddress(customer_id=cid, label="casa",
                               address_text="Calle 1"))
         s.commit()
-    r = client.get(f"/clientes?q=NudgeComplete")
+    r = client.get("/clientes?q=NudgeComplete")
     assert r.status_code == 200
     # banner may still show (other clients exist in DB) but this client
     # adds no counts — assert the page renders fine.

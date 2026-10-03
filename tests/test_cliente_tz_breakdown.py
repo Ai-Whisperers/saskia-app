@@ -10,7 +10,6 @@ from datetime import datetime
 
 import pytest
 
-from app.rms.config import ASUNCION_TZ
 from app.rms.models import Customer, Product, Sale
 
 
@@ -20,7 +19,6 @@ def tz_breakdown_customer(session_factory) -> int:
 
     3 sales in America/Asuncion (the default), 1 in America/Argentina/Buenos_Aires.
     """
-    from sqlalchemy.orm import Session
     with session_factory() as s:  # type: Session
         cust = Customer(
             name="Tz Test Customer",

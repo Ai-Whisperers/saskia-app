@@ -1,7 +1,6 @@
 """Test merma combo API endpoints."""
 
 import pytest
-
 from fastapi.testclient import TestClient
 
 from app.rms.units import Unit

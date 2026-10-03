@@ -15,9 +15,7 @@ Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-
-import pytest
+from datetime import datetime
 
 from app.rms.models import Customer, Product, Sale, Suscripcion
 from app.services.customer_prefill import compute_customer_defaults
@@ -25,7 +23,6 @@ from app.services.customer_prefill import compute_customer_defaults
 
 def _make_customer_with_spend(session, lifetime_spend_gs: int) -> int:
     """Helper: create a customer whose lifetime spend equals the given Gs."""
-    from sqlalchemy.orm import Session
     cust = Customer(name=f"Cust {lifetime_spend_gs}", phone=f"+595****{lifetime_spend_gs:04d}")
     session.add(cust)
     session.flush()
@@ -51,7 +48,6 @@ def _make_customer_with_spend(session, lifetime_spend_gs: int) -> int:
 
 def test_prefill_includes_tier_bronze(session_factory) -> None:
     """A new customer (no spend) has tier='bronze' in prefill."""
-    from sqlalchemy.orm import Session
     with session_factory() as s:
         cust = Customer(name="Newbie", phone="+595****0001")
         s.add(cust)
@@ -99,7 +95,6 @@ def test_prefill_includes_tier_platinum(session_factory) -> None:
 
 def test_prefill_includes_active_subscriptions(session_factory) -> None:
     """A customer with an active suscripción has it in prefill.active_subscriptions."""
-    from sqlalchemy.orm import Session
     with session_factory() as s:
         cust = Customer(name="Subber", phone="+595****0100")
         s.add(cust)
@@ -141,7 +136,6 @@ def test_prefill_includes_active_subscriptions(session_factory) -> None:
 
 def test_prefill_excludes_paused_subscriptions(session_factory) -> None:
     """Only 'activa' status suscripciones show up in prefill."""
-    from sqlalchemy.orm import Session
     with session_factory() as s:
         cust = Customer(name="Pauser", phone="+595****0200")
         s.add(cust)
@@ -165,7 +159,6 @@ def test_prefill_excludes_paused_subscriptions(session_factory) -> None:
 
 def test_prefill_empty_for_customer_with_no_subs(session_factory) -> None:
     """A customer without any suscripción has empty active_subscriptions."""
-    from sqlalchemy.orm import Session
     with session_factory() as s:
         cust = Customer(name="NoSub", phone="+595****0300")
         s.add(cust)
@@ -183,7 +176,6 @@ def test_prefill_empty_for_customer_with_no_subs(session_factory) -> None:
 
 def test_customer_defaults_api_includes_tier_and_subs(client, session_factory) -> None:
     """GET /pedidos/api/customer-defaults/<id> returns tier + active_subscriptions."""
-    from sqlalchemy.orm import Session
     with session_factory() as s:
         cust = Customer(name="APICust", phone="+595****0400")
         s.add(cust)

@@ -1,6 +1,8 @@
 """capture_extra_screenshots.py — login + dashboard + admin pages."""
 from __future__ import annotations
+
 from pathlib import Path
+
 from playwright.sync_api import sync_playwright
 
 BASE = "https://saskia-vps.paragu-ai.com"

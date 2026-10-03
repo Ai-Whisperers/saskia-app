@@ -7,9 +7,10 @@ carries them all, and GET /pedidos/{id} shows the ventana text with the
 "(no es garantía)" suffix.
 """
 from datetime import date, timedelta
+
 from sqlalchemy import select
 
-from app.rms.models import Pedido, AppMeta
+from app.rms.models import Pedido
 
 
 def _seed_product(session_factory, name="Phase13Prod", price=12000):

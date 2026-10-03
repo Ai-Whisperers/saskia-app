@@ -26,7 +26,7 @@ from pathlib import Path
 # Add BWS SDK to path
 sys.path.insert(0, "/opt/data/.venv/lib/python3.11/site-packages")
 
-from bitwarden_sdk import BitwardenClient, ClientSettings, DeviceType  # noqa: E402
+from bitwarden_sdk import BitwardenClient, ClientSettings, DeviceType
 
 DB_URL_FILE = Path("/tmp/dbx.txt")
 BWS_TOKEN_PATH = Path("/opt/data/.hermes/inbox/bws-token.secret")

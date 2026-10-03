@@ -21,8 +21,6 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy.orm import sessionmaker
-
 from app.rms.models import AuditLog, IngredientPriceEvent
 from tests.factories import make_ingredient, make_supplier
 

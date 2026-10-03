@@ -12,14 +12,11 @@ Symptom (2026-09-29 live VPS):
 """
 from __future__ import annotations
 
-import pytest
-
 from app.rms.tag_algebra import (
     _normalize_tag,
-    ingredient_dietary_set,
     ingredient_blocks,
+    ingredient_dietary_set,
 )
-
 
 # _normalize_tag -------------------------------------------------------------
 

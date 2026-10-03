@@ -10,10 +10,7 @@
 
 from __future__ import annotations
 
-import pytest
-
 from tests.factories import make_customer, make_product
-
 
 # ── POST /pedidos/nuevo with delivery fields ────────────────────────────
 
@@ -73,7 +70,7 @@ def test_pedido_save_address_creates_customer_address(client, session_factory):
         follow_redirects=False,
     )
     assert r.status_code in (302, 303)
-    from app.rms.models import CustomerAddress, Customer
+    from app.rms.models import Customer, CustomerAddress
     with session_factory() as s:
         cust = s.query(Customer).filter_by(name="Cliente AddrBook UX").one()
         addrs = s.query(CustomerAddress).filter_by(customer_id=cust.id).all()

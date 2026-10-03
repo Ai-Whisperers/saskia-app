@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-
 # ── Address composition (structured → single-line text) ───────────
 
 def compose_address_text(addr: Mapping[str, Any] | None) -> str:
@@ -200,11 +199,11 @@ def ventana_text(pref: str | None, start: str | None, end: str | None,
 
 __all__ = [
     "ADDRESS_KINDS",
+    "DELIVERY_PREFERENCES",
     "INVOICE_TIPOS_DOCUMENTO",
     "INVOICE_TIPOS_OPERACION",
-    "DELIVERY_PREFERENCES",
-    "compose_address_text",
     "address_alias_label",
+    "compose_address_text",
     "default_invoice_profile_payload",
     "invoice_profile_summary",
     "ventana_text",

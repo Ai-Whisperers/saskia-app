@@ -39,12 +39,9 @@ What this catches going forward:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-
 import pytest
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
-from sqlalchemy.orm import Session
 
 # Import the analytics module under test.
 # analytics.py imports may not survive if DB migrations are at the wrong

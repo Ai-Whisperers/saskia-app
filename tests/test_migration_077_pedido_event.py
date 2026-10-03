@@ -13,7 +13,6 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import inspect, text
 
-
 # ---------- 1. Migration shape ----------
 
 def test_migration_077_bumps_schema_version(session_factory):
@@ -52,8 +51,8 @@ def test_pedido_event_has_indexes(session_factory):
 
 def test_service_record_creates_row(qseed, session_factory):
     """PedidoEventService.record appends a row + flushes."""
-    from app.seed.kyrian import KYRIAN_PHONE
     from app.rms.models import Customer, Pedido
+    from app.seed.kyrian import KYRIAN_PHONE
     from app.services.pedido_events import PedidoEventService
 
     qseed("with_kyrian_full")
@@ -76,8 +75,8 @@ def test_service_record_creates_row(qseed, session_factory):
 
 def test_service_invalid_event_type_raises(qseed, session_factory):
     """Typos in event_type raise ValueError, not DB error."""
-    from app.seed.kyrian import KYRIAN_PHONE
     from app.rms.models import Customer, Pedido
+    from app.seed.kyrian import KYRIAN_PHONE
     from app.services.pedido_events import PedidoEventService
 
     qseed("with_kyrian_full")
@@ -96,10 +95,11 @@ def test_service_cascades_on_pedido_delete(qseed, session_factory):
     so the cascade can run cleanly. The seeded Kyrian pedidos have lots
     of FK references that complicate direct deletion in a unit test.
     """
+    from datetime import datetime
+
+    from app.rms.config import ASUNCION_TZ
     from app.rms.models import Customer, Pedido, PedidoEvent
     from app.services.pedido_events import PedidoEventService
-    from app.rms.config import ASUNCION_TZ
-    from datetime import datetime
 
     with session_factory() as s:
         c = Customer(name="Cascade Test", phone="0999000001")

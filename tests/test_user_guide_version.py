@@ -7,6 +7,7 @@ Verifies the user guide:
   4. Placeholder text ("placeholder screenshot" / "placeholder image") is gone
 """
 from __future__ import annotations
+
 import subprocess
 from pathlib import Path
 
@@ -59,7 +60,6 @@ def test_version_check_script_passes():
     detector is green. If the lag is 2+, a real schema/route change
     happened that wasn't called out in the manual.
     """
-    import subprocess
     r = subprocess.run(
         ["git", "log", "--format=%H", "-2"], cwd=REPO, capture_output=True, text=True,
     )

@@ -102,7 +102,7 @@ def write_shop_whatsapp(
     _user=Depends(require_login_or_disabled),
 ) -> object:
     """Set/clear the menu-order WhatsApp number. Stored digits-only."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from app.rms.models import SettingsKV
 

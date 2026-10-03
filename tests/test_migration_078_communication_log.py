@@ -57,9 +57,9 @@ def test_communication_log_indexes_exist(session_factory):
 
 def test_communication_log_check_constraints(session_factory):
     """Enum constraints reject invalid direction/channel/status values."""
-    from app.rms.models import CommunicationLog
-    from app.rms.models import Customer
     from datetime import datetime
+
+    from app.rms.models import CommunicationLog, Customer
 
     with session_factory() as s:
         c = Customer(name="Comm Test", phone="0998000001")
@@ -115,9 +115,9 @@ def test_communication_log_check_constraints(session_factory):
 
 def test_communication_log_cascades_on_customer_delete(session_factory):
     """Deleting a customer removes all their messages (FK ON DELETE CASCADE)."""
-    from app.rms.models import CommunicationLog
-    from app.rms.models import Customer
     from datetime import datetime
+
+    from app.rms.models import CommunicationLog, Customer
 
     with session_factory() as s:
         c = Customer(name="Cascade Comm Test", phone="0998000002")
@@ -143,8 +143,9 @@ def test_communication_log_cascades_on_customer_delete(session_factory):
 
 def test_communication_log_set_null_on_pedido_delete(session_factory):
     """Deleting a pedido NULLs pedido_id on related messages (FK SET NULL)."""
-    from app.rms.models import CommunicationLog, Pedido, Customer
     from datetime import datetime
+
+    from app.rms.models import CommunicationLog, Customer, Pedido
 
     with session_factory() as s:
         c = Customer(name="Pedido Comm Test", phone="0998000003")
@@ -169,7 +170,6 @@ def test_communication_log_set_null_on_pedido_delete(session_factory):
         s.commit()
 
         # The message still exists; pedido_id was nulled
-        from sqlalchemy.orm import Session
         s.expire_all()
         m2 = s.get(Message := __import__("app.rms.models", fromlist=["CommunicationLog"]).CommunicationLog, msg_id)
         assert m2 is not None

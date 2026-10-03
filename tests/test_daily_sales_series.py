@@ -15,9 +15,7 @@ Tests cover:
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
-from decimal import Decimal
 
-from app.rms.money import to_int_gs
 from app.services.reports import (
     DailySalesRow,
     _resolve_daily_range,
@@ -99,8 +97,9 @@ def test_daily_sales_series_buckets_sales_by_local_date(session_factory, qseed):
     p = data["product"]
     with Session() as s:
         # Add 2 more sales on different days via apply_sale.
-        from app.rms.costing import apply_sale
         from datetime import timezone
+
+        from app.rms.costing import apply_sale
         # Day -1 (yesterday)
         apply_sale(
             s, product_id=p.id, qty=1.0,
@@ -155,7 +154,7 @@ def test_daily_sales_series_top_product_by_qty(session_factory, qseed):
     # point; create another via qseed's underlying helpers.
     with Session() as s:
         # Create a second product
-        from app.rms.models import Product, Recipe, RecipeLine, Ingredient
+        from app.rms.models import Ingredient, Product, Recipe, RecipeLine
         ing = s.query(Ingredient).first()
         rec2 = Recipe(name="Otra Receta", yield_qty=5.0, yield_unit="und")
         s.add(rec2); s.flush()

@@ -5,14 +5,18 @@ Per dev plan §9 Task 5.
 
 from __future__ import annotations
 
-import math
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
-from loguru import logger
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
@@ -48,7 +52,8 @@ from app.rms.models import Customer, Product, Sale, StockMovement
 from app.rms.money import to_int_gs
 from app.rms.public_tokens import (
     enforce_rate_limit as public_token_enforce_rate_limit,
-    generate_public_token,
+)
+from app.rms.public_tokens import (
     is_token_valid,
 )
 from app.rms.schemas import (
@@ -634,7 +639,8 @@ async def sale_receipt(
     # receipt. Two queries max; both are FK-indexed so they cost <1ms.
     loyalty_snapshot = None
     if sale.customer_id:
-        from app.rms.models import Customer as _Cust, LoyaltyTransaction as _LT
+        from app.rms.models import Customer as _Cust
+        from app.rms.models import LoyaltyTransaction as _LT
         cust = session.get(_Cust, sale.customer_id)
         if cust is not None:
             earn_row = session.execute(
@@ -697,7 +703,8 @@ async def sale_detail(
     # Loyalty snapshot (same data shape as the receipt route)
     loyalty_snapshot = None
     if sale.customer_id:
-        from app.rms.models import Customer as _Cust, LoyaltyTransaction as _LT
+        from app.rms.models import Customer as _Cust
+        from app.rms.models import LoyaltyTransaction as _LT
         cust = session.get(_Cust, sale.customer_id)
         if cust is not None:
             earn_row = session.execute(
@@ -1502,7 +1509,11 @@ async def sale_create_multi(
         from app.auth import current_user_id
         from app.rms.customers import (
             award_points as _award_points,
+        )
+        from app.rms.customers import (
             get_customer as _get_cust,
+        )
+        from app.rms.customers import (
             redeem_points as _redeem_points,
         )
         from app.rms.models import Sale as _Sale
@@ -1592,12 +1603,12 @@ def _fire_printer_for_sale(
 
     Module-level imports so tests can monkeypatch the printer.
     """
-    from app.rms.models import Product, Sale
     from app.integrations.printer import (
         config_from_env,
         format_receipt_text,
         send_to_printer,
     )
+    from app.rms.models import Product, Sale
 
     try:
         sale_product = session.get(Product, product_id)
@@ -1652,9 +1663,9 @@ async def sale_void(
     # rows exist for this sale_id (defensive: only the original earn is
     # reversed, not subsequent unrelated redemptions).
     try:
-        from app.rms.models import Sale as _Sale
         from app.rms.customers import get_customer as _get_cust_void
         from app.rms.loyalty import reverse_points_for_void
+        from app.rms.models import Sale as _Sale
         _sale_row = session.get(_Sale, sale_id)
         if _sale_row and _sale_row.customer_id:
             _cust_void = _get_cust_void(session, _sale_row.customer_id)
@@ -1710,7 +1721,7 @@ async def sale_void(
     return RedirectResponse(url="/ventas/historial?flash=sale_void_ok", status_code=303)
 
 
-__all__ = ["router", "public_router"]
+__all__ = ["public_router", "router"]
 
 
 # --- BACKLOG #17: /ventas/{id}/share (auth) + /r/{token} (public) ------------
@@ -1827,7 +1838,8 @@ def public_recibo(request: Request, token: str) -> HTMLResponse:
         # print stylesheet so they can save as PDF.
         loyalty_snapshot = None
         if sale.customer_id:
-            from app.rms.models import Customer as _Cust, LoyaltyTransaction as _LT
+            from app.rms.models import Customer as _Cust
+            from app.rms.models import LoyaltyTransaction as _LT
 
             cust = session.get(_Cust, sale.customer_id)
             if cust is not None:

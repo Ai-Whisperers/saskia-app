@@ -19,14 +19,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from app.rms.backup import (  # noqa: E402
+from app.rms.backup import (
     backup_database,
     load_archive,
     prune_old_backups,
     restore_database,
 )
-from app.rms.db import init_db, make_session_factory  # noqa: E402
-from app.rms.db_dialect import make_engine  # noqa: E402
+from app.rms.db import init_db, make_session_factory
+from app.rms.db_dialect import make_engine
 
 
 def main(argv: list[str] | None = None) -> int:

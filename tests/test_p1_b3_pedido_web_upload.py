@@ -17,8 +17,6 @@ from __future__ import annotations
 import io
 from datetime import datetime, timedelta
 
-import pytest
-
 
 def _make_pedido(session, *, payment_intent: str = "transferencia") -> int:
     """Create a customer + pedido with public_token. Returns pedido_id."""
@@ -250,6 +248,7 @@ def _make_pedido_with_csrf_token(session) -> tuple[int, str, str]:
 
     # Hit a non-exempt GET to prime the CSRF cookie via the middleware.
     from starlette.testclient import TestClient
+
     from app.rms.main import app
 
     with TestClient(app, raise_server_exceptions=False) as tmp:
@@ -262,6 +261,7 @@ def _make_pedido_with_csrf_token(session) -> tuple[int, str, str]:
 def test_comprobante_rejects_post_without_csrf_cookie(client, session_factory) -> None:
     """POST without a CSRF cookie → 403 (middleware blocks)."""
     from starlette.testclient import TestClient
+
     from app.rms.main import app
 
     with session_factory() as s:
@@ -288,6 +288,7 @@ def test_comprobante_rejects_post_with_mismatched_csrf_form_field(client, sessio
     raw nonces. A wrong token fails the signature check.
     """
     from starlette.testclient import TestClient
+
     from app.rms.main import app
 
     with session_factory() as s:
@@ -316,6 +317,7 @@ def test_comprobante_rejects_post_missing_csrf_form_field(client, session_factor
     The verify_form_csrf dependency requires the form field explicitly.
     """
     from starlette.testclient import TestClient
+
     from app.rms.main import app
 
     with session_factory() as s:
@@ -340,6 +342,7 @@ def test_comprobante_rejects_post_missing_csrf_form_field(client, session_factor
 def test_comprobante_accepts_post_with_matching_csrf_form_field(client, session_factory) -> None:
     """POST with valid cookie AND matching _csrf_token → 200 (happy path)."""
     from starlette.testclient import TestClient
+
     from app.rms.main import app
 
     with session_factory() as s:

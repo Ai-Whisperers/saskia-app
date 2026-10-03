@@ -31,7 +31,8 @@ import sys
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, select as _sa_select
+from sqlalchemy import create_engine
+from sqlalchemy import select as _sa_select
 from sqlalchemy.orm import sessionmaker
 
 # Headless test env: no .env, no printer, no cron.
@@ -41,12 +42,12 @@ os.environ.setdefault("RANDOM_SEED", "42")
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from app.rms.models import Base, Customer, LoyaltyTransaction  # noqa: E402
-from app.rms.customers import (  # noqa: E402
+from app.rms.customers import (
     award_points,
     redeem_points,
     reverse_points_for_void,
 )
+from app.rms.models import Base, Customer, LoyaltyTransaction
 
 
 @pytest.fixture()

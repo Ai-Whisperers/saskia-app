@@ -48,7 +48,6 @@ import re
 
 import pytest
 
-
 # Generated 2026-10-01 from app/routers/ — see docstring above.
 # Format: (file, function_name, full_path, has_path_param, verb)
 ROUTE_CATALOG = [

@@ -27,6 +27,17 @@ import sys
 from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
 from typing import Any
+
+from loguru import logger
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, sessionmaker
+
+from app.rms.config import (
+    CURRENT_SCHEMA_VERSION,
+    DB_PATH,
+    ensure_dirs,
+)
 from app.rms.migrations._084_stock_qty_nonneg import _migration_084_stock_qty_nonneg
 from app.rms.migrations._085_sale_public_token import _migration_085_sale_public_token
 from app.rms.migrations._086_placeholder import _migration_086_placeholder
@@ -40,22 +51,13 @@ from app.rms.migrations._091_backfill_stock_movement_recipe import (
     _migration_091_backfill_stock_movement_recipe,
 )
 from app.rms.migrations._092_drop_sale_stock_move import _migration_092_drop_sale_stock_move
-from app.rms.migrations._093_expense_receipt_recurring import _migration_093_expense_receipt_recurring
+from app.rms.migrations._093_expense_receipt_recurring import (
+    _migration_093_expense_receipt_recurring,
+)
 from app.rms.migrations._094_monthly_closure import _migration_094_monthly_closure
 from app.rms.migrations._095_soft_delete_columns import _migration_095_soft_delete_columns
 from app.rms.migrations._096_audit_columns import _migration_096_audit_columns
 from app.rms.migrations._097_ingredient_avg_cost import _migration_097_ingredient_avg_cost
-
-from loguru import logger
-from sqlalchemy import create_engine, event, text
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session, sessionmaker
-
-from app.rms.config import (
-    CURRENT_SCHEMA_VERSION,
-    DB_PATH,
-    ensure_dirs,
-)
 
 
 def _set_sqlite_pragmas(dbapi_conn: Any, _: Any) -> None:
@@ -2589,7 +2591,7 @@ def _migration_060_tag_normalization(conn: Any) -> None:
                 from app.rms.tag_algebra import cascade_refresh
                 cascade_refresh(s, recipe_id=rid)
                 s.commit()  # without commit, with-exit rolls back the writes
-    except Exception as exc:  # noqa: BLE001 — best-effort, log and continue
+    except Exception as exc:
         import sys as _sys
         print(
             f"MIGRATION v60 step (6) cascade_refresh skipped: {exc!r}",
@@ -2641,7 +2643,7 @@ def _migration_062_audit_repair(conn: Any) -> None:
             from app.rms.tagging.audit import backfill_validation_issues
             backfill_validation_issues(s)
             s.commit()
-    except Exception as exc:  # noqa: BLE001 — best-effort, log and continue
+    except Exception as exc:
         import sys as _sys
         print(
             f"MIGRATION v62 repair_all_ingredients skipped: {exc!r}",
@@ -2667,7 +2669,7 @@ def _migration_063_payment_receipt(conn: Any) -> None:
                 "ALTER TABLE pedido ADD COLUMN payment_receipt_path TEXT"
             )
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
     try:
         conn.execute(
@@ -2675,7 +2677,7 @@ def _migration_063_payment_receipt(conn: Any) -> None:
                 "ALTER TABLE pedido ADD COLUMN payment_receipt_uploaded_at TIMESTAMP"
             )
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
     _bump_schema_version(conn, 63)
 
@@ -2712,7 +2714,7 @@ def _migration_066_product_tablet_slug(conn: Any) -> None:
                 "ALTER TABLE product ADD COLUMN tablet_slug VARCHAR(60)"
             )
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
     try:
         conn.execute(
@@ -2720,7 +2722,7 @@ def _migration_066_product_tablet_slug(conn: Any) -> None:
                 "ALTER TABLE product ADD COLUMN tablet_visible BOOLEAN NOT NULL DEFAULT 1"
             )
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
     # Best-effort: index on tablet_slug for fast lookups. CREATE INDEX
     # is idempotent on its own (IF NOT EXISTS) on SQLite + Postgres.
@@ -2731,7 +2733,7 @@ def _migration_066_product_tablet_slug(conn: Any) -> None:
                 "ON product (tablet_slug)"
             )
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
     _bump_schema_version(conn, 66)
 
@@ -2768,7 +2770,7 @@ def _migration_067_pedido_public_token_expiry(conn: Any) -> None:
                 "ADD COLUMN public_token_expires_at TIMESTAMP"
             )
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
 
     # 2. Backfill: existing rows get created_at + 30 days.
@@ -2810,7 +2812,7 @@ def _migration_067_pedido_public_token_expiry(conn: Any) -> None:
                 ),
                 {"exp": expires, "pid": row.id},
             )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         from loguru import logger as _lg
 
         _lg.warning(
@@ -2826,7 +2828,7 @@ def _migration_067_pedido_public_token_expiry(conn: Any) -> None:
                 "ON pedido (public_token, public_token_expires_at)"
             )
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
 
     _bump_schema_version(conn, 67)
@@ -2847,7 +2849,7 @@ def _migration_068_recipe_menu_tags(conn: Any) -> None:
         conn.execute(
             text("ALTER TABLE recipe ADD COLUMN menu_tags TEXT")
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
 
     # Backfill: seed menu_tags from the legacy family so nothing the
@@ -2860,7 +2862,7 @@ def _migration_068_recipe_menu_tags(conn: Any) -> None:
                 "AND TRIM(family) <> ''"
             )
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
 
     _bump_schema_version(conn, 68)
@@ -2913,19 +2915,19 @@ def _migration_065_suscripciones(conn: Any) -> None:
                 """
             )
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
     try:
         conn.execute(
             text("CREATE INDEX IF NOT EXISTS ix_suscripcion_status ON suscripcion (status)")
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
     try:
         conn.execute(
             text("CREATE INDEX IF NOT EXISTS ix_suscripcion_customer ON suscripcion (customer_id)")
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
     _bump_schema_version(conn, 65)
 
@@ -2980,7 +2982,7 @@ def _migration_061_tag_validation(conn: Any) -> None:
                     {"v": "\n".join(issues), "i": iid},
                 )
             s.commit()
-    except Exception as exc:  # noqa: BLE001 — best-effort, log and continue
+    except Exception as exc:
         import sys as _sys
         print(
             f"MIGRATION v61 audit_all_ingredients skipped: {exc!r}",
@@ -3038,7 +3040,7 @@ def _migration_069_customer_addresses_delivery_favorites(conn: Any) -> None:
     ):
         try:
             conn.execute(text(stmt))
-        except Exception:  # noqa: BLE001, S110 — column already exists
+        except Exception:
             pass
 
     _bump_schema_version(conn, 69)
@@ -3064,7 +3066,7 @@ def _migration_070_customer_dietary_profile(conn: Any) -> None:
     ):
         try:
             conn.execute(text(stmt))
-        except Exception:  # noqa: BLE001, S110 — column already exists
+        except Exception:
             pass
 
     _bump_schema_version(conn, 70)
@@ -3085,7 +3087,7 @@ def _migration_071_customer_profile_completeness(conn: Any) -> None:
     ):
         try:
             conn.execute(text(stmt))
-        except Exception:  # noqa: BLE001, S110 — column already exists
+        except Exception:
             pass
 
     _bump_schema_version(conn, 71)
@@ -3129,7 +3131,7 @@ def _migration_072_reorder_supplier_tracking(conn: Any) -> None:
     ):
         try:
             conn.execute(text(stmt))
-        except Exception:  # noqa: BLE001, S110 — column already exists
+        except Exception:
             pass
 
     # Backfill — best-effort. Empty DB → no rows affected; populated DB
@@ -3142,7 +3144,7 @@ def _migration_072_reorder_supplier_tracking(conn: Any) -> None:
                 "WHERE last_purchase_supplier_id IS NULL AND supplier_id IS NOT NULL"
             )
         )
-    except Exception as exc:  # noqa: BLE001, S110
+    except Exception as exc:
         logger.warning("migration 072: backfill of last_purchase_supplier_id failed: %s", exc)
 
     try:
@@ -3152,7 +3154,7 @@ def _migration_072_reorder_supplier_tracking(conn: Any) -> None:
                 "ON ingredient (last_purchase_supplier_id)"
             )
         )
-    except Exception as exc:  # noqa: BLE001, S110
+    except Exception as exc:
         logger.warning("migration 072: index creation failed: %s", exc)
 
     _bump_schema_version(conn, 72)
@@ -3188,7 +3190,7 @@ def _migration_073_ingredient_price_event_supplier(conn: Any) -> None:
     ):
         try:
             conn.execute(text(stmt))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             # CREATE INDEX IF NOT EXISTS is idempotent; ADD COLUMN raises
             # on second run which we tolerate.
             logger.debug("migration 073 stmt skipped: %s — %s", stmt.split()[2], exc)
@@ -3242,7 +3244,7 @@ def _migration_074_loyalty_transaction_ledger(conn: Any) -> None:
     ):
         try:
             conn.execute(text(stmt))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("migration 074 stmt skipped: %s", exc)
 
     _bump_schema_version(conn, 74)
@@ -3309,7 +3311,7 @@ def _migration_075_suggestion_event_log(conn: Any) -> None:
         ):
             try:
                 conn.execute(text(stmt))
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("migration 075 stmt skipped: %s — %s", stmt[:60], exc)
     else:
         # Postgres / generic: just drop and re-add the constraint.
@@ -3327,7 +3329,7 @@ def _migration_075_suggestion_event_log(conn: Any) -> None:
             # delta_nonzero constraint dropped entirely — suggestion_applied
             # events are zero-balance. Earn/redeem/void/manual_adjust code
             # never writes 0 anyway (guard in customers.py).
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("migration 075 ALTER skipped: %s", exc)
 
     _bump_schema_version(conn, 75)
@@ -3366,7 +3368,7 @@ def _migration_076_sale_linked_pedido_id(conn: Any) -> None:
                 "ALTER TABLE sale ADD COLUMN IF NOT EXISTS linked_pedido_id INTEGER "
                 "REFERENCES pedido(id) ON DELETE SET NULL"
             )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         # Column already exists (re-run after partial apply)
         logger.debug("migration 076 ADD COLUMN skipped: %s", exc)
 
@@ -3374,7 +3376,7 @@ def _migration_076_sale_linked_pedido_id(conn: Any) -> None:
         conn.exec_driver_sql(
             "CREATE INDEX IF NOT EXISTS ix_sale_linked_pedido_id ON sale (linked_pedido_id)"
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("migration 076 CREATE INDEX skipped: %s", exc)
 
     # Backfill: link any sale whose id matches a pedido.fulfilled_sale_id.
@@ -3392,7 +3394,7 @@ def _migration_076_sale_linked_pedido_id(conn: Any) -> None:
                 "FROM pedido p WHERE p.fulfilled_sale_id = sale.id "
                 "AND sale.linked_pedido_id IS NULL"
             )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("migration 076 backfill skipped: %s", exc)
 
     _bump_schema_version(conn, 76)
@@ -3452,7 +3454,7 @@ def _migration_077_pedido_event_log(conn: Any) -> None:
 
     try:
         conn.exec_driver_sql(create_sql)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("migration 077 CREATE TABLE pedido_event skipped: %s", exc)
 
     for idx_sql in (
@@ -3463,7 +3465,7 @@ def _migration_077_pedido_event_log(conn: Any) -> None:
     ):
         try:
             conn.exec_driver_sql(idx_sql)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("migration 077 index skipped: %s", exc)
 
     _bump_schema_version(conn, 77)
@@ -3540,7 +3542,7 @@ def _migration_078_communication_log(conn: Any) -> None:
 
     try:
         conn.exec_driver_sql(create_sql)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("migration 078 CREATE TABLE communication_log skipped: %s", exc)
 
     for idx_sql in (
@@ -3554,7 +3556,7 @@ def _migration_078_communication_log(conn: Any) -> None:
     ):
         try:
             conn.exec_driver_sql(idx_sql)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("migration 078 index skipped: %s", exc)
 
     _bump_schema_version(conn, 78)
@@ -3620,7 +3622,7 @@ def _migration_079_customer_address_structured(conn: Any) -> None:
     for sql in add_columns_sql:
         try:
             conn.exec_driver_sql(sql)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("migration 079 ADD COLUMN skipped: %s", exc)
 
     # Address_kind CHECK constraint is awkward to add idempotently on both
@@ -3702,7 +3704,7 @@ def _migration_080_customer_invoice_profile(conn: Any) -> None:
 
     try:
         conn.exec_driver_sql(create_sql)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("migration 080 CREATE TABLE customer_invoice_profile skipped: %s", exc)
 
     for idx_sql in (
@@ -3715,7 +3717,7 @@ def _migration_080_customer_invoice_profile(conn: Any) -> None:
     ):
         try:
             conn.exec_driver_sql(idx_sql)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("migration 080 index skipped: %s", exc)
 
     # Backfill: every customer with invoice_ruc OR invoice_name set
@@ -3757,7 +3759,7 @@ def _migration_080_customer_invoice_profile(conn: Any) -> None:
             """,
             {"ts": ts},
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("migration 080 backfill skipped: %s", exc)
 
     _bump_schema_version(conn, 80)
@@ -3803,7 +3805,7 @@ def _migration_081_pedido_delivery_window(conn: Any) -> None:
     for sql in add_columns_sql:
         try:
             conn.exec_driver_sql(sql)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("migration 081 ADD COLUMN skipped: %s", exc)
 
     for idx_sql in (
@@ -3813,7 +3815,7 @@ def _migration_081_pedido_delivery_window(conn: Any) -> None:
     ):
         try:
             conn.exec_driver_sql(idx_sql)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("migration 081 index skipped: %s", exc)
 
     _bump_schema_version(conn, 81)
@@ -3857,21 +3859,21 @@ def _migration_082_expense(conn: Any) -> None:
             )
             """
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("migration 082 CREATE TABLE expense failed: %s", exc)
 
     try:
         conn.exec_driver_sql(
             "CREATE INDEX IF NOT EXISTS ix_expense_occurred_at ON expense(occurred_at)"
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("migration 082 ix_expense_occurred_at skipped: %s", exc)
 
     try:
         conn.exec_driver_sql(
             "CREATE INDEX IF NOT EXISTS ix_expense_category ON expense(category)"
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("migration 082 ix_expense_category skipped: %s", exc)
 
     _bump_schema_version(conn, 82)
@@ -3910,7 +3912,7 @@ triggers don't fire on INSERT. Same for `recipe_line.qty`.
                     SELECT RAISE(ABORT, 'recipe.yield_qty must be > 0 (or NULL for drafts)');
                 END
             """))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning(
                 "migration 083 recipe_yield_qty_positive_insert skipped: %s", exc
             )
@@ -3926,7 +3928,7 @@ triggers don't fire on INSERT. Same for `recipe_line.qty`.
                     SELECT RAISE(ABORT, 'recipe_line.qty must be > 0 (or NULL)');
                 END
             """))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning(
                 "migration 083 recipe_line_qty_positive_insert skipped: %s", exc
             )
@@ -4422,7 +4424,7 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
     try:
         from app.rms.models.common import register_audit_event_listeners
         register_audit_event_listeners()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning(f"register_audit_event_listeners failed (non-fatal): {exc!r}")
 
 

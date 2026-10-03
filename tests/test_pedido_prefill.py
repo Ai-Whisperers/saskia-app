@@ -12,7 +12,7 @@ Verify the customer-prefill service computes the right defaults:
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date
 
 from app.services.customer_prefill import (
     CustomerPrefill,

@@ -7,8 +7,6 @@ specific live ingredients that triggered the audit page (#62 Panceta,
 
 from __future__ import annotations
 
-import pytest
-
 from app.rms.tagging.audit_repair import repair_ingredient
 
 

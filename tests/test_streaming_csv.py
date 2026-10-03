@@ -5,8 +5,6 @@ from __future__ import annotations
 import csv
 from io import StringIO
 
-import pytest
-
 from app.rms.streaming_csv import _join_row, stream_csv_rows
 
 

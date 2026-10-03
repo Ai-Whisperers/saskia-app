@@ -11,7 +11,7 @@ Verifies:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from sqlalchemy import inspect, text
 
@@ -41,9 +41,7 @@ def test_sale_linked_pedido_index_exists(session_factory):
 def test_apply_sale_sets_linked_pedido_id(session_factory):
     """apply_sale() persists linked_pedido_id when provided."""
     from app.rms.costing import apply_sale
-    from app.rms.models import Pedido, Sale
-    from app.seed.kyrian import KYRIAN_PHONE
-    from app.rms.models import Customer
+    from app.rms.models import Customer, Pedido, Sale
 
     with session_factory() as s:
         c = Customer(name="Test Buyer", phone="0990001111")
@@ -117,10 +115,9 @@ def test_timeline_includes_fulfilled_sale_events(qseed, session_factory):
     """After migration 076, the timeline service surfaces sale events
     (it was previously a no-op stub)."""
     qseed("with_kyrian_full")
-    from app.services.pedido_history import build_pedido_timeline
-    from app.rms.models import Pedido
-    from app.rms.models import Customer
+    from app.rms.models import Customer, Pedido
     from app.seed.kyrian import KYRIAN_PHONE
+    from app.services.pedido_history import build_pedido_timeline
 
     with session_factory() as s:
         c = s.query(Customer).filter_by(phone=KYRIAN_PHONE).one()
@@ -140,7 +137,7 @@ def test_timeline_includes_fulfilled_sale_events(qseed, session_factory):
 def test_apply_sale_default_linked_pedido_is_none(session_factory):
     """Without the kwarg, linked_pedido_id stays NULL (POS-driven sales)."""
     from app.rms.costing import apply_sale
-    from app.rms.models import Sale, Customer
+    from app.rms.models import Customer, Sale
 
     with session_factory() as s:
         c = Customer(name="POS Customer", phone="0992223333")

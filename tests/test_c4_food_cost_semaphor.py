@@ -4,7 +4,6 @@ Tests the red/amber/green traffic light display for food cost variance.
 """
 from __future__ import annotations
 
-import pytest
 from fastapi import status
 
 from app.rms.food_cost import food_cost_report

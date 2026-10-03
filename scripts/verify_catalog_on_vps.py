@@ -38,11 +38,9 @@ The script is read-only. It never modifies state.
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sqlite3
 import sys
-
 
 MIN_COUNTS = {
     "ingredient": 70,

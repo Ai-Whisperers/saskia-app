@@ -6,10 +6,8 @@ any future change must keep these mappings or update this test
 FIRST.
 """
 import importlib.util
-import os
 import sqlite3
 import sys
-import tempfile
 from pathlib import Path
 
 SCRIPT_PATH = Path(__file__).parent.parent / "scripts" / "verify_catalog_on_vps.py"

@@ -107,6 +107,7 @@ def test_eod_view_renders_open_days_warn_pill(authed_client, session_factory):
         # Clear any pre-existing checks for today
         today_iso = _today().isoformat()
         from sqlalchemy import delete
+
         from app.rms.models import AppMeta as _AppMeta
 
         s.execute(

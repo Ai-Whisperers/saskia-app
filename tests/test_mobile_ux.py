@@ -11,8 +11,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi.testclient import TestClient
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MOBILE_CSS = REPO_ROOT / "app" / "static" / "mobile.css"
 BASE_HTML = REPO_ROOT / "app" / "templates" / "base.html"

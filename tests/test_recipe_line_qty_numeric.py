@@ -73,7 +73,6 @@ def test_recipe_line_qty_handles_high_precision(session_factory):
 
 def test_recipe_line_qty_supports_four_decimal_places(session_factory):
     """Migration target precision (12, 4) lets us store 0.0625 exactly."""
-    from app.rms.models import RecipeLine
 
     s = session_factory()
     try:

@@ -22,10 +22,9 @@ from datetime import date, datetime, timedelta, timezone
 import pytest
 from sqlalchemy import select
 
-from app.rms.eod_closed import eod_is_day_closed, eod_get_open_days
-from app.rms.models import AppMeta, Sale, Product
+from app.rms.eod_closed import eod_get_open_days, eod_is_day_closed
+from app.rms.models import AppMeta, Product, Sale
 from app.rms.workflow import fresh_eod_checklist
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

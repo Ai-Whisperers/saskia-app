@@ -31,7 +31,6 @@ from sqlalchemy.orm import Session
 from app.rms.models import AuditLog
 from app.rms.rate_limit import is_disabled as rate_limit_is_disabled
 
-
 # 96 bits of entropy. With birthday-paradox collision math,
 # ~10^14 tokens before 1% collision rate — effectively zero
 # for a single bakery. See pedidos.py:generate_public_token
@@ -110,14 +109,14 @@ def is_token_valid(expires_at: object, now: Optional[datetime] = None) -> bool:
 
 
 __all__ = [
-    "generate_public_token",
-    "issue_token",
-    "is_token_valid",
-    "client_ip",
-    "enforce_rate_limit",
     "_DEFAULT_TTL",
     "_RATE_LIMIT_THRESHOLD",
     "_RATE_LIMIT_WINDOW",
+    "client_ip",
+    "enforce_rate_limit",
+    "generate_public_token",
+    "is_token_valid",
+    "issue_token",
 ]
 
 

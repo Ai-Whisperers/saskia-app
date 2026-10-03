@@ -47,10 +47,10 @@ def test_plan_auto_no_sugiere_ocultos(session_factory):
 
 def test_plan_override_fuerza_oculto(client, session_factory):
     """Con override explícito para la fecha, el oculto SÍ aparece."""
-    from app.rms.production import plan_production, upsert_override
     from datetime import datetime
 
     from app.rms.config import ASUNCION_TZ
+    from app.rms.production import plan_production, upsert_override
 
     s = sessionmaker(bind=session_factory.kw["bind"])()
     try:

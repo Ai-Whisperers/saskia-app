@@ -78,9 +78,9 @@ def test_proprice_no_sellable_product_below_110pct_of_cost():
 
     from sqlalchemy import create_engine
 
+    from app.rms.costing import product_unit_cost_gs
     from app.rms.db import make_session_factory
     from app.rms.models_legacy import Product
-    from app.rms.costing import product_unit_cost_gs
 
     engine = create_engine(f"sqlite:///{db_path}")
     S = make_session_factory(engine)()

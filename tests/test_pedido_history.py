@@ -48,7 +48,7 @@ def test_timeline_includes_audit_status_change(qseed, session_factory):
     cid = _kyrian_customer_id(session_factory)
 
     with session_factory() as s:
-        from app.rms.models import Pedido, AuditLog
+        from app.rms.models import AuditLog, Pedido
         pedido = s.execute(
             __import__("sqlalchemy").select(Pedido)
             .where(Pedido.customer_id == cid)

@@ -11,7 +11,7 @@ from app.rms.models_legacy import Base
 
 class MonthlyClosure(Base):
     """Monthly financial closure record."""
-    
+
     __tablename__ = "monthly_closure"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -50,7 +50,7 @@ class MonthlyClosure(Base):
     def is_closed(self) -> bool:
         return self.closed_at is not None and self.reopened_at is None
 
-    @property 
+    @property
     def is_open(self) -> bool:
         return self.closed_at is None
 

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 
 def test_metrics_endpoint_returns_prometheus_format(client):
     r = client.get("/metrics")

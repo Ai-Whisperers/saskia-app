@@ -27,9 +27,9 @@ def _make_sale_for_router(client):
     # Use the standard POS form endpoint
     # POST /ventas/nueva accepts: sku, qty, payment_method, etc.
     # First create a product
-    from app.rms.db import init_db, make_engine
-    from app.rms.models_legacy import Product, Sale
     from sqlalchemy.orm import sessionmaker
+
+    from app.rms.models_legacy import Product, Sale
 
     # The client fixture gives us a TestClient; back it by an in-memory engine
     # the suite already created.
@@ -89,10 +89,11 @@ def test_refund_list_target_returns_count(client):
     create the Refund row directly via ORM rather than via the POST,
     so we don't depend on the session lifecycle across requests.
     """
-    from app.rms.db import init_db, make_engine
-    from app.rms.models_legacy import Product, Refund, Sale
-    from sqlalchemy.orm import sessionmaker
     from datetime import datetime, timezone
+
+    from sqlalchemy.orm import sessionmaker
+
+    from app.rms.models_legacy import Product, Refund, Sale
 
     engine = client.app.state.engine
     SessionLocal = sessionmaker(bind=engine)

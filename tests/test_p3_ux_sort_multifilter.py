@@ -56,6 +56,7 @@ def test_inventario_diet_filter(client, session_factory):
     _seed_inventory(session_factory)
     with session_factory() as s:
         from sqlalchemy import select
+
         from app.rms.models import Ingredient
         ing = s.execute(
             select(Ingredient).where(Ingredient.name == "Harina 000 UX")
@@ -105,7 +106,6 @@ def test_recetas_dificultad_multi(client, session_factory):
 
 def test_recetas_ingredient_multi_and_semantics(client, session_factory):
     """ingredient_multi uses AND semantics: recipe must use ALL selected."""
-    from tests.factories import ing_line
     with session_factory() as s:
         a = make_ingredient(s, name="IngMulti A UX")
         b = make_ingredient(s, name="IngMulti B UX")

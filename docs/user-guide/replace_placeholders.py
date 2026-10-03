@@ -5,7 +5,7 @@ docs/user-guide/screenshots/). This is a one-shot mapping; new screenshots
 replaces previous ones by filename.
 """
 from __future__ import annotations
-import re
+
 from pathlib import Path
 
 UG_DIR = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/docs/user-guide")

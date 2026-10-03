@@ -31,8 +31,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-import pytest
-
 from app.rms.config import ASUNCION_TZ
 from app.rms.sales_intel import waste_roi_by_ingredient, waste_vs_purchase_trend
 from tests.factories import make_ingredient, make_waste_log

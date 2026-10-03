@@ -27,11 +27,9 @@ from sqlalchemy import select
 
 from app.rms.eod_closed import (
     assert_day_open_or_raise,
-    eod_is_day_closed,
 )
 from app.rms.models import AppMeta, Product, Sale
 from app.rms.workflow import fresh_eod_checklist
-
 
 # ---------------------------------------------------------------------------
 # Fixtures (mirrors test_p0_void_after_eod.py)

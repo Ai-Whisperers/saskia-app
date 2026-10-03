@@ -29,7 +29,6 @@ from pathlib import Path
 
 import pytest
 
-
 # Resolve the deploy.sh path: it's always at <worktree>/scripts/deploy.sh
 DEPLOY_SH = Path(__file__).parent.parent / "scripts" / "deploy.sh"
 

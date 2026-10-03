@@ -198,7 +198,7 @@ def test_migration_083_idempotent_re_run(session_factory):
     must not raise. init_db() takes an Engine; the migration function
     itself takes a Connection (as called from inside engine.begin()).
     """
-    from app.rms.db import init_db, MIGRATIONS, _migration_083_recipe_yield_qty_insert_guard
+    from app.rms.db import MIGRATIONS, _migration_083_recipe_yield_qty_insert_guard, init_db
 
     sf = session_factory
     bind = sf.kw["bind"]

@@ -11,8 +11,6 @@ Per AGENTS.md §Testing, no Selenium/Playwright in fase 1. Backend-only.
 """
 from pathlib import Path
 
-import pytest
-
 REPO = Path(__file__).resolve().parents[1]
 JS_PATH = REPO / "app/static/saskia-kpi-card.js"
 CSS_PATH = REPO / "app/static/app-components.css"

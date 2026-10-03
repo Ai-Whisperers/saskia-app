@@ -20,7 +20,7 @@ def test_pedido_post_stores_delivery_preference():
     the structured-address + invoice-profile columns. Full integration
     coverage is exercised by the 52 tests in
     tests/test_pedidos_nuevo_t_2026_10_01.py + P11 regression suite."""
-    from app.rms.models import Pedido, CustomerAddress, CustomerInvoiceProfile
+    from app.rms.models import CustomerAddress, CustomerInvoiceProfile, Pedido
     # Phase 13 (2026-10-01): Pedido carries preference + scheduled date
     assert hasattr(Pedido, "delivery_preference")
     assert hasattr(Pedido, "delivery_scheduled_date")

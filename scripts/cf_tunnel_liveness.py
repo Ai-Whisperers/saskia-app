@@ -54,10 +54,8 @@ import re
 import subprocess
 import sys
 import time
-from pathlib import Path
 from urllib.error import URLError
 from urllib.request import Request, urlopen
-
 
 PUBLIC_URL = os.environ.get(
     "SASKIA_PUBLIC_URL", "https://saskia-vps.paragu-ai.com"

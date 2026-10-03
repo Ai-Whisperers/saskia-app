@@ -9,14 +9,12 @@ Verify the PedidoEventService writes are reflected in:
 
 from __future__ import annotations
 
-import pytest
 from datetime import datetime, timedelta
 
 from app.rms.config import ASUNCION_TZ
 from app.rms.models import Pedido, PedidoEvent
 from app.services.pedido_events import PedidoEventService
 from app.services.pedido_history import build_pedido_timeline
-
 
 # ---------- 1. Timeline integration ----------
 
@@ -69,8 +67,8 @@ def test_timeline_includes_pedido_events(session_factory):
 
 def test_timeline_event_types_have_spanish_labels():
     """Every event_type in the CK constraint has a label."""
-    from app.services.pedido_history import _label_for_event_type
     from app.services.pedido_events import VALID_EVENT_TYPES
+    from app.services.pedido_history import _label_for_event_type
     for et in VALID_EVENT_TYPES:
         lbl = _label_for_event_type(et)
         # Must be non-empty and contain either the literal English type
@@ -103,7 +101,7 @@ def test_timeline_handles_no_events(session_factory):
 
 def test_pedido_create_writes_created_and_line_added(client, session_factory):
     """POST /pedidos/nuevo writes PedidoEvent entries."""
-    from app.rms.models import Product, Customer
+    from app.rms.models import Customer, Product
     with session_factory() as s:
         # Always create a product fresh in this test
         prod = Product(name="Lifecycle Test Product", sale_price_gs=10000)

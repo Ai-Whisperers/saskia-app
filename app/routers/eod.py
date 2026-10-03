@@ -27,7 +27,7 @@ from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
 from app.rms.eod_completions import completions_for_date, upsert_completion
 from app.rms.errors import BadRequest
-from app.rms.models import ProductionCompletion, Sale, WasteLog
+from app.rms.models import Sale, WasteLog
 from app.rms.money import to_int_gs
 from app.rms.observability import record_audit
 from app.rms.production import plan_production

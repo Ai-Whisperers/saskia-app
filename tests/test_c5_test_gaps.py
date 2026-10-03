@@ -61,17 +61,17 @@ def test_excel_modes_are_covered():
     """Verify excel_modes tests exist in various files."""
     # Check that excel mode tests exist
     import os
-    
+
     excel_test_files = [
         "test_excel_patch.py",
         "test_excel_import_full_flow.py",
         "e2e/test_excel_full_multisheet.py",
         "e2e/test_excel_import_journey.py"
     ]
-    
+
     for test_file in excel_test_files:
         assert os.path.exists(f"tests/{test_file}"), f"Missing {test_file}"
-    
+
     # At least one excel test should pass
     # This is a smoke test since we can't easily run all Excel tests here
     assert True
@@ -90,14 +90,14 @@ def test_csrf_is_comprehensive():
     import os
     csrf_test_files = [
         "test_csrf.py",
-        "test_csrf_local_dev.py", 
+        "test_csrf_local_dev.py",
         "test_csrf_on_forms.py",
         "test_p0_confirm_modal_csrf.py"
     ]
-    
+
     for test_file in csrf_test_files:
         assert os.path.exists(f"tests/{test_file}"), f"Missing CSRF test {test_file}"
-    
+
     assert True
 
 
@@ -106,7 +106,7 @@ def test_xss_coverage_is_limited():
     import os
     assert os.path.exists("tests/e2e/test_dark_routes_batch.py")
     assert os.path.exists("tests/test_dashboard_visual.py")
-    
+
     # This test documents the gap - there are only 2 XSS tests
     # but dozens of user input fields that should be tested
     xss_tests_found = 2
@@ -118,10 +118,10 @@ def test_missing_supplier_pref_ordering():
     # This test documents the gap - no test for supplier preference ordering
     # in the reorder workflow
     import os
-    
+
     # No test file exists for this feature
     assert not os.path.exists("tests/test_supplier_pref_ordering.py")
-    
+
     # This is a gap that should be filled
     pytest.xfail("Supplier preference ordering in reorder workflow needs test coverage")
 
@@ -130,7 +130,7 @@ def test_missing_comprehensive_xss_suite():
     """Document missing comprehensive XSS test suite."""
     # This test documents the gap - no comprehensive XSS test suite exists
     # that tests all form inputs, search fields, headers, etc.
-    
+
     # Common XSS vectors that should be tested:
     xss_vectors = [
         "<script>alert(1)</script>",
@@ -140,13 +140,13 @@ def test_missing_comprehensive_xss_suite():
         "'><script>alert(1)</script>'",
         "1 <script>alert(1)</script>"
     ]
-    
+
     # These vectors should be tested against:
     # - All form input fields (customer name, product description, etc.)
     # - Search functionality across all search inputs
     # - File upload fields (product images, etc.)
     # - Headers and user-provided data
-    
+
     # But currently only 2 tests exist (documented in test_xss_coverage_is_limited)
     # This test DOCUMENTS the gap — xfail, not fail, so the suite stays green
     # while the gap is open. Flip to a hard assert once the comprehensive

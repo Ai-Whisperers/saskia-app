@@ -39,22 +39,20 @@ import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 # Make app importable when running from the project root
 PROJECT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT))
 
-from sqlalchemy import select  # noqa: E402
+from sqlalchemy import select
 
-from app.rms.db import make_engine, make_session_factory  # noqa: E402
-from app.rms.models import (  # noqa: E402
+from app.rms.db import make_engine, make_session_factory
+from app.rms.models import (
     BankTransaction,
     Customer,
     DeliveryZone,
     Ingredient,
     MarketBenchmark,
-    PriceHistory,
     Product,
     Recipe,
     RecipeLine,
@@ -62,7 +60,6 @@ from app.rms.models import (  # noqa: E402
     RiskItem,
     Sale,
     SettingsKV,
-    ShoppingListItem,
     Supplier,
     WasteLog,
     WishlistItem,
@@ -352,12 +349,10 @@ def import_ingredients(session, dump) -> int:
 
 
 # Recipe photo files in /static/recipes/
-import os
 RECIPE_PHOTO_DIR = "/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/recipes"
 
 def import_recipes(session, dump) -> int:
     """Import 7 recipes + ~63 recipe_lines from RECETAS_DETALLE."""
-    import os  # local — keep tool self-contained
     sheet = get_sheet(dump, "HEREBUS_Gestion_v1.xlsx", "RECETAS_DETALLE")
     if not sheet:
         print("  ❌ RECETAS_DETALLE not found")
@@ -748,7 +743,7 @@ def import_recipe_pricing(session, dump) -> int:
             distributor_gs=int(cost_total * (1 + margins["distributor"])),
             retail_gs=int(cost_total * (1 + margins["retail"])),
             broker_commission_gs=int(cost_total * (1 + margins["broker_commission"])),
-            notes=f"From HEREBUS COSTOS sheet",
+            notes="From HEREBUS COSTOS sheet",
         )
         session.add(p)
         n += 1
@@ -1053,7 +1048,7 @@ def main():
     args = ap.parse_args()
 
     print("=" * 70)
-    print(f"  HEREBUS Drive → Saskia import")
+    print("  HEREBUS Drive → Saskia import")
     print("=" * 70)
 
     dump = load_dump()

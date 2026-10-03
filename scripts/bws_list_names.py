@@ -31,7 +31,7 @@ from pathlib import Path
 # Make BWS SDK importable from the system venv
 sys.path.insert(0, "/opt/data/.venv/lib/python3.11/site-packages")
 
-from bitwarden_sdk import BitwardenClient, ClientSettings, DeviceType  # noqa: E402
+from bitwarden_sdk import BitwardenClient, ClientSettings, DeviceType
 
 BWS_TOKEN_PATH = Path("/opt/data/.hermes/inbox/bws-token.secret")
 ORG_ID_PATH = Path("/opt/data/.hermes/inbox/org-id.txt")

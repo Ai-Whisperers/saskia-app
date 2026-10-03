@@ -17,7 +17,6 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from app.rms.db import init_db, make_engine
 from app.rms.models import Customer, Pedido
 from app.routers.pedidos import (
     _is_token_valid,
@@ -254,9 +253,11 @@ def test_migration_067_adds_column_and_backfills(tmp_path) -> None:
     backfills to 2026-01-31 when 067 is forced to re-run by deleting
     the column + rolling back schema_version.
     """
-    from sqlalchemy import create_engine, text
-    from app.rms.db import init_db as _init
     from datetime import datetime as _dt
+
+    from sqlalchemy import create_engine, text
+
+    from app.rms.db import init_db as _init
 
     db_path = tmp_path / "migtest.sqlite"
     engine = create_engine(f"sqlite:///{db_path}")

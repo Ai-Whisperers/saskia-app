@@ -13,10 +13,7 @@ zone names, birthday validation, ventas channel hint.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
-from tests.factories import make_customer, make_product
-
+from tests.factories import make_customer
 
 # ── POS bridge ───────────────────────────────────────────────────────────
 
@@ -61,7 +58,6 @@ def test_pedidos_nuevo_unknown_customer_no_crash(client):
 def test_dashboard_shows_upcoming_birthday(client, session_factory):
     from datetime import datetime as dt
 
-    from app.rms.models import Customer
     now = dt.now()
     # birthday 3 days from now, stored MM-DD
     from datetime import timedelta

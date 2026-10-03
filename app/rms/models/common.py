@@ -9,8 +9,7 @@ Sprint 3.2: added SoftDeletable + AuditColumns mixins for soft-delete
 + audit-column support on owned tables.
 """
 
-from datetime import datetime
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import Annotated, Any, Optional
 
 from sqlalchemy import DateTime, Float, String, event

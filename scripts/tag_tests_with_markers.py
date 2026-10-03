@@ -8,6 +8,7 @@ docstring + __future__ imports), followed by a blank line.
 Also ensures `import pytest` exists.
 """
 from __future__ import annotations
+
 import re
 from pathlib import Path
 

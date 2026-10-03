@@ -11,20 +11,19 @@ from datetime import datetime, timezone
 
 import pytest
 
-from app.rms.models import Expense, MonthlyClosure
+from app.rms.models import Expense
 from app.rms.services.closures import (
     ClosureConflictError,
     ClosureValidationError,
     close_month,
     compute_month_totals,
-    get_closure,
     list_closures,
     reopen_month,
 )
 from app.rms.services.expenses import (
-    ExpenseValidationError,
     VALID_CATEGORIES,
     VALID_RECURRING,
+    ExpenseValidationError,
     create_expense,
     list_expenses,
     total_expenses_gs,

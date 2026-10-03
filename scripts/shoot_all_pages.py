@@ -13,7 +13,6 @@ Output: <dir>/*.png + index.html (contact sheet) + summary.json
 from __future__ import annotations
 
 import json
-import re
 import sys
 import threading
 import time
@@ -71,7 +70,7 @@ def boot_app():
         ped = make_pedido(s, customer=c1,
                           items=[pedido_item(cat["product"])],
                           promised_date=datetime.utcnow().date())
-        from app.rms.models import MarketBenchmark, Pedido
+        from app.rms.models import MarketBenchmark
 
         bench = MarketBenchmark(product_label="Chipa grande", our_retail_gs=5000,
                                 comp_min_gs=4500, comp_avg_gs=5500)
@@ -176,7 +175,7 @@ def routes_to_shoot(ids):
         (f"/recetas/{ids['recipe']}/crear-producto", "receta-crear-producto"),
         (f"/recetas/{ids['recipe']}/set-photo", "receta-set-photo"),
         ("/suppliers/nuevo", "supplier-nuevo"),
-        (f"/suppliers/1/editar", "supplier-editar") if False else ("/suppliers", "suppliers-dup"),
+        ("/suppliers/1/editar", "supplier-editar") if False else ("/suppliers", "suppliers-dup"),
         (f"/reportes/margenes/{ids['product']}", "reportes-margenes-detalle"),
         (f"/reportes/price-impact/{ids['ingredient']}?new_price=7000", "reportes-price-impact"),
         (f"/vs-mercado/{ids['bench']}/edit", "vs-mercado-editar"),

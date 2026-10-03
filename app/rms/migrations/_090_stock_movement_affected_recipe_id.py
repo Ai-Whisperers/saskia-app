@@ -18,8 +18,6 @@ backfill cheap when #1 lands.
 """
 from typing import Any
 
-from sqlalchemy import text
-
 
 def _migration_090_stock_movement_affected_recipe_id(conn: Any) -> None:
     """Add stock_movement.affected_recipe_id nullable FK.

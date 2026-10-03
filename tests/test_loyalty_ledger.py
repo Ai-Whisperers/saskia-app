@@ -158,13 +158,13 @@ def test_redeem_points_raises_on_zero_or_negative(session_factory):
 def test_reverse_points_for_void_writes_negative_ledger(session_factory, qseed):
     """When a sale that earned points is voided, reverse the points via a void_reversal ledger row."""
     from datetime import datetime as _dt
+
     from app.rms.costing import apply_sale
     from app.rms.customers import (
         award_points,
-        ensure_customer,
         reverse_points_for_void,
     )
-    from app.rms.models import Customer, LoyaltyTransaction, Sale
+    from app.rms.models import Customer, LoyaltyTransaction
 
     data = qseed("basic")
     prod = data["product"]
@@ -260,8 +260,8 @@ def test_reconcile_loyalty_balance_rebuilds_from_ledger(session_factory):
     from app.rms.customers import (
         award_points,
         ensure_customer,
-        redeem_points,
         reconcile_loyalty_balance,
+        redeem_points,
     )
     from app.rms.models import Customer
 
@@ -328,9 +328,11 @@ def test_loyalty_transaction_check_constraint_rejects_zero_delta():
     been dropped by migration 075. If you run this against a DB at
     schema_version < 75, the test will SKIP (it's an old schema).
     """
-    from app.rms.config import DB_PATH
-    from sqlalchemy import create_engine, text
     import datetime as _dt
+
+    from sqlalchemy import create_engine, text
+
+    from app.rms.config import DB_PATH
 
     eng = create_engine(f"sqlite:///{DB_PATH}")
     with eng.connect() as c:
@@ -480,7 +482,7 @@ def test_customer_detail_shows_ledger_table(authed_client, qseed):
 
 def test_sale_creation_credits_points_to_customer(authed_client, qseed):
     """End-to-end: POST a sale with a customer attached → ledger earn_sale row."""
-    from app.rms.models import Customer, LoyaltyTransaction
+    from app.rms.models import LoyaltyTransaction
 
     data = qseed("basic")
     prod = data["product"]

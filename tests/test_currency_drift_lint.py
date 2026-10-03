@@ -21,7 +21,6 @@ SCRIPT = REPO / "scripts" / "check_currency_drift.sh"
 def test_script_exists_and_executable():
     """The script must exist and be executable (CI runs it directly)."""
     assert SCRIPT.exists(), "scripts/check_currency_drift.sh is missing"
-    import os
     import stat
     mode = SCRIPT.stat().st_mode
     assert mode & stat.S_IXUSR, "script is not user-executable"

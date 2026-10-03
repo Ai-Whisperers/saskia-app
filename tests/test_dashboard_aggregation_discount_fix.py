@@ -8,17 +8,14 @@ matches /recibo and /ventas.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
-
-import pytest
 
 from app.rms.models import Sale
 from app.routers.dashboard import (
     _build_hourly_sales_chart,
     _build_payment_methods_donut,
 )
-
 
 ASUNCION = ZoneInfo("America/Asuncion")
 

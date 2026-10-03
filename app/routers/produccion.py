@@ -27,11 +27,11 @@ from sqlalchemy.orm import Session, selectinload
 from app.auth import require_login_or_disabled as require_login
 from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
+from app.rms.eod_completions import upsert_completion as _upsert_completion
 from app.rms.models import Pedido, PedidoLine, Product, ProductionPlanOverride, Recipe, Sale
 from app.rms.observability import record_audit
-from app.rms.production import get_weekly_template, plan_production
-from app.rms.eod_completions import upsert_completion as _upsert_completion
 from app.rms.plan_accuracy import compute_plan_accuracy, date_range_presets
+from app.rms.production import get_weekly_template, plan_production
 from app.services.template_render import render
 
 router = APIRouter(prefix="/produccion", dependencies=[Depends(require_login)])
@@ -420,7 +420,6 @@ def produccion_override(
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
     from app.auth import current_user_id
-    from app.rms.audit import record as audit_record
     from app.rms.models import ProductionPlanOverride
     from app.rms.production import upsert_override
 
@@ -480,7 +479,6 @@ async def produccion_override_bulk(
         )
 
     from app.auth import current_user_id
-    from app.rms.audit import record as audit_record
     from app.rms.models import Product, ProductionPlanOverride
     from app.rms.production import upsert_override
 

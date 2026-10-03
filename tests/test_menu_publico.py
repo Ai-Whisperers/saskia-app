@@ -10,8 +10,6 @@ Covers:
 
 from __future__ import annotations
 
-from sqlalchemy import select
-
 
 def _mk_product(session, name, *, category="panaderia", price=5000,
                 available=True, visible=True, slug=None, portion="1 und"):

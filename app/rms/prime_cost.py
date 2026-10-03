@@ -293,4 +293,4 @@ def batch_compute_prime_cost(
     return result
 
 
-__all__ = ["PrimeCostBreakdown", "compute_prime_cost", "batch_compute_prime_cost"]
+__all__ = ["PrimeCostBreakdown", "batch_compute_prime_cost", "compute_prime_cost"]

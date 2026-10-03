@@ -127,8 +127,8 @@ def make_pedido(session_factory):
 
 def test_merge_basic_two_customers(session_factory, make_customer, make_product, make_sale):
     """2 customers with 3 sales each merge into one → 6 sales reassigned, source deleted."""
-    from app.rms.models import Customer, Sale
     from app.rms.customer_merge import customer_merge
+    from app.rms.models import Customer, Sale
 
     target_id = make_customer("Maria A")
     source_id = make_customer("Maria A.")
@@ -184,8 +184,8 @@ def test_merge_preserves_target_phone_when_source_has_phone(session_factory, mak
 
 def test_merge_fills_target_phone_from_source(session_factory, make_customer):
     """Target has no phone → take the first source's phone."""
-    from app.rms.models import Customer
     from app.rms.customer_merge import customer_merge
+    from app.rms.models import Customer
 
     target_id = make_customer("Maria A", phone=None)
     source_id = make_customer("Maria A.", phone="+595981234567")
@@ -203,8 +203,8 @@ def test_merge_fills_target_phone_from_source(session_factory, make_customer):
 
 def test_merge_fills_target_email_from_source(session_factory, make_customer):
     """Target has no email → take the first source's email."""
-    from app.rms.models import Customer
     from app.rms.customer_merge import customer_merge
+    from app.rms.models import Customer
 
     target_id = make_customer("Maria A", email=None)
     source_id = make_customer("Maria A.", email="maria@example.com")
@@ -222,8 +222,8 @@ def test_merge_fills_target_email_from_source(session_factory, make_customer):
 
 def test_merge_appends_notes_trail(session_factory, make_customer):
     """Source.notes appended to target.notes with separator."""
-    from app.rms.models import Customer
     from app.rms.customer_merge import customer_merge
+    from app.rms.models import Customer
 
     target_id = make_customer("Maria A", notes="VIP desde 2020")
     source_id = make_customer("Maria A.", notes="Cumpleaños: 15/03")
@@ -243,8 +243,8 @@ def test_merge_appends_notes_trail(session_factory, make_customer):
 
 def test_merge_with_pedidos(session_factory, make_customer, make_pedido):
     """Pedidos are reassigned along with sales (FK update)."""
-    from app.rms.models import Customer, Pedido
     from app.rms.customer_merge import customer_merge
+    from app.rms.models import Customer, Pedido
 
     target_id = make_customer("Maria A")
     source_id = make_customer("Maria A.")

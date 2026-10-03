@@ -58,6 +58,7 @@ def test_detalle_suggestions_card_renders_when_multiple_suggestions(client, qsee
     dormidos — keeping both.
     """
     from datetime import date, timedelta
+
     from app.rms.models import Customer
 
     qseed("with_kyrian_full")
@@ -81,6 +82,7 @@ def test_detalle_suggestions_button_has_csrf_and_kind(client, qseed, session_fac
     the suggestion-applied endpoint and carries the suggestion kind +
     discount_pct as hidden inputs."""
     from datetime import date, timedelta
+
     from app.rms.models import Customer
 
     qseed("with_kyrian_full")

@@ -284,8 +284,8 @@ def from_production_plan(
     ProductionPlan row because the day plan is computed on the fly, not
     persisted; the FK stays for the recipe-planner flow.
     """
-    from app.rms.rate_limit import is_write_rate_limited
     from app.rms.production import plan_production
+    from app.rms.rate_limit import is_write_rate_limited
 
     if is_write_rate_limited(session, request, max_per_minute=10):
         raise HTTPException(

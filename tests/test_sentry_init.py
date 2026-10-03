@@ -14,7 +14,6 @@ that the network call would 404 in a real run.
 
 from __future__ import annotations
 
-import importlib
 import os
 import sys
 
@@ -206,6 +205,6 @@ def test_sentry_init_failure_is_swallowed(monkeypatch) -> None:
         # The lifespan handler also catches and logs. The critical
         # thing is: the exception did NOT propagate to the caller.
         # We emulate that by swallowing here too.
-        print(f"WARNING: Sentry init failed: {exc}")  # noqa
+        print(f"WARNING: Sentry init failed: {exc}")
     # If we reach here without pytest.raises, init failure was swallowed.
     assert True

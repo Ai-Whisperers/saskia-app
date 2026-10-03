@@ -38,10 +38,8 @@ from pathlib import Path
 
 import pytest
 
-
 # Locate Jinja env exactly as the app uses it (single global instance).
 from app.services.template_render import templates as jinja_templates
-
 
 # Collect every template path under app/templates/. rglob so partials
 # / _components/ / modals are included — every .html file is fair game.

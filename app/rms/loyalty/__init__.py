@@ -17,7 +17,7 @@ is a pure refactor — no behaviour change.
 """
 from __future__ import annotations
 
-from app.rms.loyalty.ledger import (  # noqa: F401
+from app.rms.loyalty.ledger import (
     POINTS_PER_GS,
     POINTS_PER_GS_EARN,
     POINTS_VALUE_GS,
@@ -29,14 +29,14 @@ from app.rms.loyalty.ledger import (  # noqa: F401
     redeem_points,
     reverse_points_for_void,
 )
-from app.rms.loyalty.tiers import (  # noqa: F401
+from app.rms.loyalty.suggestions import (
+    Suggestion,
+    suggest_for_customer,
+)
+from app.rms.loyalty.tiers import (
     TIER_THRESHOLDS,
     LoyaltyTier,
     tier_for_spend,
-)
-from app.rms.loyalty.suggestions import (  # noqa: F401
-    Suggestion,
-    suggest_for_customer,
 )
 
 __all__ = [

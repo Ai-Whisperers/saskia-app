@@ -20,7 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, "/opt/data/.venv/lib/python3.11/site-packages")
 
-from bitwarden_sdk import BitwardenClient, ClientSettings, DeviceType  # noqa: E402
+from bitwarden_sdk import BitwardenClient, ClientSettings, DeviceType
 
 PWD_FILE = Path("/tmp/saskia_pwd.txt")
 BWS_TOKEN_PATH = Path("/opt/data/.hermes/inbox/bws-token.secret")

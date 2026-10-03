@@ -34,7 +34,6 @@ from app.rms.audit_analytics import (
     OperatorActivity,
 )
 
-
 # --- strategies ---
 
 # Non-negative ints for counts.

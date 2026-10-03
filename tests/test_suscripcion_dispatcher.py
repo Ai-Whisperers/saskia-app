@@ -11,15 +11,14 @@ Verify the suscripcion->pedido bridge:
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date
 
-import pytest
-
-from app.rms.config import ASUNCION_TZ
 from app.rms.models import (
-    AppMeta, Customer, Pedido, PedidoEvent, Suscripcion,
+    Customer,
+    Pedido,
+    PedidoEvent,
+    Suscripcion,
 )
-
 
 # ---------- helpers ----------
 
@@ -140,7 +139,8 @@ def test_dispatcher_undo_for_pedido(session_factory):
         _make_sub(s, c.id)
 
         from app.services.suscripcion_dispatcher import (
-            generate_weekly_pedidos, undo_for_pedido,
+            generate_weekly_pedidos,
+            undo_for_pedido,
         )
         r1 = generate_weekly_pedidos(s)
         pedido_id = r1.generated[0].pedido_id

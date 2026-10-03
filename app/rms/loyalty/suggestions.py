@@ -394,6 +394,7 @@ def redeemed_on_last_visit(session, customer_id: int) -> bool:
     """
     try:
         from sqlalchemy import select as _sa_select
+
         from app.rms.models import LoyaltyTransaction, Sale
         latest_sale = session.execute(
             _sa_select(Sale.id)

@@ -22,7 +22,7 @@ def test_pedido_nuevo_prefills_customer_data(session_factory, client):
 
 def test_pedido_create_writes_back_customer_contact(session_factory, client):
     """Creating a pedido updates the customer's phone/RUC/razón on record."""
-    from app.rms.models import Customer, DeliveryZone, Product, Recipe
+    from app.rms.models import Customer, Product, Recipe
 
     with session_factory() as s:
         rec = Recipe(name="R wb", yield_qty=1, yield_unit="und")

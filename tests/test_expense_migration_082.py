@@ -8,12 +8,13 @@ Tests:
 - expenses_in_window returns 0 when there are no rows
 """
 import datetime as dt
+
 from sqlalchemy import create_engine
 
+from app.rms.accounting import daily_summary, expenses_in_window
 from app.rms.config import DB_PATH
 from app.rms.db import init_db
 from app.rms.models import Expense
-from app.rms.accounting import daily_summary, expenses_in_window
 
 
 def test_expense_table_exists_with_expected_columns():

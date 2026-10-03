@@ -21,11 +21,9 @@ from sqlalchemy import select
 
 from app.rms.models import (
     AuditLog,
-    Customer,
     LoyaltyTransaction,
     Pedido,
     PedidoEvent,
-    Sale,
 )
 
 if TYPE_CHECKING:

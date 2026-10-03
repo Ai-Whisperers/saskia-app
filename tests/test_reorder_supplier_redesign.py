@@ -39,7 +39,6 @@ from app.rms.supplier_history import (
 )
 from tests.factories import make_ingredient, make_supplier
 
-
 # =========================================================================
 # Pure-Python tests — no HTTP, no DB schema beyond what's already there.
 # =========================================================================

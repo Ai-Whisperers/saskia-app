@@ -165,8 +165,6 @@ def auditoria_export_csv(
     Adds the missing endpoint that /auditoria.html already linked to. Columns:
     id, timestamp, user_id, action, target_type, target_id, ip, user_agent.
     """
-    import csv
-    import io as _io
 
     # Build the same row set as the index view, but bypass pagination — CSV
     # exports the entire matching set (up to a safety cap).

@@ -38,7 +38,6 @@ def _seed_basic(session_factory):
 
     Returns the dict so tests can grab the entity ids.
     """
-    from decimal import Decimal
 
     from app.rms.models import Customer, Ingredient, Product, Recipe, RecipeLine
 

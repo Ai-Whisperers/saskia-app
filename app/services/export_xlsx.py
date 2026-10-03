@@ -183,7 +183,6 @@ def to_file(
 
     Returns the absolute Path of the written file.
     """
-    from app.rms.config import ASUNCION_TZ
 
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -378,7 +378,7 @@ def daily_sales_series(
         # Pick the top product (most qty; ties broken by name).
         top_pid: int | None = None
         top_pname: str | None = None
-        if cur in prod_qty and prod_qty[cur]:
+        if prod_qty.get(cur):
             best_pid = max(
                 prod_qty[cur].items(),
                 key=lambda kv: (kv[1], prod_name.get(kv[0]) or ""),
@@ -400,11 +400,11 @@ def daily_sales_series(
 
 __all__ = [
     "DailySalesRow",
-    "StockoutRow",
     "MonthlySummary",
+    "StockoutRow",
     "daily_sales_series",
+    "days_in_month",
+    "month_label",
     "monthly_close_summary",
     "monthly_stockout_report",
-    "month_label",
-    "days_in_month",
 ]
