@@ -187,6 +187,32 @@
         </div>
         <button type="button" id="inv-add" class="btn btn-sm btn-secondary">+ Agregar perfil</button>
       </div>
+      {# P3.5: tipo_documento + tipo_operacion as <select>s so B2B / RUC /
+         Pasaporte / Extranjero customers can be represented. Hardcoded
+         CI_PARAGUAYA + B2C were wrong for non-Personal customers. #}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-top:var(--space-2);">
+        <div>
+          <label for="inv-tipo-doc">Tipo de documento</label>
+          <select id="inv-tipo-doc" style="margin-top:4px;">
+            <option value="CI_PARAGUAYA">CI paraguaya</option>
+            <option value="PASAPORTE">Pasaporte</option>
+            <option value="CI_EXTRANJERA">CI extranjera</option>
+            <option value="CARNET_RESIDENCIA">Carnet de residencia</option>
+            <option value="INNOMINADO">Innominado</option>
+            <option value="TARJETA_DIPLOMATICA">Tarjeta diplomática (exoneración)</option>
+            <option value="OTRO">Otro</option>
+          </select>
+        </div>
+        <div>
+          <label for="inv-tipo-operacion">Tipo de operación</label>
+          <select id="inv-tipo-operacion" style="margin-top:4px;">
+            <option value="B2C">B2C (consumidor final)</option>
+            <option value="B2B">B2B (entre empresas)</option>
+            <option value="B2G">B2G (gobierno)</option>
+            <option value="B2F">B2F (extranjero)</option>
+          </select>
+        </div>
+      </div>
     </fieldset>
 
     <fieldset class="form-section">
@@ -388,8 +414,9 @@
           alias: alias || razon.substring(0, 32),
           ruc_ci: ruc,
           razon_social: razon,
-          tipo_documento: "CI_PARAGUAYA",
-          tipo_operacion: "B2C",
+          // P3.5: read from the <select>s instead of hardcoding.
+          tipo_documento: document.getElementById("inv-tipo-doc").value,
+          tipo_operacion: document.getElementById("inv-tipo-operacion").value,
         })
       }).then(function (r) {
         if (!r.ok) {
