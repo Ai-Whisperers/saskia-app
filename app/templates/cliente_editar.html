@@ -153,12 +153,12 @@
     <fieldset class="form-section">
       <legend>Perfiles de facturación</legend>
       {% if invoice_profiles %}
-      <table class="table" style="margin-bottom:var(--space-2);">
+      <table class="table" style="margin-bottom:var(--space-2);" data-inv-table>
         <thead><tr><th>Alias</th><th>RUC / CI</th><th>Razón social</th><th>Tipo</th><th></th></tr></thead>
-        <tbody>
+        <tbody data-inv-tbody>
         {% for p in invoice_profiles %}
           <tr data-inv-id="{{ p.id }}">
-            <td>{{ p.alias }}{% if p.is_default %} <span class="badge badge-neutral">predet.</span>{% endif %}</td>
+            <td><span data-inv-alias>{{ p.alias }}</span>{% if p.is_default %} <span class="badge badge-neutral" data-inv-default-badge>predet.</span>{% endif %}</td>
             <td>{{ p.ruc_ci }}</td>
             <td>{{ p.razon_social }}</td>
             <td class="muted">{{ p.tipo_documento }} · {{ p.tipo_operacion }}</td>
@@ -175,7 +175,12 @@
         </tbody>
       </table>
       {% else %}
-      <p class="muted" style="margin:0 0 var(--space-2);font-size:var(--text-sm);">Sin perfiles de facturación. El cliente se factura siempre con RUC/CI manual.</p>
+      <p class="muted" data-inv-empty
+         style="margin:0 0 var(--space-2);font-size:var(--text-sm);">Sin perfiles de facturación. El cliente se factura siempre con RUC/CI manual.</p>
+      <table class="table" style="margin-bottom:var(--space-2);display:none;" data-inv-table>
+        <thead><tr><th>Alias</th><th>RUC / CI</th><th>Razón social</th><th>Tipo</th><th></th></tr></thead>
+        <tbody data-inv-tbody></tbody>
+      </table>
       {% endif %}
       <div class="form-section-grid-4">
         <div>
@@ -471,6 +476,8 @@
         showInlineError("RUC/CI y razón social son obligatorios.");
         return;
       }
+      var tipoDoc = document.getElementById("inv-tipo-doc").value;
+      var tipoOp = document.getElementById("inv-tipo-operacion").value;
       fetch("/clientes/api/" + cid + "/invoice-profiles", {
         method: "POST",
         headers: {"Content-Type": "application/json",
@@ -479,17 +486,102 @@
           alias: alias || razon.substring(0, 32),
           ruc_ci: ruc,
           razon_social: razon,
-          // P3.5: read from the <select>s instead of hardcoding.
-          tipo_documento: document.getElementById("inv-tipo-doc").value,
-          tipo_operacion: document.getElementById("inv-tipo-operacion").value,
+          tipo_documento: tipoDoc,
+          tipo_operacion: tipoOp,
         })
       }).then(function (r) {
         if (!r.ok) {
-          return r.json().then(function (j) {
-            throw new Error(j.error || "fallo");
+          return r.json().then(function (j) { throw new Error(j.error || "fallo"); });
+        }
+        return r.json();
+      }).then(function (data) {
+        // P3.11: insert the new <tr> in-place.
+        var tbody = document.querySelector("[data-inv-tbody]");
+        if (!tbody) { window.location.reload(); return; }
+        var emptyEl = document.querySelector("[data-inv-empty]");
+        if (emptyEl) emptyEl.style.display = "none";
+        var tableEl = document.querySelector("[data-inv-table]");
+        if (tableEl) tableEl.style.display = "";
+        var safeText = function (s) {
+          var d = document.createElement("div");
+          d.textContent = s == null ? "" : String(s);
+          return d.innerHTML;
+        };
+        var tr = document.createElement("tr");
+        tr.setAttribute("data-inv-id", data.id);
+        tr.innerHTML =
+          "<td><span data-inv-alias>" + safeText(data.alias) + "</span></td>" +
+          "<td>" + safeText(data.ruc_ci) + "</td>" +
+          "<td>" + safeText(data.razon_social) + "</td>" +
+          "<td class=\"muted\">" + safeText((data.tipo_documento || "") + " · " + (data.tipo_operacion || "")) + "</td>" +
+          "<td>" +
+            "<button type=\"button\" class=\"btn btn-sm inv-default\" data-inv-id=\"" + data.id + "\">★</button> " +
+            "<button type=\"button\" class=\"btn btn-sm btn-danger-ghost inv-del\" data-inv-id=\"" + data.id + "\">✕</button>" +
+          "</td>";
+        tbody.appendChild(tr);
+        // Wire the new row's del/default buttons.
+        var newDel = tr.querySelector(".inv-del");
+        if (newDel) {
+          newDel.addEventListener("click", function () {
+            var rowEl = newDel.closest("tr");
+            fetch("/clientes/api/" + cid + "/invoice-profiles/" + data.id, {
+              method: "DELETE",
+              headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
+            }).then(function (rr) {
+              if (!rr.ok) {
+                return rr.json().then(function (j) {
+                  if (j.error === "cannot_delete_default") {
+                    throw new Error("Marque otro perfil como predeterminado primero.");
+                  }
+                  throw new Error(j.error || "fallo");
+                });
+              }
+              if (rowEl && rowEl.parentNode) rowEl.parentNode.removeChild(rowEl);
+            }).catch(function (e) { showInlineError("No se pudo eliminar: " + e.message); });
           });
         }
-        window.location.reload();
+        var newDef = tr.querySelector(".inv-default");
+        if (newDef) {
+          newDef.addEventListener("click", function () {
+            fetch("/clientes/api/" + cid + "/invoice-profiles/" + data.id + "/default", {
+              method: "POST",
+              headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
+            }).then(function (rr) {
+              if (!rr.ok) throw new Error("fallo");
+              // Move the badge to this row + drop the buttons from the
+              // previous default row.
+              document.querySelectorAll("[data-inv-default-badge]").forEach(function (b) { b.remove(); });
+              document.querySelectorAll("[data-inv-tbody] tr").forEach(function (r) {
+                if (r === tr) return;
+                var alias = r.querySelector("[data-inv-alias]");
+                if (alias) {
+                  var newBadge = document.createElement("span");
+                  newBadge.setAttribute("data-inv-default-badge", "");
+                  newBadge.className = "badge badge-neutral";
+                  newBadge.textContent = " predet.";
+                  alias.parentNode.insertBefore(document.createTextNode(" "), alias.nextSibling);
+                }
+              });
+              // Add badge to this row.
+              var aliasEl = tr.querySelector("[data-inv-alias]");
+              if (aliasEl) {
+                var badge = document.createElement("span");
+                badge.setAttribute("data-inv-default-badge", "");
+                badge.className = "badge badge-neutral";
+                badge.textContent = " predet.";
+                aliasEl.insertAdjacentText("afterend", " ");
+                aliasEl.parentNode.appendChild(badge);
+              }
+              // Remove the ★/✕ from the new default row (matches template).
+              if (newDef.parentNode) newDef.parentNode.removeChild(newDef);
+              if (newDel.parentNode) newDel.parentNode.removeChild(newDel);
+            }).catch(function () { showInlineError("No se pudo marcar como predeterminado."); });
+          });
+        }
+        // Clear form fields.
+        document.getElementById("inv-alias").value = "";
+        document.getElementById("inv-ruc").value = "";
+        document.getElementById("inv-razon").value = "";
       }).catch(function (e) {
         showInlineError("No se pudo guardar el perfil: " + e.message);
       });
@@ -502,7 +594,70 @@
         headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
       }).then(function (r) {
         if (!r.ok) throw new Error("fallo");
-        window.location.reload();
+        // P3.11: swap the default badge in the DOM instead of reloading.
+        // 1. Remove existing badge(s) on any row.
+        document.querySelectorAll("[data-inv-default-badge]").forEach(function (b) {
+          if (b.parentNode) b.parentNode.removeChild(b);
+        });
+        // 2. Add badge to this row.
+        var tr = btn.closest("tr");
+        var aliasEl = tr ? tr.querySelector("[data-inv-alias]") : null;
+        if (aliasEl) {
+          var badge = document.createElement("span");
+          badge.setAttribute("data-inv-default-badge", "");
+          badge.className = "badge badge-neutral";
+          badge.textContent = " predet.";
+          aliasEl.insertAdjacentText("afterend", " ");
+          aliasEl.parentNode.appendChild(badge);
+        }
+        // 3. Hide this row's ★/✕ (it's now default).
+        if (tr) {
+          tr.querySelectorAll(".inv-default, .inv-del").forEach(function (b) {
+            if (b.parentNode) b.parentNode.removeChild(b);
+          });
+        }
+        // 4. Restore ★/✕ on whichever row lost the default badge.
+        document.querySelectorAll("[data-inv-tbody] tr").forEach(function (r) {
+          if (r === tr) return;
+          if (r.querySelector("[data-inv-default-badge]")) return;
+          if (r.querySelector(".inv-default")) return; // already wired
+          var invId = r.getAttribute("data-inv-id");
+          if (!invId) return;
+          var tds = r.querySelectorAll("td");
+          var lastTd = tds[tds.length - 1];
+          if (!lastTd) return;
+          var star = document.createElement("button");
+          star.type = "button";
+          star.className = "btn btn-sm inv-default";
+          star.setAttribute("data-inv-id", invId);
+          star.textContent = "★";
+          var xBtn = document.createElement("button");
+          xBtn.type = "button";
+          xBtn.className = "btn btn-sm btn-danger-ghost inv-del";
+          xBtn.setAttribute("data-inv-id", invId);
+          xBtn.textContent = "✕";
+          lastTd.appendChild(star);
+          lastTd.appendChild(xBtn);
+          // Re-bind handlers.
+          star.addEventListener("click", arguments.callee);
+          xBtn.addEventListener("click", function () {
+            var rowEl = xBtn.closest("tr");
+            fetch("/clientes/api/" + cid + "/invoice-profiles/" + invId, {
+              method: "DELETE",
+              headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
+            }).then(function (rr) {
+              if (!rr.ok) {
+                return rr.json().then(function (j) {
+                  if (j.error === "cannot_delete_default") {
+                    throw new Error("Marque otro perfil como predeterminado primero.");
+                  }
+                  throw new Error(j.error || "fallo");
+                });
+              }
+              if (rowEl && rowEl.parentNode) rowEl.parentNode.removeChild(rowEl);
+            }).catch(function (e) { showInlineError("No se pudo eliminar: " + e.message); });
+          });
+        });
       }).catch(function () { showInlineError("No se pudo marcar como predeterminado."); });
     });
   });
