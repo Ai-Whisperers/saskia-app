@@ -2,6 +2,9 @@
 {% import "_components/atoms.html" as ui %}
 {% import "_components/macros.html" as m %}
 {% block title %}Editar {{ fmt.entity_name(customer) }} — Cliente{% endblock %}
+{# P3.1: defaults so the template renders cleanly on GET (no form_values). #}
+{% set form_values = form_values or {} %}
+{% set form_error = form_error or '' %}
 {% block content %}
 <nav class="breadcrumbs">
   <a href="/clientes">Clientes</a> &rsaquo;
@@ -274,6 +277,9 @@
   </div>
 
   <div class="form-actions">
+    <div id="js-error-banner" hidden role="alert"
+         data-js-error-banner
+         style="flex:1;padding:var(--space-2) var(--space-3);border-left:4px solid var(--color-danger, #dc2626);background:var(--color-danger-soft, rgba(220,38,38,.08));color:var(--color-danger-fg, #991b1b);border-radius:var(--radius, 6px);font-size:var(--text-sm);"></div>
     <a href="/clientes/{{ customer.id }}" class="btn btn-ghost"
        data-confirm-title="¿Descartar cambios no guardados?"
        data-confirm-body="Los cambios sin guardar se perderán."
@@ -290,6 +296,17 @@
 
 <script>
 (function () {
+  // P3.4: inline error banner replaces native alert(). The banner sits
+  // inside .form-actions and is shared across address/invoice/dietary ops.
+  var banner = document.getElementById("js-error-banner");
+  function showInlineError(msg) {
+    if (!banner) return;
+    banner.textContent = msg;
+    banner.hidden = false;
+    // Auto-dismiss after 5s so transient errors don't linger.
+    setTimeout(function () { banner.hidden = true; }, 5000);
+  }
+
   var custMatch = window.location.pathname.match(/\/clientes\/(\d+)\/editar/);
   if (!custMatch) return;
   var cid = custMatch[1];
@@ -299,7 +316,7 @@
     addBtn.addEventListener("click", function () {
       var label = document.getElementById("addr-label").value.trim();
       var text = document.getElementById("addr-text").value.trim();
-      if (!text) { alert("Escribí la dirección."); return; }
+      if (!text) { showInlineError("Escribí la dirección."); return; }
       var zone = document.getElementById("addr-zone").value;
       fetch("/clientes/api/" + cid + "/addresses", {
         method: "POST",
@@ -309,7 +326,7 @@
       }).then(function (r) {
         if (!r.ok) throw new Error("fallo");
         window.location.reload();
-      }).catch(function () { alert("No se pudo guardar la dirección."); });
+      }).catch(function () { showInlineError("No se pudo guardar la dirección."); });
     });
   }
 
@@ -322,7 +339,7 @@
         }).then(function (r) {
           if (!r.ok) throw new Error("fallo");
           window.location.reload();
-        }).catch(function () { alert("No se pudo eliminar."); });
+        }).catch(function () { showInlineError("No se pudo eliminar."); });
       };
       if (window.SaskiaConfirmModal) {
         SaskiaConfirmModal.show({
@@ -348,7 +365,7 @@
       }).then(function (r) {
         if (!r.ok) throw new Error("fallo");
         window.location.reload();
-      }).catch(function () { alert("No se pudo marcar como predeterminada."); });
+      }).catch(function () { showInlineError("No se pudo marcar como predeterminada."); });
     });
   });
 
@@ -360,7 +377,7 @@
       var ruc = document.getElementById("inv-ruc").value.trim();
       var razon = document.getElementById("inv-razon").value.trim();
       if (!ruc || !razon) {
-        alert("RUC/CI y razón social son obligatorios.");
+        showInlineError("RUC/CI y razón social son obligatorios.");
         return;
       }
       fetch("/clientes/api/" + cid + "/invoice-profiles", {
@@ -382,7 +399,7 @@
         }
         window.location.reload();
       }).catch(function (e) {
-        alert("No se pudo guardar el perfil: " + e.message);
+        showInlineError("No se pudo guardar el perfil: " + e.message);
       });
     });
   }
@@ -394,7 +411,7 @@
       }).then(function (r) {
         if (!r.ok) throw new Error("fallo");
         window.location.reload();
-      }).catch(function () { alert("No se pudo marcar como predeterminado."); });
+      }).catch(function () { showInlineError("No se pudo marcar como predeterminado."); });
     });
   });
   document.querySelectorAll(".inv-del").forEach(function (btn) {
@@ -414,7 +431,7 @@
           }
           window.location.reload();
         }).catch(function (e) {
-          alert("No se pudo eliminar: " + e.message);
+          showInlineError("No se pudo eliminar: " + e.message);
         });
       };
       if (window.SaskiaConfirmModal) {
