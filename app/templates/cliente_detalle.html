@@ -36,6 +36,21 @@
       </span>
     {% endif %}
   </div>
+  {# P-34.1: LTV headline + tier explanation in the header so the cashier
+     sees the most important number without scrolling. Tier ranges are
+     derived from stats.tier.value; full thresholds live in customer_stats. #}
+  <div class="muted" style="margin-top:var(--space-1);font-size:var(--text-sm);">
+    Cliente desde {{ customer.created_at.strftime("%Y-%m-%d") if customer.created_at else "?" }}
+    · LTV <strong>{{ m.gs_full(stats.lifetime_spend_gs) }}</strong>
+    · {{ stats.tier.value|title }}
+    {%- if stats.tier.value == 'bronce' %}
+      (0–3 visitas o 0–Gs. 500k LTV)
+    {%- elif stats.tier.value == 'plata' %}
+      (4–9 visitas o Gs. 500k–2M LTV)
+    {%- elif stats.tier.value == 'oro' %}
+      (10+ visitas o Gs. 2M+ LTV)
+    {%- endif %}
+  </div>
   <div style="display:flex;gap:var(--space-2);align-items:center;">
     <span class="badge badge-tier-{{ stats.tier.value }}">{{ stats.tier.value|title }}</span>
     {# POS bridge: cashier lands here after a call → start the order directly #}
