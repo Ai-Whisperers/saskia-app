@@ -20,7 +20,7 @@
 {% if pairs %}
 {{ ui.skeleton_section(id="insight-afinidades-table", variant="line", count=6, label="Cargando afinidades") }}
 <div data-loaded-section="insight-afinidades-table">
-<table class="table">
+<table class="table sortable">
   <thead><tr><th>#</th><th>Producto A</th><th>Producto B</th><th class="num">Canastas juntas</th></tr></thead>
   <tbody>
     {% for p in pairs %}

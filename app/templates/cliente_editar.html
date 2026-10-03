@@ -92,7 +92,7 @@
     <fieldset style="margin-top:var(--space-4);border:1px solid var(--border);border-radius:8px;padding:var(--space-3);">
       <legend style="font-weight:600;padding:0 var(--space-2);">Teléfonos</legend>
       {% if customer_phones %}
-      <table class="table" style="margin-bottom:var(--space-2);">
+      <table class="table sortable" style="margin-bottom:var(--space-2);">
         <thead><tr><th>Etiqueta</th><th>Tipo</th><th>Número</th><th></th></tr></thead>
         <tbody>
         {% for ph in customer_phones %}
@@ -143,7 +143,7 @@
     <fieldset style="margin-top:var(--space-4);border:1px solid var(--border);border-radius:8px;padding:var(--space-3);">
       <legend style="font-weight:600;padding:0 var(--space-2);">Direcciones de delivery</legend>
       {% if addresses %}
-      <table class="table" style="margin-bottom:var(--space-2);">
+      <table class="table sortable" style="margin-bottom:var(--space-2);">
         <thead><tr><th>Etiqueta</th><th>Dirección</th><th>Zona</th><th></th></tr></thead>
         <tbody>
         {% for a in addresses %}
@@ -191,7 +191,7 @@
     <fieldset style="margin-top:var(--space-4);border:1px solid var(--border);border-radius:8px;padding:var(--space-3);">
       <legend style="font-weight:600;padding:0 var(--space-2);">Perfiles de facturación</legend>
       {% if invoice_profiles %}
-      <table class="table" style="margin-bottom:var(--space-2);">
+      <table class="table sortable" style="margin-bottom:var(--space-2);">
         <thead><tr><th>Alias</th><th>RUC / CI</th><th>Razón social</th><th>Tipo</th><th></th></tr></thead>
         <tbody>
         {% for p in invoice_profiles %}

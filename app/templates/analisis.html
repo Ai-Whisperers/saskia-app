@@ -132,7 +132,7 @@
   </div>
   {{ ui.skeleton_section(id="analisis-top-margin", variant="line", count=5, label="Cargando top rentables") }}
   <div data-loaded-section="analisis-top-margin">
-  <table class="table is-hoverable is-striped">
+  <table class="table is-hoverable is-striped sortable">
     <thead><tr><th>Producto</th><th class="num">Cantidad vendida</th><th class="num">Ventas (Gs.)</th><th class="num">Margen (Gs.)</th><th class="num">Margen %</th></tr></thead>
     <tbody>
       {% for p in top_margin %}
@@ -190,7 +190,7 @@
   </div>
   {{ ui.skeleton_section(id="analisis-dow", variant="line", count=4, label="Cargando ventas por día") }}
   <div data-loaded-section="analisis-dow">
-  <table class="table">
+  <table class="table sortable">
     <thead><tr><th>Día</th><th class="num">Ventas promedio (Gs.)</th><th class="num">Pedidos</th></tr></thead>
     <tbody>
       {% for d in dow_buckets %}
@@ -252,7 +252,7 @@
   </div>
   {{ ui.skeleton_section(id="analisis-complex", variant="line", count=4, label="Cargando recetas complejas") }}
   <div data-loaded-section="analisis-complex">
-  <table class="table">
+  <table class="table sortable">
     <thead><tr><th>Receta</th><th class="num">Ingredientes</th><th class="num">Costo/porción (Gs.)</th><th class="num">Prep (min)</th></tr></thead>
     <tbody>
       {% for r in complexity[:5] %}

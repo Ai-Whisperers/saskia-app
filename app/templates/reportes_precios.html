@@ -48,7 +48,7 @@
 <h3>Eventos</h3>
 {{ ui.skeleton_section(id="precios-events", variant="line", count=10, label="Cargando eventos") }}
 <div data-loaded-section="precios-events">
-<table class="table is-hoverable is-striped">
+<table class="table is-hoverable is-striped sortable">
   <thead>
     <tr>
       <th>Fecha</th>
@@ -76,7 +76,7 @@
 {% if rows %}
 {{ ui.skeleton_section(id="precios-list", variant="line", count=10, label="Cargando lista de precios") }}
 <div data-loaded-section="precios-list">
-<table class="table is-hoverable is-striped">
+<table class="table is-hoverable is-striped sortable">
   <thead>
     <tr>
       <th>Ingrediente</th>

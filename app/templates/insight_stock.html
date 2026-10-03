@@ -21,7 +21,7 @@
 {% if dead %}
 {{ ui.skeleton_section(id="insight-stock-table", variant="line", count=6, label="Cargando stock") }}
 <div data-loaded-section="insight-stock-table">
-<table class="table">
+<table class="table sortable">
   <thead><tr><th>Insumo</th><th class="num">Stock</th><th class="num">Días sin consumo</th><th>Último consumo</th></tr></thead>
   <tbody>
     {% for d in dead %}
@@ -41,7 +41,7 @@
 
 <h2 style="font-size:1.05rem;margin-top:var(--space-4);">🔄 Rotación (más lento primero)</h2>
 {% if turnover %}
-<table class="table">
+<table class="table sortable">
   <thead><tr><th>Insumo</th><th class="num">Consumo {{ days }}d</th><th class="num">Stock prom.</th><th class="num">Rotación</th><th class="num">Días de stock</th></tr></thead>
   <tbody>
     {% for t in turnover %}

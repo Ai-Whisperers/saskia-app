@@ -345,6 +345,7 @@
   <script src="/static/state-preservation.js" defer></script>
   <script src="/static/sortable-table.js" defer></script>
   <link rel="stylesheet" href="/static/sortable-table.css">
+  <link rel="stylesheet" href="/static/empty-states.css">
   <link rel="stylesheet" href="/static/print.css" media="print">
 
   {# Phase 22: Shortcut help modal (built by JS if needed, but render here for SSR) #}
@@ -360,7 +361,7 @@
         </button>
       </div>
       <div class="modal-body">
-        <table class="table">
+        <table class="table sortable">
           <thead><tr><th>Atajo</th><th>Acción</th></tr></thead>
           <tbody>
             <tr><td><kbd>g</kbd> + <kbd>i</kbd></td><td>Ir a Inicio</td></tr>

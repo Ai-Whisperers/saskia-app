@@ -35,7 +35,7 @@
 
 {{ ui.skeleton_section(id="food-cost-table", variant="line", count=10, label="Cargando varianza") }}
 <div data-loaded-section="food-cost-table">
-<table class="table">
+<table class="table sortable">
   <thead><tr><th>Producto</th><th class="num">Cant. vendida</th><th class="num">Costo teórico</th></tr></thead>
   <tbody>
     {% for row in v.by_product %}

@@ -21,7 +21,7 @@
 {% if impact.affected_recipes %}
 {{ ui.skeleton_section(id="insight-price-impact-table", variant="line", count=6, label="Cargando impacto de precios") }}
 <div data-loaded-section="insight-price-impact-table">
-<table class="table">
+<table class="table sortable">
   <thead><tr><th>Receta</th><th class="num">Δ costo por unidad</th></tr></thead>
   <tbody>
     {% for r in impact.affected_recipes %}
@@ -38,7 +38,7 @@
 
 <h2 style="margin-top:var(--space-4);">Productos bajo objetivo (33%)</h2>
 {% if impact.affected_products %}
-<table class="table">
+<table class="table sortable">
   <thead><tr><th>Producto</th><th class="num">Food cost %</th><th class="num">Precio sugerido</th></tr></thead>
   <tbody>
     {% for p in impact.affected_products %}

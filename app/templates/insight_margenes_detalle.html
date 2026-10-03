@@ -12,7 +12,7 @@
 {% if history %}
 {{ ui.skeleton_section(id="insight-margenes-detalle-table", variant="line", count=6, label="Cargando detalle") }}
 <div data-loaded-section="insight-margenes-detalle-table">
-<table class="table">
+<table class="table sortable">
   <thead><tr><th>Día</th><th class="num">Precio de venta</th></tr></thead>
   <tbody>
     {% for h in history %}

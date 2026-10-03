@@ -68,7 +68,7 @@
   <h2 style="margin: 0 0 var(--space-2) 0; font-size: 1.05rem;">
     🧾 Pedidos para mañana ({{ pedidos_manana|length }})
   </h2>
-  <table class="table" style="margin: 0;">
+  <table class="table sortable" style="margin: 0;">
     <thead><tr><th>Cliente</th><th>Retiro/entrega</th><th>Canal</th><th class="num">Total</th><th></th></tr></thead>
     <tbody>
     {% for pe in pedidos_manana %}

@@ -20,7 +20,7 @@
 {% if forecasts %}
 {{ ui.skeleton_section(id="insight-demand-table", variant="line", count=6, label="Cargando demanda") }}
 <div data-loaded-section="insight-demand-table">
-<table class="table">
+<table class="table sortable">
   <thead><tr><th>Producto</th><th class="num">Prom/día</th><th class="num">Factor día</th><th class="num">Tendencia</th><th class="num">Previsto</th><th class="num">Batches</th></tr></thead>
   <tbody>
     {% for f in forecasts %}
@@ -42,7 +42,7 @@
 
 <h2 style="margin-top:var(--space-5);">Lista de compras sugerida</h2>
 {% if shopping %}
-<table class="table">
+<table class="table sortable">
   <thead><tr><th>Insumo</th><th class="num">Necesario</th><th class="num">Stock</th><th class="num">Comprar</th><th class="num">Costo est.</th></tr></thead>
   <tbody>
     {% for s in shopping %}

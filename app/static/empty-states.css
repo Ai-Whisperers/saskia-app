@@ -1,0 +1,94 @@
+/* Phase 22: Empty state component for list pages */
+
+.empty-state {
+    text-align: center;
+    padding: var(--space-6, 3rem) var(--space-4, 2rem);
+    color: var(--color-muted, #666);
+    background: var(--color-bg-elevated, #fafafa);
+    border: 2px dashed var(--color-border, #e0e0e0);
+    border-radius: var(--radius, 8px);
+    margin: var(--space-4, 2rem) 0;
+}
+
+.empty-state--compact {
+    padding: var(--space-3, 1.5rem) var(--space-3, 1.5rem);
+}
+
+.empty-state__icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto var(--space-3, 1rem);
+    opacity: 0.4;
+    color: var(--color-muted, #666);
+}
+
+.empty-state__title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 var(--space-2, 0.5rem) 0;
+    color: var(--color-foreground, #222);
+}
+
+.empty-state__message {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin: 0 auto var(--space-3, 1rem);
+    max-width: 480px;
+}
+
+.empty-state__action {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: var(--space-2, 0.5rem);
+}
+
+.empty-state__action .btn {
+    margin: 0 4px;
+}
+
+/* Variant: with illustration */
+.empty-state--illustrated {
+    padding: var(--space-7, 4rem) var(--space-4, 2rem);
+}
+
+.empty-state--illustrated .empty-state__icon {
+    width: 96px;
+    height: 96px;
+}
+
+/* Inline (for table cells) */
+.empty-state--inline {
+    border: none;
+    background: transparent;
+    padding: var(--space-4, 2rem) var(--space-2, 1rem);
+}
+
+/* Print: hide empty state actions */
+@media print {
+    .empty-state__action {
+        display: none;
+    }
+    .empty-state {
+        border: 1px solid #ccc;
+        page-break-inside: avoid;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .empty-state {
+        transition: none;
+    }
+}
+
+/* Dark mode */
+[data-theme="dark"] .empty-state {
+    background: rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+[data-theme="dark"] .empty-state__title {
+    color: rgba(255, 255, 255, 0.95);
+}

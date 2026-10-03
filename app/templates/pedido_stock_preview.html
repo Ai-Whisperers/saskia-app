@@ -31,7 +31,7 @@
   <p class="hint no-print" style="margin-bottom:var(--space-3);">
     Valor total a consumir: <strong>{{ m.gs(consumed|sum(attribute='qty_needed')|default(0)|int) }}</strong>
   </p>
-  <table class="table" id="stock-table" data-sort="none">
+  <table class="table sortable" id="stock-table" data-sort="none">
     <thead>
       <tr>
         <th>Ingrediente</th>

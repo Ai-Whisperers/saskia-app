@@ -137,6 +137,41 @@
 {{ loading_state(id=id, variant=variant, count=count, label=label, delay=delay) }}
 {%- endmacro %}
 
+{# Phase 22: Empty state component (extended) for list pages.
+   Usage:
+     {{ ui.empty_state_ext(title="No hay pedidos", message="Crea tu primer pedido",
+                           icon="icon-inbox", action_url="/pedidos/nuevo", action_label="Nuevo pedido") }}
+   The icon should be one of the SVG icon names in _components/icons.svg. #}
+{% macro empty_state_ext(title, message, icon="icon-inbox", action_url=None, action_label=None, compact=False) -%}
+<section class="empty-state{% if compact %} empty-state--compact{% endif %}" role="status" aria-live="polite">
+  <svg class="empty-state__icon icon" aria-hidden="true">
+    <use href="#{{ icon }}"/>
+  </svg>
+  <h3 class="empty-state__title">{{ title }}</h3>
+  {% if message %}<p class="empty-state__message">{{ message }}</p>{% endif %}
+  {% if action_url and action_label %}
+  <div class="empty-state__action">
+    <a href="{{ action_url }}" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+      {{ action_label }}
+    </a>
+  </div>
+  {% endif %}
+</section>
+{%- endmacro %}
+
+{# Phase 22: CSV export button (similar to excel_export_btn)
+   Usage:
+     {{ ui.csv_export_btn(endpoint='/auditoria/export.csv', label='Exportar CSV') }} #}
+{% macro csv_export_btn(endpoint, label='Exportar CSV', download=True) -%}
+<a href="{{ endpoint }}"{% if download %} download{% endif %}
+   class="btn btn-ghost btn-sm" aria-label="{{ label }}"
+   title="Descargar {{ label }}">
+  <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+  {{ label }}
+</a>
+{%- endmacro %}
+
 {# ── A-5 entity_link: hash-guarded linked name ─────────────────────── #}
 {% macro entity_link(obj, href=None, attr='name') -%}
 {%- set _name = fmt.entity_name(obj if obj is string else (obj[attr] if obj is mapping and attr in obj else (obj.name if obj is not string and obj is not none else obj))) -%}

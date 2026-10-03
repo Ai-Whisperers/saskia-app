@@ -49,7 +49,7 @@
 <p class="text-muted mb-3">Total: {{ rows|length }} líneas</p>
 {{ ui.skeleton_section(id="libro-ventas-table", variant="line", count=10, label="Cargando libro de ventas") }}
 <div data-loaded-section="libro-ventas-table">
-<table class="table is-hoverable is-striped">
+<table class="table is-hoverable is-striped sortable">
   <thead>
     <tr>
       <th>Fecha</th>
