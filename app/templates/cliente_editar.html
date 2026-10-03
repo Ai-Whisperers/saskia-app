@@ -45,9 +45,9 @@
     <textarea id="notes" name="notes" rows="3" maxlength="2000">{{ form_values.notes if form_values else (customer.notes or '') }}</textarea>
 
     {# ── P3: Perfil dietético — restricciones + preferencias ordenadas ── #}
-    <fieldset style="margin-top:var(--space-4);border:1px solid var(--border);border-radius:8px;padding:var(--space-3);">
-      <legend style="font-weight:600;padding:0 var(--space-2);">Perfil</legend>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+    <fieldset class="form-section">
+      <legend>Perfil</legend>
+      <div class="form-section-grid-2">
         <div>
           <label for="birthday">Cumpleaños</label>
           <input type="text" id="birthday" name="birthday" value="{{ form_values.birthday if form_values else (customer.birthday or '') }}"
@@ -80,7 +80,7 @@
           </label>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-top:var(--space-3);">
+      <div class="form-section-grid-2cols">
         <div>
           <label for="invoice_name">Facturación — razón social</label>
           <input type="text" id="invoice_name" name="invoice_name" value="{{ form_values.invoice_name if form_values else (customer.invoice_name or '') }}"
@@ -94,8 +94,8 @@
       </div>
     </fieldset>
 
-    <fieldset style="margin-top:var(--space-4);border:1px solid var(--border);border-radius:8px;padding:var(--space-3);">
-      <legend style="font-weight:600;padding:0 var(--space-2);">Direcciones de delivery</legend>
+    <fieldset class="form-section">
+      <legend>Direcciones de delivery</legend>
       {% if addresses %}
       <table class="table" style="margin-bottom:var(--space-2);">
         <thead><tr><th>Etiqueta</th><th>Dirección</th><th>Zona</th><th></th></tr></thead>
@@ -118,7 +118,7 @@
       {% else %}
       <p class="muted" style="margin:0 0 var(--space-2);font-size:var(--text-sm);">Sin direcciones guardadas.</p>
       {% endif %}
-      <div style="display:grid;grid-template-columns:120px 1fr 160px auto;gap:var(--space-2);align-items:end;">
+      <div class="form-section-grid-3">
         <div>
           <label for="addr-label">Etiqueta</label>
           <input type="text" id="addr-label" placeholder="casa" maxlength="32" style="margin-top:4px;">
@@ -142,8 +142,8 @@
        Each customer can have many (Personal / Empresa / etc.) with exactly
        one marked default. The cashier adds / sets-default / deletes rows
        from here. POSTs to /clientes/api/{id}/invoice-profiles endpoints. #}
-    <fieldset style="margin-top:var(--space-4);border:1px solid var(--border);border-radius:8px;padding:var(--space-3);">
-      <legend style="font-weight:600;padding:0 var(--space-2);">Perfiles de facturación</legend>
+    <fieldset class="form-section">
+      <legend>Perfiles de facturación</legend>
       {% if invoice_profiles %}
       <table class="table" style="margin-bottom:var(--space-2);">
         <thead><tr><th>Alias</th><th>RUC / CI</th><th>Razón social</th><th>Tipo</th><th></th></tr></thead>
@@ -169,7 +169,7 @@
       {% else %}
       <p class="muted" style="margin:0 0 var(--space-2);font-size:var(--text-sm);">Sin perfiles de facturación. El cliente se factura siempre con RUC/CI manual.</p>
       {% endif %}
-      <div style="display:grid;grid-template-columns:120px 140px 1fr auto;gap:var(--space-2);align-items:end;">
+      <div class="form-section-grid-4">
         <div>
           <label for="inv-alias">Alias</label>
           <input type="text" id="inv-alias" placeholder="Personal" maxlength="32" style="margin-top:4px;">
@@ -186,8 +186,8 @@
       </div>
     </fieldset>
 
-    <fieldset style="margin-top:var(--space-4);border:1px solid var(--border);border-radius:8px;padding:var(--space-3);">
-      <legend style="font-weight:600;padding:0 var(--space-2);">Perfil dietético</legend>
+    <fieldset class="form-section">
+      <legend>Perfil dietético</legend>
       <p class="hint" style="margin-top:0;">
         Restricciones = NUNCA violar (aparece como alerta rojo en pedidos y ventas).
         Preferencias = qué aprueba y en qué orden (rank 1 = ofrecer primero).
