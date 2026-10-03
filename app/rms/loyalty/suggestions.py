@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import datetime as _dt
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Any
 
 # T-2026-10-01: use the live discount rate (POINTS_VALUE_GS) instead of
 # the old hardcoded 1000 Gs/point that gave a 100% return rate.
@@ -370,7 +370,7 @@ def _maybe_vip(*, n_sales: int, tier: str) -> Optional[Suggestion]:
 # ──────────────────────────────────────────────────────────────────────
 
 
-def redeemed_on_last_visit(session, customer_id: int) -> bool:
+def redeemed_on_last_visit(session: Any, customer_id: int) -> bool:
     """True iff the customer's most recent non-voided sale had a
     ``LoyaltyTransaction(reason="redeem")`` row tied to it.
 

@@ -29,6 +29,7 @@ Run with::
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import os
@@ -405,13 +406,13 @@ _ALLERGEN_TO_TAG_NAME: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 
-def _parse_allergens(value) -> list[str]:
+def _parse_allergens(value: Any) -> list[str]:
     if not value:
         return []
     return [s.strip() for s in value.split(",") if s.strip()]
 
 
-def _seed_recipe_metadata(session) -> tuple[int, int]:
+def _seed_recipe_metadata(session: Any) -> tuple[int, int]:
     """Populate recipe.instructions + family + difficulty + yield_grams."""
     recipes = session.query(Recipe).all()
     updated = 0
@@ -463,7 +464,7 @@ def _seed_recipe_metadata(session) -> tuple[int, int]:
     return updated, skipped
 
 
-def _seed_ingredient_allergens(session) -> int:
+def _seed_ingredient_allergens(session: Any) -> int:
     """Backfill ingredient.allergens from the Spanish→allergen map."""
     updated = 0
     for ing in session.query(Ingredient).all():
@@ -476,7 +477,7 @@ def _seed_ingredient_allergens(session) -> int:
     return updated
 
 
-def _seed_tag_links(session) -> tuple[int, int]:
+def _seed_tag_links(session: Any) -> tuple[int, int]:
     """Backfill tag_link rows for ingredient and recipe targets."""
     ing_links = 0
     rec_links = 0
@@ -530,7 +531,7 @@ def _seed_tag_links(session) -> tuple[int, int]:
     return ing_links, rec_links
 
 
-def _run_cascade_refresh(session) -> int:
+def _run_cascade_refresh(session: Any) -> int:
     """Refresh recipe.allergens + recipe.derived_dietary_tags caches."""
     from app.rms.tag_algebra import cascade_refresh
 

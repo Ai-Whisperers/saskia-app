@@ -30,6 +30,7 @@ Each import is a separate function so you can call any one individually
 after a partial run, e.g. `importlib.import_module(...).import_ingredients(...)`.
 """
 from __future__ import annotations
+from typing import Any
 
 import argparse
 import json
@@ -83,7 +84,7 @@ def load_dump():
         return json.load(f)
 
 
-def get_sheet(dump, filename, sheet_name):
+def get_sheet(dump: Any, filename: Any, sheet_name: Any):
     """Return rows for a given spreadsheet file + sheet name."""
     for f in dump:
         if f.get("_file") == filename:
@@ -91,7 +92,7 @@ def get_sheet(dump, filename, sheet_name):
     return []
 
 
-def to_decimal(s):
+def to_decimal(s: Any):
     """Sheet stores ₲ with comma decimals (e.g. '5,5'). Convert."""
     if s in (None, "", "∅"):
         return None
@@ -103,7 +104,7 @@ def to_decimal(s):
     return round(float(s))
 
 
-def to_date(s, fmt="%d/%m/%Y"):
+def to_date(s: Any, fmt: Any="%d/%m/%Y"):
     """DD/MM/YYYY (Asunción) or YYYY/MM/DD (Dutch/EUR) parse."""
     if s in (None, "", "∅"):
         return None
@@ -118,7 +119,7 @@ def to_date(s, fmt="%d/%m/%Y"):
     return None
 
 
-def header_row(rows, candidate_names=None):
+def header_row(rows: Any, candidate_names: Any=None):
     """Find the actual header row.
 
     Many HEREBUS sheets have a TITLE row first ("WISHLIST — equipment...")
@@ -152,7 +153,7 @@ def header_row(rows, candidate_names=None):
     return []
 
 
-def lr(rows, key, default=""):
+def lr(rows: Any, key: Any, default: Any=""):
     """Row lookup by header key."""
     hdr = header_row(rows)
     if key not in hdr:
@@ -169,7 +170,7 @@ def lr(rows, key, default=""):
 # ──────────────────────────────────────────────────────────────────
 
 
-def import_suppliers(session, dump=None) -> int:
+def import_suppliers(session: Any, dump: Any=None) -> int:
     """Seed 7 suppliers known from INGREDIENTES.Proveedor column."""
     suppliers = [
         ("Stock PY", "Wholesale main supplier (Superseis-style chain)"),
@@ -193,7 +194,7 @@ def import_suppliers(session, dump=None) -> int:
     return n
 
 
-def import_delivery_zones(session) -> int:
+def import_delivery_zones(session: Any) -> int:
     """Seed the 5 delivery zones from ZONAS_DELIVERY sheet."""
     # Note: ZONAS_DELIVERY row 4 + 5 had dates as "Radio (km)" — erroneous data
     # entered into the spreadsheet. We use the corrected values per the
@@ -235,7 +236,7 @@ def import_delivery_zones(session) -> int:
     return n
 
 
-def import_settings(session) -> int:
+def import_settings(session: Any) -> int:
     """Seed SettingsKV from MAESTRA — business hours + pickup address."""
     settings = [
         ("business_hours", {
@@ -286,7 +287,7 @@ def import_settings(session) -> int:
     return n
 
 
-def import_ingredients(session, dump) -> int:
+def import_ingredients(session: Any, dump: Any) -> int:
     """Import 44 ingredients from INGREDIENTES sheet."""
     sheet = get_sheet(dump, "HEREBUS_Gestion_v1.xlsx", "INGREDIENTES")
     if not sheet:
@@ -351,7 +352,7 @@ def import_ingredients(session, dump) -> int:
 # Recipe photo files in /static/recipes/
 RECIPE_PHOTO_DIR = "/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/recipes"
 
-def import_recipes(session, dump) -> int:
+def import_recipes(session: Any, dump: Any) -> int:
     """Import 7 recipes + ~63 recipe_lines from RECETAS_DETALLE."""
     sheet = get_sheet(dump, "HEREBUS_Gestion_v1.xlsx", "RECETAS_DETALLE")
     if not sheet:
@@ -481,7 +482,7 @@ def import_recipes(session, dump) -> int:
     return n_recipes
 
 
-def import_customers(session, dump) -> int:
+def import_customers(session: Any, dump: Any) -> int:
     """Seed customers from the sales sample (dedupe by name)."""
     sheet = get_sheet(dump, "HEREBUS_Gestion_v1.xlsx", "VENTAS")
     if not sheet:
@@ -512,7 +513,7 @@ def import_customers(session, dump) -> int:
     return len(seen)
 
 
-def import_sales(session, dump) -> int:
+def import_sales(session: Any, dump: Any) -> int:
     """Import 10 sales from VENTAS, linked to recipes + customers.
 
     NOTE: Sale.product_id is FK → Product. We look up products by
@@ -608,7 +609,7 @@ def import_sales(session, dump) -> int:
     return n_new
 
 
-def import_waste(session) -> int:
+def import_waste(session: Any) -> int:
     """Seed waste records from HEREBUS_FoodBiz Waste_Tracker."""
     # Hardcoded 3 records from the visible Waste_Tracker data
     # (Mixed Berries, Unsalted Butter, Heavy Cream)
@@ -674,7 +675,7 @@ def import_waste(session) -> int:
     return n
 
 
-def import_recipe_pricing(session, dump) -> int:
+def import_recipe_pricing(session: Any, dump: Any) -> int:
     """Seed per-channel pricing from COSTOS sheet."""
     sheet = get_sheet(dump, "HEREBUS_Gestion_v1.xlsx", "COSTOS")
     if not sheet:
@@ -752,7 +753,7 @@ def import_recipe_pricing(session, dump) -> int:
     return n
 
 
-def import_wishlist(session, dump) -> int:
+def import_wishlist(session: Any, dump: Any) -> int:
     """Seed 28 wishlist items from Wishlist sheet."""
     sheet = get_sheet(dump, "HEREBUS_Analisis.xlsx", "Wishlist")
     if not sheet:
@@ -812,7 +813,7 @@ def import_wishlist(session, dump) -> int:
     return n
 
 
-def import_risks(session, dump) -> int:
+def import_risks(session: Any, dump: Any) -> int:
     """Seed 12 risks from Risk_Register."""
     sheet = get_sheet(dump, "HEREBUS_Analisis.xlsx", "Risk_Register")
     if not sheet:
@@ -860,7 +861,7 @@ def import_risks(session, dump) -> int:
     return n
 
 
-def import_benchmarks(session, dump) -> int:
+def import_benchmarks(session: Any, dump: Any) -> int:
     """Seed 17 benchmark rows from Benchmarks_Market sheet."""
     sheet = get_sheet(dump, "HEREBUS_Analisis.xlsx", "Benchmarks_Market")
     if not sheet:
@@ -943,7 +944,7 @@ def import_benchmarks(session, dump) -> int:
     return n
 
 
-def import_bank_transactions(session) -> int:
+def import_bank_transactions(session: Any) -> int:
     """Import Dutch EUR bank TAB file (307 rows, Sept'25 - Jun'26).
 
     File: TXT260711013722.TAB

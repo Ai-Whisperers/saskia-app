@@ -90,7 +90,7 @@ def _migration_084_stock_qty_nonneg(conn: Any) -> None:
     _bump_schema_version(conn, 84)
 
 
-def run_post_migration(session) -> dict[str, int]:
+def run_post_migration(session: Any) -> dict[str, int]:
     """Post-migration hook for migration 084.
 
     Returns statistics about the migration.

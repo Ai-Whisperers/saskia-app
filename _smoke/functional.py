@@ -12,6 +12,7 @@ Tests the FULL flow of every important feature, not just page rendering:
   - Settings: update → verify change
 """
 from __future__ import annotations
+from typing import Any
 
 import time
 from pathlib import Path
@@ -30,12 +31,12 @@ results = {"pass": 0, "fail": 0}
 failures = []
 
 
-def ok(msg):
+def ok(msg: Any):
     print(f"  {GREEN}✓{RESET} {msg}")
     results["pass"] += 1
 
 
-def fail(msg, detail=""):
+def fail(msg: Any, detail: Any=""):
     print(f"  {RED}✗{RESET} {msg}")
     if detail:
         print(f"    {detail[:150]}")
@@ -43,7 +44,7 @@ def fail(msg, detail=""):
     results["fail"] += 1
 
 
-def section(title):
+def section(title: Any):
     print(f"\n{CYAN}{title}{RESET}")
 
 

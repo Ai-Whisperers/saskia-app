@@ -35,7 +35,7 @@ def _migration_061_tag_validation(conn: Any) -> None:
     _bump_schema_version(conn, 61)
 
 
-def run_post_migration(session) -> int:
+def run_post_migration(session: Any) -> int:
     """Backfill tag_validation_issues for every ingredient.
 
     Called from the migration runner after _migration_061_tag_validation.

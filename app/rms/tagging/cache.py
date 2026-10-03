@@ -20,6 +20,7 @@ those are in derive.py.
 """
 
 from __future__ import annotations
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -28,7 +29,7 @@ from sqlalchemy.orm import Session
 def persist_recipe_cache(
     session: Session,
     recipe_id: int,
-    derivation,
+    derivation: Any,
 ) -> None:
     """Write Recipe.allergens and Recipe.derived_dietary_tags from a
     TagDerivation result. Operator-claimed dietary_tags is preserved

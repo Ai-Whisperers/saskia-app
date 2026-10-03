@@ -4,6 +4,7 @@ Per dev plan §9 Task 3.
 """
 
 from __future__ import annotations
+from typing import Any
 
 from datetime import datetime, timezone
 from urllib.parse import urlencode
@@ -261,11 +262,11 @@ def inventory_list(
         for d in request.query_params.getlist("diet") if d.strip()
     ]
 
-    def _ingredient_diet_tags(i) -> set[str]:
+    def _ingredient_diet_tags(i: Any) -> set[str]:
         raw = (i.dietary_tags or "").lower()
         return {t.strip() for t in raw.split(",") if t.strip()}
 
-    def _matches_diet(i) -> bool:
+    def _matches_diet(i: Any) -> bool:
         if not diet_sel:
             return True
         tags = _ingredient_diet_tags(i)

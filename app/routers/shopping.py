@@ -13,6 +13,7 @@ or derived from Production Planner shortfalls.
 """
 
 from __future__ import annotations
+from typing import Any
 
 from datetime import date, datetime, timezone
 
@@ -100,7 +101,7 @@ def consolidate_open_items(session: Session) -> int:
     return deleted
 
 
-def _whatsapp_href(supplier, rows) -> str | None:
+def _whatsapp_href(supplier: Any, rows: Any) -> str | None:
     """Prefilled wa.me link for a supplier's open items (Py py-side so no
     custom Jinja filter is needed). Normalizes PY phones: 9-digit local
     numbers get 595 prefix; already-international (starts with +) keep."""

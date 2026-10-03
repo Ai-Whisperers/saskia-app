@@ -5,6 +5,7 @@ with a populated product id, and that the cart price column header is in
 place. NOT a pytest test — just a one-shot script for the dev to run.
 """
 from __future__ import annotations
+from typing import Any
 
 import os
 
@@ -28,7 +29,7 @@ init_db(engine)
 sf = make_session_factory(engine)
 
 
-def _make_for_test(url=None, *, for_tests=False):
+def _make_for_test(url: Any=None, *, for_tests: Any=False):
     return engine
 main_module.make_engine_dialect = _make_for_test
 

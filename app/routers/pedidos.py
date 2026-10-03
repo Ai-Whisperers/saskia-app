@@ -273,7 +273,7 @@ from app.services.customer_address import (
 )
 
 
-def _ventana_text_for(pedido_or_decorated) -> str:
+def _ventana_text_for(pedido_or_decorated: Any) -> str:
     """Phase 13 (2026-10-01): render the preferred-arrival-window text
     for the pedido detail page. Uses the helper from
     app.services.customer_address so the wording is consistent across
@@ -282,7 +282,7 @@ def _ventana_text_for(pedido_or_decorated) -> str:
     Accepts both a Pedido ORM row and a decorated dict (the detail
     handler passes the decorated version that already has string dates).
     """
-    def g(k):
+    def g(k: Any):
         # ORM-row style (attribute access) or dict-style (key access)
         try:
             v = getattr(pedido_or_decorated, k)

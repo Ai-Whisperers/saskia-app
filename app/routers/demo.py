@@ -28,6 +28,7 @@ Response shape:
 """
 
 from __future__ import annotations
+from typing import Any
 
 import os
 import time
@@ -47,7 +48,7 @@ def _is_enabled() -> bool:
 
 
 @router.post("/seed")
-def demo_seed(session=Depends(get_session)):
+def demo_seed(session: Any=Depends(get_session)):
     """Build the Kyrian demo customer. Idempotent.
 
     Returns a JSON summary of what was created/replaced. Errors with

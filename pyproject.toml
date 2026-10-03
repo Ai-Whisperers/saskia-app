@@ -158,6 +158,18 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а"]
     "S105", "S106",    # dev-only mock data
     "ANN",             # dev routes are throwaway
 ]
+"_smoke/*.py" = [
+    "ANN",     # smoke scripts — ad-hoc utilities, no need for annotations
+    "S",       # bandit relaxed — ad-hoc curl/subprocess patterns
+    "DTZ",     # smoke scripts use naive datetime for ad-hoc timing
+    "E501",    # long console lines are fine in smoke output
+]
+"scripts/*.py" = [
+    "ANN",     # scripts are ad-hoc utilities, no need for annotations
+    "S",       # bandit relaxed — scripts intentionally shell out / curl
+    "BLE001",  # scripts may swallow errors with broad except
+    "DTZ",     # scripts use naive datetime for ad-hoc timing
+]
 "app/rms/db.py" = [
     "S608",            # SQL builder helpers (text() calls are intentional)
     "BLE001",          # migrations use try/except ALTER TABLE

@@ -1,3 +1,4 @@
+from typing import Any
 #!/usr/bin/env python3
 """Diagnose Supabase + Render state for Saskia RMS.
 
@@ -31,7 +32,7 @@ with open("/opt/data/.hermes/bws-secrets-cache.tsv") as f:
             cache[parts[0]] = parts[1]
 
 
-def get_secret(key):
+def get_secret(key: Any):
     if key not in cache:
         return None
     r = c.secrets().get_by_ids([cache[key]])

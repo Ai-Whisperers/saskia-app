@@ -10,6 +10,7 @@ Hits every GET + POST route registered in the FastAPI app. Verifies:
 This is the "does everything actually work" test.
 """
 from __future__ import annotations
+from typing import Any
 
 import json
 import re
@@ -33,23 +34,23 @@ results = {"pass": 0, "fail": 0, "warn": 0, "skip": 0}
 failures = []
 
 
-def ok(msg):
+def ok(msg: Any):
     print(f"  {GREEN}✓{RESET} {msg}")
     results["pass"] += 1
 
 
-def fail(msg, status, body):
+def fail(msg: Any, status: Any, body: Any):
     print(f"  {RED}✗{RESET} {msg} (status={status})")
     failures.append((msg, status, body[:200] if body else ""))
     results["fail"] += 1
 
 
-def warn(msg):
+def warn(msg: Any):
     print(f"  {YELLOW}⚠{RESET} {msg}")
     results["warn"] += 1
 
 
-def skip(msg):
+def skip(msg: Any):
     print(f"  {CYAN}○{RESET} {msg}")
     results["skip"] += 1
 
@@ -76,7 +77,7 @@ print(json.dumps(routes))
     return json.loads(r.stdout)
 
 
-def fill_path_params(path):
+def fill_path_params(path: Any):
     """Replace {xxx} path params with realistic test values."""
     replacements = {
         "{customer_id}": "1",
@@ -103,7 +104,7 @@ def fill_path_params(path):
     return out
 
 
-def test_get(path, session, **kwargs):
+def test_get(path: Any, session: Any, **kwargs):
     """Hit a GET route and check."""
     try:
         r = session.get(BASE + path, timeout=30, allow_redirects=True, **kwargs)
@@ -123,7 +124,7 @@ def test_get(path, session, **kwargs):
     return r
 
 
-def test_api(path, session, **kwargs):
+def test_api(path: Any, session: Any, **kwargs):
     """Hit an API route and verify valid JSON."""
     try:
         r = session.get(BASE + path, timeout=30, **kwargs)
@@ -142,7 +143,7 @@ def test_api(path, session, **kwargs):
         return None
 
 
-def test_post(path, data, session, **kwargs):
+def test_post(path: Any, data: Any, session: Any, **kwargs):
     """Hit a POST route with form data."""
     # Auto-include CSRF token in form data
     csrf_token = session.cookies.get("csrf_token", "")

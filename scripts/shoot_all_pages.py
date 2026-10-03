@@ -11,6 +11,7 @@ Usage:
 Output: <dir>/*.png + index.html (contact sheet) + summary.json
 """
 from __future__ import annotations
+from typing import Any
 
 import json
 import sys
@@ -99,7 +100,7 @@ def boot_app():
     return f"http://127.0.0.1:{port}", server, engine, ids
 
 
-def routes_to_shoot(ids):
+def routes_to_shoot(ids: Any):
     """(path, filename) for every renderable page; param routes use seeded ids."""
     return [
         ("/dashboard", "dashboard"),

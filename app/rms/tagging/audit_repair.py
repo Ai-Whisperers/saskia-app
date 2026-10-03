@@ -23,6 +23,7 @@ Idempotent: re-running does nothing once an ingredient's tags match.
 """
 
 from __future__ import annotations
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -61,7 +62,7 @@ _REPAIR_RULES: list[tuple[str, frozenset[str], frozenset[str]]] = [
 ]
 
 
-def repair_ingredient(ing) -> list[str]:
+def repair_ingredient(ing: Any) -> list[str]:
     """Apply repair rules to one ingredient. Returns list of changes made.
 
     Returns [] if no changes needed.
