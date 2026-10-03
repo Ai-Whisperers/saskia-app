@@ -60,3 +60,35 @@
         display: none;
     }
 }
+
+/* Topbar Cmd+K indicator (visible keyboard shortcut hint) */
+.topbar-shortcut {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    font-family: monospace;
+    background: var(--color-bg, #fff);
+    border: 1px solid var(--color-border, #d0d0d0);
+    border-radius: 3px;
+    color: var(--color-muted, #666);
+    pointer-events: none;
+    line-height: 1.4;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .topbar-shortcut {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+@media (max-width: 768px) {
+    .topbar-shortcut {
+        display: none;
+    }
+}
