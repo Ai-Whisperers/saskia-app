@@ -75,9 +75,7 @@ _EXEMPT = {
 
 
 def _test_corpus() -> str:
-    corpus = []
-    for f in pathlib.Path(__file__).parent.rglob("*.py"):
-        corpus.append(f.read_text())
+    corpus: list = [f.read_text() for f in pathlib.Path(__file__).parent.rglob("*.py")]
     return "\n".join(corpus)
 
 

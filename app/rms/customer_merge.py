@@ -159,11 +159,7 @@ def customer_merge(
                 break
 
     # 5. Append merge trail to notes.
-    new_entries: list[str] = []
-    for src in sources:
-        new_entries.append(
-            f"--- Fusionado desde {src.name} (id={src.id}) ---"
-        )
+    new_entries: list = [f"--- Fusionado desde {src.name} (id={src.id}) ---" for src in sources]
     if new_entries:
         sep = "\n" if (original_notes and original_notes.strip()) else ""
         trail = sep + "\n".join(new_entries)
