@@ -184,6 +184,14 @@ def eod_view(
                 })
                 cur += timedelta(days=1)
 
+    # P-39: compute anomaly count for the inline banner. Cheap call;
+    # detect_anomalies queries summary tables, not full sale rows.
+    try:
+        from app.services.eod_anomaly import detect_anomalies
+        anomaly_count = len(detect_anomalies(session))
+    except Exception:
+        anomaly_count = 0
+
     return render(request, "eod.html", {
         "items": items,
         "progress": progress,
@@ -207,6 +215,8 @@ def eod_view(
         "range_total_ventas_gs": range_total_ventas_gs,
         "range_total_merma_gs": range_total_merma_gs,
         "range_total_operaciones": range_total_operaciones,
+        # P-39: inline anomaly summary
+        "anomaly_count": anomaly_count,
     })
 
 

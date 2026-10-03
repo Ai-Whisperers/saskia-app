@@ -12,6 +12,28 @@
   {% endif %}
 </h1>
 
+{# P-39: inline anomaly summary at the top of /eod so the operator sees
+   anomalies before closing the day. The count is set by a follow-up
+   backend hook (anomaly detection runs at the start of /eod GET). #}
+{% if anomaly_count is defined %}
+  {% if anomaly_count > 0 %}
+  <div class="alert alert-warning" role="status" data-eod-anomalies
+       style="margin-bottom:var(--space-3);padding:var(--space-2) var(--space-3);border-left:4px solid var(--color-warn);background:rgba(217,119,6,.08);">
+    <strong>⚠ {{ anomaly_count }} anomalía{{ 's' if anomaly_count != 1 else '' }}</strong>
+    antes de cerrar el día.
+    <form method="post" action="/eod/anomalies/run" style="display:inline;margin-left:var(--space-2);">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+      <button type="submit" class="btn btn-sm">Ver detalle</button>
+    </form>
+  </div>
+  {% else %}
+  <div class="alert alert-success" role="status" data-eod-anomalies
+       style="margin-bottom:var(--space-3);padding:var(--space-2) var(--space-3);border-left:4px solid var(--color-success);background:rgba(34,197,94,.08);">
+    ✓ Sin anomalías detectadas para hoy.
+  </div>
+  {% endif %}
+{% endif %}
+
 {# ── Weekend-batch range picker (prelaunch roadmap 2026-09-17) ─────── #}
 <form method="get" action="/eod" class="card mb-4" style="padding:var(--space-3);">
   <div style="display:flex;gap:var(--space-3);align-items:flex-end;flex-wrap:wrap;">
