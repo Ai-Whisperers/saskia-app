@@ -320,6 +320,7 @@
 </form>
 {% endblock %}
 
+{% block page_scripts %}
 <script>
 (function () {
   // P3.4: inline error banner replaces native alert(). The banner sits
@@ -358,13 +359,16 @@
 
   document.querySelectorAll(".addr-del").forEach(function (btn) {
     btn.addEventListener("click", function () {
+      // P3.6: capture the row now so we can remove it after the fetch.
+      var rowEl = btn.closest("tr");
       var doDelete = function () {
         fetch("/clientes/api/" + cid + "/addresses/" + btn.dataset.addrId, {
           method: "DELETE",
           headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
         }).then(function (r) {
           if (!r.ok) throw new Error("fallo");
-          window.location.reload();
+          // In-DOM removal: drop the row without reloading.
+          if (rowEl && rowEl.parentNode) rowEl.parentNode.removeChild(rowEl);
         }).catch(function () { showInlineError("No se pudo eliminar."); });
       };
       if (window.SaskiaConfirmModal) {
@@ -443,6 +447,8 @@
   });
   document.querySelectorAll(".inv-del").forEach(function (btn) {
     btn.addEventListener("click", function () {
+      // P3.6: capture the row for in-DOM removal.
+      var rowEl = btn.closest("tr");
       var doDel = function () {
         fetch("/clientes/api/" + cid + "/invoice-profiles/" + btn.dataset.invId, {
           method: "DELETE",
@@ -456,7 +462,8 @@
               throw new Error(j.error || "fallo");
             });
           }
-          window.location.reload();
+          // In-DOM removal.
+          if (rowEl && rowEl.parentNode) rowEl.parentNode.removeChild(rowEl);
         }).catch(function (e) {
           showInlineError("No se pudo eliminar: " + e.message);
         });
@@ -475,3 +482,4 @@
   });
 })();
 </script>
+{% endblock %}
