@@ -592,9 +592,8 @@ async def sale_detail(
     sale_total = int(sale.unit_price_gs or 0)
     refunds_remaining_gs = sale_total - refunds_total_gs
 
-    refunds = []
-    for r in sorted(refund_rows, key=lambda x: x.recorded_at, reverse=True):
-        refunds.append({
+    refunds = [
+        {
             "id": r.id,
             "amount_gs": int(r.amount_gs),
             "payment_method": r.payment_method,
@@ -603,7 +602,9 @@ async def sale_detail(
             "reason": r.reason,
             "recorded_by": r.recorded_by,
             "recorded_at_str": r.recorded_at.strftime("%Y-%m-%d %H:%M") if r.recorded_at else "—",
-        })
+        }
+        for r in sorted(refund_rows, key=lambda x: x.recorded_at, reverse=True)
+    ]
 
     return render(
         request,

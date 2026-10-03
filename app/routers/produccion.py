@@ -325,9 +325,8 @@ def produccion_worksheet(
     # Wrap each ProductionRow with the completion + pedido data the
     # template needs (ProductionRow is a dataclass — attribute injection
     # is safe inside this function but we don't mutate the original).
-    plan_rows_view = []
-    for r in plan.rows:
-        plan_rows_view.append({
+    plan_rows_view = [
+        {
             "product_id": r.product_id,
             "product_name": r.product_name,
             "recipe_id": r.recipe_id,
@@ -337,7 +336,9 @@ def produccion_worksheet(
             "completed_qty": completions_by_pid.get(r.product_id, 0.0),
             "pending_pedido_qty": ped_units_by_pid.get(r.product_id, 0.0),
             "is_ad_hoc": False,
-        })
+        }
+        for r in plan.rows
+    ]
 
     # Ad-hoc bakes: products COMPLETED for the day but NOT in the plan
     # row list. These are the walk-ins / on-the-fly decisions that the
@@ -953,21 +954,22 @@ def produccion_manana(
     # planifica (antes solo vivían en Pedidos y en el card de Inicio).
     from app.rms.models import Pedido
     from app.routers.pedidos import _pedido_total_gs
-    pedidos_manana = []
-    for p_ in session.execute(
-        select(Pedido).where(
-            Pedido.promised_date == tomorrow,
-            Pedido.status.in_(["pending", "confirmed", "ready"]),
-        ).order_by(Pedido.promised_time.nulls_last(), Pedido.id)
-    ).scalars():
-        pedidos_manana.append({
+    pedidos_manana = [
+        {
             "id": p_.id,
             "customer_name": p_.customer_name,
             "promised_time": p_.promised_time,
             "channel": p_.channel,
             "status": p_.status,
             "total_gs": _pedido_total_gs(p_),
-        })
+        }
+        for p_ in session.execute(
+            select(Pedido).where(
+                Pedido.promised_date == tomorrow,
+                Pedido.status.in_(["pending", "confirmed", "ready"]),
+            ).order_by(Pedido.promised_time.nulls_last(), Pedido.id)
+        ).scalars()
+    ]
 
     return render(
         request,
