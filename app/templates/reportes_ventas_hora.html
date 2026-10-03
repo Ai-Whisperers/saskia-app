@@ -16,39 +16,9 @@
 {% endif %}
 
 {% if by_hour %}
-{{ ui.skeleton_section(id="ventas-hora-table", variant="line", count=24, label="Cargando ventas por hora") }}
-<div data-loaded-section="ventas-hora-table">
-<table class="table is-hoverable">
-  <thead>
-    <tr>
-      <th>Hora</th>
-      <th class="num">Ventas</th>
-      <th>Barra</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for hour in range(24) %}
-    {% set count = by_hour.get(hour, 0) %}
-    <tr>
-      <td><strong>{{ "%02d:00"|format(hour) }}</strong></td>
-      <td class="num">{{ count }}</td>
-      <td>
-        {% if count > 0 %}
-        {% set max_count = by_hour.values() | max %}
-        <div style="background:#3b82f6; height: 16px; width: {{ (count / max_count * 100) | int }}%; border-radius: 2px;"></div>
-        {% endif %}
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
 
-{# BACKLOG #36 (2026-10-02): day-of-week × hour heatmap. Each cell's
-   background intensity is proportional to count/heatmap_max so the
-   operator sees the busy slots at a glance. The CSS hue stays constant
-   (blue) and only the saturation/lightness varies, so color-blind
-   users can still rank cells by darkness. #}
+{# P-42: heatmap renders FIRST so the operator's eye lands on the
+   day-of-week × hour pattern. The by-hour table is secondary detail. #}
 <h2 class="mt-5">
   <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
   Mapa de calor — Día de semana × Hora
@@ -76,7 +46,7 @@
       color: #6b7280;
       font-weight: 600;
     }
-  </style>
+</style>
 
 <div class="heatmap-grid" role="table" aria-label="Mapa de calor ventas por día y hora">
   <div class="heatmap-axis"></div>
@@ -95,6 +65,35 @@
   </div>
   {% endfor %}
   {% endfor %}
+</div>
+
+<h2 class="mt-5">Detalle por hora</h2>
+{{ ui.skeleton_section(id="ventas-hora-table", variant="line", count=24, label="Cargando ventas por hora") }}
+<div data-loaded-section="ventas-hora-table">
+<table class="table is-hoverable">
+  <thead>
+    <tr>
+      <th>Hora</th>
+      <th class="num">Ventas</th>
+      <th>Barra</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for hour in range(24) %}
+    {% set count = by_hour.get(hour, 0) %}
+    <tr>
+      <td><strong>{{ "%02d:00"|format(hour) }}</strong></td>
+      <td class="num">{{ count }}</td>
+      <td>
+        {% if count > 0 %}
+        {% set max_count = by_hour.values() | max %}
+        <div style="background:#3b82f6; height: 16px; width: {{ (count / max_count * 100) | int }}%; border-radius: 2px;"></div>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 </div>
 
 {% else %}
