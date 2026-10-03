@@ -1,0 +1,31 @@
+/* Phase 22 / Sprint: Search highlight styles */
+
+mark.search-highlight {
+    background: #fff3a0;
+    color: #1a1a1a;
+    padding: 1px 2px;
+    border-radius: 2px;
+    font-weight: 600;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
+[data-theme="dark"] mark.search-highlight {
+    background: rgba(255, 220, 100, 0.4);
+    color: #fff;
+}
+
+@media print {
+    mark.search-highlight {
+        background: transparent;
+        color: inherit;
+        font-weight: bold;
+        text-decoration: underline;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    mark.search-highlight {
+        transition: none;
+    }
+}
