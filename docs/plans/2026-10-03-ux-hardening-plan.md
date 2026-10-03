@@ -351,3 +351,24 @@ If during implementation I find:
 - A backend change is required that I haven't enumerated
 
 I will stop, report the blocker, and ask before proceeding.
+
+---
+
+## Status — 2026-10-03 19:51 UTC
+
+**P0 batch complete (8/8):**
+- P0.1 reorder collapse — committed 22a924e
+- P0.2 auto-fill price hint — committed 0592600
+- P0.3 block no-supplier submit — committed 3c19110
+- P0.4 address hierarchy (already shipped) — committed e9f3f47
+- P0.5 generic placeholder — committed 4c2d3c2
+- P0.6 LTV headline — committed 2299b75
+- P0.7 KPI groups — committed 8fdf0df
+- P0.8 demo CTA (route doesn't exist, test SKIPS) — committed e8b7593
+
+**Pre-existing failures NOT caused by this work** (confirmed by stashing):
+- `tests/test_P22_dashboard_kpi_target_indicators.py::test_dashboard_kpi_no_data_fallback*` — 4 fail
+- `tests/e2e/test_dark_routes_batch.py::test_planner_compute_shows_shortage_and_materializes_shopping_list` — Decimal/float TypeError in `/produccion-planner/compute`
+
+**P1 + P2 batches: not yet started.** Plan file: `docs/plans/2026-10-03-ux-hardening-plan.md`.
+
