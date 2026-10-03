@@ -268,3 +268,81 @@ Asunción local TZ.
   <span class="form-counter__count">{{ current }}/{{ max }}</span>
 </div>
 {%- endmacro %}
+
+{# Phase 24: Pagination component
+   Usage:
+     {{ m.pagination(page=page, total_pages=total_pages,
+                     base_url="/pedidos", extra_qs="status=active&q=foo") }}
+   The base_url should NOT include the page parameter.
+   extra_qs should be the query string without the page param. #}
+{% macro pagination(page, total_pages, base_url, extra_qs="", compact=False) -%}
+{%- if total_pages > 1 -%}
+{%- set qp = extra_qs -%}
+{%- if qp and not qp.startswith('&') and not qp.startswith('?') -%}
+  {%- set qp = '&' ~ qp -%}
+{%- endif -%}
+{%- if qp.startswith('?') -%}
+  {%- set qp = qp[1:] -%}
+  {%- if qp -%}
+    {%- set qp = '&' ~ qp -%}
+  {%- endif -%}
+{%- endif -%}
+<nav class="pagination{% if compact %} pagination--compact{% endif %}"
+     aria-label="Paginación">
+  {# Previous #}
+  {% if page > 1 %}
+  <a href="{{ base_url }}?page={{ page - 1 }}{{ qp }}"
+     class="pagination__item" aria-label="Página anterior">
+    <svg class="pagination__icon" aria-hidden="true"><use href="#icon-chevron-left"/></svg>
+  </a>
+  {% else %}
+  <span class="pagination__item pagination__item--disabled" aria-disabled="true">
+    <svg class="pagination__icon" aria-hidden="true"><use href="#icon-chevron-left"/></svg>
+  </span>
+  {% endif %}
+
+  {# Page numbers with ellipsis #}
+  {%- set window = 2 -%}
+  {%- set start = [1, page - window] | max -%}
+  {%- set end = [total_pages, page + window] | min -%}
+
+  {% if start > 1 %}
+    <a href="{{ base_url }}?page=1{{ qp }}" class="pagination__item">1</a>
+    {% if start > 2 %}
+    <span class="pagination__ellipsis" aria-hidden="true">…</span>
+    {% endif %}
+  {% endif %}
+
+  {% for p in range(start, end + 1) %}
+    {% if p == page %}
+    <span class="pagination__item pagination__item--current" aria-current="page">{{ p }}</span>
+    {% else %}
+    <a href="{{ base_url }}?page={{ p }}{{ qp }}" class="pagination__item">{{ p }}</a>
+    {% endif %}
+  {% endfor %}
+
+  {% if end < total_pages %}
+    {% if end < total_pages - 1 %}
+    <span class="pagination__ellipsis" aria-hidden="true">…</span>
+    {% endif %}
+    <a href="{{ base_url }}?page={{ total_pages }}{{ qp }}" class="pagination__item">{{ total_pages }}</a>
+  {% endif %}
+
+  {# Next #}
+  {% if page < total_pages %}
+  <a href="{{ base_url }}?page={{ page + 1 }}{{ qp }}"
+     class="pagination__item" aria-label="Página siguiente">
+    <svg class="pagination__icon" aria-hidden="true"><use href="#icon-chevron-right"/></svg>
+  </a>
+  {% else %}
+  <span class="pagination__item pagination__item--disabled" aria-disabled="true">
+    <svg class="pagination__icon" aria-hidden="true"><use href="#icon-chevron-right"/></svg>
+  </span>
+  {% endif %}
+
+  <span class="pagination__info" aria-live="polite">
+    Página {{ page }} de {{ total_pages }}
+  </span>
+</nav>
+{%- endif -%}
+{%- endmacro %}
