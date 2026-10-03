@@ -404,3 +404,18 @@ Asunción local TZ.
   </div>
 </form>
 {%- endmacro %}
+
+{# Phase 26: Keyboard shortcut badge
+   Usage:
+     {{ m.shortcut_badge("Cmd", "K") }}     →  [Cmd K]
+     {{ m.shortcut_badge("g", "i") }}       →  [g i]
+     {{ m.shortcut_badge("F2") }}           →  [F2]
+   Renders a visual indicator of available keyboard shortcuts. #}
+{% macro shortcut_badge(*keys) -%}
+<span class="shortcut-badge" aria-label="Atajo: {{ keys | join(' + ') }}">
+  {%- for k in keys -%}
+  <kbd>{{ k }}</kbd>
+  {%- if not loop.last %} {% endif -%}
+  {%- endfor -%}
+</span>
+{%- endmacro %}
