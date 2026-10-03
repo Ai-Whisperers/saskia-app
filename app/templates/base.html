@@ -338,7 +338,42 @@
   <button type="button" class="back-to-top" aria-label="Volver arriba" hidden>
     <svg class="icon" aria-hidden="true"><use href="#icon-arrow-up"/></svg>
   </button>
-  <script src="/static/back-to-top.js" defer></script>
+  <script src="/static/shortcuts.js" defer></script>
+  <link rel="stylesheet" href="/static/print.css" media="print">
+
+  {# Phase 22: Shortcut help modal (built by JS if needed, but render here for SSR) #}
+  <div id="shortcut-help-modal" class="modal-backdrop" hidden>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="shortcut-help-title">
+      <div class="modal-header">
+        <h2 id="shortcut-help-title">
+          <svg class="icon" aria-hidden="true"><use href="#icon-help"/></svg>
+          Atajos de teclado
+        </h2>
+        <button type="button" class="btn-ghost btn-icon" id="close-shortcuts" aria-label="Cerrar">
+          <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <table class="table">
+          <thead><tr><th>Atajo</th><th>Acción</th></tr></thead>
+          <tbody>
+            <tr><td><kbd>g</kbd> + <kbd>i</kbd></td><td>Ir a Inicio</td></tr>
+            <tr><td><kbd>g</kbd> + <kbd>v</kbd></td><td>Ir a Ventas</td></tr>
+            <tr><td><kbd>g</kbd> + <kbd>p</kbd></td><td>Ir a Productos</td></tr>
+            <tr><td><kbd>g</kbd> + <kbd>r</kbd></td><td>Ir a Recetas</td></tr>
+            <tr><td><kbd>g</kbd> + <kbd>n</kbd></td><td>Ir a Inventario</td></tr>
+            <tr><td><kbd>g</kbd> + <kbd>e</kbd></td><td>Ir a Cierre</td></tr>
+            <tr><td><kbd>g</kbd> + <kbd>m</kbd></td><td>Ir a Merma</td></tr>
+            <tr><td><kbd>g</kbd> + <kbd>s</kbd></td><td>Ir a Configuración</td></tr>
+            <tr><td><kbd>Cmd</kbd>/<kbd>Ctrl</kbd> + <kbd>K</kbd></td><td>Paleta de comandos</td></tr>
+            <tr><td><kbd>?</kbd></td><td>Muestra este panel</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>Cerrar modales</td></tr>
+          </tbody>
+        </table>
+        <p class="muted text-sm">En la pantalla de ventas (Ventas), <kbd>F2</kbd> guarda la venta, <kbd>F4</kbd> aplica descuento.</p>
+      </div>
+    </div>
+  </div>
 </body>
 
 </html>
