@@ -135,7 +135,7 @@
 {% if products %}
 {{ ui.skeleton_section(id="products-table", variant="line", count=12, label="Cargando productos") }}
 <div class="table-sticky-wrap" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);" data-loaded-section="products-table">
-<table class="table is-hoverable is-striped" style="margin-bottom:0;" id="products-table">
+<table class="table is-hoverable is-striped sortable" style="margin-bottom:0;" id="products-table">
   <thead>
     <tr>
       <th class="col-checkbox"><input type="checkbox" id="select-all" aria-label="Seleccionar todos"></th>
