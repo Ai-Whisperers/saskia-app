@@ -4277,12 +4277,31 @@ def _bump_schema_version(conn: Any, version: int) -> None:
 
 
 def _current_schema_version(conn: Any) -> int:
-    """Read schema version from app_meta table (default 0)."""
-    row = conn.execute(text("SELECT value FROM app_meta WHERE key = 'schema_version'")).first()
+    """Read schema version from app_meta table (default 0).
+
+    app_meta.value is JSONB on Postgres and TEXT on SQLite. We need
+    to JSON-decode the value on Postgres so `int(value)` works on
+    the integer that was stored.
+    """
+    import json as _json
+
+    row = conn.execute(
+        text("SELECT value FROM app_meta WHERE key = 'schema_version'")
+    ).first()
     if row is None:
         return 0
+    val = row[0]
+    # Postgres returns the JSON-decoded value (int 97, str "1", etc.)
+    # SQLite returns the raw text. If the value is a string that
+    # looks like JSON, decode it first.
+    if isinstance(val, str):
+        try:
+            val = _json.loads(val)
+        except (ValueError, TypeError):
+            # Plain text — treat as the version directly.
+            pass
     try:
-        return int(row[0])
+        return int(val)
     except (TypeError, ValueError):
         return 0
 
