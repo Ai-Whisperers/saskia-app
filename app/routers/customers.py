@@ -1032,8 +1032,15 @@ def cliente_detail(
         select(LoyaltyTransaction)
         .where(LoyaltyTransaction.customer_id == customer.id)
         .order_by(LoyaltyTransaction.recorded_at.desc())
-        .limit(20)
+        # P4.1: cap inline ledger at 5; show "Ver todo" link to the
+        # full history. Full list is on the /clientes/{id}/loyalty
+        # page (or ?loyalty=full anchor expansion — tracked).
+        .limit(5)
     ).all()
+    loyalty_total = session.scalar(
+        select(func.count(LoyaltyTransaction.id))
+        .where(LoyaltyTransaction.customer_id == customer.id)
+    ) or 0
 
     # Tier badge days-since-last-sale: SQLite returns NAIVE datetimes while
     # now() is aware — subtracting them raises TypeError (500 on
@@ -1142,6 +1149,8 @@ def cliente_detail(
             "history": history,
             "history_view": history_view,
             "recent_loyalty": recent_loyalty,
+            # P4.1: total loyalty count for "Ver todo (N)" link.
+            "loyalty_total": loyalty_total,
             "dietary_profile": profile,
             "now_iso": datetime.now(timezone.utc).isoformat(),
             "last_days": last_days,

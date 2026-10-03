@@ -400,6 +400,16 @@
           {% else %}
           <p class="text-muted" style="font-size:var(--text-sm);">Sin movimientos. Los puntos se acumulan automáticamente con cada venta.</p>
           {% endif %}
+          {# P4.1: link to the full ledger if we capped it. The dedicated
+             /clientes/{id}/loyalty page is tracked in a follow-up. #}
+          {% if loyalty_total and loyalty_total > recent_loyalty|length %}
+          <div style="margin-top:var(--space-2);text-align:right;">
+            <a href="/clientes/{{ customer.id }}/loyalty" class="btn btn-sm"
+               data-loyalty-ver-todo>
+              Ver todo ({{ loyalty_total }}) →
+            </a>
+          </div>
+          {% endif %}
         </div>
       </div>
     </section>
