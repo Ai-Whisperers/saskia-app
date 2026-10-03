@@ -24,7 +24,7 @@
 <form method="post" action="/clientes/{{ customer.id }}/editar" class="card" style="max-width:560px;">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <div class="form-row is-required">
-    <label for="name">Nombre</label>
+    <label for="name">Nombre <span class="required" aria-label="obligatorio">*</span></label>
     <input type="text" id="name" name="name" value="{{ form_values.name if form_values else (customer.name or '') }}" required maxlength="120" aria-required="true" autofocus>
   </div>
 
