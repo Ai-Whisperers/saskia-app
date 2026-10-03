@@ -2801,7 +2801,7 @@ def _migration_067_pedido_public_token_expiry(conn: Any) -> None:
                 except ValueError:
                     # Fallback: try the most common SQLite format.
                     from datetime import datetime as _dt2
-                    parsed = _dt2.strptime(normalized, "%Y-%m-%d %H:%M:%S")
+                    parsed = _dt2.strptime(normalized, "%Y-%m-%d %H:%M:%S")  # noqa: DTZ007 — stored as naive UTC in DB
                 expires = parsed + _td(days=30)
             else:
                 expires = created + _td(days=30)

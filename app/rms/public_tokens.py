@@ -89,7 +89,7 @@ def is_token_valid(expires_at: object, now: Optional[datetime] = None) -> bool:
         normalized = expires_at.replace("T", " ")
         for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
             try:
-                parsed = datetime.strptime(normalized, fmt)
+                parsed = datetime.strptime(normalized, fmt)  # noqa: DTZ007 — DB stores naive UTC
                 break
             except ValueError:
                 continue

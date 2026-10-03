@@ -118,7 +118,7 @@ def fix_file(path: str) -> str | None:
         # Find a good place: after any `from __future__` or `import` lines at top
         insert_idx = 0
         for i, line in enumerate(lines):
-            if line.startswith("from __future__") or line.startswith("import ") or line.startswith("from "):
+            if line.startswith(("from __future__", "import ", "from ")):
                 insert_idx = i + 1
         lines.insert(insert_idx, "from datetime import timezone")
         with open(path, "w") as f:

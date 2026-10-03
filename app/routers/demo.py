@@ -48,7 +48,7 @@ def _is_enabled() -> bool:
 
 
 @router.post("/seed")
-def demo_seed(session: Any=Depends(get_session)):
+def demo_seed(session: Any=Depends(get_session)) -> JSONResponse:
     """Build the Kyrian demo customer. Idempotent.
 
     Returns a JSON summary of what was created/replaced. Errors with
@@ -90,7 +90,7 @@ def demo_seed(session: Any=Depends(get_session)):
 
 
 @router.get("/seed/status")
-def demo_seed_status():
+def demo_seed_status() -> dict[str, Any]:
     """Tell the operator whether the demo seed endpoint is reachable.
 
     Returns:

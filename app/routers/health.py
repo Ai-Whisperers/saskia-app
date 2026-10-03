@@ -91,8 +91,8 @@ def _check_supabase_reachable(
 
     t0 = _time.monotonic()
     try:
-        req = urllib.request.Request(health, method="GET")
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        req = urllib.request.Request(health, method="GET")  # noqa: S310 — health probe, scheme parsed from env URL
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 — health probe, scheme parsed from env URL
             latency_ms = int((_time.monotonic() - t0) * 1000)
             ok = 200 <= resp.status < 300
             return {

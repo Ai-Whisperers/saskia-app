@@ -78,7 +78,7 @@ def _migration_085_sale_public_token(conn: Any) -> None:
                 normalized = sold.replace("T", " ")
                 for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
                     try:
-                        parsed = datetime.strptime(normalized, fmt)
+                        parsed = datetime.strptime(normalized, fmt)  # noqa: DTZ007 — sold_at is naive UTC stored in DB
                         expires = parsed + timedelta(days=30)
                         break
                     except ValueError:

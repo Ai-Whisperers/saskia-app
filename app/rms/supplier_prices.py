@@ -110,10 +110,12 @@ def _rows_for(session: Session) -> list[_PriceRow]:
     supplier_ids = {r[3] for r in variant_rows if r[3] is not None}
     suppliers_by_id: dict[int, str] = {}
     if supplier_ids:
-        for sup_id, sup_name in session.execute(
-            select(Supplier.id, Supplier.name).where(Supplier.id.in_(supplier_ids))
-        ).all():
-            suppliers_by_id[sup_id] = sup_name
+        suppliers_by_id = {
+            sup_id: sup_name
+            for sup_id, sup_name in session.execute(
+                select(Supplier.id, Supplier.name).where(Supplier.id.in_(supplier_ids))
+            ).all()
+        }
 
     for ing_id, ing_name, ing_unit, sup_id, price in variant_rows:
         if sup_id is None or price is None:
@@ -157,10 +159,12 @@ def _rows_for(session: Session) -> list[_PriceRow]:
         # Only fetch ones we don't already have.
         new_ids = fallback_supplier_ids - set(suppliers_by_id.keys())
         if new_ids:
-            for sup_id, sup_name in session.execute(
-                select(Supplier.id, Supplier.name).where(Supplier.id.in_(new_ids))
-            ).all():
-                fallback_suppliers[sup_id] = sup_name
+            fallback_suppliers = {
+                sup_id: sup_name
+                for sup_id, sup_name in session.execute(
+                    select(Supplier.id, Supplier.name).where(Supplier.id.in_(new_ids))
+                ).all()
+            }
         for sid, sname in suppliers_by_id.items():
             fallback_suppliers.setdefault(sid, sname)
 

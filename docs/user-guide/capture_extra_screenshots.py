@@ -20,7 +20,7 @@ EXTRA = [
 ]
 
 
-def load_cookies():
+def load_cookies() -> list:
     cookies = []
     with open(JAR) as f:
         for line in f:

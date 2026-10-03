@@ -80,8 +80,7 @@ def _migration_096_audit_columns(conn: Any) -> None:
         for table in owned_tables:
             conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{table}_created ON {table}(created_at)")
             conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{table}_updated ON {table}(updated_at)")
-    except Exception:
-        # Indexes may already exist from a partial migration run; ignore.
+    except Exception:  # noqa: S110 — Indexes may already exist from a partial migration run; ignore.
         pass
 
     # BACKLOG #4 (2026-10-02): migrations 085+ shipped without bumping

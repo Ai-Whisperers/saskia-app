@@ -107,8 +107,7 @@ def make_ingredient(
     for t in traits or []:
         if t not in _ING_TRAITS:
             raise ValueError(f"unknown trait {t!r}; known: {sorted(_ING_TRAITS)}")
-        for tk, tv in _ING_TRAITS[t].items():
-            kw[tk] = tv  # trait overrides default param
+        kw.update(_ING_TRAITS[t])  # trait overrides default param
     if "stock_qty" in kw:
         stock_qty = kw.pop("stock_qty")
     if "min_stock_qty" in kw:

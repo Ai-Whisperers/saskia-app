@@ -260,7 +260,7 @@ def _parse_date_or_none(value: Any) -> date | None:
         return None
     try:
         # ISO date; we'll coerce at the SQLAlchemy level
-        return datetime.strptime(s, "%Y-%m-%d").date()
+        return datetime.strptime(s, "%Y-%m-%d").date()  # noqa: DTZ007 — only .date() is consumed
     except (ValueError, TypeError):
         return None
 

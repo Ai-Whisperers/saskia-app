@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 
@@ -72,16 +72,17 @@ def product_cost_freshness(
 
     # latest event per ingredient, then we walk product→recipe→ingredients
     # in Python using the identity maps (still O(1) queries).
-    latest_by_ingredient: dict[int, datetime] = {}
-    for ing_id, recorded_at in session.execute(
-        select(
-            IngredientPriceEvent.ingredient_id,
-            func_max_recorded_at(),
-        )
-        .where(IngredientPriceEvent.ingredient_id.in_(ingredient_ids))
-        .group_by(IngredientPriceEvent.ingredient_id)
-    ).all():
-        latest_by_ingredient[ing_id] = recorded_at
+    latest_by_ingredient: dict[int, datetime] = {
+        ing_id: recorded_at
+        for ing_id, recorded_at in session.execute(
+            select(
+                IngredientPriceEvent.ingredient_id,
+                func_max_recorded_at(),
+            )
+            .where(IngredientPriceEvent.ingredient_id.in_(ingredient_ids))
+            .group_by(IngredientPriceEvent.ingredient_id)
+        ).all()
+    }
 
     # recipe → ingredient ids
     recipe_ings: dict[int, set[int]] = {}
@@ -128,10 +129,8 @@ def product_cost_freshness(
     return result
 
 
-def func_max_recorded_at():
+def func_max_recorded_at() -> "func":
     """max(IngredientPriceEvent.recorded_at) — small helper for readability."""
-    from sqlalchemy import func
-
     from app.rms.models import IngredientPriceEvent
 
     return func.max(IngredientPriceEvent.recorded_at)

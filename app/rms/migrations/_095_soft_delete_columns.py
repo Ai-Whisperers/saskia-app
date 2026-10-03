@@ -71,8 +71,7 @@ def _migration_095_soft_delete_columns(conn: Any) -> None:
             atomic_ddl_block(conn, [
                 f"CREATE INDEX IF NOT EXISTS idx_deleted_at ON {table}(deleted_at)"
             ])
-        except Exception:
-            # Index may already exist from a partial migration run; ignore.
+        except Exception:  # noqa: S110 — Index may already exist from a partial migration run; ignore.
             pass
 
     # BACKLOG #4 (2026-10-02): migrations 085+ shipped without bumping

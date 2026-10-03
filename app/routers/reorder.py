@@ -554,7 +554,7 @@ async def reorder_upload_prices(
         # Date parsing
         if date_raw:
             try:
-                when = _datetime.strptime(date_raw, "%Y-%m-%d").date()
+                when = _datetime.strptime(date_raw, "%Y-%m-%d").date()  # noqa: DTZ007 — only .date() is consumed
             except ValueError:
                 errors.append({"row": row_idx, "ingredient_name": ing_name,
                                "error": f"date inválido: {date_raw!r} (usá YYYY-MM-DD)"})
