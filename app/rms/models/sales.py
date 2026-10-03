@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import (
     CheckConstraint,
@@ -102,7 +102,7 @@ class SaleStockMove:
     here so all import paths point to the same class.
     """
 
-    def __new__(cls, *args, **kwargs):  # pragma: no cover — guard
+    def __new__(cls, *args: Any, **kwargs: Any) -> None:  # pragma: no cover — guard
         raise TypeError(
             "SaleStockMove is deprecated — sale_stock_move table was "
             "dropped by migration 092. Use StockMovement with "

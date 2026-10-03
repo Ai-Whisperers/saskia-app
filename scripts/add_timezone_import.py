@@ -48,7 +48,6 @@ def fix_file(path: str) -> str | None:
         content = f.read()
     if has_timezone_import(content):
         return None
-    orig = content
 
     # Case A: `from datetime import datetime` (no extras) — add `, timezone`
     m = re.search(r"^(\s*)from datetime import datetime$", content, re.M)

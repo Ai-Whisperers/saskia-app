@@ -95,7 +95,7 @@ def test_no_session_commit_without_close_in_app():
         # Cheap heuristic: build a set of line numbers that are inside `with` statements.
         with_line_numbers: set[int] = set()
 
-        class WithVisitor(ast.NodeVisitor):
+        class WithVisitor(ast.NodeVisitor):  # noqa: B023 — single-use visitor class in this scope
             def visit_With(self, node):
                 for lineno in range(node.lineno, node.end_lineno + 1):
                     with_line_numbers.add(lineno)

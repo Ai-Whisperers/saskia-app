@@ -21,7 +21,7 @@ import shutil
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -352,7 +352,7 @@ def healthz_deps(request: Request) -> JSONResponse | dict:
     # --- Disk usage ---
     # The app stores DB + state under this root. On VPS: /opt/data.
     # On dev boxes: /tmp. Report on whatever exists.
-    disk_root = "/opt/data" if os.path.isdir("/opt/data") else "/tmp"
+    disk_root = "/opt/data" if os.path.isdir("/opt/data") else "/tmp"  # noqa: S108 — operator chose /tmp as fallback root
     try:
         usage = _disk_usage(disk_root)
         total_gb = usage.total / (1024**3)
@@ -555,7 +555,7 @@ def _summary_check_backup(request: Request) -> dict[str, Any]:
         }
     try:
         last = datetime.fromisoformat(raw_ts)
-        now = datetime.now(last.tzinfo) if last.tzinfo else datetime.now()
+        now = datetime.now(last.tzinfo) if last.tzinfo else datetime.now(tz=timezone.utc)
         age_hours = round((now - last).total_seconds() / 3600, 1)
         return {
             "ok": age_hours <= BACKUP_STALE_HOURS,
@@ -856,7 +856,7 @@ def healthz_backup(request: Request) -> JSONResponse:
     if raw:
         try:
             last = datetime.fromisoformat(raw)
-            now = datetime.now(last.tzinfo) if last.tzinfo else datetime.now()
+            now = datetime.now(last.tzinfo) if last.tzinfo else datetime.now(tz=timezone.utc)
             age = now - last
             age_hours = round(age.total_seconds() / 3600, 1)
             stale = age_hours > BACKUP_STALE_HOURS

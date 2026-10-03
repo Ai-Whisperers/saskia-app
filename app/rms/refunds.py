@@ -31,7 +31,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from loguru import logger
 from sqlalchemy import func as sa_func
@@ -55,7 +55,7 @@ class RefundResult:
 
 class RefundError(Exception):
     """Raised on any refund-validation failure. Carries a code for HTTP routing."""
-    def __init__(self, code: str, message: str, **context) -> None:
+    def __init__(self, code: str, message: str, **context: Any) -> None:
         super().__init__(message)
         self.code = code
         self.context = context

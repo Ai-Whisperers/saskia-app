@@ -268,7 +268,7 @@ def test_margin_erosion_alerts_price_delta_properties(threshold_pct, old_price, 
     price_delta_pct = ((new_price - old_price) / old_price * 100)
 
     # Absolute value should be compared to threshold
-    abs(price_delta_pct) >= threshold_pct * 100
+    assert abs(price_delta_pct) >= threshold_pct * 100  # noqa: B015 — sanity
 
     # Price delta should be calculable for any non-zero old price
     assert isinstance(price_delta_pct, (int, float))

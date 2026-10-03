@@ -1426,7 +1426,7 @@ async def pedido_publico_comprobante(
         # pedido_id namespaces the directory so a re-upload overwrites cleanly.
         receipts_root = DATA_DIR / "payment_receipts" / str(pedido.id)
         receipts_root.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
         safe_name = "".join(
             ch if ch.isalnum() or ch in ("-", "_", ".") else "_"
             for ch in filename

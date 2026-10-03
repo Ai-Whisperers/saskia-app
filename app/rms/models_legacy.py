@@ -16,7 +16,7 @@ Tables:
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import (
     JSON,
@@ -567,7 +567,7 @@ class SaleStockMove(Base):
     # InstrumentedAttributes. See the post-class binding block at
     # the end of this file.
 
-    def __init__(self, *args, **kwargs):  # pragma: no cover — guard
+    def __init__(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover — guard
         raise TypeError(
             "SaleStockMove is deprecated — sale_stock_move table was "
             "dropped by migration 092. Use StockMovement with "

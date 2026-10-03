@@ -58,10 +58,10 @@ def ops_status(request: Request) -> HTMLResponse:
 
         with request.app.state.session_factory() as _s:
             reorder_stats = customer_reorder_rates(_s, since_days=90, top_n=5)
-    except Exception:  # noqa: BLE001 — defensive default, S110 — re-raised as zeros in the template
+    except Exception:  # noqa: BLE001 — defensive default
         # Reorder stats are a dashboard feature, not critical path.
         # If the query fails, the dashboard still renders with zeros.
-        pass
+        pass  # noqa: S110 — re-raised as zeros in the template
 
     return render(request, "ops_status.html", {
         "endpoints": _OPERATIONAL_ENDPOINTS,
