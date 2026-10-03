@@ -514,3 +514,4 @@ button.tab.is-active { color: var(--color-accent); border-bottom-color: var(--co
   color: white;
   border-color: transparent;
 }
+fieldset.form-section{margin-top:var(--space-4);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-4)}fieldset.form-section legend{font-weight:600;padding:0 var(--space-2);font-size:var(--text-sm);color:var(--color-text)}.form-section-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)}.form-section-grid-3{display:grid;grid-template-columns:120px 1fr 160px auto;gap:var(--space-2);align-items:end}.form-section-grid-4{display:grid;grid-template-columns:120px 140px 1fr auto;gap:var(--space-2);align-items:end}.form-section-grid-2cols{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-top:var(--space-3)}
