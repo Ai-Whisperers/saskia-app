@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}{{ customer.name|title if customer.name else "Cliente" }} — Movimientos de fidelidad{% endblock %}
+{% block content %}
+<nav class="breadcrumbs">
+  <a href="/clientes">Clientes</a> &rsaquo;
+  <a href="/clientes/{{ customer.id }}">{{ customer.name|title if customer.name else (customer.phone or "Cliente") }}</a> &rsaquo;
+  Movimientos de fidelidad
+</nav>
+
+{{ ui.flash_toast(request) }}
+
+<h1>Movimientos de fidelidad
+  <span class="text-muted" style="font-size:var(--text-md);font-weight:400;">
+    — {{ customer.name|title if customer.name else (customer.phone or "Cliente") }}
+  </span>
+</h1>
+
+<div class="kpi-strip" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+  <div class="card" style="margin:0;padding:var(--space-3);">
+    <div class="text-muted" style="font-size:var(--text-sm);">Saldo actual</div>
+    <div style="font-size:var(--text-2xl);font-weight:700;">{{ balance }} pts</div>
+    {% if POINTS_VALUE_GS is defined %}
+    <div class="text-muted" style="font-size:var(--text-xs);">≈ Gs. {{ "{:,}".format(balance * POINTS_VALUE_GS) }} en descuentos</div>
+    {% endif %}
+  </div>
+  <div class="card" style="margin:0;padding:var(--space-3);">
+    <div class="text-muted" style="font-size:var(--text-sm);">Puntos ganados</div>
+    <div style="font-size:var(--text-2xl);font-weight:700;color:var(--ok);">+{{ total_earned }}</div>
+    <div class="text-muted" style="font-size:var(--text-xs);">acumulados en historial</div>
+  </div>
+  <div class="card" style="margin:0;padding:var(--space-3);">
+    <div class="text-muted" style="font-size:var(--text-sm);">Puntos canjeados</div>
+    <div style="font-size:var(--text-2xl);font-weight:700;color:var(--danger);">−{{ total_redeemed }}</div>
+    <div class="text-muted" style="font-size:var(--text-xs);">redimidos en ventas</div>
+  </div>
+  <div class="card" style="margin:0;padding:var(--space-3);">
+    <div class="text-muted" style="font-size:var(--text-sm);">Total movimientos</div>
+    <div style="font-size:var(--text-2xl);font-weight:700;">{{ loyalty_count }}</div>
+    <div class="text-muted" style="font-size:var(--text-xs);">entradas en el libro</div>
+  </div>
+</div>
+
+<section class="card">
+  <h2 style="margin-top:0;">Historial completo</h2>
+  {% if full_loyalty %}
+  <div style="overflow-x:auto;">
+  <table class="table is-hoverable is-striped">
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Motivo</th>
+        <th class="num">Δ</th>
+        <th>Venta</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tx in full_loyalty %}
+      <tr>
+        <td><small>{{ tx.recorded_at.strftime('%Y-%m-%d %H:%M') if tx.recorded_at else '—' }}</small></td>
+        <td>
+          {% if tx.reason == 'earn_sale' %}Compra
+          {% elif tx.reason == 'redeem' %}Canje
+          {% elif tx.reason == 'void_reversal' %}Anulación
+          {% elif tx.reason == 'manual_adjust' %}Ajuste
+          {% else %}{{ tx.reason }}
+          {% endif %}
+          {% if tx.notes %}<div class="text-muted" style="font-size:var(--text-xs);">{{ tx.notes }}</div>{% endif %}
+        </td>
+        <td class="num" style="font-weight:600;color:{% if tx.delta > 0 %}var(--ok){% else %}var(--danger){% endif %};">
+          {{ "{:+d}".format(tx.delta) }}
+        </td>
+        <td>
+          {% if tx.sale_id %}<a href="/ventas/{{ tx.sale_id }}">#{{ tx.sale_id }}</a>{% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  {{ ui.empty_state(title="Sin movimientos", icon="icon-loyalty", hint="Cuando el cliente compre o canjee puntos, van a aparecer acá.") }}
+  {% endif %}
+</section>
+
+<p style="margin-top:var(--space-3);">
+  <a href="/clientes/{{ customer.id }}" class="btn btn-ghost">← Volver al perfil</a>
+</p>
+{% endblock %}

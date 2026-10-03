@@ -1239,6 +1239,52 @@ async def cliente_redeem_points(
     )
 
 
+# P5: full loyalty ledger page (the "Ver todo" target from /clientes/{id}).
+# No row cap — operators need to see the entire history when a customer
+# disputes a point balance or asks for a manual adjustment audit.
+@router.get("/{customer_id}/loyalty", response_class=HTMLResponse)
+def cliente_loyalty(
+    request: Request,
+    customer_id: int,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Full loyalty ledger for one customer. Used from the
+    'Ver todo (N)' link on the customer detail page."""
+    customer = session.get(Customer, customer_id)
+    if customer is None:
+        return StarletteRedirectResponse(url="/clientes", status_code=303)
+    from app.rms.models import LoyaltyTransaction
+    from sqlalchemy import select as _select
+
+    full_loyalty = session.scalars(
+        _select(LoyaltyTransaction)
+        .where(LoyaltyTransaction.customer_id == customer_id)
+        .order_by(LoyaltyTransaction.recorded_at.desc())
+    ).all()
+
+    # Aggregate stats for the header.
+    total_earned = sum(t.delta for t in full_loyalty if t.delta > 0)
+    total_redeemed = -sum(t.delta for t in full_loyalty if t.delta < 0)
+    # P5: read current balance from the loyalty_points cache column.
+    # (Source of truth is the ledger; this column is kept in sync by
+    # award_points() in app/rms/customers.py — not touched here.)
+    balance = customer.loyalty_points or 0
+
+    from app.services.template_render import render as _render
+    return _render(
+        request,
+        "cliente_loyalty.html",
+        {
+            "customer": customer,
+            "full_loyalty": full_loyalty,
+            "loyalty_count": len(full_loyalty),
+            "total_earned": total_earned,
+            "total_redeemed": total_redeemed,
+            "balance": balance,
+        },
+    )
+
+
 @router.get("/{customer_id}/editar", response_class=HTMLResponse)
 def cliente_edit(
     request: Request,
