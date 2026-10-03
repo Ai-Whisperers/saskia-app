@@ -410,12 +410,13 @@ Asunción local TZ.
      {{ m.shortcut_badge("Cmd", "K") }}     →  [Cmd K]
      {{ m.shortcut_badge("g", "i") }}       →  [g i]
      {{ m.shortcut_badge("F2") }}           →  [F2]
-   Renders a visual indicator of available keyboard shortcuts. #}
-{% macro shortcut_badge(*keys) -%}
-<span class="shortcut-badge" aria-label="Atajo: {{ keys | join(' + ') }}">
-  {%- for k in keys -%}
-  <kbd>{{ k }}</kbd>
-  {%- if not loop.last %} {% endif -%}
-  {%- endfor -%}
+   Renders a visual indicator of available keyboard shortcuts.
+   Pass keys as positional args (up to 4). #}
+{% macro shortcut_badge(key1, key2=None, key3=None, key4=None) -%}
+<span class="shortcut-badge" aria-label="Atajo: {{ key1 }}{% if key2 %} + {{ key2 }}{% endif %}{% if key3 %} + {{ key3 }}{% endif %}{% if key4 %} + {{ key4 }}{% endif %}">
+  <kbd>{{ key1 }}</kbd>
+  {%- if key2 %} <kbd>{{ key2 }}</kbd>{% endif -%}
+  {%- if key3 %} <kbd>{{ key3 }}</kbd>{% endif -%}
+  {%- if key4 %} <kbd>{{ key4 }}</kbd>{% endif -%}
 </span>
 {%- endmacro %}

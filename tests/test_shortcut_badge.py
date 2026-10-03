@@ -30,17 +30,20 @@ def test_shortcut_badge_macro_exists():
 
 
 def test_shortcut_badge_uses_varargs():
-    """Should accept variable number of keys."""
+    """Should accept multiple keys as positional args."""
     text = MACROS.read_text()
-    assert "*keys" in text
-    assert "for k in keys" in text
+    assert "key1," in text
+    assert "key2=None" in text
+    assert "key3=None" in text
+    assert "key4=None" in text
 
 
 def test_shortcut_badge_renders_kbd():
     """Should render keys as <kbd> elements."""
     text = MACROS.read_text()
     assert "<kbd>" in text
-    assert "{{ k }}" in text
+    assert "{{ key1 }}" in text
+    assert "{{ key2 }}" in text
 
 
 def test_shortcut_badge_has_aria_label():
@@ -48,7 +51,7 @@ def test_shortcut_badge_has_aria_label():
     text = MACROS.read_text()
     assert "aria-label" in text
     assert "Atajo" in text
-    assert "join(' + ')" in text
+    assert " + " in text
 
 
 def test_shortcut_badge_uses_span():
@@ -67,8 +70,8 @@ def test_shortcut_badge_uses_class():
 def test_shortcut_badge_handles_separators():
     """Should add space between keys (not after last)."""
     text = MACROS.read_text()
-    assert "if not loop.last" in text
-    assert " {% endif" in text
+    assert "if key2" in text
+    assert "if key3" in text
 
 
 def test_shortcut_badge_css_has_kbd_styling():
@@ -129,18 +132,21 @@ def test_shortcut_badge_macro_compact():
 def test_shortcut_badge_macro_supports_single_key():
     """Should work with just one key."""
     text = MACROS.read_text()
-    # Varargs means it works with 1+ args
-    assert "*keys" in text
+    # key2/3/4 are optional
+    assert "key2=None" in text
+    assert "key3=None" in text
 
 
 def test_shortcut_badge_macro_supports_multiple_keys():
-    """Should work with multiple keys separated by space."""
+    """Should work with multiple keys."""
     text = MACROS.read_text()
-    assert "for k in keys" in text
-    assert "loop.last" in text
+    assert "key1" in text
+    assert "key2" in text
+    assert "key3" in text
+    assert "key4" in text
 
 
 def test_shortcut_badge_macro_uses_join():
     """Should join keys with ' + ' in aria-label."""
     text = MACROS.read_text()
-    assert "join(' + ')" in text
+    assert " + " in text
