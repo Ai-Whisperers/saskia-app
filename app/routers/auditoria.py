@@ -106,17 +106,32 @@ def auditoria_index(
     offset = (page - 1) * PAGE_SIZE
     paginated = rows[offset : offset + PAGE_SIZE]
 
-    # Format detail JSON as readable key-value list
+    # P-43: redact sensitive keys in audit detail before rendering.
+    SENSITIVE_KEYS = frozenset({
+        "password", "passwd", "secret", "api_key", "apikey",
+        "token", "authorization", "auth", "credential", "credentials",
+    })
+
     def fmt_detail(detail: dict) -> list[tuple[str, str]]:
         if not detail:
             return []
         items = []
         for k, v in detail.items():
+            key_lower = k.lower()
+            is_sensitive = key_lower in SENSITIVE_KEYS or any(
+                s in key_lower for s in ("password", "secret", "token", "api_key")
+            )
             if isinstance(v, dict):
                 for sub_k, sub_v in v.items():
-                    items.append((k + "." + sub_k, str(sub_v)))
+                    sub_lower = sub_k.lower()
+                    sub_sensitive = sub_lower in SENSITIVE_KEYS or any(
+                        s in sub_lower for s in ("password", "secret", "token", "api_key")
+                    )
+                    rendered = "***" if sub_sensitive else str(sub_v)
+                    items.append((k + "." + sub_k, rendered))
             else:
-                items.append((k, str(v)))
+                rendered = "***" if is_sensitive else str(v)
+                items.append((k, rendered))
         return items
 
     formatted_rows = [
