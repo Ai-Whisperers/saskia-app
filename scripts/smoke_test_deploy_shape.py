@@ -113,7 +113,10 @@ def main() -> int | None:
             print(f"[smoke] starting uvicorn on :{args.port} (venv)…")
             env = os.environ.copy()
             env["DATABASE_URL"] = db_url
-            env["AIW_SASKIA_RUN_MIGRATIONS"] = "1"
+            # Only run migrations if the caller hasn't already done so
+            # (e.g., a pre-provision step that called create_all and
+            # seeded app_meta with the head version).
+            env.setdefault("AIW_SASKIA_RUN_MIGRATIONS", "1")
             env["PORT"] = str(args.port)
             env["BIND_HOST"] = "127.0.0.1"
             app_process = subprocess.Popen(

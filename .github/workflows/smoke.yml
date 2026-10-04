@@ -72,10 +72,17 @@ jobs:
           # is SQLite-first and not designed to run from scratch on
           # Postgres, so we seed app_meta with the head version and let
           # init_db() no-op the chain.
-          head_version = max(
-              (int(v) for v in open('app/rms/db.py').read().split('MIGRATIONS = {')[1].split('}')[0].split(':')[0].split(',') if v.strip().isdigit()),
-              default=0,
-          )
+          import re
+          m = re.search(r'MIGRATIONS\s*=\s*\{(.+?)\}', open('app/rms/db.py').read(), re.DOTALL)
+          head_version = 0
+          if m:
+              # Find all "N:" version keys at the start of lines
+              head_version = max(
+                  (int(line.split(':')[0].strip())
+                   for line in m.group(1).splitlines()
+                   if line.strip() and line.strip().split(':')[0].strip().isdigit()),
+                  default=0,
+              )
           with engine.connect() as conn:
               conn.execute(text(\"INSERT INTO app_meta (key, value, updated_at) VALUES ('schema_version', :v, NOW()::text) ON CONFLICT (key) DO UPDATE SET value = :v, updated_at = NOW()::text\"), {'v': str(head_version)})
               conn.commit()
