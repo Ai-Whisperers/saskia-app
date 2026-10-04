@@ -46,6 +46,7 @@ from app.rms.models_legacy import (
     PedidoLine,  # noqa: F401 — re-exported via __all__
     PriceHistory,  # noqa: F401 — re-exported via __all__
     Product,  # noqa: F401 — re-exported via __all__
+    ProductionClosedDay,  # noqa: F401 — re-exported via __all__
     ProductionCompletion,  # noqa: F401 — re-exported via __all__
     ProductionPlan,  # noqa: F401 — re-exported via __all__
     ProductionPlanOverride,  # noqa: F401 — re-exported via __all__

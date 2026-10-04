@@ -28,7 +28,15 @@ from app.auth import require_login_or_disabled as require_login
 from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
 from app.rms.eod_completions import upsert_completion as _upsert_completion
-from app.rms.models import Pedido, PedidoLine, Product, ProductionPlanOverride, Recipe, Sale
+from app.rms.models import (
+    Pedido,
+    PedidoLine,
+    Product,
+    ProductionClosedDay,
+    ProductionPlanOverride,
+    Recipe,
+    Sale,
+)
 from app.rms.observability import record_audit
 from app.rms.plan_accuracy import compute_plan_accuracy, date_range_presets
 from app.rms.production import get_weekly_template, plan_production
@@ -246,12 +254,18 @@ def produccion_worksheet(
     # day view (default)
     plan = plan_production(session, for_date=for_date, manual_forecast=overrides or None)
 
+    # T-2026-10-04 (P1): Closed-day flag — if for_date is marked as closed,
+    # the plan is empty regardless of forecast/template. Surface the
+    # reason to the operator and short-circuit the table render.
+    target_date = for_date or _asuncion_today()
+    closed_day = session.get(ProductionClosedDay, target_date)
+    closed_day_active = closed_day is not None
+
     # US 4.4 — Surface incoming pedidos for the SAME day as a "kitchen ticket"
     # panel so the cook sees "we owe 3 tortas + 1 cookie tray today" alongside
     # the demand-driven production plan. Includes pending/confirmed/ready
     # (not fulfilled — those are done — and not cancelled — those are gone).
     pending_pedidos = []
-    target_date = for_date or _asuncion_today()
     pedido_rows = session.execute(
         select(Pedido)
         .options(selectinload(Pedido.lines).selectinload(PedidoLine.product))
@@ -444,6 +458,10 @@ def produccion_worksheet(
         "products_for_adhoc": session.execute(
             select(Product).order_by(Product.name)
         ).scalars().all(),
+        # T-2026-10-04 (P1): closed-day flag.
+        "closed_day_active": closed_day_active,
+        "closed_day_reason": closed_day.reason if closed_day else None,
+        "closed_day_at": closed_day.closed_at.isoformat() if closed_day else None,
     })
 
 
@@ -504,6 +522,69 @@ def produccion_override(
         target_id=product_id,
         detail={"for_date": for_date.isoformat(), "qty": qty},
     )
+    session.commit()
+    return RedirectResponse(
+        url=f"/produccion?for_date={for_date.isoformat()}",
+        status_code=303,
+    )
+
+
+@router.post("/closed")
+def produccion_closed_toggle(
+    request: Request,
+    for_date: date = Form(...),
+    action: str = Form(..., pattern="^(close|reopen)$"),
+    reason: str = Form(""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """T-2026-10-04 (P1): Mark a date as closed (holiday/no-bake).
+
+    action='close': insert a ProductionClosedDay row with the optional
+                    reason. If reason is empty, defaults to 'Cerrado'.
+    action='reopen': delete the ProductionClosedDay row for for_date.
+
+    Returns 303 redirect to the day view so the operator sees the
+    banner / banner removal immediately.
+    """
+    from app.rms.rate_limit import is_write_rate_limited
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=429, detail="rate_limited")
+
+    if action == "close":
+        existing = session.get(ProductionClosedDay, for_date)
+        if existing is None:
+            row = ProductionClosedDay(
+                for_date=for_date,
+                reason=(reason or "Cerrado")[:120],
+                closed_by=_get_current_username(request),
+                closed_at=datetime.utcnow(),
+            )
+            session.add(row)
+            record_audit(
+                session,
+                actor=_get_current_username(request),
+                action="production_closed",
+                target_type="production_closed_day",
+                target_id=for_date.isoformat(),
+                detail={"reason": row.reason},
+            )
+        else:
+            # Update reason in case operator wants to refine it
+            existing.reason = (reason or existing.reason or "Cerrado")[:120]
+            existing.closed_at = datetime.utcnow()
+    else:  # reopen
+        existing = session.get(ProductionClosedDay, for_date)
+        if existing is not None:
+            session.delete(existing)
+            record_audit(
+                session,
+                actor=_get_current_username(request),
+                action="production_reopened",
+                target_type="production_closed_day",
+                target_id=for_date.isoformat(),
+            )
+
     session.commit()
     return RedirectResponse(
         url=f"/produccion?for_date={for_date.isoformat()}",

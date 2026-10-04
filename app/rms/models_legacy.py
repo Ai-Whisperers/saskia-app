@@ -911,6 +911,26 @@ class ProductionPlanOverride(Base):
     product: Mapped["Product"] = relationship("Product")
 
 
+class ProductionClosedDay(Base):
+    """T-2026-10-04 (P1): Whole-day flag marking a date as closed.
+
+    Used for holidays, vacations, equipment failures, etc. When a date
+    has a row in this table, the production plan returns an empty plan
+    regardless of the weekly template or forecast.
+
+    One row per date (PRIMARY KEY on for_date) — there is no concept
+    of "closed for half a day" because the bakery either opens or
+    doesn't.
+    """
+
+    __tablename__ = "production_closed_day"
+
+    for_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    reason: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    closed_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    closed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
 class Supplier(Base):
     """A supplier / proveed for ingredients (audit item 284).
 
@@ -2241,6 +2261,7 @@ __all__ = [
     "PedidoLine",
     "PriceHistory",
     "Product",
+    "ProductionClosedDay",
     "ProductionCompletion",
     "ProductionPlan",
     "ProductionPlanOverride",
