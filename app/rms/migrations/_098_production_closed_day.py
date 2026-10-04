@@ -49,3 +49,8 @@ def _migration_098_production_closed_day(conn: Any) -> None:
                 closed_at TIMESTAMP NOT NULL
             )
         """))
+
+    # BACKLOG #4 (2026-10-02): migrations 085+ shipped without bumping
+    # schema_version, silently breaking fresh installs. Sprint 4.5 fixed.
+    from app.rms.db import _bump_schema_version
+    _bump_schema_version(conn, 98)

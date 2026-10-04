@@ -1422,11 +1422,16 @@ def _migration_051_ingredient_variant(conn: Any) -> None:
     # Backfill: for every existing Ingredient with a purchase_price_gs,
     # create a default variant. Done in SQL so it works without importing
     # the model layer (the migration must be self-contained).
+    #
+    # NOTE: SQLite's INSERT ... SELECT does NOT apply the column DEFAULT when
+    # columns are listed but omitted from the SELECT. The NOT NULL constraint
+    # then fails. We therefore include `datetime('now')` explicitly for the
+    # `created_at`/`updated_at` columns to keep this migration self-contained.
     if dialect == "postgresql":
         conn.execute(text(
             "INSERT INTO ingredient_variant "
-            "(ingredient_id, package_size, package_unit, purchase_price_gs, supplier_id, preferred) "
-            "SELECT id, 1.0, unit, purchase_price_gs, supplier_id, TRUE "
+            "(ingredient_id, package_size, package_unit, purchase_price_gs, supplier_id, preferred, created_at, updated_at) "
+            "SELECT id, 1.0, unit, purchase_price_gs, supplier_id, TRUE, NOW(), NOW() "
             "FROM ingredient "
             "WHERE purchase_price_gs IS NOT NULL "
             "AND NOT EXISTS ("
@@ -1437,8 +1442,8 @@ def _migration_051_ingredient_variant(conn: Any) -> None:
     else:
         conn.execute(text(
             "INSERT INTO ingredient_variant "
-            "(ingredient_id, package_size, package_unit, purchase_price_gs, supplier_id, preferred) "
-            "SELECT id, 1.0, unit, purchase_price_gs, supplier_id, 1 "
+            "(ingredient_id, package_size, package_unit, purchase_price_gs, supplier_id, preferred, created_at, updated_at) "
+            "SELECT id, 1.0, unit, purchase_price_gs, supplier_id, 1, datetime('now'), datetime('now') "
             "FROM ingredient "
             "WHERE purchase_price_gs IS NOT NULL "
             "AND NOT EXISTS ("
