@@ -35,6 +35,8 @@ SECTIONS = [
     "14-reponer.md",
     "15-cierre.md",
     "16-excel.md",
+    "17-lista-compras.md",
+    "18-suscripciones.md",
 ]
 
 
