@@ -301,6 +301,25 @@
 <form method="post" action="/produccion/shift-execute" id="shift-form">
   <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
   <input type="hidden" name="for_date" value="{{ for_date }}">
+  {# T-2026-10-04 (Tier 3-A): bulk "mark all done" action — visible
+     only when there are rows to mark. One click syncs every qty to its
+     target and checks the rows. #}
+  {% if plan_rows_view and not closed_day_active %}
+  <div class="bulk-actions no-print"
+       style="display: flex; gap: var(--space-2); align-items: center; margin-bottom: var(--space-2); padding: var(--space-2); background: var(--color-surface-subtle, #f3f4f6); border-radius: var(--radius, 6px);">
+    <button type="button"
+            id="mark-all-btn"
+            class="btn btn-primary btn-sm"
+            onclick="markAllDone()"
+            title="Set every row's qty to its target and check 'done'">
+      <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+      Marcar todos como hecho
+    </button>
+    <small class="text-muted">
+      O usá los botones +/- por fila para ajustar de a 1.
+    </small>
+  </div>
+  {% endif %}
 
   <section class="card mb-4">
     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3); gap: var(--space-3); flex-wrap: wrap;">
@@ -371,12 +390,29 @@
             {% endif %}
           </td>
           <td class="num" data-label="Progreso">
-            <input type="number" name="completed_{{ r.product_id }}"
-                   class="progress-input"
-                   value="{{ "%.1f"|format(r.completed_qty or 0) }}"
-                   min="0" step="0.5"
-                   style="width: 70px; padding: var(--space-1) var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;"
-                   aria-label="Cantidad hecha de {{ r.product_name }}">
+            {# T-2026-10-04 (P2, Tier-3-A): stepper buttons +/− around qty input.
+                 The cook can tap instead of typing. Client-side only;
+                 data-target-qty holds the row's planned qty for "mark all". #}
+            <div class="qty-stepper" data-target-qty="{{ r.qty_to_produce or 0 }}" data-product-id="{{ r.product_id }}">
+              <button type="button" class="step-btn step-down"
+                      data-step="down"
+                      aria-label="Restar 1 a {{ r.product_name }}"
+                      onclick="stepRow(this, -1)">
+                <svg class="icon" aria-hidden="true"><use href="#icon-minus"/></svg>
+              </button>
+              <input type="number" name="completed_{{ r.product_id }}"
+                     class="progress-input"
+                     value="{{ "%.1f"|format(r.completed_qty or 0) }}"
+                     min="0" step="0.5"
+                     style="width: 70px; padding: var(--space-1) var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;"
+                     aria-label="Cantidad hecha de {{ r.product_name }}">
+              <button type="button" class="step-btn step-up"
+                      data-step="up"
+                      aria-label="Sumar 1 a {{ r.product_name }}"
+                      onclick="stepRow(this, +1)">
+                <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+              </button>
+            </div>
           </td>
           <td data-label="Origen">
             {# Sprint 1: semantic source badges. Ad-hoc is its own badge. #}
@@ -610,6 +646,55 @@
       row.classList.remove('is-done');
     }
   }
+
+  // T-2026-10-04 (Tier 3-A): +/- stepper handlers.
+  // Click step-btn → adjust the qty input by `delta`. Clamped to ≥0.
+  function stepRow(btn, delta) {
+    var wrap = btn.closest('.qty-stepper');
+    var input = wrap.querySelector('.progress-input');
+    var current = parseFloat(input.value) || 0;
+    var next = current + delta;
+    if (next < 0) next = 0;
+    input.value = next;
+    // Mirror the row's checkbox state: if qty ≥ target → check done
+    var target = parseFloat(wrap.getAttribute('data-target-qty')) || 0;
+    if (target > 0 && next >= target) {
+      var row = wrap.closest('tr');
+      var cb = row.querySelector('.shift-checkbox');
+      if (cb && !cb.checked) {
+        cb.checked = true;
+        cb.dispatchEvent(new Event('change'));
+      }
+    }
+  }
+
+  // T-2026-10-04 (Tier 3-A): bulk "Marcar todos como hecho" handler.
+  // Sets every row's qty input to its data-target-qty. Server-side,
+  // /produccion/shift-execute accepts the same form payload, so we
+  // just sync the DOM and let the existing submit handle persistence.
+  function markAllDone() {
+    var rows = document.querySelectorAll('#shift-form .qty-stepper');
+    rows.forEach(function(wrap) {
+        var target = parseFloat(wrap.getAttribute('data-target-qty')) || 0;
+        var input = wrap.querySelector('.progress-input');
+        if (input && target > 0) {
+          input.value = target;
+        }
+        var row = wrap.closest('tr');
+        var cb = row.querySelector('.shift-checkbox');
+        if (cb && !cb.checked) {
+          cb.checked = true;
+          cb.dispatchEvent(new Event('change'));
+        }
+      });
+    // Highlight the action so the cook sees the change took.
+    var btn = document.getElementById('mark-all-btn');
+    if (btn) {
+      btn.textContent = '✓ Listo — guardá abajo';
+      btn.classList.add('btn-success');
+      btn.disabled = false;
+    }
+  }
 </script>
 <style>
   .production-row.is-done .product-name { text-decoration: line-through; color: var(--color-text-muted, #6b7280); }
@@ -667,6 +752,34 @@
     background: var(--color-surface-subtle, #f3f4f6);
     color: var(--color-text-muted, #6b7280);
   }
+
+  /* T-2026-10-04 (Tier 3-A): +/- stepper wrapper around the qty input.
+     Buttons sit beside the input; tapping adds/removes 1 unit. The cook
+     no longer needs to type into the small number field. */
+  .qty-stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .step-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--color-border, #d1d5db);
+    border-radius: 6px;
+    background: var(--color-card, #fff);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 80ms ease;
+  }
+  .step-btn:hover { background: var(--color-surface-subtle, #f3f4f6); }
+  .step-btn:focus { outline: 2px solid var(--color-primary, #3b82f6); outline-offset: 1px; }
+  .step-btn svg { width: 16px; height: 16px; }
+  /* Direction-specific hover colors (subtle hint) */
+  .step-btn.step-down:hover { background: var(--color-warning-bg, #fef3c7); }
+  .step-btn.step-up:hover { background: var(--color-success-bg, #d1fae5); }
 
   /* T-2026-10-04 (P2): mobile-friendly shift execution.
      On narrow viewports (≤640px) the 8-column table becomes unreadable.
