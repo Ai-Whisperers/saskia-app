@@ -1121,6 +1121,12 @@ def _migration_031_risk_status_activo(conn: Any) -> None:
     Original constraint used ('active', 'mitigated', 'closed') but the
     spreadsheet uses 'activo'. This widens the constraint to allow both.
     """
+    dialect_name = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    if dialect_name == "postgresql":
+        # Postgres was provisioned with the wider constraint from the
+        # start; nothing to migrate. Just bump the version.
+        _bump_schema_version(conn, 31)
+        return
     # Save current contents
     rows = conn.execute(text("SELECT * FROM risk_item")).fetchall()
     cols = [c for c in conn.execute(text("PRAGMA table_info(risk_item)")).fetchall()]
@@ -1170,9 +1176,10 @@ def _migration_032_pedido_cancel_reason(conn: Any) -> None:
     This migration adds the column idempotently. SQLite doesn't support
     IF NOT EXISTS on ADD COLUMN, so we check the schema first.
     """
-    cols = [c[1] for c in conn.execute(text("PRAGMA table_info(pedido)")).fetchall()]
-    if "cancel_reason" not in cols:
-        conn.execute(text("ALTER TABLE pedido ADD COLUMN cancel_reason TEXT"))
+    # Use the cross-dialect helper. On Postgres, the column already
+    # exists in fresh installs (was added in the create_all step);
+    # on SQLite, it might be missing from older databases.
+    _add_column_if_missing(conn, "pedido", "cancel_reason", "TEXT", "TEXT")
     _bump_schema_version(conn, 32)
 
 
