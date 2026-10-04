@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.auth import require_login_or_disabled as require_login
 from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
-from app.rms.eod_completions import upsert_completion as _upsert_completion
+from app.rms.eod_completions import completions_for_date as get_day_completions, upsert_completion as _upsert_completion
 from app.rms.models import (
     Pedido,
     PedidoLine,
@@ -339,6 +339,15 @@ def produccion_worksheet(
     )
     avg_daily_waste_cost_gs = int(last7) // 7 if last7 else 0
 
+    # T-2026-10-04 (Tier 3-C): yesterday snapshot — show what the cook
+    # actually produced yesterday as a "ground truth" reference next to
+    # today's suggested quantities. "You made 23 yesterday, today's plan
+    # says 19." Reduces morning anxiety about over/under-baking.
+    yesterday = target_date - timedelta(days=1)
+    yesterday_completions = get_day_completions(session, yesterday)
+    yesterday_total_qty = sum(yesterday_completions.values())
+    yesterday_count = len(yesterday_completions)
+
     # US 4.4 — Surface incoming pedidos for the SAME day as a "kitchen ticket"
     # panel so the cook sees "we owe 3 tortas + 1 cookie tray today" alongside
     # the demand-driven production plan. Includes pending/confirmed/ready
@@ -588,6 +597,9 @@ def produccion_worksheet(
             "today_waste_count": today_waste_count,
             "today_waste_cost_gs": today_waste_cost_gs,
             "avg_daily_waste_cost_gs": avg_daily_waste_cost_gs,
+            # T-2026-10-04 (Tier 3-C): yesterday snapshot.
+            "yesterday_total_qty": yesterday_total_qty,
+            "yesterday_count": yesterday_count,
         },
     )
 

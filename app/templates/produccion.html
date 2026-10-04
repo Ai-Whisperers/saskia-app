@@ -306,6 +306,27 @@
 </div>
 {% endif %}
 
+{# T-2026-10-04 (Tier 3-C): Yesterday snapshot.
+   Shows yesterday's actual production total so the cook has a
+   "ground truth" reference next to today's suggested quantities.
+   Hidden when yesterday had no data (cook hasn't run end-of-shift). #}
+{% if yesterday_count > 0 %}
+<div class="card yesterday-snapshot"
+     style="background: var(--color-info-bg, #eff6ff); border-left: 4px solid var(--color-info, #3b82f6); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;"
+     data-yesterday-total="{{ yesterday_total_qty }}"
+     data-yesterday-count="{{ yesterday_count }}">
+  <div>
+    <strong>📅 Ayer hiciste: {{ "%.0f"|format(yesterday_total_qty) }} unidades</strong>
+    <span class="text-muted" style="font-size: var(--text-sm);">
+      en {{ yesterday_count }} producto{{ 's' if yesterday_count != 1 else '' }}
+    </span>
+    <p class="text-muted" style="margin: var(--space-1) 0 0 0; font-size: var(--text-sm);">
+      Referencia para comparar con la sugerencia de hoy.
+    </p>
+  </div>
+</div>
+{% endif %}
+
 <form method="post" action="/produccion/shift-execute" id="shift-form">
   <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
   <input type="hidden" name="for_date" value="{{ for_date }}">
