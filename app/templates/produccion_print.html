@@ -125,7 +125,18 @@
           </small>
           {% endif %}
         </td>
-        <td class="qty-col"><strong>{{ r.qty_to_produce|round|int }}</strong></td>
+        <td class="qty-col">
+          <strong>{{ r.qty_to_produce|round|int }}</strong>
+          {%- if r.yield_qty and r.yield_qty != 1 %}
+            <small class="text-muted" style="display:block; font-weight:normal;">
+              {{ r.yield_qty|int }} {{ r.yield_unit or 'und' }} c/u
+            </small>
+          {%- elif r.portion_label and r.portion_label != "1 unidad" %}
+            <small class="text-muted" style="display:block; font-weight:normal;">
+              {{ r.portion_label }}
+            </small>
+          {%- endif %}
+        </td>
         <td class="done-col">
           <input type="number"
                  name="completed_qty_{{ r.product_id }}"

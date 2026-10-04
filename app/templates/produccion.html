@@ -265,6 +265,13 @@
               <span class="text-muted">—</span>
             {% else %}
               <span class="qty-target">{{ "%.0f"|format(r.qty_to_produce) }}</span>
+              {%- if r.batch_qty and r.batch_qty != 1 %}
+                <small class="text-muted batch-hint" aria-label="Equivale a {{ r.batch_qty }} {{ r.batch_unit }}">
+                  · {{ r.batch_qty|int }}{{ r.batch_unit or 'und' }}
+                </small>
+              {%- elif r.portion_label and r.portion_label != "1 unidad" %}
+                <small class="text-muted batch-hint">{{ r.portion_label }}</small>
+              {%- endif %}
             {% endif %}
           </td>
           <td class="num">

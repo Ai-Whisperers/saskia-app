@@ -325,6 +325,15 @@ def produccion_worksheet(
     # Wrap each ProductionRow with the completion + pedido data the
     # template needs (ProductionRow is a dataclass — attribute injection
     # is safe inside this function but we don't mutate the original).
+    # T-2026-10-04 (P0): also include recipe yield info so the kitchen
+    # sees "1 × Docena muffins (12 und)" instead of bare "1".
+    recipe_by_id = {r.id: r for r in (session.execute(
+        select(Recipe).order_by(Recipe.name)
+    ).scalars().all())}
+    product_by_id = {p.id: p for p in (session.execute(
+        select(Product).order_by(Product.name)
+    ).scalars().all())}
+
     plan_rows_view = [
         {
             "product_id": r.product_id,
@@ -336,6 +345,27 @@ def produccion_worksheet(
             "completed_qty": completions_by_pid.get(r.product_id, 0.0),
             "pending_pedido_qty": ped_units_by_pid.get(r.product_id, 0.0),
             "is_ad_hoc": False,
+            # T-2026-10-04 (P0): batch-size context.
+            # recipe.yield_qty + yield_unit describe one batch (e.g., 12 muffins).
+            # We don't multiply here — that would be a unit-conversion decision.
+            # We just expose the labels so the template shows them.
+            "batch_qty": (
+                recipe_by_id[r.recipe_id].yield_qty
+                if r.recipe_id and r.recipe_id in recipe_by_id
+                and recipe_by_id[r.recipe_id].yield_qty
+                else None
+            ),
+            "batch_unit": (
+                recipe_by_id[r.recipe_id].yield_unit
+                if r.recipe_id and r.recipe_id in recipe_by_id
+                and recipe_by_id[r.recipe_id].yield_qty
+                else None
+            ),
+            "portion_label": (
+                product_by_id[r.product_id].portion_label
+                if r.product_id in product_by_id
+                else None
+            ),
         }
         for r in plan.rows
     ]
@@ -360,6 +390,9 @@ def produccion_worksheet(
             "completed_qty": qty,
             "pending_pedido_qty": ped_units_by_pid.get(pid, 0.0),
             "is_ad_hoc": True,
+            "batch_qty": None,
+            "batch_unit": None,
+            "portion_label": prod_obj.portion_label if prod_obj else None,
         })
 
     # PRO-TEMPLATE-NUDGE: aviso si no hay template para el weekday de for_date
@@ -1012,18 +1045,33 @@ def produccion_print(
     plan = plan_production(session, for_date=target_date)
     completions_by_pid = _eod_for_date(session, target_date)
 
+    # T-2026-10-04 (P0): batch-size awareness — load recipe+product once
+    # so each row knows its yield_qty + portion_label.
+    recipes_by_id = {r.id: r for r in session.execute(
+        select(Recipe).order_by(Recipe.name)
+    ).scalars().all()}
+    products_by_id = {p.id: p for p in session.execute(
+        select(Product).order_by(Product.name)
+    ).scalars().all()}
+
     # Build a flat list of (product, qty_to_produce, qty_completed) — one
     # row per product, no overrides, no forecast_source explanation.
     print_rows = []
     for r in plan.rows:
         if r.qty_to_produce <= 0 and r.product_id not in completions_by_pid:
             continue
+        recipe = recipes_by_id.get(r.recipe_id) if r.recipe_id else None
+        product = products_by_id.get(r.product_id)
         print_rows.append({
             "product_id": r.product_id,
             "product_name": r.product_name,
             "qty_to_produce": r.qty_to_produce,
             "qty_completed": completions_by_pid.get(r.product_id, 0.0),
             "recipe_id": r.recipe_id,
+            # T-2026-10-04 (P0): batch info.
+            "yield_qty": recipe.yield_qty if recipe and recipe.yield_qty else None,
+            "yield_unit": recipe.yield_unit if recipe and recipe.yield_qty else None,
+            "portion_label": product.portion_label if product else None,
         })
     # Include ad-hoc bakes (walk-ins / on-the-fly decisions that the
     # forecast never proposed but Saskia actually produced).
@@ -1040,6 +1088,9 @@ def produccion_print(
             "qty_to_produce": 0.0,
             "qty_completed": qty,
             "recipe_id": None,
+            "yield_qty": None,
+            "yield_unit": None,
+            "portion_label": prod_obj.portion_label if prod_obj else None,
         })
 
     return render(request, "produccion_print.html", {
