@@ -19,8 +19,8 @@ Tests:
   - Body has 'unidades' or 'Previsto' marker text.
   - GET /insights/demand still works (regression for the latent bug fix).
 """
+
 from datetime import datetime, timedelta, timezone
-import pytest
 
 
 def test_reportes_demand_returns_200(client):

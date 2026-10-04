@@ -84,8 +84,8 @@ def test_migration_090_idempotent(tmp_path):
     """Re-running init_db on a DB already at schema 92 is a no-op."""
     from sqlalchemy import create_engine
 
-    from app.rms.db import init_db
     from app.rms.config import CURRENT_SCHEMA_VERSION
+    from app.rms.db import init_db
 
     db = tmp_path / "test.db"
     engine = create_engine(f"sqlite:///{db}")

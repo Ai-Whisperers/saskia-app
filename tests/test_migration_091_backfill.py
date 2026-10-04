@@ -55,8 +55,8 @@ def test_migration_091_full_idempotent(tmp_path):
     """Re-running init_db on a CURRENT_SCHEMA_VERSION DB is a no-op."""
     db = tmp_path / "test91.db"
     engine = create_engine(f"sqlite:///{db}")
-    from app.rms.db import init_db
     from app.rms.config import CURRENT_SCHEMA_VERSION
+    from app.rms.db import init_db
 
     init_db(engine)
     init_db(engine)  # second run
