@@ -385,7 +385,45 @@
   </form>
 </dialog>
 {% else %}
-<p class="empty">No hay producción planificada. Verificá que haya ventas registradas en los últimos 14 días.</p>
+<div class="card empty-state-cold-start" data-cold-start="{{ cold_start_kind or 'unknown' }}"
+     style="background: var(--color-warning-bg, #fff7ed); border-left: 4px solid var(--color-warning, #f59e0b); padding: var(--space-4); margin-bottom: var(--space-4);">
+  {% if cold_start_kind == "no_sales" %}
+    <h3 style="margin: 0 0 var(--space-2) 0; font-size: 1rem;">Aún no hay ventas registradas</h3>
+    <p style="margin: 0 0 var(--space-3) 0; color: var(--color-text-muted);">
+      El plan automático se basa en tus ventas pasadas. Mientras tanto, podés
+      definir un plan recurrente para cada día de la semana.
+    </p>
+    <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+      <a href="/produccion/manana" class="btn btn-primary">
+        Crear plan para mañana
+      </a>
+      <a href="/ventas/nueva" class="btn btn-secondary">
+        Registrar primera venta
+      </a>
+    </div>
+  {% elif cold_start_kind == "no_template" %}
+    <h3 style="margin: 0 0 var(--space-2) 0; font-size: 1rem;">Sin plantilla semanal</h3>
+    <p style="margin: 0 0 var(--space-3) 0; color: var(--color-text-muted);">
+      Hay ventas registradas pero todavía no guardaste una plantilla recurrente
+      por día de la semana. El plan se calcula solo con promedio de 14 días.
+    </p>
+    <a href="/produccion/manana" class="btn btn-primary">
+      Crear plantilla ahora
+    </a>
+  {% elif cold_start_kind == "cold_plan" %}
+    <h3 style="margin: 0 0 var(--space-2) 0; font-size: 1rem;">Plan frío (datos insuficientes)</h3>
+    <p style="margin: 0 0 var(--space-3) 0; color: var(--color-text-muted);">
+      Todos los productos aparecen con cantidad 1 porque hay menos de 14 días
+      de historial. Ajustá manualmente o esperá más ventas para que el promedio
+      se estabilice.
+    </p>
+    <a href="/produccion/manana" class="btn btn-primary">
+      Ajustar plan para hoy
+    </a>
+  {% else %}
+    <p class="empty">No hay producción planificada. Verificá que haya ventas registradas en los últimos 14 días.</p>
+  {% endif %}
+</div>
 {% endif %}
 
 {# ── Ingredients needed ── Bug 2 + Bug 4 fix ── #}

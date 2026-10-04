@@ -405,10 +405,29 @@ def produccion_worksheet(
     ) or 0
     template_nudge = (not _template_rows) and _has_sales > 0
 
+    # T-2026-10-04 (P1): cold-start bootstrap state. Distinguish 3 cases:
+    # - no_sales: zero sales ever recorded → "set up your template"
+    # - no_template: sales exist but no weekly template → "promote forecasts"
+    # - cold_plan: plan rows exist but all qty=1.0 → "your forecast is
+    #   uniform; check data window"
+    cold_start_kind = None
+    if _has_sales == 0:
+        cold_start_kind = "no_sales"
+    elif not _template_rows:
+        cold_start_kind = "no_template"
+    elif all(
+        getattr(r, "qty_to_produce", 0) == 1.0
+        for r in plan_rows_view
+    ) and len(plan_rows_view) > 0:
+        cold_start_kind = "cold_plan"
+    elif sum(1 for r in plan_rows_view if r["qty_to_produce"] > 0) == 0:
+        cold_start_kind = "no_rows"
+
     return render(request, "produccion.html", {
         "plan": plan,
         "plan_rows_view": plan_rows_view,
         "template_nudge": template_nudge,
+        "cold_start_kind": cold_start_kind,
         "for_date": plan.for_date.isoformat() if plan.for_date else "",
         "view": "day",
         "source_labels": FORECAST_SOURCE_LABELS,
