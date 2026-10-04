@@ -330,18 +330,18 @@
         {% for r in plan_rows_view %}
         <tr class="production-row {% if r.is_ad_hoc %}production-row--adhoc{% endif %} {% if r.pending_pedido_qty > 0 %}production-row--has-pedido{% endif %}"
             data-product-id="{{ r.product_id }}">
-          <td>
+          <td data-label="Listo">
             <input type="checkbox" name="done_{{ r.product_id }}" value="1"
                    class="shift-checkbox"
                    {% if r.completed_qty > 0 %}checked{% endif %}
                    onchange="toggleRowComplete(this)"
                    aria-label="Marcar {{ r.product_name }} como hecho">
           </td>
-          <td class="font-bold product-name">
+          <td class="font-bold product-name" data-label="Producto">
             {{ r.product_name }}
             {% if r.is_ad_hoc %}<span class="badge badge-warning" title="Horneado no planeado">Extra</span>{% endif %}
           </td>
-          <td class="num">
+          <td class="num" data-label="Meta">
             {% if r.is_ad_hoc %}
               <span class="text-muted">—</span>
             {% else %}
@@ -355,14 +355,14 @@
               {%- endif %}
             {% endif %}
           </td>
-          <td class="num">
+          <td class="num" data-label="+ Pedidos">
             {% if r.pending_pedido_qty > 0 %}
               <span class="badge badge-info pedido-qty" title="Unidades comprometidas por pedidos para hoy">+{{ "%.0f"|format(r.pending_pedido_qty) }}</span>
             {% else %}
               <span class="text-muted">—</span>
             {% endif %}
           </td>
-          <td class="num">
+          <td class="num" data-label="Total a hornear">
             {% set total_bake = (r.qty_to_produce or 0) + (r.pending_pedido_qty or 0) %}
             {% if total_bake > 0 %}
               <strong>{{ "%.0f"|format(total_bake) }}</strong>
@@ -370,7 +370,7 @@
               <span class="text-muted">—</span>
             {% endif %}
           </td>
-          <td class="num">
+          <td class="num" data-label="Progreso">
             <input type="number" name="completed_{{ r.product_id }}"
                    class="progress-input"
                    value="{{ "%.1f"|format(r.completed_qty or 0) }}"
@@ -378,7 +378,7 @@
                    style="width: 70px; padding: var(--space-1) var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;"
                    aria-label="Cantidad hecha de {{ r.product_name }}">
           </td>
-          <td>
+          <td data-label="Origen">
             {# Sprint 1: semantic source badges. Ad-hoc is its own badge. #}
             {% if r.is_ad_hoc %}
               <span class="badge badge-warning">Ad-hoc</span>
@@ -408,7 +408,7 @@
               {% endif %}
             {% endif %}
           </td>
-          <td>
+          <td data-label="Receta">
             {% if r.recipe_id %}
             <a href="/recetas/{{ r.recipe_id }}" class="btn btn-sm">Ver receta</a>
             {% else %}
@@ -666,6 +666,61 @@
   .conf-zero {
     background: var(--color-surface-subtle, #f3f4f6);
     color: var(--color-text-muted, #6b7280);
+  }
+
+  /* T-2026-10-04 (P2): mobile-friendly shift execution.
+     On narrow viewports (≤640px) the 8-column table becomes unreadable.
+     Convert each <tr> into a stacked card layout with `data-label`
+     attributes showing as left-side hints. Inspired by the
+     "responsive table" pattern from CSS-Tricks but kept minimal. */
+  @media (max-width: 640px) {
+    #shift-form table { border: 0; }
+    #shift-form table thead { display: none; }
+    #shift-form table tbody tr {
+      display: block;
+      margin-bottom: var(--space-3, 1rem);
+      padding: var(--space-2, 0.5rem);
+      border: 1px solid var(--color-border, #e5e7eb);
+      border-radius: 6px;
+      background: var(--color-card, #fff);
+    }
+    #shift-form table tbody td {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--space-1, 0.25rem) 0;
+      border-bottom: 1px solid var(--color-surface-subtle, #f3f4f6);
+      text-align: right;
+    }
+    #shift-form table tbody td:last-child {
+      border-bottom: 0;
+    }
+    #shift-form table tbody td::before {
+      content: attr(data-label);
+      font-weight: 600;
+      color: var(--color-text-muted, #6b7280);
+      text-align: left;
+      margin-right: var(--space-2, 0.5rem);
+      flex-shrink: 0;
+    }
+    #shift-form table tbody td[data-label="Listo"] {
+      justify-content: flex-end;
+    }
+    #shift-form table tbody td[data-label="Listo"]::before {
+      flex: 1;
+    }
+    #shift-form table tbody td[data-label="Producto"]::before {
+      display: none;
+    }
+    #shift-form .progress-input {
+      width: 90px !important;
+      height: 44px !important;  /* iOS HIG: ≥44px tap target */
+      font-size: 1.1rem;
+    }
+    #shift-form .shift-checkbox {
+      width: 28px !important;
+      height: 28px !important;
+    }
   }
 </style>
 
