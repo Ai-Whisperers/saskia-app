@@ -1057,6 +1057,54 @@ def reportes_consumo_csv(
     )
 
 
+# T-2026-10-04: /reportes/demand was referenced in the menu at line 109
+# ("Demanda prevista → /reportes/demand") but the route was never
+# implemented. /insights/demand uses the same forecast_demand helper.
+# We add /reportes/demand as the canonical menu URL that the operator
+# expects when clicking "Demanda prevista" in the report index.
+@router.get("/demand", response_class=HTMLResponse)
+def reportes_demand(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Demanda prevista para mañana (alias del reporte en /insights/demand).
+
+    The same forecast model + shopping list as /insights/demand, but
+    reached through the canonical /reportes/* prefix so the menu link
+    at reportes index resolves without 404.
+
+    forecast_demand() returns DemandForecast objects with avg_per_day,
+    weekday_factor, trend, predicted_qty (units), suggested_batches.
+    shopping_list_from_forecast() returns per-ingredient buy_qty +
+    est_cost_gs.
+    """
+    from app.rms.demand_freshness import (
+        forecast_demand,
+        shopping_list_from_forecast,
+    )
+    from app.services.template_render import render
+
+    forecasts = forecast_demand(session)
+    shopping = shopping_list_from_forecast(session, forecasts)
+
+    # Aggregate summary for the top of the page.
+    total_units = sum(f.predicted_qty for f in forecasts)
+    total_recipes = sum(f.suggested_batches for f in forecasts)
+    buy_count = sum(1 for s in shopping if s.buy_qty > 0)
+
+    return render(
+        request,
+        "insight_demand.html",
+        {
+            "forecasts": forecasts,
+            "shopping": shopping,
+            "total_units": total_units,
+            "total_recipes": total_recipes,
+            "buy_count": buy_count,
+        },
+    )
+
+
 @router.get("/precios", response_class=HTMLResponse)
 def reportes_precios(
     request: Request,
