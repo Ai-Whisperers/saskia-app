@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+from loguru import logger
 
 from app.auth import current_user_id
 from app.auth import require_login_or_disabled as require_login
@@ -59,10 +60,12 @@ def ops_status(request: Request) -> HTMLResponse:
 
         with request.app.state.session_factory() as _s:
             reorder_stats = customer_reorder_rates(_s, since_days=90, top_n=5)
-    except Exception:  # noqa: BLE001, S110 — defensive default; failures re-rendered as zeros in template
-        # Reorder stats are a dashboard feature, not critical path.
-        # If the query fails, the dashboard still renders with zeros.
-        pass
+    except Exception as exc:  # noqa: BLE001 — defensive default; failures re-rendered as zeros in template
+        # T-2026-10-04: log the failure so test_no_silent_excepts and
+        # production log readers can see it instead of silently swallowing.
+        # Reorder stats are a dashboard feature, not critical path; the
+        # dashboard still renders with zeros.
+        logger.warning(f"ops.dashboard: customer_reorder_rates failed: {exc!r}")
 
     return render(
         request,

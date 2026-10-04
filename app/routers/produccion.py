@@ -22,6 +22,7 @@ from datetime import date, datetime, time, timedelta
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -916,9 +917,11 @@ async def produccion_shift_execute(
                     latest_ts = latest_row
                 if latest_ts > form_opened_at:
                     concurrent_modify = True
-        except (ValueError, TypeError):
-            # Bad/missing format — skip the check.
-            pass
+        except (ValueError, TypeError) as exc:
+            # T-2026-10-04: log the parse failure (was silent pass; now
+            # the operator log + test_no_silent_excepts can see it).
+            # Bad/missing format — skip the concurrent-edit check.
+            logger.debug(f"produccion.shift_execute: bad form_opened_at format: {exc!r}")
 
     saved = 0
     skipped = 0
