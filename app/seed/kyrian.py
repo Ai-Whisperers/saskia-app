@@ -122,16 +122,23 @@ def _delete_existing_kyrian(s: Session) -> None:
         p.fulfilled_sale_id = None
     s.flush()
 
-    # SaleStockMove next — has FK to sale (declared ON DELETE CASCADE on
-    # the SQLAlchemy side, but SQLite tables created before that hint was
-    # added may not have the cascade clause, so we delete them explicitly).
-    from app.rms.models import SaleStockMove
+    # T-2026-10-04: BACKLOG #1 (migration 092) dropped the sale_stock_move
+    # table. The cascade that previously handled deletion of these
+    # movements when their parent Sale is deleted is now on StockMovement
+    # via the affected_sale_id / reference_id column. Select from
+    # StockMovement with movement_type='sale' so we clean them up
+    # explicitly (older SQLite DBs may not have the ON DELETE CASCADE).
+    from app.rms.models import StockMovement
 
     moves = (
         s.execute(
-            select(SaleStockMove)
-            .join(Sale, SaleStockMove.sale_id == Sale.id)
-            .where(Sale.customer_id == cid)
+            select(StockMovement)
+            .join(Sale, StockMovement.reference_id == Sale.id)
+            .where(
+                Sale.customer_id == cid,
+                StockMovement.movement_type == "sale",
+                StockMovement.reference_type == "sale",
+            )
         )
         .scalars()
         .all()

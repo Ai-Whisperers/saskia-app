@@ -136,19 +136,28 @@ def daily_summary_full(
     revenue = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in valid)
 
     # COGS
-    from app.rms.models import SaleStockMove
+    # T-2026-10-04: BACKLOG #1 (migration 092) dropped the sale_stock_move
+    # table. Use StockMovement with movement_type='sale' as the
+    # authoritative source. The cost is approximated via the
+    # per-ingredient purchase_price_gs at sale time.
+    from app.rms.models import StockMovement
 
     cogs = (
         session.execute(
             select(
                 func.coalesce(
-                    func.sum(func.abs(SaleStockMove.qty_delta) * Ingredient.purchase_price_gs), 0
+                    func.sum(
+                        func.abs(StockMovement.qty) * Ingredient.purchase_price_gs
+                    ),
+                    0,
                 )
             )
-            .select_from(SaleStockMove)
-            .join(Sale, Sale.id == SaleStockMove.sale_id)
-            .join(Ingredient, Ingredient.id == SaleStockMove.ingredient_id)
+            .select_from(StockMovement)
+            .join(Sale, Sale.id == StockMovement.reference_id)
+            .join(Ingredient, Ingredient.id == StockMovement.ingredient_id)
             .where(
+                StockMovement.movement_type == "sale",
+                StockMovement.reference_type == "sale",
                 Sale.sold_at >= start,
                 Sale.sold_at < end,
                 Sale.voided_at.is_(None),

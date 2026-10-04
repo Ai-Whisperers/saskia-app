@@ -21,7 +21,7 @@ Implementation strategy:
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import DateTime, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 # Standard audit field types for consistency
@@ -57,14 +57,24 @@ def _migration_096_audit_columns(conn: Any) -> None:
     for table in owned_tables:
         try:
             # Standard audit columns
+            # T-2026-10-04: wrap in text() — SQLAlchemy 2.0 requires SQL
+            # expressions, not raw strings, for conn.execute().
             conn.execute(
-                f"ALTER TABLE {table} ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"
+                text(
+                    f"ALTER TABLE {table} ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"
+                )
             )
-            conn.execute(f"ALTER TABLE {table} ADD COLUMN created_by_user_id VARCHAR(64)")
             conn.execute(
-                f"ALTER TABLE {table} ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"
+                text(f"ALTER TABLE {table} ADD COLUMN created_by_user_id VARCHAR(64)")
             )
-            conn.execute(f"ALTER TABLE {table} ADD COLUMN updated_by_user_id VARCHAR(64)")
+            conn.execute(
+                text(
+                    f"ALTER TABLE {table} ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"
+                )
+            )
+            conn.execute(
+                text(f"ALTER TABLE {table} ADD COLUMN updated_by_user_id VARCHAR(64)")
+            )
             print(f"Added audit columns to {table}")
         except Exception as exc:
             # Columns likely already exist - idempotent continue
@@ -73,8 +83,12 @@ def _migration_096_audit_columns(conn: Any) -> None:
     # Set indexes for performance on timestamp columns
     try:
         for table in owned_tables:
-            conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{table}_created ON {table}(created_at)")
-            conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{table}_updated ON {table}(updated_at)")
+            conn.execute(
+                text(f"CREATE INDEX IF NOT EXISTS idx_{table}_created ON {table}(created_at)")
+            )
+            conn.execute(
+                text(f"CREATE INDEX IF NOT EXISTS idx_{table}_updated ON {table}(updated_at)")
+            )
     except Exception:  # noqa: S110 — Indexes may already exist from a partial migration run; ignore.
         pass
 

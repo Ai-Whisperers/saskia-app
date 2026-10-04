@@ -2,6 +2,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+
+# Resolve once: the project root is two parents up from this test file.
+# T-2026-10-04: previously hardcoded to /opt/data/work/saskia-app which
+# was a sibling worktree path; tests need to follow the current worktree
+# so the script finds the right app/ and migrations/ at runtime.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
 
 def test_daily_summary_dryrun():
     """Smoke test: the script runs with --backend dryrun and exits 0."""
@@ -16,7 +25,6 @@ def test_daily_summary_dryrun():
     conn.close()
     env = os.environ.copy()
     env["AIW_SASKIA_DB_PATH"] = db_path
-    env["PATH"] = "/opt/data/work/saskia-app/.venv/bin:" + env.get("PATH", "")
     env.pop("DATABASE_URL", None)
     result = subprocess.run(
         [
@@ -30,7 +38,7 @@ def test_daily_summary_dryrun():
         capture_output=True,
         text=True,
         timeout=60,
-        cwd="/opt/data/work/saskia-app",
+        cwd=str(PROJECT_ROOT),
         env=env,
     )
     assert "ok=True" in result.stdout, f"stdout: {result.stdout}\nstderr: {result.stderr}"
@@ -63,7 +71,7 @@ def test_daily_summary_with_yesterday_flag():
         capture_output=True,
         text=True,
         timeout=60,
-        cwd="/opt/data/work/saskia-app",
+        cwd=str(PROJECT_ROOT),
         env=env,
     )
     assert (
