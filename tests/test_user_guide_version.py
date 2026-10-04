@@ -37,6 +37,8 @@ SECTIONS = [
     "16-excel.md",
     "17-lista-compras.md",
     "18-suscripciones.md",
+    "19-analisis.md",
+    "20-kpis-mensuales.md",
 ]
 
 

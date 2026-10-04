@@ -5,8 +5,8 @@
 
 **URL activa:** `https://saskia-vps.paragu-ai.com`  *(si ves "service suspended", contactá al equipo — esa URL no es la correcta)*
 **URL alternativa (suspendida):** `https://saskia-rms.paragu-ai.com` — Render, NO usar
-**Versión del manual:** 2026-10-04 · schema 97 · commit `822996a` · 19 secciones + 10 capturas nuevas (suscripciones, lista de compras, análisis, banco, KPIs, pricing, vs-mercado, proveedores, usuarios, wishlist, riesgos)
-**Manual versión:** v1.3 (ver "Cómo verificar la versión" abajo)
+**Versión del manual:** 2026-10-04 · schema 97 · commit `7b31332` · 21 secciones (incluye Análisis y KPIs mensuales)
+**Manual versión:** v1.4 (ver "Cómo verificar la versión" abajo)
 
 ## Índice rápido
 
@@ -31,6 +31,8 @@
 | [16](16-excel.md) | Excel (importar/exportar) | Para copias de seguridad o cargas masivas |
 | [17](17-lista-compras.md) | Lista de compras | Antes de ir al super o proveedor |
 | [18](18-suscripciones.md) | Suscripciones (entregas recurrentes) | Para clientes con pedidos semanales |
+| [19](19-analisis.md) | Análisis (inteligencia de negocio) | Iván — para entender por qué los números son como son |
+| [20](20-kpis-mensuales.md) | KPIs mensuales (dashboard) | Iván — cierre y seguimiento del mes |
 
 ## Páginas del menú lateral (índice completo)
 
@@ -42,9 +44,9 @@ escribimos.
 
 | Ruta | Nombre | Para qué sirve | Quién la usa |
 |---|---|---|---|
-| `/analisis` | Análisis | Análisis avanzado de ventas y stock | Iván |
+| `/analisis` | Análisis | Análisis avanzado de ventas y stock | Iván ([ver 19](19-analisis.md)) |
 | `/bank` | Banco | Conciliación de cuentas corrientes | Iván |
-| `/dashboard` | KPIs mensuales | Tablero con KPIs del mes | Iván |
+| `/dashboard` | KPIs mensuales | Tablero con KPIs del mes | Iván ([ver 20](20-kpis-mensuales.md)) |
 | `/guia` | Guía | Esta misma guía, dentro de la app | Todos |
 | `/pricing` | Precios por canal | Precios distintos por canal de venta | Iván |
 | `/riesgos` | Riesgos | Alertas de stock crítico, deudas vencidas | Iván |
