@@ -1,0 +1,171 @@
+{# produccion_print.html — T-2026-10-04 (P0)
+   Printable worksheet for the kitchen shift. Stripped-down day view:
+   title, date, products, qty, checkboxes. No nav, no banners, no
+   ad-hoc form. The base.html + this template's @media print rules
+   hide the navigation chrome when printing. #}
+{% extends "base.html" %}
+
+{% block title %}Producción {{ for_date }} — Para imprimir{% endblock %}
+
+{% block head_extra %}
+<style>
+  /* Print-only layout: clean sheet, no nav/header/footer chrome */
+  .print-sheet {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 1.5rem;
+  }
+  .print-sheet h1 {
+    font-size: 1.5rem;
+    margin: 0 0 0.25rem 0;
+  }
+  .print-sheet .date {
+    font-size: 1.125rem;
+    color: var(--color-text-muted);
+    margin-bottom: 1rem;
+  }
+  .print-sheet table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.5rem;
+  }
+  .print-sheet th,
+  .print-sheet td {
+    border: 1px solid var(--color-border);
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+  }
+  .print-sheet th {
+    background: var(--color-surface-subtle);
+    font-weight: 600;
+  }
+  .print-sheet td.center { text-align: center; }
+  .print-sheet td.right { text-align: right; }
+  .print-sheet .check-col { width: 3rem; }
+  .print-sheet .qty-col { width: 5rem; text-align: center; }
+  .print-sheet .done-col { width: 5rem; text-align: center; }
+  .print-sheet input[type="checkbox"] {
+    width: 1.25rem;
+    height: 1.25rem;
+    accent-color: var(--color-accent, #c2410c);
+  }
+  .print-sheet input[type="number"] {
+    width: 4.5rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    text-align: center;
+    font: inherit;
+  }
+  .print-sheet .print-only {
+    display: none;
+  }
+  .print-sheet .footer-note {
+    margin-top: 1.5rem;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+  }
+
+  @media print {
+    /* Hide site chrome */
+    header, nav, aside, footer, .nav-tabs, .breadcrumb,
+    .sidebar, .topbar, .bottom-nav, .app-footer { display: none !important; }
+    .no-print { display: none !important; }
+    .print-only { display: block; }
+    body { background: white !important; color: black !important; }
+    .print-sheet { max-width: none; padding: 0; }
+    .print-sheet table { page-break-inside: auto; }
+    .print-sheet tr { page-break-inside: avoid; }
+    .print-sheet input[type="number"] {
+      border: none;
+      background: transparent;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="print-sheet">
+  <h1>📋 Producción — Plan del día</h1>
+  <p class="date"><strong>{{ for_date }}</strong></p>
+
+  <div class="no-print" style="margin-bottom: 1rem;">
+    <button type="button" class="btn btn-primary" onclick="window.print()">
+      🖨️ Imprimir
+    </button>
+    <a href="/produccion?view=day{% if for_date %}&for_date={{ for_date }}{% endif %}"
+       class="btn btn-ghost">← Volver a producción</a>
+  </div>
+
+  {% if print_rows %}
+  <table aria-label="Productos a hornear el {{ for_date }}">
+    <thead>
+      <tr>
+        <th class="check-col">Listo</th>
+        <th>Producto</th>
+        <th class="qty-col">A hornear</th>
+        <th class="done-col">Real</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in print_rows %}
+      <tr>
+        <td class="center">
+          <input type="checkbox"
+                 name="completed_{{ r.product_id }}"
+                 form="shift-form"
+                 {% if r.qty_completed >= r.qty_to_produce and r.qty_to_produce > 0 %}checked{% endif %}
+                 aria-label="Marcar {{ r.product_name }} como listo">
+        </td>
+        <td>
+          {{ r.product_name }}
+          {% if r.recipe_id %}
+          <small class="text-muted" style="margin-left: 0.25rem;">
+            (<a href="/recetas/{{ r.recipe_id }}" class="print-only">ver receta</a>)
+          </small>
+          {% endif %}
+        </td>
+        <td class="qty-col"><strong>{{ r.qty_to_produce|round|int }}</strong></td>
+        <td class="done-col">
+          <input type="number"
+                 name="completed_qty_{{ r.product_id }}"
+                 form="shift-form"
+                 min="0"
+                 step="1"
+                 value="{{ r.qty_completed|round|int }}"
+                 aria-label="Cantidad real de {{ r.product_name }}">
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {# The form posts back to /produccion/shift-execute so a baker can mark
+     items done on the sheet and submit from the print preview — but they
+     usually tear the page off first, so this is a secondary use case. #}
+  <form id="shift-form" method="post" action="/produccion/shift-execute" class="no-print">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="for_date" value="{{ for_date }}">
+    <div class="form-actions" style="margin-top: 1rem;">
+      <button type="submit" class="btn btn-primary">
+        Guardá ejecución del turno
+      </button>
+      <small class="text-muted" style="margin-left: 0.5rem;">
+        (opcional — normalmente se completa desde la pantalla)
+      </small>
+    </div>
+  </form>
+
+  <p class="footer-note print-only">
+    Generado por Saskia RMS · {{ for_date }} ·
+    Imprimí y entregá al panadero/a del turno.
+  </p>
+  {% else %}
+  <p class="text-muted" style="margin: 2rem 0;">
+    No hay productos planificados para este día.
+    <a href="/produccion/manana?for_date={{ for_date }}">Generá un plan</a>
+    primero.
+  </p>
+  {% endif %}
+</div>
+{% endblock %}

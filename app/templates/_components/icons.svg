@@ -93,6 +93,11 @@
     <symbol id="icon-check" viewBox="0 0 24 24">
       <polyline points="20 6 9 17 4 12"/>
     </symbol>
+    <symbol id="icon-print" viewBox="0 0 24 24">
+      <polyline points="6 9 6 2 18 2 18 9"/>
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+      <rect x="6" y="14" width="12" height="8"/>
+    </symbol>
     <symbol id="icon-x" viewBox="0 0 24 24">
       <line x1="18" y1="6" x2="6" y2="18"/>
       <line x1="6" y1="6" x2="18" y2="18"/>

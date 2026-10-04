@@ -989,6 +989,66 @@ def produccion_manana(
     )
 
 
+@router.get("/print", response_class=HTMLResponse)
+def produccion_print(
+    request: Request,
+    for_date: date | None = Query(None),
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Printable worksheet for the kitchen shift.
+
+    T-2026-10-04 (P0): Bakers need a paper sheet. The day-view HTML is too
+    busy (nav, banners, source explanations, ad-hoc form) to print. This
+    view is a stripped-down worksheet: title, date, products, qty,
+    checkboxes. No CSS-included chrome — the @media print rules in
+    produccion.html + base.html hide the nav/header/footer when printing.
+
+    The handler reuses the same plan_production() call as the day view so
+    the printed sheet always matches what the operator sees on screen.
+    """
+    from app.rms.eod_completions import completions_for_date as _eod_for_date
+
+    target_date = for_date or _asuncion_today()
+    plan = plan_production(session, for_date=target_date)
+    completions_by_pid = _eod_for_date(session, target_date)
+
+    # Build a flat list of (product, qty_to_produce, qty_completed) — one
+    # row per product, no overrides, no forecast_source explanation.
+    print_rows = []
+    for r in plan.rows:
+        if r.qty_to_produce <= 0 and r.product_id not in completions_by_pid:
+            continue
+        print_rows.append({
+            "product_id": r.product_id,
+            "product_name": r.product_name,
+            "qty_to_produce": r.qty_to_produce,
+            "qty_completed": completions_by_pid.get(r.product_id, 0.0),
+            "recipe_id": r.recipe_id,
+        })
+    # Include ad-hoc bakes (walk-ins / on-the-fly decisions that the
+    # forecast never proposed but Saskia actually produced).
+    planned_pids = {r["product_id"] for r in print_rows}
+    for pid, qty in completions_by_pid.items():
+        if pid in planned_pids:
+            continue
+        prod_obj = session.get(Product, pid)
+        if prod_obj is None:
+            continue
+        print_rows.append({
+            "product_id": pid,
+            "product_name": prod_obj.name,
+            "qty_to_produce": 0.0,
+            "qty_completed": qty,
+            "recipe_id": None,
+        })
+
+    return render(request, "produccion_print.html", {
+        "for_date": target_date.isoformat(),
+        "print_rows": print_rows,
+        "shift_saved": int(request.query_params.get("shift_saved", 0)),
+    })
+
+
 @router.get("/accuracy", response_class=HTMLResponse)
 def produccion_accuracy(
     request: Request,
