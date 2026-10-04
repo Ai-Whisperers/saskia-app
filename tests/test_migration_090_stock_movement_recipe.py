@@ -85,6 +85,7 @@ def test_migration_090_idempotent(tmp_path):
     from sqlalchemy import create_engine
 
     from app.rms.db import init_db
+    from app.rms.config import CURRENT_SCHEMA_VERSION
 
     db = tmp_path / "test.db"
     engine = create_engine(f"sqlite:///{db}")
@@ -93,5 +94,5 @@ def test_migration_090_idempotent(tmp_path):
     init_db(engine)
     with engine.connect() as conn:
         v = conn.execute(text("SELECT value FROM app_meta WHERE key='schema_version'")).scalar()
-    # Schema is now 92 (after migration 092 drop sale_stock_move).
-    assert int(v) == 92
+    # Schema is now CURRENT_SCHEMA_VERSION (migrations accumulate).
+    assert int(v) == CURRENT_SCHEMA_VERSION
