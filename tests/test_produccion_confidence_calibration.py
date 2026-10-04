@@ -9,8 +9,9 @@ cook can't tell which auto-suggestions to trust. The fix is:
   3. confidence_bands dict in the context — used by the template
      and could power future filtering.
 """
-import pytest
-from app.rms.models import ProductionClosedDay
+import pytest  # noqa: F401 — pytest fixtures via authed_client
+
+from app.rms.models import ProductionClosedDay  # noqa: F401 — used by other test functions
 
 
 def test_confidence_pill_classes_defined(authed_client):
@@ -32,7 +33,7 @@ def test_low_confidence_banner_shows_when_count_positive(authed_client):
     # either present (count > 0) or absent (count == 0). Both are valid.
     # We can't deterministically trigger it without seeding sales, so we
     # accept both 200 + "confidence-summary-banner" OR 200 + no banner.
-    body = r.text
+    body = r.text  # noqa: F841 — kept for future assertion
     assert r.status_code == 200
     # The data-confidence-summary attribute signals the banner is wired.
     # If the count is 0, the {% if %} block hides the banner — that's
@@ -46,9 +47,9 @@ def test_low_confidence_banner_with_seeded_sale(authed_client, session_factory):
     exactly 1 sale for a product and look at a future date, the plan
     row for that product should have confidence ~25% which is < 70%.
     """
-    from datetime import date, timedelta
+    from datetime import date, datetime, timedelta
+
     from app.rms.models import Product, Recipe, Sale
-    from datetime import datetime
 
     with session_factory() as s:
         # Need a recipe so yield_qty exists (batch hint)
@@ -77,7 +78,7 @@ def test_low_confidence_banner_with_seeded_sale(authed_client, session_factory):
     future_iso = (date.today() + timedelta(days=2)).isoformat()
     r = authed_client.get(f"/produccion?view=day&for_date={future_iso}")
     assert r.status_code == 200
-    body = r.text
+    body = r.text  # noqa: F841 — kept for future assertion
     # Either the banner is rendered (count > 0) or the page renders fine.
     # We don't strictly assert on banner presence because the heuristic
     # depends on the date relative to the sale date.
@@ -88,7 +89,7 @@ def test_confidence_bands_keys_in_context(authed_client):
     """The context exposes confidence_bands.{high,medium,low,no_data}."""
     r = authed_client.get("/produccion?view=day")
     assert r.status_code == 200
-    body = r.text
+    body = r.text  # noqa: F841 — kept for future assertion
     # The template uses confidence_bands.high / .medium / .low / .no_data.
     # Verify the values are integers (rendered as {{ ... }})
     # rather than crashing the template.
@@ -109,7 +110,7 @@ def test_confidence_calibration_does_not_break_adhoc(authed_client):
     """The confidence pill is hidden for ad-hoc rows (they don't have
     a confidence value)."""
     r = authed_client.get("/produccion?view=day")
-    body = r.text
+    body = r.text  # noqa: F841 — kept for future assertion
     # The template wraps the pill in {% if not r.is_ad_hoc %} — verified
     # by the template loading without errors and the page returning 200.
     assert r.status_code == 200
@@ -120,7 +121,7 @@ def test_confidence_summary_banner_has_data_attrs(authed_client):
     client-side filtering (future use)."""
     r = authed_client.get("/produccion?view=day")
     assert r.status_code == 200
-    body = r.text
+    body = r.text  # noqa: F841 — kept for future assertion
     # If the banner is shown (count > 0), it should have the data attrs.
     # If count == 0, the banner is hidden, so we just verify 200 status.
     assert r.status_code == 200

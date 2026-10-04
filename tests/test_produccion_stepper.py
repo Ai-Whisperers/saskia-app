@@ -10,7 +10,6 @@ The steppers are pure client-side (data-* attrs + JS handlers).
 The bulk button posts form actions "bulk=mark_all" with each row's
 target qty. We verify the markup + JS wiring.
 """
-import pytest
 
 
 def test_stepper_buttons_present(authed_client):

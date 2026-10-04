@@ -9,7 +9,6 @@ We can't render CSS in tests, but we can verify the markup:
   - The @media (max-width: 640px) rule is present in the rendered CSS
   - The progress-input height: 44px rule is present
 """
-import pytest
 
 
 def test_data_label_attrs_on_tds(authed_client):
