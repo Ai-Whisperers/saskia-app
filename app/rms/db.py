@@ -284,7 +284,12 @@ def _migration_003_analytics_columns(conn: Any) -> None:
         try:
             conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {decl}"))
         except Exception:
-            pass
+            # Column already exists. On Postgres this aborts the
+            # transaction, so rollback before continuing; on SQLite
+            # the transaction is implicitly rolled back per-statement
+            # and the next ALTER just works.
+            if dialect == "postgresql":
+                conn.rollback()
 
     # Index on last_consumed_at so dead_stock reports stay fast.
     # CREATE INDEX IF NOT EXISTS is SQLite syntax; on Postgres use a
