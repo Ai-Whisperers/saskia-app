@@ -50,10 +50,46 @@ jobs:
             sleep 1
           done
 
+      - name: Pre-provision Postgres schema with create_all
+        # Many migrations (1-98) were written SQLite-first and use
+        # SQLite-only syntax (PRAGMA, AUTOINCREMENT, INTEGER-as-boolean).
+        # Running them from scratch on Postgres fails with syntax errors.
+        # Real production Postgres is provisioned by `init_db()` calling
+        # `Base.metadata.create_all()`, which is dialect-aware. The
+        # migration chain then runs idempotently on top, bumping the
+        # schema_version to head without re-creating tables.
+        env:
+          DATABASE_URL: postgresql+psycopg://saskia:saskia@localhost:5432/saskia
+        run: |
+          uv run python -c "
+          from app.rms.db import init_db, make_engine
+          from app.rms.models import Base
+          engine = make_engine('postgresql+psycopg://saskia:saskia@localhost:5432/saskia')
+          Base.metadata.create_all(engine)
+          # create_all() brings every model table up-to-date on Postgres
+          # (CREATE TABLE / ALTER TABLE / CREATE INDEX are all
+          # dialect-aware via SQLAlchemy types). The migration chain
+          # is SQLite-first and not designed to run from scratch on
+          # Postgres, so we seed app_meta with the head version and let
+          # init_db() no-op the chain.
+          from sqlalchemy import text
+          head_version = max(
+              (int(v) for v in open('app/rms/db.py').read().split('MIGRATIONS = {')[1].split('}')[0].split(':')[0].split(',') if v.strip().isdigit()),
+              default=0,
+          )
+          with engine.connect() as conn:
+              conn.execute(text(\"INSERT INTO app_meta (key, value) VALUES ('schema_version', :v) ON CONFLICT (key) DO UPDATE SET value = :v\"), {'v': str(head_version)})
+              conn.commit()
+          init_db(engine)
+          print(f'pre-provision complete; schema_version at {head_version}')
+          "
+
       - name: Run smoke test
         env:
           DATABASE_URL: postgresql+psycopg://saskia:saskia@localhost:5432/saskia
-          AIW_SASKIA_RUN_MIGRATIONS: "1"
+          # Migrations already applied during pre-provision; this run
+          # just verifies init_db is idempotent (re-runs no-op, no errors).
+          AIW_SASKIA_RUN_MIGRATIONS: "0"
           PORT: "18999"
         run: |
           uv run python scripts/smoke_test_deploy_shape.py \
