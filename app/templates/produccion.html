@@ -216,6 +216,53 @@
 </div>
 {% endif %}
 
+{# T-2026-10-04 (P1): Closed-day banner + reopen action. #}
+{% if closed_day_active %}
+<div class="card closed-day-banner" data-closed-day="1"
+     style="background: var(--color-info-bg, #eff6ff); border-left: 4px solid var(--color-info, #3b82f6); padding: var(--space-4); margin-bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+  <div>
+    <h3 style="margin: 0 0 var(--space-1) 0; font-size: 1.125rem;">
+      🏖️ Día cerrado — no se hornearán productos
+    </h3>
+    {% if closed_day_reason %}
+    <p class="text-muted" style="margin: 0;">
+      <strong>Motivo:</strong> {{ closed_day_reason }}
+    </p>
+    {% endif %}
+    {% if closed_day_at %}
+    <small class="text-muted">Cerrado el {{ closed_day_at[:10] }}</small>
+    {% endif %}
+  </div>
+  <form method="post" action="/produccion/closed" style="display: inline-flex; gap: var(--space-2); align-items: center;">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="for_date" value="{{ for_date }}">
+    <input type="hidden" name="action" value="reopen">
+    <button type="submit" class="btn btn-ghost"
+            aria-label="Reabrir {{ for_date }}">
+      Reabrir día
+    </button>
+  </form>
+</div>
+{% endif %}
+
+{# T-2026-10-04 (P1): closed-day toggle form (when NOT closed). #}
+{% if not closed_day_active and view == 'day' %}
+<form method="post" action="/produccion/closed"
+      class="closed-day-toggle no-print"
+      style="margin-bottom: var(--space-3); display: inline-flex; gap: var(--space-2); align-items: center;">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="for_date" value="{{ for_date }}">
+  <input type="hidden" name="action" value="close">
+  <input type="text" name="reason" placeholder="Motivo (opcional)" maxlength="120"
+         style="padding: var(--space-1) var(--space-2); border: 1px solid var(--color-border); border-radius: 4px; font-size: var(--text-sm);"
+         aria-label="Motivo del cierre">
+  <button type="submit" class="btn btn-ghost btn-sm"
+          onclick="return confirm('¿Marcar {{ for_date }} como cerrado? La producción se desactivará para este día.')">
+    🏖️ Cerrar este día
+  </button>
+</form>
+{% endif %}
+
 {% if plan_rows_view %}
 <form method="post" action="/produccion/shift-execute" id="shift-form">
   <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
