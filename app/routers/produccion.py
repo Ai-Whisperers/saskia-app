@@ -28,7 +28,8 @@ from sqlalchemy.orm import Session, selectinload
 from app.auth import require_login_or_disabled as require_login
 from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
-from app.rms.eod_completions import completions_for_date as get_day_completions, upsert_completion as _upsert_completion
+from app.rms.eod_completions import completions_for_date as get_day_completions
+from app.rms.eod_completions import upsert_completion as _upsert_completion
 from app.rms.models import (
     Pedido,
     PedidoLine,
@@ -564,6 +565,14 @@ def produccion_worksheet(
             "products_for_adhoc": session.execute(select(Product).order_by(Product.name))
             .scalars()
             .all(),
+            # T-2026-10-04 (Tier 4-G): quick-seed list for cold-start.
+            # Top 5 products with one-click "venta de 1 unidad" CTA.
+            "seed_products": [
+                {"product_id": p.id, "product_name": p.name}
+                for p in session.execute(
+                    select(Product).order_by(Product.name).limit(5)
+                ).scalars().all()
+            ],
             # T-2026-10-04 (P2): closed-day flag.
             "closed_day_active": closed_day_active,
             "closed_day_reason": closed_day.reason if closed_day else None,
