@@ -249,8 +249,8 @@ def healthz_depth(request: Request) -> JSONResponse:
             "used_pct": round(100.0 * usage.used / usage.total, 1) if usage.total else 0.0,
         }
     except (
-        Exception
-    ) as disk_exc:  # pragma: no cover - defensive  # noqa: BLE001 — disk probe is best-effort
+        Exception  # noqa: BLE001 — disk probe is best-effort
+    ) as disk_exc:  # pragma: no cover - defensive
         disk = {"ok": False, "error": repr(disk_exc), "path": str(DATA_DIR)}
 
     # --- r2 (best-effort HEAD probe; 3s timeout) ---
@@ -937,7 +937,13 @@ def healthz_backup(request: Request) -> JSONResponse:
     if raw:
         try:
             last = datetime.fromisoformat(raw)
-            now = datetime.now(last.tzinfo) if last.tzinfo else datetime.now(tz=timezone.utc)
+            # T-2026-10-04: always treat the parsed timestamp as
+            # UTC-aware (naive ISO strings from datetime.isoformat()
+            # default to the local zone, which crashes the
+            # `now - last` subtraction). If naive, assume UTC.
+            if last.tzinfo is None:
+                last = last.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
             age = now - last
             age_hours = round(age.total_seconds() / 3600, 1)
             stale = age_hours > BACKUP_STALE_HOURS
