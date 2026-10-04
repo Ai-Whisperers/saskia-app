@@ -28,18 +28,26 @@ def _register_sale(page, product_select_value: str | None = None):
 
 def test_combo_component_opens_and_picks(pw_page):
     """The saskia-combo custom dropdown (zero-native-select invariant):
-    click opens the list, typing filters, click picks."""
+    click opens the list, typing filters, click picks.
+
+    Note: saskia-combo was migrated from a <div class="saskia-combo">
+    to a native Web Component <saskia-combo> (D17). The macro in
+    app/templates/_components/atoms.html::combo_field emits the Web
+    Component directly. We look for the element by tag name.
+    """
     p = pw_page
     p.goto(p._saskia_base + "/inventario/nuevo")
     p.wait_for_load_state("networkidle")
-    combo = p.locator(".saskia-combo").first
-    assert combo.count() > 0, "no saskia-combo rendered on /inventario/nuevo"
-    inp = combo.locator("input.combo-input, input").first
+    # D17: saskia-combo is a Web Component, not a div with that class.
+    # Match by tag name. The component must render at least once.
+    combo = p.locator("saskia-combo").first
+    assert combo.count() > 0, "no <saskia-combo> rendered on /inventario/nuevo"
+    # The component hosts an input. Click to focus and open the dropdown.
+    inp = combo.locator("input").first
     inp.click()
     p.wait_for_timeout(250)
-    # the options list opens (native <select> must NOT be used)
-    opts = combo.locator("[role='option'], ul li, .combo-list li, .combo-option")
-    assert opts.count() >= 0
+    # The options list (Web Component shadow DOM or inline ul) opens.
+    # Native <select> must NOT be used.
     assert p.locator("select:not([aria-hidden])").count() == 0, (
         "native <select> leaked into the DOM (zero-native-select invariant)"
     )
