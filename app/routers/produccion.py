@@ -458,10 +458,31 @@ def produccion_worksheet(
         "products_for_adhoc": session.execute(
             select(Product).order_by(Product.name)
         ).scalars().all(),
-        # T-2026-10-04 (P1): closed-day flag.
+        # T-2026-10-04 (P2): closed-day flag.
         "closed_day_active": closed_day_active,
         "closed_day_reason": closed_day.reason if closed_day else None,
         "closed_day_at": closed_day.closed_at.isoformat() if closed_day else None,
+        # T-2026-10-04 (P2): confidence calibration — surface low-confidence
+        # rows so the cook knows which auto-suggestions need manual review.
+        "low_confidence_count": sum(
+            1 for r in plan_rows_view
+            if r.get("confidence_pct", 0) < 70 and not r.get("is_ad_hoc", False)
+        ),
+        "confidence_bands": {
+            "high": sum(1 for r in plan_rows_view if r.get("confidence_pct", 0) >= 70),
+            "medium": sum(
+                1 for r in plan_rows_view
+                if 50 <= r.get("confidence_pct", 0) < 70 and not r.get("is_ad_hoc", False)
+            ),
+            "low": sum(
+                1 for r in plan_rows_view
+                if 0 < r.get("confidence_pct", 0) < 50 and not r.get("is_ad_hoc", False)
+            ),
+            "no_data": sum(
+                1 for r in plan_rows_view
+                if r.get("confidence_pct", 0) == 0 and not r.get("is_ad_hoc", False)
+            ),
+        },
     })
 
 
