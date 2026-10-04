@@ -1,0 +1,104 @@
+{# produccion_prep.html — T-2026-10-04 (P2)
+   Weekly ingredient prep sheet for the kitchen. Aggregates the
+   production plan across 7 days and shows ingredient totals the
+   cook needs to buy and prep. Sorted by severity (Falta → Justo →
+   Suficiente) so urgent items surface first. #}
+{% extends "base.html" %}
+{% block title %}Plan de preparación — semana del {{ week_start }}{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-4); flex-wrap: wrap; gap: var(--space-3);">
+  <div>
+    <h1 style="display: flex; align-items: center; gap: var(--space-2); margin: 0;">
+      <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
+      Plan de preparación semanal
+    </h1>
+    <p class="hint" style="margin: var(--space-1) 0 0 0;">
+      Semana del <strong>{{ week_start }}</strong>
+    </p>
+  </div>
+  <nav aria-label="Cambiar semana" style="display:inline-flex; gap: var(--space-1);">
+    <a href="/produccion/prep?week={{ prev_week_iso }}" class="btn btn-ghost btn-sm">← Semana anterior</a>
+    <a href="/produccion/prep?week={{ next_week_iso }}" class="btn btn-ghost btn-sm">Semana siguiente →</a>
+  </nav>
+  <a href="/produccion?view=week&week={{ week_start_iso }}" class="btn btn-ghost btn-sm"
+     title="Volver a la vista semana">
+    ← Volver a producción
+  </a>
+</div>
+
+{# Severity summary #}
+<div class="card mb-4"
+     style="background: var(--color-surface-subtle); padding: var(--space-3);">
+  <div style="display: flex; gap: var(--space-4); flex-wrap: wrap; align-items: center;">
+    <strong>Resumen:</strong>
+    <span class="badge badge-danger">
+      {{ counts.falta }} Falta
+    </span>
+    <span class="badge badge-warning">
+      {{ counts.justo }} Justo
+    </span>
+    <span class="badge badge-success">
+      {{ counts.suficiente }} Suficiente
+    </span>
+    <small class="text-muted" style="margin-left: auto;">
+      Calculado sobre el plan de los 7 días de la semana.
+    </small>
+  </div>
+</div>
+
+{% if prep_rows %}
+<table class="table is-hoverable align-middle">
+  <thead>
+    <tr>
+      <th>Ingrediente</th>
+      <th class="num">Requerido</th>
+      <th class="num">Stock actual</th>
+      <th class="num">A comprar</th>
+      <th>Estado</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in prep_rows %}
+    <tr class="prep-row prep-row--{{ r.severity }}">
+      <td>
+        <strong>{{ r.ingredient_name }}</strong>
+      </td>
+      <td class="num">{{ fmt_qty(r.qty_required, r.unit) }}</td>
+      <td class="num">{{ fmt_qty(r.stock_on_hand, r.unit) }}</td>
+      <td class="num">
+        {% if r.to_buy > 0 %}
+          <strong style="color: var(--color-danger, #dc2626);">
+            {{ fmt_qty(r.to_buy, r.unit) }}
+          </strong>
+        {% else %}
+          <span class="text-muted">—</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if r.severity == "falta" %}
+          <span class="badge badge-danger">¡Falta!</span>
+        {% elif r.severity == "justo" %}
+          <span class="badge badge-warning">Justo</span>
+        {% else %}
+          <span class="badge badge-success">Suficiente</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card" style="padding: var(--space-4); text-align: center;">
+  <p>No hay producción planificada para esta semana todavía.</p>
+  <p class="text-muted">
+    Una vez que registres ventas y/o crees una plantilla semanal,
+    esta vista mostrará los ingredientes que necesitás para hornear.
+  </p>
+  <a href="/produccion/manana" class="btn btn-primary">
+    Crear plan para mañana
+  </a>
+</div>
+{% endif %}
+
+{% endblock %}

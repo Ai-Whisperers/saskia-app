@@ -1202,6 +1202,78 @@ def produccion_print(
     })
 
 
+@router.get("/prep", response_class=HTMLResponse)
+def produccion_prep(
+    request: Request,
+    week: date | None = Query(None),
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """T-2026-10-04 (P2): Weekly ingredient prep sheet for the kitchen.
+
+    Aggregates the production plan across 7 days (Monday → Sunday) and
+    shows the ingredient totals the kitchen needs to buy and prep.
+    Sorted by severity (Falta first, then Justo, then Suficiente) so
+    the cook sees the urgent items first.
+    """
+    today = _asuncion_today()
+    week_start = _week_monday(week or today)
+    days = [week_start + timedelta(days=i) for i in range(7)]
+
+    # Aggregate across the week (mirrors the week view's logic).
+    ing_required: dict[int, dict] = {}
+    for d in days:
+        plan = plan_production(session, for_date=d)
+        for ln in plan.lines:
+            if ln.ingredient_id not in ing_required:
+                ing_required[ln.ingredient_id] = {
+                    "ingredient_name": ln.ingredient_name,
+                    "unit": ln.unit,
+                    "qty_required": 0.0,
+                    "stock_on_hand": ln.stock_on_hand,
+                    "ingredient_id": ln.ingredient_id,
+                }
+            ing_required[ln.ingredient_id]["qty_required"] += ln.qty_required
+
+    # Compute severity (mirrors produccion.html's logic).
+    prep_rows = []
+    for v in ing_required.values():
+        delta = v["stock_on_hand"] - v["qty_required"]
+        if delta < 0:
+            severity = "falta"
+            to_buy = v["qty_required"] - v["stock_on_hand"]
+        elif delta < v["qty_required"] * 0.2:
+            severity = "justo"
+            to_buy = 0.0
+        else:
+            severity = "suficiente"
+            to_buy = 0.0
+        prep_rows.append({
+            **v,
+            "severity": severity,
+            "to_buy": to_buy,
+            "delta": delta,
+        })
+
+    # Sort by severity (Falta first) then by name
+    severity_order = {"falta": 0, "justo": 1, "suficiente": 2}
+    prep_rows.sort(key=lambda x: (severity_order.get(x["severity"], 9), x["ingredient_name"]))
+
+    counts = {
+        "falta": sum(1 for r in prep_rows if r["severity"] == "falta"),
+        "justo": sum(1 for r in prep_rows if r["severity"] == "justo"),
+        "suficiente": sum(1 for r in prep_rows if r["severity"] == "suficiente"),
+    }
+
+    return render(request, "produccion_prep.html", {
+        "week_start": week_start.strftime("%d %b %Y"),
+        "week_start_iso": week_start.isoformat(),
+        "prev_week_iso": (week_start - timedelta(days=7)).isoformat(),
+        "next_week_iso": (week_start + timedelta(days=7)).isoformat(),
+        "prep_rows": prep_rows,
+        "counts": counts,
+    })
+
+
 @router.get("/accuracy", response_class=HTMLResponse)
 def produccion_accuracy(
     request: Request,
