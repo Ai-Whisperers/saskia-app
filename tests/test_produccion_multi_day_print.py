@@ -66,7 +66,7 @@ def test_multi_day_uses_page_break_css(authed_client):
     assert r.status_code == 200
     body = r.text
     # The day-divider CSS rule.
-    assert 'page-break-after' in body or 'print-day-divider' in body
+    assert "page-break-after" in body or "print-day-divider" in body
 
 
 def test_multi_day_each_day_section_renders(authed_client):
@@ -84,7 +84,7 @@ def test_multi_day_section_uses_data_attr(authed_client):
     assert r.status_code == 200
     body = r.text
     # data-print-date attribute on each section.
-    assert body.count('data-print-date=') == 3
+    assert body.count("data-print-date=") == 3
 
 
 def test_multi_day_quick_link_seven_present(authed_client):

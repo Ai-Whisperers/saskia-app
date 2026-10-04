@@ -39,11 +39,13 @@ def test_cold_start_with_seed_products(authed_client, session_factory):
 
     with session_factory() as s:
         for i in range(3):
-            s.add(Product(
-                name=f"TestProductoColdStart{i}",
-                sale_price_gs=10000,
-                portion_label="1 unidad",
-            ))
+            s.add(
+                Product(
+                    name=f"TestProductoColdStart{i}",
+                    sale_price_gs=10000,
+                    portion_label="1 unidad",
+                )
+            )
         s.commit()
 
     r = authed_client.get("/produccion?view=day")

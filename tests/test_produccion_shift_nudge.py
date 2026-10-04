@@ -10,6 +10,7 @@ We verify:
   - The link points to /ventas/nueva.
   - Without shift_saved, the banner is hidden.
 """
+
 import pytest  # noqa: F401 — fixtures via authed_client
 
 

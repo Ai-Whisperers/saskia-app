@@ -34,9 +34,7 @@ def _migration_099_production_completion_updated_at(conn: Any) -> None:
         col_type = "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"
 
     try:
-        conn.execute(
-            text(f"ALTER TABLE production_completion ADD COLUMN updated_at {col_type}")
-        )
+        conn.execute(text(f"ALTER TABLE production_completion ADD COLUMN updated_at {col_type}"))
     except Exception:  # noqa: S110 — column already exists; idempotent
         pass
 
@@ -46,7 +44,9 @@ def _migration_099_production_completion_updated_at(conn: Any) -> None:
     # non-NULL going forward.
     try:
         conn.execute(
-            text("UPDATE production_completion SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL")
+            text(
+                "UPDATE production_completion SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL"
+            )
         )
     except Exception:  # noqa: S110 — backfill on legacy rows; not critical
         pass
@@ -54,7 +54,9 @@ def _migration_099_production_completion_updated_at(conn: Any) -> None:
     # 3) Index for "what changed since X" queries.
     try:
         conn.execute(
-            text("CREATE INDEX IF NOT EXISTS idx_production_completion_updated ON production_completion(for_date, updated_at)")
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_production_completion_updated ON production_completion(for_date, updated_at)"
+            )
         )
     except Exception:  # noqa: S110 — index may already exist; idempotent
         pass

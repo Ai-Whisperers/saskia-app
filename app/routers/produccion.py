@@ -571,9 +571,9 @@ def produccion_worksheet(
             # Top 5 products with one-click "venta de 1 unidad" CTA.
             "seed_products": [
                 {"product_id": p.id, "product_name": p.name}
-                for p in session.execute(
-                    select(Product).order_by(Product.name).limit(5)
-                ).scalars().all()
+                for p in session.execute(select(Product).order_by(Product.name).limit(5))
+                .scalars()
+                .all()
             ],
             # T-2026-10-04 (P2): closed-day flag.
             "closed_day_active": closed_day_active,
@@ -1382,12 +1382,10 @@ def produccion_print(
         completions_by_pid = _eod_for_date(session, d)
 
         recipes_by_id = {
-            r.id: r
-            for r in session.execute(select(Recipe).order_by(Recipe.name)).scalars().all()
+            r.id: r for r in session.execute(select(Recipe).order_by(Recipe.name)).scalars().all()
         }
         products_by_id = {
-            p.id: p
-            for p in session.execute(select(Product).order_by(Product.name)).scalars().all()
+            p.id: p for p in session.execute(select(Product).order_by(Product.name)).scalars().all()
         }
 
         # Build a flat list of (product, qty_to_produce, qty_completed) — one
