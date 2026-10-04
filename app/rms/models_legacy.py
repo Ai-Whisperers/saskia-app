@@ -824,6 +824,11 @@ class ProductionCompletion(Base):
     Saskia review T5: "Al final del dia debe registrarse cuanto de la
     produccion se completo". One row per (product, date) — re-recording
     updates in place via upsert_completion().
+
+    T-2026-10-04 (Tier 5-K): added ``updated_at`` so two cooks editing
+    the same shift in parallel don't silently overwrite each other.
+    Migration 099 adds the column on existing DBs. SQLAlchemy won't
+    enforce the default here — SQLite / Postgres handle DEFAULT.
     """
 
     __tablename__ = "production_completion"
@@ -836,6 +841,9 @@ class ProductionCompletion(Base):
     completed_qty: Mapped[float] = mapped_column(Float, nullable=False)
     recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
 
     __table_args__ = (
         CheckConstraint("completed_qty >= 0", name="ck_completion_qty_nonneg"),

@@ -51,6 +51,7 @@ def upsert_completion(
             completed_qty=completed_qty,
             recorded_at=now,
             notes=notes,
+            updated_at=now,  # T-2026-10-04 (Tier 5-K): track edit time.
         )
         session.add(row)
     else:
@@ -58,6 +59,7 @@ def upsert_completion(
         row.recorded_at = now
         if notes is not None:
             row.notes = notes
+        row.updated_at = now  # T-2026-10-04 (Tier 5-K): bump on each save.
     session.flush()
     return row
 

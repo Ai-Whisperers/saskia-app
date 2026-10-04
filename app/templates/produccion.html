@@ -246,6 +246,29 @@
   </div>
 </div>
 {% endif %}
+{# T-2026-10-04 (Tier 5-K): warn the cook when their save stomped a
+   concurrent edit. Last-write-wins is still the rule (we don't
+   reject the save), but a soft warning nudges them to verify. #}
+{% if concurrent_modify %}
+<div class="card mb-4"
+     data-concurrent-modify="1"
+     data-concurrent-warn
+     style="background: var(--color-warning-soft, #fef3c7); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-warning, #f59e0b); display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+  <svg class="icon" aria-hidden="true"><use href="#icon-warning"/></svg>
+  <small>
+    <strong>Otro turno se actualizó mientras escribías.</strong>
+    Tus valores reemplazaron a los anteriores. Verificá que las cantidades
+    reales (columna <em>Real</em>) coincidan con lo que se hornó.
+  </small>
+  <a href="/produccion?for_date={{ for_date }}&view=day"
+     class="btn btn-sm btn-ghost"
+     style="display:inline-flex; align-items:center; gap: var(--space-1);"
+     title="Recargá la página para ver los valores más recientes">
+    <svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>
+    Recargar
+  </a>
+</div>
+{% endif %}
 {% if adhoc_added %}
 <div class="card mb-4" style="background: var(--color-info-soft); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-info);">
   <small><strong>✓ Horneado extra agregado.</strong> Aparece abajo con badge naranja.</small>
@@ -350,6 +373,9 @@
 <form method="post" action="/produccion/shift-execute" id="shift-form">
   <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
   <input type="hidden" name="for_date" value="{{ for_date }}">
+  {# T-2026-10-04 (Tier 5-K): track form-open time so we can detect
+     concurrent edits (another cook saved while you were filling). #}
+  <input type="hidden" name="form_opened_at" id="form-opened-at" value="">
   {# T-2026-10-04 (Tier 3-A): bulk "mark all done" action — visible
      only when there are rows to mark. One click syncs every qty to its
      target and checks the rows. #}
@@ -766,6 +792,15 @@
       btn.disabled = false;
     }
   }
+
+  // T-2026-10-04 (Tier 5-K): stamp form-opened-at when DOMContentLoaded.
+  // The server uses this to detect concurrent edits.
+  (function() {
+    var f = document.getElementById('form-opened-at');
+    if (f && !f.value) {
+      f.value = new Date().toISOString();
+    }
+  })();
 </script>
 <style>
   .production-row.is-done .product-name { text-decoration: line-through; color: var(--color-text-muted, #6b7280); }

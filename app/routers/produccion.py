@@ -562,6 +562,8 @@ def produccion_worksheet(
             "daily_actual": float(daily_actual),
             "shift_saved": int(request.query_params.get("shift_saved", 0)),
             "adhoc_added": request.query_params.get("adhoc_added") == "1",
+            # T-2026-10-04 (Tier 5-K): concurrent-edit warning flag.
+            "concurrent_modify": request.query_params.get("concurrent_modify") == "1",
             "products_for_adhoc": session.execute(select(Product).order_by(Product.name))
             .scalars()
             .all(),
@@ -864,7 +866,17 @@ async def produccion_shift_execute(
     for_date: date = Form(...),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
-    """Persist actual production qty per product (the "ya salió del horno" tracker)."""
+    """Persist actual production qty per product (the "ya salió del horno" tracker).
+
+    T-2026-10-04 (Tier 5-K): if the form was opened before the latest
+    `updated_at` for this date (meaning another cook saved while you were
+    typing), we surface a soft warning via the redirect (no hard block —
+    last-write-wins remains, but the user knows they may have stomped).
+    The check uses the optional `form_opened_at` form field; older clients
+    without the field skip the check.
+    """
+    from datetime import datetime, timezone
+
     from app.rms.rate_limit import is_write_rate_limited
 
     if is_write_rate_limited(session, request, max_per_minute=10):
@@ -874,6 +886,40 @@ async def produccion_shift_execute(
         )
 
     form = await request.form()
+    form_opened_at_raw = form.get("form_opened_at")
+
+    # T-2026-10-04 (Tier 5-K): detect concurrent modification. Compare
+    # the form's open-time against the latest updated_at on this date.
+    # If form_opened_at < max(updated_at), someone else saved while
+    # we were filling it out.
+    concurrent_modify = False
+    if form_opened_at_raw:
+        try:
+            # The form sends naive local time; treat as UTC for compare.
+            form_opened_at = datetime.fromisoformat(str(form_opened_at_raw))
+            if form_opened_at.tzinfo is None:
+                form_opened_at = form_opened_at.replace(tzinfo=timezone.utc)
+            # Read max(updated_at) for this date.
+            latest_row = session.execute(
+                __import__("sqlalchemy").text(
+                    "SELECT MAX(updated_at) FROM production_completion WHERE for_date = :d"
+                ),
+                {"d": for_date.isoformat()},
+            ).scalar()
+            if latest_row is not None:
+                # SQLite returns strings; normalize.
+                if isinstance(latest_row, str):
+                    latest_ts = datetime.fromisoformat(latest_row)
+                    if latest_ts.tzinfo is None:
+                        latest_ts = latest_ts.replace(tzinfo=timezone.utc)
+                else:
+                    latest_ts = latest_row
+                if latest_ts > form_opened_at:
+                    concurrent_modify = True
+        except (ValueError, TypeError):
+            # Bad/missing format — skip the check.
+            pass
+
     saved = 0
     skipped = 0
     for key, value in form.multi_items():
@@ -912,11 +958,21 @@ async def produccion_shift_execute(
         action="write.production.shift.execute",
         target_type="production_shift",
         target_id=for_date.isoformat(),
-        detail={"saved": saved, "skipped": skipped, "for_date": for_date.isoformat()},
+        detail={
+            "saved": saved,
+            "skipped": skipped,
+            "for_date": for_date.isoformat(),
+            "concurrent_modify": concurrent_modify,  # T-2026-10-04 (Tier 5-K)
+        },
     )
     session.commit()
+    redirect_url = f"/produccion?for_date={for_date.isoformat()}&shift_saved={saved}"
+    if concurrent_modify:
+        # T-2026-10-04 (Tier 5-K): append the flag so the day view can
+        # render the "se actualizó mientras escribías" warning.
+        redirect_url += "&concurrent_modify=1"
     return RedirectResponse(
-        url=f"/produccion?for_date={for_date.isoformat()}&shift_saved={saved}",
+        url=redirect_url,
         status_code=303,
     )
 

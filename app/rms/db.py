@@ -59,6 +59,9 @@ from app.rms.migrations._095_soft_delete_columns import _migration_095_soft_dele
 from app.rms.migrations._096_audit_columns import _migration_096_audit_columns
 from app.rms.migrations._097_ingredient_avg_cost import _migration_097_ingredient_avg_cost
 from app.rms.migrations._098_production_closed_day import _migration_098_production_closed_day
+from app.rms.migrations._099_production_completion_updated_at import (
+    _migration_099_production_completion_updated_at,
+)
 
 
 def _set_sqlite_pragmas(dbapi_conn: Any, _: Any) -> None:
@@ -4161,6 +4164,7 @@ MIGRATIONS = {
     96: _migration_096_audit_columns,
     97: _migration_097_ingredient_avg_cost,
     98: _migration_098_production_closed_day,
+    99: _migration_099_production_completion_updated_at,
 }
 
 

@@ -12,7 +12,6 @@ We verify:
   - /produccion/print?days=1 (default behavior) renders exactly 1 day.
   - days capped at 14 (safety).
 """
-import pytest
 
 
 def test_multi_day_returns_200(authed_client):
