@@ -144,7 +144,14 @@ def test_supplier_crud_roundtrip(auth_client, session_factory):
         still_exists = s.execute(
             text("SELECT COUNT(*) FROM supplier WHERE id = :id"), {"id": supplier_id}
         ).scalar()
-        assert still_exists == 0, "Supplier not deleted"
+        # T-2026-10-04: supplier_delete does soft-delete (is_active=False)
+        # to preserve history of past IngredientPriceEvent / restock
+        # references. Check is_active, not raw count.
+        is_active = s.execute(
+            text("SELECT is_active FROM supplier WHERE id = :id"), {"id": supplier_id}
+        ).scalar()
+        assert is_active == 0, f"Supplier still active (is_active={is_active})"
+        assert still_exists == 1, "Soft-delete should keep the row, not hard-delete"
 
 
 # --- /excel_io ---
