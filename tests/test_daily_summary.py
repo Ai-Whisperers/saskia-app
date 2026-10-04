@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 # Resolve once: the project root is two parents up from this test file.
 # T-2026-10-04: previously hardcoded to /opt/data/work/saskia-app which
 # was a sibling worktree path; tests need to follow the current worktree

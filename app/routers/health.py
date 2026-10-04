@@ -218,6 +218,79 @@ def healthz_head(request: Request) -> Response:
     return Response(status_code=200, media_type="application/json")
 
 
+@router.get("/healthz/depth", response_model=None)
+def healthz_depth(request: Request) -> JSONResponse:
+    """BACKLOG #40 (Tier 7): deep readiness probe.
+
+    Surfaces runtime environment health for the operator dashboard:
+      - disk: free/total bytes + path of DATA_DIR
+      - r2: configured (bool) + ok (None/True/False) + status + error
+      - supabase_env: which env vars are set (booleans, never values)
+      - status: "ok" | "degraded"
+
+    Probes are best-effort: a single failing subsystem (e.g. R2
+    unreachable) flips the overall status to "degraded" but the
+    endpoint still returns 200 so operators see the diagnostic.
+    """
+    import os
+    import shutil
+    import urllib.request
+
+    from app.rms.config import DATA_DIR
+
+    # --- disk ---
+    try:
+        usage = shutil.disk_usage(str(DATA_DIR))
+        disk = {
+            "ok": True,
+            "path": str(DATA_DIR),
+            "free_bytes": int(usage.free),
+            "total_bytes": int(usage.total),
+            "used_pct": round(100.0 * usage.used / usage.total, 1) if usage.total else 0.0,
+        }
+    except Exception as disk_exc:  # pragma: no cover - defensive
+        disk = {"ok": False, "error": repr(disk_exc), "path": str(DATA_DIR)}
+
+    # --- r2 (best-effort HEAD probe; 3s timeout) ---
+    r2_url = os.getenv("R2_BUCKET_URL", "").strip()
+    if not r2_url:
+        r2: dict = {"configured": False, "ok": None}
+    else:
+        r2 = {"configured": True, "url": r2_url, "ok": None}
+        try:
+            req = urllib.request.Request(r2_url, method="HEAD")
+            with urllib.request.urlopen(req, timeout=3) as resp:  # noqa: S310
+                r2["status"] = resp.status
+                r2["ok"] = 200 <= resp.status < 400
+        except Exception as r2_exc:  # noqa: BLE001 — best-effort probe
+            r2["ok"] = False
+            r2["error"] = repr(r2_exc)[:200]
+
+    # --- supabase env (booleans only — never the values) ---
+    supabase_env = {
+        "url_set": bool(os.getenv("SUPABASE_URL", "").strip()),
+        "publishable_set": bool(os.getenv("SUPABASE_PUBLISHABLE_KEY", "").strip()),
+        "secret_set": bool(os.getenv("SUPABASE_SECRET_KEY", "").strip()),
+    }
+
+    # Overall: degraded if disk is bad OR r2 is configured-but-failing.
+    disk_ok = bool(disk.get("ok"))
+    r2_ok = r2.get("ok")
+    # r2 ok=None means not configured; that's fine. r2 ok=False means failed.
+    r2_failed = r2.get("configured") and r2_ok is False
+    overall_ok = disk_ok and not r2_failed
+    status = "ok" if overall_ok else "degraded"
+
+    return JSONResponse(
+        {
+            "status": status,
+            "disk": disk,
+            "r2": r2,
+            "supabase_env": supabase_env,
+        }
+    )
+
+
 @router.get("/healthz/errors", response_model=None)
 def healthz_errors(request: Request) -> JSONResponse:
     """Quick error-rate snapshot for the operator.
