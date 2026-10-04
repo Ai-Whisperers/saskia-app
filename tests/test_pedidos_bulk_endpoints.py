@@ -1,6 +1,10 @@
 """Pedidos bulk endpoints tests."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
+_UTC = timezone.utc
+
 from app.rms.models import Pedido
 
 

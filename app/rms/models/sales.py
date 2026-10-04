@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any, Optional
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     Enum,

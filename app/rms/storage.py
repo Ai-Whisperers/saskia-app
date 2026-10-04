@@ -28,10 +28,9 @@ import hashlib
 import logging
 import os
 import urllib.error
-from typing import TYPE_CHECKING
 import urllib.request
 from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 logger = logging.getLogger(__name__)
 

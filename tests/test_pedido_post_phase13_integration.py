@@ -6,7 +6,7 @@ customer_address_id + structured address fields. Confirms the Pedido row
 carries them all, and GET /pedidos/{id} shows the ventana text with the
 "(no es garantía)" suffix.
 """
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import select
 

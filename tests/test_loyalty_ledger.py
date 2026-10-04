@@ -387,7 +387,7 @@ def test_loyalty_transaction_check_constraint_rejects_zero_delta():
                 {"cid": cust_id},
             )
             c.commit()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             pytest.fail(
                 f"migration 075 should have dropped ck_loyalty_delta_nonzero, "
                 f"but manual_adjust delta=0 still failed: {exc}"

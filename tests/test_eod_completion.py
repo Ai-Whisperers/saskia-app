@@ -8,10 +8,14 @@ cover the persistence half: ProductionCompletion model, POST
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from sqlalchemy import select
 
 from app.rms.models import Product, ProductionCompletion
+
+_UTC = timezone.utc
 
 
 @pytest.fixture
@@ -97,16 +101,13 @@ def test_post_completar_rejects_unknown_product(client):
 
 def test_eod_view_shows_completion_in_hecho_column(client, session_factory, product_id):
     """GET /eod pre-fills the Hecho input with the recorded value."""
-    from datetime import datetime, timedelta
-    from datetime import datetime as _dt
-
     # Seed sales so the forecast produces a plan row for this product.
     # /eod reads ASUNCION today, so seed the completion for that date —
     # UTC datetime.now(_UTC).date() diverges near midnight and the pre-fill vanishes.
     from app.rms.config import ASUNCION_TZ
     from app.rms.eod_completions import upsert_completion
     from app.rms.models import Sale
-    today_asuncion = _dt.now(ASUNCION_TZ).date()
+    today_asuncion = datetime.now(ASUNCION_TZ).date()
     with session_factory() as s:
         now = datetime.utcnow()
         for i in range(5):

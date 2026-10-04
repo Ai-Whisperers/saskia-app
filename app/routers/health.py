@@ -882,14 +882,17 @@ def healthz_backup(request: Request) -> JSONResponse:
     )
 
 
-def _run_backup_admin(request: Request) -> "BackupResult":
+def _run_backup_admin(request: Request) -> "BackupResult":  # noqa: F821 — BackupResult imported inside
     """Run run_backup in a fresh session; returns a BackupResult.
 
     Extracted from admin_backup() so tests can patch it (mocking at
     the request.app.state.session_factory level is more invasive).
     """
     from app.rms.config import DB_PATH
-    from app.services.backup_scheduler import BackupResult, run_backup  # noqa: F401 — used in return-type annotation
+    from app.services.backup_scheduler import (  # noqa: F401 — used in return-type annotation
+        BackupResult,
+        run_backup,
+    )
 
     with request.app.state.session_factory() as _s:
         return run_backup(_s, DB_PATH)

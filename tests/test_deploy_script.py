@@ -149,7 +149,7 @@ def test_dry_run_uncommitted_changes_exits_1(monkeypatch, tmp_path) -> None:
     assert "uncommitted changes" in out.lower() or "commit first" in out.lower()
 
 
-def test_dry_run_does_not_touch_network(monkeypatch) -> None:
+def test_dry_run_does_not_touch_network(monkeypatch, tmp_path) -> None:
     """Verify --dry-run doesn't actually invoke scp/ssh/curl/network.
     We do this by overriding PATH to a sandbox that contains only
     /bin/cat and /bin/echo. If deploy.sh tries to invoke scp/ssh/curl,

@@ -91,7 +91,7 @@ def test_login_title_not_duplicated(client):
 
 
 @pytest.mark.skip(reason="Fixture patching chain is order-dependent — needs refactor")
-def test_login_forgot_link_present_when_supabase(client, supabase_auth_env):
+def test_login_forgot_link_present_when_supabase(client, supabase_auth_env, monkeypatch):
     """For Supabase-auth mode, forgot-link should be present and labeled clearly."""
     # Force Supabase mode for this test
     monkeypatch.setattr("app.auth._supabase_enabled", lambda: True)

@@ -1,7 +1,7 @@
 """Rate limit write endpoints tests."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 
 def test_inventory_adjust_no_rate_limit_in_test(authed_client):

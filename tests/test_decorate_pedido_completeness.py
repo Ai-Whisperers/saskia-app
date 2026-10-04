@@ -1,3 +1,7 @@
+from datetime import datetime, timezone
+
+_UTC = timezone.utc
+
 """tests/test_decorate_pedido_completeness.py — Phase 14 (2026-10-01) regression.
 
 Catches the class of bug Phase 13 hit: a new Pedido column (e.g.

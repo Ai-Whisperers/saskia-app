@@ -135,6 +135,22 @@ def mock_recipe_line_data(draw):
 
 # --- Mock session for testing without database ---
 
+class MockScalars:
+    """Lightweight stand-in for SQLAlchemy scalars() that just iterates an empty list."""
+
+    def __init__(self, result=None):
+        self.result = result
+
+    def all(self):
+        return []
+
+    def scalars(self):
+        return MockScalars(self.result)
+
+    def __iter__(self):
+        return iter([])
+
+
 class MockSession:
     """Mock session that returns predefined data."""
 
@@ -154,19 +170,6 @@ class MockSession:
                 return None
             def scalars(self):
                 return MockScalars(self)
-
-        class MockScalars:
-            def __init__(self, result):
-                self.result = result
-
-            def all(self):
-                return []
-
-            def scalars(self):
-                return MockScalars(self.result)
-
-            def __iter__(self):
-                return iter([])
 
         return MockResult()
 
@@ -268,7 +271,7 @@ def test_margin_erosion_alerts_price_delta_properties(threshold_pct, old_price, 
     price_delta_pct = ((new_price - old_price) / old_price * 100)
 
     # Absolute value should be compared to threshold
-    assert abs(price_delta_pct) >= threshold_pct * 100  # noqa: B015 — sanity
+    assert abs(price_delta_pct) >= threshold_pct * 100
 
     # Price delta should be calculable for any non-zero old price
     assert isinstance(price_delta_pct, (int, float))

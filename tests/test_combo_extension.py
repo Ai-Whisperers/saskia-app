@@ -42,7 +42,7 @@ def test_combobox_css_is_served(client):
 def test_inventory_api_search_returns_matches(qseed, authed_client):
     """/inventario/api/search?q=harina returns matching ingredients."""
     data = qseed("basic")  # creates "harina QA"
-    assert data["ingredient"].id  # noqa: B018 — seed sanity check
+    assert data["ingredient"].id
 
     r = authed_client.get("/inventario/api/search?q=harina")
     assert r.status_code == 200

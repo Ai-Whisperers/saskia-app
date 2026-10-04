@@ -74,4 +74,4 @@ def test_no_legacy_confirm_javascript_remains():
         text = html.read_text(encoding='utf-8')
         if 'onclick="if (confirm(' in text or 'onclick="return confirm(' in text:
             legacy.append(str(html.relative_to(REPO)))
-    assert not legacy, "Legacy confirm() JS found:\n" + '\n'.join(f"  {l}" for line in legacy)
+    assert not legacy, "Legacy confirm() JS found:\n" + '\n'.join(f"  {line}" for line in legacy)

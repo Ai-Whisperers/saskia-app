@@ -9,6 +9,10 @@ Per SASKIA_TEST_PLAN.md §5 #12 — POST /pedidos/{id}/fulfill must atomically:
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
+_UTC = timezone.utc
+
 from app.rms.models import Pedido, PedidoLine, Product, Sale
 
 

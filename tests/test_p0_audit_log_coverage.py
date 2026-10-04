@@ -17,7 +17,7 @@ Conventions:
 from __future__ import annotations
 
 import io
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 

@@ -21,6 +21,7 @@ import secrets
 import uuid as _uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 from app.rms.models import (

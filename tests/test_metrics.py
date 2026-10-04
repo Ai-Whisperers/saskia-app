@@ -53,7 +53,7 @@ def test_record_populates_histogram_buckets():
     # Find the bucket lines for /api/test
     bucket_lines = [
         line for line in out.split("\n")
-        if "rms_request_duration_seconds_bucket" in line and 'path="/api/test"' in l
+        if "rms_request_duration_seconds_bucket" in line and 'path="/api/test"' in line
     ]
     # 11 buckets (10 finite + 1 +Inf)
     assert len(bucket_lines) == len(_BUCKETS_S) + 1

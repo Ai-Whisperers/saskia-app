@@ -1,7 +1,7 @@
 """tests/test_dashboard_compliance.py — Phase 1.A compliance alerts on dashboard."""
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from app.rms.config import ASUNCION_TZ
 from app.rms.models import ComplianceInfo, Product

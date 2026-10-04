@@ -21,6 +21,7 @@ Skips any loop with nested control flow, multi-statement body, or
 conditional append.
 """
 from __future__ import annotations
+
 import re
 import subprocess
 

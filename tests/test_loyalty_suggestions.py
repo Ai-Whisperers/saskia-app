@@ -21,6 +21,7 @@ Conventions match tests/test_loyalty_ledger.py and tests/test_pos_redeem_flow.py
 from __future__ import annotations
 
 import datetime as _dt
+from datetime import datetime
 
 import pytest
 

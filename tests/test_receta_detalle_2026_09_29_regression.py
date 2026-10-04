@@ -82,7 +82,7 @@ def seeded_recipe_6(session_factory):
             s.add(Ingredient(
                 id=iid, name=iname, unit=iunit,
                 purchase_price_gs=iprice,
-                allergens=ior_allergens if False else (iallergens or None),
+                allergens=(iallergens or None),
                 stock_qty=10.0, min_stock_qty=1.0,
             ))
         s.add(Recipe(**_RECIPE_FIXTURE))

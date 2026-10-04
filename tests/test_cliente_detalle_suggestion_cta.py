@@ -15,6 +15,8 @@ directly on the customer detail page.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 
 def _kyrian_customer_id(session_factory):
     """Return the Kyrian customer id from the with_kyrian_full seed."""

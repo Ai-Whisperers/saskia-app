@@ -14,7 +14,7 @@ Used by:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
@@ -196,7 +196,7 @@ class CustomerPedidoSummary:
 
     id: int
     status: str
-    promised_date: "date | None"  # type: ignore[name-defined]
+    promised_date: date | None
     total_gs: int
     line_count: int
     is_current: bool = False

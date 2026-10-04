@@ -77,7 +77,7 @@ def test_template_parses_without_syntax_error(template_name):
     """
     try:
         jinja_templates.env.get_template(template_name)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         pytest.fail(
             f"get_template({template_name!r}) raised: "
             f"{type(exc).__name__}: {exc}"
