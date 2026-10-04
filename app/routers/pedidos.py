@@ -1842,12 +1842,8 @@ def pedidos_fulfill(
         from sqlalchemy import text as _sa_text
 
         try:
-            session.execute(
-                _sa_text("DROP TRIGGER IF EXISTS ingredient_stock_qty_positive_insert")
-            )
-            session.execute(
-                _sa_text("DROP TRIGGER IF EXISTS ingredient_stock_qty_positive_update")
-            )
+            session.execute(_sa_text("DROP TRIGGER IF EXISTS ingredient_stock_qty_positive_insert"))
+            session.execute(_sa_text("DROP TRIGGER IF EXISTS ingredient_stock_qty_positive_update"))
         except Exception as _drop_exc:  # pragma: no cover - defensive  # noqa: BLE001 — SQLite trigger drop is best-effort
             logger.warning(f"force-fulfill: could not drop stock triggers: {_drop_exc!r}")
 
@@ -1979,9 +1975,7 @@ def pedidos_fulfill(
             )
             session.commit()
         except Exception as _recreate_exc:  # pragma: no cover - defensive  # noqa: BLE001 — SQLite trigger recreate is best-effort
-            logger.warning(
-                f"force-fulfill: could not recreate stock triggers: {_recreate_exc!r}"
-            )
+            logger.warning(f"force-fulfill: could not recreate stock triggers: {_recreate_exc!r}")
 
     # ── Notify customer via WhatsApp or SMS ──────────────────────────────────
     _send_fulfill_notification(session, pedido)
