@@ -8,8 +8,6 @@ The state machine:
   - cold_plan: plan exists but all qty=1.0 → "ajustar manualmente"
   - no_rows: empty plan, no obvious reason → fall through to default
 """
-import pytest
-from app.rms.models import Product, Recipe
 
 
 def test_cold_start_no_sales_state(authed_client):

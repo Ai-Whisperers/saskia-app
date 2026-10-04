@@ -10,11 +10,6 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-import pytest
-from sqlalchemy import select
-
-from app.rms.models import Product, ProductionCompletion
-
 
 def test_print_view_anonymous_redirects_or_succeeds_in_test_mode(client):
     """In production, anonymous users get redirected to login (302).

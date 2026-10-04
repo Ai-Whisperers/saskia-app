@@ -7,8 +7,6 @@ unit conversion makes the print sheet actionable.
 Per Recipe model: yield_qty + yield_unit describe the batch
 (e.g., 12 muffins, 1 torta). Product.portion_label is what the
 customer sees (e.g., 'Docena')."""
-import pytest
-from datetime import date, timedelta
 from app.rms.models import Product, Recipe
 
 
@@ -39,7 +37,6 @@ def test_day_view_shows_batch_label(authed_client, session_factory):
 
 def test_print_view_shows_batch_unit(authed_client, session_factory):
     """The print worksheet renders rows even with batch info fields."""
-    from app.rms.models import Recipe, Product
     from sqlalchemy import select
     with session_factory() as s:
         recipe = Recipe(
