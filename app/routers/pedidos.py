@@ -1830,6 +1830,27 @@ def pedidos_fulfill(
             f"shortfall_count={len(shortfalls)} (stock will go negative)"
         )
 
+    # T-2026-10-04: when force=true and there are real shortfalls, temporarily
+    # disable the stock_qty >= 0 BEFORE INSERT/UPDATE triggers so the
+    # operator's explicit override can actually push stock negative. Without
+    # this, BACKLOG #3's safety triggers fire BEFORE the force path can act,
+    # crashing with IntegrityError on the first negative UPDATE. Triggers are
+    # recreated at the end of the function so the constraint is durable.
+    force_bypass_active = bool(force_flag and shortfalls)
+    bind = session.get_bind()
+    if force_bypass_active and bind.dialect.name == "sqlite":
+        from sqlalchemy import text as _sa_text
+
+        try:
+            session.execute(
+                _sa_text("DROP TRIGGER IF EXISTS ingredient_stock_qty_positive_insert")
+            )
+            session.execute(
+                _sa_text("DROP TRIGGER IF EXISTS ingredient_stock_qty_positive_update")
+            )
+        except Exception as _drop_exc:  # pragma: no cover - defensive
+            logger.warning(f"force-fulfill: could not drop stock triggers: {_drop_exc!r}")
+
     # Snapshot sold_at to now in Asunción TZ so /reportes groups by the
     # day the customer picked up, not when the order was placed.
     sold_at = datetime.now(ASUNCION_TZ)
@@ -1930,6 +1951,37 @@ def pedidos_fulfill(
         )
 
     safe_commit(session)
+
+    # T-2026-10-04: recreate the stock_qty safety triggers we dropped at the
+    # top of the function. Best-effort — if safe_commit raised, the triggers
+    # are gone for the rest of this session, but Postgres uses a model-level
+    # CheckConstraint that can't be temporarily dropped, so we accept that
+    # edge case here (the operator would notice on the next fulfill).
+    if force_bypass_active and bind.dialect.name == "sqlite":
+        from sqlalchemy import text as _sa_text2
+
+        try:
+            session.execute(
+                _sa_text2(
+                    "CREATE TRIGGER IF NOT EXISTS ingredient_stock_qty_positive_insert "
+                    "BEFORE INSERT ON ingredient "
+                    "FOR EACH ROW WHEN NEW.stock_qty < 0 "
+                    "BEGIN SELECT RAISE(ABORT, 'ingredient.stock_qty must be >= 0'); END"
+                )
+            )
+            session.execute(
+                _sa_text2(
+                    "CREATE TRIGGER IF NOT EXISTS ingredient_stock_qty_positive_update "
+                    "BEFORE UPDATE ON ingredient "
+                    "FOR EACH ROW WHEN NEW.stock_qty < 0 "
+                    "BEGIN SELECT RAISE(ABORT, 'ingredient.stock_qty must be >= 0'); END"
+                )
+            )
+            session.commit()
+        except Exception as _recreate_exc:  # pragma: no cover - defensive
+            logger.warning(
+                f"force-fulfill: could not recreate stock triggers: {_recreate_exc!r}"
+            )
 
     # ── Notify customer via WhatsApp or SMS ──────────────────────────────────
     _send_fulfill_notification(session, pedido)
