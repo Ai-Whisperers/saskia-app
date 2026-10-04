@@ -64,17 +64,13 @@ def _migration_096_audit_columns(conn: Any) -> None:
                     f"ALTER TABLE {table} ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"
                 )
             )
-            conn.execute(
-                text(f"ALTER TABLE {table} ADD COLUMN created_by_user_id VARCHAR(64)")
-            )
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN created_by_user_id VARCHAR(64)"))
             conn.execute(
                 text(
                     f"ALTER TABLE {table} ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"
                 )
             )
-            conn.execute(
-                text(f"ALTER TABLE {table} ADD COLUMN updated_by_user_id VARCHAR(64)")
-            )
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN updated_by_user_id VARCHAR(64)"))
             print(f"Added audit columns to {table}")
         except Exception as exc:
             # Columns likely already exist - idempotent continue

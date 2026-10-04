@@ -248,7 +248,9 @@ def healthz_depth(request: Request) -> JSONResponse:
             "total_bytes": int(usage.total),
             "used_pct": round(100.0 * usage.used / usage.total, 1) if usage.total else 0.0,
         }
-    except Exception as disk_exc:  # pragma: no cover - defensive
+    except (
+        Exception
+    ) as disk_exc:  # pragma: no cover - defensive  # noqa: BLE001 — disk probe is best-effort
         disk = {"ok": False, "error": repr(disk_exc), "path": str(DATA_DIR)}
 
     # --- r2 (best-effort HEAD probe; 3s timeout) ---
@@ -258,7 +260,11 @@ def healthz_depth(request: Request) -> JSONResponse:
     else:
         r2 = {"configured": True, "url": r2_url, "ok": None}
         try:
-            req = urllib.request.Request(r2_url, method="HEAD")
+            # T-2026-10-04: S310 (URL open) is acceptable here because the
+            # URL comes from R2_BUCKET_URL env var, which is operator-
+            # configured. We trust the operator. The probe is read-only
+            # (HEAD request) with a 3s timeout.
+            req = urllib.request.Request(r2_url, method="HEAD")  # noqa: S310
             with urllib.request.urlopen(req, timeout=3) as resp:  # noqa: S310
                 r2["status"] = resp.status
                 r2["ok"] = 200 <= resp.status < 400

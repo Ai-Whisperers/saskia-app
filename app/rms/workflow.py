@@ -146,9 +146,7 @@ def daily_summary_full(
         session.execute(
             select(
                 func.coalesce(
-                    func.sum(
-                        func.abs(StockMovement.qty) * Ingredient.purchase_price_gs
-                    ),
+                    func.sum(func.abs(StockMovement.qty) * Ingredient.purchase_price_gs),
                     0,
                 )
             )
