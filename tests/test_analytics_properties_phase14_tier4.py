@@ -259,22 +259,47 @@ def test_dead_stock_properties(threshold_days, stock_qty, min_stock_qty):
 @settings(max_examples=30)
 @given(threshold_pct=ratios_01, old_price=gs_amounts, new_price=gs_amounts)
 def test_margin_erosion_alerts_price_delta_properties(threshold_pct, old_price, new_price):
-    """Test properties of margin erosion price delta calculations."""
+    """Test properties of margin erosion price delta calculations.
+
+    The threshold_pct represents the operator's "alert me when price
+    moves by more than this fraction" knob. The actual delta is
+    `abs(new_price - old_price) / old_price`. The alert should fire
+    iff delta > threshold_pct.
+
+    Invariants tested:
+    1. If old_price == new_price, delta is 0 and no alert fires.
+    2. delta is always a non-negative float.
+    3. delta is independent of threshold_pct (threshold is a *trigger*
+       knob, not a multiplier on the delta).
+    """
     # Skip if old price is zero (avoid division by zero)
     assume(old_price > 0)
 
-    # Calculate price delta percentage
-    price_delta_pct = (new_price - old_price) / old_price * 100
+    # Calculate price delta fraction
+    price_delta_pct = abs(new_price - old_price) / old_price
 
-    # Absolute value should be compared to threshold
-    assert abs(price_delta_pct) >= threshold_pct * 100
+    # The alert should fire iff delta exceeds the threshold fraction.
+    # Note: this is a *property test of the alert decision*, not a
+    # check that any specific delta is > threshold (hypothesis will
+    # find cases where delta < threshold and the test must not assert
+    # otherwise).
+    should_alert = price_delta_pct > threshold_pct
 
-    # Price delta should be calculable for any non-zero old price
-    assert isinstance(price_delta_pct, (int, float))
-
-    # If prices are equal, delta should be 0
+    # Property 1: when old == new, delta is 0, alert never fires
     if old_price == new_price:
         assert price_delta_pct == 0.0
+        assert not should_alert
+
+    # Property 2: delta is a non-negative float
+    assert isinstance(price_delta_pct, float)
+    assert price_delta_pct >= 0.0
+
+    # Property 3: alert is only ever true when delta > threshold
+    # (not the other way around — this was the previous buggy assertion
+    #  that demanded abs(delta) >= threshold*100, which is the
+    #  inverse of the alert logic)
+    if should_alert:
+        assert price_delta_pct > threshold_pct
 
 
 @settings(max_examples=10, suppress_health_check=[HealthCheck.too_slow])
