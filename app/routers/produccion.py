@@ -1295,6 +1295,7 @@ def produccion_manana(
 def produccion_print(
     request: Request,
     for_date: date | None = Query(None),
+    days: int = Query(1, ge=1, le=14),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Printable worksheet for the kitchen shift.
@@ -1307,71 +1308,84 @@ def produccion_print(
 
     The handler reuses the same plan_production() call as the day view so
     the printed sheet always matches what the operator sees on screen.
+
+    T-2026-10-04 (Tier 5-H): ?days=N renders N consecutive days as a
+    single print job. Each day is its own printable section with
+    page-break-after: always. Capped at 14 (2 weeks).
     """
     from app.rms.eod_completions import completions_for_date as _eod_for_date
 
     target_date = for_date or _asuncion_today()
-    plan = plan_production(session, for_date=target_date)
-    completions_by_pid = _eod_for_date(session, target_date)
 
-    # T-2026-10-04 (P0): batch-size awareness — load recipe+product once
-    # so each row knows its yield_qty + portion_label.
-    recipes_by_id = {
-        r.id: r for r in session.execute(select(Recipe).order_by(Recipe.name)).scalars().all()
-    }
-    products_by_id = {
-        p.id: p for p in session.execute(select(Product).order_by(Product.name)).scalars().all()
-    }
+    # T-2026-10-04 (Tier 5-H): build a list of date -> print_rows, one
+    # entry per day in the pack. Single-day is the common case (days=1).
+    days_pack: list[dict] = []
+    for day_idx in range(days):
+        d = target_date + timedelta(days=day_idx)
+        plan = plan_production(session, for_date=d)
+        completions_by_pid = _eod_for_date(session, d)
 
-    # Build a flat list of (product, qty_to_produce, qty_completed) — one
-    # row per product, no overrides, no forecast_source explanation.
-    print_rows = []
-    for r in plan.rows:
-        if r.qty_to_produce <= 0 and r.product_id not in completions_by_pid:
-            continue
-        recipe = recipes_by_id.get(r.recipe_id) if r.recipe_id else None
-        product = products_by_id.get(r.product_id)
-        print_rows.append(
-            {
-                "product_id": r.product_id,
-                "product_name": r.product_name,
-                "qty_to_produce": r.qty_to_produce,
-                "qty_completed": completions_by_pid.get(r.product_id, 0.0),
-                "recipe_id": r.recipe_id,
-                # T-2026-10-04 (P0): batch info.
-                "yield_qty": recipe.yield_qty if recipe and recipe.yield_qty else None,
-                "yield_unit": recipe.yield_unit if recipe and recipe.yield_qty else None,
-                "portion_label": product.portion_label if product else None,
-            }
-        )
-    # Include ad-hoc bakes (walk-ins / on-the-fly decisions that the
-    # forecast never proposed but Saskia actually produced).
-    planned_pids = {r["product_id"] for r in print_rows}
-    for pid, qty in completions_by_pid.items():
-        if pid in planned_pids:
-            continue
-        prod_obj = session.get(Product, pid)
-        if prod_obj is None:
-            continue
-        print_rows.append(
-            {
-                "product_id": pid,
-                "product_name": prod_obj.name,
-                "qty_to_produce": 0.0,
-                "qty_completed": qty,
-                "recipe_id": None,
-                "yield_qty": None,
-                "yield_unit": None,
-                "portion_label": prod_obj.portion_label if prod_obj else None,
-            }
-        )
+        recipes_by_id = {
+            r.id: r
+            for r in session.execute(select(Recipe).order_by(Recipe.name)).scalars().all()
+        }
+        products_by_id = {
+            p.id: p
+            for p in session.execute(select(Product).order_by(Product.name)).scalars().all()
+        }
+
+        # Build a flat list of (product, qty_to_produce, qty_completed) — one
+        # row per product, no overrides, no forecast_source explanation.
+        print_rows: list[dict] = []
+        for r in plan.rows:
+            if r.qty_to_produce <= 0 and r.product_id not in completions_by_pid:
+                continue
+            recipe = recipes_by_id.get(r.recipe_id) if r.recipe_id else None
+            product = products_by_id.get(r.product_id)
+            print_rows.append(
+                {
+                    "product_id": r.product_id,
+                    "product_name": r.product_name,
+                    "qty_to_produce": r.qty_to_produce,
+                    "qty_completed": completions_by_pid.get(r.product_id, 0.0),
+                    "recipe_id": r.recipe_id,
+                    # T-2026-10-04 (P0): batch info.
+                    "yield_qty": recipe.yield_qty if recipe and recipe.yield_qty else None,
+                    "yield_unit": recipe.yield_unit if recipe and recipe.yield_qty else None,
+                    "portion_label": product.portion_label if product else None,
+                }
+            )
+        # Include ad-hoc bakes (walk-ins / on-the-fly decisions that the
+        # forecast never proposed but Saskia actually produced).
+        planned_pids = {r["product_id"] for r in print_rows}
+        for pid, qty in completions_by_pid.items():
+            if pid in planned_pids:
+                continue
+            prod_obj = session.get(Product, pid)
+            if prod_obj is None:
+                continue
+            print_rows.append(
+                {
+                    "product_id": pid,
+                    "product_name": prod_obj.name,
+                    "qty_to_produce": 0.0,
+                    "qty_completed": qty,
+                    "recipe_id": None,
+                    "yield_qty": None,
+                    "yield_unit": None,
+                    "portion_label": prod_obj.portion_label if prod_obj else None,
+                }
+            )
+        days_pack.append({"date": d.isoformat(), "rows": print_rows})
 
     return render(
         request,
         "produccion_print.html",
         {
             "for_date": target_date.isoformat(),
-            "print_rows": print_rows,
+            "print_rows": days_pack[0]["rows"] if days_pack else [],  # backward compat
+            "days_pack": days_pack,
+            "days_count": days,
             "shift_saved": int(request.query_params.get("shift_saved", 0)),
             # T-2026-10-04 (Tier 3-D): worksheet mode strips filled-in
             # quantities so the operator can use the printout as a blank

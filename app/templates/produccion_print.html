@@ -87,17 +87,115 @@
 {% block content %}
 <div class="print-sheet">
   <h1>📋 Producción — Plan del día</h1>
-  <p class="date"><strong>{{ for_date }}</strong></p>
+  <p class="date">
+    <strong>{{ for_date }}</strong>
+    {% if days_count and days_count > 1 %}
+      · pack de {{ days_count }} días
+    {% endif %}
+  </p>
 
   <div class="no-print" style="margin-bottom: 1rem;">
     <button type="button" class="btn btn-primary" onclick="window.print()">
       🖨️ Imprimir
     </button>
+    {# T-2026-10-04 (Tier 5-H): quick links to other pack sizes. #}
+    {% if days_count == 1 %}
+      <a href="/produccion/print?for_date={{ for_date }}&days=7" class="btn btn-ghost">
+        Imprimir semana (7 días)
+      </a>
+    {% elif days_count == 7 %}
+      <a href="/produccion/print?for_date={{ for_date }}" class="btn btn-ghost">
+        Solo hoy
+      </a>
+    {% endif %}
     <a href="/produccion?view=day{% if for_date %}&for_date={{ for_date }}{% endif %}"
        class="btn btn-ghost">← Volver a producción</a>
   </div>
 
-  {% if print_rows %}
+  {% if days_count and days_count > 1 %}
+    {# T-2026-10-04 (Tier 5-H): multi-day pack. Each day is its own
+       printable page (page-break-after:always). #}
+    {% for day in days_pack %}
+    <section class="print-day" data-print-date="{{ day.date }}"
+             style="page-break-after: always;">
+      <h2 style="font-size: 1.25rem; margin: 0 0 0.5rem 0;">
+        {{ day.date }}
+      </h2>
+      {% if day.rows %}
+      <table aria-label="Productos a hornear el {{ day.date }}">
+        <thead>
+          <tr>
+            <th class="check-col">Listo</th>
+            <th>Producto</th>
+            <th class="qty-col">A hornear</th>
+            <th class="done-col">Real</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in day.rows %}
+          <tr>
+            <td class="center">
+              <input type="checkbox"
+                     name="completed_{{ r.product_id }}"
+                     form="shift-form"
+                     {% if r.qty_completed >= r.qty_to_produce and r.qty_to_produce > 0 %}checked{% endif %}
+                     aria-label="Marcar {{ r.product_name }} como listo">
+            </td>
+            <td>
+              {{ r.product_name }}
+              {% if r.recipe_id %}
+              <small class="text-muted" style="margin-left: 0.25rem;">
+                (<a href="/recetas/{{ r.recipe_id }}" class="print-only">ver receta</a>)
+              </small>
+              {% endif %}
+            </td>
+            <td class="qty-col">
+              {% if worksheet_mode %}
+                <span class="worksheet-blank"
+                      style="display: inline-block; min-width: 60px; border-bottom: 1px solid #000; padding-bottom: 1px;">
+                  &nbsp;
+                </span>
+              {% else %}
+                <strong>{{ r.qty_to_produce|round|int }}</strong>
+              {% endif %}
+              {%- if r.yield_qty and r.yield_qty != 1 %}
+                <small class="text-muted" style="display:block; font-weight:normal;">
+                  {{ r.yield_qty|int }} {{ r.yield_unit or 'und' }} c/u
+                </small>
+              {%- elif r.portion_label and r.portion_label != "1 unidad" %}
+                <small class="text-muted" style="display:block; font-weight:normal;">
+                  {{ r.portion_label }}
+                </small>
+              {%- endif %}
+            </td>
+            <td class="done-col">
+              {% if worksheet_mode %}
+                <span class="worksheet-blank"
+                      style="display: inline-block; width: 100%; min-height: 1.2em; border-bottom: 1px solid #000;">
+                  &nbsp;
+                </span>
+              {% else %}
+              <input type="number"
+                     name="completed_qty_{{ r.product_id }}"
+                     form="shift-form"
+                     min="0"
+                     step="1"
+                     value="{{ r.qty_completed|round|int }}"
+                     aria-label="Cantidad real de {{ r.product_name }}">
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-muted" style="margin: 1rem 0;">
+        No hay productos planificados para este día.
+      </p>
+      {% endif %}
+    </section>
+    {% endfor %}
+  {% elif print_rows %}
   <table aria-label="Productos a hornear el {{ for_date }}">
     <thead>
       <tr>
