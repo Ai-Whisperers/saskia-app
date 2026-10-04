@@ -62,7 +62,7 @@ def test_init_db_creates_all_required_tables(tmp_path):
         "recipe_line",
         "product",
         "sale",
-        "sale_stock_move",
+        "stock_movement",  # T-2026-10-04: sale_stock_move dropped by migration 092
         "import_batch",
         "app_meta",
         "audit_log",

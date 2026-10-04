@@ -157,11 +157,15 @@ def test_migration_094_creates_monthly_closure_table():
 # ─── Schema version ──────────────────────────────────────────────────────
 
 
-def test_current_schema_version_is_88():
-    """Sprint 3.1 (85/86) + Sprint 3.2 (87/88) bump CURRENT_SCHEMA_VERSION to 88."""
+def test_current_schema_version_is_99():
+    """T-2026-10-04: schema version is now 99 after migrations 090-099.
+    Migrations 090-099 added: stock_movement.affected_recipe_id (090),
+    backfill from SaleStockMove (091), drop sale_stock_move (092),
+    production_closed_day (098), production_completion.updated_at (099).
+    """
     from app.rms.config import CURRENT_SCHEMA_VERSION
 
-    assert CURRENT_SCHEMA_VERSION == 88, f"expected 88, got {CURRENT_SCHEMA_VERSION}"
+    assert CURRENT_SCHEMA_VERSION == 99, f"expected 99, got {CURRENT_SCHEMA_VERSION}"
 
 
 def test_monthly_closure_table_actually_created_on_init_db(session_factory, app_engine):

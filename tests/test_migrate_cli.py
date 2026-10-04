@@ -46,13 +46,16 @@ def test_migrate_first_run_creates_all_tables(tmp_path):
     engine = make_engine(f"sqlite:///{db_path}")
     insp = inspect(engine)
     tables = set(insp.get_table_names())
+    # T-2026-10-04: removed `sale_stock_move` (dropped by migration 092,
+    # BACKLOG #1). Stock movements now live on `stock_movement` with
+    # movement_type='sale'. Added `stock_movement` to the expected set.
     expected = {
         "ingredient",
         "recipe",
         "recipe_line",
         "product",
         "sale",
-        "sale_stock_move",
+        "stock_movement",
         "user",
         "app_meta",
         "import_batch",

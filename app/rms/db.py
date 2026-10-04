@@ -3193,8 +3193,8 @@ def _migration_069_customer_addresses_delivery_favorites(conn: Any) -> None:
     """
     conn.execute(
         text(
-            "CREATE TABLE IF NOT EXISTS customer_address ("
-            " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            f"CREATE TABLE IF NOT EXISTS customer_address ("
+            f" id {_serial_pk_type(conn)},"
             " customer_id INTEGER NOT NULL REFERENCES customer(id),"
             " label VARCHAR(32) NOT NULL DEFAULT 'casa',"
             " address_text TEXT NOT NULL,"
@@ -3404,9 +3404,12 @@ def _migration_074_loyalty_transaction_ledger(conn: Any) -> None:
     will write a ledger row and reconcile. A periodic reconcile
     helper can rebuild the column from SUM(delta) if needed.
     """
+    # T-2026-10-04: cross-dialect via _serial_pk_type. AUTOINCREMENT
+    # works on SQLite; Postgres needs SERIAL.
+    _loyalty_pk = _serial_pk_type(conn)
     for stmt in (
-        """CREATE TABLE IF NOT EXISTS loyalty_transaction (
-            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        f"""CREATE TABLE IF NOT EXISTS loyalty_transaction (
+            id {_loyalty_pk},
             customer_id INTEGER NOT NULL REFERENCES customer(id) ON DELETE CASCADE,
             delta INTEGER NOT NULL,
             reason VARCHAR(24) NOT NULL,
@@ -4032,9 +4035,9 @@ def _migration_082_expense(conn: Any) -> None:
     """
     try:
         conn.exec_driver_sql(
-            """
+            f"""
             CREATE TABLE IF NOT EXISTS expense (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {_serial_pk_type(conn)},
                 occurred_at DATETIME NOT NULL,
                 category VARCHAR(32) NOT NULL,
                 description VARCHAR(255) NOT NULL DEFAULT '',
