@@ -17,7 +17,7 @@ Seasonal-multiplier editor intentionally absent: blocked on T-0.1
 from __future__ import annotations
 
 import calendar as _calendar
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -36,6 +36,7 @@ from app.rms.models import (
     ProductionPlanOverride,
     Recipe,
     Sale,
+    WasteLog,
 )
 from app.rms.observability import record_audit
 from app.rms.plan_accuracy import compute_plan_accuracy, date_range_presets
@@ -261,6 +262,33 @@ def produccion_worksheet(
     closed_day = session.get(ProductionClosedDay, target_date)
     closed_day_active = closed_day is not None
 
+    # T-2026-10-04 (Tier 3-B): fetch today's merma count + cost for the
+    # "Mermas de hoy" banner. Operators register waste via /merma; we
+    # surface the running total on the production page so the cook can
+    # see "we lost 2.3 kg of flour today" before deciding the next batch.
+    day_start = datetime.combine(target_date, time.min)
+    day_end = datetime.combine(target_date, time.max)
+    todays_waste = session.execute(
+        select(
+            func.count(WasteLog.id).label("n"),
+            func.coalesce(func.sum(WasteLog.cost_gs), 0).label("cost"),
+        )
+        .where(WasteLog.recorded_at >= day_start)
+        .where(WasteLog.recorded_at <= day_end)
+    ).one()
+    today_waste_count = int(todays_waste.n or 0)
+    today_waste_cost_gs = int(todays_waste.cost or 0)
+
+    # Also compute last-7-days average cost (so cook can spot trend)
+    seven_days_ago = target_date - timedelta(days=7)
+    week_start = datetime.combine(seven_days_ago, time.min)
+    last7 = session.execute(
+        select(func.coalesce(func.sum(WasteLog.cost_gs), 0))
+        .where(WasteLog.recorded_at >= week_start)
+        .where(WasteLog.recorded_at <= day_end)
+    ).scalar() or 0
+    avg_daily_waste_cost_gs = int(last7) // 7 if last7 else 0
+
     # US 4.4 — Surface incoming pedidos for the SAME day as a "kitchen ticket"
     # panel so the cook sees "we owe 3 tortas + 1 cookie tray today" alongside
     # the demand-driven production plan. Includes pending/confirmed/ready
@@ -483,6 +511,10 @@ def produccion_worksheet(
                 if r.get("confidence_pct", 0) == 0 and not r.get("is_ad_hoc", False)
             ),
         },
+        # T-2026-10-04 (Tier 3-B): today's waste totals for the banner.
+        "today_waste_count": today_waste_count,
+        "today_waste_cost_gs": today_waste_cost_gs,
+        "avg_daily_waste_cost_gs": avg_daily_waste_cost_gs,
     })
 
 

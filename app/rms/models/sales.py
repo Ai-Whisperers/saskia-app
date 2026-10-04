@@ -101,6 +101,15 @@ class SaleStockMove:
     app.rms.models_legacy.SaleStockMove (which SQLAlchemy marks
     `__abstract__ = True` so it skips mapper config); we re-export
     here so all import paths point to the same class.
+
+    NOTE: this class is intentionally NOT a SQLAlchemy declarative
+    model — it has no `__tablename__` and no mapper. Defining it as
+    a plain class (not `class SaleStockMove(Base):`) prevents
+    SQLAlchemy from configuring a mapper for it. The inventory.py
+    `stock_moves` relationship forward-refs to `"SaleStockMove"`
+    and SQLAlchemy resolves it at mapper-config time; if this class
+    were a Base subclass with a tablename, mapper config would fail
+    with "table 'sale_stock_move' does not exist".
     """
 
     def __new__(cls, *args: Any, **kwargs: Any) -> None:  # pragma: no cover — guard

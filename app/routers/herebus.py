@@ -1218,10 +1218,14 @@ def planner_compute(
         ing = ings.get(line.line_ref_id)
         if not ing:
             continue
-        qty_needed = (line.qty or 0) * batches
-        qty_available = ing.stock_qty
-        shortage = qty_needed - qty_available
-        shortage = max(0, shortage)
+        # Both `line.qty` and `ing.stock_qty` are Float columns, but SQLAlchemy
+        # can return Decimal when the underlying dialect says so (e.g., SQLite
+        # NUMERIC type affinity, or when a custom TypeDecorator wraps the
+        # column). Cast to float explicitly so the arithmetic is type-safe
+        # regardless of which dialect is active.
+        qty_needed = float(line.qty or 0) * batches
+        qty_available = float(ing.stock_qty or 0)
+        shortage = max(0, qty_needed - qty_available)
         unit_price = ing.purchase_price_gs or 0
         total_shortage_gs += shortage * (unit_price / 1.0)  # todo: unit normalization
         results.append(
