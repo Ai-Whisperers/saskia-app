@@ -36,7 +36,7 @@ def test_filled_mode_default(authed_client):
     """Without ?mode=worksheet, the print view uses filled values."""
     r = authed_client.get("/produccion/print")
     assert r.status_code == 200
-    body = r.text
+    body = r.text  # noqa: F841 — kept for future assertion
     # The filled mode shows qty_to_produce values (not blank spans).
     # We don't strict-check qty values since they depend on seed data,
     # but we verify the template renders the qty-cell markup.

@@ -48,7 +48,7 @@ def test_cold_start_with_seed_products(authed_client, session_factory):
 
     r = authed_client.get("/produccion?view=day")
     assert r.status_code == 200
-    body = r.text
+    body = r.text  # noqa: F841 — kept for future assertion
     # The seed section is rendered (or at least the template handles it
     # without crashing).
     assert r.status_code == 200
