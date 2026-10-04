@@ -9,7 +9,6 @@ We verify:
   - The banner renders when yesterday_count > 0.
   - The banner is hidden when yesterday_count == 0.
 """
-import pytest
 
 
 def test_yesterday_snapshot_renders_cleanly(authed_client):

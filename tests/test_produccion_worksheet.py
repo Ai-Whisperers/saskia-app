@@ -10,7 +10,6 @@ What we verify:
   - The body contains the worksheet-blank span.
   - The body does NOT contain qty_to_produce values for filled mode.
 """
-import re
 
 
 def test_worksheet_mode_returns_200(authed_client):
