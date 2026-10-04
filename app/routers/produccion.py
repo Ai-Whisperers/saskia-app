@@ -546,6 +546,7 @@ def produccion_closed_toggle(
     Returns 303 redirect to the day view so the operator sees the
     banner / banner removal immediately.
     """
+    from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
     if is_write_rate_limited(session, request, max_per_minute=10):
         from fastapi import HTTPException
@@ -553,17 +554,18 @@ def produccion_closed_toggle(
 
     if action == "close":
         existing = session.get(ProductionClosedDay, for_date)
+        closed_by_user = current_user_id(request) or "operator"
         if existing is None:
             row = ProductionClosedDay(
                 for_date=for_date,
                 reason=(reason or "Cerrado")[:120],
-                closed_by=_get_current_username(request),
-                closed_at=datetime.utcnow(),
+                closed_by=closed_by_user,
+                closed_at=datetime.utcnow(),  # noqa: DTZ003 — DB-naive-UTC convention
             )
             session.add(row)
             record_audit(
-                session,
-                actor=_get_current_username(request),
+                request,
+                session=session,
                 action="production_closed",
                 target_type="production_closed_day",
                 target_id=for_date.isoformat(),
@@ -572,14 +574,14 @@ def produccion_closed_toggle(
         else:
             # Update reason in case operator wants to refine it
             existing.reason = (reason or existing.reason or "Cerrado")[:120]
-            existing.closed_at = datetime.utcnow()
+            existing.closed_at = datetime.utcnow()  # noqa: DTZ003 — DB-naive-UTC convention
     else:  # reopen
         existing = session.get(ProductionClosedDay, for_date)
         if existing is not None:
             session.delete(existing)
             record_audit(
-                session,
-                actor=_get_current_username(request),
+                request,
+                session=session,
                 action="production_reopened",
                 target_type="production_closed_day",
                 target_id=for_date.isoformat(),
