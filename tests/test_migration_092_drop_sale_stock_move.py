@@ -57,13 +57,14 @@ def test_sale_stock_move_class_is_abstract_stub():
 
 
 def test_migration_092_full_idempotent(tmp_path):
-    """Re-running init_db on a 92 DB is a no-op."""
+    """Re-running init_db on a CURRENT_SCHEMA_VERSION DB is a no-op."""
     db = tmp_path / "test92.db"
     engine = create_engine(f"sqlite:///{db}")
     from app.rms.db import init_db
+    from app.rms.config import CURRENT_SCHEMA_VERSION
 
     init_db(engine)
     init_db(engine)  # second run
     with engine.connect() as conn:
         v = conn.execute(text("SELECT value FROM app_meta WHERE key='schema_version'")).scalar()
-    assert int(v) == 92
+    assert int(v) == CURRENT_SCHEMA_VERSION
