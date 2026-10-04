@@ -3060,13 +3060,16 @@ def _migration_065_suscripciones(conn: Any) -> None:
     # create_all() in init_db() already creates the table from the
     # ORM model; this CREATE IF NOT EXISTS is the safety net for any
     # deployment that ran init_db before the Suscripcion class
-    # shipped. SQLite + Postgres both support IF NOT EXISTS for tables.
+    # shipped. Both dialects support IF NOT EXISTS for tables.
+    # Note: T-2026-10-04 the SERIAL/AUTOINCREMENT split is required —
+    # SQLite needs AUTOINCREMENT for ROWID behavior, Postgres needs
+    # SERIAL for sequence behavior. We pick via _serial_pk_type(conn).
     try:
         conn.execute(
             text(
-                """
+                f"""
                 CREATE TABLE IF NOT EXISTS suscripcion (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id {_serial_pk_type(conn)},
                     customer_id INTEGER NOT NULL REFERENCES customer(id) ON DELETE RESTRICT,
                     product_summary VARCHAR(500) NOT NULL,
                     cadence VARCHAR(16) NOT NULL,
