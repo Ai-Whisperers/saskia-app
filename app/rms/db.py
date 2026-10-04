@@ -212,6 +212,57 @@ def _migration_007_product_sku(conn: Any) -> None:
     _bump_schema_version(conn, 7)
 
 
+def _dialect(conn: Any) -> str:
+    """Return the active dialect name (e.g. 'postgresql', 'sqlite').
+
+    The two dialects we support. Use this in migrations to branch on
+    dialect-specific SQL syntax. Default to 'sqlite' on any error so
+    existing migrations don't break if the engine is in a weird state.
+    """
+    try:
+        return conn.dialect.name
+    except Exception:
+        return "sqlite"
+
+
+def _serial_pk_type(conn: Any) -> str:
+    """Return the dialect-appropriate auto-incrementing primary key type.
+
+    Used in CREATE TABLE statements that need an `id` column. The
+    difference matters for Postgres (which has SERIAL/BIGSERIAL types
+    + sequences) and SQLite (which uses INTEGER PRIMARY KEY
+    AUTOINCREMENT).
+    """
+    if _dialect(conn) == "postgresql":
+        return "BIGSERIAL PRIMARY KEY"
+    return "INTEGER PRIMARY KEY AUTOINCREMENT"
+
+
+def _now_expr(conn: Any) -> str:
+    """Return the dialect-appropriate "current timestamp" SQL expression.
+
+    Both dialects support `CURRENT_TIMESTAMP`, but we expose this helper
+    so future migrations can branch (e.g., to use `now()::timestamptz` on
+    Postgres or `strftime('%Y-%m-%dT%H:%M:%fZ', 'now')` on SQLite for
+    higher precision).
+    """
+    # Both dialects support CURRENT_TIMESTAMP; this is here for symmetry
+    # with the other _*_expr helpers and as an extension point.
+    return "CURRENT_TIMESTAMP"
+
+
+def _bool_literal(conn: Any, value: bool | int) -> str:
+    """Return a dialect-appropriate boolean literal.
+
+    SQLite accepts 0/1 in BOOLEAN columns. Postgres requires TRUE/FALSE
+    (or 't'/'f'/'true'/'false' with a cast). Use this when inserting
+    explicit boolean values.
+    """
+    if _dialect(conn) == "postgresql":
+        return "TRUE" if value else "FALSE"
+    return "1" if value else "0"
+
+
 def _add_column_if_missing(
     conn: Any, table: str, column: str, pg_type: str, sqlite_type: str
 ) -> None:
