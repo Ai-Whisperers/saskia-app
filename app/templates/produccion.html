@@ -82,61 +82,18 @@
    ════════════════════════════════════════════════════════════════════ #}
 {% if view == 'day' %}
 
-{# ── Plan manual (catering / what-if) ── collapsible below the roof ── #}
+{# ── Was: Plan manual (elegí receta + tandas) ── removed 2026-10 (X-5):
+   the form posted to /produccion-planner/compute which is currently broken
+   in app/routers/herebus.py:planner_compute (Decimal/float bug). Point
+   users to /recetas for recipe math and /produccion/manana for day-plan
+   adjustments. Re-enable here once the planner endpoint is fixed. ── #}
 <div class="card mb-4" style="background: var(--color-surface-subtle); border: 1px dashed var(--color-border);">
-  <details>
-    <summary style="cursor: pointer; font-weight: 500; padding: var(--space-3); user-select: none;">
-      Plan manual (elegí receta + tandas)
-    </summary>
-    <div class="card-body">
-      <p class="text-muted" style="margin-bottom: var(--space-3); font-size: var(--text-sm);">
-        ¿Necesitás calcular producción para una receta específica (ej. catering, pedido grande)?
-        Usá este formulario en lugar del plan diario automático.
-      </p>
-      <form method="post" action="/produccion-planner/compute" style="display: flex; gap: var(--space-3); align-items: end; flex-wrap: wrap;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <div class="form-group" style="flex: 1; min-width: 240px;">
-          <label for="produccion-plan-recipe">Receta</label>
-          <input type="text" id="produccion-plan-recipe" name="recipe_name_display"
-                 class="form-control" placeholder="Escribí o elegí una receta…"
-                 list="produccion-recipes" autocomplete="off">
-          <input type="hidden" name="recipe_id" id="produccion-plan-recipe-id" value="">
-          <datalist id="produccion-recipes">
-            {% for r in (recipes or []) %}
-            <option value="{{ fmt.entity_name(r) }}" data-id="{{ r.id }}"></option>
-            {% endfor %}
-          </datalist>
-        </div>
-        <div class="form-group" style="width: 120px;">
-          <label for="produccion-plan-batches">Batches</label>
-          <input type="number" name="batches" id="produccion-plan-batches" min="1" value="1" required
-                 class="form-control">
-        </div>
-        <div>
-          <button type="submit" class="btn btn-primary">Calcular necesidad</button>
-        </div>
-      </form>
-      <p class="text-muted" style="margin-top: var(--space-2); font-size: var(--text-xs);">
-        ¿La receta no aparece? Creala primero en
-        <a href="/recetas/nueva">Recetas → Nueva</a>.
-      </p>
-    </div>
-  </details>
+  <div class="card-body" style="font-size: var(--text-sm); color: var(--color-text-muted);">
+    ¿Necesitás calcular producción para una receta específica (catering, pedido grande)?
+    Usá la <a href="/recetas">vista de recetas</a> para ver rendimientos, o andá a
+    <a href="/produccion/manana">producción de mañana</a> para ajustar cantidades del plan diario.
+  </div>
 </div>
-<script>
-  // Sync the datalist selection to the hidden recipe_id field
-  (function() {
-    var name = document.getElementById('produccion-plan-recipe');
-    var id   = document.getElementById('produccion-plan-recipe-id');
-    if (!name || !id) return;
-    function sync() {
-      var opt = document.querySelector('#produccion-recipes option[value="' + name.value.replace(/"/g, '\\"') + '"]');
-      id.value = opt ? opt.dataset.id : '';
-    }
-    name.addEventListener('input', sync);
-    name.addEventListener('change', sync);
-  })();
-</script>
 
 {# ── US 4.4 — urgent pending orders + kitchen-ticket panel ──
     The count banner keeps the at-a-glance alert; the per-pedido list below

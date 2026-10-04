@@ -6,10 +6,16 @@ semantics, NOT the production_plan_override table).
 """
 from __future__ import annotations
 
+from datetime import UTC, date, datetime
+
 import pytest
 from sqlalchemy import select
 
 from app.rms.models import Product, ProductionCompletion
+
+# TZ: a78057b rewrote date.today() → datetime.now(UTC).date() in test bodies
+# but did not add the imports. Restore the imports the tests need.
+_UTC = UTC
 
 
 @pytest.fixture
