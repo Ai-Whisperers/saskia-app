@@ -126,7 +126,15 @@
           {% endif %}
         </td>
         <td class="qty-col">
-          <strong>{{ r.qty_to_produce|round|int }}</strong>
+          {% if worksheet_mode %}
+            {# T-2026-10-04 (Tier 3-D): blank line for handwritten qty. #}
+            <span class="worksheet-blank"
+                  style="display: inline-block; min-width: 60px; border-bottom: 1px solid #000; padding-bottom: 1px;">
+              &nbsp;
+            </span>
+          {% else %}
+            <strong>{{ r.qty_to_produce|round|int }}</strong>
+          {% endif %}
           {%- if r.yield_qty and r.yield_qty != 1 %}
             <small class="text-muted" style="display:block; font-weight:normal;">
               {{ r.yield_qty|int }} {{ r.yield_unit or 'und' }} c/u
@@ -138,6 +146,13 @@
           {%- endif %}
         </td>
         <td class="done-col">
+          {% if worksheet_mode %}
+            {# Blank space for handwritten progress tracking. #}
+            <span class="worksheet-blank"
+                  style="display: inline-block; width: 100%; min-height: 1.2em; border-bottom: 1px solid #000;">
+              &nbsp;
+            </span>
+          {% else %}
           <input type="number"
                  name="completed_qty_{{ r.product_id }}"
                  form="shift-form"
@@ -145,6 +160,7 @@
                  step="1"
                  value="{{ r.qty_completed|round|int }}"
                  aria-label="Cantidad real de {{ r.product_name }}">
+          {% endif %}
         </td>
       </tr>
       {% endfor %}

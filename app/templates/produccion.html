@@ -82,6 +82,14 @@
     <svg class="icon" aria-hidden="true"><use href="#icon-print"/></svg>
     Imprimir
   </a>
+  {# T-2026-10-04 (Tier 3-D): worksheet-mode print = blank sheet to fill by hand. #}
+  <a href="/produccion/print?for_date={{ for_date }}&mode=worksheet"
+     class="btn btn-sm"
+     style="display:inline-flex; align-items:center; gap: var(--space-2);"
+     title="Imprimí una hoja en blanco para anotar las cantidades a mano">
+    <svg class="icon" aria-hidden="true"><use href="#icon-print"/></svg>
+    Worksheet en blanco
+  </a>
   {# T-2026-10-04 (P2): link to the weekly ingredient prep sheet. #}
   <a href="/produccion/prep"
      class="btn"
