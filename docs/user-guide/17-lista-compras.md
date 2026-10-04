@@ -12,49 +12,49 @@
 > **Tip:** la lista se genera desde **Reponer** (ver [14-reponer.md](14-reponer.md)).
 > Si nunca entraste a "Reponer", la lista arranca vacía. Empezá por ahí.
 
+![Lista de compras](screenshots/18-shopping-list.png)
+
 ## Qué muestra
 
-Cada fila es un ingrediente a reponer:
+La lista está **agrupada por proveedor** (casa comercial donde se compra
+cada ingrediente). Cada grupo tiene:
+
+- **Nombre del proveedor** (ej. "Casa Rica", "Feria Mayorista", "Importadora")
+- **Subtotal en Gs.** — lo que te saldría comprar todo lo de ese proveedor
+- Cantidad de productos distintos a reponer
+
+Las columnas de cada fila son:
 
 | Columna | Qué significa |
 |---|---|
-| **Ingrediente** | El nombre (ej. "harina 0000"). |
-| **A reponer** | Cuánto falta para llegar al stock objetivo (en kg / litros / unidades). |
-| **Proveedor sugerido** | El proveedor más barato registrado para ese ingrediente. |
-| **Precio estimado** | Lo que te saldría, según los últimos precios registrados. |
+| **Ingrediente** | El nombre (ej. "Harina de trigo"). |
+| **Cant. a comprar** | Cuánto falta para llegar al stock objetivo. |
+| **Unidad** | kg / litros / unidades. |
+| **Para qué** | A qué producto/receta está destinado (cliente, receta, etc.). |
+| **Subtotal Gs.** | Lo que te costaría comprar esa cantidad al precio actual. |
+| **Comprar** | Checkbox para tildar cuando ya lo compraste. |
 
-Debajo de la tabla hay un **total estimado en Gs.** para que sepas cuánto
-vas a gastar antes de ir.
+Arriba de la lista hay un **total general en Gs.** — el costo estimado
+de toda la lista si comprás todo.
 
-![Lista de compras](screenshots/18-shopping-list.png)
+## Tildar lo que ya compraste
 
-## Marcar lo que ya compraste
+A la derecha de cada fila hay un checkbox **Comprar**. Cuando lo tildás:
 
-A la derecha de cada fila hay un botón **✓ Comprado**. Cuando lo tocás:
-
-- La fila se tacha y se mueve al final de la lista
+- La fila se marca como comprada (queda en la lista con el tilde verde)
 - El stock en Inventario se actualiza automáticamente con la cantidad comprada
 - Si el precio real fue distinto al estimado, te pregunta cuánto pagaste
   (para mantener los precios actualizados)
 
-> **Tip:** si comprás TODO de la lista de un proveedor, en vez de tildar
-> uno por uno, tocá **"Marcar todo del proveedor"** arriba. Es más rápido.
+> **Tip:** si comprás TODO de un proveedor, en vez de tildar uno por
+> uno, tocá **"Comprar todo"** arriba a la derecha del grupo. Es más
+> rápido y evita olvidos.
 
-## Si no conseguís algo
+## Recalcular
 
-Tocá **"No conseguí"** en la fila. La app:
-
-1. Marca el ingrediente como "pendiente" (no actualiza stock)
-2. Lo deja en la lista para el próximo día
-3. Si es la segunda vez consecutiva que no lo conseguís, te lo marca en
-   rojo y sugiere buscar un proveedor alternativo
-
-## Imprimir o compartir
-
-- **Imprimir:** botón **🖨 Imprimir** arriba a la derecha — formato
-  optimizado para hoja A4.
-- **WhatsApp:** botón **📱 Enviar** — abre WhatsApp Web con un mensaje
-  pre-armado para mandarle al proveedor. Podés editarlo antes de enviar.
+Si cargás nuevas ventas o cambias el plan de producción mientras estás
+en la lista, tocá **"Recalcular"** arriba — la app vuelve a mirar el
+stock y regenera las cantidades a comprar.
 
 ## Agregar algo que no estaba en la lista
 
@@ -62,7 +62,7 @@ A veces te das cuenta de que falta algo que la app no detectó
 (porque no estaba en el plan de producción, o es un ingrediente nuevo).
 En ese caso:
 
-1. Tocá **+ Agregar manualmente** abajo de la tabla
+1. Tocá **"+ Cargar manualmente"** abajo de la lista
 2. Buscá el ingrediente (o creá uno nuevo desde Inventario)
 3. Poné la cantidad que querés comprar
 4. Guardá
@@ -70,14 +70,12 @@ En ese caso:
 La fila aparece mezclada con las generadas automáticamente. Cuando la
 marcás como comprada, se descuenta del stock igual que una fila normal.
 
-## Limpiar la lista
+## Imprimir o compartir
 
-Una vez que terminaste la compra y todo está marcado, la lista se "reinicia"
-automáticamente la próxima vez que la app genere una nueva (generalmente
-cuando cambia el plan de producción o baja el stock).
-
-Si querés forzar el reinicio antes: **Limpiar lista** arriba a la derecha
-(te pide confirmación).
+- **Imprimir:** botón **🖨 Imprimir** arriba a la derecha — formato
+  optimizado para hoja A4.
+- **WhatsApp:** botón **📱 Enviar** — abre WhatsApp Web con un mensaje
+  pre-armado para mandarle al proveedor. Podés editarlo antes de enviar.
 
 ## Siguiente paso
 
