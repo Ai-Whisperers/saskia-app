@@ -1848,7 +1848,7 @@ def pedidos_fulfill(
             session.execute(
                 _sa_text("DROP TRIGGER IF EXISTS ingredient_stock_qty_positive_update")
             )
-        except Exception as _drop_exc:  # pragma: no cover - defensive
+        except Exception as _drop_exc:  # pragma: no cover - defensive  # noqa: BLE001 — SQLite trigger drop is best-effort
             logger.warning(f"force-fulfill: could not drop stock triggers: {_drop_exc!r}")
 
     # Snapshot sold_at to now in Asunción TZ so /reportes groups by the
@@ -1978,7 +1978,7 @@ def pedidos_fulfill(
                 )
             )
             session.commit()
-        except Exception as _recreate_exc:  # pragma: no cover - defensive
+        except Exception as _recreate_exc:  # pragma: no cover - defensive  # noqa: BLE001 — SQLite trigger recreate is best-effort
             logger.warning(
                 f"force-fulfill: could not recreate stock triggers: {_recreate_exc!r}"
             )
