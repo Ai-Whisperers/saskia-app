@@ -79,18 +79,22 @@ async def excel_home(request: Request, session: Session = Depends(get_session)) 
             except (json.JSONDecodeError, TypeError):
                 warnings_raw = [warnings_raw] if warnings_raw else []
 
-        import_history.append({
-            "id": b.id,
-            "filename": b.source_filename,
-            "imported_at_str": b.imported_at.strftime("%d/%m/%Y %H:%M") if b.imported_at else "",
-            "mode": counts.get("mode", "FULL"),
-            "ingredients": counts.get("ingredients", 0),
-            "recipes": counts.get("recipes", 0),
-            "lines": counts.get("lines", 0),
-            "products": counts.get("products", 0),
-            "customers": counts.get("customers", 0),
-            "warnings": warnings_raw,
-        })
+        import_history.append(
+            {
+                "id": b.id,
+                "filename": b.source_filename,
+                "imported_at_str": b.imported_at.strftime("%d/%m/%Y %H:%M")
+                if b.imported_at
+                else "",
+                "mode": counts.get("mode", "FULL"),
+                "ingredients": counts.get("ingredients", 0),
+                "recipes": counts.get("recipes", 0),
+                "lines": counts.get("lines", 0),
+                "products": counts.get("products", 0),
+                "customers": counts.get("customers", 0),
+                "warnings": warnings_raw,
+            }
+        )
 
     return render(request, "excel.html", {"import_history": import_history})
 
@@ -107,7 +111,7 @@ async def excel_mode_guidance(request: Request) -> HTMLResponse:
             "label": "Actualizar por nombre (PATCH)",
             "summary": "Recomendado para mantener tus datos actualizados.",
             "how": "Compara por nombre (productos, ingredientes, recetas) o teléfono (clientes). "
-                   "Actualiza las celdas que editás en el archivo. No borra nada existente.",
+            "Actualiza las celdas que editás en el archivo. No borra nada existente.",
             "use_case": "Editaste precios de productos en la планilla y querés subir los cambios.",
             "danger": "safe",
             "color": "#22c55e",
@@ -117,7 +121,7 @@ async def excel_mode_guidance(request: Request) -> HTMLResponse:
             "label": "Reemplazar todo (FULL)",
             "summary": "Añade filas del archivo SIN pisar las anteriores. No recomendado para actualizaciones.",
             "how": "Añade todas las filas del archivo a las tablas existentes. "
-                   "Si ya existe un producto con el mismo nombre, se crea otro igual (duplicado).",
+            "Si ya existe un producto con el mismo nombre, se crea otro igual (duplicado).",
             "use_case": "Necesitás restaurar un backup completo sin perder datos previos.",
             "danger": "caution",
             "color": "#f59e0b",
@@ -127,7 +131,7 @@ async def excel_mode_guidance(request: Request) -> HTMLResponse:
             "label": "Solo añadir (APPEND)",
             "summary": "Añade filas únicamente — sin actualizar nada existente.",
             "how": "Toma cada fila del archivo y la inserta como nueva. "
-                   "Los datos existentes quedan intactos.",
+            "Los datos existentes quedan intactos.",
             "use_case": "Cargaste clientes nuevos a la планilla y querés agregarlos sin tocar los existentes.",
             "danger": "safe",
             "color": "#22c55e",
@@ -185,13 +189,17 @@ async def excel_validate(
                 context={"original_error": str(exc)},
             ) from exc
 
-    return render(request, "excel_validate.html", {
-        "filename": filename,
-        "mode": resolved_mode,
-        "errors": errors,
-        "warnings": warnings,
-        "has_errors": bool(errors),
-    })
+    return render(
+        request,
+        "excel_validate.html",
+        {
+            "filename": filename,
+            "mode": resolved_mode,
+            "errors": errors,
+            "warnings": warnings,
+            "has_errors": bool(errors),
+        },
+    )
 
 
 # ─── Actual import (with audit log) ─────────────────────────────────────────
@@ -249,13 +257,14 @@ async def excel_import(
             raise HTTPException(
                 status_code=400,
                 detail="El archivo tiene filas que ya existen (nombres duplicados). "
-                       "Usá modo PATCH para actualizar, o revisá los nombres.",
+                "Usá modo PATCH para actualizar, o revisá los nombres.",
             ) from exc
 
     # Record import in audit log
     batch_id = row_counts.get("batch_id", 0)
     rows_imported = sum(
-        v for k, v in row_counts.items()
+        v
+        for k, v in row_counts.items()
         if k in {"ingredients", "recipes", "lines", "products", "customers", "sales"}
     )
     warnings_count = len(row_counts.get("warnings", []))

@@ -160,7 +160,9 @@ def convert_qty(qty: object, from_unit: Unit, to_unit: Unit) -> object:
     return qty_dec * factor
 
 
-def normalize_recipe_line_qty(line_qty: object, line_unit: object, ingredient_unit: object) -> Decimal:
+def normalize_recipe_line_qty(
+    line_qty: object, line_unit: object, ingredient_unit: object
+) -> Decimal:
     """Normalize a recipe line's quantity into the linked ingredient's unit.
 
     This is the helper used by the recipe line unit selector (Phase B — T1):

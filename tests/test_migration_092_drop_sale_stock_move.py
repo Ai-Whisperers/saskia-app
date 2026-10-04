@@ -8,6 +8,7 @@ Validates:
 - The SaleStockMove class still exists as an abstract stub (so legacy
   imports keep working) but is not usable as a row-insertable mapper
 """
+
 from __future__ import annotations
 
 import pytest
@@ -27,8 +28,7 @@ def test_sale_stock_move_table_does_not_exist(session_factory):
     inspector = inspect(session_factory().get_bind())
     tables = inspector.get_table_names()
     assert "sale_stock_move" not in tables, (
-        "migration 092 should have dropped sale_stock_move, but the "
-        "table still exists."
+        "migration 092 should have dropped sale_stock_move, but the table still exists."
     )
 
 

@@ -12,6 +12,7 @@ This test loads /ventas with three different DB states:
 
 Each must return 200 with no TemplateRuntimeError.
 """
+
 # allow-hardcoded-dates: sale fixture uses fixed sold_at to avoid drift
 from __future__ import annotations
 
@@ -24,14 +25,13 @@ def test_ventas_loads_with_empty_db(client, session_factory):
     """K1 #1: /ventas must render even with zero products + zero sales."""
     # DB is fresh — no products, no sales
     r = client.get("/ventas")
-    assert r.status_code == 200, (
-        f"/ventas on empty DB returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code == 200, f"/ventas on empty DB returned {r.status_code}: {r.text[:200]}"
 
 
 def test_ventas_loads_with_one_product_no_sales(client, session_factory):
     """K1 #2: /ventas must render with a product but no sales yet."""
     from app.rms.models import Product
+
     with session_factory() as s:
         p = Product(
             name="K1 Test Pan",
@@ -43,9 +43,7 @@ def test_ventas_loads_with_one_product_no_sales(client, session_factory):
         s.commit()
 
     r = client.get("/ventas")
-    assert r.status_code == 200, (
-        f"/ventas with 1 product returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code == 200, f"/ventas with 1 product returned {r.status_code}: {r.text[:200]}"
 
 
 def test_ventas_loads_with_many_products_and_sales(client, session_factory):
@@ -81,13 +79,15 @@ def test_ventas_loads_with_many_products_and_sales(client, session_factory):
                     )
                     s2.add(sale)
                 # One voided sale
-                s2.add(Sale(
-                    product_id=pid,
-                    qty=1,
-                    unit_price_gs=5000,
-                    sold_at=datetime.now(timezone.utc),
-                    voided_at=datetime.now(timezone.utc),
-                ))
+                s2.add(
+                    Sale(
+                        product_id=pid,
+                        qty=1,
+                        unit_price_gs=5000,
+                        sold_at=datetime.now(timezone.utc),
+                        voided_at=datetime.now(timezone.utc),
+                    )
+                )
             s2.commit()
 
     r = client.get("/ventas")
@@ -102,6 +102,7 @@ def test_ventas_loads_with_many_products_and_sales(client, session_factory):
 def test_ventas_loads_with_filter_query(client, session_factory):
     """K1 #4: /ventas must accept ?q=, ?product_id=, ?days= filters without 500."""
     from app.rms.models import Product
+
     with session_factory() as s:
         p = Product(
             name="K1 Filtered",
@@ -115,9 +116,7 @@ def test_ventas_loads_with_filter_query(client, session_factory):
     # All three filter forms
     for params in ["", "?q=Test", "?product_id=1", "?days=7", "?days=30&product_id=1"]:
         r = client.get(f"/ventas{params}")
-        assert r.status_code == 200, (
-            f"/ventas{params} returned {r.status_code}: {r.text[:200]}"
-        )
+        assert r.status_code == 200, f"/ventas{params} returned {r.status_code}: {r.text[:200]}"
 
 
 def test_ventas_loads_with_customer_attached_to_sale(client, session_factory):
@@ -159,29 +158,33 @@ def test_ventas_loads_with_customer_attached_to_sale(client, session_factory):
             for pid_row in products[:3]:
                 pid = pid_row[0]
                 # Full real-data shape: customer + channel + payment + discount
-                s2.add(Sale(
-                    product_id=pid,
-                    qty=1.5,
-                    unit_price_gs=7500,
-                    customer_id=c.id,
-                    payment_method="efectivo",
-                    discount_gs=500,
-                    channel="mostrador",
-                    notes="nota test",
-                    sold_at=datetime.now(timezone.utc) - timedelta(days=1),
-                ))
+                s2.add(
+                    Sale(
+                        product_id=pid,
+                        qty=1.5,
+                        unit_price_gs=7500,
+                        customer_id=c.id,
+                        payment_method="efectivo",
+                        discount_gs=500,
+                        channel="mostrador",
+                        notes="nota test",
+                        sold_at=datetime.now(timezone.utc) - timedelta(days=1),
+                    )
+                )
                 # Voided sale with different channel/payment
-                s2.add(Sale(
-                    product_id=pid,
-                    qty=1,
-                    unit_price_gs=7500,
-                    customer_id=c.id,
-                    payment_method="qr",
-                    discount_gs=0,
-                    channel="whatsapp",
-                    sold_at=datetime.now(timezone.utc),
-                    voided_at=datetime.now(timezone.utc),
-                ))
+                s2.add(
+                    Sale(
+                        product_id=pid,
+                        qty=1,
+                        unit_price_gs=7500,
+                        customer_id=c.id,
+                        payment_method="qr",
+                        discount_gs=0,
+                        channel="whatsapp",
+                        sold_at=datetime.now(timezone.utc),
+                        voided_at=datetime.now(timezone.utc),
+                    )
+                )
             s2.commit()
 
     # US 4.3 POS split: /ventas is the counter screen (new sales only);
@@ -193,9 +196,7 @@ def test_ventas_loads_with_customer_attached_to_sale(client, session_factory):
         f"/ventas with realistic data returned {r.status_code}: {r.text[:400]}"
     )
     rh = client.get("/ventas/historial")
-    assert rh.status_code == 200, (
-        f"/ventas/historial returned {rh.status_code}: {rh.text[:400]}"
-    )
+    assert rh.status_code == 200, f"/ventas/historial returned {rh.status_code}: {rh.text[:400]}"
     body = rh.text
     assert "Cliente K1" in body
     assert "efectivo" in body
@@ -284,11 +285,11 @@ def test_decorated_covers_every_template_attribute_reference():
         depth = 0
         i = start
         while i < len(html):
-            if html[i:i+2] == "{%":
+            if html[i : i + 2] == "{%":
                 end_pct = html.find("%}", i + 2)
                 if end_pct == -1:
                     break
-                tag = html[i + 2:end_pct].strip()
+                tag = html[i + 2 : end_pct].strip()
                 if tag.startswith(("for ", "if ")):
                     depth += 1
                 elif tag in ("endfor", "endif"):

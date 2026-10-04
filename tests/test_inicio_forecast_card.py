@@ -25,10 +25,15 @@ def _make_sale(session_factory, product_id, qty, sold_at):
     from app.rms.models import Sale
 
     with session_factory() as s:
-        s.add(Sale(
-            product_id=product_id, qty=qty, sold_at=sold_at,
-            unit_price_gs=2500, channel="mostrador",
-        ))
+        s.add(
+            Sale(
+                product_id=product_id,
+                qty=qty,
+                sold_at=sold_at,
+                unit_price_gs=2500,
+                channel="mostrador",
+            )
+        )
         safe_commit(s)
 
 
@@ -45,9 +50,7 @@ def test_inicio_forecast_empty_state_when_no_sales(authed_client, qseed):
     resp = authed_client.get("/inicio")
     assert resp.status_code == 200
     body = resp.text
-    assert "Sin datos suficientes" in body, (
-        "expected empty-state CTA when no DOW history exists"
-    )
+    assert "Sin datos suficientes" in body, "expected empty-state CTA when no DOW history exists"
 
 
 def test_inicio_forecast_surfaces_dow_aware_totals(authed_client, qseed, session_factory):
@@ -93,12 +96,16 @@ def test_inicio_forecast_excludes_voided_sales(authed_client, qseed, session_fac
             _make_sale(session_factory, prod_id, 3.0, past.replace(hour=12))
         else:
             with session_factory() as s:
-                s.add(Sale(
-                    product_id=prod_id, qty=99.0,
-                    sold_at=past.replace(hour=12),
-                    unit_price_gs=2500, channel="mostrador",
-                    voided_at=datetime.now(timezone.utc),
-                ))
+                s.add(
+                    Sale(
+                        product_id=prod_id,
+                        qty=99.0,
+                        sold_at=past.replace(hour=12),
+                        unit_price_gs=2500,
+                        channel="mostrador",
+                        voided_at=datetime.now(timezone.utc),
+                    )
+                )
                 safe_commit(s)
 
     resp = authed_client.get("/inicio")

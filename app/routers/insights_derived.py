@@ -53,9 +53,14 @@ def food_cost_variance(
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     v = theoretical_vs_actual(session, days=days)
-    return render(request, "insight_food_cost.html", {
-        "v": v, "days": days,
-    })
+    return render(
+        request,
+        "insight_food_cost.html",
+        {
+            "v": v,
+            "days": days,
+        },
+    )
 
 
 @router.get("/demand", response_class=HTMLResponse)
@@ -65,10 +70,14 @@ def demand_view(
 ) -> HTMLResponse:
     forecasts = forecast_demand(session)
     shopping = shopping_list_from_forecast(session, forecasts)
-    return render(request, "insight_demand.html", {
-        "forecasts": forecasts,
-        "shopping": shopping,
-    })
+    return render(
+        request,
+        "insight_demand.html",
+        {
+            "forecasts": forecasts,
+            "shopping": shopping,
+        },
+    )
 
 
 @router.get("/freshness", response_class=HTMLResponse)
@@ -78,9 +87,14 @@ def freshness_view(
 ) -> HTMLResponse:
     flags = freshness_flags(session)
     cook = cook_today_suggestions(session)
-    return render(request, "insight_freshness.html", {
-        "flags": flags, "cook_today": cook,
-    })
+    return render(
+        request,
+        "insight_freshness.html",
+        {
+            "flags": flags,
+            "cook_today": cook,
+        },
+    )
 
 
 @router.get("/price-impact/{ingredient_id}", response_class=HTMLResponse)
@@ -91,15 +105,22 @@ def price_impact_view(
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     from app.rms.models import Ingredient
+
     ing = session.get(Ingredient, ingredient_id)
     if ing is None:
         raise HTTPException(404, "Ingrediente no encontrado")
     old = int(ing.purchase_price_gs or 0)
     impact = price_change_impact(session, ingredient_id, old, new_price)
     session.rollback()  # discard the simulation writes
-    return render(request, "insight_price_impact.html", {
-        "impact": impact, "old_price": old, "new_price": new_price,
-    })
+    return render(
+        request,
+        "insight_price_impact.html",
+        {
+            "impact": impact,
+            "old_price": old,
+            "new_price": new_price,
+        },
+    )
 
 
 @router.get("/api/allergen-check")
@@ -119,10 +140,16 @@ def substitutes_api(
     session: Session = Depends(get_session),
 ) -> dict:
     opts = substitutes_for(session, ingredient_id, in_recipe_id=recipe_id)
-    return {"options": [
-        {
-            "id": o.ingredient_id, "name": o.name, "role": o.role,
-            "price_delta_gs": o.price_delta_per_unit_gs,
-            "keeps_tags": o.keeps_tags, "tag_conflicts": o.tag_conflicts,
-        } for o in opts
-    ]}
+    return {
+        "options": [
+            {
+                "id": o.ingredient_id,
+                "name": o.name,
+                "role": o.role,
+                "price_delta_gs": o.price_delta_per_unit_gs,
+                "keeps_tags": o.keeps_tags,
+                "tag_conflicts": o.tag_conflicts,
+            }
+            for o in opts
+        ]
+    }

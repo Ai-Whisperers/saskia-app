@@ -9,6 +9,7 @@ These tests guard against deploy regressions that cause silent outages.
 Note: The warming-up branch test was removed because it requires
 manipulating app.state.ready which conflicts with test ordering.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -19,6 +20,7 @@ from sqlalchemy import text
 def app():
     """The FastAPI app instance from main.py."""
     from app.rms import main as main_module
+
     return main_module.app
 
 
@@ -49,8 +51,7 @@ def test_migration_idempotency(tmp_db_path):
     init_db(engine)
     v2 = schema_version(engine.connect())
     assert v2 == CURRENT_SCHEMA_VERSION, (
-        f"Second init_db() changed schema_version from {v1} to {v2}. "
-        f"Migrations must be idempotent."
+        f"Second init_db() changed schema_version from {v1} to {v2}. Migrations must be idempotent."
     )
 
 
@@ -73,8 +74,7 @@ def test_csrf_allows_primed_post(client):
     r = client.post("/products/99999/editar", data={"name": "Test"}, follow_redirects=False)
     # Should NOT be 403 (CSRF rejection). 404 (product not found) or 303/200 are fine.
     assert r.status_code != 403, (
-        "POST with CSRF cookie should pass CSRF check, got 403. "
-        "CSRF middleware too strict."
+        "POST with CSRF cookie should pass CSRF check, got 403. CSRF middleware too strict."
     )
 
 
@@ -101,9 +101,7 @@ def test_schema_drift_detection_underlying(app_engine):
 
     # Set DB version behind code
     with app_engine.connect() as conn:
-        conn.execute(
-            text("UPDATE app_meta SET value = '5' WHERE key = 'schema_version'")
-        )
+        conn.execute(text("UPDATE app_meta SET value = '5' WHERE key = 'schema_version'"))
         conn.commit()
 
     with app_engine.connect() as conn:

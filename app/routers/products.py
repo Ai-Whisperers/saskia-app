@@ -68,9 +68,7 @@ def products_api_search(
     """
     if not q or q.strip() == "":
         # No query: return all available (most-used come first).
-        rows = session.scalars(
-            select(Product).order_by(Product.name).limit(limit)
-        ).all()
+        rows = session.scalars(select(Product).order_by(Product.name).limit(limit)).all()
     else:
         like = f"%{q.strip().lower()}%"
         rows = session.scalars(
@@ -123,10 +121,7 @@ def products_api_tags(
 ) -> JSONResponse:
     """Return distinct non-empty tags across all products."""
     rows = session.scalars(
-        select(Product.tags)
-        .where(Product.tags.is_not(None))
-        .where(Product.tags != "")
-        .distinct()
+        select(Product.tags).where(Product.tags.is_not(None)).where(Product.tags != "").distinct()
     ).all()
     all_tags: set[str] = set()
     for row in rows:
@@ -159,7 +154,9 @@ def products_list(
     disponibles: str | None = Query(None, description="Filter availability: si/no"),
     tag: str | None = Query(None, description="Filter by tag (partial match on tags field)"),
     category: str | None = Query(None, description="Filter by category (exact match)"),
-    sort: str | None = Query(None, description="Sort column: name, sale_price_gs, cost_gs, margin_gs"),
+    sort: str | None = Query(
+        None, description="Sort column: name, sale_price_gs, cost_gs, margin_gs"
+    ),
     dir: str = Query("asc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
     session: Session = Depends(get_session),
@@ -209,9 +206,7 @@ def products_list(
     page = min(page, total_pages)
 
     # Fetch product IDs with sales (for dead product detection)
-    sold_product_ids = set(
-        session.scalars(select(Sale.product_id).distinct()).all()
-    )
+    sold_product_ids = set(session.scalars(select(Sale.product_id).distinct()).all())
 
     # Apply pagination
     offset = (page - 1) * PER_PAGE
@@ -278,6 +273,7 @@ def products_list(
 
     # Margin state filter (post-costing, in-memory): negativo <0, bajo <30%, ok 30-70%, alto >70%
     if margen_sel:
+
         def _mstate(r: object) -> str:
             if r["margin_ratio"] is None:
                 return "sin-datos"
@@ -289,6 +285,7 @@ def products_list(
             if pct <= 70:
                 return "ok"
             return "alto"
+
         decorated = [r for r in decorated if _mstate(r) == margen_sel]
         total = len(decorated)
 
@@ -297,26 +294,30 @@ def products_list(
         reverse = dir == "desc"
         decorated.sort(key=lambda r: r.get(sort) or 0, reverse=reverse)
 
-    return render(request, "productos.html", {
-        "products": decorated,
-        "q": q or "",
-        "has_recipe": has_recipe or "",
-        "margen_sel": margen_sel,
-        "disp_sel": disp_sel,
-        "tag_sel": tag_sel,
-        "category_sel": category_sel,
-        # UI-V2: reference 'now' for the cost-freshness column.
-        "now_utc": datetime.now(timezone.utc).replace(tzinfo=None),
-        "total_all": session.scalar(select(func.count()).select_from(Product)) or 0,
-        "sort": sort or "",
-        "dir": dir,
-        "page": page,
-        "total_pages": total_pages,
-        "total": total,
-        "per_page": PER_PAGE,
-        "page_start": (page - 1) * PER_PAGE + 1,
-        "page_end": min(page * PER_PAGE, total),
-    })
+    return render(
+        request,
+        "productos.html",
+        {
+            "products": decorated,
+            "q": q or "",
+            "has_recipe": has_recipe or "",
+            "margen_sel": margen_sel,
+            "disp_sel": disp_sel,
+            "tag_sel": tag_sel,
+            "category_sel": category_sel,
+            # UI-V2: reference 'now' for the cost-freshness column.
+            "now_utc": datetime.now(timezone.utc).replace(tzinfo=None),
+            "total_all": session.scalar(select(func.count()).select_from(Product)) or 0,
+            "sort": sort or "",
+            "dir": dir,
+            "page": page,
+            "total_pages": total_pages,
+            "total": total,
+            "per_page": PER_PAGE,
+            "page_start": (page - 1) * PER_PAGE + 1,
+            "page_end": min(page * PER_PAGE, total),
+        },
+    )
 
 
 @router.get("/export.csv")
@@ -329,23 +330,34 @@ def products_export_csv(
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "id", "name", "sku", "is_available", "portion_label",
-        "sale_price_gs", "recipe_id", "cost_gs", "notes",
-    ])
+    writer.writerow(
+        [
+            "id",
+            "name",
+            "sku",
+            "is_available",
+            "portion_label",
+            "sale_price_gs",
+            "recipe_id",
+            "cost_gs",
+            "notes",
+        ]
+    )
     for p in products:
         cost = product_unit_cost_gs(session, p.id)
-        writer.writerow([
-            p.id,
-            p.name,
-            p.sku or "",
-            p.is_available,
-            p.portion_label,
-            p.sale_price_gs,
-            p.recipe_id or "",
-            cost.batch_cost_gs if cost else "",
-            p.notes or "",
-        ])
+        writer.writerow(
+            [
+                p.id,
+                p.name,
+                p.sku or "",
+                p.is_available,
+                p.portion_label,
+                p.sale_price_gs,
+                p.recipe_id or "",
+                cost.batch_cost_gs if cost else "",
+                p.notes or "",
+            ]
+        )
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     return Response(
@@ -442,7 +454,9 @@ def product_create(
     tags_clean = optional_text(tags, max_len=500)
 
     # Wholesale price (mayorista) — optional B2B field.
-    mayorista_price = parse_money_gs(mayorista_price_gs, allow_zero=True) if mayorista_price_gs.strip() else None
+    mayorista_price = (
+        parse_money_gs(mayorista_price_gs, allow_zero=True) if mayorista_price_gs.strip() else None
+    )
 
     # IVA rate — validated against allowed values.
     iva_valid = iva_rate in ("10", "5", "0", "exento")
@@ -463,6 +477,7 @@ def product_create(
     # left either blank. Recipe's family → category, dietary_tags → tags.
     if rid and (not category_clean or not tags_clean):
         from app.rms.models import Recipe
+
         linked_recipe = session.get(Recipe, rid)
         if linked_recipe:
             if not category_clean and linked_recipe.family:
@@ -496,9 +511,11 @@ def product_create(
         session.rollback()
         # Distinguish name vs slug uniqueness conflicts so the operator
         # gets a useful error. C2 — slug uniqueness is independent of name.
-        slug_taken = tablet_slug_clean and session.scalar(
-            select(Product).where(Product.tablet_slug == tablet_slug_clean)
-        ) is not None
+        slug_taken = (
+            tablet_slug_clean
+            and session.scalar(select(Product).where(Product.tablet_slug == tablet_slug_clean))
+            is not None
+        )
         if slug_taken:
             raise HTTPException(
                 status_code=409,
@@ -605,7 +622,9 @@ def product_update(
     tags_clean = optional_text(tags, max_len=500)
 
     # Wholesale price (mayorista) — optional B2B field.
-    mayorista_price = parse_money_gs(mayorista_price_gs, allow_zero=True) if mayorista_price_gs.strip() else None
+    mayorista_price = (
+        parse_money_gs(mayorista_price_gs, allow_zero=True) if mayorista_price_gs.strip() else None
+    )
 
     # IVA rate — validated against allowed values.
     iva_valid = iva_rate in ("10", "5", "0", "exento")
@@ -619,9 +638,7 @@ def product_update(
     # C2 — tablet-menu visibility. Slug auto-generates from the name on
     # blank input; the operator can also type a custom slug.
     tablet_visible_bool = tablet_visible == "on"
-    tablet_slug_clean = validate_slug(
-        tablet_slug or slugify(clean_name), field="slug"
-    )
+    tablet_slug_clean = validate_slug(tablet_slug or slugify(clean_name), field="slug")
 
     p.name = clean_name
     p.portion_label = portion_label_clean
@@ -646,10 +663,13 @@ def product_update(
         session.rollback()
         # C2 — slug uniqueness is independent of name. A duplicate slug
         # on update raises IntegrityError just like a duplicate name.
-        slug_taken = tablet_slug_clean and session.scalar(
-            select(Product)
-            .where(Product.tablet_slug == tablet_slug_clean, Product.id != p_id)
-        ) is not None
+        slug_taken = (
+            tablet_slug_clean
+            and session.scalar(
+                select(Product).where(Product.tablet_slug == tablet_slug_clean, Product.id != p_id)
+            )
+            is not None
+        )
         if slug_taken:
             raise HTTPException(
                 status_code=409,
@@ -695,9 +715,7 @@ def product_toggle_favorite(
     )
     session.commit()
     # Back to wherever the toggle came from (keep filters/sort/page)
-    return RedirectResponse(
-        url=request.headers.get("referer") or "/productos", status_code=303
-    )
+    return RedirectResponse(url=request.headers.get("referer") or "/productos", status_code=303)
 
 
 @router.post("/{p_id}/eliminar")
@@ -767,6 +785,7 @@ def product_bulk_delete(
 
 # ─── Bulk edit ──────────────────────────────────────────────────────────────────
 
+
 @router.post("/bulk-edit")
 async def product_bulk_edit(
     request: Request,
@@ -788,7 +807,9 @@ async def product_bulk_edit(
 
     valid_actions = {"price_pct", "set_availability", "set_category"}
     if action not in valid_actions:
-        return JSONResponse(status_code=400, content={"error": f"action must be one of {valid_actions}"})
+        return JSONResponse(
+            status_code=400, content={"error": f"action must be one of {valid_actions}"}
+        )
 
     updated = 0
     for pid in product_ids:
@@ -797,7 +818,9 @@ async def product_bulk_edit(
             continue
         if action == "price_pct":
             if not isinstance(value, (int, float)):
-                return JSONResponse(status_code=400, content={"error": "price_pct requires numeric value"})
+                return JSONResponse(
+                    status_code=400, content={"error": "price_pct requires numeric value"}
+                )
             p.sale_price_gs = max(0, int(p.sale_price_gs * (1 + float(value) / 100)))
         elif action == "set_availability":
             p.is_available = bool(value)
@@ -833,22 +856,34 @@ async def products_import_csv(
     # raised 'NoneType is not callable' on the test client. Tier 3 smoke
     # (2026-10-01) caught the regression.
     if not file or not hasattr(file, "filename"):
-        return render(request, "productos_importar.html", {
-            "error": "No se recibió ningún archivo."
-        })
+        return render(
+            request, "productos_importar.html", {"error": "No se recibió ningún archivo."}
+        )
 
     content = (await file.read()).decode("utf-8", errors="replace")
     reader = csv.DictReader(content.splitlines())
     if reader.fieldnames is None:
-        return render(request, "productos_importar.html", {
-            "error": "El archivo no parece ser un CSV válido."
-        })
+        return render(
+            request, "productos_importar.html", {"error": "El archivo no parece ser un CSV válido."}
+        )
 
-    expected = {"name", "sku", "category", "portion_label", "sale_price_gs", "yield_percentage", "tags"}
+    expected = {
+        "name",
+        "sku",
+        "category",
+        "portion_label",
+        "sale_price_gs",
+        "yield_percentage",
+        "tags",
+    }
     if not expected.issubset(reader.fieldnames):
-        return render(request, "productos_importar.html", {
-            "error": f"Columnas requeridas faltantes. Esperado: {', '.join(sorted(expected))}. Encontrado: {', '.join(reader.fieldnames)}"
-        })
+        return render(
+            request,
+            "productos_importar.html",
+            {
+                "error": f"Columnas requeridas faltantes. Esperado: {', '.join(sorted(expected))}. Encontrado: {', '.join(reader.fieldnames)}"
+            },
+        )
 
     created = 0
     updated = 0
@@ -896,14 +931,19 @@ async def products_import_csv(
             session.rollback()
             errors.append({"row": row_num, "error": str(e)})
 
-    return render(request, "productos_importar.html", {
-        "created": created,
-        "updated": updated,
-        "errors": errors,
-    })
+    return render(
+        request,
+        "productos_importar.html",
+        {
+            "created": created,
+            "updated": updated,
+            "errors": errors,
+        },
+    )
 
 
 __all__ = ["public_router", "router"]
+
 
 @router.post("/upload-image")
 async def product_upload_image(
@@ -959,9 +999,7 @@ async def product_upload_image(
 
     if is_storage_enabled():
         try:
-            result = upload_product_image(
-                content_bytes, file.content_type, original_name
-            )
+            result = upload_product_image(content_bytes, file.content_type, original_name)
             return JSONResponse(result)
         except ValueError as exc:
             msg = str(exc)
@@ -1114,16 +1152,18 @@ def public_menu_catalog(
     groups: dict[str, list[dict]] = {}
     for p in products:
         cat = (p.category or "otro").strip().lower() or "otro"
-        groups.setdefault(cat, []).append({
-            "id": p.id,
-            "name": p.name,
-            "portion_label": p.portion_label or "",
-            "sale_price_gs": p.sale_price_gs,
-            "image_url": p.image_url or "",
-            "tablet_slug": p.tablet_slug or "",
-            "notes": p.notes or "",
-            "tags": [t.strip() for t in (p.tags or "").split(",") if t.strip()],
-        })
+        groups.setdefault(cat, []).append(
+            {
+                "id": p.id,
+                "name": p.name,
+                "portion_label": p.portion_label or "",
+                "sale_price_gs": p.sale_price_gs,
+                "image_url": p.image_url or "",
+                "tablet_slug": p.tablet_slug or "",
+                "notes": p.notes or "",
+                "tags": [t.strip() for t in (p.tags or "").split(",") if t.strip()],
+            }
+        )
 
     ordered_keys = [c for c in _MENU_CATEGORY_ORDER if c in groups]
     ordered_keys += sorted(k for k in groups if k not in _MENU_CATEGORY_ORDER)

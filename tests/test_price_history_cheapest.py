@@ -4,6 +4,7 @@ The /reorder hint "Proveedor más barato" is powered by
 ``cheapest_supplier()`` (single ingredient) and
 ``batch_cheapest_supplier()`` (many ingredients in one query).
 """
+
 from __future__ import annotations
 
 from app.rms.price_history import (

@@ -23,6 +23,7 @@ Exit codes:
     1  backup failed
     2  DB unreachable
 """
+
 from __future__ import annotations
 
 import argparse
@@ -92,16 +93,21 @@ if not {args.no_prune}:
         print(f"Prune removed: {{len(result.removed)}} files")
 """
     import subprocess
+
     full_code = code
     result = subprocess.run(
         [sys.executable, "-c", full_code],
-        capture_output=True, text=True, timeout=600,
+        capture_output=True,
+        text=True,
+        timeout=600,
     )
     print(result.stdout)
     if result.stderr:
         print(result.stderr, file=sys.stderr)
     elapsed = time.time() - start
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] backup_cron done in {elapsed:.1f}s status={result.returncode}")
+    print(
+        f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] backup_cron done in {elapsed:.1f}s status={result.returncode}"
+    )
     return result.returncode
 
 

@@ -69,9 +69,7 @@ def record_price_event(
     """
     if source not in _ALLOWED_SOURCES:
         allowed = ", ".join(sorted(_ALLOWED_SOURCES))
-        raise ValueError(
-            f"unknown source: {source!r}. Allowed: {allowed}"
-        )
+        raise ValueError(f"unknown source: {source!r}. Allowed: {allowed}")
 
     ingredient = session.get(Ingredient, ingredient_id)
     if ingredient is None:
@@ -147,7 +145,10 @@ def batch_price_stats(
         .order_by(IngredientPriceEvent.ingredient_id, IngredientPriceEvent.recorded_at.asc())
     ).all()
 
-    result: dict[int, dict] = {iid: {"current": None, "min": None, "max": None, "avg": None, "count": 0} for iid in ingredient_ids}
+    result: dict[int, dict] = {
+        iid: {"current": None, "min": None, "max": None, "avg": None, "count": 0}
+        for iid in ingredient_ids
+    }
     for row in rows:
         iid, price_gs, _recorded_at = row
         d = result[iid]
@@ -162,9 +163,9 @@ def batch_price_stats(
     for iid in ingredient_ids:
         d = result[iid]
         if d["count"] > 0:
-            avg = sum(
-                Decimal(r.price_gs) for r in rows if r.ingredient_id == iid
-            ) / Decimal(d["count"])
+            avg = sum(Decimal(r.price_gs) for r in rows if r.ingredient_id == iid) / Decimal(
+                d["count"]
+            )
             d["avg"] = int(avg)
         else:
             d["current"] = None
@@ -202,8 +203,6 @@ def price_stats(
         "avg": avg,
         "count": len(prices),
     }
-
-
 
 
 def cheapest_supplier(
@@ -255,9 +254,7 @@ def cheapest_supplier(
     best_count: int = 0
     for sid, prices in buckets.items():
         avg = sum(prices) // len(prices)
-        if not best_set or avg < best_avg or (
-            avg == best_avg and len(prices) > best_count
-        ):
+        if not best_set or avg < best_avg or (avg == best_avg and len(prices) > best_count):
             best_supplier_id = sid
             best_avg = avg
             best_count = len(prices)
@@ -266,6 +263,7 @@ def cheapest_supplier(
     supplier_name: str | None = None
     if best_supplier_id is not None:
         from app.rms.models import Supplier
+
         sup = session.get(Supplier, best_supplier_id)
         if sup is not None:
             supplier_name = sup.name
@@ -295,8 +293,7 @@ def batch_cheapest_supplier(
             IngredientPriceEvent.ingredient_id,
             IngredientPriceEvent.supplier_id,
             IngredientPriceEvent.price_gs,
-        )
-        .where(
+        ).where(
             IngredientPriceEvent.ingredient_id.in_(ingredient_ids),
             IngredientPriceEvent.recorded_at >= cutoff,
         )
@@ -310,17 +307,14 @@ def batch_cheapest_supplier(
 
     # Resolve supplier names in one query.
     supplier_ids = {
-        sid
-        for per_ing in buckets.values()
-        for sid in per_ing.keys()
-        if sid is not None
+        sid for per_ing in buckets.values() for sid in per_ing.keys() if sid is not None
     }
     supplier_names: dict[int, str] = {}
     if supplier_ids:
         from app.rms.models import Supplier
+
         sup_rows = session.execute(
-            select(Supplier.id, Supplier.name)
-            .where(Supplier.id.in_(supplier_ids))
+            select(Supplier.id, Supplier.name).where(Supplier.id.in_(supplier_ids))
         ).all()
         supplier_names = {int(sid): name for sid, name in sup_rows}
 
@@ -337,9 +331,7 @@ def batch_cheapest_supplier(
         best_count = 0
         for sid, prices in per_ing.items():
             avg = sum(prices) // len(prices)
-            if not best_set or avg < best_avg or (
-                avg == best_avg and len(prices) > best_count
-            ):
+            if not best_set or avg < best_avg or (avg == best_avg and len(prices) > best_count):
                 best_sid = sid
                 best_avg = avg
                 best_count = len(prices)
@@ -415,17 +407,13 @@ def supplier_volatility(
     # Bucket by supplier.
     by_supplier: dict[int, list[tuple[int, datetime, int]]] = {}
     for sup_id, ing_id, price_gs, recorded_at in rows:
-        by_supplier.setdefault(int(sup_id), []).append(
-            (int(ing_id), recorded_at, int(price_gs))
-        )
+        by_supplier.setdefault(int(sup_id), []).append((int(ing_id), recorded_at, int(price_gs)))
 
     # Hydrate supplier names in one query.
     sup_ids = list(by_supplier.keys())
     names_by_id = {
         s.id: s.name
-        for s in session.scalars(
-            select(Supplier).where(Supplier.id.in_(sup_ids))
-        ).all()
+        for s in session.scalars(select(Supplier).where(Supplier.id.in_(sup_ids))).all()
     }
 
     out: list[dict] = []
@@ -460,23 +448,23 @@ def supplier_volatility(
         # recorded_at is naive UTC; treat as UTC for diff.
         if last_recorded.tzinfo is None:
             last_recorded = last_recorded.replace(tzinfo=timezone.utc)
-        days_stale = max(
-            0, int((now_utc - last_recorded).total_seconds() // 86400)
-        )
+        days_stale = max(0, int((now_utc - last_recorded).total_seconds() // 86400))
 
-        out.append({
-            "supplier_id": sup_id,
-            "supplier_name": names_by_id.get(sup_id, "?"),
-            "ingredient_count": len(ingredients),
-            "event_count": len(events),
-            "min_price_gs": min_p,
-            "max_price_gs": max_p,
-            "avg_price_gs": round(avg_p, 1),
-            "volatility_score": round(volatility, 3),
-            "trend_direction": trend,
-            "days_since_last_event": days_stale,
-            "current_price_gs": last_price,
-        })
+        out.append(
+            {
+                "supplier_id": sup_id,
+                "supplier_name": names_by_id.get(sup_id, "?"),
+                "ingredient_count": len(ingredients),
+                "event_count": len(events),
+                "min_price_gs": min_p,
+                "max_price_gs": max_p,
+                "avg_price_gs": round(avg_p, 1),
+                "volatility_score": round(volatility, 3),
+                "trend_direction": trend,
+                "days_since_last_event": days_stale,
+                "current_price_gs": last_price,
+            }
+        )
 
     out.sort(key=lambda r: r["volatility_score"], reverse=True)
     return out

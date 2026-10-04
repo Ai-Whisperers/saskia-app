@@ -20,11 +20,12 @@ def pytest_collection_modifyitems(config, items):
     """Mark only the not-yet-shipped recipe line tests as xfail."""
     for item in items:
         if item.name in _RECIPE_LINE_TESTS:
-            item.add_marker(pytest.mark.xfail(
-                reason="US 3.1 recipe line conversion still pending",
-                strict=False,
-            ))
-
+            item.add_marker(
+                pytest.mark.xfail(
+                    reason="US 3.1 recipe line conversion still pending",
+                    strict=False,
+                )
+            )
 
 
 def test_receta_form_category_uses_menu_tags_picker(qseed, authed_client):
@@ -50,7 +51,7 @@ def test_receta_form_line_uses_combobox_for_items(qseed, authed_client):
     body = r.text
     # Line combo markers
     assert "saskia-combo" in body
-    assert "data-source=\"/inventario/api/search\"" in body
+    assert 'data-source="/inventario/api/search"' in body
     # Dynamic line switching JS is present
     assert "updateLineSource" in body
     assert "recetas/api/search" in body  # JS code has this URL
@@ -79,7 +80,7 @@ def test_receta_form_dynamic_line_creation(qseed, authed_client):
     assert r.status_code == 200
     body = r.text
     # Add line button exists
-    assert "id=\"add-line\"" in body
+    assert 'id="add-line"' in body
     # New line creation includes combo initialization
     assert "new SaskiaCombo" in body
 
@@ -93,6 +94,6 @@ def test_inventario_form_category_uses_combobox(qseed, authed_client):
     # Combo markers for category
     assert "saskia-combo" in body
     assert "categoryRowLabel" in body
-    assert "data-allow-create=\"true\"" in body
+    assert 'data-allow-create="true"' in body
     # Old native input is gone
     assert '<input type="text" id="category" name="category">' not in body

@@ -6,6 +6,7 @@ Pins the dashboard refresh to:
 - All substituted placeholders resolve (no orphan __FOO__ left)
 - New wishlist fields (raw / triaged / rejected) are wired
 """
+
 from __future__ import annotations
 
 import re
@@ -28,6 +29,7 @@ def test_status_template_exists():
 def test_refresh_script_exists_and_executable():
     assert REFRESH_SH.exists()
     import stat
+
     mode = REFRESH_SH.stat().st_mode
     assert mode & stat.S_IXUSR, "refresh.sh must be executable"
 
@@ -85,9 +87,7 @@ def test_no_orphan_placeholders_in_generated_html():
     refresh = _read(REFRESH_SH)
     for p in placeholders:
         # Check if the placeholder is referenced in refresh.sh anywhere
-        assert f"__{p}__" in refresh, (
-            f"placeholder __{p}__ has no substitution in refresh.sh"
-        )
+        assert f"__{p}__" in refresh, f"placeholder __{p}__ has no substitution in refresh.sh"
 
 
 def test_wishlist_dir_scanning_works():

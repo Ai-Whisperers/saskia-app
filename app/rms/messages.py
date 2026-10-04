@@ -8,6 +8,7 @@ Centralized so:
 Each constant is a short user-facing string. Use these instead of
 hardcoded f-strings in router bodies.
 """
+
 from __future__ import annotations
 
 # ─── Generic ─────────────────────────────────────────────────────

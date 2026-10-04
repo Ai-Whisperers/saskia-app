@@ -60,21 +60,23 @@ from app.rms.models import PedidoEvent
 
 # Keep in lock-step with the CK_pedido_event_type constraint
 # (see app/rms/models_legacy.py PedidoEvent class).
-VALID_EVENT_TYPES: frozenset[str] = frozenset({
-    "created",
-    "status_change",
-    "line_added",
-    "line_removed",
-    "line_qty_changed",
-    "line_price_changed",
-    "note_edited",
-    "address_changed",
-    "window_changed",
-    "customer_changed",
-    "payment_intent_set",
-    "cancelled",
-    "duplicated",
-})
+VALID_EVENT_TYPES: frozenset[str] = frozenset(
+    {
+        "created",
+        "status_change",
+        "line_added",
+        "line_removed",
+        "line_qty_changed",
+        "line_price_changed",
+        "note_edited",
+        "address_changed",
+        "window_changed",
+        "customer_changed",
+        "payment_intent_set",
+        "cancelled",
+        "duplicated",
+    }
+)
 
 
 class PedidoEventService:
@@ -120,9 +122,11 @@ class PedidoEventService:
             # roll back the add so the caller's transaction stays clean.
             session.rollback()
             from app.rms.db import logger  # local import to avoid cycle
+
             logger.debug(
                 "PedidoEventService.record skipped for pedido %s: %s",
-                pedido_id, exc,
+                pedido_id,
+                exc,
             )
             return None
         return evt

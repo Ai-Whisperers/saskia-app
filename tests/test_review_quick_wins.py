@@ -7,6 +7,7 @@
   AIW_SASKIA_INTERNAL_ROUTES=0 unmounts them (opt-out escape hatch).
 - PRO-02: Production default qty rounded UP to whole piece (no 0.1 muffins)
 """
+
 from __future__ import annotations
 
 import os
@@ -29,13 +30,19 @@ def _run_route_check(path: str, env_value: str | None) -> int:
     """
     import sys
     from pathlib import Path
+
     runner = Path(__file__).parent / "_prod_mode_check.py"
     env = dict(os.environ)
     env.pop("AIW_SASKIA_INTERNAL_ROUTES", None)
     if env_value is not None:
         env["AIW_SASKIA_INTERNAL_ROUTES"] = env_value
-    out = subprocess.run([sys.executable, str(runner), path],
-                         capture_output=True, text=True, cwd=os.getcwd(), env=env)
+    out = subprocess.run(
+        [sys.executable, str(runner), path],
+        capture_output=True,
+        text=True,
+        cwd=os.getcwd(),
+        env=env,
+    )
     if out.returncode != 0:
         raise AssertionError(f"route-check runner failed: {out.stderr[-400:]}")
     return int(out.stdout.strip().splitlines()[-1])
@@ -80,20 +87,28 @@ def test_pro_04_ver_receta_links_to_recipe_detail(client):
     """
     # Seed via the public HTTP API (POST /productos/nuevo, etc.) instead of
     # internal DB access to keep the test exercising the real flow.
-    r = client.post("/productos/nuevo", data={
-        "name": "Muffin de nueces",
-        "sale_price_gs": "2500",
-        "channel": "Mostrador",
-    }, follow_redirects=False)
+    r = client.post(
+        "/productos/nuevo",
+        data={
+            "name": "Muffin de nueces",
+            "sale_price_gs": "2500",
+            "channel": "Mostrador",
+        },
+        follow_redirects=False,
+    )
     assert r.status_code in (303, 200), f"Create product failed: {r.status_code}"
 
-    r = client.post("/inventario/nuevo", data={
-        "name": "harina",
-        "unit": "kg",
-        "stock_qty": "5.0",
-        "min_stock_qty": "1.0",
-        "purchase_price_gs": "3000",
-    }, follow_redirects=False)
+    r = client.post(
+        "/inventario/nuevo",
+        data={
+            "name": "harina",
+            "unit": "kg",
+            "stock_qty": "5.0",
+            "min_stock_qty": "1.0",
+            "purchase_price_gs": "3000",
+        },
+        follow_redirects=False,
+    )
     assert r.status_code in (303, 200), f"Create ingredient failed: {r.status_code}"
 
     # Find the IDs by scraping the rendered lists
@@ -121,13 +136,15 @@ def test_mer_03_merma_shows_no_sales_message_when_empty(client):
     r = client.get("/merma")
     assert r.status_code == 200
     body = r.text
-    assert "Todavía no hay ventas" in body or "no hay ventas para comparar" in body, \
+    assert "Todavía no hay ventas" in body or "no hay ventas para comparar" in body, (
         f"Merma page should show no-revenue copy, got: {body[:300]}"
+    )
 
 
 def test_pro_02_forecast_rounded_up_to_integer():
     """PRO-02: An auto-suggested forecast of 0.36 must round UP to 1."""
     import math
+
     # Pure unit test of the rounding rule (production.py:math.ceil for non-manual)
     # 5 sales over 14d = ~0.36, ceil = 1
     assert math.ceil(0.36) == 1
@@ -149,5 +166,4 @@ def test_mer_03_merma_template_has_spanish_example(client):
     r = client.get("/merma")
     assert r.status_code == 200
     body = r.text
-    assert "se vencieron 200 g de crema" in body, \
-        "Merma page missing the Spanish example sentence"
+    assert "se vencieron 200 g de crema" in body, "Merma page missing the Spanish example sentence"

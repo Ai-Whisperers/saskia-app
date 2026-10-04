@@ -39,7 +39,13 @@ def test_week_grid_macro_renders_seven_cells(jinja_env):
 {{ cal.week_grid(weekdays, days, prev_week_iso, next_week_iso) }}"""
     )
     days = [
-        {"date_iso": f"2026-09-2{i}", "label": f"Día {i}", "item_count": i, "is_today": False, "is_selected": False}
+        {
+            "date_iso": f"2026-09-2{i}",
+            "label": f"Día {i}",
+            "item_count": i,
+            "is_today": False,
+            "is_selected": False,
+        }
         for i in range(1, 8)
     ]
     html = template.render(
@@ -60,7 +66,15 @@ def test_week_grid_renders_nav_links(jinja_env):
         """{% import "_components/calendar.html" as cal %}
 {{ cal.week_grid(weekdays, days, prev_week_iso, next_week_iso) }}"""
     )
-    days = [{"date_iso": "2026-09-21", "label": "Lun", "item_count": 3, "is_today": True, "is_selected": False}]
+    days = [
+        {
+            "date_iso": "2026-09-21",
+            "label": "Lun",
+            "item_count": 3,
+            "is_today": True,
+            "is_selected": False,
+        }
+    ]
     html = template.render(
         weekdays=["Lun"],
         days=days,
@@ -98,20 +112,55 @@ def test_week_grid_marks_today_and_selected(jinja_env):
 {{ cal.week_grid(weekdays, days, prev_week_iso, next_week_iso) }}"""
     )
     days = [
-        {"date_iso": "2026-09-21", "label": "Lun", "item_count": 0,
-         "is_today": True, "is_selected": False},
-        {"date_iso": "2026-09-22", "label": "Mar", "item_count": 0,
-         "is_today": False, "is_selected": True},
-        {"date_iso": "2026-09-23", "label": "Mié", "item_count": 0,
-         "is_today": False, "is_selected": False},
-        {"date_iso": "2026-09-24", "label": "Jue", "item_count": 1,
-         "is_today": False, "is_selected": False},
-        {"date_iso": "2026-09-25", "label": "Vie", "item_count": 2,
-         "is_today": False, "is_selected": False},
-        {"date_iso": "2026-09-26", "label": "Sáb", "item_count": 4,
-         "is_today": False, "is_selected": False},
-        {"date_iso": "2026-09-27", "label": "Dom", "item_count": 6,
-         "is_today": False, "is_selected": False},
+        {
+            "date_iso": "2026-09-21",
+            "label": "Lun",
+            "item_count": 0,
+            "is_today": True,
+            "is_selected": False,
+        },
+        {
+            "date_iso": "2026-09-22",
+            "label": "Mar",
+            "item_count": 0,
+            "is_today": False,
+            "is_selected": True,
+        },
+        {
+            "date_iso": "2026-09-23",
+            "label": "Mié",
+            "item_count": 0,
+            "is_today": False,
+            "is_selected": False,
+        },
+        {
+            "date_iso": "2026-09-24",
+            "label": "Jue",
+            "item_count": 1,
+            "is_today": False,
+            "is_selected": False,
+        },
+        {
+            "date_iso": "2026-09-25",
+            "label": "Vie",
+            "item_count": 2,
+            "is_today": False,
+            "is_selected": False,
+        },
+        {
+            "date_iso": "2026-09-26",
+            "label": "Sáb",
+            "item_count": 4,
+            "is_today": False,
+            "is_selected": False,
+        },
+        {
+            "date_iso": "2026-09-27",
+            "label": "Dom",
+            "item_count": 6,
+            "is_today": False,
+            "is_selected": False,
+        },
     ]
     html = template.render(
         weekdays=["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
@@ -255,8 +304,13 @@ def test_calendar_uses_7_col_grid(jinja_env):
     """Both grids render as a 7-column CSS grid (one col per weekday)."""
     # Month with 30 days (September), no offset, so needs 6 rows × 7 cols = 42 cells.
     month_days_30 = [
-        {"date_iso": f"2026-09-{d:02d}", "label": str(d),
-         "item_count": 0, "is_today": False, "is_selected": False}
+        {
+            "date_iso": f"2026-09-{d:02d}",
+            "label": str(d),
+            "item_count": 0,
+            "is_today": False,
+            "is_selected": False,
+        }
         for d in range(1, 31)
     ]
     template = jinja_env.from_string(
@@ -266,11 +320,26 @@ def test_calendar_uses_7_col_grid(jinja_env):
     )
     html = template.render(
         weekdays=["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
-        days=[{"date_iso": "2026-09-21", "label": "Lun",
-               "item_count": 0, "is_today": True, "is_selected": False}] * 7
-              + [{"date_iso": f"2026-09-{d:02d}", "label": str(d),
-                  "item_count": 0, "is_today": False, "is_selected": False}
-                 for d in range(22, 30)],
+        days=[
+            {
+                "date_iso": "2026-09-21",
+                "label": "Lun",
+                "item_count": 0,
+                "is_today": True,
+                "is_selected": False,
+            }
+        ]
+        * 7
+        + [
+            {
+                "date_iso": f"2026-09-{d:02d}",
+                "label": str(d),
+                "item_count": 0,
+                "is_today": False,
+                "is_selected": False,
+            }
+            for d in range(22, 30)
+        ],
         prev_week_iso="2026-09-14",
         next_week_iso="2026-09-28",
         year=2026,

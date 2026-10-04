@@ -11,6 +11,7 @@ Forbids:
 Run:  .venv/bin/python scripts/lint_tier1.py
 Exit 0 = clean; non-zero = violations found.
 """
+
 import sys
 from pathlib import Path
 
@@ -43,7 +44,7 @@ RULES = [
     ('type="date"', "native date input; use <saskia-date>"),
     ('onsubmit="return confirm(', "native confirm(); use js-confirm-form"),
     ('onclick="return confirm(', "native confirm(); use js-confirm-form"),
-    ('confirm(\'¿', "native confirm(); use js-confirm-form"),
+    ("confirm('¿", "native confirm(); use js-confirm-form"),
     ('confirm("¿', "native confirm(); use js-confirm-form"),
 ]
 

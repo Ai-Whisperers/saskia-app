@@ -9,6 +9,7 @@ Covers:
 - .github/CODEOWNERS has routing rules
 - .github/dependabot.yml has uv ecosystem enabled
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -32,11 +33,24 @@ def test_makefile_has_all_targets():
     """The 13 expected targets must exist."""
     content = (ROOT / "Makefile").read_text()
     expected = [
-        "install", "test", "test-verbose", "test-coverage",
-        "lint", "lint-fix", "format", "check",
-        "serve", "migrate", "seed", "seed-reset",
-        "backup", "fixtures", "clean", "ci-smoke",
-        "pre-commit", "stats",
+        "install",
+        "test",
+        "test-verbose",
+        "test-coverage",
+        "lint",
+        "lint-fix",
+        "format",
+        "check",
+        "serve",
+        "migrate",
+        "seed",
+        "seed-reset",
+        "backup",
+        "fixtures",
+        "clean",
+        "ci-smoke",
+        "pre-commit",
+        "stats",
     ]
     for t in expected:
         assert f"\n{t}:" in content or f"\n.PHONY: {t}" in content, f"Missing target: {t}"

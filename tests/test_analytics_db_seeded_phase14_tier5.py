@@ -67,14 +67,18 @@ n_top_st = st.integers(min_value=1, max_value=50)
 
 # --- 1. stock_turnover --------------------------------------------------
 
+
 @given(days=days_st)
-@settings(max_examples=15, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(
+    max_examples=15, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+)
 def test_stock_turnover_returns_finite_or_none(qseed, days):
     """For any valid ingredient + days, stock_turnover returns either None
     (ingredient doesn't exist) or a StockTurnover with finite numbers.
     Catches: NaN, inf, OverflowError on int conversion (the bug we fixed).
     """
     import math
+
     data = qseed("basic")  # creates 1 ingredient
     ing_id = data["ingredient"].id
     result = analytics.stock_turnover(qseed.session_factory(), ing_id, days=days)
@@ -86,7 +90,9 @@ def test_stock_turnover_returns_finite_or_none(qseed, days):
     assert math.isfinite(result.avg_stock)
     assert math.isfinite(result.turnover_ratio)
     if result.days_of_stock is not None:
-        assert result.days_of_stock >= 0, f"days_of_stock must be non-negative, got {result.days_of_stock}"
+        assert result.days_of_stock >= 0, (
+            f"days_of_stock must be non-negative, got {result.days_of_stock}"
+        )
 
 
 def test_stock_turnover_for_unknown_ingredient_returns_none(qseed):
@@ -98,8 +104,11 @@ def test_stock_turnover_for_unknown_ingredient_returns_none(qseed):
 
 # --- 2. batch_stock_turnover --------------------------------------------
 
+
 @given(days=days_st)
-@settings(max_examples=10, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(
+    max_examples=10, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+)
 def test_batch_stock_turnover_returns_dict(qseed, days):
     """batch_stock_turnover always returns a dict[int, StockTurnover],
     one entry per existing ingredient, none per missing.
@@ -118,6 +127,7 @@ def test_batch_stock_turnover_returns_dict(qseed, days):
 
 # --- 3. all_stock_turnover ----------------------------------------------
 
+
 def test_all_stock_turnover_returns_list(qseed):
     """all_stock_turnover returns a list; can be empty if no ingredients."""
     qseed("basic")
@@ -128,8 +138,11 @@ def test_all_stock_turnover_returns_list(qseed):
 
 # --- 4. dead_stock ------------------------------------------------------
 
+
 @given(threshold=threshold_st)
-@settings(max_examples=10, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(
+    max_examples=10, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+)
 def test_dead_stock_respects_threshold(qseed, threshold):
     """dead_stock returns ingredients not consumed within threshold_days.
     Every row's days_since_consumed must be >= threshold (by definition).
@@ -147,6 +160,7 @@ def test_dead_stock_respects_threshold(qseed, threshold):
 
 
 # --- 5. margin_erosion_alerts ------------------------------------------
+
 
 def test_margin_erosion_alerts_returns_sorted_list(qseed):
     """margin_erosion_alerts returns rows sorted by margin_delta_pct ascending
@@ -166,8 +180,11 @@ def test_margin_erosion_alerts_returns_sorted_list(qseed):
 
 # --- 6. day_of_week_heatmap ---------------------------------------------
 
+
 @given(days=days_st)
-@settings(max_examples=10, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(
+    max_examples=10, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+)
 def test_day_of_week_heatmap_returns_bounded_buckets(qseed, days):
     """day_of_week_heatmap returns 0..7 buckets, each with non-negative counts."""
     qseed("with_sale")
@@ -186,8 +203,11 @@ def test_day_of_week_heatmap_returns_bounded_buckets(qseed, days):
 
 # --- 7. top_margin_products --------------------------------------------
 
+
 @given(n=n_top_st)
-@settings(max_examples=10, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(
+    max_examples=10, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+)
 def test_top_margin_products_respects_n_top(qseed, n):
     """top_margin_products returns at most n rows (param is `limit`)."""
     qseed("basic")
@@ -200,6 +220,7 @@ def test_top_margin_products_respects_n_top(qseed, n):
 
 
 # --- 8. ingredient_concentration ---------------------------------------
+
 
 def test_ingredient_concentration_returns_normalized_rows(qseed):
     """ingredient_concentration returns rows whose share_pct is in [0, 1]
@@ -215,9 +236,9 @@ def test_ingredient_concentration_returns_normalized_rows(qseed):
 
 # --- 9. recipe_complexity ----------------------------------------------
 
+
 def test_recipe_complexity_returns_non_negative(qseed):
-    """recipe_complexity returns rows with non-negative line_count and cost.
-    """
+    """recipe_complexity returns rows with non-negative line_count and cost."""
     qseed("with_complex_recipe")
     rows = analytics.recipe_complexity(qseed.session_factory())
     assert isinstance(rows, list)
@@ -233,6 +254,7 @@ def test_recipe_complexity_returns_non_negative(qseed):
 
 
 # --- 10. Cross-cutting: stock_turnover never raises on seeded data ----
+
 
 def test_stock_turnover_does_not_500_on_repeated_calls(qseed):
     """Invariants across many calls — if the same query path can return
@@ -251,17 +273,21 @@ def test_stock_turnover_does_not_500_on_repeated_calls(qseed):
 
 # --- 11. Smoke: every DB-bound function is reachable -------------------
 
-@pytest.mark.parametrize("fn_name,args", [
-    ("stock_turnover", ()),
-    ("batch_stock_turnover", ([1],)),
-    ("all_stock_turnover", ()),
-    ("dead_stock", ()),
-    ("margin_erosion_alerts", ()),
-    ("day_of_week_heatmap", ()),
-    ("top_margin_products", ()),
-    ("ingredient_concentration", ()),
-    ("recipe_complexity", ()),
-])
+
+@pytest.mark.parametrize(
+    "fn_name,args",
+    [
+        ("stock_turnover", ()),
+        ("batch_stock_turnover", ([1],)),
+        ("all_stock_turnover", ()),
+        ("dead_stock", ()),
+        ("margin_erosion_alerts", ()),
+        ("day_of_week_heatmap", ()),
+        ("top_margin_products", ()),
+        ("ingredient_concentration", ()),
+        ("recipe_complexity", ()),
+    ],
+)
 def test_analytics_function_is_callable(qseed, fn_name, args):
     """Smoke: every DB-bound function exists and accepts the right shape.
     If a function is renamed or removed, this test fails clearly.

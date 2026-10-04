@@ -60,15 +60,16 @@ Assuming ~100ms DB RTT to São Paulo:
 ```python
 def settings_by_group(session: Session) -> dict[str, list[dict]]:
     grouped = {}
-    for entry in list_settings(session):                    # 1 query to fetch ALL
+    for entry in list_settings(session):  # 1 query to fetch ALL
         grouped.setdefault(entry["group"], []).append(entry)
     return grouped
 
+
 def list_settings(session: Session) -> list[dict]:
     out = []
-    for spec in SETTINGS:                                   # 30 iterations
-        stored = get_setting(session, spec.key)              # 1 query per setting (30)
-        current = get_setting_value(session, spec.key)       # 1 query per setting (30)
+    for spec in SETTINGS:  # 30 iterations
+        stored = get_setting(session, spec.key)  # 1 query per setting (30)
+        current = get_setting_value(session, spec.key)  # 1 query per setting (30)
         out.append({...})
     return out
 ```
@@ -102,14 +103,16 @@ def fetch_all_settings_once(session: Session) -> dict[str, str]:
     ).all()
     return {r.key: r.value for r in rows}
 
+
 def get_setting_cached(key: str, all_settings: dict[str, str]) -> str | None:
     return all_settings.get(key)
+
 
 def list_settings_optimized(session: Session) -> list[dict]:
     all_settings = fetch_all_settings_once(session)  # 1 query
     out = []
     for spec in SETTINGS:
-        stored = all_settings.get(spec.key)           # No DB call
+        stored = all_settings.get(spec.key)  # No DB call
         current = get_setting_value_optimized(spec, stored)  # No DB call
         out.append({...})
     return out  # Total: 1 query instead of 61
@@ -119,6 +122,7 @@ def list_settings_optimized(session: Session) -> list[dict]:
 ```python
 # In app/rms/settings.py
 _settings_cache: dict[str, dict] = {}
+
 
 def get_settings_for_user(session: Session, user_id: str) -> dict:
     if user_id not in _settings_cache:
@@ -190,17 +194,18 @@ function switchTab(tabName) {
 # Add index for fast lookups
 # In migration
 def upgrade():
-    with op.batch_alter_table('app_meta') as batch_op:
-        batch_op.create_index('ix_app_meta_key', ['key'])
+    with op.batch_alter_table("app_meta") as batch_op:
+        batch_op.create_index("ix_app_meta_key", ["key"])
 ```
 
 #### Background Refresh
 ```python
-@app.post('/api/refresh-settings')
+@app.post("/api/refresh-settings")
 async def refresh_settings(request: Request):
     """Background task to refresh settings cache."""
     settings_cache = await refresh_settings_bg()
-    return {'status': 'refreshed'}
+    return {"status": "refreshed"}
+
 
 async def refresh_settings_bg():
     """Refresh cache in background thread."""
@@ -219,20 +224,23 @@ async def refresh_settings_bg():
 async def log_query_count(request: Request, call_next):
     start = time.time()
     response = await call_next(request)
-    
-    if hasattr(request.state, 'query_count'):
+
+    if hasattr(request.state, "query_count"):
         ms = (time.time() - start) * 1000
-        logger.info(f"{request.url.path} {response.status_code} {ms:.0f}ms queries={request.state.query_count}")
-        response.headers['X-Query-Count'] = str(request.state.query_count)
-    
+        logger.info(
+            f"{request.url.path} {response.status_code} {ms:.0f}ms queries={request.state.query_count}"
+        )
+        response.headers["X-Query-Count"] = str(request.state.query_count)
+
     return response
 ```
 
 #### Database Query Logger
 ```python
 # Instrument SQL queries for debug mode
-if os.getenv('SASKIA_DEBUG_QUERIES'):
-    @event.listens_for(engine, 'before_cursor_execute')
+if os.getenv("SASKIA_DEBUG_QUERIES"):
+
+    @event.listens_for(engine, "before_cursor_execute")
     def debug_query(conn, cursor, statement, params, context, executemany):
         print(f"DB Query: {statement[:100]}... | Params: {params}")
 ```

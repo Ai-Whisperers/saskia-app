@@ -73,9 +73,7 @@ class KyrianBundle:
 
     @property
     def lifetime_spent_gs(self) -> int:
-        return sum(
-            int(s.qty * s.unit_price_gs) for s in self.sales if s.voided_at is None
-        )
+        return sum(int(s.qty * s.unit_price_gs) for s in self.sales if s.voided_at is None)
 
 
 # Catalog picks: use whatever products the DB already has (or insert
@@ -119,9 +117,7 @@ def _delete_existing_kyrian(s: Session) -> None:
     # Null out pedido.fulfilled_sale_id first — that FK has no
     # ON DELETE clause (legacy column), so deleting a Sale while a
     # Pedido still references it trips SQLite's NO ACTION.
-    pedidos = s.execute(
-        select(Pedido).where(Pedido.customer_id == cid)
-    ).scalars().all()
+    pedidos = s.execute(select(Pedido).where(Pedido.customer_id == cid)).scalars().all()
     for p in pedidos:
         p.fulfilled_sale_id = None
     s.flush()
@@ -130,44 +126,46 @@ def _delete_existing_kyrian(s: Session) -> None:
     # the SQLAlchemy side, but SQLite tables created before that hint was
     # added may not have the cascade clause, so we delete them explicitly).
     from app.rms.models import SaleStockMove
-    moves = s.execute(
-        select(SaleStockMove).join(Sale, SaleStockMove.sale_id == Sale.id)
-        .where(Sale.customer_id == cid)
-    ).scalars().all()
+
+    moves = (
+        s.execute(
+            select(SaleStockMove)
+            .join(Sale, SaleStockMove.sale_id == Sale.id)
+            .where(Sale.customer_id == cid)
+        )
+        .scalars()
+        .all()
+    )
     for m in moves:
         s.delete(m)
     s.flush()
 
     # Sales next — Migration 076 added sale.linked_pedido_id which FKs
     # to pedido, so we must clear sales BEFORE deleting pedidos.
-    sales = s.execute(
-        select(Sale).where(Sale.customer_id == cid)
-    ).scalars().all()
+    sales = s.execute(select(Sale).where(Sale.customer_id == cid)).scalars().all()
     for sa in sales:
         s.delete(sa)
     s.flush()
 
     # PedidoLines cascade from Pedido via ORM cascade="all, delete-orphan"
-    pedidos = s.execute(
-        select(Pedido).where(Pedido.customer_id == cid)
-    ).scalars().all()
+    pedidos = s.execute(select(Pedido).where(Pedido.customer_id == cid)).scalars().all()
     for p in pedidos:
         # Pedido.lines cascade-deletes
         s.delete(p)
     s.flush()
 
     # Loyalty transactions
-    lts = s.execute(
-        select(LoyaltyTransaction).where(LoyaltyTransaction.customer_id == cid)
-    ).scalars().all()
+    lts = (
+        s.execute(select(LoyaltyTransaction).where(LoyaltyTransaction.customer_id == cid))
+        .scalars()
+        .all()
+    )
     for lt in lts:
         s.delete(lt)
     s.flush()
 
     # Suscripcion (RESTRICT FK — delete first)
-    subs = s.execute(
-        select(Suscripcion).where(Suscripcion.customer_id == cid)
-    ).scalars().all()
+    subs = s.execute(select(Suscripcion).where(Suscripcion.customer_id == cid)).scalars().all()
     for su in subs:
         s.delete(su)
     s.flush()
@@ -187,9 +185,7 @@ def _ensure_products(s: Session) -> dict[str, Product]:
     """
     out: dict[str, Product] = {}
     for name, _qty, price in KYRIAN_FAVORITES:
-        existing = s.execute(
-            select(Product).where(Product.name == name)
-        ).scalar_one_or_none()
+        existing = s.execute(select(Product).where(Product.name == name)).scalar_one_or_none()
         if existing is not None:
             out[name] = existing
             continue
@@ -207,9 +203,7 @@ def _ensure_zone(s: Session, name: str = "Local") -> DeliveryZone | None:
     The live site already has a 'Local' zone (Gs. 10.000 cost, Gs. 30.000
     minimum). On a fresh test DB this just creates one if missing.
     """
-    existing = s.execute(
-        select(DeliveryZone).where(DeliveryZone.name == name)
-    ).scalar_one_or_none()
+    existing = s.execute(select(DeliveryZone).where(DeliveryZone.name == name)).scalar_one_or_none()
     if existing:
         return existing
     # Try any zone
@@ -415,8 +409,12 @@ def seed_kyrian(s: Session) -> KyrianBundle:
         # show "no events" for Kyrian's seeded pedidos (a confusing first
         # impression for the demo).
         from app.services.pedido_events import PedidoEventService
+
         PedidoEventService.record(
-            s, pedido.id, "created", actor="seed:kyrian",
+            s,
+            pedido.id,
+            "created",
+            actor="seed:kyrian",
             payload={
                 "n_lines": len(lines_spec),
                 "channel": channel,
@@ -439,7 +437,10 @@ def seed_kyrian(s: Session) -> KyrianBundle:
             )
             s.add(line)
             PedidoEventService.record(
-                s, pedido.id, "line_added", actor="seed:kyrian",
+                s,
+                pedido.id,
+                "line_added",
+                actor="seed:kyrian",
                 payload={
                     "product_id": product.id,
                     "qty": float(qty),

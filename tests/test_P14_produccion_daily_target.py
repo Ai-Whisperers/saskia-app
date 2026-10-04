@@ -7,6 +7,7 @@ Jinja UndefinedError (Undefined is not None), causing a 500 on /produccion.
 This test reproduces the bug. It should fail BEFORE the fix (500) and pass
 AFTER (200, "Meta diaria" present in the body, no UndefinedError).
 """
+
 from __future__ import annotations
 
 from sqlalchemy.orm import sessionmaker

@@ -16,6 +16,7 @@ Doing the column-add now means callers can start writing both the
 recipe-id and the audit row in one transaction, which keeps the
 backfill cheap when #1 lands.
 """
+
 from typing import Any
 
 
@@ -36,9 +37,7 @@ def _migration_090_stock_movement_affected_recipe_id(conn: Any) -> None:
         rows = conn.execute(_text("PRAGMA table_info(stock_movement)")).all()
         col_names = {row[1] for row in rows}
         if "affected_recipe_id" not in col_names:
-            conn.execute(
-                _text("ALTER TABLE stock_movement ADD COLUMN affected_recipe_id INTEGER")
-            )
+            conn.execute(_text("ALTER TABLE stock_movement ADD COLUMN affected_recipe_id INTEGER"))
     else:
         # Postgres: information_schema.columns is portable.
         present = conn.execute(
@@ -48,12 +47,7 @@ def _migration_090_stock_movement_affected_recipe_id(conn: Any) -> None:
             )
         ).first()
         if present is None:
-            conn.execute(
-                _text(
-                    "ALTER TABLE stock_movement "
-                    "ADD COLUMN affected_recipe_id INTEGER"
-                )
-            )
+            conn.execute(_text("ALTER TABLE stock_movement ADD COLUMN affected_recipe_id INTEGER"))
 
     conn.execute(
         _text(

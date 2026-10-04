@@ -15,6 +15,7 @@ session.add(SaleStockMove(...)) raises InvalidRequestError. The actual
 sale-driven stock-out is now on stock_movement with movement_type='sale'
 and reference_type='sale'. Migration 092 dropped the table itself.
 """
+
 from app.rms.models_legacy import *  # noqa: F403 — legacy compatibility layer, all names re-exported intentionally
 
 # Also export names legacy __all__ may miss

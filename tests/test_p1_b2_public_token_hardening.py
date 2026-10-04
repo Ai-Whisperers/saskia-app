@@ -9,6 +9,7 @@ Covers:
   - /p/{token} returns 404 (not 410) for unknown tokens
   - /p/{token} returns 429 after 30 views / 5 min from the same IP
 """
+
 # allow-hardcoded-dates: token expiry boundary tests need fixed future/past timestamps (deterministic _is_token_valid checks)
 from __future__ import annotations
 
@@ -163,7 +164,11 @@ def test_public_pedido_returns_410_for_expired_token(client, session_factory) ->
 
     r = client.get(f"/p/{token}")
     assert r.status_code == 410, f"Expected 410, got {r.status_code}: {r.text[:200]}"
-    assert "venci" in r.text.lower() or "venci" in r.json().get("detail", "").lower() if r.headers.get("content-type", "").startswith("application/json") else True
+    assert (
+        "venci" in r.text.lower() or "venci" in r.json().get("detail", "").lower()
+        if r.headers.get("content-type", "").startswith("application/json")
+        else True
+    )
 
 
 def test_public_pedido_returns_404_for_unknown_token(client) -> None:
@@ -206,6 +211,7 @@ def test_public_pedido_rate_limit_after_30_views(client, session_factory) -> Non
     # exercise the limit. conftest sets AIW_SASKIA_AUTH_DISABLED=1
     # by default; undo it for this test.
     import os
+
     saved = os.environ.pop("AIW_SASKIA_AUTH_DISABLED", None)
     os.environ.pop("SASKIA_TEST_AUTH_DISABLED", None)
 
@@ -219,15 +225,11 @@ def test_public_pedido_rate_limit_after_30_views(client, session_factory) -> Non
         # First 30 requests: 200 (or other valid status)
         for i in range(30):
             r = client.get(f"/p/{token}")
-            assert r.status_code == 200, (
-                f"Request {i+1}/30 should succeed, got {r.status_code}"
-            )
+            assert r.status_code == 200, f"Request {i + 1}/30 should succeed, got {r.status_code}"
 
         # 31st request: 429 (over the limit)
         r = client.get(f"/p/{token}")
-        assert r.status_code == 429, (
-            f"Request 31 should hit rate limit, got {r.status_code}"
-        )
+        assert r.status_code == 429, f"Request 31 should hit rate limit, got {r.status_code}"
         assert "Retry-After" in r.headers, "429 must include Retry-After header"
     finally:
         if saved is not None:
@@ -270,9 +272,7 @@ def test_migration_067_adds_column_and_backfills(tmp_path) -> None:
     # known created_at, then re-init and verify backfill.
     with engine.begin() as conn:
         # Reset schema_version to 66 so 067 fires on next init.
-        conn.execute(text(
-            "UPDATE app_meta SET value = '66' WHERE key = 'schema_version'"
-        ))
+        conn.execute(text("UPDATE app_meta SET value = '66' WHERE key = 'schema_version'"))
         # Drop both indexes that reference the new column (SQLite
         # refuses DROP COLUMN if any index references it). The ORM
         # auto-creates ix_pedido_public_token_expires_at; my migration
@@ -280,29 +280,31 @@ def test_migration_067_adds_column_and_backfills(tmp_path) -> None:
         conn.execute(text("DROP INDEX IF EXISTS ix_pedido_public_token_expires_at"))
         conn.execute(text("DROP INDEX IF EXISTS ix_pedido_token_expires"))
         try:
-            conn.execute(text(
-                "ALTER TABLE pedido DROP COLUMN public_token_expires_at"
-            ))
+            conn.execute(text("ALTER TABLE pedido DROP COLUMN public_token_expires_at"))
         except Exception as exc:
             # If drop fails, the column didn't exist (migration already
             # skipped). Skip the backfill assertion so the test still
             # gives a useful signal.
             pytest.skip(f"could not drop column to force re-migration: {exc}")
         # Insert a row with NULL expires_at (mimics pre-067 state).
-        conn.execute(text(
-            "INSERT INTO pedido (customer_name, customer_phone, promised_date, "
-            "channel, status, payment_intent, notes, public_token, created_at, updated_at) "
-            "VALUES ('Migration Test', '0981000000', '2026-01-02', 'mostrador', "
-            "'pending', 'efectivo', '', 'mig_test_token_xyz', '2026-01-01 12:00:00', '2026-01-01 12:00:00')"
-        ))
+        conn.execute(
+            text(
+                "INSERT INTO pedido (customer_name, customer_phone, promised_date, "
+                "channel, status, payment_intent, notes, public_token, created_at, updated_at) "
+                "VALUES ('Migration Test', '0981000000', '2026-01-02', 'mostrador', "
+                "'pending', 'efectivo', '', 'mig_test_token_xyz', '2026-01-01 12:00:00', '2026-01-01 12:00:00')"
+            )
+        )
 
     # Re-run init_db. 067 should fire, re-add the column, and backfill.
     _init(engine)
 
     with engine.begin() as conn:
-        row = conn.execute(text(
-            "SELECT public_token_expires_at FROM pedido WHERE public_token = 'mig_test_token_xyz'"
-        )).first()
+        row = conn.execute(
+            text(
+                "SELECT public_token_expires_at FROM pedido WHERE public_token = 'mig_test_token_xyz'"
+            )
+        ).first()
         assert row is not None, "row missing after re-init"
         assert row[0] is not None, "migration 067 didn't backfill expires_at"
         # Should be ~2026-01-31 (30 days after 2026-01-01)

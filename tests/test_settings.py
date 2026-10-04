@@ -11,6 +11,7 @@ Covers:
 - settings_by_group groups by SettingGroup
 - reset_setting_to_default reverts to default
 """
+
 # allow-hardcoded-dates: settings snapshot uses a fixed timestamp
 from __future__ import annotations
 
@@ -165,7 +166,9 @@ def test_set_setting_overwrites_existing(session_factory):
         s.commit()
         assert get_setting_value(s, "general.business_name") == "B"
         # Only one row
-        n = len(list(s.execute(select(AppMeta).where(AppMeta.key == "general.business_name")).scalars()))
+        n = len(
+            list(s.execute(select(AppMeta).where(AppMeta.key == "general.business_name")).scalars())
+        )
         assert n == 1
     finally:
         s.close()
@@ -226,4 +229,6 @@ def test_reset_setting_to_default(session_factory):
 def test_setting_keys_are_unique():
     """All setting keys unique (no duplicates by accident)."""
     keys = [s.key for s in SETTINGS]
-    assert len(keys) == len(set(keys)), f"Duplicate keys: {set(k for k in keys if keys.count(k) > 1)}"
+    assert len(keys) == len(set(keys)), (
+        f"Duplicate keys: {set(k for k in keys if keys.count(k) > 1)}"
+    )

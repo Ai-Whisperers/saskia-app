@@ -4,6 +4,7 @@ Pre-fix: any unhandled exception → generic HTML 500 with no info.
 Post-fix: structured JSON {"error": str, "type": str, "request_id": str}
 and the exception is logged to stderr/Sentry (when configured).
 """
+
 from __future__ import annotations
 
 import pytest
@@ -30,7 +31,9 @@ def test_unhandled_exception_returns_json_500(client, session_factory):
     try:
         resp = test_client.get("/__test_raises")
     finally:
-        app.router.routes = [r for r in app.router.routes if getattr(r, "path", "") != "/__test_raises"]
+        app.router.routes = [
+            r for r in app.router.routes if getattr(r, "path", "") != "/__test_raises"
+        ]
 
     assert resp.status_code == 500
     assert resp.headers.get("content-type", "").startswith("application/json")

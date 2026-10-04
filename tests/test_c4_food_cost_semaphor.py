@@ -2,6 +2,7 @@
 
 Tests the red/amber/green traffic light display for food cost variance.
 """
+
 from __future__ import annotations
 
 from fastapi import status
@@ -32,8 +33,8 @@ def test_semaphor_legend_present(client, session_factory):
     # Icons from semaforo
     assert "#icon-help" in html  # gray state (no data)
     assert "#icon-warn" in html  # amber state uses warn icon
-    assert "#icon-close" in html   # red state
-    assert "#icon-check" in html   # green state
+    assert "#icon-close" in html  # red state
+    assert "#icon-check" in html  # green state
 
 
 def test_semaphor_in_banded_section(client, session_factory):
@@ -67,11 +68,13 @@ def test_semaphor_safety_empty_data(client, session_factory):
     # The semáforo should still render even with no data
     assert "Costo de materia prima (Semáforo)" in html
     # Some fallback phrasing should be shown
-    assert ("No hay suficientes ventas" in html
-            or "Sin datos" in html
-            or "Sin ventas" in html
-            or "sin ventas para comparar" in html
-            or "Costo normal" in html)
+    assert (
+        "No hay suficientes ventas" in html
+        or "Sin datos" in html
+        or "Sin ventas" in html
+        or "sin ventas para comparar" in html
+        or "Costo normal" in html
+    )
 
 
 def test_semaphor_safety_computed(client, session_factory):

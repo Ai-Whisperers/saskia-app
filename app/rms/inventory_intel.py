@@ -23,6 +23,7 @@ from app.rms.models import Ingredient, StockMovement
 # Dataclass results
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class InventoryStatus:
     ingredient_id: int
@@ -59,8 +60,9 @@ class Overstocked:
 _CONSUMPTION_WINDOW_DAYS: Final[int] = 90  # last 90 days
 
 
-def _avg_daily_consumption(session: Session, ingredient_id: int,
-                           window_days: int = _CONSUMPTION_WINDOW_DAYS) -> float:
+def _avg_daily_consumption(
+    session: Session, ingredient_id: int, window_days: int = _CONSUMPTION_WINDOW_DAYS
+) -> float:
     """Average kg/day consumed in the last window.
 
     Returns 0.0 if no consumption.
@@ -74,8 +76,7 @@ def _avg_daily_consumption(session: Session, ingredient_id: int,
     """
     cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
     rows = session.execute(
-        select(StockMovement.qty)
-        .where(
+        select(StockMovement.qty).where(
             StockMovement.ingredient_id == ingredient_id,
             StockMovement.movement_type == "sale",
             StockMovement.recorded_at >= cutoff,
@@ -89,6 +90,7 @@ def _avg_daily_consumption(session: Session, ingredient_id: int,
 # days_of_stock + reorder_point + status
 # ---------------------------------------------------------------------------
 
+
 def days_of_stock(stock_qty: float, avg_daily_consumption: float) -> float | None:
     """Days until stock runs out. None if consumption is 0."""
     if avg_daily_consumption <= 0:
@@ -96,8 +98,9 @@ def days_of_stock(stock_qty: float, avg_daily_consumption: float) -> float | Non
     return stock_qty / avg_daily_consumption
 
 
-def reorder_point(avg_daily_consumption: float, lead_time_days: int,
-                  safety_pct: float = 0.2) -> float:
+def reorder_point(
+    avg_daily_consumption: float, lead_time_days: int, safety_pct: float = 0.2
+) -> float:
     """Minimum stock level that triggers a reorder.
 
     Formula: avg_daily × lead_time × (1 + safety_pct).
@@ -105,8 +108,9 @@ def reorder_point(avg_daily_consumption: float, lead_time_days: int,
     return avg_daily_consumption * lead_time_days * (1 + safety_pct)
 
 
-def inventory_status(session: Session, ingredient: Ingredient,
-                     safety_pct: float = 0.2) -> InventoryStatus:
+def inventory_status(
+    session: Session, ingredient: Ingredient, safety_pct: float = 0.2
+) -> InventoryStatus:
     """Full inventory status for one ingredient."""
     lead_time = ingredient.lead_time_days or 3
     avg_daily = _avg_daily_consumption(session, ingredient.id)
@@ -125,16 +129,18 @@ def inventory_status(session: Session, ingredient: Ingredient,
     )
 
 
-def inventory_status_all(session: Session,
-                         safety_pct: float = 0.2) -> list[InventoryStatus]:
+def inventory_status_all(session: Session, safety_pct: float = 0.2) -> list[InventoryStatus]:
     """Status for every ingredient."""
-    return [inventory_status(session, ing, safety_pct)
-            for ing in session.scalars(select(Ingredient)).all()]
+    return [
+        inventory_status(session, ing, safety_pct)
+        for ing in session.scalars(select(Ingredient)).all()
+    ]
 
 
 # ---------------------------------------------------------------------------
 # Dead stock + overstocked
 # ---------------------------------------------------------------------------
+
 
 def dead_stock(session: Session, days_threshold: int = 30) -> list[DeadStock]:
     """Ingredients not consumed in the last N days.
@@ -154,34 +160,41 @@ def dead_stock(session: Session, days_threshold: int = 30) -> list[DeadStock]:
             # treat as datetime.
             if last_at < cutoff:
                 days_since = (now - last_at).days
-                out.append(DeadStock(
-                    ingredient_id=ing.id,
-                    ingredient_name=ing.name,
-                    stock_qty=float(ing.stock_qty or 0),
-                    last_consumed_at=last_at,
-                    days_since_consumed=days_since,
-                ))
+                out.append(
+                    DeadStock(
+                        ingredient_id=ing.id,
+                        ingredient_name=ing.name,
+                        stock_qty=float(ing.stock_qty or 0),
+                        last_consumed_at=last_at,
+                        days_since_consumed=days_since,
+                    )
+                )
             continue
 
         # Fallback: no stock_movement references AND no last_consumed_at set.
         move_count = session.execute(
-            select(StockMovement.id).where(
+            select(StockMovement.id)
+            .where(
                 StockMovement.ingredient_id == ing.id,
-            ).limit(1)
+            )
+            .limit(1)
         ).first()
         if move_count is None and float(ing.stock_qty or 0) > 0:
-            out.append(DeadStock(
-                ingredient_id=ing.id,
-                ingredient_name=ing.name,
-                stock_qty=float(ing.stock_qty or 0),
-                last_consumed_at=None,
-                days_since_consumed=None,
-            ))
+            out.append(
+                DeadStock(
+                    ingredient_id=ing.id,
+                    ingredient_name=ing.name,
+                    stock_qty=float(ing.stock_qty or 0),
+                    last_consumed_at=None,
+                    days_since_consumed=None,
+                )
+            )
     return out
 
 
-def overstocked(session: Session, multiplier: float = 3.0,
-                window_days: int = 30) -> list[Overstocked]:
+def overstocked(
+    session: Session, multiplier: float = 3.0, window_days: int = 30
+) -> list[Overstocked]:
     """Ingredients with stock > multiplier × expected 30-day consumption.
 
     "Expected 30-day consumption" = avg_daily × 30.
@@ -193,19 +206,22 @@ def overstocked(session: Session, multiplier: float = 3.0,
         threshold = expected_30d * multiplier
         stock = float(ing.stock_qty or 0)
         if stock > threshold and stock > 0:
-            dos = days_of_stock(stock, avg_daily) if avg_daily > 0 else float('inf')
-            out.append(Overstocked(
-                ingredient_id=ing.id,
-                ingredient_name=ing.name,
-                stock_qty=stock,
-                days_of_stock=dos if dos != float('inf') else 9999.0,
-            ))
+            dos = days_of_stock(stock, avg_daily) if avg_daily > 0 else float("inf")
+            out.append(
+                Overstocked(
+                    ingredient_id=ing.id,
+                    ingredient_name=ing.name,
+                    stock_qty=stock,
+                    days_of_stock=dos if dos != float("inf") else 9999.0,
+                )
+            )
     return out
 
 
 # ---------------------------------------------------------------------------
 # Capital tied up
 # ---------------------------------------------------------------------------
+
 
 def stock_value_gs(session: Session) -> int:
     """Total capital tied up in inventory at purchase price.
@@ -224,12 +240,12 @@ def stock_value_gs(session: Session) -> int:
 # Low-stock alerts (for dashboard panel)
 # ---------------------------------------------------------------------------
 
+
 def low_stock_alerts(session: Session, top_n: int = 5) -> list[InventoryStatus]:
     """Top N ingredients most in need of reorder (sorted by days_of_stock ascending)."""
     statuses = inventory_status_all(session)
     # Filter to those needing reorder OR with finite days_of_stock.
-    candidates = [s for s in statuses if s.needs_reorder
-                  and s.days_of_stock is not None]
+    candidates = [s for s in statuses if s.needs_reorder and s.days_of_stock is not None]
     candidates.sort(key=lambda s: s.days_of_stock or 0)
     return candidates[:top_n]
 

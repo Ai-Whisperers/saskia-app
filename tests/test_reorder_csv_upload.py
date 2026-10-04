@@ -17,6 +17,7 @@ The endpoint lives on /reorder/* because it's part of the price-tracking
 flow, but it accepts ANY CSV — you don't need to be on /reorder to use
 it.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -53,9 +54,9 @@ def test_csv_upload_happy_path_imports_two_rows(client, session_factory):
     assert payload["errors"] == []
 
     with Session() as s:
-        events = s.query(IngredientPriceEvent).filter(
-            IngredientPriceEvent.ingredient_id == ing_id
-        ).all()
+        events = (
+            s.query(IngredientPriceEvent).filter(IngredientPriceEvent.ingredient_id == ing_id).all()
+        )
         assert len(events) == 2
         suppliers = sorted(e.supplier_id for e in events)
         assert suppliers == sorted([sup_a.id, sup_b.id])
@@ -101,9 +102,9 @@ unknown-ingredient-{tag},Stock PY-{tag},5000,2026-09-25
     assert "no encontrado" in payload["errors"][0]["error"]
 
     with Session() as s:
-        events = s.query(IngredientPriceEvent).filter(
-            IngredientPriceEvent.ingredient_id == ing_id
-        ).all()
+        events = (
+            s.query(IngredientPriceEvent).filter(IngredientPriceEvent.ingredient_id == ing_id).all()
+        )
         assert len(events) == 1
 
 
@@ -133,7 +134,9 @@ def test_csv_upload_invalid_price_errors(client, session_factory):
         make_supplier(s, name=f"Stock PY-{tag}")
         s.commit()
 
-    csv = f"ingredient_name,supplier_name,price_gs,date\nharina-{tag},Stock PY-{tag},abc,2026-09-25\n"
+    csv = (
+        f"ingredient_name,supplier_name,price_gs,date\nharina-{tag},Stock PY-{tag},abc,2026-09-25\n"
+    )
     files = {"file": ("prices.csv", csv.encode("utf-8"), "text/csv")}
     r = client.post("/reorder/upload-prices", files=files)
     payload = r.json()
@@ -236,9 +239,7 @@ def test_csv_upload_writes_audit_row(client, session_factory):
     assert r.json()["imported"] == 2
 
     with Session() as s:
-        audits = s.query(AuditLog).filter(
-            AuditLog.action == "write.reorder.csv_upload"
-        ).all()
+        audits = s.query(AuditLog).filter(AuditLog.action == "write.reorder.csv_upload").all()
         assert len(audits) == 1
         assert audits[0].detail["imported"] == 2
         assert audits[0].detail["filename"] == "prices.csv"

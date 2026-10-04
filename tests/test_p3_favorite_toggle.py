@@ -17,6 +17,7 @@ def test_favorito_toggle_on(client, session_factory):
     r = client.post(f"/productos/{pid}/favorito", follow_redirects=False)
     assert r.status_code == 303, r.status_code
     from app.rms.models import Product
+
     with session_factory() as s:
         assert s.get(Product, pid).is_favorite is True
 
@@ -30,6 +31,7 @@ def test_favorito_toggle_off(client, session_factory):
     r = client.post(f"/productos/{pid}/favorito", follow_redirects=False)
     assert r.status_code == 303
     from app.rms.models import Product
+
     with session_factory() as s:
         assert s.get(Product, pid).is_favorite is False
 
@@ -49,7 +51,7 @@ def test_productos_renders_star_button(client, session_factory):
     assert r.status_code == 200
     body = r.text
     assert "fav-star" in body
-    assert "is-fav" in body          # the favorite one is highlighted
+    assert "is-fav" in body  # the favorite one is highlighted
     assert f"/productos/{fav.id}/favorito" in body
     assert f"/productos/{plain.id}/favorito" in body
     assert "aria-pressed" in body

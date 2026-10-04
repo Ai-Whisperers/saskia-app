@@ -11,6 +11,7 @@ We can't easily simulate "Postgres DDL partially applied + bump ran
 before the error", so we test the hook with a hand-crafted engine +
 monkeypatched schema_version function.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -78,6 +79,7 @@ def test_migration_partial_apply_detected_and_raised(monkeypatch, fake_engine):
         # so the post-failure probe returns >= 5.
         # We emulate the bump by directly setting it.
         from app.rms.db import _bump_schema_version
+
         _bump_schema_version(conn, 5)
         # Now raise:
         raise RuntimeError("simulated: CREATE TRIGGER syntax error after bump")
@@ -144,6 +146,7 @@ def test_migration_success_probes_cleanly(monkeypatch, fake_engine):
 
     def good_migration_5(conn):
         from app.rms.db import _bump_schema_version
+
         _bump_schema_version(conn, 5)
 
     monkeypatch.setitem(db_mod.MIGRATIONS, 5, good_migration_5)

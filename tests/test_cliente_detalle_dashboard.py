@@ -22,6 +22,7 @@ from tests.factories import make_customer, make_product
 
 def _seed_sale(session, customer_id, product_id, qty=1.0, price=15000):
     from app.rms.models import Sale
+
     sale = Sale(
         product_id=product_id,
         customer_id=customer_id,
@@ -60,13 +61,16 @@ def test_history_decorator_fallback_unit():
     from app.rms.customers import decorate_history
 
     fake = SimpleNamespace(
-        product=None, product_id=999999, qty=1, unit_price_gs=9000,
-        voided_at=None, sold_at=datetime(2026, 9, 16, 9, 0),
+        product=None,
+        product_id=999999,
+        qty=1,
+        unit_price_gs=9000,
+        voided_at=None,
+        sold_at=datetime(2026, 9, 16, 9, 0),
     )
     view = decorate_history(None, [fake])
     assert view[0]["product_name"] == "(eliminado #999999)"
     assert view[0]["product_exists"] is False
-
 
 
 def test_quantities_render_as_integers(client, session_factory):
@@ -126,6 +130,7 @@ def test_layout_two_column_dashboard(client, session_factory):
     c2 = None
     with session_factory() as s:
         from tests.factories import make_customer as mc
+
         c2 = mc(s, name="DietAlert LayoutDash")
         c2.dietary_restrictions = "sin lactosa"
         s.commit()

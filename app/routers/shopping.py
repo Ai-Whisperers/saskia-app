@@ -68,9 +68,11 @@ def consolidate_open_items(session: Session) -> int:
     """
     import re as _re
 
-    open_items = session.execute(
-        select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False))
-    ).scalars().all()
+    open_items = (
+        session.execute(select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False)))
+        .scalars()
+        .all()
+    )
     buckets: dict[tuple, list] = {}
     for it in open_items:
         buckets.setdefault((it.ingredient_id, it.unit), []).append(it)
@@ -150,8 +152,7 @@ def shopping_list_index(
     items = session.execute(stmt).scalars().all()
 
     total_gs = sum(
-        price_field(i.qty_to_buy or 0) * (i.ingredient.purchase_price_gs or 0)
-        for i in items
+        price_field(i.qty_to_buy or 0) * (i.ingredient.purchase_price_gs or 0) for i in items
     )
 
     by_ingredient = {}
@@ -214,12 +215,18 @@ def mark_purchased(
     session.commit()
     logger.info(
         "shopping_item_purchased id={} ingredient_id={} qty={} {}",
-        item.id, item.ingredient_id, item.qty_to_buy, item.unit,
+        item.id,
+        item.ingredient_id,
+        item.qty_to_buy,
+        item.unit,
     )
     record_audit(
-        request, session=session,
-        action="shopping.mark_purchased", target_type="ShoppingListItem",
-        target_id=item.id, detail={"ingredient_id": item.ingredient_id},
+        request,
+        session=session,
+        action="shopping.mark_purchased",
+        target_type="ShoppingListItem",
+        target_id=item.id,
+        detail={"ingredient_id": item.ingredient_id},
     )
     return RedirectResponse(url="/shopping-list", status_code=303)
 
@@ -239,8 +246,10 @@ def unmark_purchased(
     session.commit()
     logger.info("shopping_item_unmarked id={}", item.id)
     record_audit(
-        request, session=session,
-        action="shopping.unmark", target_type="ShoppingListItem",
+        request,
+        session=session,
+        action="shopping.unmark",
+        target_type="ShoppingListItem",
         target_id=item.id,
     )
     return RedirectResponse(url="/shopping-list", status_code=303)
@@ -259,8 +268,10 @@ def delete_item(
     session.commit()
     logger.info("shopping_item_deleted id={}", item_id)
     record_audit(
-        request, session=session,
-        action="shopping.delete", target_type="ShoppingListItem",
+        request,
+        session=session,
+        action="shopping.delete",
+        target_type="ShoppingListItem",
         target_id=item_id,
     )
     return RedirectResponse(url="/shopping-list", status_code=303)
@@ -302,14 +313,16 @@ def from_production_plan(
             status_code=303,
         )
 
-    existing = session.execute(
-        select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False))
-    ).scalars().all()
+    existing = (
+        session.execute(select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False)))
+        .scalars()
+        .all()
+    )
     existing_by_ing = {}
     for i in existing:
-        existing_by_ing[i.ingredient_id] = existing_by_ing.get(
-            i.ingredient_id, 0
-        ) + float(i.qty_to_buy)
+        existing_by_ing[i.ingredient_id] = existing_by_ing.get(i.ingredient_id, 0) + float(
+            i.qty_to_buy
+        )
 
     purpose = f"Plan producción {for_date.isoformat()}"
     added = 0
@@ -353,16 +366,22 @@ def sync_low_stock(
     """
     from app.rms.models import Ingredient
 
-    low_stock = session.execute(
-        select(Ingredient).where(
-            Ingredient.min_stock_qty > 0,
-            Ingredient.stock_qty < Ingredient.min_stock_qty,
+    low_stock = (
+        session.execute(
+            select(Ingredient).where(
+                Ingredient.min_stock_qty > 0,
+                Ingredient.stock_qty < Ingredient.min_stock_qty,
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
-    existing = session.execute(
-        select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False))
-    ).scalars().all()
+    existing = (
+        session.execute(select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False)))
+        .scalars()
+        .all()
+    )
     existing_ing_ids = {i.ingredient_id for i in existing}
 
     added = 0

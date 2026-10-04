@@ -47,6 +47,4 @@ def test_cold_start_renders_explanation_text(authed_client):
         "días de historial",  # cold_plan
     ]
     has_explanation = any(e in body.lower() for e in explanations)
-    assert has_explanation, (
-        "Cold-start should show explanation text"
-    )
+    assert has_explanation, "Cold-start should show explanation text"

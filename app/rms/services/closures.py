@@ -35,16 +35,12 @@ class ClosureConflictError(ValueError):
 
 def get_closure(db: Session, period_yyyymm: str) -> MonthlyClosure | None:
     """Get closure for a specific period (YYYY-MM format)."""
-    return db.query(MonthlyClosure).filter(
-        MonthlyClosure.period_yyyymm == period_yyyymm
-    ).first()
+    return db.query(MonthlyClosure).filter(MonthlyClosure.period_yyyymm == period_yyyymm).first()
 
 
 def list_closures(db: Session, limit: int = 100) -> List[MonthlyClosure]:
     """List closures, newest first."""
-    return db.query(MonthlyClosure).order_by(
-        MonthlyClosure.period_yyyymm.desc()
-    ).limit(limit).all()
+    return db.query(MonthlyClosure).order_by(MonthlyClosure.period_yyyymm.desc()).limit(limit).all()
 
 
 def close_month(db: Session, period_yyyymm: str, user_id: str | None = None) -> MonthlyClosure:
@@ -64,10 +60,12 @@ def close_month(db: Session, period_yyyymm: str, user_id: str | None = None) -> 
     """
     # Convert period to date and calculate totals
     try:
-        year, month = map(int, period_yyyymm.split('-'))
+        year, month = map(int, period_yyyymm.split("-"))
         month_date = date(year, month, 1)
     except ValueError:
-        raise ClosureValidationError(f"Period must be YYYY-MM format, got: {period_yyyymm}") from None
+        raise ClosureValidationError(
+            f"Period must be YYYY-MM format, got: {period_yyyymm}"
+        ) from None
 
     # Check if already closed
     existing = get_closure(db, period_yyyymm)
@@ -81,20 +79,25 @@ def close_month(db: Session, period_yyyymm: str, user_id: str | None = None) -> 
     else:
         end_date = date(year, month + 1, 1)
 
-    total_expenses = db.query(
-        func.sum(Expense.amount_gs).label('total')
-    ).filter(
-        Expense.occurred_at >= start_date,
-        Expense.occurred_at < end_date,
-        Expense.is_voided.is_(False)
-    ).scalar() or 0
+    total_expenses = (
+        db.query(func.sum(Expense.amount_gs).label("total"))
+        .filter(
+            Expense.occurred_at >= start_date,
+            Expense.occurred_at < end_date,
+            Expense.is_voided.is_(False),
+        )
+        .scalar()
+        or 0
+    )
 
     # Create or update closure
-    snapshot = json.dumps({
-        "period_yyyymm": period_yyyymm,
-        "closed_at": datetime.now(timezone.utc).isoformat(),
-        "total_expenses_gs": total_expenses,
-    })
+    snapshot = json.dumps(
+        {
+            "period_yyyymm": period_yyyymm,
+            "closed_at": datetime.now(timezone.utc).isoformat(),
+            "total_expenses_gs": total_expenses,
+        }
+    )
     if existing:
         existing.closed_at = datetime.now(timezone.utc)
         existing.closed_by_user_id = user_id
@@ -120,7 +123,9 @@ def close_month(db: Session, period_yyyymm: str, user_id: str | None = None) -> 
     return existing
 
 
-def reopen_month(db: Session, period_yyyymm: str, reason: str, user_id: str | None = None) -> MonthlyClosure:
+def reopen_month(
+    db: Session, period_yyyymm: str, reason: str, user_id: str | None = None
+) -> MonthlyClosure:
     """Reopen a closed monthly period.
 
     Args:
@@ -176,7 +181,7 @@ def compute_month_totals(db: Session, period_yyyymm: str) -> dict:
     """
     # Convert period to date range
     try:
-        year, month = map(int, period_yyyymm.split('-'))
+        year, month = map(int, period_yyyymm.split("-"))
 
         # Validate month
         if month < 1 or month > 12:
@@ -186,7 +191,9 @@ def compute_month_totals(db: Session, period_yyyymm: str) -> dict:
         month_date = date(year, month, 1)
 
     except (ValueError, AttributeError):
-        raise ClosureValidationError(f"Period must be YYYY-MM format, got: {period_yyyymm}") from None
+        raise ClosureValidationError(
+            f"Period must be YYYY-MM format, got: {period_yyyymm}"
+        ) from None
 
     # Calculate date range
     start_date = month_date
@@ -196,11 +203,15 @@ def compute_month_totals(db: Session, period_yyyymm: str) -> dict:
         end_date = date(year, month + 1, 1)
 
     # Query expenses for the month
-    expenses = db.query(Expense).filter(
-        Expense.occurred_at >= start_date,
-        Expense.occurred_at < end_date,
-        Expense.is_voided.is_(False)
-    ).all()
+    expenses = (
+        db.query(Expense)
+        .filter(
+            Expense.occurred_at >= start_date,
+            Expense.occurred_at < end_date,
+            Expense.is_voided.is_(False),
+        )
+        .all()
+    )
 
     # Calculate totals
     total_gs = sum(exp.amount_gs for exp in expenses)
@@ -213,11 +224,17 @@ def compute_month_totals(db: Session, period_yyyymm: str) -> dict:
     return {
         "total_expenses_gs": total_gs,
         "expense_row_count": len(expenses),
-        "expenses_by_category": by_category
+        "expenses_by_category": by_category,
     }
 
 
-def create_closure(db: Session, period_yyyymm: str, total_expenses_gs: int, notes: str | None = None, user_id: str | None = None) -> MonthlyClosure:
+def create_closure(
+    db: Session,
+    period_yyyymm: str,
+    total_expenses_gs: int,
+    notes: str | None = None,
+    user_id: str | None = None,
+) -> MonthlyClosure:
     """Create a new closure record.
 
     Args:
@@ -236,15 +253,17 @@ def create_closure(db: Session, period_yyyymm: str, total_expenses_gs: int, note
     """
     # Convert period to date
     try:
-        year, month = map(int, period_yyyymm.split('-'))
+        year, month = map(int, period_yyyymm.split("-"))
         date(year, month, 1)
     except ValueError:
-        raise ClosureValidationError(f"Period must be YYYY-MM format, got: {period_yyyymm}") from None
+        raise ClosureValidationError(
+            f"Period must be YYYY-MM format, got: {period_yyyymm}"
+        ) from None
 
     # Check for existing closure
-    existing = db.query(MonthlyClosure).filter(
-        MonthlyClosure.period_yyyymm == period_yyyymm
-    ).first()
+    existing = (
+        db.query(MonthlyClosure).filter(MonthlyClosure.period_yyyymm == period_yyyymm).first()
+    )
 
     if existing:
         raise ClosureConflictError(f"Closure for {period_yyyymm} already exists")
@@ -270,5 +289,5 @@ __all__ = [
     "create_closure",
     "get_closure",
     "list_closures",
-    "reopen_month"
+    "reopen_month",
 ]

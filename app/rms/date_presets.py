@@ -6,6 +6,7 @@ app/rms/constants.py. Operators add/edit presets from
 
 Used by date-filter chips in dashboard / reportes / audit.
 """
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -47,10 +48,15 @@ def get_default_preset(session: Session) -> DateRangePreset | None:
         )
     ).scalar_one_or_none()
     if row is None:
-        row = session.execute(
-            select(DateRangePreset).where(DateRangePreset.is_active.is_(True))
-            .order_by(DateRangePreset.sort_order.asc())
-        ).scalars().first()
+        row = (
+            session.execute(
+                select(DateRangePreset)
+                .where(DateRangePreset.is_active.is_(True))
+                .order_by(DateRangePreset.sort_order.asc())
+            )
+            .scalars()
+            .first()
+        )
     return row
 
 

@@ -15,6 +15,7 @@ Public re-exports preserve the old single-file import path
 (``from app.rms.customers import award_points`` still works) so this
 is a pure refactor — no behaviour change.
 """
+
 from __future__ import annotations
 
 from app.rms.loyalty.ledger import (

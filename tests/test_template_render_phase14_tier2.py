@@ -32,6 +32,7 @@ Why we don't render with empty/minimal context:
 - The two real regression classes above are detectable from the
   parse step alone; render is unnecessary.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -47,10 +48,7 @@ TEMPLATE_PATHS = sorted(
     Path("app/templates").rglob("*.html"),
     key=lambda p: str(p),
 )
-TEMPLATE_NAMES = [
-    str(p.relative_to("app/templates")).replace("\\", "/")
-    for p in TEMPLATE_PATHS
-]
+TEMPLATE_NAMES = [str(p.relative_to("app/templates")).replace("\\", "/") for p in TEMPLATE_PATHS]
 
 
 # Globals that app/services/template_render.py registers. If any of
@@ -66,8 +64,7 @@ EXPECTED_GLOBALS = {
 }
 
 
-@pytest.mark.parametrize("template_name", TEMPLATE_NAMES,
-                         ids=lambda n: n.replace("/", "_"))
+@pytest.mark.parametrize("template_name", TEMPLATE_NAMES, ids=lambda n: n.replace("/", "_"))
 def test_template_parses_without_syntax_error(template_name):
     """Every template must parse without Jinja syntax errors.
 
@@ -78,10 +75,7 @@ def test_template_parses_without_syntax_error(template_name):
     try:
         jinja_templates.env.get_template(template_name)
     except Exception as exc:
-        pytest.fail(
-            f"get_template({template_name!r}) raised: "
-            f"{type(exc).__name__}: {exc}"
-        )
+        pytest.fail(f"get_template({template_name!r}) raised: {type(exc).__name__}: {exc}")
 
 
 def test_template_count_meets_strategy_target():
@@ -93,9 +87,9 @@ def test_template_count_meets_strategy_target():
     )
 
 
-@pytest.mark.parametrize("name,description",
-                         list(EXPECTED_GLOBALS.items()),
-                         ids=list(EXPECTED_GLOBALS.keys()))
+@pytest.mark.parametrize(
+    "name,description", list(EXPECTED_GLOBALS.items()), ids=list(EXPECTED_GLOBALS.keys())
+)
 def test_required_global_is_registered(name, description):
     """A refactor that drops a Jinja global (e.g. `m` from
     `templates.env.globals`) silently breaks every page that uses

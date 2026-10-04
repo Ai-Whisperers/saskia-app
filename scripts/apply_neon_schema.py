@@ -26,7 +26,9 @@ from app.rms.db_dialect import make_engine
 def main() -> int:
     raw = os.environ.get("DATABASE_URL")
     if not raw:
-        print("ERROR: DATABASE_URL not set. Export it or use --db-url.", file=__import__("sys").stderr)
+        print(
+            "ERROR: DATABASE_URL not set. Export it or use --db-url.", file=__import__("sys").stderr
+        )
         return 1
 
     print(f"raw DATABASE_URL: {raw[:25]}...")

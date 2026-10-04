@@ -27,16 +27,22 @@ class ExpenseValidationError(ValueError):
 
 
 # Valid enums
-VALID_CATEGORIES = frozenset({
-    "INGREDIENT", "RENT", "UTILITIES", "PAYROLL", "PACKAGING", "OTHER"
-})
+VALID_CATEGORIES = frozenset({"INGREDIENT", "RENT", "UTILITIES", "PAYROLL", "PACKAGING", "OTHER"})
 
-VALID_RECURRING = frozenset({
-    "once", "monthly", "quarterly", "yearly"
-})
+VALID_RECURRING = frozenset({"once", "monthly", "quarterly", "yearly"})
 
 
-def create_expense(db: Session, occurred_at: datetime, amount_gs: int, category: str, description: str | None = None, supplier_id: int | None = None, receipt_url: str | None = None, recurring_period: str | None = None, created_by: str | None = None) -> Expense:
+def create_expense(
+    db: Session,
+    occurred_at: datetime,
+    amount_gs: int,
+    category: str,
+    description: str | None = None,
+    supplier_id: int | None = None,
+    receipt_url: str | None = None,
+    recurring_period: str | None = None,
+    created_by: str | None = None,
+) -> Expense:
     """Create a new expense.
 
     Args:
@@ -78,7 +84,7 @@ def create_expense(db: Session, occurred_at: datetime, amount_gs: int, category:
         supplier_id=supplier_id,
         receipt_url=receipt_url,
         recurring_period=recurring_period or "once",
-        created_by=created_by
+        created_by=created_by,
     )
 
     db.add(expense)
@@ -87,7 +93,13 @@ def create_expense(db: Session, occurred_at: datetime, amount_gs: int, category:
     return expense
 
 
-def list_expenses(db: Session, limit: int = 100, category: str | None = None, supplier_id: int | None = None, include_voided: bool = False) -> List[Expense]:
+def list_expenses(
+    db: Session,
+    limit: int = 100,
+    category: str | None = None,
+    supplier_id: int | None = None,
+    include_voided: bool = False,
+) -> List[Expense]:
     """List expenses with optional filtering.
 
     Args:
@@ -114,7 +126,15 @@ def list_expenses(db: Session, limit: int = 100, category: str | None = None, su
     return query.order_by(Expense.created_at.desc()).limit(limit).all()
 
 
-def update_expense(db: Session, expense_id: int, description: str | None = None, amount_gs: int | None = None, category: str | None = None, receipt_url: str | None = None, recurring_period: str | None = None) -> Expense:
+def update_expense(
+    db: Session,
+    expense_id: int,
+    description: str | None = None,
+    amount_gs: int | None = None,
+    category: str | None = None,
+    receipt_url: str | None = None,
+    recurring_period: str | None = None,
+) -> Expense:
     """Update an expense.
 
     Args:
@@ -203,21 +223,20 @@ def total_expenses_gs(db: Session, expenses: List[Expense]) -> int:
 
 def get_expense_types(db: Session) -> List[str]:
     """Get all unique expense types."""
-    result = db.query(
-        func.distinct(Expense.expense_type)
-    ).filter(
-        Expense.deleted_at.is_(None)
-    ).all()
+    result = (
+        db.query(func.distinct(Expense.expense_type)).filter(Expense.deleted_at.is_(None)).all()
+    )
 
     return [row[0] for row in result]
 
 
 def get_recurring_expenses(db: Session) -> List[Expense]:
     """Get all recurring expenses."""
-    return db.query(Expense).filter(
-        Expense.recurring_period != "once",
-        Expense.deleted_at.is_(None)
-    ).all()
+    return (
+        db.query(Expense)
+        .filter(Expense.recurring_period != "once", Expense.deleted_at.is_(None))
+        .all()
+    )
 
 
 __all__ = [
@@ -230,5 +249,5 @@ __all__ = [
     "list_expenses",
     "total_expenses_gs",
     "update_expense",
-    "void_expense"
+    "void_expense",
 ]

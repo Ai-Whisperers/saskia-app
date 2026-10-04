@@ -3,6 +3,7 @@
 Replaces hardcoded magic numbers in app/rms/tags.py:325-331. Operators
 adjust thresholds via /api/stock-status-config or /settings/catalog.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -29,8 +30,8 @@ class Threshold:
 
     code: str
     label: str
-    ratio: float | None       # for critico / sobrestock
-    days: int | None          # for muerto
+    ratio: float | None  # for critico / sobrestock
+    days: int | None  # for muerto
 
 
 def get_thresholds(session: Session) -> dict[str, Threshold]:
@@ -40,34 +41,58 @@ def get_thresholds(session: Session) -> dict[str, Threshold]:
     missing config rows. Cache-friendly: callers should pass the result
     to categorize() rather than re-querying per ingredient.
     """
-    rows = session.execute(
-        select(StockStatusConfig).where(StockStatusConfig.is_active.is_(True))
-    ).scalars().all()
+    rows = (
+        session.execute(select(StockStatusConfig).where(StockStatusConfig.is_active.is_(True)))
+        .scalars()
+        .all()
+    )
 
     out: dict[str, Threshold] = {}
     for r in rows:
         out[r.code] = Threshold(
-            code=r.code, label=r.label,
-            ratio=r.threshold_ratio, days=r.threshold_days,
+            code=r.code,
+            label=r.label,
+            ratio=r.threshold_ratio,
+            days=r.threshold_days,
         )
 
     # Fill in defaults for any missing codes
-    out.setdefault(STOCK_STATUS_BAJO_MIN, Threshold(
-        code=STOCK_STATUS_BAJO_MIN, label="Bajo mínimo",
-        ratio=None, days=None,
-    ))
-    out.setdefault(STOCK_STATUS_CRITICO, Threshold(
-        code=STOCK_STATUS_CRITICO, label="Crítico",
-        ratio=float(DEFAULT_STOCK_RATIO_CRITICO), days=None,
-    ))
-    out.setdefault(STOCK_STATUS_SOBRESTOCK, Threshold(
-        code=STOCK_STATUS_SOBRESTOCK, label="Sobrestock",
-        ratio=float(DEFAULT_STOCK_RATIO_SOBRESTOCK), days=None,
-    ))
-    out.setdefault(STOCK_STATUS_MUERTO, Threshold(
-        code=STOCK_STATUS_MUERTO, label="Sin consumo",
-        ratio=None, days=DEFAULT_DEAD_STOCK_DAYS,
-    ))
+    out.setdefault(
+        STOCK_STATUS_BAJO_MIN,
+        Threshold(
+            code=STOCK_STATUS_BAJO_MIN,
+            label="Bajo mínimo",
+            ratio=None,
+            days=None,
+        ),
+    )
+    out.setdefault(
+        STOCK_STATUS_CRITICO,
+        Threshold(
+            code=STOCK_STATUS_CRITICO,
+            label="Crítico",
+            ratio=float(DEFAULT_STOCK_RATIO_CRITICO),
+            days=None,
+        ),
+    )
+    out.setdefault(
+        STOCK_STATUS_SOBRESTOCK,
+        Threshold(
+            code=STOCK_STATUS_SOBRESTOCK,
+            label="Sobrestock",
+            ratio=float(DEFAULT_STOCK_RATIO_SOBRESTOCK),
+            days=None,
+        ),
+    )
+    out.setdefault(
+        STOCK_STATUS_MUERTO,
+        Threshold(
+            code=STOCK_STATUS_MUERTO,
+            label="Sin consumo",
+            ratio=None,
+            days=DEFAULT_DEAD_STOCK_DAYS,
+        ),
+    )
     return out
 
 
@@ -121,7 +146,9 @@ def categorize(
     return None
 
 
-def list_status_configs(session: Session, include_inactive: bool = False) -> list[StockStatusConfig]:
+def list_status_configs(
+    session: Session, include_inactive: bool = False
+) -> list[StockStatusConfig]:
     """Return all stock status configs, sorted by sort_order."""
     q = select(StockStatusConfig)
     if not include_inactive:

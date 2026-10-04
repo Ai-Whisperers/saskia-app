@@ -28,70 +28,175 @@ from sqlalchemy.orm import Session
 _CATEGORY_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
     "grasas": (
         # Specific first so "manteca vegetal" beats generic "manteca"
-        "aceite de oliva", "aceite de coco", "manteca vegetal",
-        "manteca de cerdo", "manteca clarificada", "aceite",
-        "margarina", "grasa",
+        "aceite de oliva",
+        "aceite de coco",
+        "manteca vegetal",
+        "manteca de cerdo",
+        "manteca clarificada",
+        "aceite",
+        "margarina",
+        "grasa",
     ),
     "lácteos": (
-        "leche", "crema", "manteca", "mantequilla", "yogur", "queso",
-        "queso crema", "ricota", "requesón", "dulce de leche",
-        "leche condensada", "leche en polvo", "crema agria",
+        "leche",
+        "crema",
+        "manteca",
+        "mantequilla",
+        "yogur",
+        "queso",
+        "queso crema",
+        "ricota",
+        "requesón",
+        "dulce de leche",
+        "leche condensada",
+        "leche en polvo",
+        "crema agria",
     ),
     "harinas": (
-        "harina", "maicena", "fécula", "almidón", "polenta",
+        "harina",
+        "maicena",
+        "fécula",
+        "almidón",
+        "polenta",
         "mandioca",  # chipa, empanadas
     ),
     "endulzantes": (
-        "azúcar impalpable", "azúcar glass", "azúcar mascabo", "azúcar",
-        "miel", "stevia", "dextrosa", "glucosa", "jarabe",
-        "melaza", "panela", "rapadura", "eritritol",
+        "azúcar impalpable",
+        "azúcar glass",
+        "azúcar mascabo",
+        "azúcar",
+        "miel",
+        "stevia",
+        "dextrosa",
+        "glucosa",
+        "jarabe",
+        "melaza",
+        "panela",
+        "rapadura",
+        "eritritol",
     ),
-
     "leudantes": (
-        "levadura", "polvo de hornear", "bicarbonato", "royal",
-        "polvo para hornear", "cremor tártaro",
+        "levadura",
+        "polvo de hornear",
+        "bicarbonato",
+        "royal",
+        "polvo para hornear",
+        "cremor tártaro",
     ),
     "huevos": (
-        "huevo", "huevos", "clara", "yema",
+        "huevo",
+        "huevos",
+        "clara",
+        "yema",
     ),
     "carnes": (
         # 2026-09-29: word-boundary issues with substring match — 'res'
         # matched 'fresco' (Jengibre fresco → carnes!). Use word-boundary
         # via the _KEYWORD_BOUNDARY pattern in infer_category instead.
-        "carne", "pollo", "cerdo", "pavo",
-        "pescado", "atún", "marisco", "pechuga", "panceta",
-        "chorizo", "jamón", "res",
+        "carne",
+        "pollo",
+        "cerdo",
+        "pavo",
+        "pescado",
+        "atún",
+        "marisco",
+        "pechuga",
+        "panceta",
+        "chorizo",
+        "jamón",
+        "res",
     ),
     "decoración": (
-        "esencia", "ralladura", "colorante", "glaseado", "chocolate cobertura",
-        "fondant", "sprinkles", "cacao", "perla", "confite",
+        "esencia",
+        "ralladura",
+        "colorante",
+        "glaseado",
+        "chocolate cobertura",
+        "fondant",
+        "sprinkles",
+        "cacao",
+        "perla",
+        "confite",
     ),
     "especias": (
-        "canela", "pimienta", "comino", "orégano", "pimentón",
-        "nuez moscada", "clavo", "anís", "anís estrella",
-        "vainilla", "vainilla en vaina", "extracto de vainilla",
-        "jengibre", "curry", "azafrán",
+        "canela",
+        "pimienta",
+        "comino",
+        "orégano",
+        "pimentón",
+        "nuez moscada",
+        "clavo",
+        "anís",
+        "anís estrella",
+        "vainilla",
+        "vainilla en vaina",
+        "extracto de vainilla",
+        "jengibre",
+        "curry",
+        "azafrán",
     ),
     "frutos-secos": (
-        "almendra", "nuez", "nueces", "avellana", "pistacho", "maní",
-        "castaña", "coco",
+        "almendra",
+        "nuez",
+        "nueces",
+        "avellana",
+        "pistacho",
+        "maní",
+        "castaña",
+        "coco",
     ),
-
     "frutas": (
-        "fruta", "frutas", "limón", "limones", "naranja", "naranjas",
-        "manzana", "manzanas", "banana", "bananas", "frutilla",
-        "frutillas", "arándano", "arándanos", "ciruela", "ciruelas",
-        "pera", "peras", "uva", "uvas", "frambuesa", "frambuesas",
-        "cereza", "cerezas", "ananá", "ananás", "piña", "mango",
-        "durazno", "duraznos", "damasco", "damascos", "kiwi", "melón",
-        "sandía", "paltas", "palta",
+        "fruta",
+        "frutas",
+        "limón",
+        "limones",
+        "naranja",
+        "naranjas",
+        "manzana",
+        "manzanas",
+        "banana",
+        "bananas",
+        "frutilla",
+        "frutillas",
+        "arándano",
+        "arándanos",
+        "ciruela",
+        "ciruelas",
+        "pera",
+        "peras",
+        "uva",
+        "uvas",
+        "frambuesa",
+        "frambuesas",
+        "cereza",
+        "cerezas",
+        "ananá",
+        "ananás",
+        "piña",
+        "mango",
+        "durazno",
+        "duraznos",
+        "damasco",
+        "damascos",
+        "kiwi",
+        "melón",
+        "sandía",
+        "paltas",
+        "palta",
     ),
     "líquidos": (
-        "agua", "jugo", "caldo", "café", "espresso",
-        "té", "mate",
+        "agua",
+        "jugo",
+        "caldo",
+        "café",
+        "espresso",
+        "té",
+        "mate",
     ),
     "semillas": (
-        "semilla de chía", "semilla de lino", "semilla de girasol",
+        "semilla de chía",
+        "semilla de lino",
+        "semilla de girasol",
     ),
     "otros": (),  # sentinel — anything not matched
 }
@@ -131,7 +236,16 @@ _SUBCATEGORY_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
 # Role classification — what does this ingredient DO in a recipe?
 _ROLE_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
     "leavening": ("levadura", "polvo de hornear", "bicarbonato", "cremor tártaro"),
-    "sweetener": ("azúcar", "miel", "stevia", "dextrosa", "glucosa", "jarabe", "melaza", "eritritol"),
+    "sweetener": (
+        "azúcar",
+        "miel",
+        "stevia",
+        "dextrosa",
+        "glucosa",
+        "jarabe",
+        "melaza",
+        "eritritol",
+    ),
     "fat": ("aceite", "manteca", "mantequilla", "margarina", "grasa"),
     "structure": ("harina", "maicena", "fécula", "almidón"),
     "dairy": ("leche", "crema", "yogur", "queso", "ricota"),
@@ -175,9 +289,19 @@ CATEGORY_SHELF_LIFE: Final[dict[str, int]] = {
 # Storage — where to keep it. Aligned with HACCP storage rules.
 _STORAGE_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
     "refrigerated": (
-        "leche", "crema", "manteca", "mantequilla", "yogur", "queso",
-        "huevo", "huevos", "ricota", "requesón", "dulce de leche",
-        "crema agria", "queso crema",
+        "leche",
+        "crema",
+        "manteca",
+        "mantequilla",
+        "yogur",
+        "queso",
+        "huevo",
+        "huevos",
+        "ricota",
+        "requesón",
+        "dulce de leche",
+        "crema agria",
+        "queso crema",
     ),
     "frozen": ("congelad",),
     "ambient": (),  # default — anything not perishable
@@ -187,6 +311,7 @@ _STORAGE_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def _normalize(name: str) -> str:
     """Lowercase + strip + collapse whitespace."""
@@ -253,6 +378,7 @@ def infer_allergens(name: str) -> list[str]:
     should import from app.rms.tagging.classify.
     """
     from app.rms.tagging.classify import infer_allergens as _impl
+
     return _impl(name)
 
 
@@ -269,6 +395,7 @@ def infer_dietary_tags(name: str) -> list[str]:
     these through TAG_ALIASES at the read boundary.
     """
     from app.rms.tagging.classify import infer_dietary_tags as _impl
+
     return _impl(name)
 
 
@@ -298,11 +425,15 @@ def infer_storage(name: str, session: Session | None = None) -> str:
 
         from app.rms.models import StorageKeyword
 
-        rows = session.execute(
-            _select(StorageKeyword)
-            .where(StorageKeyword.is_active.is_(True))
-            .order_by(StorageKeyword.sort_order.asc(), StorageKeyword.keyword.asc())
-        ).scalars().all()
+        rows = (
+            session.execute(
+                _select(StorageKeyword)
+                .where(StorageKeyword.is_active.is_(True))
+                .order_by(StorageKeyword.sort_order.asc(), StorageKeyword.keyword.asc())
+            )
+            .scalars()
+            .all()
+        )
 
         # Check frozen first (more specific match), then refrigerated.
         # If nothing matched, default to ambient.
@@ -339,6 +470,7 @@ def classify_ingredient(name: str, session: Session | None = None) -> dict:
 # ---------------------------------------------------------------------------
 # Substitutability — recipe co-occurrence graph
 # ---------------------------------------------------------------------------
+
 
 def find_substitutes_by_role(session: object, ingredient_id: int) -> list[int]:
     """Find ingredients with the same role that co-occur in recipes.

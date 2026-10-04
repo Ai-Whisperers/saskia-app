@@ -18,6 +18,7 @@ from sqlalchemy.orm import sessionmaker
 @pytest.fixture()
 def lv_engine():
     from app.rms.db import init_db, make_engine
+
     engine = make_engine("sqlite:///:memory:")
     init_db(engine)
     yield engine
@@ -33,10 +34,13 @@ def lv_session(lv_engine):
         s.close()
 
 
-def _make_sale(s, *, total_gs=10_000, payment_method="efectivo",
-               customer_id=None, sold_at=None):
+def _make_sale(s, *, total_gs=10_000, payment_method="efectivo", customer_id=None, sold_at=None):
     from app.rms.models_legacy import Product, Sale
-    if s.execute(__import__("sqlalchemy").text("SELECT id FROM product WHERE id=1")).first() is None:
+
+    if (
+        s.execute(__import__("sqlalchemy").text("SELECT id FROM product WHERE id=1")).first()
+        is None
+    ):
         s.add(Product(id=1, name="Test", sale_price_gs=total_gs, portion_label="unit"))
         s.flush()
     sale = Sale(
@@ -56,9 +60,9 @@ def _make_sale(s, *, total_gs=10_000, payment_method="efectivo",
     return sale
 
 
-def _make_refund(s, *, target_type, target_id, amount_gs,
-                 recorded_at=None, target_amount_gs=None):
+def _make_refund(s, *, target_type, target_id, amount_gs, recorded_at=None, target_amount_gs=None):
     from app.rms.models_legacy import Refund
+
     r = Refund(
         target_type=target_type,
         target_id=target_id,

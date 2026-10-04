@@ -64,9 +64,6 @@ class _SilenceUnraisable:
         _sys.__excepthook__(unraisable.exc_type, unraisable.exc_value, unraisable.exc_traceback)
 
 
-
-
-
 @pytest.fixture(autouse=True)
 def _silence_unraisable_resource_warnings():
     """Suppress ResourceWarning emitted by leaked sqlite3 sessions at GC.
@@ -94,6 +91,7 @@ def _silence_unraisable_resource_warnings():
         yield
     finally:
         _sys.unraisablehook = prev_hook
+
 
 @pytest.fixture(autouse=True)
 def tmp_db_path(tmp_path, monkeypatch):
@@ -128,6 +126,7 @@ def freeze_asuncion(monkeypatch):
 
     def _freeze(d: date):
         import app.routers.produccion as prod_mod
+
         monkeypatch.setattr(prod_mod, "_asuncion_today", lambda: d)
         return d
 
@@ -186,6 +185,7 @@ def session_factory(app_engine):
 
     factory = make_session_factory(app_engine)
     tracked: "weakref.WeakSet" = weakref.WeakSet()
+
     class TrackedFactory:
         def __call__(self, *args, **kwargs):
             s = factory(*args, **kwargs)
@@ -294,6 +294,7 @@ def client(session_factory, monkeypatch):
             if not c.cookies.get("csrf_token"):
                 # As a last resort, generate and inject.
                 from app.rms.csrf import generate_csrf_token
+
                 c.cookies.set("csrf_token", generate_csrf_token())
         except Exception:
             pass
@@ -368,6 +369,7 @@ def qseed(session_factory):
 
 # --- Shared Supabase fake for integration tests ---
 
+
 def _FakeSupabaseForIntegration():
     """Factory — instantiated once per fixture for test isolation."""
 
@@ -384,6 +386,7 @@ def _FakeSupabaseForIntegration():
             if self.users.get(email) != pw:
                 raise Exception("Invalid login credentials")
             import uuid
+
             uid = str(uuid.uuid4())
             self._tokens[uid] = {
                 "access_token": f"fake-access-{uid}",
@@ -441,6 +444,7 @@ def supabase_auth_env(monkeypatch):
     import importlib
 
     import app.auth_supabase as au
+
     importlib.reload(au)
 
     # Save original _client value for restoration later
@@ -456,6 +460,7 @@ def supabase_auth_env(monkeypatch):
 
     # Patch using_supabase so the router dispatches to _login_supabase (not _login_local)
     import app.auth
+
     monkeypatch.setattr(app.auth, "using_supabase", lambda: True)
 
     yield au

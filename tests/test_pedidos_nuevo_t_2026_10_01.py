@@ -19,6 +19,7 @@ Three defensive features added together:
 Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work \\
      && ./.venv/bin/python -m pytest tests/test_pedidos_nuevo_t_2026_10_01.py -v
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -130,14 +131,10 @@ def _seed_product_with_recipe(
 
 def test_forecast_api_returns_plan_rows(client, session_factory):
     """GET /produccion/api/forecast returns qty_to_produce per product for a date."""
-    pid = _seed_product_with_recipe(
-        session_factory, name="ForecastCroissant", avg_daily_sales=10.0
-    )
+    pid = _seed_product_with_recipe(session_factory, name="ForecastCroissant", avg_daily_sales=10.0)
     target = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
 
-    resp = client.get(
-        f"/produccion/api/forecast?for_date={target}&product_id={pid}"
-    )
+    resp = client.get(f"/produccion/api/forecast?for_date={target}&product_id={pid}")
     assert resp.status_code == 200, resp.text[:300]
     body = resp.json()
     assert body["for_date"] == target
@@ -147,7 +144,13 @@ def test_forecast_api_returns_plan_rows(client, session_factory):
         f"product {pid} missing from forecast; got {[r['product_id'] for r in rows]}"
     )
     for r in rows:
-        assert {"product_id", "product_name", "qty_to_produce", "forecast_source", "confidence_pct"} <= set(r)
+        assert {
+            "product_id",
+            "product_name",
+            "qty_to_produce",
+            "forecast_source",
+            "confidence_pct",
+        } <= set(r)
 
 
 def test_forecast_api_without_product_id_returns_all(client, session_factory):
@@ -261,11 +264,10 @@ def test_post_pedido_with_idempotency_key_creates_one_pedido(client, session_fac
         assert len(pedidos) == 1
         pedido_id = pedidos[0].id
 
-        cache = s.scalar(
-            select(AppMeta).where(AppMeta.key == f"pedido_idem:{idem_key}")
-        )
+        cache = s.scalar(select(AppMeta).where(AppMeta.key == f"pedido_idem:{idem_key}"))
         assert cache is not None, "idempotency cache row missing"
         import json
+
         payload = json.loads(cache.value)
         assert payload["pedido_id"] == pedido_id
 

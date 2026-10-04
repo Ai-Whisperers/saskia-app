@@ -20,6 +20,7 @@ ESC/POS commands used:
 - ESC a n  → alignment (0=left, 1=center, 2=right)
 - GS V 1  → partial cut (0x1d 0x56 0x01)
 """
+
 from __future__ import annotations
 
 import os
@@ -41,9 +42,9 @@ if TYPE_CHECKING:
 ESC = b"\x1b"
 GS = b"\x1d"
 
-INIT_PRINTER = ESC + b"@"          # ESC @
+INIT_PRINTER = ESC + b"@"  # ESC @
 LF = b"\x0a"
-PARTIAL_CUT = GS + b"V\x01"        # GS V 1
+PARTIAL_CUT = GS + b"V\x01"  # GS V 1
 ALIGN_LEFT = ESC + b"a\x00"
 ALIGN_CENTER = ESC + b"a\x01"
 ALIGN_RIGHT = ESC + b"a\x02"
@@ -66,7 +67,7 @@ class PrinterConfig:
     kind: PrinterKind = PrinterKind.FILE
     host: str = ""  # for network: host:port
     port: int = 9100
-    vendor_id: int = 0x04b8  # Epson default
+    vendor_id: int = 0x04B8  # Epson default
     product_id: int = 0x0202
     dst_path: str = "./receipts"
 
@@ -205,7 +206,7 @@ def send_to_printer(
             "ok": False,
             "kind": "usb",
             "error": "USB backend not implemented; use file or network or "
-                     "integrate pyusb at this seam.",
+            "integrate pyusb at this seam.",
         }
 
     return {"ok": False, "kind": "?", "error": f"unknown kind {config.kind}"}

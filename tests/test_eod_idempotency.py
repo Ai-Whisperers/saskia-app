@@ -5,6 +5,7 @@ Per SASKIA_TEST_PLAN.md §5 #13 — POST /eod/completar must:
 - Second call same date: 422 (already done) or 4xx
 - Future date: 422 (invalid)
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta

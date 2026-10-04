@@ -2,6 +2,7 @@
 
 Built on app/rms/audit.py list_recent() + AuditLog model.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -123,30 +124,36 @@ def auditoria_index(
         {
             "row": r,
             "detail_pairs": fmt_detail(r.detail or {}),
-            "user_agent_short": (r.user_agent[:60] + "...") if r.user_agent and len(r.user_agent) > 60 else r.user_agent,
+            "user_agent_short": (r.user_agent[:60] + "...")
+            if r.user_agent and len(r.user_agent) > 60
+            else r.user_agent,
         }
         for r in paginated
     ]
 
     presets = _date_presets()
 
-    return render(request, "auditoria.html", {
-        "formatted_rows": formatted_rows,
-        "page": page,
-        "total_pages": total_pages,
-        "total_count": total_count,
-        "limit": limit,
-        "action_filter": action_filter or "",
-        "start_date": start_date or "",
-        "end_date": end_date or "",
-        "ip_filter": ip_filter or "",
-        "user_filter": user_filter or "",
-        "target_type": target_type or "",
-        "target_id": target_id or "",
-        "presets": presets,
-        "page_start": (page - 1) * 50 + 1,
-        "page_end": min(page * 50, total_count),
-    })
+    return render(
+        request,
+        "auditoria.html",
+        {
+            "formatted_rows": formatted_rows,
+            "page": page,
+            "total_pages": total_pages,
+            "total_count": total_count,
+            "limit": limit,
+            "action_filter": action_filter or "",
+            "start_date": start_date or "",
+            "end_date": end_date or "",
+            "ip_filter": ip_filter or "",
+            "user_filter": user_filter or "",
+            "target_type": target_type or "",
+            "target_id": target_id or "",
+            "presets": presets,
+            "page_start": (page - 1) * 50 + 1,
+            "page_end": min(page * 50, total_count),
+        },
+    )
 
 
 @router.get("/export.csv")
@@ -171,7 +178,9 @@ def auditoria_export_csv(
     if target_type and target_id:
         rows = list(search_by_target(session, target_type, target_id, limit=10_000))
     else:
-        rows = list(list_recent(session, limit=10_000, action_filter=action_filter, user_filter=user_filter))
+        rows = list(
+            list_recent(session, limit=10_000, action_filter=action_filter, user_filter=user_filter)
+        )
 
     # Apply date + IP filters in Python (matches the index view).
     sd = _parse_date(start_date)
@@ -191,7 +200,16 @@ def auditoria_export_csv(
     filename = f"auditoria_{datetime.now(timezone.utc).date().isoformat()}.csv"
     return StreamingResponse(
         stream_csv_rows(
-            ["id", "timestamp", "user_id", "action", "target_type", "target_id", "ip", "user_agent_short"],
+            [
+                "id",
+                "timestamp",
+                "user_id",
+                "action",
+                "target_type",
+                "target_id",
+                "ip",
+                "user_agent_short",
+            ],
             (
                 [
                     r.id,

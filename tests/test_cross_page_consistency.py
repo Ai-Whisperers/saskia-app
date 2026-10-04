@@ -52,17 +52,26 @@ def test_no_us_date_format_in_templates():
         content = tpl.read_text(encoding="utf-8")
         if "%m/%d/%Y" in content:
             offenders.append(f"{tpl.relative_to(TEMPLATES_DIR)} (US order)")
-        strftime_pat = re.compile("strftime" + chr(92) + chr(40) + chr(34) + "([^" + chr(34) + "]*)" + chr(34) + chr(92) + chr(41))
+        strftime_pat = re.compile(
+            "strftime"
+            + chr(92)
+            + chr(40)
+            + chr(34)
+            + "([^"
+            + chr(34)
+            + "]*)"
+            + chr(34)
+            + chr(92)
+            + chr(41)
+        )
         for m in strftime_pat.finditer(content):
             fmt = m.group(1)
             if "%Y-%m-%d" in fmt:
                 line_start = content.rfind(chr(10), 0, m.start()) + 1
                 line_end = content.find(chr(10), m.start())
-                line = content[line_start:line_end if line_end != -1 else len(content)]
+                line = content[line_start : line_end if line_end != -1 else len(content)]
                 if "value=" not in line:
-                    offenders.append(
-                        f"{tpl.relative_to(TEMPLATES_DIR)}: ISO display '{fmt}'"
-                    )
+                    offenders.append(f"{tpl.relative_to(TEMPLATES_DIR)}: ISO display '{fmt}'")
     assert not offenders, f"Date-format inconsistencies: {offenders}"
 
 
@@ -80,10 +89,14 @@ def seeded_sales(session_factory):
         now = datetime.now(timezone.utc)
         for d in range(5):
             for _ in range(2):
-                s.add(Sale(
-                    product_id=pid, qty=1.0,
-                    sold_at=now - timedelta(days=d), unit_price_gs=2500,
-                ))
+                s.add(
+                    Sale(
+                        product_id=pid,
+                        qty=1.0,
+                        sold_at=now - timedelta(days=d),
+                        unit_price_gs=2500,
+                    )
+                )
         s.commit()
         return pid
 

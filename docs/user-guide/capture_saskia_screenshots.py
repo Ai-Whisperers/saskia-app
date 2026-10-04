@@ -3,6 +3,7 @@
 Auth via curl cookie jar → inject into Playwright → screenshot each route.
 Outputs PNGs into docs/user-guide/screenshots/, full_page=True for tall dashboards.
 """
+
 from __future__ import annotations
 
 import json
@@ -49,23 +50,25 @@ def load_cookies() -> list[dict]:
             is_http_only = False
             if line.startswith("#HttpOnly_"):
                 is_http_only = True
-                line = line[len("#HttpOnly_"):]
+                line = line[len("#HttpOnly_") :]
             if line.startswith("#"):
                 continue
             parts = line.split("\t")
             if len(parts) < 7:
                 continue
             domain, _flag, path, secure, expires, name_, value = parts[:7]
-            cookies.append({
-                "name": name_,
-                "value": value,
-                "domain": domain,
-                "path": path,
-                "expires": int(expires) if expires.isdigit() else -1,
-                "httpOnly": is_http_only,
-                "secure": secure.upper() == "TRUE",
-                "sameSite": "Lax",
-            })
+            cookies.append(
+                {
+                    "name": name_,
+                    "value": value,
+                    "domain": domain,
+                    "path": path,
+                    "expires": int(expires) if expires.isdigit() else -1,
+                    "httpOnly": is_http_only,
+                    "secure": secure.upper() == "TRUE",
+                    "sameSite": "Lax",
+                }
+            )
     assert len(cookies) >= 1, f"cookie jar empty: {JAR}"
     return cookies
 
@@ -120,7 +123,9 @@ def capture() -> dict:
                 }
                 if is_error_page:
                     entry["errors"].append("error page rendered")
-                    manifest["bugs_found"].append({"path": path, "issue": "5xx / traceback in body"})
+                    manifest["bugs_found"].append(
+                        {"path": path, "issue": "5xx / traceback in body"}
+                    )
                 manifest["routes"].append(entry)
                 print(f"  {path:30s} -> {status} ({size_kb:,}KB)")
             except Exception as e:

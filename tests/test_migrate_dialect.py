@@ -1,4 +1,5 @@
 """Tests for dialect-aware migration code (live-site Postgres bugfix)."""
+
 from __future__ import annotations
 
 from sqlalchemy import create_engine, text
@@ -33,6 +34,7 @@ def test_init_db_postgres_uses_jsonb_and_upsert():
     # Verify migration 001 uses ON CONFLICT for PG
     # (Inspect the source code's literal strings.)
     import inspect
+
     src = inspect.getsource(_migration_001_initial_schema)
     assert "ON CONFLICT" in src
     assert "INSERT OR IGNORE" in src  # the SQLite branch
@@ -55,9 +57,21 @@ def test_init_db_creates_all_required_tables(tmp_path):
     engine = create_engine(f"sqlite:///{db}")
     init_db(engine)
     expected_tables = {
-        "ingredient", "recipe", "recipe_line", "product", "sale",
-        "sale_stock_move", "import_batch", "app_meta", "audit_log",
-        "user", "tag", "tag_link", "customer", "waste_log", "tenant",
+        "ingredient",
+        "recipe",
+        "recipe_line",
+        "product",
+        "sale",
+        "sale_stock_move",
+        "import_batch",
+        "app_meta",
+        "audit_log",
+        "user",
+        "tag",
+        "tag_link",
+        "customer",
+        "waste_log",
+        "tenant",
     }
     with engine.connect() as conn:
         rows = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'")).all()
@@ -128,10 +142,7 @@ def test_migration_017_backfills_existing_rows(tmp_path):
             )
         )
         conn.execute(
-            text(
-                "INSERT INTO recipe (name, yield_qty, yield_unit) "
-                "VALUES ('Torta', 12.0, 'und')"
-            )
+            text("INSERT INTO recipe (name, yield_qty, yield_unit) VALUES ('Torta', 12.0, 'und')")
         )
         conn.execute(
             text(
@@ -147,8 +158,6 @@ def test_migration_017_backfills_existing_rows(tmp_path):
         conn.commit()
         _migration_017_recipe_line_unit(conn)
         conn.commit()
-        row = conn.execute(
-            text("SELECT line_unit FROM recipe_line WHERE id = 1")
-        ).first()
+        row = conn.execute(text("SELECT line_unit FROM recipe_line WHERE id = 1")).first()
     assert row is not None
     assert row[0] == "kg"  # backfilled from linked ingredient

@@ -22,5 +22,4 @@ class Base(DeclarativeBase):
     """SQLAlchemy declarative base. All models inherit from this."""
 
 
-
 __all__ = ["Base"]

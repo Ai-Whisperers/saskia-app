@@ -37,7 +37,8 @@ def _all_routes():
                 # Mount or other non-API wrapper: skip.
                 continue
             methods = sorted(
-                m for m in getattr(r, "methods", []) or []
+                m
+                for m in getattr(r, "methods", []) or []
                 if m in ("GET", "POST", "PUT", "DELETE", "PATCH")
             )
             path = (prefix + (getattr(r, "path", "") or "")) or prefix
@@ -92,8 +93,8 @@ def test_every_route_has_a_test_reference():
             seg = "/" + "/".join(path.strip("/").split("/")[:2])
         if seg not in corpus:
             missing.append(f"{method} {path}")
-    assert not missing, (
-        f"{len(missing)} route(s) have no test reference:\n  " + "\n  ".join(missing)
+    assert not missing, f"{len(missing)} route(s) have no test reference:\n  " + "\n  ".join(
+        missing
     )
 
 

@@ -1,4 +1,3 @@
-
 """tests/test_costing.py — formal tests for recipe/product costing engine.
 
 Per dev plan Batch 3 (~3 hours). Lifts coverage of app/rms/costing.py from
@@ -339,7 +338,9 @@ def test_product_unit_cost_no_recipe(session_factory):
     from app.rms.costing import product_unit_cost_gs
 
     with session_factory() as s:
-        s.add(make_product(s, name="Mystery", portion_label="1", sale_price_gs=5000, recipe_id=None))
+        s.add(
+            make_product(s, name="Mystery", portion_label="1", sale_price_gs=5000, recipe_id=None)
+        )
         s.commit()
 
     with session_factory() as s:
@@ -379,7 +380,9 @@ def test_product_margin_no_cost(session_factory):
     from app.rms.costing import product_margin
 
     with session_factory() as s:
-        s.add(make_product(s, name="Mystery", portion_label="1", sale_price_gs=5000, recipe_id=None))
+        s.add(
+            make_product(s, name="Mystery", portion_label="1", sale_price_gs=5000, recipe_id=None)
+        )
         s.commit()
 
     with session_factory() as s:
@@ -505,7 +508,9 @@ def test_batch_products_with_null_recipe(session_factory):
     from app.rms.models import Product
 
     with session_factory() as s:
-        s.add(make_product(s, name="Mystery", portion_label="1", sale_price_gs=5000, recipe_id=None))
+        s.add(
+            make_product(s, name="Mystery", portion_label="1", sale_price_gs=5000, recipe_id=None)
+        )
         s.commit()
         p = s.scalars(select(Product)).one()
         results = batch_products_cost_margin(s, [p])

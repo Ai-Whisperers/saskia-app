@@ -121,11 +121,13 @@ def generate_weekly_pedidos(
 
     result = DispatchResult()
 
-    rows = session.execute(
-        select(Suscripcion)
-        .where(Suscripcion.status == "activa")
-        .order_by(Suscripcion.id)
-    ).scalars().all()
+    rows = (
+        session.execute(
+            select(Suscripcion).where(Suscripcion.status == "activa").order_by(Suscripcion.id)
+        )
+        .scalars()
+        .all()
+    )
 
     for s in rows:
         # 1. Skip past-end-date
@@ -135,9 +137,7 @@ def generate_weekly_pedidos(
 
         # 2. Skip if already generated this week
         key = _dedupe_key(s.id, week_label)
-        already = session.scalar(
-            select(AppMeta).where(AppMeta.key == key)
-        )
+        already = session.scalar(select(AppMeta).where(AppMeta.key == key))
         if already:
             result.skipped_already_done.append(s.id)
             continue
@@ -179,17 +179,23 @@ def generate_weekly_pedidos(
         session.flush()  # assign pedido.id
 
         # 6. Mark dedupe so re-running this week is a no-op
-        session.add(AppMeta(
-            key=key,
-            value=f'{{"pedido_id": {pedido.id}, "generated_at": "{datetime.now(ASUNCION_TZ).isoformat()}"}}',
-            updated_at=datetime.now(ASUNCION_TZ),
-        ))
+        session.add(
+            AppMeta(
+                key=key,
+                value=f'{{"pedido_id": {pedido.id}, "generated_at": "{datetime.now(ASUNCION_TZ).isoformat()}"}}',
+                updated_at=datetime.now(ASUNCION_TZ),
+            )
+        )
 
         # 7. Record a PedidoEvent so the timeline shows this came from
         # a subscription dispatch (Phase 11 integration).
         from app.services.pedido_events import PedidoEventService
+
         PedidoEventService.record(
-            session, pedido.id, "created", actor=actor,
+            session,
+            pedido.id,
+            "created",
+            actor=actor,
             payload={
                 "n_lines": 0,
                 "channel": "whatsapp",
@@ -202,14 +208,16 @@ def generate_weekly_pedidos(
             },
         )
 
-        result.generated.append(GeneratedPedido(
-            suscripcion_id=s.id,
-            customer_id=cust.id,
-            customer_name=cust.name or "",
-            pedido_id=pedido.id,
-            promised_date=promised,
-            notes=pedido.notes,
-        ))
+        result.generated.append(
+            GeneratedPedido(
+                suscripcion_id=s.id,
+                customer_id=cust.id,
+                customer_name=cust.name or "",
+                pedido_id=pedido.id,
+                promised_date=promised,
+                notes=pedido.notes,
+            )
+        )
 
     session.commit()
     return result
@@ -218,6 +226,7 @@ def generate_weekly_pedidos(
 def _new_public_token() -> str:
     """Generate a URL-safe public token for the new pedido."""
     import secrets as _secrets
+
     return _secrets.token_urlsafe(16)
 
 
@@ -229,15 +238,18 @@ def undo_for_pedido(session: Any, pedido_id: int) -> bool:
     a dispatcher-generated one).
     """
     from sqlalchemy import delete
+
     pedido = session.get(Pedido, pedido_id)
     if pedido is None:
         return False
     # Look at the dedupe keys for this pedido: any one whose value
     # references this pedido_id. AppMeta's PK is the `key` column
     # (no `id`).
-    rows = session.execute(
-        select(AppMeta).where(AppMeta.key.like("suscripcion_dispatch:%"))
-    ).scalars().all()
+    rows = (
+        session.execute(select(AppMeta).where(AppMeta.key.like("suscripcion_dispatch:%")))
+        .scalars()
+        .all()
+    )
     removed = False
     for r in rows:
         if f'"pedido_id": {pedido_id}' in (r.value or ""):

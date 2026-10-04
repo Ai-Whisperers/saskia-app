@@ -74,6 +74,7 @@ class PedidosPage(Page):
 
 class PosPage(Page):
     """POS / nueva venta."""
+
     product_combo = "[data-combo], .saskia-combo input, input[name='product_id']"
     qty = "input[name='qty']"
     submit = "button:has-text('Registrar'), button:has-text('Vender')"

@@ -22,8 +22,7 @@ from tests.factories import make_product
 
 
 def _make_sale(session, sold_at, product_id, qty=1, unit_price=1000):
-    s = Sale(sold_at=sold_at, product_id=product_id, qty=qty,
-             unit_price_gs=unit_price)
+    s = Sale(sold_at=sold_at, product_id=product_id, qty=qty, unit_price_gs=unit_price)
     session.add(s)
     return s
 
@@ -31,6 +30,7 @@ def _make_sale(session, sold_at, product_id, qty=1, unit_price=1000):
 # ---------------------------------------------------------------------------
 # Time patterns
 # ---------------------------------------------------------------------------
+
 
 def test_sales_by_hour_empty(session_factory):
     with session_factory() as s:
@@ -41,8 +41,7 @@ def test_sales_by_hour_empty(session_factory):
 
 def test_sales_by_hour_distributes(session_factory):
     with session_factory() as s:
-        p = make_product(s, name="p_hour_xyz", portion_label="und",
-                    sale_price_gs=1000)
+        p = make_product(s, name="p_hour_xyz", portion_label="und", sale_price_gs=1000)
         s.add(p)
         s.flush()
         now = datetime.now(timezone.utc)
@@ -62,8 +61,7 @@ def test_sales_by_hour_distributes(session_factory):
 
 def test_sales_by_dow(session_factory):
     with session_factory() as s:
-        p = make_product(s, name="p_dow_xyz", portion_label="und",
-                    sale_price_gs=1000)
+        p = make_product(s, name="p_dow_xyz", portion_label="und", sale_price_gs=1000)
         s.add(p)
         s.flush()
         wed = datetime(2026, 9, 9, 12, 0, tzinfo=timezone.utc)
@@ -75,8 +73,7 @@ def test_sales_by_dow(session_factory):
 
 def test_sales_by_month(session_factory):
     with session_factory() as s:
-        p = make_product(s, name="p_m_xyz", portion_label="und",
-                    sale_price_gs=1000)
+        p = make_product(s, name="p_m_xyz", portion_label="und", sale_price_gs=1000)
         s.add(p)
         s.flush()
         s1 = datetime(2026, 9, 15, 12, 0, tzinfo=timezone.utc)
@@ -92,8 +89,7 @@ def test_sales_by_month(session_factory):
 
 def test_peak_hour(session_factory):
     with session_factory() as s:
-        p = make_product(s, name="p_pk_xyz", portion_label="und",
-                    sale_price_gs=1000)
+        p = make_product(s, name="p_pk_xyz", portion_label="und", sale_price_gs=1000)
         s.add(p)
         s.flush()
         now = datetime.now(timezone.utc)
@@ -114,8 +110,7 @@ def test_peak_hour_no_sales_returns_neg_one(session_factory):
 
 def test_peak_dow(session_factory):
     with session_factory() as s:
-        p = make_product(s, name="p_pkd_xyz", portion_label="und",
-                    sale_price_gs=1000)
+        p = make_product(s, name="p_pkd_xyz", portion_label="und", sale_price_gs=1000)
         s.add(p)
         s.flush()
         sat = datetime(2026, 9, 12, 12, 0, tzinfo=timezone.utc)
@@ -138,6 +133,7 @@ def test_sales_summary_shape(session_factory):
 # Product affinity
 # ---------------------------------------------------------------------------
 
+
 def test_product_affinity_empty(session_factory):
     with session_factory() as s:
         assert product_affinity(s) == {}
@@ -145,10 +141,8 @@ def test_product_affinity_empty(session_factory):
 
 def test_product_affinity_pair_bought_together(session_factory):
     with session_factory() as s:
-        p1 = make_product(s, name="aff_a_xyz", portion_label="und",
-                     sale_price_gs=1000)
-        p2 = make_product(s, name="aff_b_xyz", portion_label="und",
-                     sale_price_gs=1000)
+        p1 = make_product(s, name="aff_a_xyz", portion_label="und", sale_price_gs=1000)
+        p2 = make_product(s, name="aff_b_xyz", portion_label="und", sale_price_gs=1000)
         s.add_all([p1, p2])
         s.flush()
         now = datetime.now(timezone.utc)
@@ -164,10 +158,8 @@ def test_product_affinity_pair_bought_together(session_factory):
 
 def test_product_affinity_min_cooccurrence_filter(session_factory):
     with session_factory() as s:
-        p1 = make_product(s, name="min_a_xyz", portion_label="und",
-                     sale_price_gs=1000)
-        p2 = make_product(s, name="min_b_xyz", portion_label="und",
-                     sale_price_gs=1000)
+        p1 = make_product(s, name="min_a_xyz", portion_label="und", sale_price_gs=1000)
+        p2 = make_product(s, name="min_b_xyz", portion_label="und", sale_price_gs=1000)
         s.add_all([p1, p2])
         s.flush()
         now = datetime.now(timezone.utc)
@@ -179,10 +171,8 @@ def test_product_affinity_min_cooccurrence_filter(session_factory):
 
 def test_top_pairs_returns_n(session_factory):
     with session_factory() as s:
-        p1 = make_product(s, name="tp_a_xyz", portion_label="und",
-                     sale_price_gs=1000)
-        p2 = make_product(s, name="tp_b_xyz", portion_label="und",
-                     sale_price_gs=1000)
+        p1 = make_product(s, name="tp_a_xyz", portion_label="und", sale_price_gs=1000)
+        p2 = make_product(s, name="tp_b_xyz", portion_label="und", sale_price_gs=1000)
         s.add_all([p1, p2])
         s.flush()
         now = datetime.now(timezone.utc)
@@ -199,10 +189,8 @@ def test_top_pairs_returns_n(session_factory):
 
 def test_top_pairs_includes_names(session_factory):
     with session_factory() as s:
-        p1 = make_product(s, name="named_a_xyz", portion_label="und",
-                     sale_price_gs=1000)
-        p2 = make_product(s, name="named_b_xyz", portion_label="und",
-                     sale_price_gs=1000)
+        p1 = make_product(s, name="named_a_xyz", portion_label="und", sale_price_gs=1000)
+        p2 = make_product(s, name="named_b_xyz", portion_label="und", sale_price_gs=1000)
         s.add_all([p1, p2])
         s.flush()
         now = datetime.now(timezone.utc)
@@ -219,10 +207,10 @@ def test_top_pairs_includes_names(session_factory):
 # Churn + rising
 # ---------------------------------------------------------------------------
 
+
 def test_churning_products_detects_decline(session_factory):
     with session_factory() as s:
-        p = make_product(s, name="churn_xyz", portion_label="und",
-                    sale_price_gs=1000)
+        p = make_product(s, name="churn_xyz", portion_label="und", sale_price_gs=1000)
         s.add(p)
         s.flush()
         now = datetime.now(timezone.utc)
@@ -239,8 +227,7 @@ def test_churning_products_detects_decline(session_factory):
 
 def test_rising_products_detects_growth(session_factory):
     with session_factory() as s:
-        p = make_product(s, name="rise_xyz", portion_label="und",
-                    sale_price_gs=1000)
+        p = make_product(s, name="rise_xyz", portion_label="und", sale_price_gs=1000)
         s.add(p)
         s.flush()
         now = datetime.now(timezone.utc)
@@ -257,8 +244,7 @@ def test_rising_products_detects_growth(session_factory):
 
 def test_churning_excludes_stable(session_factory):
     with session_factory() as s:
-        p = make_product(s, name="stable_xyz", portion_label="und",
-                    sale_price_gs=1000)
+        p = make_product(s, name="stable_xyz", portion_label="und", sale_price_gs=1000)
         s.add(p)
         s.flush()
         now = datetime.now(timezone.utc)

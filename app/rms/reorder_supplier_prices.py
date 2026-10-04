@@ -25,6 +25,7 @@ helper starts to populate the per-supplier prices from the live price
 event stream. This module deliberately does NOT fabricate or estimate
 prices — empty data is shown as "sin registro" in the dropdown.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -97,9 +98,13 @@ def get_ingredient_price_history_count(
     """How many price events exist for this ingredient. Used by the /reorder
     template to decide whether to show the "history" badge or "—".
     """
-    return session.execute(
-        select(IngredientPriceEvent).where(IngredientPriceEvent.ingredient_id == ingredient_id)
-    ).all().__len__()
+    return (
+        session.execute(
+            select(IngredientPriceEvent).where(IngredientPriceEvent.ingredient_id == ingredient_id)
+        )
+        .all()
+        .__len__()
+    )
 
 
 __all__ = [

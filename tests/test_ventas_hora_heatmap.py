@@ -9,6 +9,7 @@ This test pins the data shape returned by the new helper:
 `sales_heatmap(session, since_days=N)` returns a 7×24 grid of counts.
 We can then render the grid with CSS `background: hsl(... %)` cells.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -59,12 +60,14 @@ def test_sales_heatmap_counts_sale_in_correct_cell(session_factory):
         if product is None:
             # Skip if seed didn't populate any products.
             pytest.skip("no products in seeded DB")
-        s.add(Sale(
-            product_id=product.id,
-            qty=1.0,
-            unit_price_gs=1000,
-            sold_at=target,
-        ))
+        s.add(
+            Sale(
+                product_id=product.id,
+                qty=1.0,
+                unit_price_gs=1000,
+                sold_at=target,
+            )
+        )
         s.commit()
 
     with session_factory() as s:
@@ -85,12 +88,14 @@ def test_sales_heatmap_respects_since_days_window(session_factory):
         product = s.query(Product).first()
         if product is None:
             pytest.skip("no products in seeded DB")
-        s.add(Sale(
-            product_id=product.id,
-            qty=1.0,
-            unit_price_gs=500,
-            sold_at=old_time,
-        ))
+        s.add(
+            Sale(
+                product_id=product.id,
+                qty=1.0,
+                unit_price_gs=500,
+                sold_at=old_time,
+            )
+        )
         s.commit()
 
     with session_factory() as s:

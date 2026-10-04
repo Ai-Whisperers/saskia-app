@@ -1,4 +1,5 @@
 """P-29 / audit: /auditoria retention banner + filters + CSV export."""
+
 from __future__ import annotations
 
 import pytest
@@ -12,10 +13,7 @@ def test_auditoria_retention_banner(client):
     assert r.status_code == 200, f"got {r.status_code}"
     body = r.text.lower()
     # The Spanish retention banner ("se eliminan automáticamente después de 1 año")
-    assert (
-        "se eliminan automáticamente" in body
-        and ("1 año" in body or "1 ano" in body)
-    ), (
+    assert "se eliminan automáticamente" in body and ("1 año" in body or "1 ano" in body), (
         "Missing retention banner on /auditoria. Audit had this visible. "
         "Translation: 'entries are automatically deleted after 1 year'."
     )
@@ -32,10 +30,9 @@ def test_auditoria_filter_form(client):
     # IP filter
     assert 'name="ip_filter"' in r.text, "Missing ip_filter input"
     # Date filters (start_date / end_date or just "fecha")
-    assert (
-        'name="start_date"' in r.text
-        and 'name="end_date"' in r.text
-    ), "Missing start_date / end_date filter inputs"
+    assert 'name="start_date"' in r.text and 'name="end_date"' in r.text, (
+        "Missing start_date / end_date filter inputs"
+    )
 
 
 def test_auditoria_csv_export_link(client):
@@ -72,12 +69,5 @@ def test_auditoria_pagination_present(client):
     # Either Anterior/Próxima pagination, OR a "No hay entradas" empty state.
     # Both are valid; just ensure something is rendered.
     has_empty = "no hay" in body or "sin entradas" in body or "vacía" in body
-    has_table_or_empty = (
-        "<table" in body
-        or has_empty
-        or "<tbody" in body
-        or "no results" in body
-    )
-    assert has_table_or_empty, (
-        "/auditoria returned 200 but no table or empty-state visible"
-    )
+    has_table_or_empty = "<table" in body or has_empty or "<tbody" in body or "no results" in body
+    assert has_table_or_empty, "/auditoria returned 200 but no table or empty-state visible"

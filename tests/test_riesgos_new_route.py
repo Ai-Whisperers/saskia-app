@@ -4,6 +4,7 @@ Closes Phase-14 TODO #nav:11 — previously the "+ Agregar riesgo" button
 on /riesgos was disabled because the add-risk endpoint didn't exist.
 Operators had to go through Settings to add risks, which was friction.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -41,9 +42,9 @@ def test_riesgos_new_post_creates_risk(authed_client, session_factory):
     assert r.headers.get("location") == "/riesgos"
     # Row exists with expected fields.
     with session_factory() as s:
-        items = s.query(RiskItem).filter(
-            RiskItem.description == "Suba de harina +20% mensual"
-        ).all()
+        items = (
+            s.query(RiskItem).filter(RiskItem.description == "Suba de harina +20% mensual").all()
+        )
         assert len(items) == 1
         item = items[0]
         assert item.probability == 4
@@ -72,16 +73,17 @@ def test_riesgos_new_rejects_invalid_probability(authed_client, session_factory)
     for bad_prob in ("0", "6", "-1", "100"):
         r = authed_client.post(
             "/riesgos/new",
-            data={"description": f"Bad prob {bad_prob}", "probability": bad_prob,
-                  "impact_gs": "1000"},
+            data={
+                "description": f"Bad prob {bad_prob}",
+                "probability": bad_prob,
+                "impact_gs": "1000",
+            },
             follow_redirects=False,
         )
         assert r.status_code == 303
     # No "Bad prob" rows in DB.
     with session_factory() as s:
-        n = s.query(RiskItem).filter(
-            RiskItem.description.like("Bad prob%")
-        ).count()
+        n = s.query(RiskItem).filter(RiskItem.description.like("Bad prob%")).count()
         assert n == 0
 
 
@@ -89,15 +91,12 @@ def test_riesgos_new_rejects_negative_impact(authed_client, session_factory):
     """POST with negative impact_gs must not create (CHECK ck_risk_impact_nonneg)."""
     r = authed_client.post(
         "/riesgos/new",
-        data={"description": "Negative impact risk", "probability": "2",
-              "impact_gs": "-100"},
+        data={"description": "Negative impact risk", "probability": "2", "impact_gs": "-100"},
         follow_redirects=False,
     )
     assert r.status_code == 303
     with session_factory() as s:
-        n = s.query(RiskItem).filter(
-            RiskItem.description == "Negative impact risk"
-        ).count()
+        n = s.query(RiskItem).filter(RiskItem.description == "Negative impact risk").count()
         assert n == 0
 
 
@@ -110,11 +109,9 @@ def test_riesgos_new_accepts_minimal_payload(authed_client, session_factory):
     )
     assert r.status_code == 303
     with session_factory() as s:
-        item = s.query(RiskItem).filter(
-            RiskItem.description == "Riesgo mínimo"
-        ).one()
+        item = s.query(RiskItem).filter(RiskItem.description == "Riesgo mínimo").one()
         assert item.probability == 2  # default
-        assert item.impact_gs == 0      # default
+        assert item.impact_gs == 0  # default
         assert item.status == "activo"  # default
 
 

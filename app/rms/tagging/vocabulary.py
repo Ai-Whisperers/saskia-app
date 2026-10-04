@@ -39,40 +39,44 @@ from __future__ import annotations
 # Canonical Spanish tag names. This is the ONLY set that gets written to
 # Recipe.derived_dietary_tags / Product.inherited_tags / surfaced in UI.
 # ─────────────────────────────────────────────────────────────────────────
-CANONICAL_DIETARY_TAGS: frozenset[str] = frozenset({
-    "vegano",
-    "vegetariano",
-    "sin gluten",
-    "sin tacc",        # sin tacc ≡ sin gluten (Argentina / Paraguay usage)
-    "sin lactosa",
-    "sin huevo",
-    "sin frutos secos",
-    "sin azúcar",
-    "keto",
-    "integral",
-    "orgánico",
-})
+CANONICAL_DIETARY_TAGS: frozenset[str] = frozenset(
+    {
+        "vegano",
+        "vegetariano",
+        "sin gluten",
+        "sin tacc",  # sin tacc ≡ sin gluten (Argentina / Paraguay usage)
+        "sin lactosa",
+        "sin huevo",
+        "sin frutos secos",
+        "sin azúcar",
+        "keto",
+        "integral",
+        "orgánico",
+    }
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────
 # Canonical allergen codes. Stored as CSV in Ingredient.allergens and
 # Recipe.allergens. Sorted alphabetically in derive_recipe_tags.
 # ─────────────────────────────────────────────────────────────────────────
-CANONICAL_ALLERGENS: frozenset[str] = frozenset({
-    "gluten",
-    "dairy",
-    "eggs",
-    "nuts",
-    "soy",
-    "sesame",
-    "sulfites",
-    # 2026-09-29: added to surface sin-azúcar / keto contradictions that
-    # were silently allowed because sugar wasn't recognized as a blocker.
-    # Treat as a "disqualifier code" used by the same infer/blocker
-    # machinery. NOT a real allergen (INAN doesn't list it), but
-    # functionally behaves identically from the recipe-derivation side.
-    "sugar",
-})
+CANONICAL_ALLERGENS: frozenset[str] = frozenset(
+    {
+        "gluten",
+        "dairy",
+        "eggs",
+        "nuts",
+        "soy",
+        "sesame",
+        "sulfites",
+        # 2026-09-29: added to surface sin-azúcar / keto contradictions that
+        # were silently allowed because sugar wasn't recognized as a blocker.
+        # Treat as a "disqualifier code" used by the same infer/blocker
+        # machinery. NOT a real allergen (INAN doesn't list it), but
+        # functionally behaves identically from the recipe-derivation side.
+        "sugar",
+    }
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -131,17 +135,17 @@ TAG_ALIASES: dict[str, str] = {
 # under different labels. Paraguay bakery / Argentine food law uses both.
 # ─────────────────────────────────────────────────────────────────────────
 TAG_ALLERGEN_BLOCKERS: dict[str, tuple[str, ...]] = {
-    "sin gluten":       ("gluten",),
-    "sin tacc":         ("gluten",),       # sin tacc ≡ sin gluten
-    "sin lactosa":      ("dairy",),
-    "sin huevo":        ("eggs",),
+    "sin gluten": ("gluten",),
+    "sin tacc": ("gluten",),  # sin tacc ≡ sin gluten
+    "sin lactosa": ("dairy",),
+    "sin huevo": ("eggs",),
     "sin frutos secos": ("nuts",),
-    "sin azúcar":       ("sugar",),        # 2026-09-29: was () — see research notes
-    "keto":             ("sugar",),        # 2026-09-29: simplified — sugar is the only keto-relevant blocker
-    "vegano":           ("dairy", "eggs"), # excludes animal-derived; honey = debated
-    "vegetariano":      (),                # only meat disqualifies (detected via name keyword)
-    "integral":         (),                # whole-grain certification, not allergen-driven
-    "orgánico":         (),                # certification, not allergen-driven
+    "sin azúcar": ("sugar",),  # 2026-09-29: was () — see research notes
+    "keto": ("sugar",),  # 2026-09-29: simplified — sugar is the only keto-relevant blocker
+    "vegano": ("dairy", "eggs"),  # excludes animal-derived; honey = debated
+    "vegetariano": (),  # only meat disqualifies (detected via name keyword)
+    "integral": (),  # whole-grain certification, not allergen-driven
+    "orgánico": (),  # certification, not allergen-driven
 }
 
 
@@ -159,7 +163,8 @@ ALLERGEN_KEYWORDS: dict[str, tuple[str, ...]] = {
     # word-boundary matcher in classify._keyword_matches requires exact
     # word forms (no auto-plural — would collide with Indonesian "manis").
     "gluten": (
-        "harina", "harinas",
+        "harina",
+        "harinas",
         "trigo",
         "avena",
         "cebada",
@@ -168,34 +173,49 @@ ALLERGEN_KEYWORDS: dict[str, tuple[str, ...]] = {
         "espelta",
     ),
     "dairy": (
-        "leche", "leches",
+        "leche",
+        "leches",
         "crema",
-        "manteca", "mantecas",
-        "mantequilla", "mantequillas",
-        "yogur", "yogures",
-        "queso", "quesos",
+        "manteca",
+        "mantecas",
+        "mantequilla",
+        "mantequillas",
+        "yogur",
+        "yogures",
+        "queso",
+        "quesos",
         "queso crema",
         "ricota",
-        "requeson", "requesón",
+        "requeson",
+        "requesón",
         "dulce de leche",
     ),
     "eggs": (
-        "huevo", "huevos",
-        "clara", "claras",
-        "yema", "yemas",
+        "huevo",
+        "huevos",
+        "clara",
+        "claras",
+        "yema",
+        "yemas",
         "ovoalbumina",
     ),
     "nuts": (
-        "almendra", "almendras",
-        "nuez", "nueces",
-        "avellana", "avellanas",
-        "pistacho", "pistachos",
+        "almendra",
+        "almendras",
+        "nuez",
+        "nueces",
+        "avellana",
+        "avellanas",
+        "pistacho",
+        "pistachos",
         # 'mani' = maní (Spanish, peanut). Listed WITHOUT trailing -s so
         # 'manis' (Indonesian "sweet", as in "Ketjap Manis") does NOT match.
         "mani",
-        "castana", "castañas",
+        "castana",
+        "castañas",
         "pecan",
-        "macadamia", "macadamias",
+        "macadamia",
+        "macadamias",
     ),
     "soy": (
         "soja",
@@ -204,30 +224,46 @@ ALLERGEN_KEYWORDS: dict[str, tuple[str, ...]] = {
         "tofu",
     ),
     "sesame": (
-        "sesamo", "sesamos",  # both accented + unaccented handled by normalize
-        "ajonjoli", "ajonjolis",
+        "sesamo",
+        "sesamos",  # both accented + unaccented handled by normalize
+        "ajonjoli",
+        "ajonjolis",
     ),
     "sulfites": (
-        "sulfito", "sulfitos",
-        "metabisulfito", "metabisulfitos",
+        "sulfito",
+        "sulfitos",
+        "metabisulfito",
+        "metabisulfitos",
     ),
     # 2026-09-29: sugar is added as a disqualifier code (not a true allergen
     # per INAN). Used by sin-azúcar / keto to block recipes that contain
     # any sweetener. Same mechanism as allergen blocking but conceptually
     # different — see vocabulary.CANONICAL_ALLERGENS note.
     "sugar": (
-        "azúcar", "azucar",
+        "azúcar",
+        "azucar",
         "miel",
-        "jarabe", "jarabe de maíz", "jarabe de glucosa",
-        "glucosa", "dextrosa",
+        "jarabe",
+        "jarabe de maíz",
+        "jarabe de glucosa",
+        "glucosa",
+        "dextrosa",
         "fructosa",
-        "panela", "rapadura",
+        "panela",
+        "rapadura",
         "melaza",
-        "edulcorante", "stevia (azúcar)",  # explicit "sugar stevia" only — stevia alone OK
-        "azúcar impalpable", "azúcar glas", "azúcar glass",
-        "azúcar mascabado", "azúcar morena", "azúcar moreno",
-        "azúcar blanca", "azúcar blanco",
-        "azúcar negra", "azúcar negro",
+        "edulcorante",
+        "stevia (azúcar)",  # explicit "sugar stevia" only — stevia alone OK
+        "azúcar impalpable",
+        "azúcar glas",
+        "azúcar glass",
+        "azúcar mascabado",
+        "azúcar morena",
+        "azúcar moreno",
+        "azúcar blanca",
+        "azúcar blanco",
+        "azúcar negra",
+        "azúcar negro",
         "azúcar rubia",
     ),
 }
@@ -241,18 +277,31 @@ ALLERGEN_KEYWORDS: dict[str, tuple[str, ...]] = {
 # Matching rule (in classify._is_neutral): name equals keyword OR starts
 # with keyword + " ". So "sal" matches but "salsa" doesn't.
 # ─────────────────────────────────────────────────────────────────────────
-NEUTRAL_INGREDIENT_KEYWORDS: frozenset[str] = frozenset({
-    # Water / salt / ice
-    "agua", "sal", "sal fina", "sal gruesa", "hielo",
-    # Common spices — never disqualify a recipe from any dietary tag
-    "canela", "jengibre", "nuez moscada", "vainilla", "esencia",
-    # Leaveners / acids / chemical inputs
-    "bicarbonato", "polvo de hornear", "levadura", "vinagre",
-    # Fats — oil is universally vegan / keto / sugar-free
-    "aceite",
-    # Note: sugars and flours are NOT neutral — they're the actual blockers.
-    # Operator must declare their allergens (e.g. Harina de trigo → gluten).
-})
+NEUTRAL_INGREDIENT_KEYWORDS: frozenset[str] = frozenset(
+    {
+        # Water / salt / ice
+        "agua",
+        "sal",
+        "sal fina",
+        "sal gruesa",
+        "hielo",
+        # Common spices — never disqualify a recipe from any dietary tag
+        "canela",
+        "jengibre",
+        "nuez moscada",
+        "vainilla",
+        "esencia",
+        # Leaveners / acids / chemical inputs
+        "bicarbonato",
+        "polvo de hornear",
+        "levadura",
+        "vinagre",
+        # Fats — oil is universally vegan / keto / sugar-free
+        "aceite",
+        # Note: sugars and flours are NOT neutral — they're the actual blockers.
+        # Operator must declare their allergens (e.g. Harina de trigo → gluten).
+    }
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -301,7 +350,13 @@ CUSTOMER_ALLERGEN_WORDS: dict[str, str] = {
 # "why isn't my pan sin gluten?" tooltip is scannable).
 # ─────────────────────────────────────────────────────────────────────────
 ALLERGEN_DISPLAY_ORDER: tuple[str, ...] = (
-    "gluten", "dairy", "eggs", "nuts", "soy", "sesame", "sulfites",
+    "gluten",
+    "dairy",
+    "eggs",
+    "nuts",
+    "soy",
+    "sesame",
+    "sulfites",
 )
 
 

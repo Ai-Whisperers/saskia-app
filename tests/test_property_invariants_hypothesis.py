@@ -67,13 +67,25 @@ def test_stock_always_reconciles_with_ledger(ops):
         initial = 50.0
         for kind, val in ops:
             if kind == "adjust":
-                s.add(StockMovement(ingredient_id=ing.id, movement_type="adjustment",
-                                    qty=val, recorded_at=datetime.now(timezone.utc)))
+                s.add(
+                    StockMovement(
+                        ingredient_id=ing.id,
+                        movement_type="adjustment",
+                        qty=val,
+                        recorded_at=datetime.now(timezone.utc),
+                    )
+                )
                 ing.stock_qty += val
             else:  # waste (never more than available in this model run)
                 if ing.stock_qty >= val:
-                    s.add(StockMovement(ingredient_id=ing.id, movement_type="merma",
-                                        qty=-val, recorded_at=datetime.now(timezone.utc)))
+                    s.add(
+                        StockMovement(
+                            ingredient_id=ing.id,
+                            movement_type="merma",
+                            qty=-val,
+                            recorded_at=datetime.now(timezone.utc),
+                        )
+                    )
                     ing.stock_qty -= val
         s.commit()
 
@@ -109,9 +121,7 @@ def test_sale_snapshot_never_rewritten(price_changes, qty):
             cat["product"].sale_price_gs = p
             s.commit()
             s.refresh(sale)
-            assert sale.unit_price_gs == snapshot, (
-                f"snapshot rewritten after catalog change to {p}"
-            )
+            assert sale.unit_price_gs == snapshot, f"snapshot rewritten after catalog change to {p}"
     engine.dispose()
 
 
@@ -137,8 +147,15 @@ def test_adding_ingredients_never_removes_allergens(extra):
             ing = make_ingredient(s, allergens=al)
             from app.rms.models import RecipeLine
 
-            s.add(RecipeLine(recipe_id=rec.id, line_kind="ingredient",
-                             line_ref_id=ing.id, qty=0.1, line_unit="kg"))
+            s.add(
+                RecipeLine(
+                    recipe_id=rec.id,
+                    line_kind="ingredient",
+                    line_ref_id=ing.id,
+                    qty=0.1,
+                    line_unit="kg",
+                )
+            )
             s.flush()
             after = set(derive_recipe_tags(s, rec.id).allergens)
             # monotonic: union can only grow (per committed state)

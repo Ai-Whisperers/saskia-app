@@ -27,6 +27,7 @@ Both are append-only reads. No data mutations. Voided waste rows
 should NOT be excluded (WasteLog doesn't have a voided_at column
 yet — but it has SoftDelete columns? Let me check).
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -121,10 +122,8 @@ def test_waste_vs_purchase_trend_returns_per_month_buckets(session_factory):
     with session_factory() as s:
         ing = make_ingredient(s, name="leche_xxx", unit="l")
         now = datetime.now(ASUNCION_TZ)
-        make_waste_log(s, ingredient=ing, qty=1.0, cost_gs=1000,
-                      at=now - timedelta(days=5))
-        make_waste_log(s, ingredient=ing, qty=0.5, cost_gs=500,
-                      at=now - timedelta(days=35))
+        make_waste_log(s, ingredient=ing, qty=1.0, cost_gs=1000, at=now - timedelta(days=5))
+        make_waste_log(s, ingredient=ing, qty=0.5, cost_gs=500, at=now - timedelta(days=35))
         s.commit()
 
     with session_factory() as s:
@@ -176,8 +175,7 @@ def test_mermas_cost_page_shows_ingredient_data(client, session_factory):
 
     with session_factory() as s:
         ing = make_ingredient(s, name="page_test_xyz", unit="kg")
-        make_waste_log(s, ingredient=ing, qty=1.0, cost_gs=2500,
-                      at=dt.now(ASUNCION_TZ))
+        make_waste_log(s, ingredient=ing, qty=1.0, cost_gs=2500, at=dt.now(ASUNCION_TZ))
         s.commit()
 
     resp = client.get("/reportes/mermas-cost")

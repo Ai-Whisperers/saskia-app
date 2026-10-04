@@ -6,6 +6,7 @@ customer_address_id + structured address fields. Confirms the Pedido row
 carries them all, and GET /pedidos/{id} shows the ventana text with the
 "(no es garantía)" suffix.
 """
+
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
@@ -15,6 +16,7 @@ from app.rms.models import Pedido
 
 def _seed_product(session_factory, name="Phase13Prod", price=12000):
     from app.rms.models import Product
+
     with session_factory() as s:
         p = Product(name=name, sale_price_gs=price)
         s.add(p)

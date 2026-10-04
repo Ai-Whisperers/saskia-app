@@ -6,6 +6,7 @@ Verifies the user guide:
   3. Each section file references at least one screenshot
   4. Placeholder text ("placeholder screenshot" / "placeholder image") is gone
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -65,20 +66,26 @@ def test_version_check_script_passes():
     happened that wasn't called out in the manual.
     """
     r = subprocess.run(
-        ["git", "log", "--format=%H", "-2"], cwd=REPO, capture_output=True, text=True,
+        ["git", "log", "--format=%H", "-2"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
     )
     last_two = [line.strip() for line in r.stdout.splitlines() if line.strip()][:2]
     assert len(last_two) >= 2, "git log returned <2 commits"
 
     r = subprocess.run(
         ["python3", str(CHECK_SCRIPT)],
-        cwd=REPO, capture_output=True, text=True,
+        cwd=REPO,
+        capture_output=True,
+        text=True,
     )
     if r.returncode == 0:
         return
     # Allow 1-commit lag (README bump's own commit)
     text = README.read_text(encoding="utf-8")
     import re
+
     m = re.search(r"commit\s+`?([a-f0-9]+)`?", text)
     pinned = m.group(1) if m else None
     # last_two are full 40-char SHAs; pinned is typically 7-char short
@@ -114,9 +121,7 @@ def test_no_placeholder_strings_remain():
         assert "placeholder screenshot" not in text, (
             f"{section} still has placeholder screenshot text"
         )
-        assert "placeholder image" not in text, (
-            f"{section} still has placeholder image text"
-        )
+        assert "placeholder image" not in text, f"{section} still has placeholder image text"
 
 
 def test_readme_documents_what_saskia_can_and_cannot_do():

@@ -10,6 +10,7 @@ Covers:
 - list_supported_vendors returns 4 entries
 - config_from_env reads AIW_PRINTER_* env vars
 """
+
 from __future__ import annotations
 
 import socket
@@ -101,6 +102,7 @@ def test_send_to_printer_routes_network(monkeypatch):
         server.close()
 
     import threading
+
     t = threading.Thread(target=handle, daemon=True)
     t.start()
 
@@ -137,8 +139,14 @@ def test_list_supported_vendors_returns_4():
 
 
 def test_config_from_env_defaults_to_file(monkeypatch):
-    for k in ("AIW_PRINTER_KIND", "AIW_PRINTER_HOST", "AIW_PRINTER_PORT",
-              "AIW_PRINTER_VID", "AIW_PRINTER_PID", "AIW_PRINTER_DST"):
+    for k in (
+        "AIW_PRINTER_KIND",
+        "AIW_PRINTER_HOST",
+        "AIW_PRINTER_PORT",
+        "AIW_PRINTER_VID",
+        "AIW_PRINTER_PID",
+        "AIW_PRINTER_DST",
+    ):
         monkeypatch.delenv(k, raising=False)
     cfg = config_from_env()
     assert cfg.kind == PrinterKind.FILE

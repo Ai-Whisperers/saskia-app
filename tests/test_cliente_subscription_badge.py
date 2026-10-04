@@ -16,6 +16,7 @@ from datetime import date
 def _kyrian_id(session_factory, qseed):
     from app.rms.models import Customer
     from app.seed.kyrian import KYRIAN_PHONE
+
     qseed("with_kyrian_full")
     with session_factory() as s:
         return s.query(Customer).filter_by(phone=KYRIAN_PHONE).one().id
@@ -47,6 +48,7 @@ def test_cliente_detail_shows_create_pedido_cta(client, qseed, session_factory):
 def test_cliente_detail_no_subscription_banner_for_new_customer(client, session_factory):
     """Customer with no subscriptions does NOT show the banner."""
     from app.rms.models import Customer
+
     with session_factory() as s:
         c = Customer(name="Sin Suscripcion", phone="0991110000")
         s.add(c)
@@ -68,28 +70,33 @@ def test_handler_loads_all_subscription_statuses(client, qseed, session_factory)
     so the operator can see the full picture (paused subs can be reactivated,
     cancelled ones stay on file for reference)."""
     from app.rms.models import Suscripcion
+
     cid = _kyrian_id(session_factory, qseed)
 
     with session_factory() as s:
         # Add a paused + cancelled sub for the same customer
-        s.add(Suscripcion(
-            customer_id=cid,
-            product_summary="Babka semanal (pausada)",
-            cadence="semanal",
-            preferred_day_of_week=3,
-            start_date=date(2026, 9, 1),
-            price_gs=50000,
-            status="pausada",
-        ))
-        s.add(Suscripcion(
-            customer_id=cid,
-            product_summary="Torta vieja (cancelada)",
-            cadence="mensual",
-            start_date=date(2026, 6, 1),
-            end_date=date(2026, 8, 31),
-            price_gs=80000,
-            status="cancelada",
-        ))
+        s.add(
+            Suscripcion(
+                customer_id=cid,
+                product_summary="Babka semanal (pausada)",
+                cadence="semanal",
+                preferred_day_of_week=3,
+                start_date=date(2026, 9, 1),
+                price_gs=50000,
+                status="pausada",
+            )
+        )
+        s.add(
+            Suscripcion(
+                customer_id=cid,
+                product_summary="Torta vieja (cancelada)",
+                cadence="mensual",
+                start_date=date(2026, 6, 1),
+                end_date=date(2026, 8, 31),
+                price_gs=80000,
+                status="cancelada",
+            )
+        )
         s.commit()
 
     r = client.get(f"/clientes/{cid}")

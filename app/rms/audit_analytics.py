@@ -11,6 +11,7 @@ Reports:
   - operator_activity:       per-user event counts + last-seen + distinct actions
   - login_failure_rate:      login.failure / (login.success + login.failure)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -89,12 +90,8 @@ def compute_audit_analytics(
         session.query(
             AuditLog.ip,
             func.count(AuditLog.id).label("n"),
-            func.sum(
-                case((AuditLog.action == "login.failure", 1), else_=0)
-            ).label("n_fail"),
-            func.sum(
-                case((AuditLog.action == "login.success", 1), else_=0)
-            ).label("n_succ"),
+            func.sum(case((AuditLog.action == "login.failure", 1), else_=0)).label("n_fail"),
+            func.sum(case((AuditLog.action == "login.success", 1), else_=0)).label("n_succ"),
         )
         .filter(AuditLog.occurred_at >= cutoff)
         .filter(AuditLog.ip.isnot(None))
@@ -164,12 +161,8 @@ def compute_audit_analytics(
         .all()
     )
     login_total = sum(int(n or 0) for _, n in login_rows)
-    login_fail = sum(
-        int(n or 0) for a, n in login_rows if a == "login.failure"
-    )
-    failure_rate = (
-        round(login_fail / login_total, 4) if login_total > 0 else None
-    )
+    login_fail = sum(int(n or 0) for a, n in login_rows if a == "login.failure")
+    failure_rate = round(login_fail / login_total, 4) if login_total > 0 else None
 
     return AuditAnalyticsReport(
         period_days=days,

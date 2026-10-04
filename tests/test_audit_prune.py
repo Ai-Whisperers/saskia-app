@@ -4,6 +4,7 @@ Audit log grows unbounded. 1k errors/day = 365k rows/year. Free-tier
 Neon shouldn't be loaded with archival data. This module keeps
 the table bounded.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -21,6 +22,7 @@ def test_prune_keeps_recent_deletes_old(session_factory):
         s.commit()
 
     from app.rms.maintenance import prune_audit_log
+
     n = prune_audit_log(session_factory, retention_days=30)
 
     assert n == 1  # one row deleted
@@ -37,14 +39,17 @@ def test_prune_dry_run_does_not_delete(session_factory):
 
     with session_factory() as s:
         for _ in range(3):
-            s.add(AuditLog(
-                occurred_at=datetime.now(timezone.utc) - timedelta(days=60),
-                action="old_row",
-                user_id=None,
-            ))
+            s.add(
+                AuditLog(
+                    occurred_at=datetime.now(timezone.utc) - timedelta(days=60),
+                    action="old_row",
+                    user_id=None,
+                )
+            )
         s.commit()
 
     from app.rms.maintenance import prune_audit_log
+
     n = prune_audit_log(session_factory, retention_days=30, dry_run=True)
     assert n == 3
     # All 3 still present.
@@ -61,11 +66,24 @@ def test_prune_zero_retention_keeps_nothing_old(session_factory):
 
     with session_factory() as s:
         s.add(AuditLog(occurred_at=datetime.now(timezone.utc), action="today", user_id=None))
-        s.add(AuditLog(occurred_at=datetime.now(timezone.utc) - timedelta(hours=1), action="hour", user_id=None))
-        s.add(AuditLog(occurred_at=datetime.now(timezone.utc) - timedelta(days=2), action="two_days", user_id=None))
+        s.add(
+            AuditLog(
+                occurred_at=datetime.now(timezone.utc) - timedelta(hours=1),
+                action="hour",
+                user_id=None,
+            )
+        )
+        s.add(
+            AuditLog(
+                occurred_at=datetime.now(timezone.utc) - timedelta(days=2),
+                action="two_days",
+                user_id=None,
+            )
+        )
         s.commit()
 
     from app.rms.maintenance import prune_audit_log
+
     # retention_days=1 keeps things 1+ day old only; the 2-day-old goes.
     n = prune_audit_log(session_factory, retention_days=1)
     assert n == 1

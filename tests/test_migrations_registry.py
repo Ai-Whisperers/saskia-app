@@ -1,7 +1,5 @@
 """Test migrations registry before and after refactor to pkgutil discovery."""
 
-
-
 from app.rms.db import MIGRATIONS, init_db
 
 
@@ -15,6 +13,7 @@ def test_migrations_dict_exists_and_has_at_least_44_entries():
     assert 44 in MIGRATIONS
     # Contiguous through CURRENT_SCHEMA_VERSION (54 as of tag-algebra).
     from app.rms.config import CURRENT_SCHEMA_VERSION
+
     assert set(range(1, CURRENT_SCHEMA_VERSION + 1)) <= set(MIGRATIONS)
 
 
@@ -32,6 +31,7 @@ def test_init_db_runs_migration_44(session_factory):
 def test_migrations_discovered_via_pkgutil():
     """Verify migrations are discovered automatically via pkgutil."""
     from app.rms.migrations import MIGRATIONS as discovered
+
     assert isinstance(discovered, dict)
     # Test that discovery can find migrations (may be 0 in test environment)
     assert len(discovered) >= 0  # At least 0 migrations

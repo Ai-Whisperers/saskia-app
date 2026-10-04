@@ -14,6 +14,7 @@ These are the SEAMS — concrete caching layers (Redis / diskcache)
 are operator choices and out of scope for the v1 single-bakery
 deployment. The current dataset (10k sales/year) needs no Redis.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -147,11 +148,9 @@ def apply_postgres_indexes(session: Session) -> list[str]:
     for model, col, unique in INDEX_HINTS:
         ix_name = f"ix_{model.__tablename__}_{col}"
         stmt = (
-            f"CREATE UNIQUE INDEX IF NOT EXISTS {ix_name} "
-            f"ON {model.__tablename__} ({col})"
+            f"CREATE UNIQUE INDEX IF NOT EXISTS {ix_name} ON {model.__tablename__} ({col})"
             if unique
-            else f"CREATE INDEX IF NOT EXISTS {ix_name} "
-            f"ON {model.__tablename__} ({col})"
+            else f"CREATE INDEX IF NOT EXISTS {ix_name} ON {model.__tablename__} ({col})"
         )
         try:
             session.execute(text(stmt))
@@ -165,9 +164,12 @@ def count_models(session: Session) -> dict[str, int]:
     """Return row counts for the main tables (handy for diagnostics)."""
     out: dict[str, int] = {}
     for model in [Ingredient, Recipe, Product, Sale, Customer, AuditLog]:
-        out[model.__tablename__] = session.execute(
-            text(f"SELECT COUNT(*) FROM {model.__tablename__}")  # noqa: S608 — table name from SQLAlchemy model, not user input
-        ).scalar() or 0
+        out[model.__tablename__] = (
+            session.execute(
+                text(f"SELECT COUNT(*) FROM {model.__tablename__}")  # noqa: S608 — table name from SQLAlchemy model, not user input
+            ).scalar()
+            or 0
+        )
     return out
 
 

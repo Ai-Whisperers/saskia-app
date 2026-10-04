@@ -14,6 +14,7 @@ actually reachable. This added depth:
 The endpoint stays public (no PII) and 503s if any "skipped" path was
 reachable but failed.
 """
+
 from __future__ import annotations
 
 import time
@@ -103,8 +104,10 @@ def test_healthz_deps_supabase_unreachable_returns_503(client, monkeypatch):
     """
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
     from app.routers import health as health_module
+
     monkeypatch.setattr(
-        health_module, "_check_supabase_reachable",
+        health_module,
+        "_check_supabase_reachable",
         lambda url, timeout=2.0: {
             "ok": False,
             "http_status": None,
@@ -129,8 +132,10 @@ def test_healthz_deps_supabase_healthy_returns_200(client, monkeypatch):
     """
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
     from app.routers import health as health_module
+
     monkeypatch.setattr(
-        health_module, "_check_supabase_reachable",
+        health_module,
+        "_check_supabase_reachable",
         lambda url, timeout=2.0: {
             "ok": True,
             "http_status": 200,
@@ -160,8 +165,10 @@ def test_healthz_deps_supabase_405_now_reports_diagnostics(client, monkeypatch):
     """
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
     from app.routers import health as health_module
+
     monkeypatch.setattr(
-        health_module, "_check_supabase_reachable",
+        health_module,
+        "_check_supabase_reachable",
         lambda url, timeout=2.0: {
             "ok": False,
             "http_status": 405,

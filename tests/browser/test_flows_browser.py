@@ -78,8 +78,11 @@ def test_excel_mode_radio_reaches_route(pw_page):
     # FULL must be selectable
     p.locator("input[value='FULL']").check()
     p.locator("#import-form input[type='file']").set_input_files(
-        {"name": "browser.xlsx", "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-         "buffer": buf.getvalue()}
+        {
+            "name": "browser.xlsx",
+            "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "buffer": buf.getvalue(),
+        }
     )
     with p.expect_response(lambda r: "/excel/importar" in r.url) as resp_info:
         p.locator("#import-form button[type='submit']").click()

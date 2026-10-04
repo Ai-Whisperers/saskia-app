@@ -17,6 +17,7 @@ the unified behavior:
     (added in this refactor so the wrapper doesn't need its own prefix
     stripping)
 """
+
 from __future__ import annotations
 
 import pytest

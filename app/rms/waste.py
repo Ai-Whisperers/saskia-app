@@ -11,6 +11,7 @@ Adds:
   damage), receta_incompleta (recipe incomplete), otra (other)
 - Pure-Python helpers for CRUD + reporting
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -210,11 +211,14 @@ def waste_impact(
         total_cost += c
 
     # Total qty
-    qty_sum = session.execute(
-        select(func.sum(WasteLog.qty)).where(
-            WasteLog.recorded_at >= start_date, WasteLog.recorded_at <= end_date
-        )
-    ).scalar() or 0.0
+    qty_sum = (
+        session.execute(
+            select(func.sum(WasteLog.qty)).where(
+                WasteLog.recorded_at >= start_date, WasteLog.recorded_at <= end_date
+            )
+        ).scalar()
+        or 0.0
+    )
 
     return WasteImpact(
         n_events=n_events,

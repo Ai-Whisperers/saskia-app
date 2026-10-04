@@ -9,6 +9,7 @@ cook can't tell which auto-suggestions to trust. The fix is:
   3. confidence_bands dict in the context — used by the template
      and could power future filtering.
 """
+
 import pytest  # noqa: F401 — pytest fixtures via authed_client
 
 from app.rms.models import ProductionClosedDay  # noqa: F401 — used by other test functions
@@ -65,12 +66,14 @@ def test_low_confidence_banner_with_seeded_sale(authed_client, session_factory):
         s.add(product)
         s.flush()
         # Seed 1 sale to trigger the low-confidence single-sale heuristic
-        s.add(Sale(
-            product_id=product.id,
-            qty=1.0,
-            unit_price_gs=10000,
-            sold_at=datetime.utcnow(),
-        ))
+        s.add(
+            Sale(
+                product_id=product.id,
+                qty=1.0,
+                unit_price_gs=10000,
+                sold_at=datetime.utcnow(),
+            )
+        )
         s.commit()
 
     # Hit /produccion?view=day for a date that includes this product.

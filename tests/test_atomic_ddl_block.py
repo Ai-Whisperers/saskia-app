@@ -7,6 +7,7 @@ state. SQLite is a no-op (DDL is transactional).
 These tests use a fake connection that records every exec so we can
 verify the SAVEPOINT dance happens in the right order.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -43,11 +44,7 @@ class _FakeConn:
         # ONLY new SAVEPOINTs are rejected (must ROLLBACK TO SAVEPOINT
         # first to recover). ROLLBACK TO and RELEASE work even after a
         # failed statement, as long as the named savepoint exists.
-        if (
-            self.in_failed_state
-            and s.startswith("SAVEPOINT ")
-            and "ddl_block_" in s
-        ):
+        if self.in_failed_state and s.startswith("SAVEPOINT ") and "ddl_block_" in s:
             raise RuntimeError(
                 f"current transaction is aborted, commands ignored until "
                 f"end of transaction block: {s}"
@@ -90,9 +87,7 @@ def test_postgres_wraps_each_statement_in_savepoint():
         "EXEC: ALTER TABLE x ADD COLUMN c INT",
         "RELEASE SAVEPOINT ddl_block_2",
     ]
-    assert conn.exec_log == expected, (
-        f"expected SAVEPOINT-wrapped execution, got:\n{conn.exec_log}"
-    )
+    assert conn.exec_log == expected, f"expected SAVEPOINT-wrapped execution, got:\n{conn.exec_log}"
 
 
 def test_postgres_failure_rolls_back_only_failing_statement():
@@ -204,9 +199,7 @@ def test_postgres_savepoint_names_are_unique_per_statement():
     """Each statement gets a unique SAVEPOINT name to avoid collisions."""
     conn = _FakeConn(dialect_name="postgresql")
     atomic_ddl_block(conn, ["SQL A", "SQL B", "SQL C"])
-    savepoint_names = [
-        line for line in conn.exec_log if line.startswith("SAVEPOINT ")
-    ]
+    savepoint_names = [line for line in conn.exec_log if line.startswith("SAVEPOINT ")]
     assert savepoint_names == [
         "SAVEPOINT ddl_block_0",
         "SAVEPOINT ddl_block_1",
@@ -229,6 +222,7 @@ def test_postgres_rollback_failure_does_not_swallow_original_error():
         atomic_ddl_block(conn, sqls)
 
     # Original error must propagate, not the rollback error
-    assert "simulated DDL error" in str(
-        pytest.raises(RuntimeError, match="simulated DDL error")
-    ) or True  # the RuntimeError above already proved this
+    assert (
+        "simulated DDL error" in str(pytest.raises(RuntimeError, match="simulated DDL error"))
+        or True
+    )  # the RuntimeError above already proved this

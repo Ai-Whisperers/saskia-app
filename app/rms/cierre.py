@@ -17,6 +17,7 @@ close view. Per docs/plans/2026-09-22-ingredient-domain.md §D.
 Note: this is operational margin, not accounting P&L. Tax (IVA débito /
 crédito / IRP) is computed separately in /reportes/iva.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -31,9 +32,10 @@ from app.rms.models import Product, Sale
 @dataclass
 class MonthlyCloseRow:
     """One row of the monthly close — per product or aggregated per family."""
-    label: str                          # product name or family
+
+    label: str  # product name or family
     sku: str | None = None
-    category: str | None = None         # family for product, family for aggregate
+    category: str | None = None  # family for product, family for aggregate
     ventas_gs: int = 0
     iva_ventas_gs: int = 0
     costo_materiales_gs: int = 0
@@ -47,7 +49,7 @@ class MonthlyCloseRow:
 
 @dataclass
 class MonthlyClose:
-    period_label: str              # "Septiembre 2026"
+    period_label: str  # "Septiembre 2026"
     start: date
     end: date
     rows: list[MonthlyCloseRow]
@@ -87,13 +89,17 @@ def compute_monthly_close(session: Session, year: int, month: int) -> MonthlyClo
     end_dt = datetime.combine(end, datetime.max.time()).replace(tzinfo=ASUNCION_TZ)
 
     # Pull all non-voided sales in the period
-    sales = session.execute(
-        select(Sale).where(
-            Sale.sold_at >= start_dt,
-            Sale.sold_at <= end_dt,
-            Sale.voided_at.is_(None),
+    sales = (
+        session.execute(
+            select(Sale).where(
+                Sale.sold_at >= start_dt,
+                Sale.sold_at <= end_dt,
+                Sale.voided_at.is_(None),
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     # Aggregate per product
     by_product: dict[int, dict] = {}
@@ -150,20 +156,22 @@ def compute_monthly_close(session: Session, year: int, month: int) -> MonthlyClo
         margen = agg["ventas_gs"] - prime_total
         margen_pct = round(margen / agg["ventas_gs"] * 100, 1) if agg["ventas_gs"] > 0 else 0.0
 
-        rows.append(MonthlyCloseRow(
-            label=p.name,
-            sku=p.sku,
-            category=p.recipe.family if p.recipe else None,
-            ventas_gs=agg["ventas_gs"],
-            iva_ventas_gs=agg["iva_ventas_gs"],
-            costo_materiales_gs=mat_total,
-            mano_de_obra_gs=lab_total,
-            overhead_gs=ovh_total,
-            prime_cost_gs=prime_total,
-            margen_neto_gs=margen,
-            margen_pct=margen_pct,
-            qty_sold=agg["qty"],
-        ))
+        rows.append(
+            MonthlyCloseRow(
+                label=p.name,
+                sku=p.sku,
+                category=p.recipe.family if p.recipe else None,
+                ventas_gs=agg["ventas_gs"],
+                iva_ventas_gs=agg["iva_ventas_gs"],
+                costo_materiales_gs=mat_total,
+                mano_de_obra_gs=lab_total,
+                overhead_gs=ovh_total,
+                prime_cost_gs=prime_total,
+                margen_neto_gs=margen,
+                margen_pct=margen_pct,
+                qty_sold=agg["qty"],
+            )
+        )
 
     # Aggregate by family
     by_family: dict[str, dict] = {}
@@ -171,9 +179,13 @@ def compute_monthly_close(session: Session, year: int, month: int) -> MonthlyClo
         family = r.category or "sin familia"
         if family not in by_family:
             by_family[family] = {
-                "ventas_gs": 0, "iva_ventas_gs": 0,
-                "costo_materiales_gs": 0, "mano_de_obra_gs": 0,
-                "overhead_gs": 0, "prime_cost_gs": 0, "margen_neto_gs": 0,
+                "ventas_gs": 0,
+                "iva_ventas_gs": 0,
+                "costo_materiales_gs": 0,
+                "mano_de_obra_gs": 0,
+                "overhead_gs": 0,
+                "prime_cost_gs": 0,
+                "margen_neto_gs": 0,
                 "qty_sold": 0.0,
             }
         agg = by_family[family]
@@ -188,20 +200,26 @@ def compute_monthly_close(session: Session, year: int, month: int) -> MonthlyClo
 
     family_rows: list[MonthlyCloseRow] = []
     for family, agg in sorted(by_family.items()):
-        margen_pct = round(agg["margen_neto_gs"] / agg["ventas_gs"] * 100, 1) if agg["ventas_gs"] > 0 else 0.0
-        family_rows.append(MonthlyCloseRow(
-            label=family,
-            category=family,
-            ventas_gs=agg["ventas_gs"],
-            iva_ventas_gs=agg["iva_ventas_gs"],
-            costo_materiales_gs=agg["costo_materiales_gs"],
-            mano_de_obra_gs=agg["mano_de_obra_gs"],
-            overhead_gs=agg["overhead_gs"],
-            prime_cost_gs=agg["prime_cost_gs"],
-            margen_neto_gs=agg["margen_neto_gs"],
-            margen_pct=margen_pct,
-            qty_sold=agg["qty_sold"],
-        ))
+        margen_pct = (
+            round(agg["margen_neto_gs"] / agg["ventas_gs"] * 100, 1)
+            if agg["ventas_gs"] > 0
+            else 0.0
+        )
+        family_rows.append(
+            MonthlyCloseRow(
+                label=family,
+                category=family,
+                ventas_gs=agg["ventas_gs"],
+                iva_ventas_gs=agg["iva_ventas_gs"],
+                costo_materiales_gs=agg["costo_materiales_gs"],
+                mano_de_obra_gs=agg["mano_de_obra_gs"],
+                overhead_gs=agg["overhead_gs"],
+                prime_cost_gs=agg["prime_cost_gs"],
+                margen_neto_gs=agg["margen_neto_gs"],
+                margen_pct=margen_pct,
+                qty_sold=agg["qty_sold"],
+            )
+        )
 
     # Compose final: family breakdown first, then per-product detail
     all_rows = family_rows + rows
@@ -217,11 +235,21 @@ def compute_monthly_close(session: Session, year: int, month: int) -> MonthlyClo
     top = max(rows, key=lambda r: r.margen_neto_gs, default=None)
 
     month_names = [
-        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+        "Enero",
+        "Febrero",
+        "Marzo",
+        "Abril",
+        "Mayo",
+        "Junio",
+        "Julio",
+        "Agosto",
+        "Septiembre",
+        "Octubre",
+        "Noviembre",
+        "Diciembre",
     ]
     return MonthlyClose(
-        period_label=f"{month_names[month-1]} {year}",
+        period_label=f"{month_names[month - 1]} {year}",
         start=start,
         end=end,
         rows=all_rows,

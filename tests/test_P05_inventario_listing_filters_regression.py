@@ -7,6 +7,7 @@ Tests:
 - No Python errors
 """
 
+
 def test_inventario_renders(client):
     """P-05: Inventario page renders."""
     r = client.get("/inventario")
@@ -57,8 +58,9 @@ def test_inventario_lists_ingredients(client):
     r = client.get("/inventario")
     assert r.status_code == 200
     body = r.text
-    assert "ingrediente" in body.lower() or "ingredient" in body.lower(), \
+    assert "ingrediente" in body.lower() or "ingredient" in body.lower(), (
         "Ingredient list not found"
+    )
 
 
 def test_inventario_has_filter_dropdowns(client):
@@ -112,8 +114,7 @@ def test_inventario_has_table(client):
     r = client.get("/inventario")
     assert r.status_code == 200
     body = r.text
-    assert "<table" in body or "row" in body.lower() or "fila" in body.lower(), \
-        "Table not found"
+    assert "<table" in body or "row" in body.lower() or "fila" in body.lower(), "Table not found"
 
 
 def test_inventario_post_no_crash(client):

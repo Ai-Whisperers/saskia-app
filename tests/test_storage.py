@@ -15,6 +15,7 @@ Covers:
 Tests that hit the real Supabase project are NOT here — that's a
 prod-only check; the helpers below mock the network.
 """
+
 from __future__ import annotations
 
 import urllib.error
@@ -62,9 +63,7 @@ def test_is_storage_enabled_returns_false_on_dns_error(monkeypatch):
     from app.rms.storage import is_storage_enabled
 
     with patch("urllib.request.urlopen") as fake_u:
-        fake_u.side_effect = urllib.error.URLError(
-            "Name or service not known"
-        )
+        fake_u.side_effect = urllib.error.URLError("Name or service not known")
         assert is_storage_enabled() is False
 
 
@@ -144,8 +143,7 @@ def test_upload_happy_path_returns_supabase_url(monkeypatch):
 
     mock_storage = MagicMock()
     mock_storage.get_public_url.return_value = (
-        "https://x.supabase.co/storage/v1/object/public/product-images/"
-        "abc12345-img.png"
+        "https://x.supabase.co/storage/v1/object/public/product-images/abc12345-img.png"
     )
 
     mock_client = MagicMock()
@@ -156,9 +154,12 @@ def test_upload_happy_path_returns_supabase_url(monkeypatch):
     fake_storage_module = MagicMock()
     fake_storage_module.get_supabase_admin.return_value = mock_client
 
-    with patch.dict("sys.modules", {
-        "app.auth_supabase": fake_storage_module,
-    }):
+    with patch.dict(
+        "sys.modules",
+        {
+            "app.auth_supabase": fake_storage_module,
+        },
+    ):
         from app.rms.storage import upload_product_image
 
         result = upload_product_image(PNG_1X1, "image/png", "img.png")
@@ -179,14 +180,15 @@ def test_upload_happy_path_returns_supabase_url(monkeypatch):
 def test_upload_idempotent_when_bucket_exists(monkeypatch):
     """_ensure_bucket swallows 'Bucket already exists' and returns."""
     mock_client = MagicMock()
-    mock_client.storage.create_bucket.side_effect = Exception(
-        "Bucket already exists"
-    )
+    mock_client.storage.create_bucket.side_effect = Exception("Bucket already exists")
     fake_storage_module = MagicMock()
     fake_storage_module.get_supabase_admin.return_value = mock_client
-    with patch.dict("sys.modules", {
-        "app.auth_supabase": fake_storage_module,
-    }):
+    with patch.dict(
+        "sys.modules",
+        {
+            "app.auth_supabase": fake_storage_module,
+        },
+    ):
         from app.rms.storage import PRODUCT_IMAGE_BUCKET, _ensure_bucket
 
         # Should not raise.
@@ -196,14 +198,15 @@ def test_upload_idempotent_when_bucket_exists(monkeypatch):
 def test_upload_propagates_other_bucket_errors(monkeypatch):
     """Network / permission errors must surface (not silently swallowed)."""
     mock_client = MagicMock()
-    mock_client.storage.create_bucket.side_effect = Exception(
-        "Network timeout: ECONNREFUSED"
-    )
+    mock_client.storage.create_bucket.side_effect = Exception("Network timeout: ECONNREFUSED")
     fake_storage_module = MagicMock()
     fake_storage_module.get_supabase_admin.return_value = mock_client
-    with patch.dict("sys.modules", {
-        "app.auth_supabase": fake_storage_module,
-    }):
+    with patch.dict(
+        "sys.modules",
+        {
+            "app.auth_supabase": fake_storage_module,
+        },
+    ):
         from app.rms.storage import _ensure_bucket
 
         with pytest.raises(Exception, match="Network timeout"):
@@ -221,9 +224,12 @@ def test_upload_filename_collision_resistant(monkeypatch):
     fake_storage_module = MagicMock()
     fake_storage_module.get_supabase_admin.return_value = mock_client
 
-    with patch.dict("sys.modules", {
-        "app.auth_supabase": fake_storage_module,
-    }):
+    with patch.dict(
+        "sys.modules",
+        {
+            "app.auth_supabase": fake_storage_module,
+        },
+    ):
         from app.rms.storage import upload_product_image
 
         result = upload_product_image(PNG_1X1, "image/png", "m!xéd_näme.png")
@@ -251,9 +257,7 @@ def test_upload_route_uses_local_when_storage_disabled(client, monkeypatch):
     """Default path: storage disabled → local fallback works."""
     from app.rms.storage import is_storage_enabled as real
 
-    monkeypatch.setattr(
-        "app.rms.storage.is_storage_enabled", lambda: False
-    )
+    monkeypatch.setattr("app.rms.storage.is_storage_enabled", lambda: False)
     # Sanity: confirm the real helper is False too in this env
     assert real() is False
     r = _post_upload(client, PNG_1X1)
@@ -265,9 +269,7 @@ def test_upload_route_uses_local_when_storage_disabled(client, monkeypatch):
 
 def test_upload_route_uses_supabase_when_enabled(client, monkeypatch):
     """When is_storage_enabled=True + supabase returns URL, route returns it."""
-    monkeypatch.setattr(
-        "app.rms.storage.is_storage_enabled", lambda: True
-    )
+    monkeypatch.setattr("app.rms.storage.is_storage_enabled", lambda: True)
     monkeypatch.setattr(
         "app.rms.storage.upload_product_image",
         lambda content, ct, name: {
@@ -285,23 +287,20 @@ def test_upload_route_uses_supabase_when_enabled(client, monkeypatch):
 
 
 def test_upload_route_falls_back_to_local_when_supabase_fails(
-    client, monkeypatch,
+    client,
+    monkeypatch,
 ):
     """Supabase raises mid-upload → route falls back to local silently.
 
     The user gets a working upload; the operator sees the supabase
     failure separately via /healthz/summary.
     """
-    monkeypatch.setattr(
-        "app.rms.storage.is_storage_enabled", lambda: True
-    )
+    monkeypatch.setattr("app.rms.storage.is_storage_enabled", lambda: True)
 
     def _boom(content, ct, name):
         raise RuntimeError("Network unreachable")
 
-    monkeypatch.setattr(
-        "app.rms.storage.upload_product_image", _boom
-    )
+    monkeypatch.setattr("app.rms.storage.upload_product_image", _boom)
     r = _post_upload(client, PNG_1X1)
     assert r.status_code == 200
     body = r.json()

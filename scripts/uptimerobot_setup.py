@@ -11,6 +11,7 @@ Usage:
     python scripts/uptimerobot_setup.py create-all
     python scripts/uptimerobot_setup.py --dry-run
 """
+
 from __future__ import annotations
 
 import argparse
@@ -49,10 +50,13 @@ def find_monitor(api_key: str, url: str) -> dict | None:
     UptimeRobot's `url=` filter is substring match; we list all monitors
     and pick the one whose URL is character-for-character identical.
     """
-    resp = _post("getMonitors", {
-        "api_key": api_key,
-        "format": "json",
-    })
+    resp = _post(
+        "getMonitors",
+        {
+            "api_key": api_key,
+            "format": "json",
+        },
+    )
     if resp.get("stat") != "ok":
         return None
     for m in resp.get("monitors", []):
@@ -63,16 +67,19 @@ def find_monitor(api_key: str, url: str) -> dict | None:
 
 def create_monitor(api_key: str, *, url: str, friendly_name: str, interval: int = 300) -> dict:
     """Create a new HTTP monitor (5-min default). Returns API response."""
-    return _post("newMonitor", {
-        "api_key": api_key,
-        "format": "json",
-        "type": 1,
-        "url": url,
-        "friendly_name": friendly_name,
-        "interval": interval,
-        "timeout": 30,
-        "retention": 30,
-    })
+    return _post(
+        "newMonitor",
+        {
+            "api_key": api_key,
+            "format": "json",
+            "type": 1,
+            "url": url,
+            "friendly_name": friendly_name,
+            "interval": interval,
+            "timeout": 30,
+            "retention": 30,
+        },
+    )
 
 
 def ensure_monitors(api_key: str) -> None:

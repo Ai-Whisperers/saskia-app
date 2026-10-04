@@ -1,4 +1,5 @@
 """Test the dialect-aware /healthz/db fix (live-site bug)."""
+
 import json
 
 from app.routers.health import _healthz_payload

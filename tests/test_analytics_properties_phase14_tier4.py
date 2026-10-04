@@ -43,21 +43,21 @@ import app.services.reports as reports
 gs_amounts = st.integers(min_value=0, max_value=1_000_000_000)
 
 # Non-negative floats for quantities, prices, stock levels
-non_neg_floats = st.floats(min_value=0.0, max_value=1000000.0, allow_nan=False, allow_infinity=False)
+non_neg_floats = st.floats(
+    min_value=0.0, max_value=1000000.0, allow_nan=False, allow_infinity=False
+)
 
 # Percentages and ratios in [0, 1]
 ratios_01 = st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
 
 # Dates in the last 5 years
 recent_dates = st.dates(
-    min_value=datetime.utcnow().date() - timedelta(days=5 * 365),
-    max_value=datetime.utcnow().date()
+    min_value=datetime.utcnow().date() - timedelta(days=5 * 365), max_value=datetime.utcnow().date()
 )
 
 # Datetimes in the last 5 years with UTC timezone
 recent_datetimes = st.datetimes(
-    min_value=datetime.utcnow() - timedelta(days=5 * 365),
-    max_value=datetime.utcnow()
+    min_value=datetime.utcnow() - timedelta(days=5 * 365), max_value=datetime.utcnow()
 )
 
 # Day of week (0-6 for Monday-Sunday)
@@ -71,69 +71,65 @@ valid_months = st.integers(min_value=1, max_value=12)
 bounded_lists = st.lists(
     st.just(None),  # We'll customize in specific tests
     min_size=0,
-    max_size=100
+    max_size=100,
 )
 
 # --- Mock objects for testing without database ---
+
 
 @st.composite
 def mock_ingredient_data(draw):
     """Generate mock ingredient data for testing."""
     return {
-        'id': draw(st.integers(min_value=1, max_value=1000)),
-        'name': draw(st.text(min_size=1, max_size=50)),
-        'unit': draw(st.sampled_from(['kg', 'l', 'g', 'ml', 'und'])),
-        'stock_qty': draw(non_neg_floats),
-        'purchase_price_gs': draw(gs_amounts),
-        'min_stock_qty': draw(non_neg_floats),
-        'last_consumed_at': draw(st.one_of(
-            st.none(),
-            recent_datetimes
-        )),
-        'purchase_price_updated_at': draw(recent_datetimes)
+        "id": draw(st.integers(min_value=1, max_value=1000)),
+        "name": draw(st.text(min_size=1, max_size=50)),
+        "unit": draw(st.sampled_from(["kg", "l", "g", "ml", "und"])),
+        "stock_qty": draw(non_neg_floats),
+        "purchase_price_gs": draw(gs_amounts),
+        "min_stock_qty": draw(non_neg_floats),
+        "last_consumed_at": draw(st.one_of(st.none(), recent_datetimes)),
+        "purchase_price_updated_at": draw(recent_datetimes),
     }
+
 
 @st.composite
 def mock_product_data(draw):
     """Generate mock product data for testing."""
     return {
-        'id': draw(st.integers(min_value=1, max_value=1000)),
-        'name': draw(st.text(min_size=1, max_size=50)),
-        'sale_price_gs': draw(gs_amounts),
-        'recipe_id': draw(st.one_of(
-            st.none(),
-            st.integers(min_value=1, max_value=100)
-        ))
+        "id": draw(st.integers(min_value=1, max_value=1000)),
+        "name": draw(st.text(min_size=1, max_size=50)),
+        "sale_price_gs": draw(gs_amounts),
+        "recipe_id": draw(st.one_of(st.none(), st.integers(min_value=1, max_value=100))),
     }
+
 
 @st.composite
 def mock_sale_data(draw):
     """Generate mock sale data for testing."""
     return {
-        'id': draw(st.integers(min_value=1, max_value=1000)),
-        'sold_at': draw(recent_datetimes),
-        'voided_at': draw(st.one_of(
-            st.none(),
-            recent_datetimes
-        )),
-        'product_id': draw(st.integers(min_value=1, max_value=1000)),
-        'qty': draw(non_neg_floats),
-        'unit_price_gs': draw(gs_amounts)
+        "id": draw(st.integers(min_value=1, max_value=1000)),
+        "sold_at": draw(recent_datetimes),
+        "voided_at": draw(st.one_of(st.none(), recent_datetimes)),
+        "product_id": draw(st.integers(min_value=1, max_value=1000)),
+        "qty": draw(non_neg_floats),
+        "unit_price_gs": draw(gs_amounts),
     }
+
 
 @st.composite
 def mock_recipe_line_data(draw):
     """Generate mock recipe line data for testing."""
     return {
-        'id': draw(st.integers(min_value=1, max_value=1000)),
-        'recipe_id': draw(st.integers(min_value=1, max_value=100)),
-        'line_kind': 'ingredient',
-        'line_ref_id': draw(st.integers(min_value=1, max_value=1000)),
-        'qty': draw(non_neg_floats)
+        "id": draw(st.integers(min_value=1, max_value=1000)),
+        "recipe_id": draw(st.integers(min_value=1, max_value=100)),
+        "line_kind": "ingredient",
+        "line_ref_id": draw(st.integers(min_value=1, max_value=1000)),
+        "qty": draw(non_neg_floats),
     }
 
 
 # --- Mock session for testing without database ---
+
 
 class MockScalars:
     """Lightweight stand-in for SQLAlchemy scalars() that just iterates an empty list."""
@@ -166,8 +162,10 @@ class MockSession:
         class MockResult:
             def all(self):
                 return []
+
             def scalar(self):
                 return None
+
             def scalars(self):
                 return MockScalars(self)
 
@@ -179,15 +177,17 @@ class MockSession:
 
 # --- Analytics tests ---
 
-@settings(
-    max_examples=20,
-    suppress_health_check=[HealthCheck.too_slow]
-)
+
+@settings(max_examples=20, suppress_health_check=[HealthCheck.too_slow])
 @given(
     ingredient_id=st.integers(min_value=1, max_value=100),
     days=st.integers(min_value=1, max_value=365),
-    current_stock=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-    consumed_qty=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False)
+    current_stock=st.floats(
+        min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False
+    ),
+    consumed_qty=st.floats(
+        min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False
+    ),
 )
 def test_stock_turnover_basic_properties(ingredient_id, days, current_stock, consumed_qty):
     """Test basic properties of stock_turnover calculations."""
@@ -197,14 +197,14 @@ def test_stock_turnover_basic_properties(ingredient_id, days, current_stock, con
     avg_stock = max(current_stock, (current_stock + consumed_qty) / 2) or 0.01
 
     # Avoid division by zero or infinity
-    if avg_stock == float('inf') or avg_stock == 0 or avg_stock == float('nan'):
+    if avg_stock == float("inf") or avg_stock == 0 or avg_stock == float("nan"):
         return
 
     turnover_ratio = consumed_qty / avg_stock
 
     # Turnover ratio should be non-negative and finite
     assert turnover_ratio >= 0.0
-    assert turnover_ratio != float('inf')
+    assert turnover_ratio != float("inf")
     assert not math.isnan(turnover_ratio)
 
     # Days of stock should be non-negative if there's consumption
@@ -223,7 +223,7 @@ def test_stock_turnover_basic_properties(ingredient_id, days, current_stock, con
 @settings(max_examples=50)
 @given(
     ingredient_ids=st.lists(st.integers(min_value=1, max_value=10), min_size=0, max_size=5),
-    days=st.integers(min_value=1, max_value=365)
+    days=st.integers(min_value=1, max_value=365),
 )
 def test_batch_stock_turnover_consistency(ingredient_ids, days):
     """Test that batch_stock_turnover is consistent with individual calls."""
@@ -241,7 +241,7 @@ def test_batch_stock_turnover_consistency(ingredient_ids, days):
 @given(
     threshold_days=st.integers(min_value=1, max_value=365),
     stock_qty=non_neg_floats,
-    min_stock_qty=non_neg_floats
+    min_stock_qty=non_neg_floats,
 )
 def test_dead_stock_properties(threshold_days, stock_qty, min_stock_qty):
     """Test properties of dead stock calculation."""
@@ -257,18 +257,14 @@ def test_dead_stock_properties(threshold_days, stock_qty, min_stock_qty):
 
 
 @settings(max_examples=30)
-@given(
-    threshold_pct=ratios_01,
-    old_price=gs_amounts,
-    new_price=gs_amounts
-)
+@given(threshold_pct=ratios_01, old_price=gs_amounts, new_price=gs_amounts)
 def test_margin_erosion_alerts_price_delta_properties(threshold_pct, old_price, new_price):
     """Test properties of margin erosion price delta calculations."""
     # Skip if old price is zero (avoid division by zero)
     assume(old_price > 0)
 
     # Calculate price delta percentage
-    price_delta_pct = ((new_price - old_price) / old_price * 100)
+    price_delta_pct = (new_price - old_price) / old_price * 100
 
     # Absolute value should be compared to threshold
     assert abs(price_delta_pct) >= threshold_pct * 100
@@ -281,13 +277,10 @@ def test_margin_erosion_alerts_price_delta_properties(threshold_pct, old_price, 
         assert price_delta_pct == 0.0
 
 
-@settings(
-    max_examples=10,
-    suppress_health_check=[HealthCheck.too_slow]
-)
+@settings(max_examples=10, suppress_health_check=[HealthCheck.too_slow])
 @given(
     days=st.integers(min_value=1, max_value=365),
-    sales_data=st.lists(mock_sale_data(), min_size=0, max_size=5)
+    sales_data=st.lists(mock_sale_data(), min_size=0, max_size=5),
 )
 def test_day_of_week_heatmap_sum_properties(days, sales_data):
     """Test that day_of_week_heatmap preserves total sales amounts."""
@@ -302,10 +295,7 @@ def test_day_of_week_heatmap_sum_properties(days, sales_data):
 
 
 @settings(max_examples=30)
-@given(
-    days=st.integers(min_value=1, max_value=365),
-    limit=st.integers(min_value=1, max_value=20)
-)
+@given(days=st.integers(min_value=1, max_value=365), limit=st.integers(min_value=1, max_value=20))
 def test_top_margin_products_limit_properties(days, limit):
     """Test that top_margin_products respects the limit parameter."""
     # In real implementation:
@@ -320,7 +310,7 @@ def test_top_margin_products_limit_properties(days, limit):
 @settings(max_examples=30)
 @given(
     days=st.integers(min_value=1, max_value=365),
-    ingredient_costs=st.lists(gs_amounts, min_size=0, max_size=50)
+    ingredient_costs=st.lists(gs_amounts, min_size=0, max_size=50),
 )
 def test_ingredient_concentration_properties(days, ingredient_costs):
     """Test properties of ingredient concentration calculations."""
@@ -343,7 +333,7 @@ def test_ingredient_concentration_properties(days, ingredient_costs):
 @settings(max_examples=30)
 @given(
     lines=st.lists(mock_recipe_line_data(), min_size=0, max_size=20),
-    prep_minutes=st.one_of(st.none(), st.integers(min_value=0, max_value=300))
+    prep_minutes=st.one_of(st.none(), st.integers(min_value=0, max_value=300)),
 )
 def test_recipe_complexity_calculation_properties(lines, prep_minutes):
     """Test properties of recipe complexity calculations."""
@@ -359,6 +349,7 @@ def test_recipe_complexity_calculation_properties(lines, prep_minutes):
 
 
 # --- Reports tests ----
+
 
 @settings(max_examples=50)
 @given(year=valid_years, month=valid_months)
@@ -393,14 +384,11 @@ def test_validate_year_month_properties(year, month):
         pass
 
 
-@settings(
-    max_examples=10,
-    suppress_health_check=[HealthCheck.too_slow]
-)
+@settings(max_examples=10, suppress_health_check=[HealthCheck.too_slow])
 @given(
     year=valid_years,
     month=valid_months,
-    ingredients_data=st.lists(mock_ingredient_data(), min_size=0, max_size=5)
+    ingredients_data=st.lists(mock_ingredient_data(), min_size=0, max_size=5),
 )
 def test_monthly_stockout_report_properties(year, month, ingredients_data):
     """Test properties of monthly stockout report."""
@@ -410,8 +398,8 @@ def test_monthly_stockout_report_properties(year, month, ingredients_data):
 
         # Each ingredient should have consistent properties
         for ing_data in ingredients_data:
-            stock_qty = ing_data.get('stock_qty', 0)
-            min_stock_qty = ing_data.get('min_stock_qty', 0)
+            stock_qty = ing_data.get("stock_qty", 0)
+            min_stock_qty = ing_data.get("min_stock_qty", 0)
 
             # Stockout occurs when stock < min_stock and min_stock > 0
             is_stockout = min_stock_qty > 0 and stock_qty < min_stock_qty
@@ -431,7 +419,7 @@ def test_monthly_stockout_report_properties(year, month, ingredients_data):
 @given(
     year=valid_years,
     month=valid_months,
-    sales_data=st.lists(mock_sale_data(), min_size=0, max_size=50)
+    sales_data=st.lists(mock_sale_data(), min_size=0, max_size=50),
 )
 def test_monthly_close_summary_financial_properties(year, month, sales_data):
     """Test financial properties of monthly close summary."""
@@ -456,8 +444,7 @@ def test_monthly_close_summary_financial_properties(year, month, sales_data):
 
 @settings(max_examples=30)
 @given(
-    preset=st.sampled_from(["7d", "30d", "90d", "current_month", "last_month"]),
-    today=recent_dates
+    preset=st.sampled_from(["7d", "30d", "90d", "current_month", "last_month"]), today=recent_dates
 )
 def test_daily_sales_series_range_properties(preset, today):
     """Test properties of daily sales series range calculation."""
@@ -529,12 +516,13 @@ def test_days_in_month_properties(year, month):
 
 # --- Edge case tests ---
 
+
 @settings(max_examples=20)
 @given(
     ingredient_id=st.integers(min_value=1, max_value=100),
     days=st.integers(min_value=0, max_value=365),  # Include 0 edge case
     current_stock=non_neg_floats,
-    consumed_qty=non_neg_floats
+    consumed_qty=non_neg_floats,
 )
 def test_analytics_edge_cases_no_crash(ingredient_id, days, current_stock, consumed_qty):
     """Test that analytics functions don't crash on edge cases."""
@@ -555,12 +543,12 @@ def test_analytics_edge_cases_no_crash(ingredient_id, days, current_stock, consu
 @given(
     year=st.one_of(
         st.integers(min_value=0, max_value=9999),  # Include edge cases
-        st.integers(min_value=1, max_value=12)    # Invalid year
+        st.integers(min_value=1, max_value=12),  # Invalid year
     ),
     month=st.one_of(
-        st.integers(min_value=0, max_value=12),    # Include edge cases
-        st.integers(min_value=13, max_value=20)    # Invalid month
-    )
+        st.integers(min_value=0, max_value=12),  # Include edge cases
+        st.integers(min_value=13, max_value=20),  # Invalid month
+    ),
 )
 def test_reports_validation_edge_cases(year, month):
     """Test that report validation handles edge cases correctly."""
@@ -576,11 +564,9 @@ def test_reports_validation_edge_cases(year, month):
 
 # --- Specific property tests for mathematical invariants ---
 
+
 @settings(max_examples=30)
-@given(
-    price=gs_amounts,
-    cost=gs_amounts
-)
+@given(price=gs_amounts, cost=gs_amounts)
 def test_margin_calculation_consistency(price, cost):
     """Test that margin calculations are mathematically consistent."""
     # Skip if price is zero to avoid division by zero
@@ -608,7 +594,7 @@ def test_margin_calculation_consistency(price, cost):
 @settings(max_examples=20)
 @given(
     amounts=st.lists(gs_amounts, min_size=0, max_size=10),
-    weights=st.lists(non_neg_floats, min_size=0, max_size=10)
+    weights=st.lists(non_neg_floats, min_size=0, max_size=10),
 )
 def test_weighted_average_properties(amounts, weights):
     """Test properties of weighted average calculations (used in analytics)."""
@@ -626,7 +612,7 @@ def test_weighted_average_properties(amounts, weights):
     weighted_avg = weighted_sum / total_weight
 
     # Handle potential floating point issues
-    if not (weighted_avg == float('inf') or weighted_avg == float('-inf')):
+    if not (weighted_avg == float("inf") or weighted_avg == float("-inf")):
         # Weighted average should be between min and max of amounts
         min_amount = min(amounts)
         max_amount = max(amounts)
@@ -642,10 +628,7 @@ def test_weighted_average_properties(amounts, weights):
 
 
 @settings(max_examples=30)
-@given(
-    base_date=recent_dates,
-    days_to_add=st.integers(min_value=0, max_value=365)
-)
+@given(base_date=recent_dates, days_to_add=st.integers(min_value=0, max_value=365))
 def test_date_calculation_monotonicity(base_date, days_to_add):
     """Test that date calculations are monotonic."""
     later_date = base_date + timedelta(days=days_to_add)
@@ -661,7 +644,7 @@ def test_date_calculation_monotonicity(base_date, days_to_add):
 @settings(max_examples=30)
 @given(
     values=st.lists(non_neg_floats, min_size=0, max_size=100),
-    n=st.integers(min_value=1, max_value=20)
+    n=st.integers(min_value=1, max_value=20),
 )
 def test_top_n_properties(values, n):
     """Test properties of top-N selection (used in analytics)."""
@@ -691,6 +674,7 @@ def test_top_n_properties(values, n):
 
 # --- Run examples for reproducible debugging ---
 
+
 def test_examples():
     """Show examples for debugging."""
     # These examples help reproduce issues when properties fail
@@ -700,7 +684,9 @@ def test_examples():
     cost = 6000
     margin_gs = price - cost  # 4000
     margin_ratio = (price - cost) / price  # 0.4
-    print(f"Margin example: price={price}, cost={cost}, margin_gs={margin_gs}, ratio={margin_ratio}")
+    print(
+        f"Margin example: price={price}, cost={cost}, margin_gs={margin_gs}, ratio={margin_ratio}"
+    )
 
     # Example: date calculation
     base = date(2026, 1, 15)

@@ -18,6 +18,7 @@ from app.rms.config import ASUNCION_TZ
 def _kyrian_id(session_factory, qseed):
     from app.rms.models import Customer
     from app.seed.kyrian import KYRIAN_PHONE
+
     qseed("with_kyrian_full")
     with session_factory() as s:
         return s.query(Customer).filter_by(phone=KYRIAN_PHONE).one().id
@@ -49,6 +50,7 @@ def test_inicio_card_shows_visit_count(client, qseed, session_factory):
     html = r.text
     # Look for visit count pattern — should be a number >= 1 followed by "visita"
     import re
+
     assert re.search(r"\d+\s+visitas?\b", html), "Expected visit count in /inicio"
 
 

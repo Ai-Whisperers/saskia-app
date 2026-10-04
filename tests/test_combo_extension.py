@@ -11,6 +11,7 @@ import pytest
 # Combo infrastructure — SHIPPED 2026-09-29
 # ──────────────────────────────────────────────────────────────────────
 
+
 def test_combo_js_is_served(client):
     """/static/combo.js serves."""
     r = client.get("/static/combo.js")
@@ -39,6 +40,7 @@ def test_combobox_css_is_served(client):
 # Ingredient search API (used by merma combobox)
 # ──────────────────────────────────────────────────────────────────────
 
+
 def test_inventory_api_search_returns_matches(qseed, authed_client):
     """/inventario/api/search?q=harina returns matching ingredients."""
     data = qseed("basic")  # creates "harina QA"
@@ -55,11 +57,19 @@ def test_inventory_api_search_returns_matches(qseed, authed_client):
 def test_inventory_api_search_limit_param(qseed, authed_client):
     """/inventario/api/search?limit=N caps result count."""
     from app.rms.models import Ingredient
+
     sf = qseed.session_factory
     with sf() as s:
         for i in range(75):
-            s.add(Ingredient(name=f"ing {i:03d}", unit="kg",
-                              stock_qty=10, min_stock_qty=1, purchase_price_gs=3000))
+            s.add(
+                Ingredient(
+                    name=f"ing {i:03d}",
+                    unit="kg",
+                    stock_qty=10,
+                    min_stock_qty=1,
+                    purchase_price_gs=3000,
+                )
+            )
         s.commit()
 
     r = authed_client.get("/inventario/api/search?limit=10")
@@ -72,11 +82,19 @@ def test_inventory_api_search_limit_param(qseed, authed_client):
 def test_inventory_api_search_empty_query_lists_all(qseed, authed_client):
     """/inventario/api/search?q= returns all (up to limit)."""
     from app.rms.models import Ingredient
+
     sf = qseed.session_factory
     with sf() as s:
         for i in range(15):
-            s.add(Ingredient(name=f"ing_{i}", unit="kg",
-                              stock_qty=10, min_stock_qty=1, purchase_price_gs=3000))
+            s.add(
+                Ingredient(
+                    name=f"ing_{i}",
+                    unit="kg",
+                    stock_qty=10,
+                    min_stock_qty=1,
+                    purchase_price_gs=3000,
+                )
+            )
         s.commit()
 
     r = authed_client.get("/inventario/api/search?q=")
@@ -88,6 +106,7 @@ def test_inventory_api_search_empty_query_lists_all(qseed, authed_client):
 # ──────────────────────────────────────────────────────────────────────
 # merma page uses combobox, not native <select>
 # ──────────────────────────────────────────────────────────────────────
+
 
 def test_merma_uses_combobox_for_ingredient(qseed, authed_client):
     """/merma now uses .saskia-combo for the ingredient field."""
@@ -101,7 +120,7 @@ def test_merma_uses_combobox_for_ingredient(qseed, authed_client):
     assert "combo-input" in body
     # Old long native select should be gone
     assert 'id="ingredient_id"' not in body
-    assert "option value=\"\" disabled" not in body or "<select" not in body
+    assert 'option value="" disabled' not in body or "<select" not in body
 
 
 def test_merma_recipe_uses_combobox_for_recipe(qseed, authed_client):
@@ -121,6 +140,7 @@ def test_merma_recipe_uses_combobox_for_recipe(qseed, authed_client):
 # ──────────────────────────────────────────────────────────────────────
 # Other forms that should adopt the combobox pattern
 # ──────────────────────────────────────────────────────────────────────
+
 
 def test_receta_form_line_target_id_uses_combobox(qseed, authed_client):
     """Receta form's line target picker (ingredient or sub-recipe).

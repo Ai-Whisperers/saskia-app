@@ -11,6 +11,7 @@ Tests:
 
 Uses the live FastAPI server. Skipped if no server.
 """
+
 import http.client
 import json
 import os
@@ -38,6 +39,7 @@ pytestmark = pytest.mark.skipif(
 
 class _Client:
     """HTTP client that handles the secure session cookie via http.client."""
+
     def __init__(self):
         self.cookies = {}
 
@@ -83,6 +85,7 @@ def _get(client, path):
 
 # ─── saskia-toast ───────────────────────────────────────────────────────────
 
+
 def test_saskia_toast_script_loads(client):
     """saskia-toast.js is served and registers the SaskiaToast global."""
     rsp = client.get("/static/saskia-toast.js")
@@ -111,6 +114,7 @@ def test_flash_toast_macro_renders(client):
 
 # ─── saskia-skeleton ────────────────────────────────────────────────────────
 
+
 def test_saskia_skeleton_script_loads(client):
     """saskia-skeleton.js is served and defines <saskia-skeleton>."""
     rsp = client.get("/static/saskia-skeleton.js")
@@ -128,6 +132,7 @@ def test_saskia_skeleton_included_in_base(client):
 
 
 # ─── js-confirm-form shim ───────────────────────────────────────────────────
+
 
 def test_app_js_confirm_form_shim(client):
     """app.js must include initConfirmForms and reference js-confirm-form."""
@@ -147,6 +152,7 @@ def test_js_confirm_form_used_on_destructive_page(client):
 
 # ─── Bonus: source attribution footer ───────────────────────────────────────
 
+
 def test_source_footer_on_reports(client):
     """Report pages should include the report-source-footer."""
     for path in [
@@ -161,6 +167,7 @@ def test_source_footer_on_reports(client):
 
 
 # ─── Bonus: saskia-date still works ─────────────────────────────────────────
+
 
 def test_saskia_date_script_loads(client):
     rsp = client.get("/static/saskia-date.js")
@@ -178,6 +185,7 @@ def test_dashboard_renders(client):
 
 # ─── /benchmarks anchor fixed ───────────────────────────────────────────────
 
+
 def test_dashboard_anchor_is_vs_mercado(client):
     """The dashboard's /benchmarks anchor must now point at /vs-mercado."""
     status, body = _get(client, "/dashboard")
@@ -190,6 +198,7 @@ def test_dashboard_anchor_is_vs_mercado(client):
 
 # ─── /vs-mercado data ───────────────────────────────────────────────────────
 
+
 def test_vs_mercado_has_rows(client):
     status, body = _get(client, "/vs-mercado")
     assert status == 200
@@ -200,6 +209,7 @@ def test_vs_mercado_has_rows(client):
 
 
 # ─── SaskiaConfirmModal ────────────────────────────────────────────────────
+
 
 def test_saskia_confirm_modal_defined(client):
     """app-components.js must define window.SaskiaConfirmModal."""
@@ -220,17 +230,22 @@ def test_settings_catalog_uses_confirm_modal(client):
 
 # ─── Tier 1 lint is clean ──────────────────────────────────────────────────
 
+
 def test_lint_tier1_passes():
     """scripts/lint_tier1.py must report 0 violations."""
     import subprocess
+
     result = subprocess.run(
         [".venv/bin/python", "scripts/lint_tier1.py"],
-        capture_output=True, text=True, cwd="/opt/data/work/saskia-app",
+        capture_output=True,
+        text=True,
+        cwd="/opt/data/work/saskia-app",
     )
     assert "✅" in result.stdout, f"lint failed:\n{result.stdout}\n{result.stderr}"
 
 
 # ─── Empty-state macro adoption ────────────────────────────────────────────
+
 
 def test_empty_state_macro_on_converted_pages(client):
     """All 11 pages converted to ui.empty_state should NOT have raw class='empty-state'."""
@@ -259,6 +274,7 @@ def test_empty_state_macro_on_converted_pages(client):
 
 # ─── <saskia-skeleton> adoption on slow pages ──────────────────────────────
 
+
 def test_skeleton_present_on_slow_pages(client):
     """The 6 slowest pages should render at least one loading-state wrapper."""
     paths_and_min_skeletons = {
@@ -280,10 +296,16 @@ def test_skeleton_macro_in_atoms(client):
     client.get("/static/app.js")  # ensure server is up
     # Read atoms.html directly via the macro source
     import subprocess
+
     result = subprocess.run(
-        ["grep", "-c", "skeleton_section\\|loading_state",
-         "/opt/data/work/saskia-app/app/templates/_components/atoms.html"],
-        capture_output=True, text=True,
+        [
+            "grep",
+            "-c",
+            "skeleton_section\\|loading_state",
+            "/opt/data/work/saskia-app/app/templates/_components/atoms.html",
+        ],
+        capture_output=True,
+        text=True,
     )
     assert int(result.stdout.strip()) >= 2, "skeleton macros not in atoms.html"
 
@@ -294,7 +316,9 @@ def test_saskia_month_script_loads(client):
     assert rsp.status == 200, "saskia-month.js not served"
     body = rsp.read().decode("utf-8", errors="replace")
     assert "SaskiaMonth" in body, "saskia-month.js missing class definition"
-    assert "customElements.define('saskia-month'" in body, "saskia-month custom element not registered"
+    assert "customElements.define('saskia-month'" in body, (
+        "saskia-month custom element not registered"
+    )
 
 
 def test_cierre_mensual_uses_saskia_month(client):
@@ -303,9 +327,10 @@ def test_cierre_mensual_uses_saskia_month(client):
     assert rsp.status == 200, "cierre-mensual page failed"
     body = rsp.read().decode("utf-8", errors="replace")
     assert "<saskia-month" in body, "cierre-mensual missing <saskia-month> element"
-    assert "name=\"year-month\"" in body, "cierre-mensual picker missing name attr"
+    assert 'name="year-month"' in body, "cierre-mensual picker missing name attr"
     # Verify it has a sensible value attribute (current month)
     import re
+
     m = re.search(r'<saskia-month[^>]*value="(\d{4}-\d{2})"', body)
     assert m, "cierre-mensual <saskia-month> missing value attribute"
 
@@ -324,13 +349,16 @@ def test_merma_breadcrumb_not_inicio(client):
 # happens tomorrow. They guard against accidental breakage of the macro
 # definition, the Web Component registration, and the dev smoke page.
 
+
 def test_saskia_combo_script_loads(client):
     """saskia-combo.js must be served and reachable."""
     rsp = client.get("/static/saskia-combo.js")
     assert rsp.status == 200, "saskia-combo.js not served"
     body = rsp.read().decode("utf-8", errors="replace")
     assert "SaskiaCombo" in body, "saskia-combo.js missing class definition"
-    assert "customElements.define('saskia-combo'" in body, "saskia-combo custom element not registered"
+    assert "customElements.define('saskia-combo'" in body, (
+        "saskia-combo custom element not registered"
+    )
 
 
 def test_saskia_combo_included_in_base(client):
@@ -344,10 +372,16 @@ def test_saskia_combo_included_in_base(client):
 def test_combo_field_macro_defined(client):
     """ui.combo_field macro must exist in atoms.html."""
     import subprocess
+
     result = subprocess.run(
-        ["grep", "-c", "macro combo_field",
-         "/opt/data/work/saskia-app/app/templates/_components/atoms.html"],
-        capture_output=True, text=True,
+        [
+            "grep",
+            "-c",
+            "macro combo_field",
+            "/opt/data/work/saskia-app/app/templates/_components/atoms.html",
+        ],
+        capture_output=True,
+        text=True,
     )
     assert int(result.stdout.strip()) >= 1, "ui.combo_field macro missing from atoms.html"
 
@@ -360,7 +394,9 @@ def test_dev_combo_smoke_page_renders(client):
     assert "<saskia-combo" in body, "smoke page missing saskia-combo element"
     assert 'name="category"' in body, "client-side combo missing"
     assert 'name="product_id"' in body, "server-side combo missing"
-    assert 'endpoint="/productos/api/search?q="' in body, "server-side combo missing real DB endpoint"
+    assert 'endpoint="/productos/api/search?q="' in body, (
+        "server-side combo missing real DB endpoint"
+    )
     assert "src='" in body, "client-side combo missing src JSON"
     # Mock categories must be present (accented chars use \u escapes after tojson)
     assert "Reposter" in body, "mock category data missing"
@@ -393,6 +429,7 @@ def test_dev_combo_smoke_form_submission(client):
     assert "Form submitted" in body, "submitted confirmation missing"
     assert "reposteria" in body, "category value not echoed back"
 
+
 def test_d17_first_adoption_inventario_unit_uses_saskia_combo():
     """Closes D17: inventario/nuevo uses <saskia-combo> for unit picker."""
     status, body = _get(client, "/inventario/nuevo")
@@ -404,6 +441,7 @@ def test_d17_first_adoption_inventario_unit_uses_saskia_combo():
     # Legacy combo DIV (v1) should be gone for unit specifically — the
     # custom element keeps data-source as a compat alias (set by the macro).
     import re as _re
+
     assert not _re.search(r'<div[^>]+data-source="/recetas/api/units"', body)
 
 
@@ -435,6 +473,8 @@ def test_d17_recetas_api_units_returns_existing_shape(client):
     # Real values exist (g, kg, ml, l, und)
     values = [r["value"] for r in data["results"]]
     assert any(v in values for v in ["g", "kg", "ml", "l", "und"])
+
+
 def test_d17_merma_uses_saskia_combo_for_reason(client):
     """D17: merma.html replaces legacy div with <saskia-combo> for reason filter."""
     status, body = _get(client, "/merma")
@@ -468,13 +508,14 @@ def test_d17_receta_form_yield_unit_migrated(client):
         return  # skip if page gated
     assert "recetas/api/units?q=" in body or "api/units" in body
 
+
 def test_d17_static_combo_currency_migrated(client):
     """D17: bank.html currency picker uses <saskia-combo> with src= JSON."""
     status, body = _get(client, "/bank")
     assert status == 200
     assert "<saskia-combo" in body
     # Currency options present in src=
-    assert '\"EUR\"' in body and '\"PYG\"' in body and '\"USD\"' in body
+    assert '"EUR"' in body and '"PYG"' in body and '"USD"' in body
 
 
 def test_d17_static_combo_tax_regime_migrated(client):
@@ -483,7 +524,7 @@ def test_d17_static_combo_tax_regime_migrated(client):
     assert status == 200
     assert "<saskia-combo" in body
     assert "tax_regime" in body
-    assert "\"resimple\"" in body and "\"general\"" in body
+    assert '"resimple"' in body and '"general"' in body
 
 
 def test_d17_static_combo_reorder_migrated(client):
@@ -497,30 +538,34 @@ def test_d17_static_combo_reorder_migrated(client):
 def test_d17_static_combo_package_unit_migrated():
     """D17: ingrediente_detalle.html source uses ui.combo_field() for package_unit."""
     import pathlib
-    src = pathlib.Path("/opt/data/work/saskia-app/app/templates/ingrediente_detalle.html").read_text()
+
+    src = pathlib.Path(
+        "/opt/data/work/saskia-app/app/templates/ingrediente_detalle.html"
+    ).read_text()
     assert "ui.combo_field(" in src
     assert "package_unit" in src
-    assert '\"und\"' in src and '\"kg\"' in src
+    assert '"und"' in src and '"kg"' in src
     # Template compiles
     from jinja2 import Environment, FileSystemLoader
+
     env = Environment(loader=FileSystemLoader("/opt/data/work/saskia-app/app/templates"))
     env.get_template("ingrediente_detalle.html")
-
-
 
 
 def test_d17_receta_form_line_rows_migrated():
     """D17: receta_form.html line rows (line_kind, line_target_id, line_unit) use <saskia-combo>."""
     import pathlib
+
     src = pathlib.Path("/opt/data/work/saskia-app/app/templates/receta_form.html").read_text()
     # All 3 line-row combos migrated
-    assert ("name='line_kind'" in src or 'name="line_kind"' in src)
-    assert ("name='line_target_id'" in src or 'name="line_target_id"' in src)
-    assert ("name='line_unit'" in src or 'name="line_unit"' in src)
+    assert "name='line_kind'" in src or 'name="line_kind"' in src
+    assert "name='line_target_id'" in src or 'name="line_target_id"' in src
+    assert "name='line_unit'" in src or 'name="line_unit"' in src
     # No legacy divs for line rows
     assert 'class="saskia-combo line-target-combo"' not in src
     # Template compiles
     from jinja2 import Environment, FileSystemLoader
+
     env = Environment(loader=FileSystemLoader("/opt/data/work/saskia-app/app/templates"))
     env.get_template("receta_form.html")
 
@@ -529,6 +574,7 @@ def test_d17_receta_form_family_and_scale_migrated():
     """D17: receta_form.html family combo RETIRED (menu_tags replaced it,
     2026-09-30) + scale_combo uses <saskia-combo> with autosubmit."""
     import pathlib
+
     src = pathlib.Path("/opt/data/work/saskia-app/app/templates/receta_form.html").read_text()
     # family single-combo removed from the form UI (legacy field still
     # accepted server-side); menu_tags picker is the categorization field.
@@ -538,6 +584,7 @@ def test_d17_receta_form_family_and_scale_migrated():
     # No legacy scale_combo
     assert 'id="scale_combo"' not in src or src.count('<div class="saskia-combo"') == 0
     from jinja2 import Environment, FileSystemLoader
+
     env = Environment(loader=FileSystemLoader("/opt/data/work/saskia-app/app/templates"))
     env.get_template("receta_form.html")
 
@@ -545,6 +592,7 @@ def test_d17_receta_form_family_and_scale_migrated():
 def test_d17_no_legacy_saskia_combo_divs_anywhere():
     """D17: Zero legacy <div class="saskia-combo"> divs remain across all templates."""
     import pathlib
+
     tpl_dir = pathlib.Path("/opt/data/work/saskia-app/app/templates")
     total = 0
     for f in tpl_dir.glob("*.html"):
@@ -559,6 +607,7 @@ def test_d17_no_legacy_saskia_combo_divs_anywhere():
 def test_d17_saskia_combo_supports_endpoint_attribute_change():
     """D17: <saskia-combo> re-fetches when endpoint attribute changes at runtime."""
     import pathlib
+
     src = pathlib.Path("/opt/data/work/saskia-app/app/static/saskia-combo.js").read_text()
     # attributeChangedCallback must re-fetch on endpoint change
     assert "endpoint" in src and "_filterAndRender" in src
@@ -569,15 +618,17 @@ def test_d17_saskia_combo_supports_endpoint_attribute_change():
 def test_d17_saskia_combo_mirrors_value_to_hidden_input():
     """D17: <saskia-combo> auto-creates hidden mirror input for form serialization."""
     import pathlib
+
     src = pathlib.Path("/opt/data/work/saskia-app/app/static/saskia-combo.js").read_text()
     # _emitChange should create hidden mirror with the same name
     assert "data-saskia-combo-mirror" in src
-    assert 'type = \'hidden\'' in src or 'type: "hidden"' in src or 'type = "hidden"' in src
+    assert "type = 'hidden'" in src or 'type: "hidden"' in src or 'type = "hidden"' in src
 
 
 def test_d17_saskia_combo_supports_allow_create():
     """D17: <saskia-combo> with allow-create dispatches create-option event on Enter."""
     import pathlib
+
     src = pathlib.Path("/opt/data/work/saskia-app/app/static/saskia-combo.js").read_text()
     assert "allow-create" in src
     assert "create-option" in src
@@ -586,6 +637,7 @@ def test_d17_saskia_combo_supports_allow_create():
 def test_d17_saskia_combo_supports_autosubmit():
     """D17: <saskia-combo> with autosubmit submits closest form on selection."""
     import pathlib
+
     src = pathlib.Path("/opt/data/work/saskia-app/app/static/saskia-combo.js").read_text()
     assert "autosubmit" in src
     assert "form.submit()" in src
@@ -594,16 +646,17 @@ def test_d17_saskia_combo_supports_autosubmit():
 def test_d17_receta_form_line_kind_bridge_present():
     """D17: receta_form.html has post-migration bridge that swaps line_target endpoint when line_kind changes."""
     import pathlib
+
     src = pathlib.Path("/opt/data/work/saskia-app/app/templates/receta_form.html").read_text()
     assert "bridgeLineKindCombos" in src
     assert "/recetas/api/search/" in src
     assert "/inventario/api/search/" in src
 
 
-
 def test_inline_color_violations_removed():
     """Real color violations (color:red/green/#hex) should not appear in critical templates."""
     import pathlib
+
     templates_dir = pathlib.Path("/opt/data/work/saskia-app/app/templates")
     # These are the files we explicitly cleaned up
     targets = ["benchmarks.html", "planner.html", "dashboard.html", "reportes_retencion.html"]
@@ -622,6 +675,7 @@ def test_inline_color_violations_removed():
 def test_pedido_board_no_autoplay():
     """Audio should NOT autoplay. Only play on user click of sound-toggle."""
     import pathlib
+
     src = pathlib.Path("/opt/data/work/saskia-app/app/templates/pedido_board.html").read_text()
     # No top-level audio.play() call outside the IIFE
     # The toggle handler does call play() but only inside the toggle function (user-initiated)
@@ -636,6 +690,7 @@ def test_pedido_board_no_autoplay():
 def test_stock_preview_tr_alert_danger_has_css():
     """tr.alert-danger must have a CSS rule in app.css."""
     import pathlib
+
     css = pathlib.Path("/opt/data/work/saskia-app/app/static/app.css").read_text()
     assert "tr.alert-danger" in css, "tr.alert-danger rule missing from app.css"
     assert "background:var(--color-danger-soft)" in css or "var(--color-danger-soft)" in css
@@ -644,6 +699,7 @@ def test_stock_preview_tr_alert_danger_has_css():
 def test_users_html_extracted_assets_exist():
     """users.html should reference external users.js and users.css, not inline them."""
     import pathlib
+
     src = pathlib.Path("/opt/data/work/saskia-app/app/templates/users.html").read_text()
     # No more inline <script>...</script> blocks in users.html
     assert "<script>" not in src, "users.html still has inline <script> block"

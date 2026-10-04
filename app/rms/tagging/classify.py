@@ -30,6 +30,7 @@ from app.rms.tagging.vocabulary import (
 # Normalization
 # ─────────────────────────────────────────────────────────────────────────
 
+
 def normalize(tag: str) -> str | None:
     """Map any common label form to the canonical Spanish tag. Returns
     None for unrecognized / empty input. Single read-boundary normalization
@@ -89,10 +90,7 @@ def _normalize_name(name: str) -> str:
     # Decompose accented chars (maní → mani + combining acute), drop the
     # combining marks. This is the canonical Unicode approach (NFD + Mn
     # filter) and handles every Spanish diacritic.
-    return "".join(
-        c for c in unicodedata.normalize("NFD", norm)
-        if unicodedata.category(c) != "Mn"
-    )
+    return "".join(c for c in unicodedata.normalize("NFD", norm) if unicodedata.category(c) != "Mn")
 
 
 def _keyword_matches(keyword: str, name: str) -> bool:
@@ -158,22 +156,53 @@ def infer_allergens(name: str) -> list[str]:
 # ─────────────────────────────────────────────────────────────────────────
 
 _DAIRY_EGG_HONEY: tuple[str, ...] = (
-    "leche", "crema", "manteca", "mantequilla", "yogur",
-    "queso", "queso crema", "ricota", "requesón",
-    "huevo", "huevos", "clara", "yema",
-    "dulce de leche", "miel", "gelatina",
+    "leche",
+    "crema",
+    "manteca",
+    "mantequilla",
+    "yogur",
+    "queso",
+    "queso crema",
+    "ricota",
+    "requesón",
+    "huevo",
+    "huevos",
+    "clara",
+    "yema",
+    "dulce de leche",
+    "miel",
+    "gelatina",
 )
 
 _MEAT_FISH: tuple[str, ...] = (
-    "carne", "pollo", "cerdo", "res", "pavo",
-    "pescado", "atún", "marisco", "pechuga", "panceta",
-    "chorizo", "jamón",
+    "carne",
+    "pollo",
+    "cerdo",
+    "res",
+    "pavo",
+    "pescado",
+    "atún",
+    "marisco",
+    "pechuga",
+    "panceta",
+    "chorizo",
+    "jamón",
 )
 
 _SUGAR_FLOUR: tuple[str, ...] = (
-    "azúcar", "harina", "maicena", "miel", "glucosa",
-    "dextrosa", "fécula", "jarabe", "melaza",
-    "panela", "rapadura", "almidón", "mandioca",
+    "azúcar",
+    "harina",
+    "maicena",
+    "miel",
+    "glucosa",
+    "dextrosa",
+    "fécula",
+    "jarabe",
+    "melaza",
+    "panela",
+    "rapadura",
+    "almidón",
+    "mandioca",
 )
 
 _KETO_SWEETENERS: tuple[str, ...] = ("stevia", "eritritol")
@@ -214,6 +243,7 @@ def infer_dietary_tags(name: str) -> list[str]:
 # Neutral-ingredient check
 # ─────────────────────────────────────────────────────────────────────────
 
+
 def _is_neutral(name: str) -> bool:
     """True if the ingredient is on the explicit neutral allow-list
     (water, salt, common spices, leaveners, oils).
@@ -231,6 +261,7 @@ def _is_neutral(name: str) -> bool:
 # ─────────────────────────────────────────────────────────────────────────
 # Blocking decision (the heart of derive_recipe_tags)
 # ─────────────────────────────────────────────────────────────────────────
+
 
 def ingredient_blocks(ing: object, tag: str) -> bool:
     """True if this ingredient DISQUALIFIES the recipe from `tag`.
@@ -316,9 +347,18 @@ def ingredient_blocks(ing: object, tag: str) -> bool:
 # Meat / fish keywords — used by validate_ingredient for vegetarian check.
 # Lives here (not vocabulary) because it's a classify-time heuristic.
 _MEAT_FISH_KEYWORDS: tuple[str, ...] = (
-    "carne", "pollo", "cerdo", "res", "pavo",
-    "pescado", "atún", "marisco", "pechuga", "panceta",
-    "chorizo", "jamón",
+    "carne",
+    "pollo",
+    "cerdo",
+    "res",
+    "pavo",
+    "pescado",
+    "atún",
+    "marisco",
+    "pechuga",
+    "panceta",
+    "chorizo",
+    "jamón",
 )
 
 
@@ -388,12 +428,10 @@ def validate_ingredient(ing: object) -> list[str]:
     stored_category = (getattr(ing, "category", None) or "").strip().lower()
     if stored_category and stored_category != "otros":
         from app.rms.ingredient_intel import infer_category
+
         inferred = infer_category(getattr(ing, "name", "") or "")
         if inferred and inferred != stored_category:
-            issues.append(
-                f"category '{stored_category}' may be wrong; "
-                f"name suggests '{inferred}'"
-            )
+            issues.append(f"category '{stored_category}' may be wrong; name suggests '{inferred}'")
 
     return issues
 

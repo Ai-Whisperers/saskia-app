@@ -43,6 +43,7 @@ via ``audit_record()``. The audit log is the source of truth for
 "who locked/unlocked what when" — the ``ingredient.locked_supplier_id``
 column is the current cache.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -73,11 +74,7 @@ def get_effective_supplier_id(ing: Ingredient) -> Optional[int]:
       4. ``None`` — she has no supplier on file; the dropdown renders
          an empty cell with a "Elegir proveedor" prompt.
     """
-    return (
-        ing.locked_supplier_id
-        or ing.last_purchase_supplier_id
-        or ing.supplier_id
-    )
+    return ing.locked_supplier_id or ing.last_purchase_supplier_id or ing.supplier_id
 
 
 def record_purchase_supplier(

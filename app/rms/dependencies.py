@@ -12,6 +12,7 @@ Usage in a router:
     def list_view(request: Request, session: Session = Depends(get_session)):
         ...
 """
+
 from __future__ import annotations
 
 from fastapi import Request

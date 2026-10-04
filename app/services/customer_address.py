@@ -8,11 +8,13 @@ single-text columns the receipt + dispatch tickets still consume.
 Keeping these helpers out of the SQLAlchemy models keeps models pure
 and lets the cashier UI compose whatever it needs on the way in.
 """
+
 from __future__ import annotations
 
 from typing import Any, Mapping
 
 # ── Address composition (structured → single-line text) ───────────
+
 
 def compose_address_text(addr: Mapping[str, Any] | None) -> str:
     """Compose a one-line summary from the structured address columns.
@@ -104,8 +106,14 @@ layer (sqlite ALTER TABLE … ADD CONSTRAINT is limited); a follow-up
 migration could add a DB CHECK when we cut over to Postgres native."""
 
 INVOICE_TIPOS_DOCUMENTO = (
-    "CI_PARAGUAYA", "RUC", "PASAPORTE", "CEDULA_EXTRANJERA",
-    "CARNET_RESIDENCIA", "INNOMINADO", "DIPLOMATICA_EXONERACION", "OTRO",
+    "CI_PARAGUAYA",
+    "RUC",
+    "PASAPORTE",
+    "CEDULA_EXTRANJERA",
+    "CARNET_RESIDENCIA",
+    "INNOMINADO",
+    "DIPLOMATICA_EXONERACION",
+    "OTRO",
 )
 """7-value SIFEN enum (https://sisfe.com.py/documentacion.html)."""
 
@@ -114,6 +122,7 @@ INVOICE_TIPOS_OPERACION = ("B2B", "B2C", "B2G", "EXTRANJERO")
 
 
 # ── Invoice profile selection ─────────────────────────────────────
+
 
 def default_invoice_profile_payload(profiles: list[Mapping[str, Any]] | None) -> list[dict] | None:
     """Return the cashier-facing payload for the picker dropdown:
@@ -125,15 +134,17 @@ def default_invoice_profile_payload(profiles: list[Mapping[str, Any]] | None) ->
     for p in profiles:
         if not p.get("is_active", True):
             continue
-        items.append({
-            "id": p["id"],
-            "label": p.get("alias") or p.get("razon_social") or "",
-            "ruc_ci": p.get("ruc_ci") or "",
-            "razon_social": p.get("razon_social") or "",
-            "tipo_documento": p.get("tipo_documento") or "CI_PARAGUAYA",
-            "tipo_operacion": p.get("tipo_operacion") or "B2C",
-            "is_default": bool(p.get("is_default")),
-        })
+        items.append(
+            {
+                "id": p["id"],
+                "label": p.get("alias") or p.get("razon_social") or "",
+                "ruc_ci": p.get("ruc_ci") or "",
+                "razon_social": p.get("razon_social") or "",
+                "tipo_documento": p.get("tipo_documento") or "CI_PARAGUAYA",
+                "tipo_operacion": p.get("tipo_operacion") or "B2C",
+                "is_default": bool(p.get("is_default")),
+            }
+        )
     items.sort(key=lambda x: (not x["is_default"], x["label"].lower()))
     return items
 
@@ -175,8 +186,9 @@ PARAGUAY_DEPARTMENTS = (
 )
 
 
-def ventana_text(pref: str | None, start: str | None, end: str | None,
-                 scheduled_date: str | None = None) -> str:
+def ventana_text(
+    pref: str | None, start: str | None, end: str | None, scheduled_date: str | None = None
+) -> str:
     """Render the preferred-arrival window for the receipt.
 
     Following your spec: NOT a delivery promise, just a guidance window.

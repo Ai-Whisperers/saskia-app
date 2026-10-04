@@ -1,4 +1,5 @@
 """tests/test_audit_analytics_page.py — BACKLOG #30 page-wire tests."""
+
 from __future__ import annotations
 
 
@@ -30,5 +31,4 @@ def test_analytics_empty_db_no_crash(client):
     body = r.text
     assert "Algo salió mal" not in body
     # Either shows KPIs at zero, or the empty-state copy — never a 500.
-    assert ("Eventos totales" in body
-            or "No hay eventos" in body)
+    assert "Eventos totales" in body or "No hay eventos" in body

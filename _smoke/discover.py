@@ -1,4 +1,5 @@
 """Comprehensive E2E smoke test — every page + every functionality."""
+
 from __future__ import annotations
 
 import json
@@ -26,7 +27,9 @@ print(json.dumps(routes))
 """
     r = subprocess.run(
         ["uv", "run", "python", "-c", code],
-        capture_output=True, text=True, cwd=REPO,
+        capture_output=True,
+        text=True,
+        cwd=REPO,
     )
     if r.returncode != 0:
         print(f"Failed to discover routes: {r.stderr}")

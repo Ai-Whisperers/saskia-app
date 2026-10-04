@@ -23,6 +23,7 @@ from app.rms.recipe_intel import (
 # infer_recipe_family
 # ---------------------------------------------------------------------------
 
+
 def test_infer_family_panaderia():
     assert infer_recipe_family(Recipe(name="pan de campo")) == "panadería"
     assert infer_recipe_family(Recipe(name="Facturas criollas")) == "panadería"
@@ -53,6 +54,7 @@ def test_infer_family_unknown():
 # ---------------------------------------------------------------------------
 # estimate_prep_minutes / cook / total
 # ---------------------------------------------------------------------------
+
 
 def test_estimate_prep_minutes_small_recipe():
     r = Recipe(name="x", yield_qty=10, yield_unit="und")
@@ -91,6 +93,7 @@ def test_estimate_total_minutes():
 # infer_difficulty
 # ---------------------------------------------------------------------------
 
+
 def test_difficulty_simple():
     # 3 ingredients, no sub-recipes → 3/4 = 0.75 → round 1
     assert infer_difficulty(Recipe(name="x"), 3, 0) == 1
@@ -120,23 +123,20 @@ def test_difficulty_minimum_1():
 # infer_recipe_dietary
 # ---------------------------------------------------------------------------
 
+
 def test_recipe_dietary_all_vegan(session_factory):
     """Recipe with only vegan ingredients is vegan."""
     with session_factory() as s:
-        ing_flour = Ingredient(name="Harina xyz", unit="kg", stock_qty=1,
-                               purchase_price_gs=5000)
-        ing_water = Ingredient(name="agua_xyz", unit="l", stock_qty=1,
-                               purchase_price_gs=0)
-        ing_sugar = Ingredient(name="azúcar_xyz", unit="kg", stock_qty=1,
-                               purchase_price_gs=5000)
+        ing_flour = Ingredient(name="Harina xyz", unit="kg", stock_qty=1, purchase_price_gs=5000)
+        ing_water = Ingredient(name="agua_xyz", unit="l", stock_qty=1, purchase_price_gs=0)
+        ing_sugar = Ingredient(name="azúcar_xyz", unit="kg", stock_qty=1, purchase_price_gs=5000)
         s.add_all([ing_flour, ing_water, ing_sugar])
         s.flush()
         r = Recipe(name="galleta_vegana", yield_qty=10, yield_unit="und")
         s.add(r)
         s.flush()
         for ing in (ing_flour, ing_water, ing_sugar):
-            s.add(RecipeLine(recipe_id=r.id, line_kind="ingredient",
-                             line_ref_id=ing.id, qty=0.1))
+            s.add(RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=ing.id, qty=0.1))
         s.commit()
         tags = infer_recipe_dietary(s, r)
         assert "vegan" in tags
@@ -145,18 +145,15 @@ def test_recipe_dietary_all_vegan(session_factory):
 def test_recipe_dietary_with_dairy_not_vegan(session_factory):
     """Recipe containing milk is NOT vegan but IS vegetarian."""
     with session_factory() as s:
-        ing_flour = Ingredient(name="Harina xyz", unit="kg", stock_qty=1,
-                               purchase_price_gs=5000)
-        ing_milk = Ingredient(name="Leche xyz", unit="l", stock_qty=1,
-                              purchase_price_gs=8000)
+        ing_flour = Ingredient(name="Harina xyz", unit="kg", stock_qty=1, purchase_price_gs=5000)
+        ing_milk = Ingredient(name="Leche xyz", unit="l", stock_qty=1, purchase_price_gs=8000)
         s.add_all([ing_flour, ing_milk])
         s.flush()
         r = Recipe(name="torta_xyz", yield_qty=10, yield_unit="und")
         s.add(r)
         s.flush()
         for ing in (ing_flour, ing_milk):
-            s.add(RecipeLine(recipe_id=r.id, line_kind="ingredient",
-                             line_ref_id=ing.id, qty=0.1))
+            s.add(RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=ing.id, qty=0.1))
         s.commit()
         tags = infer_recipe_dietary(s, r)
         assert "vegan" not in tags
@@ -166,6 +163,7 @@ def test_recipe_dietary_with_dairy_not_vegan(session_factory):
 # ---------------------------------------------------------------------------
 # recipe_yield_grams
 # ---------------------------------------------------------------------------
+
 
 def test_recipe_yield_grams_und():
     r = Recipe(name="x", yield_qty=12, yield_unit="und")
@@ -192,21 +190,18 @@ def test_recipe_yield_grams_g():
 # recipe_ingredient_count + sub_recipe_depth
 # ---------------------------------------------------------------------------
 
+
 def test_recipe_ingredient_count_basic(session_factory):
     with session_factory() as s:
-        ing1 = Ingredient(name="ing1_xyz", unit="kg", stock_qty=1,
-                          purchase_price_gs=1000)
-        ing2 = Ingredient(name="ing2_xyz", unit="kg", stock_qty=1,
-                          purchase_price_gs=1000)
+        ing1 = Ingredient(name="ing1_xyz", unit="kg", stock_qty=1, purchase_price_gs=1000)
+        ing2 = Ingredient(name="ing2_xyz", unit="kg", stock_qty=1, purchase_price_gs=1000)
         s.add_all([ing1, ing2])
         s.flush()
         r = Recipe(name="count_test_xyz", yield_qty=1, yield_unit="und")
         s.add(r)
         s.flush()
-        s.add(RecipeLine(recipe_id=r.id, line_kind="ingredient",
-                         line_ref_id=ing1.id, qty=0.1))
-        s.add(RecipeLine(recipe_id=r.id, line_kind="ingredient",
-                         line_ref_id=ing2.id, qty=0.1))
+        s.add(RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=ing1.id, qty=0.1))
+        s.add(RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=ing2.id, qty=0.1))
         s.commit()
         assert recipe_ingredient_count(r) == 2
 
@@ -225,8 +220,7 @@ def test_recipe_sub_recipe_depth_one_level(session_factory):
         main = Recipe(name="main_xyz", yield_qty=1, yield_unit="und")
         s.add_all([sub, main])
         s.flush()
-        s.add(RecipeLine(recipe_id=main.id, line_kind="sub_recipe",
-                         line_ref_id=sub.id, qty=1))
+        s.add(RecipeLine(recipe_id=main.id, line_kind="sub_recipe", line_ref_id=sub.id, qty=1))
         s.commit()
         assert recipe_sub_recipe_depth(s, main) == 1
 
@@ -239,12 +233,9 @@ def test_recipe_sub_recipe_depth_three_levels(session_factory):
         main = Recipe(name="main_xyz", yield_qty=1, yield_unit="und")
         s.add_all([sub3, sub2, sub1, main])
         s.flush()
-        s.add(RecipeLine(recipe_id=main.id, line_kind="sub_recipe",
-                         line_ref_id=sub1.id, qty=1))
-        s.add(RecipeLine(recipe_id=sub1.id, line_kind="sub_recipe",
-                         line_ref_id=sub2.id, qty=1))
-        s.add(RecipeLine(recipe_id=sub2.id, line_kind="sub_recipe",
-                         line_ref_id=sub3.id, qty=1))
+        s.add(RecipeLine(recipe_id=main.id, line_kind="sub_recipe", line_ref_id=sub1.id, qty=1))
+        s.add(RecipeLine(recipe_id=sub1.id, line_kind="sub_recipe", line_ref_id=sub2.id, qty=1))
+        s.add(RecipeLine(recipe_id=sub2.id, line_kind="sub_recipe", line_ref_id=sub3.id, qty=1))
         s.commit()
         assert recipe_sub_recipe_depth(s, main) == 3
 
@@ -253,17 +244,16 @@ def test_recipe_sub_recipe_depth_three_levels(session_factory):
 # classify_recipe (composite)
 # ---------------------------------------------------------------------------
 
+
 def test_classify_recipe_basic(session_factory):
     with session_factory() as s:
-        ing = Ingredient(name="Harina xyz", unit="kg", stock_qty=1,
-                         purchase_price_gs=5000)
+        ing = Ingredient(name="Harina xyz", unit="kg", stock_qty=1, purchase_price_gs=5000)
         s.add(ing)
         s.flush()
         r = Recipe(name="pan_de_campo", yield_qty=4, yield_unit="und")
         s.add(r)
         s.flush()
-        s.add(RecipeLine(recipe_id=r.id, line_kind="ingredient",
-                         line_ref_id=ing.id, qty=0.5))
+        s.add(RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=ing.id, qty=0.5))
         s.commit()
         result = classify_recipe(s, r)
         assert result["family"] == "panadería"
@@ -278,18 +268,19 @@ def test_classify_recipe_basic(session_factory):
 # recipe_cost_per_gram — uses existing costing module
 # ---------------------------------------------------------------------------
 
+
 def test_recipe_cost_per_gram_computes(session_factory):
     """A recipe with cost should compute cost-per-gram."""
     with session_factory() as s:
-        ing = Ingredient(name="Harina xyz", unit="kg", stock_qty=1,
-                         purchase_price_gs=5000)
+        ing = Ingredient(name="Harina xyz", unit="kg", stock_qty=1, purchase_price_gs=5000)
         s.add(ing)
         s.flush()
         r = Recipe(name="cpgram_test", yield_qty=10, yield_unit="und")
         s.add(r)
         s.flush()
-        s.add(RecipeLine(recipe_id=r.id, line_kind="ingredient",
-                         line_ref_id=ing.id, qty=0.5))  # 0.5kg flour
+        s.add(
+            RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=ing.id, qty=0.5)
+        )  # 0.5kg flour
         s.commit()
         cost_g = recipe_cost_per_gram(s, r)
         # 0.5kg × 5000 Gs/kg = 2500 Gs / 500g yield (10 und × 50g) = 5 Gs/g

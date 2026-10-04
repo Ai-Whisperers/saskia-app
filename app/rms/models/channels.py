@@ -17,6 +17,7 @@ class Channel(str, Enum):
     Replaces string constants in app/rms/schemas.py to ensure
     consistency between domain models and validation.
     """
+
     MOSTRADOR = "mostrador"
     MOSTRADOR_ENCARGO = "mostrador-encargo"
     WHATSAPP = "whatsapp"
@@ -47,10 +48,7 @@ class Channel(str, Enum):
 
 
 # SQLAlchemy enum type for migrations and model definitions
-CHANNEL_ENUM_TYPE = Annotated[
-    Channel,
-    "Channel enum ensuring only valid channels are accepted"
-]
+CHANNEL_ENUM_TYPE = Annotated[Channel, "Channel enum ensuring only valid channels are accepted"]
 
 # Legacy constants for backward compatibility (deprecated)
 # TODO: Remove these once all code is updated to use Channel enum

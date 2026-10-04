@@ -9,6 +9,7 @@ Usage:
     python scripts/check_warnings.py --max 5   # tolerate up to 5
     python scripts/check_warnings.py --verbose  # show the warnings
 """
+
 from __future__ import annotations
 
 import argparse
@@ -40,10 +41,17 @@ def main() -> int:
 
     result = subprocess.run(
         [
-            "uv", "run", "pytest", "-q", "--tb=no", "--no-header",
+            "uv",
+            "run",
+            "pytest",
+            "-q",
+            "--tb=no",
+            "--no-header",
             *args.test_paths,
         ],
-        capture_output=True, text=True, timeout=600,
+        capture_output=True,
+        text=True,
+        timeout=600,
         cwd="/opt/data/profiles/ivan/scratch/saskia-app-work",
     )
 

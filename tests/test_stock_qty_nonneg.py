@@ -22,8 +22,10 @@ def test_stock_qty_cannot_go_negative_in_sqlite(session_factory):
         # Try to insert a negative stock_qty - should fail with IntegrityError
         with pytest.raises(IntegrityError):  # SQLite will raise IntegrityError on trigger failure
             db.execute(
-                text("INSERT INTO ingredient (name, unit, stock_qty, min_stock_qty, lead_time_days) VALUES "
-                    "('Test Negative', 'kg', -1, 0, 3)")
+                text(
+                    "INSERT INTO ingredient (name, unit, stock_qty, min_stock_qty, lead_time_days) VALUES "
+                    "('Test Negative', 'kg', -1, 0, 3)"
+                )
             )
             db.commit()
 
@@ -33,8 +35,10 @@ def test_stock_qty_zero_is_allowed(session_factory):
     with session_factory() as db:
         # Insert zero stock_qty - should succeed
         db.execute(
-            text("INSERT INTO ingredient (name, unit, stock_qty, min_stock_qty, lead_time_days) VALUES "
-                "('Test Zero', 'kg', 0, 0, 3)")
+            text(
+                "INSERT INTO ingredient (name, unit, stock_qty, min_stock_qty, lead_time_days) VALUES "
+                "('Test Zero', 'kg', 0, 0, 3)"
+            )
         )
         db.commit()
 
@@ -51,16 +55,16 @@ def test_stock_qty_update_to_negative_fails(session_factory):
     with session_factory() as db:
         # First insert a valid ingredient
         db.execute(
-            text("INSERT INTO ingredient (name, unit, stock_qty, min_stock_qty, lead_time_days) VALUES "
-                "('Test Update', 'kg', 5, 0, 3)")
+            text(
+                "INSERT INTO ingredient (name, unit, stock_qty, min_stock_qty, lead_time_days) VALUES "
+                "('Test Update', 'kg', 5, 0, 3)"
+            )
         )
         db.commit()
 
         # Try to update to negative - should fail with IntegrityError
         with pytest.raises(IntegrityError):  # SQLite will raise IntegrityError on trigger failure
-            db.execute(
-                text("UPDATE ingredient SET stock_qty = -1 WHERE name = 'Test Update'")
-            )
+            db.execute(text("UPDATE ingredient SET stock_qty = -1 WHERE name = 'Test Update'"))
             db.commit()
 
 
@@ -71,10 +75,12 @@ def test_stock_qty_positive_values_work(session_factory):
         positive_values = [0.5, 1.0, 2.5, 10.0, 100.0]
 
         for i, value in enumerate(positive_values):
-            name = f'Test Positive {i}'
+            name = f"Test Positive {i}"
             db.execute(
-                text(f"INSERT INTO ingredient (name, unit, stock_qty, min_stock_qty, lead_time_days) VALUES "
-                    f"('{name}', 'kg', {value}, 0, 3)")
+                text(
+                    f"INSERT INTO ingredient (name, unit, stock_qty, min_stock_qty, lead_time_days) VALUES "
+                    f"('{name}', 'kg', {value}, 0, 3)"
+                )
             )
 
         db.commit()
@@ -96,14 +102,16 @@ def test_migration_084_idempotent(session_factory):
         try:
             # Check if triggers exist (they should after first run)
             result = db.execute(
-                text("SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'ingredient_stock_qty%'")
+                text(
+                    "SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'ingredient_stock_qty%'"
+                )
             ).fetchall()
 
             # Triggers should exist if migration ran successfully
             trigger_names = [row[0] for row in result]
             expected_triggers = [
-                'ingredient_stock_qty_positive_insert',
-                'ingredient_stock_qty_positive_update'
+                "ingredient_stock_qty_positive_insert",
+                "ingredient_stock_qty_positive_update",
             ]
 
             for trigger in expected_triggers:
@@ -119,14 +127,18 @@ def test_backfill_works(session_factory):
         # Create an ingredient with negative stock (if migration hasn't run yet)
         try:
             db.execute(
-                text("INSERT OR IGNORE INTO ingredient (name, unit, stock_qty, min_stock_qty, lead_time_days) VALUES "
-                    "('Test Backfill', 'kg', -5, 0, 3)")
+                text(
+                    "INSERT OR IGNORE INTO ingredient (name, unit, stock_qty, min_stock_qty, lead_time_days) VALUES "
+                    "('Test Backfill', 'kg', -5, 0, 3)"
+                )
             )
             db.commit()
 
             # Force backfill by running the migration logic
             db.execute(
-                text("UPDATE ingredient SET stock_qty = 0 WHERE stock_qty < 0 AND name = 'Test Backfill'")
+                text(
+                    "UPDATE ingredient SET stock_qty = 0 WHERE stock_qty < 0 AND name = 'Test Backfill'"
+                )
             )
             db.commit()
 

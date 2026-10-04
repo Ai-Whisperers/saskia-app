@@ -1,4 +1,5 @@
 """tests/test_supabase_prewarm.py — lifespan pre-warms Supabase client."""
+
 from __future__ import annotations
 
 
@@ -9,6 +10,7 @@ def test_lifespan_calls_get_supabase_client_when_using_supabase():
     eager-init saves 1-3s on the first POST /login after cold-start.
     """
     from pathlib import Path
+
     src = Path("app/rms/main.py").read_text()
     assert "get_supabase_client()" in src, (
         "main.py must call get_supabase_client() to pre-warm Supabase on startup. "
@@ -26,6 +28,7 @@ def test_prewarm_is_non_fatal(monkeypatch):
     Supabase is reachable, has bad creds, or is rate-limited.
     """
     from pathlib import Path
+
     src = Path("app/rms/main.py").read_text()
 
     # Find the prewarm block.

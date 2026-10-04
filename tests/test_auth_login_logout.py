@@ -8,6 +8,7 @@ Per SASKIA_TEST_PLAN.md §5 #10:
 - POST /logout clears cookie
 - POST /forgot-password returns ok JSON
 """
+
 from __future__ import annotations
 
 import pytest
@@ -62,9 +63,7 @@ def test_post_login_empty_password_rejected(client):
 def test_get_logout_returns_303(client):
     """GET /logout must return 303 redirect (or 200/401)."""
     r = client.get("/logout", follow_redirects=False)
-    assert r.status_code in (200, 303, 401), (
-        f"GET /logout returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code in (200, 303, 401), f"GET /logout returned {r.status_code}: {r.text[:200]}"
 
 
 def test_post_logout_returns_303(client):
@@ -110,6 +109,4 @@ def test_login_endpoint_does_not_leak_password_in_error(client):
         follow_redirects=False,
     )
     body = r.text
-    assert "supersecret123" not in body, (
-        f"Password leaked in login error response: {body[:500]}"
-    )
+    assert "supersecret123" not in body, f"Password leaked in login error response: {body[:500]}"

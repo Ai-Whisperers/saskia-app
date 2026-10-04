@@ -19,6 +19,7 @@ Verifies:
 
 Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_p1_b5_suscripciones.py -v
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -146,11 +147,15 @@ def test_suscripcion_create_update_delete(authed_client, session_factory):
 
     # Locate the new id (uuid suffix avoided, but we search by summary).
     with session_factory() as s:
-        sub = s.execute(
-            select(Suscripcion)
-            .where(Suscripcion.customer_id == cid)
-            .order_by(Suscripcion.id.desc())
-        ).scalars().first()
+        sub = (
+            s.execute(
+                select(Suscripcion)
+                .where(Suscripcion.customer_id == cid)
+                .order_by(Suscripcion.id.desc())
+            )
+            .scalars()
+            .first()
+        )
         assert sub is not None
         assert sub.product_summary == "1 kg chipa + 2 facturas"
         assert sub.cadence == "semanal"
@@ -230,9 +235,7 @@ def test_suscripcion_status_noop_is_safe(authed_client, session_factory):
     cid = _seed_customer(session_factory)
     sid = _seed_suscripcion(session_factory, customer_id=cid, status="activa")
 
-    r = authed_client.post(
-        f"/suscripciones/{sid}/estado", data={"status": "activa"}
-    )
+    r = authed_client.post(f"/suscripciones/{sid}/estado", data={"status": "activa"})
     assert r.status_code < 500
 
 
@@ -379,9 +382,7 @@ def test_suscripcion_edit_404_for_missing(authed_client):
 
 def test_suscripcion_status_404_for_missing(authed_client):
     """POST /suscripciones/999999/estado returns 404."""
-    r = authed_client.post(
-        "/suscripciones/999999/estado", data={"status": "activa"}
-    )
+    r = authed_client.post("/suscripciones/999999/estado", data={"status": "activa"})
     assert r.status_code == 404
 
 
@@ -417,16 +418,18 @@ def test_suscripcion_creates_audit_log(authed_client, session_factory):
     assert r.status_code < 500
 
     with session_factory() as s:
-        sub = s.execute(
-            select(Suscripcion).order_by(Suscripcion.id.desc())
-        ).scalars().first()
+        sub = s.execute(select(Suscripcion).order_by(Suscripcion.id.desc())).scalars().first()
         assert sub is not None
         # Audit log may live on a separate engine, but on the
         # shared session_factory path it lives in the same DB.
-        audit = s.execute(
-            select(AuditLog)
-            .where(AuditLog.target_type == "suscripcion")
-            .where(AuditLog.target_id == sub.id)
-            .where(AuditLog.action == "write.suscripcion.create")
-        ).scalars().first()
+        audit = (
+            s.execute(
+                select(AuditLog)
+                .where(AuditLog.target_type == "suscripcion")
+                .where(AuditLog.target_id == sub.id)
+                .where(AuditLog.action == "write.suscripcion.create")
+            )
+            .scalars()
+            .first()
+        )
         assert audit is not None, "create audit row missing"

@@ -7,6 +7,7 @@ Covers:
 - /inicio (and other pages) include the bottom-nav with 5 links
 - base.html links to /static/mobile.css
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -46,9 +47,7 @@ def test_mobile_css_has_safe_area_inset_for_iphones():
 
 def test_base_html_links_to_mobile_css():
     content = BASE_HTML.read_text(encoding="utf-8")
-    assert "/static/mobile.css" in content, (
-        "base.html must link to /static/mobile.css"
-    )
+    assert "/static/mobile.css" in content, "base.html must link to /static/mobile.css"
 
 
 def test_base_html_renders_bottom_nav_with_5_links(authed_client):
@@ -76,6 +75,7 @@ def test_bottom_nav_includes_safe_anchors(authed_client):
     body = r.text
     # Pull out the bottom-nav block
     import re
+
     nav_match = re.search(r'<nav class="bottom-nav"[^>]*>(.*?)</nav>', body, re.DOTALL)
     assert nav_match, "no bottom-nav block"
     nav_html = nav_match.group(1)

@@ -8,6 +8,7 @@ Tests:
 - No Python errors
 """
 
+
 def test_ventas_renders(client):
     """P-07: Ventas (POS) page renders."""
     r = client.get("/ventas")
@@ -101,13 +102,16 @@ def test_ventas_no_python_errors(client):
 
 def test_ventas_post_multi_item_no_crash(client):
     """P-07: Multi-item POST to ventas doesn't crash."""
-    r = client.post("/ventas", data={
-        "items[0][product_id]": "1",
-        "items[0][cantidad]": "2",
-        "items[1][product_id]": "2",
-        "items[1][cantidad]": "1",
-        "payment_method": "efectivo",
-    })
+    r = client.post(
+        "/ventas",
+        data={
+            "items[0][product_id]": "1",
+            "items[0][cantidad]": "2",
+            "items[1][product_id]": "2",
+            "items[1][cantidad]": "1",
+            "payment_method": "efectivo",
+        },
+    )
     # Should not 500; may redirect on success
     assert r.status_code != 500, "Multi-item POST returned 500"
 
@@ -124,5 +128,6 @@ def test_ventas_renders_total_display(client):
     r = client.get("/ventas")
     assert r.status_code == 200
     body = r.text
-    assert "total" in body.lower() or "Gs." in body or "sumar" in body.lower(), \
+    assert "total" in body.lower() or "Gs." in body or "sumar" in body.lower(), (
         "Total display not found"
+    )

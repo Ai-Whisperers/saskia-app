@@ -20,6 +20,7 @@ Compatibility:
 - Skip the check on /healthz (monitoring).
 - Skip on the API docs if any.
 """
+
 from __future__ import annotations
 
 import os
@@ -32,15 +33,17 @@ from app.auth import SESSION_SECRET
 
 _CSRF_COOKIE = "csrf_token"
 _CSRF_FORM_FIELD = "csrf_token"
-_EXEMPT_PATHS = frozenset({
-    "/login",                  # first-time login (no cookie yet)
-    "/forgot-password",        # password recovery
-    "/healthz",
-    "/healthz/db",
-    "/healthz/deps",
-    "/healthz/migrate",        # emergency migration trigger (Render slow-to-deploy fallback)
-    "/demo/seed",              # operator-only demo seed; gated by AIW_DEMO_SEED_ENABLED (default off)
-})
+_EXEMPT_PATHS = frozenset(
+    {
+        "/login",  # first-time login (no cookie yet)
+        "/forgot-password",  # password recovery
+        "/healthz",
+        "/healthz/db",
+        "/healthz/deps",
+        "/healthz/migrate",  # emergency migration trigger (Render slow-to-deploy fallback)
+        "/demo/seed",  # operator-only demo seed; gated by AIW_DEMO_SEED_ENABLED (default off)
+    }
+)
 
 _serializer = URLSafeSerializer(SESSION_SECRET, salt="csrf-v1")
 
@@ -118,9 +121,7 @@ async def csrf_cookie_middleware(request: Request, call_next: object) -> Respons
     path = request.url.path
 
     # Exempt paths bypass both priming and verification.
-    is_exempt = (
-        path in _EXEMPT_PATHS or path.startswith(("/static/", "/api/docs"))
-    )
+    is_exempt = path in _EXEMPT_PATHS or path.startswith(("/static/", "/api/docs"))
 
     if not is_exempt and method in ("POST", "PUT", "DELETE", "PATCH"):
         # Defense in depth:
@@ -150,10 +151,7 @@ async def csrf_cookie_middleware(request: Request, call_next: object) -> Respons
         # If the header is absent (regular form POST), skip the header
         # comparison — the route's verify_form_csrf dependency handles
         # the form-field check after the body is parsed.
-        header_token = (
-            request.headers.get("X-CSRF-Token")
-            or request.headers.get("X-CSRFToken")
-        )
+        header_token = request.headers.get("X-CSRF-Token") or request.headers.get("X-CSRFToken")
         if header_token:
             try:
                 cookie_payload = _serializer.loads(cookie_token)

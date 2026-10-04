@@ -16,6 +16,7 @@ This router exposes:
 The public `/p/{token}` endpoint lives at the root (not under /pedidos) so the
 path stays short when shared over WhatsApp: `https://saskia.app/p/AbCd1234`.
 """
+
 from __future__ import annotations
 
 import json
@@ -87,6 +88,7 @@ class PedidoStatus(str, Enum):
     and form parsing keep working. The state machine (PedidoStateMachine)
     owns the transition rules.
     """
+
     PENDING = "pending"
     CONFIRMED = "confirmed"
     READY = "ready"
@@ -210,9 +212,7 @@ def generate_public_token() -> str:
     return public_token_generate_token()
 
 
-def _is_token_valid(
-    pedido: Pedido, now: datetime | None = None
-) -> bool:
+def _is_token_valid(pedido: Pedido, now: datetime | None = None) -> bool:
     """Backwards-compatible wrapper around the shared helper.
 
     The shared ``is_token_valid`` accepts the bare ``expires_at``
@@ -233,7 +233,9 @@ def _is_token_valid(
 
 def _pedido_total_gs(p: Pedido) -> int:
     """Compute the pedido's total in Gs. (qty * unit_price_gs per line)."""
-    return sum(to_int_gs(Decimal(str(ln.qty or 0)) * Decimal(str(ln.unit_price_gs or 0))) for ln in p.lines)
+    return sum(
+        to_int_gs(Decimal(str(ln.qty or 0)) * Decimal(str(ln.unit_price_gs or 0))) for ln in p.lines
+    )
 
 
 def _int_or_none(value: Any) -> int | None:
@@ -282,6 +284,7 @@ def _ventana_text_for(pedido_or_decorated: Any) -> str:
     Accepts both a Pedido ORM row and a decorated dict (the detail
     handler passes the decorated version that already has string dates).
     """
+
     def g(k: Any) -> Any:
         # ORM-row style (attribute access) or dict-style (key access)
         try:
@@ -289,6 +292,7 @@ def _ventana_text_for(pedido_or_decorated: Any) -> str:
         except AttributeError:
             v = pedido_or_decorated.get(k)
         return v or None
+
     pref = g("delivery_preference")
     start = g("delivery_window_start")
     end = g("delivery_window_end")
@@ -336,9 +340,7 @@ def _decorate_pedido(p: Pedido, session: Session) -> dict:
     return {
         "id": p.id,
         "customer_id": p.customer_id,
-        "customer_name": p.customer_name or (
-            p.customer.name if p.customer else "(sin nombre)"
-        ),
+        "customer_name": p.customer_name or (p.customer.name if p.customer else "(sin nombre)"),
         "customer_phone": p.customer_phone or (p.customer.phone if p.customer else None),
         "promised_date": promised,
         "promised_date_iso": promised.isoformat() if promised else "",
@@ -403,24 +405,16 @@ def _decorate_pedido(p: Pedido, session: Session) -> dict:
         "delivery_zone_id": p.delivery_zone_id,
         "payment_receipt_path": p.payment_receipt_path,
         "payment_receipt_uploaded_at": (
-            p.payment_receipt_uploaded_at.isoformat()
-            if p.payment_receipt_uploaded_at
-            else None
+            p.payment_receipt_uploaded_at.isoformat() if p.payment_receipt_uploaded_at else None
         ),
         "public_token_expires_at": (
-            p.public_token_expires_at.isoformat()
-            if p.public_token_expires_at
-            else None
+            p.public_token_expires_at.isoformat() if p.public_token_expires_at else None
         ),
-        "updated_at": (
-            p.updated_at.isoformat() if p.updated_at else None
-        ),
+        "updated_at": (p.updated_at.isoformat() if p.updated_at else None),
     }
 
 
-def _group_pedidos(
-    session: Session, pedidos: Iterable[Pedido]
-) -> dict[str, list[dict]]:
+def _group_pedidos(session: Session, pedidos: Iterable[Pedido]) -> dict[str, list[dict]]:
     """Split pedidos into 3 sections: Hoy/Mañana, Esta semana, Pendientes viejos.
 
     - Hoy/Mañana: promised_date in [today, today+1]
@@ -496,10 +490,7 @@ def pedidos_list(
     # Search: customer name or phone
     if search := search.strip():
         stmt_base = stmt_base.where(
-            (
-                Pedido.customer_name.ilike(f"%{search}%")
-                | Pedido.customer_phone.ilike(f"%{search}%")
-            )
+            (Pedido.customer_name.ilike(f"%{search}%") | Pedido.customer_phone.ilike(f"%{search}%"))
         )
 
     # Count total for pagination (reuse the base where, no order/offset/limit)
@@ -508,8 +499,7 @@ def pedidos_list(
 
     # Paginate: apply order then offset/limit
     stmt = (
-        stmt_base
-        .order_by(Pedido.promised_date.asc(), Pedido.promised_time.asc())
+        stmt_base.order_by(Pedido.promised_date.asc(), Pedido.promised_time.asc())
         .offset((page - 1) * per_page)
         .limit(per_page)
     )
@@ -525,8 +515,12 @@ def pedidos_list(
         "total_pages": total_pages,
         "has_prev": page > 1,
         "has_next": page < total_pages,
-        "prev_url": f"/pedidos?status_filter={status_filter}&search={search}&page={page-1}" if page > 1 else None,
-        "next_url": f"/pedidos?status_filter={status_filter}&search={search}&page={page+1}" if page < total_pages else None,
+        "prev_url": f"/pedidos?status_filter={status_filter}&search={search}&page={page - 1}"
+        if page > 1
+        else None,
+        "next_url": f"/pedidos?status_filter={status_filter}&search={search}&page={page + 1}"
+        if page < total_pages
+        else None,
         "pages": list(range(max(1, page - 2), min(total_pages + 1, page + 3))),
     }
     return render(
@@ -579,6 +573,7 @@ def pedidos_board(
     # Kanban columns (redesign F5): group active pedidos by status
     def _kanban(col: object) -> list[dict]:
         from app.services.customer_address import ventana_text
+
         rows = []
         for p in pedidos:
             if p.status != col:
@@ -601,25 +596,25 @@ def pedidos_board(
                 if hasattr(p.delivery_scheduled_date, "isoformat")
                 else p.delivery_scheduled_date
             )
-            rows.append({
-                "id": p.id,
-                "label": f"#{p.id}",
-                "status": p.status,
-                "customer": p.customer.name if p.customer else None,
-                "promised": f"{p.promised_date} {p.promised_time or ''}".strip(),
-                "lines": [
-                    f"{ln.qty:g} × {(ln.product.name if ln.product else '#' + str(ln.product_id))}"
-                    for ln in (p.lines or [])
-                ][:6],
-                "created_at": p.created_at,
-                # Phase 14: ventana + invoice + address summary on the card
-                "ventana_text": ventana_text(
-                    p.delivery_preference, start, end, scheduled
-                ),
-                "address_text": p.address_text or "",
-                "invoice_ruc": p.invoice_ruc or "",
-                "invoice_name": p.invoice_name or "",
-            })
+            rows.append(
+                {
+                    "id": p.id,
+                    "label": f"#{p.id}",
+                    "status": p.status,
+                    "customer": p.customer.name if p.customer else None,
+                    "promised": f"{p.promised_date} {p.promised_time or ''}".strip(),
+                    "lines": [
+                        f"{ln.qty:g} × {(ln.product.name if ln.product else '#' + str(ln.product_id))}"
+                        for ln in (p.lines or [])
+                    ][:6],
+                    "created_at": p.created_at,
+                    # Phase 14: ventana + invoice + address summary on the card
+                    "ventana_text": ventana_text(p.delivery_preference, start, end, scheduled),
+                    "address_text": p.address_text or "",
+                    "invoice_ruc": p.invoice_ruc or "",
+                    "invoice_name": p.invoice_name or "",
+                }
+            )
         return rows
 
     return render(
@@ -669,9 +664,7 @@ def pedidos_new_form(
     if customer_id:
         preset_customer = session.get(Customer, customer_id)
         if preset_customer:
-            defaults = compute_customer_defaults(
-                session, customer_id, from_pedido_id=from_
-            )
+            defaults = compute_customer_defaults(session, customer_id, from_pedido_id=from_)
             prefill = defaults.to_dict()
             clone_lines = defaults.clone_lines
 
@@ -683,10 +676,9 @@ def pedidos_new_form(
 
     # Load active delivery zones for the picker
     from app.rms.models import DeliveryZone
+
     delivery_zones = session.scalars(
-        select(DeliveryZone)
-        .where(DeliveryZone.is_active.is_(True))
-        .order_by(DeliveryZone.position)
+        select(DeliveryZone).where(DeliveryZone.is_active.is_(True)).order_by(DeliveryZone.position)
     ).all()
 
     return render(
@@ -708,9 +700,7 @@ def pedidos_new_form(
             # for the address_departamento combo (was a hand-rolled
             # <select> with a duplicate "Amambay" entry as a bug).
             "paraguay_departments": PARAGUAY_DEPARTMENTS,
-            "paraguay_departments_src": [
-                {"value": d, "label": d} for d in PARAGUAY_DEPARTMENTS
-            ],
+            "paraguay_departments_src": [{"value": d, "label": d} for d in PARAGUAY_DEPARTMENTS],
         },
     )
 
@@ -730,6 +720,7 @@ def pedidos_customer_defaults(
     payload = customer_defaults_as_json(session, customer_id)
     if from_:
         from app.services.customer_prefill import compute_customer_defaults
+
         payload = compute_customer_defaults(session, customer_id, from_pedido_id=from_).to_dict()
     return JSONResponse(payload)
 
@@ -746,6 +737,7 @@ def pedidos_customer_addresses(
     their preferred zone id.
     """
     from app.rms.models import CustomerAddress
+
     cust = session.get(Customer, customer_id)
     if cust is None:
         return JSONResponse({"addresses": [], "preferred_zone_id": None})
@@ -769,7 +761,6 @@ def pedidos_customer_addresses(
             "preferred_zone_id": cust.preferred_zone_id,
         }
     )
-
 
 
 @router.post("/nuevo")
@@ -854,20 +845,20 @@ async def pedidos_create(
                 cached = {}
             existing_id = cached.get("pedido_id")
             if existing_id:
-                return RedirectResponse(
-                    url=f"/pedidos/{existing_id}", status_code=303
-                )
+                return RedirectResponse(url=f"/pedidos/{existing_id}", status_code=303)
             # Cache was a placeholder ("pending") from a request that died
             # mid-transaction. Fall through and try to reserve again.
             session.delete(existing)
             session.flush()
 
         try:
-            session.add(_AppMeta(
-                key=f"pedido_idem:{idempotency_key}",
-                value="pending",
-                updated_at=datetime.now(timezone.utc).isoformat(),
-            ))
+            session.add(
+                _AppMeta(
+                    key=f"pedido_idem:{idempotency_key}",
+                    value="pending",
+                    updated_at=datetime.now(timezone.utc).isoformat(),
+                )
+            )
             session.flush()
         except IntegrityError:
             session.rollback()
@@ -882,9 +873,7 @@ async def pedidos_create(
                     cached = {}
                 existing_id = cached.get("pedido_id")
                 if existing_id:
-                    return RedirectResponse(
-                        url=f"/pedidos/{existing_id}", status_code=303
-                    )
+                    return RedirectResponse(url=f"/pedidos/{existing_id}", status_code=303)
 
     cust_id_str = str(customer_id or "").strip()
     cust_id_int: int | None = None
@@ -901,9 +890,7 @@ async def pedidos_create(
     qtys = form.getlist("line_qty")
     unit_prices = form.getlist("line_unit_price_gs")
     if not product_ids:
-        raise HTTPException(
-            status_code=400, detail="Al menos una línea es obligatoria"
-        )
+        raise HTTPException(status_code=400, detail="Al menos una línea es obligatoria")
 
     lines: list[dict[str, Any]] = []
     skipped: list[str] = []  # human-readable reasons for ignored lines
@@ -945,9 +932,7 @@ async def pedidos_create(
         # Snapshot the product's current sale_price_gs if user submitted 0/missing.
         if price <= 0:
             price = product.sale_price_gs
-        lines.append(
-            {"product_id": pid, "qty": qty, "unit_price_gs": price}
-        )
+        lines.append({"product_id": pid, "qty": qty, "unit_price_gs": price})
     if not lines:
         detail = "Las líneas válidas son obligatorias. "
         if skipped:
@@ -986,9 +971,7 @@ async def pedidos_create(
     # If user typed a name but didn't pick an existing customer, auto-create.
     if cust_obj is None and cust_name:
         existing = session.scalar(
-            select(Customer).where(
-                func.lower(Customer.name) == cust_name.lower()
-            )
+            select(Customer).where(func.lower(Customer.name) == cust_name.lower())
         )
         if existing is not None:
             cust_obj = existing
@@ -1017,13 +1000,11 @@ async def pedidos_create(
     if zone_int:
         # Load zone to validate min order
         from app.rms.models import DeliveryZone
+
         zone = session.get(DeliveryZone, zone_int)
         if zone and zone.min_order_gs > 0:
             # Compute pedido total
-            pedido_total_gs = sum(
-                round((ln["qty"] or 0) * (ln["price"] or 0))
-                for ln in lines
-            )
+            pedido_total_gs = sum(round((ln["qty"] or 0) * (ln["price"] or 0)) for ln in lines)
             if pedido_total_gs < zone.min_order_gs:
                 notes = (
                     (notes or "").strip()
@@ -1033,12 +1014,8 @@ async def pedidos_create(
     # P3 profile batch: default facturación from the customer's profile
     # when the operator didn't type invoice data on the order.
     if cust_obj is not None:
-        invoice_name = (invoice_name or "").strip() or (
-            cust_obj.invoice_name or ""
-        )
-        invoice_ruc = (invoice_ruc or "").strip() or (
-            cust_obj.invoice_ruc or ""
-        )
+        invoice_name = (invoice_name or "").strip() or (cust_obj.invoice_name or "")
+        invoice_ruc = (invoice_ruc or "").strip() or (cust_obj.invoice_ruc or "")
 
     pedido = Pedido(
         customer_id=cust_obj.id if cust_obj else None,
@@ -1075,10 +1052,9 @@ async def pedidos_create(
     # checkbox) so the next pedido to this person is one click.
     if save_address == "1" and cust_obj and (address_text or "").strip():
         from app.rms.models import CustomerAddress
+
         first_for_customer = not session.scalar(
-            select(CustomerAddress.id).where(
-                CustomerAddress.customer_id == cust_obj.id
-            ).limit(1)
+            select(CustomerAddress.id).where(CustomerAddress.customer_id == cust_obj.id).limit(1)
         )
         session.add(
             CustomerAddress(
@@ -1123,9 +1099,13 @@ async def pedidos_create(
     # pedido's lifecycle in the detail view. We use the cheap batch-add
     # pattern: add all events at once, then flush once.
     from app.services.pedido_events import PedidoEventService
+
     actor = str(current_user_id(request) or "operator")
     PedidoEventService.record(
-        session, pedido.id, "created", actor=actor,
+        session,
+        pedido.id,
+        "created",
+        actor=actor,
         payload={
             "n_lines": len(lines),
             "channel": channel_normalized,
@@ -1135,7 +1115,10 @@ async def pedidos_create(
     )
     for ln in lines:
         PedidoEventService.record(
-            session, pedido.id, "line_added", actor=actor,
+            session,
+            pedido.id,
+            "line_added",
+            actor=actor,
             payload={
                 "product_id": ln["product_id"],
                 "qty": ln["qty"],
@@ -1163,6 +1146,7 @@ async def pedidos_create(
     # pedido_id so a follow-up POST with the same key redirects back.
     if idempotency_key:
         from app.rms.models import AppMeta as _AppMeta
+
         session.execute(
             update(_AppMeta)
             .where(_AppMeta.key == f"pedido_idem:{idempotency_key}")
@@ -1210,10 +1194,7 @@ def pedidos_export_csv(
 
     if search := search.strip():
         stmt = stmt.where(
-            (
-                Pedido.customer_name.ilike(f"%{search}%")
-                | Pedido.customer_phone.ilike(f"%{search}%")
-            )
+            (Pedido.customer_name.ilike(f"%{search}%") | Pedido.customer_phone.ilike(f"%{search}%"))
         )
 
     stmt = stmt.order_by(Pedido.promised_date.asc())
@@ -1221,28 +1202,42 @@ def pedidos_export_csv(
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "ID", "Fecha prometida", "Hora prometida", "Cliente", "Teléfono",
-        "Canal", "Estado", "Líneas", "Total Gs.", "Notas",
-        "Razón cancelación", "Creado", "Cumplido",
-    ])
+    writer.writerow(
+        [
+            "ID",
+            "Fecha prometida",
+            "Hora prometida",
+            "Cliente",
+            "Teléfono",
+            "Canal",
+            "Estado",
+            "Líneas",
+            "Total Gs.",
+            "Notas",
+            "Razón cancelación",
+            "Creado",
+            "Cumplido",
+        ]
+    )
     for p in pedidos:
         _decorate_pedido(p, session)
-        writer.writerow([
-            p.id,
-            p.promised_date.strftime("%d/%m/%Y"),
-            p.promised_time or "",
-            p.customer_name,
-            p.customer_phone or "",
-            p.channel,
-            p.status,
-            len(p.lines),
-            _pedido_total_gs(p),
-            (p.notes or "").replace("\n", " "),
-            p.cancel_reason or "",
-            p.created_at.strftime("%d/%m/%Y %H:%M") if p.created_at else "",
-            p.fulfilled_at.strftime("%d/%m/%Y %H:%M") if p.fulfilled_at else "",
-        ])
+        writer.writerow(
+            [
+                p.id,
+                p.promised_date.strftime("%d/%m/%Y"),
+                p.promised_time or "",
+                p.customer_name,
+                p.customer_phone or "",
+                p.channel,
+                p.status,
+                len(p.lines),
+                _pedido_total_gs(p),
+                (p.notes or "").replace("\n", " "),
+                p.cancel_reason or "",
+                p.created_at.strftime("%d/%m/%Y %H:%M") if p.created_at else "",
+                p.fulfilled_at.strftime("%d/%m/%Y %H:%M") if p.fulfilled_at else "",
+            ]
+        )
 
     output.seek(0)
     return StreamingResponse(
@@ -1293,9 +1288,7 @@ def public_pedido(request: Request, token: str) -> HTMLResponse:
         # helper counts AuditLog.action == "public.pedido.view" so this
         # is the same enforcement as before the refactor — the change
         # is only that the count + window now live in public_tokens.
-        public_token_enforce_rate_limit(
-            request, session, action_label="public.pedido.view"
-        )
+        public_token_enforce_rate_limit(request, session, action_label="public.pedido.view")
 
         # Pedido.id is an Integer PK; look up by public_token instead
         # so /p/{token} resolves to the pedido sharing that token.
@@ -1303,14 +1296,10 @@ def public_pedido(request: Request, token: str) -> HTMLResponse:
         # by the int PK and silently returned None for valid string
         # tokens — making the page 404 for every real customer.)
         pedido = session.execute(
-            select(Pedido)
-            .where(Pedido.public_token == token)
-            .options(selectinload(Pedido.lines))
+            select(Pedido).where(Pedido.public_token == token).options(selectinload(Pedido.lines))
         ).scalar_one_or_none()
         if pedido is None:
-            raise HTTPException(
-                status_code=404, detail="Pedido no encontrado"
-            )
+            raise HTTPException(status_code=404, detail="Pedido no encontrado")
 
         # P1-2: enforce token expiry. Returns 410 Gone (not 404) so the
         # customer understands the link has aged out, not that the
@@ -1318,10 +1307,7 @@ def public_pedido(request: Request, token: str) -> HTMLResponse:
         if not _is_token_valid(pedido):
             raise HTTPException(
                 status_code=410,
-                detail=(
-                    "Este link venció. Pedile a la panadería que te "
-                    "mande uno nuevo."
-                ),
+                detail=("Este link venció. Pedile a la panadería que te mande uno nuevo."),
             )
 
         # Audit the view for forensics + rate-limit counting.
@@ -1388,9 +1374,7 @@ async def pedido_publico_comprobante(
             select(Pedido).where(Pedido.public_token == token)
         ).scalar_one_or_none()
         if pedido is None:
-            raise HTTPException(
-                status_code=404, detail="Pedido no encontrado"
-            )
+            raise HTTPException(status_code=404, detail="Pedido no encontrado")
 
         # P1-2: same expiry enforcement as the GET route. An expired
         # link can't be used to upload either — customers must ask the
@@ -1398,10 +1382,7 @@ async def pedido_publico_comprobante(
         if not _is_token_valid(pedido):
             raise HTTPException(
                 status_code=410,
-                detail=(
-                    "Este link venció. Pedile a la panadería que te "
-                    "mande uno nuevo."
-                ),
+                detail=("Este link venció. Pedile a la panadería que te mande uno nuevo."),
             )
 
         # Validate file extension (cheap, prevents shell-pasted junk)
@@ -1409,16 +1390,21 @@ async def pedido_publico_comprobante(
         ext = "." + filename.rsplit(".", 1)[-1] if "." in filename else ""
         if ext not in _ALLOWED_EXT:
             return _render_public_with_flash(
-                request, pedido, token, "error",
-                f"Formato no permitido: {ext or 'sin extensión'}. "
-                f"Subí JPG, PNG, WEBP o PDF.",
+                request,
+                pedido,
+                token,
+                "error",
+                f"Formato no permitido: {ext or 'sin extensión'}. Subí JPG, PNG, WEBP o PDF.",
             )
 
         # Read with a hard cap (8 MB) so a malicious client can't OOM us.
         contents = await file.read(_MAX_BYTES + 1)
         if len(contents) > _MAX_BYTES:
             return _render_public_with_flash(
-                request, pedido, token, "error",
+                request,
+                pedido,
+                token,
+                "error",
                 "Archivo demasiado grande (máx 8 MB).",
             )
 
@@ -1427,10 +1413,7 @@ async def pedido_publico_comprobante(
         receipts_root = DATA_DIR / "payment_receipts" / str(pedido.id)
         receipts_root.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
-        safe_name = "".join(
-            ch if ch.isalnum() or ch in ("-", "_", ".") else "_"
-            for ch in filename
-        )
+        safe_name = "".join(ch if ch.isalnum() or ch in ("-", "_", ".") else "_" for ch in filename)
         stored_name = f"{timestamp}_{safe_name}"
         stored_path = receipts_root / stored_name
         stored_path.write_bytes(contents)
@@ -1458,7 +1441,10 @@ async def pedido_publico_comprobante(
         session.commit()
 
         return _render_public_with_flash(
-            request, pedido, token, "ok",
+            request,
+            pedido,
+            token,
+            "ok",
             "Comprobante recibido. Te avisamos por WhatsApp cuando confirmemos.",
         )
 
@@ -1474,9 +1460,7 @@ def _render_public_with_flash(
     with request.app.state.session_factory() as session:
         # re-fetch with lines loaded (session may have been closed)
         pedido = session.execute(
-            select(Pedido)
-            .where(Pedido.public_token == token)
-            .options(selectinload(Pedido.lines))
+            select(Pedido).where(Pedido.public_token == token).options(selectinload(Pedido.lines))
         ).scalar_one()
         decorated = _decorate_pedido(pedido, session)
         decorated["lines"] = [
@@ -1484,9 +1468,7 @@ def _render_public_with_flash(
                 "product_name": ln.product.name if ln.product else f"#{ln.product_id}",
                 "qty": ln.qty,
                 "unit_price_gs": ln.unit_price_gs,
-                "line_total_gs": to_int_gs(
-                    Decimal(str(ln.qty)) * Decimal(str(ln.unit_price_gs))
-                ),
+                "line_total_gs": to_int_gs(Decimal(str(ln.qty)) * Decimal(str(ln.unit_price_gs))),
             }
             for ln in pedido.lines
         ]
@@ -1514,10 +1496,12 @@ def pedidos_detail(
 ) -> HTMLResponse:
     """Show one pedido with customer, lines, status buttons, public share URL."""
     pedido = session.get(
-        Pedido, pedido_id, options=[
+        Pedido,
+        pedido_id,
+        options=[
             selectinload(Pedido.lines).selectinload(PedidoLine.product),
             selectinload(Pedido.customer),
-        ]
+        ],
     )
     if pedido is None:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
@@ -1567,9 +1551,7 @@ def pedidos_detail(
         linked_sales = [
             {
                 "id": s.id,
-                "product_name": (
-                    s.product.name if s.product else f"#{s.product_id}"
-                ),
+                "product_name": (s.product.name if s.product else f"#{s.product_id}"),
                 "qty": float(s.qty),
                 "unit_price_gs": int(s.unit_price_gs or 0),
                 "sold_at": s.sold_at,
@@ -1629,7 +1611,8 @@ def pedidos_detail(
             "can_fulfill": PedidoStateMachine.is_fulfillable(pedido.status),
             "channels": CHANNELS,
             "payment_methods": sorted(
-                set(ALLOWED_PAYMENT_METHODS) | {"efectivo", "transferencia", "qr", "tarjeta", "otro"}
+                set(ALLOWED_PAYMENT_METHODS)
+                | {"efectivo", "transferencia", "qr", "tarjeta", "otro"}
             ),
             # Phase 13 (2026-10-01): the rendered ventana text for the
             # template's badge (uses "ventana preferida" wording + the
@@ -1735,20 +1718,25 @@ def pedidos_fulfill(
         from sqlalchemy.exc import IntegrityError
 
         from app.rms.models import AppMeta as _AppMeta
+
         try:
             # Use JSON shape (forward-compatible) so we can store
             # request_id alongside the sale_id for duplicate-POST forensics.
             request_id_pedido = getattr(request.state, "request_id", None) or ""
-            initial_value = __import__("json").dumps({
-                "pedido_id": str(pedido_id),
-                "sale_id": "",  # updated below
-                "request_id": request_id_pedido,
-            })
-            session.add(_AppMeta(
-                key=f"pedido_fulfill_idem:{idempotency_key}",
-                value=initial_value,
-                updated_at=datetime.now(timezone.utc).isoformat(),
-            ))
+            initial_value = __import__("json").dumps(
+                {
+                    "pedido_id": str(pedido_id),
+                    "sale_id": "",  # updated below
+                    "request_id": request_id_pedido,
+                }
+            )
+            session.add(
+                _AppMeta(
+                    key=f"pedido_fulfill_idem:{idempotency_key}",
+                    value=initial_value,
+                    updated_at=datetime.now(timezone.utc).isoformat(),
+                )
+            )
             session.flush()  # surface IntegrityError without committing
         except IntegrityError:
             session.rollback()
@@ -1757,9 +1745,7 @@ def pedidos_fulfill(
                 status_code=303,
             )
 
-    pedido = session.get(
-        Pedido, pedido_id, options=[selectinload(Pedido.lines)]
-    )
+    pedido = session.get(Pedido, pedido_id, options=[selectinload(Pedido.lines)])
     if pedido is None:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
     if not PedidoStateMachine.is_fulfillable(pedido.status):
@@ -1807,17 +1793,18 @@ def pedidos_fulfill(
                 current = ing.stock_qty if ing else 0
                 after = current - abs(qty_delta)
                 if after < 0:
-                    shortfalls.append({
-                        "ingredient": ing.name if ing else f"# {ingredient_id}",
-                        "shortfall": round(abs(after), 3),
-                        "product": line_product.name,
-                    })
+                    shortfalls.append(
+                        {
+                            "ingredient": ing.name if ing else f"# {ingredient_id}",
+                            "shortfall": round(abs(after), 3),
+                            "product": line_product.name,
+                        }
+                    )
     except Exception as exc:  # noqa: BLE001 — defensive default
         # Defensive: if the calc itself blows up, do not block the fulfill;
         # log loudly so ops sees it, but proceed (matches pre-fix behavior).
         logger.warning(
-            f"pedidos.fulfill: stock-preview calc failed for pedido "
-            f"{pedido.id}: {exc!r}"
+            f"pedidos.fulfill: stock-preview calc failed for pedido {pedido.id}: {exc!r}"
         )
         shortfalls = []
 
@@ -1879,9 +1866,13 @@ def pedidos_fulfill(
     # Phase 11 — record status_change + sales for the pedido timeline.
     # We use the actor on the request so the timeline shows who fulfilled it.
     from app.services.pedido_events import PedidoEventService
+
     fulfill_actor = str(current_user_id(request) or "operator")
     PedidoEventService.record(
-        session, pedido.id, "status_change", actor=fulfill_actor,
+        session,
+        pedido.id,
+        "status_change",
+        actor=fulfill_actor,
         payload={
             "from": "pending",
             "to": "fulfilled",
@@ -1901,7 +1892,11 @@ def pedidos_fulfill(
             "n_sales": n_sales,
             "first_sale_id": first_sale_id,
             "total_gs": _pedido_total_gs(pedido),
-            **({"force_fulfilled_over_shortfall": shortfalls} if (shortfalls and force_flag) else {}),
+            **(
+                {"force_fulfilled_over_shortfall": shortfalls}
+                if (shortfalls and force_flag)
+                else {}
+            ),
         },
         request=request,
     )
@@ -1918,9 +1913,9 @@ def pedidos_fulfill(
         # Re-read current value to preserve pedido_id + request_id, then
         # add the just-created first_sale_id.
         existing = session.scalar(
-            __import__("sqlalchemy").select(_AppMeta).where(
-                _AppMeta.key == f"pedido_fulfill_idem:{idempotency_key}"
-            )
+            __import__("sqlalchemy")
+            .select(_AppMeta)
+            .where(_AppMeta.key == f"pedido_fulfill_idem:{idempotency_key}")
         )
         try:
             payload = _json.loads(existing.value) if existing and existing.value else {}
@@ -1959,6 +1954,7 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
         from sqlalchemy import select as _select
 
         from app.rms.models import MessageTemplate as MT
+
         template_key = "pedido_listo" if pedido.channel == "WhatsApp" else "generic"
         template_channel = "whatsapp" if pedido.channel == "WhatsApp" else "email"
         row = session.execute(
@@ -1970,14 +1966,20 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
         ).scalar_one_or_none()
         if row is not None:
             from app.routers.settings_runtime import render_template
-            msg = render_template(row.body, {
-                "customer_name": pedido.customer_name or "",
-                "pedido_id": pedido.id,
-                "total_gs": pedido.total_gs or 0,
-                "business_name": "Saskia RMS",
-            })
+
+            msg = render_template(
+                row.body,
+                {
+                    "customer_name": pedido.customer_name or "",
+                    "pedido_id": pedido.id,
+                    "total_gs": pedido.total_gs or 0,
+                    "business_name": "Saskia RMS",
+                },
+            )
     except Exception as exc:  # noqa: BLE001 — defensive default
-        logger.warning(f"pedidos._send_fulfill_notification: render_template failed (fallback to legacy msg): {exc!r}")
+        logger.warning(
+            f"pedidos._send_fulfill_notification: render_template failed (fallback to legacy msg): {exc!r}"
+        )
     if msg is None:
         msg = (
             f"¡Tu pedido #{pedido.id} esta listo para retirar! Te esperamos 😊"
@@ -1987,16 +1989,18 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
 
     import logging
     import os
-    twilio_sid     = os.getenv("TWILIO_ACCOUNT_SID",     "").strip()
-    twilio_token   = os.getenv("TWILIO_AUTH_TOKEN",       "").strip()
-    twilio_from_wa = os.getenv("TWILIO_WHATSAPP_FROM",   "").strip()
-    twilio_from_ph = os.getenv("TWILIO_PHONE_FROM",       "").strip()
+
+    twilio_sid = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
+    twilio_token = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
+    twilio_from_wa = os.getenv("TWILIO_WHATSAPP_FROM", "").strip()
+    twilio_from_ph = os.getenv("TWILIO_PHONE_FROM", "").strip()
 
     log = logging.getLogger("rms.pedidos")
 
     def _post_twilio(from_num: str, to_num: str) -> bool:
         try:
             import httpx
+
             r = httpx.post(
                 f"https://api.twilio.com/2010-04-01/Accounts/{twilio_sid}/Messages.json",
                 auth=(twilio_sid, twilio_token),
@@ -2060,27 +2064,33 @@ def pedidos_stock_preview(
         try:
             moves = _compute_stock_moves(session, recipe, float(ln.qty), set())
         except Exception as exc:  # noqa: BLE001 — defensive default
-            logger.warning(f"pedidos.stock_preview: _compute_stock_moves failed for product {product.id}: {exc!r}")
+            logger.warning(
+                f"pedidos.stock_preview: _compute_stock_moves failed for product {product.id}: {exc!r}"
+            )
             continue
         for _affected_recipe_id, ingredient_id, qty_delta in moves:
             ing = session.get(Ingredient, ingredient_id) if Ingredient else None
             ing_name = ing.name if ing else f"# {ingredient_id}"
             current = ing.stock_qty if ing else 0
             after = current - abs(qty_delta)
-            consumed.append({
-                "ingredient": ing_name,
-                "product": product.name,
-                "qty_needed": round(abs(qty_delta), 3),
-                "current_stock": round(current, 3) if current else 0,
-                "after_stock": round(after, 3),
-                "warning": after < 0,
-            })
-            if after < 0:
-                warnings.append({
+            consumed.append(
+                {
                     "ingredient": ing_name,
-                    "shortfall": round(abs(after), 3),
                     "product": product.name,
-                })
+                    "qty_needed": round(abs(qty_delta), 3),
+                    "current_stock": round(current, 3) if current else 0,
+                    "after_stock": round(after, 3),
+                    "warning": after < 0,
+                }
+            )
+            if after < 0:
+                warnings.append(
+                    {
+                        "ingredient": ing_name,
+                        "shortfall": round(abs(after), 3),
+                        "product": product.name,
+                    }
+                )
 
     return render(
         request,
@@ -2112,9 +2122,7 @@ def pedidos_duplicate(
     This is a state-mutating operation — POST is required. The GET route
     is preserved as deprecated so any existing bookmarks don't 405.
     """
-    original = session.get(
-        Pedido, pedido_id, options=[selectinload(Pedido.lines)]
-    )
+    original = session.get(Pedido, pedido_id, options=[selectinload(Pedido.lines)])
     if original is None:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
 

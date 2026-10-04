@@ -4,6 +4,7 @@ Un producto con is_available=False (oculto del menú/POS) con ventas
 históricas NO debe recibir sugerencia automática en el plan de producción.
 Si la operadora lo fuerza con un override/template/manual, sí aparece.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone

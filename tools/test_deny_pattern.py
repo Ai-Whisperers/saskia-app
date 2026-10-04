@@ -18,6 +18,7 @@ Exit codes:
     1 = some tests failed
     2 = pattern file missing or malformed
 """
+
 from __future__ import annotations
 
 import argparse
@@ -26,16 +27,17 @@ import sys
 from pathlib import Path
 
 PATTERN_FILE_DEFAULT = Path("/opt/data/profiles/ivan/custom-dangerous-patterns.yaml")
-PATTERN_PROPOSED = Path(
-    "/opt/data/profiles/ivan/cache/custom-dangerous-patterns.yaml.proposed"
-)
+PATTERN_PROPOSED = Path("/opt/data/profiles/ivan/cache/custom-dangerous-patterns.yaml.proposed")
 
 # Test battery: (command, should_block)
 # This is the same 26-case set I tuned against, encoded as data.
 TEST_CASES = [
     # Should be BLOCKED (real destruction)
     ("rm -rf /opt/data/profiles/ivan/scratch/saskia-app-work/", True),
-    ("scp -i key file.tar root@vps:/var/backups/saskia-r2.dump", False),  # Trade-off: read direction allowed
+    (
+        "scp -i key file.tar root@vps:/var/backups/saskia-r2.dump",
+        False,
+    ),  # Trade-off: read direction allowed
     ("rsync --delete /opt/backups/ /opt/data/profiles/ivan/scratch/saskia-app/", True),
     ('ssh root@vps "rm -rf /opt/build-apps/saskia-rms"', True),
     ("mv /var/backups/saskia-r2.tar.gz /tmp/old/", True),
@@ -163,7 +165,8 @@ def main() -> int:
         help="Test the proposed pattern at /opt/data/profiles/ivan/cache/custom-dangerous-patterns.yaml.proposed",
     )
     parser.add_argument(
-        "-v", "--verbose",
+        "-v",
+        "--verbose",
         action="store_true",
         help="Show every test case, not just failures",
     )

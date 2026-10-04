@@ -60,11 +60,15 @@ def test_post_registrar_creates_price_event_and_increments_stock(
     with session_factory() as s:
         ing = s.get(Ingredient, low_ingredient)
         assert ing.stock_qty == pytest.approx(5.0)  # 1.0 + 4.0
-        events = s.execute(
-            select(IngredientPriceEvent).where(
-                IngredientPriceEvent.ingredient_id == low_ingredient
+        events = (
+            s.execute(
+                select(IngredientPriceEvent).where(
+                    IngredientPriceEvent.ingredient_id == low_ingredient
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(events) == 1
         assert events[0].price_gs == 6000
         assert events[0].source == "restock"

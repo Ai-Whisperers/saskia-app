@@ -10,6 +10,7 @@ Covers:
   - daily rows exclude resolved cells (planned=completed=sold=0)
   - date_range_presets returns 7/30/90 day windows
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -64,13 +65,20 @@ def test_empty_db_returns_zero_report(plan_session):
 
 def test_perfect_match_accuracy_one(plan_session, product):
     planned = {(product.id, date(2026, 1, 1)): 10.0}
-    plan_session.add(ProductionCompletion(
-        product_id=product.id, for_date=date(2026, 1, 1), completed_qty=10.0,
-        recorded_at=datetime(2026, 1, 1, 23, 59, 0),
-    ))
+    plan_session.add(
+        ProductionCompletion(
+            product_id=product.id,
+            for_date=date(2026, 1, 1),
+            completed_qty=10.0,
+            recorded_at=datetime(2026, 1, 1, 23, 59, 0),
+        )
+    )
     plan_session.commit()
     report = compute_plan_accuracy(
-        plan_session, date(2026, 1, 1), date(2026, 1, 1), planned,
+        plan_session,
+        date(2026, 1, 1),
+        date(2026, 1, 1),
+        planned,
     )
     assert report.total_completed == 10.0
     assert report.total_planned == 10.0
@@ -85,13 +93,20 @@ def test_perfect_match_accuracy_one(plan_session, product):
 
 def test_under_baked_low_accuracy(plan_session, product):
     planned = {(product.id, date(2026, 1, 1)): 10.0}
-    plan_session.add(ProductionCompletion(
-        product_id=product.id, for_date=date(2026, 1, 1), completed_qty=4.0,
-        recorded_at=datetime(2026, 1, 1, 23, 59, 0),
-    ))
+    plan_session.add(
+        ProductionCompletion(
+            product_id=product.id,
+            for_date=date(2026, 1, 1),
+            completed_qty=4.0,
+            recorded_at=datetime(2026, 1, 1, 23, 59, 0),
+        )
+    )
     plan_session.commit()
     report = compute_plan_accuracy(
-        plan_session, date(2026, 1, 1), date(2026, 1, 1), planned,
+        plan_session,
+        date(2026, 1, 1),
+        date(2026, 1, 1),
+        planned,
     )
     row = report.daily_rows[0]
     assert row.accuracy == 0.4
@@ -103,13 +118,20 @@ def test_under_baked_low_accuracy(plan_session, product):
 def test_over_baked_wasted_capacity(plan_session, product):
     """Made 12, planned 10, demand 8 — over_baked by 2 (the unsold surplus)."""
     planned = {(product.id, date(2026, 1, 1)): 10.0}
-    plan_session.add(ProductionCompletion(
-        product_id=product.id, for_date=date(2026, 1, 1), completed_qty=12.0,
-        recorded_at=datetime(2026, 1, 1, 23, 59, 0),
-    ))
+    plan_session.add(
+        ProductionCompletion(
+            product_id=product.id,
+            for_date=date(2026, 1, 1),
+            completed_qty=12.0,
+            recorded_at=datetime(2026, 1, 1, 23, 59, 0),
+        )
+    )
     plan_session.commit()
     report = compute_plan_accuracy(
-        plan_session, date(2026, 1, 1), date(2026, 1, 1), planned,
+        plan_session,
+        date(2026, 1, 1),
+        date(2026, 1, 1),
+        planned,
     )
     row = report.daily_rows[0]
     assert row.accuracy == 1.2
@@ -119,13 +141,20 @@ def test_over_baked_wasted_capacity(plan_session, product):
 
 def test_ad_hoc_completion_planned_zero(plan_session, product):
     """No plan, but operator baked 12 — accuracy = None (not 0)."""
-    plan_session.add(ProductionCompletion(
-        product_id=product.id, for_date=date(2026, 1, 1), completed_qty=12.0,
-        recorded_at=datetime(2026, 1, 1, 23, 59, 0),
-    ))
+    plan_session.add(
+        ProductionCompletion(
+            product_id=product.id,
+            for_date=date(2026, 1, 1),
+            completed_qty=12.0,
+            recorded_at=datetime(2026, 1, 1, 23, 59, 0),
+        )
+    )
     plan_session.commit()
     report = compute_plan_accuracy(
-        plan_session, date(2026, 1, 1), date(2026, 1, 1), {},
+        plan_session,
+        date(2026, 1, 1),
+        date(2026, 1, 1),
+        {},
     )
     assert len(report.daily_rows) == 1
     row = report.daily_rows[0]
@@ -143,13 +172,20 @@ def test_multiple_days_aggregate(plan_session, product):
         (product.id, d3): 30.0,
     }
     for d, q in [(d1, 12.0), (d2, 18.0), (d3, 5.0)]:
-        plan_session.add(ProductionCompletion(
-            product_id=product.id, for_date=d, completed_qty=q,
-            recorded_at=datetime(d.year, d.month, d.day, 23, 59, 0),
-        ))
+        plan_session.add(
+            ProductionCompletion(
+                product_id=product.id,
+                for_date=d,
+                completed_qty=q,
+                recorded_at=datetime(d.year, d.month, d.day, 23, 59, 0),
+            )
+        )
     plan_session.commit()
     report = compute_plan_accuracy(
-        plan_session, d1, d3, planned,
+        plan_session,
+        d1,
+        d3,
+        planned,
     )
     assert report.n_days_with_completion == 3
     assert report.total_planned == 60.0
@@ -190,14 +226,22 @@ def test_date_range_presets_returns_three_windows():
 def test_voided_sales_excluded(plan_session, product):
     """Voided sales must NOT count toward sold_qty (demand_met / over-baked logic)."""
     from app.rms.models_legacy import Sale
-    plan_session.add(Sale(
-        sold_at=datetime(2026, 1, 1, 14, 0, 0),
-        product_id=product.id, qty=2, unit_price_gs=5000,
-        voided_at=datetime(2026, 1, 1, 15, 0, 0),
-    ))
+
+    plan_session.add(
+        Sale(
+            sold_at=datetime(2026, 1, 1, 14, 0, 0),
+            product_id=product.id,
+            qty=2,
+            unit_price_gs=5000,
+            voided_at=datetime(2026, 1, 1, 15, 0, 0),
+        )
+    )
     plan_session.commit()
     report = compute_plan_accuracy(
-        plan_session, date(2026, 1, 1), date(2026, 1, 1), {},
+        plan_session,
+        date(2026, 1, 1),
+        date(2026, 1, 1),
+        {},
     )
     # No completions, no plan → no rows
     assert report.daily_rows == []

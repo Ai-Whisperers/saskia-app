@@ -39,21 +39,24 @@ def test_pedido_create_fulfill_and_appears_in_report(client, session_factory):
         product_id = product.id
 
     # Step 1: Create a new pedido with items
-    pedido_response = client.post("/pedidos/nuevo", data={
-        "customer_name": "Test Customer",
-        "customer_phone": "+595987654321",
-        "promised_date": "2026-10-15",
-        "channel": "whatsapp",
-        "payment_intent": "efectivo",
-        "notes": "Test order",
-        "line_product_id": str(product_id),
-        "line_qty": "2",
-        "line_unit_price_gs": "5000",
-        # Multiple items test
-        "line_product_id_2": str(product_id),
-        "line_qty_2": "1",
-        "line_unit_price_gs_2": "5000",
-    })
+    pedido_response = client.post(
+        "/pedidos/nuevo",
+        data={
+            "customer_name": "Test Customer",
+            "customer_phone": "+595987654321",
+            "promised_date": "2026-10-15",
+            "channel": "whatsapp",
+            "payment_intent": "efectivo",
+            "notes": "Test order",
+            "line_product_id": str(product_id),
+            "line_qty": "2",
+            "line_unit_price_gs": "5000",
+            # Multiple items test
+            "line_product_id_2": str(product_id),
+            "line_qty_2": "1",
+            "line_unit_price_gs_2": "5000",
+        },
+    )
 
     # Verify pedido creation succeeded
     assert pedido_response.status_code in (200, 303), (
@@ -67,13 +70,18 @@ def test_pedido_create_fulfill_and_appears_in_report(client, session_factory):
     else:
         # If not redirected, we need to find the created pedido
         with session_factory() as s:
-            pedido = s.execute(select(Pedido).where(Pedido.customer_name == "Test Customer")).scalar_one()
+            pedido = s.execute(
+                select(Pedido).where(Pedido.customer_name == "Test Customer")
+            ).scalar_one()
             pedido_id = pedido.id
 
     # Step 2: Fulfill the pedido
-    fulfill_response = client.post(f"/pedidos/{pedido_id}/fulfill", data={
-        "force": "1",  # Force fulfillment even if stock might be low
-    })
+    fulfill_response = client.post(
+        f"/pedidos/{pedido_id}/fulfill",
+        data={
+            "force": "1",  # Force fulfillment even if stock might be low
+        },
+    )
 
     # Verify fulfillment succeeded
     assert fulfill_response.status_code in (200, 303), (
@@ -87,7 +95,11 @@ def test_pedido_create_fulfill_and_appears_in_report(client, session_factory):
         report_response = client.get(f"/reportes/diario?for_date={check_date.isoformat()}")
 
         if report_response.status_code == 200:
-            report_data = report_response.json() if "application/json" in report_response.headers.get("content-type", "") else {}
+            report_data = (
+                report_response.json()
+                if "application/json" in report_response.headers.get("content-type", "")
+                else {}
+            )
 
             # Check if we got JSON data with the expected fields
             if report_data and "n_sales" in report_data and report_data.get("n_sales", 0) > 0:
@@ -101,15 +113,18 @@ def test_cliente_create_edit_delete_full_cycle(client, session_factory):
     """Test the complete customer lifecycle: create → edit → bulk delete."""
 
     # Step 1: Create a new customer
-    create_response = client.post("/clientes/nuevo", data={
-        "name": "Test Customer Full Cycle",
-        "phone": "+595987654322",
-        "email": "test@example.com",
-        "cedula": "12345678",
-        "notes": "Created for CRUD test",
-        "preferred_channel": "whatsapp",
-        "marketing_consent": "1",
-    })
+    create_response = client.post(
+        "/clientes/nuevo",
+        data={
+            "name": "Test Customer Full Cycle",
+            "phone": "+595987654322",
+            "email": "test@example.com",
+            "cedula": "12345678",
+            "notes": "Created for CRUD test",
+            "preferred_channel": "whatsapp",
+            "marketing_consent": "1",
+        },
+    )
 
     # Verify customer creation succeeded
     assert create_response.status_code in (200, 303), (
@@ -123,18 +138,23 @@ def test_cliente_create_edit_delete_full_cycle(client, session_factory):
     else:
         # If not redirected, find the created customer
         with session_factory() as s:
-            customer = s.execute(select(Customer).where(Customer.name == "Test Customer Full Cycle")).scalar_one()
+            customer = s.execute(
+                select(Customer).where(Customer.name == "Test Customer Full Cycle")
+            ).scalar_one()
             customer_id = customer.id
 
     # Step 2: Edit the customer
-    edit_response = client.post(f"/clientes/{customer_id}/editar", data={
-        "name": "Updated Customer Name",
-        "phone": "+595987654322",  # Same phone
-        "email": "updated@example.com",
-        "cedula": "12345678",
-        "notes": "Updated for CRUD test",
-        "marketing_consent": "0",
-    })
+    edit_response = client.post(
+        f"/clientes/{customer_id}/editar",
+        data={
+            "name": "Updated Customer Name",
+            "phone": "+595987654322",  # Same phone
+            "email": "updated@example.com",
+            "cedula": "12345678",
+            "notes": "Updated for CRUD test",
+            "marketing_consent": "0",
+        },
+    )
 
     # Verify edit succeeded
     assert edit_response.status_code in (200, 303), (
@@ -153,9 +173,12 @@ def test_cliente_create_edit_delete_full_cycle(client, session_factory):
     assert "updated@example.com" in customer_content
 
     # Step 4: Bulk delete the customer
-    delete_response = client.post("/clientes/bulk-eliminar", data={
-        "ids": str(customer_id),
-    })
+    delete_response = client.post(
+        "/clientes/bulk-eliminar",
+        data={
+            "ids": str(customer_id),
+        },
+    )
 
     # Verify bulk delete succeeded
     assert delete_response.status_code in (200, 303), (
@@ -189,18 +212,8 @@ def test_sale_multi_item_appears_in_daily_total(client, session_factory):
     # Step 1: Create a multi-item sale
     sale_payload = {
         "items": [
-            {
-                "product_id": product_id,
-                "qty": 2,
-                "discount_pct": 0,
-                "unit_price_gs": 5000
-            },
-            {
-                "product_id": product_id,
-                "qty": 1,
-                "discount_pct": 10,
-                "unit_price_gs": 4500
-            }
+            {"product_id": product_id, "qty": 2, "discount_pct": 0, "unit_price_gs": 5000},
+            {"product_id": product_id, "qty": 1, "discount_pct": 10, "unit_price_gs": 4500},
         ],
         "customer_id": None,
         "payment_method": "efectivo",
@@ -215,9 +228,7 @@ def test_sale_multi_item_appears_in_daily_total(client, session_factory):
     }
 
     sale_response = client.post(
-        "/ventas/nueva/multi",
-        json=sale_payload,
-        headers={"Content-Type": "application/json"}
+        "/ventas/nueva/multi", json=sale_payload, headers={"Content-Type": "application/json"}
     )
 
     # Verify sale creation succeeded
@@ -235,7 +246,11 @@ def test_sale_multi_item_appears_in_daily_total(client, session_factory):
     )
 
     # Parse the report response
-    report_data = report_response.json() if "application/json" in report_response.headers.get("content-type", "") else {}
+    report_data = (
+        report_response.json()
+        if "application/json" in report_response.headers.get("content-type", "")
+        else {}
+    )
 
     # Check if we got JSON data with the expected fields
     if report_data:
@@ -255,4 +270,6 @@ def test_sale_multi_item_appears_in_daily_total(client, session_factory):
     else:
         # If no JSON data, that's OK - we just verify the endpoint works
         # The important thing is that the sale was created successfully (status 200/303)
-        assert report_response.status_code == 200, "Daily report should return 200 even without JSON data"
+        assert report_response.status_code == 200, (
+            "Daily report should return 200 even without JSON data"
+        )

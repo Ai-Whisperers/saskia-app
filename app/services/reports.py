@@ -260,7 +260,6 @@ __all__ = [
 ]
 
 
-
 # --- Daily sales series (E4.S2) ---
 
 
@@ -356,20 +355,14 @@ def daily_sales_series(
     for s in sales:
         if s.sold_at is None:
             continue
-        local = (
-            s.sold_at.replace(tzinfo=timezone.utc)
-            .astimezone(tz)
-            .date()
-        )
+        local = s.sold_at.replace(tzinfo=timezone.utc).astimezone(tz).date()
         totals[local] = totals.get(local, 0) + to_int_gs(
             Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))
         )
         counts[local] = counts.get(local, 0) + 1
         if s.product_id is not None:
             prod_qty.setdefault(local, {})
-            prod_qty[local][s.product_id] = (
-                prod_qty[local].get(s.product_id, 0) + int(s.qty)
-            )
+            prod_qty[local][s.product_id] = prod_qty[local].get(s.product_id, 0) + int(s.qty)
             prod_name[s.product_id] = s.product.name if s.product else None
 
     out: list[DailySalesRow] = []

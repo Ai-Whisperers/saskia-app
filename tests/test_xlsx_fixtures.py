@@ -12,6 +12,7 @@ the import service against them. Asserts:
 - All sheets persist with expected row counts
 - Fixtures are committed under tests/fixtures/
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -121,9 +122,7 @@ def test_realistic_fixture_has_correct_sheet_names():
     path = FIXTURE_DIR / "herbus_minimal.xlsx"
     wb = load_workbook(path)
     expected = {"Ingredientes", "Recetas", "Lineas", "Productos"}
-    assert expected.issubset(set(wb.sheetnames)), (
-        f"missing sheets: {expected - set(wb.sheetnames)}"
-    )
+    assert expected.issubset(set(wb.sheetnames)), f"missing sheets: {expected - set(wb.sheetnames)}"
 
 
 def test_realistic_fixture_has_expected_row_counts():
@@ -190,7 +189,12 @@ def test_fixtures_exist_in_expected_paths():
 
 def test_fixture_files_are_reasonable_size():
     """Each fixture should be > 4KB (sanity check, not zero-bytes)."""
-    for name in ["herbus_minimal.xlsx", "herbus_realistic.xlsx", "herbus_edge_cases.xlsx", "herbus_compat.xlsx"]:
+    for name in [
+        "herbus_minimal.xlsx",
+        "herbus_realistic.xlsx",
+        "herbus_edge_cases.xlsx",
+        "herbus_compat.xlsx",
+    ]:
         path = FIXTURE_DIR / name
         if path.exists():
             size = path.stat().st_size

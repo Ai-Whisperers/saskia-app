@@ -422,18 +422,18 @@ Render a sortable, paginated table with multi-select rows, inline row actions, o
 
 ```python
 {
-    "key": "nombre",            # required — matches row dict key
-    "label": "Nombre",          # required — header text
-    "sortable": True,           # optional, default False
-    "width": "30%",             # optional, CSS width or fr-unit
-    "align": "left" | "right" | "center",   # optional, default "left"
-    "render": "status_pill",    # optional — name of a macro to render the cell
-    "render_args": {...},       # optional — args dict merged with the row dict
-    "format": "money",          # optional — "money" | "date" | "datetime" | "percent" | "integer"
-    "tooltip": True,            # optional — show full cell value on hover
-    "truncate": 60,             # optional — max chars before ellipsis
-    "hide_on_mobile": False,    # optional
-    "css_class": "stock-col",   # optional
+    "key": "nombre",  # required — matches row dict key
+    "label": "Nombre",  # required — header text
+    "sortable": True,  # optional, default False
+    "width": "30%",  # optional, CSS width or fr-unit
+    "align": "left" | "right" | "center",  # optional, default "left"
+    "render": "status_pill",  # optional — name of a macro to render the cell
+    "render_args": {...},  # optional — args dict merged with the row dict
+    "format": "money",  # optional — "money" | "date" | "datetime" | "percent" | "integer"
+    "tooltip": True,  # optional — show full cell value on hover
+    "truncate": 60,  # optional — max chars before ellipsis
+    "hide_on_mobile": False,  # optional
+    "css_class": "stock-col",  # optional
 }
 ```
 
@@ -442,11 +442,11 @@ Render a sortable, paginated table with multi-select rows, inline row actions, o
 ```python
 {
     "label": "Ver",
-    "href": "/inventario/{id}",   # supports {id} interpolation
+    "href": "/inventario/{id}",  # supports {id} interpolation
     "icon": "eye",
-    "tone": "neutral",            # neutral | danger | warn
-    "confirm": False,             # if True, opens confirm_destructive on click
-    "permission": "view",         # server-side guard key
+    "tone": "neutral",  # neutral | danger | warn
+    "confirm": False,  # if True, opens confirm_destructive on click
+    "permission": "view",  # server-side guard key
 }
 ```
 
@@ -456,11 +456,11 @@ Render a sortable, paginated table with multi-select rows, inline row actions, o
 {
     "label": "Archivar",
     "action": "POST /inventario/bulk-archive",
-    "method": "POST",              # POST | GET | DELETE
+    "method": "POST",  # POST | GET | DELETE
     "icon": "archive",
     "tone": "neutral",
     "confirm": False,
-    "require_typed": None,         # optional destructive phrase
+    "require_typed": None,  # optional destructive phrase
 }
 ```
 
@@ -471,8 +471,8 @@ Render a sortable, paginated table with multi-select rows, inline row actions, o
     "page": 1,
     "per_page": 25,
     "total": 347,
-    "sizes": [10, 25, 50, 100],   # optional, default [25, 50, 100]
-    "param": "?page="             # optional, just for URL building hints
+    "sizes": [10, 25, 50, 100],  # optional, default [25, 50, 100]
+    "param": "?page=",  # optional, just for URL building hints
 }
 ```
 
@@ -807,12 +807,12 @@ Render a horizontal rail of toggleable filter chips (counts included), optionall
 
 ```python
 {
-    "key": "bajo_minimo",      # required, URL-safe
-    "label": "Bajo mínimo",    # required, Spanish
-    "count": 3,                # optional, integer — shows " (3)" suffix
-    "tone": "warn",            # optional — colors the count + active state
+    "key": "bajo_minimo",  # required, URL-safe
+    "label": "Bajo mínimo",  # required, Spanish
+    "count": 3,  # optional, integer — shows " (3)" suffix
+    "tone": "warn",  # optional — colors the count + active state
     "icon": "alert-triangle",  # optional
-    "href": "?filter=bajo_minimo"  # optional, auto-built if missing
+    "href": "?filter=bajo_minimo",  # optional, auto-built if missing
 }
 ```
 
@@ -1030,10 +1030,10 @@ Render the canonical empty-state block — icon + headline + 1-2 line explainer 
 ```python
 {
     "label": "Agregá el primero",
-    "href": "/inventario/nuevo",     # either href OR action
-    "action": "openWhatsAppPaste",   # either href OR action
-    "icon": "plus",                  # optional
-    "tone": "primary",               # primary | secondary | tertiary
+    "href": "/inventario/nuevo",  # either href OR action
+    "action": "openWhatsAppPaste",  # either href OR action
+    "icon": "plus",  # optional
+    "tone": "primary",  # primary | secondary | tertiary
 }
 ```
 
@@ -1441,7 +1441,7 @@ Render a chip rail of date-range presets (Hoy, Ayer, Esta semana, etc.) that aut
 {
     "key": "today",
     "label": "Hoy",
-    "from": "2026-09-27",   # ISO-8601, server-computed
+    "from": "2026-09-27",  # ISO-8601, server-computed
     "to": "2026-09-27",
 }
 ```
@@ -1753,9 +1753,9 @@ Render an inline callout that flags a derived condition the user should know abo
 ```python
 {
     "label": "Registrá consumo",
-    "href": "/inventario/{id}/movimientos/nuevo",   # supports {id} interpolation
-    "action": None,                                  # alternative: JS function name
-    "tone": "primary"                                # primary | secondary | tertiary
+    "href": "/inventario/{id}/movimientos/nuevo",  # supports {id} interpolation
+    "action": None,  # alternative: JS function name
+    "tone": "primary",  # primary | secondary | tertiary
 }
 ```
 

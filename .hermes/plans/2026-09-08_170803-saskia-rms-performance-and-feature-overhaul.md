@@ -64,9 +64,11 @@ UptimeRobot integration using existing BWS keys. Keeps the free-tier container w
 
 ```python
 """Regression test: dashboard must not regress to N+1 queries."""
+
 from sqlalchemy import event
 from app.rms import main as main_module
 from app.rms.seed import seed_demo_data
+
 
 def test_dashboard_renders_under_20_queries(client, session_factory):
     # Seed full demo data: 30 ingredients, 12 recipes, 20 products, 920 sales
@@ -193,6 +195,7 @@ for s in sales:
 ```python
 for r in session.scalars(select(Recipe)).all():
     from app.rms.costing import recipe_batch_cost_gs
+
     if recipe_batch_cost_gs(session, r.id).batch_cost_gs is None and len(r.lines) > 0:
         recipes_no_cost.append(r)
 ```
@@ -217,11 +220,14 @@ def batch_recipe_costs(session: Session, recipe_ids: list[int]) -> dict[int, Cos
 Then in dashboard.py:
 ```python
 from app.rms.costing import batch_recipe_costs
+
 all_recipes = session.scalars(select(Recipe)).all()
 batch_recipe_results = batch_recipe_costs(session, [r.id for r in all_recipes])
 recipes_no_cost = [
-    r for r in all_recipes
-    if batch_recipe_results.get(r.id, CostResult(batch_cost_gs=None)).batch_cost_gs is None and len(r.lines) > 0
+    r
+    for r in all_recipes
+    if batch_recipe_results.get(r.id, CostResult(batch_cost_gs=None)).batch_cost_gs is None
+    and len(r.lines) > 0
 ]
 ```
 
@@ -247,6 +253,7 @@ app.add_middleware(SessionMiddleware, ...)
 **Step 2:** Add `GZipMiddleware` from `starlette.middleware.gzip`. Register BEFORE other response-shaping middleware (reverse-order execution):
 ```python
 from starlette.middleware.gzip import GZipMiddleware
+
 ...
 app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(SecurityHeadersMiddleware)
@@ -279,12 +286,14 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+
 class StaticCacheHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
         if request.url.path.startswith("/static/"):
             response.headers["Cache-Control"] = "max-age=3600, public"
         return response
+
 
 _static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
 if os.path.isdir(_static_dir):
@@ -326,7 +335,9 @@ def classify_products(session: Session) -> list[ProductClassification]:
 
     # Pre-load all ingredient stock movements once
     sales_in_window = session.scalars(
-        select(Sale).where(Sale.sold_at >= datetime.now(timezone.utc) - timedelta(days=_VOLUME_WINDOW_DAYS))
+        select(Sale).where(
+            Sale.sold_at >= datetime.now(timezone.utc) - timedelta(days=_VOLUME_WINDOW_DAYS)
+        )
     ).all()
     volume_by_product: dict[int, float] = {}
     for s in sales_in_window:
@@ -339,7 +350,9 @@ def classify_products(session: Session) -> list[ProductClassification]:
     classifications = []
     for p in products:
         vol = int(volume_by_product.get(p.id, 0))
-        cost, (margin_gs, margin_ratio) = batch_costs.get(p.id, (CostResult(batch_cost_gs=None), (None, None)))
+        cost, (margin_gs, margin_ratio) = batch_costs.get(
+            p.id, (CostResult(batch_cost_gs=None), (None, None))
+        )
         classifications.append(ProductClassification(...))
     ...
 ```
@@ -367,7 +380,9 @@ for p in session.query(Product).all():
 
 **Step 2:** Add a batch function to `app/rms/production_scheduler.py`:
 ```python
-def batch_production_plans(session: Session, products: list[Product], target_date: date | None = None) -> list[ProductionPlan]:
+def batch_production_plans(
+    session: Session, products: list[Product], target_date: date | None = None
+) -> list[ProductionPlan]:
     """Compute production plans for many products, batch-loading forecast + stock."""
     if not products:
         return []
@@ -379,7 +394,9 @@ def batch_production_plans(session: Session, products: list[Product], target_dat
     plans = []
     for p in products:
         forecast = forecasts.get(p.id, 0)
-        plan = _plan_for_product_with_forecast(session, p, forecast, target_date, stock_by_ingredient)
+        plan = _plan_for_product_with_forecast(
+            session, p, forecast, target_date, stock_by_ingredient
+        )
         plans.append(plan)
     return plans
 ```
@@ -387,6 +404,7 @@ def batch_production_plans(session: Session, products: list[Product], target_dat
 Then in insights.py:
 ```python
 from app.rms.production_scheduler import batch_production_plans
+
 tomorrow_plans = batch_production_plans(session, list(session.scalars(select(Product)).all()))
 ```
 
@@ -406,7 +424,9 @@ tomorrow_plans = batch_production_plans(session, list(session.scalars(select(Pro
 def rising_products(session, threshold_pct=0.3, window_days=14):
     out = []
     for p in session.scalars(select(Product)).all():  # ← already 1 query
-        trend = _trend_for_product(session, p.id, threshold_pct, window_days)  # ← +3 queries per product
+        trend = _trend_for_product(
+            session, p.id, threshold_pct, window_days
+        )  # ← +3 queries per product
         if trend.direction == "rising":
             out.append(trend)
 ```
@@ -414,8 +434,9 @@ def rising_products(session, threshold_pct=0.3, window_days=14):
 **Step 2:** Refactor `_trend_for_product` into a batch that takes a list of product_ids. Pre-load all sales in window + window-prior:
 
 ```python
-def batch_product_trends(session: Session, product_ids: list[int],
-                         threshold_pct: float, window_days: int) -> list[TrendResult]:
+def batch_product_trends(
+    session: Session, product_ids: list[int], threshold_pct: float, window_days: int
+) -> list[TrendResult]:
     """Compute trend for many products in 2 queries (current + prior window)."""
     if not product_ids:
         return []
@@ -486,6 +507,7 @@ def test_clientes_list_shows_tiers(client):
     # Bronze/Silver/Gold/Platinum tiers shown
     for tier in ["Bronze", "Silver", "Gold", "Platinum"]:
         assert tier in body or tier.lower() in body
+
 
 def test_cliente_detalle_shows_purchase_history(client):
     resp = client.get("/clientes/1")
@@ -617,8 +639,10 @@ def test_auditoria_shows_paginated_log(client):
 ```python
 def test_sale_has_payment_method_field():
     from app.rms.models import Sale
+
     sale = Sale(product_id=1, qty=1, unit_price_gs=10000, payment_method="cash")
     assert sale.payment_method == "cash"
+
 
 def test_sale_has_discount_field():
     sale = Sale(product_id=1, qty=1, unit_price_gs=10000, discount_gs=1000)
@@ -641,13 +665,17 @@ def test_sale_has_discount_field():
 ```python
 def test_sale_create_with_customer_and_discount(client):
     # POST /ventas/nueva with new fields
-    resp = client.post("/ventas/nueva", data={
-        "product_id": 1,
-        "qty": 1,
-        "discount_gs": 500,
-        "customer_phone": "0981234567",
-        "payment_method": "cash",
-    }, follow_redirects=False)
+    resp = client.post(
+        "/ventas/nueva",
+        data={
+            "product_id": 1,
+            "qty": 1,
+            "discount_gs": 500,
+            "customer_phone": "0981234567",
+            "payment_method": "cash",
+        },
+        follow_redirects=False,
+    )
     assert resp.status_code == 303
 ```
 

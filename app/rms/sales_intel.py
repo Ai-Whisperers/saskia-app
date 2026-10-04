@@ -23,11 +23,10 @@ from app.rms.models import Product, Sale
 # Time-pattern functions
 # ---------------------------------------------------------------------------
 
+
 def sales_by_hour(session: Session) -> dict[int, int]:
     """Count of sales per hour 0-23."""
-    rows = session.execute(
-        select(Sale.sold_at).where(Sale.voided_at.is_(None))
-    ).all()
+    rows = session.execute(select(Sale.sold_at).where(Sale.voided_at.is_(None))).all()
     counts: Counter[int] = Counter()
     for (sold_at,) in rows:
         if sold_at is None:
@@ -38,9 +37,7 @@ def sales_by_hour(session: Session) -> dict[int, int]:
 
 def sales_by_day_of_week(session: Session) -> dict[int, int]:
     """Count of sales per weekday (0=Mon, 6=Sun)."""
-    rows = session.execute(
-        select(Sale.sold_at).where(Sale.voided_at.is_(None))
-    ).all()
+    rows = session.execute(select(Sale.sold_at).where(Sale.voided_at.is_(None))).all()
     counts: Counter[int] = Counter()
     for (sold_at,) in rows:
         if sold_at is None:
@@ -90,9 +87,7 @@ _sales_heatmap = sales_heatmap
 
 def sales_by_month(session: Session) -> dict[str, int]:
     """Count of sales per YYYY-MM."""
-    rows = session.execute(
-        select(Sale.sold_at).where(Sale.voided_at.is_(None))
-    ).all()
+    rows = session.execute(select(Sale.sold_at).where(Sale.voided_at.is_(None))).all()
     counts: Counter[str] = Counter()
     for (sold_at,) in rows:
         if sold_at is None:
@@ -125,8 +120,7 @@ def peak_day_of_week(session: Session) -> int:
 _BASKET_WINDOW_HOURS: Final[int] = 2  # sales within 2 hours = same basket
 
 
-def product_affinity(session: Session,
-                     min_cooccurrence: int = 2) -> dict[tuple[int, int], int]:
+def product_affinity(session: Session, min_cooccurrence: int = 2) -> dict[tuple[int, int], int]:
     """Co-occurrence count of (product_a, product_b) pairs in same basket.
 
     A "basket" is sales of multiple products within _BASKET_WINDOW_HOURS
@@ -135,11 +129,13 @@ def product_affinity(session: Session,
     Returns dict with (smaller_id, larger_id) → count, only pairs with
     count >= min_cooccurrence.
     """
-    sales = list(session.execute(
-        select(Sale.sold_at, Sale.product_id, Sale.customer_id)
-        .where(Sale.voided_at.is_(None))
-        .order_by(Sale.sold_at)
-    ).all())
+    sales = list(
+        session.execute(
+            select(Sale.sold_at, Sale.product_id, Sale.customer_id)
+            .where(Sale.voided_at.is_(None))
+            .order_by(Sale.sold_at)
+        ).all()
+    )
 
     # Group sales into baskets.
     baskets: list[set[int]] = []
@@ -164,8 +160,7 @@ def product_affinity(session: Session,
             for j in range(i + 1, len(products)):
                 pair_counts[(products[i], products[j])] += 1
 
-    return {pair: count for pair, count in pair_counts.items()
-            if count >= min_cooccurrence}
+    return {pair: count for pair, count in pair_counts.items() if count >= min_cooccurrence}
 
 
 def top_pairs(session: Session, n: int = 10) -> list[dict]:
@@ -177,19 +172,22 @@ def top_pairs(session: Session, n: int = 10) -> list[dict]:
     for (a, b), count in top:
         prod_a = session.get(Product, a)
         prod_b = session.get(Product, b)
-        out.append({
-            "product_a_id": a,
-            "product_a_name": prod_a.name if prod_a else None,
-            "product_b_id": b,
-            "product_b_name": prod_b.name if prod_b else None,
-            "count": count,
-        })
+        out.append(
+            {
+                "product_a_id": a,
+                "product_a_name": prod_a.name if prod_a else None,
+                "product_b_id": b,
+                "product_b_name": prod_b.name if prod_b else None,
+                "count": count,
+            }
+        )
     return out
 
 
 # ---------------------------------------------------------------------------
 # Churn + rising products
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class TrendResult:
@@ -201,8 +199,7 @@ class TrendResult:
     direction: str  # "rising" | "stable" | "churning" | "new"
 
 
-def _sales_count(session: Session, product_id: int,
-                 start: datetime, end: datetime) -> int:
+def _sales_count(session: Session, product_id: int, start: datetime, end: datetime) -> int:
     """Count sales for product in [start, end)."""
     rows = session.execute(
         select(Sale.qty).where(
@@ -215,9 +212,9 @@ def _sales_count(session: Session, product_id: int,
     return sum(int(r[0] or 0) for r in rows)
 
 
-def _trend_for_product(session: Session, product_id: int,
-                       threshold_pct: float = 0.3,
-                       window_days: int = 14) -> TrendResult:
+def _trend_for_product(
+    session: Session, product_id: int, threshold_pct: float = 0.3, window_days: int = 14
+) -> TrendResult:
     """Compute trend for one product."""
     product = session.get(Product, product_id)
     if product is None:
@@ -243,8 +240,7 @@ def _trend_for_product(session: Session, product_id: int,
     else:
         direction = "stable"
 
-    return TrendResult(product_id, product.name, recent, prior, change_pct,
-                       direction)
+    return TrendResult(product_id, product.name, recent, prior, change_pct, direction)
 
 
 def _batch_trend_counts(
@@ -306,23 +302,26 @@ def _classify_trend(
         direction = "churning"
     else:
         direction = "stable"
-    return TrendResult(product_id, product_name, recent, prior, change_pct,
-                       direction)
+    return TrendResult(product_id, product_name, recent, prior, change_pct, direction)
 
 
-def churning_products(session: Session, threshold_pct: float = 0.3,
-                      window_days: int = 14) -> list[TrendResult]:
+def churning_products(
+    session: Session, threshold_pct: float = 0.3, window_days: int = 14
+) -> list[TrendResult]:
     """Products whose sales in last N days dropped > threshold from prior N."""
     products = list(session.scalars(select(Product)).all())
     if not products:
         return []
     recent_by_pid, prior_by_pid = _batch_trend_counts(
-        session, [p.id for p in products], window_days,
+        session,
+        [p.id for p in products],
+        window_days,
     )
     out = []
     for p in products:
         trend = _classify_trend(
-            p.id, p.name,
+            p.id,
+            p.name,
             recent_by_pid.get(p.id, 0),
             prior_by_pid.get(p.id, 0),
             threshold_pct,
@@ -333,19 +332,23 @@ def churning_products(session: Session, threshold_pct: float = 0.3,
     return out
 
 
-def rising_products(session: Session, threshold_pct: float = 0.3,
-                    window_days: int = 14) -> list[TrendResult]:
+def rising_products(
+    session: Session, threshold_pct: float = 0.3, window_days: int = 14
+) -> list[TrendResult]:
     """Products whose sales grew > threshold."""
     products = list(session.scalars(select(Product)).all())
     if not products:
         return []
     recent_by_pid, prior_by_pid = _batch_trend_counts(
-        session, [p.id for p in products], window_days,
+        session,
+        [p.id for p in products],
+        window_days,
     )
     out = []
     for p in products:
         trend = _classify_trend(
-            p.id, p.name,
+            p.id,
+            p.name,
             recent_by_pid.get(p.id, 0),
             prior_by_pid.get(p.id, 0),
             threshold_pct,
@@ -359,6 +362,7 @@ def rising_products(session: Session, threshold_pct: float = 0.3,
 # ---------------------------------------------------------------------------
 # Convenience
 # ---------------------------------------------------------------------------
+
 
 def sales_summary(session: Session) -> dict:
     """Combined summary."""
@@ -419,11 +423,13 @@ def customer_reorder_rates(
             Sale.qty,
             Sale.unit_price_gs,
             Sale.discount_gs,
-        ).where(
+        )
+        .where(
             Sale.voided_at.is_(None),
             Sale.customer_id.isnot(None),
             Sale.sold_at >= cutoff,
-        ).order_by(Sale.customer_id, Sale.sold_at)
+        )
+        .order_by(Sale.customer_id, Sale.sold_at)
     ).all()
 
     by_customer: dict[int, list[tuple[datetime, int]]] = {}
@@ -431,9 +437,7 @@ def customer_reorder_rates(
         if sold_at is None:
             continue
         local_dt = sold_at.astimezone(ASUNCION_TZ) if sold_at.tzinfo else sold_at
-        line_total = round(float(unit_price_v or 0) * float(qty_v or 0)) - int(
-            discount_v or 0
-        )
+        line_total = round(float(unit_price_v or 0) * float(qty_v or 0)) - int(discount_v or 0)
         by_customer.setdefault(int(cid), []).append((local_dt, line_total))
 
     total_customers = len(by_customer)
@@ -502,13 +506,16 @@ def customer_retention(
 
     # All customers who bought in the window
     window_customers = set(
-        r[0] for r in session.execute(
-            select(Sale.customer_id).where(
+        r[0]
+        for r in session.execute(
+            select(Sale.customer_id)
+            .where(
                 Sale.sold_at >= start_date,
                 Sale.sold_at <= end_date,
                 Sale.voided_at.is_(None),
                 Sale.customer_id.isnot(None),
-            ).distinct()
+            )
+            .distinct()
         ).all()
     )
 
@@ -517,12 +524,15 @@ def customer_retention(
 
     # Customers with sales BEFORE the window
     prior_customers = set(
-        r[0] for r in session.execute(
-            select(Sale.customer_id).where(
+        r[0]
+        for r in session.execute(
+            select(Sale.customer_id)
+            .where(
                 Sale.sold_at < start_date,
                 Sale.voided_at.is_(None),
                 Sale.customer_id.isnot(None),
-            ).distinct()
+            )
+            .distinct()
         ).all()
     )
 
@@ -569,13 +579,15 @@ def _waste_per_ingredient_rows(
     out: list[dict] = []
     for ing_id, total_waste, count in rows:
         name, unit = ingredients.get(int(ing_id), ("?", "?"))
-        out.append({
-            "ingredient_id": int(ing_id),
-            "ingredient_name": name,
-            "unit": unit,
-            "total_waste_gs": int(total_waste),
-            "event_count": int(count),
-        })
+        out.append(
+            {
+                "ingredient_id": int(ing_id),
+                "ingredient_name": name,
+                "unit": unit,
+                "total_waste_gs": int(total_waste),
+                "event_count": int(count),
+            }
+        )
     return out
 
 
@@ -610,13 +622,15 @@ def waste_roi_by_ingredient(
     out: list[dict] = []
     for r in rows:
         avg = (r["total_waste_gs"] / r["event_count"]) if r["event_count"] else 0.0
-        out.append({
-            **r,
-            "total_consumed_gs": 0,  # v1: leave to operator's dashboard
-            "waste_pct": 0.0,        # v1: can't compute without consumed
-            "avg_waste_per_event_gs": round(avg, 1),
-            "window_days": since_days,
-        })
+        out.append(
+            {
+                **r,
+                "total_consumed_gs": 0,  # v1: leave to operator's dashboard
+                "waste_pct": 0.0,  # v1: can't compute without consumed
+                "avg_waste_per_event_gs": round(avg, 1),
+                "window_days": since_days,
+            }
+        )
     out.sort(key=lambda r: r["total_waste_gs"], reverse=True)
     return out
 

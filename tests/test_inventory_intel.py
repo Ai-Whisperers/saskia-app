@@ -29,6 +29,7 @@ from app.rms.models import (
 # Pure functions
 # ---------------------------------------------------------------------------
 
+
 def test_days_of_stock_normal():
     assert days_of_stock(1.0, 0.1) == 10.0
 
@@ -58,35 +59,42 @@ def test_reorder_point_zero_consumption():
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _add_ingredient_with_consumption(s, name, stock_qty=1.0,
-                                     purchase_price_gs=1000,
-                                     lead_time_days=3, moves=10,
-                                     qty_delta=-0.1):
+
+def _add_ingredient_with_consumption(
+    s, name, stock_qty=1.0, purchase_price_gs=1000, lead_time_days=3, moves=10, qty_delta=-0.1
+):
     """Create ingredient + recipe + sale + N SaleStockMove rows."""
     r = Recipe(name=f"r_for_{name}", yield_qty=10, yield_unit="und")
     s.add(r)
     s.flush()
-    p = Product(name=f"p_for_{name}", portion_label="und", sale_price_gs=1000,
-                recipe_id=r.id)
+    p = Product(name=f"p_for_{name}", portion_label="und", sale_price_gs=1000, recipe_id=r.id)
     s.add(p)
     s.flush()
-    ing = Ingredient(name=name, unit="kg", stock_qty=stock_qty,
-                     purchase_price_gs=purchase_price_gs,
-                     lead_time_days=lead_time_days)
+    ing = Ingredient(
+        name=name,
+        unit="kg",
+        stock_qty=stock_qty,
+        purchase_price_gs=purchase_price_gs,
+        lead_time_days=lead_time_days,
+    )
     s.add(ing)
     s.flush()
-    s.add(RecipeLine(recipe_id=r.id, line_kind="ingredient",
-                     line_ref_id=ing.id, qty=0.1))
-    sale = Sale(sold_at=datetime.now(timezone.utc), product_id=p.id, qty=1,
-                unit_price_gs=1000)
+    s.add(RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=ing.id, qty=0.1))
+    sale = Sale(sold_at=datetime.now(timezone.utc), product_id=p.id, qty=1, unit_price_gs=1000)
     s.add(sale)
     s.flush()
     for _ in range(moves):
-        s.add(StockMovement(
-            ingredient_id=ing.id, movement_type="sale", qty=qty_delta,
-            reason=f"Venta #{sale.id}", reference_id=sale.id,
-            reference_type="sale", affected_recipe_id=r.id,
-        ))
+        s.add(
+            StockMovement(
+                ingredient_id=ing.id,
+                movement_type="sale",
+                qty=qty_delta,
+                reason=f"Venta #{sale.id}",
+                reference_id=sale.id,
+                reference_type="sale",
+                affected_recipe_id=r.id,
+            )
+        )
     s.commit()
     return ing
 
@@ -95,10 +103,12 @@ def _add_ingredient_with_consumption(s, name, stock_qty=1.0,
 # inventory_status — one ingredient
 # ---------------------------------------------------------------------------
 
+
 def test_inventory_status_basic(session_factory):
     with session_factory() as s:
-        ing = _add_ingredient_with_consumption(s, "inv_xyz", stock_qty=5.0,
-                                               moves=10, qty_delta=-0.1)
+        ing = _add_ingredient_with_consumption(
+            s, "inv_xyz", stock_qty=5.0, moves=10, qty_delta=-0.1
+        )
         st = inventory_status(s, ing)
         assert st.ingredient_id == ing.id
         assert st.stock_qty == 5.0
@@ -107,8 +117,9 @@ def test_inventory_status_basic(session_factory):
 
 def test_inventory_status_needs_reorder(session_factory):
     with session_factory() as s:
-        ing = _add_ingredient_with_consumption(s, "low_xyz", stock_qty=0.05,
-                                               moves=100, qty_delta=-0.1)
+        ing = _add_ingredient_with_consumption(
+            s, "low_xyz", stock_qty=0.05, moves=100, qty_delta=-0.1
+        )
         st = inventory_status(s, ing)
         assert st.needs_reorder is True
 
@@ -124,8 +135,7 @@ def test_inventory_status_negative_stock_qty(session_factory):
 def test_inventory_status_all(session_factory):
     with session_factory() as s:
         for i in range(3):
-            s.add(Ingredient(name=f"all_xyz_{i}", unit="kg", stock_qty=1.0,
-                             purchase_price_gs=100))
+            s.add(Ingredient(name=f"all_xyz_{i}", unit="kg", stock_qty=1.0, purchase_price_gs=100))
         s.commit()
         statuses = inventory_status_all(s)
         assert len(statuses) == 3
@@ -135,10 +145,10 @@ def test_inventory_status_all(session_factory):
 # dead_stock
 # ---------------------------------------------------------------------------
 
+
 def test_dead_stock_no_data(session_factory):
     with session_factory() as s:
-        ing = Ingredient(name="new_xyz", unit="kg", stock_qty=1.0,
-                         purchase_price_gs=100)
+        ing = Ingredient(name="new_xyz", unit="kg", stock_qty=1.0, purchase_price_gs=100)
         s.add(ing)
         s.commit()
         result = dead_stock(s, days_threshold=30)
@@ -147,10 +157,13 @@ def test_dead_stock_no_data(session_factory):
 
 def test_dead_stock_recently_used_excluded(session_factory):
     with session_factory() as s:
-        ing = Ingredient(name="recent_xyz", unit="kg", stock_qty=1.0,
-                         purchase_price_gs=100,
-                         last_consumed_at=datetime.now(timezone.utc)
-                         - timedelta(days=2))
+        ing = Ingredient(
+            name="recent_xyz",
+            unit="kg",
+            stock_qty=1.0,
+            purchase_price_gs=100,
+            last_consumed_at=datetime.now(timezone.utc) - timedelta(days=2),
+        )
         s.add(ing)
         s.commit()
         result = dead_stock(s, days_threshold=30)
@@ -159,10 +172,13 @@ def test_dead_stock_recently_used_excluded(session_factory):
 
 def test_dead_stock_old_consumed_included(session_factory):
     with session_factory() as s:
-        ing = Ingredient(name="old_xyz", unit="kg", stock_qty=1.0,
-                         purchase_price_gs=100,
-                         last_consumed_at=datetime.now(timezone.utc)
-                         - timedelta(days=60))
+        ing = Ingredient(
+            name="old_xyz",
+            unit="kg",
+            stock_qty=1.0,
+            purchase_price_gs=100,
+            last_consumed_at=datetime.now(timezone.utc) - timedelta(days=60),
+        )
         s.add(ing)
         s.commit()
         result = dead_stock(s, days_threshold=30)
@@ -171,8 +187,7 @@ def test_dead_stock_old_consumed_included(session_factory):
 
 def test_dead_stock_zero_stock_excluded(session_factory):
     with session_factory() as s:
-        ing = Ingredient(name="empty_xyz", unit="kg", stock_qty=0,
-                         purchase_price_gs=100)
+        ing = Ingredient(name="empty_xyz", unit="kg", stock_qty=0, purchase_price_gs=100)
         s.add(ing)
         s.commit()
         result = dead_stock(s)
@@ -183,18 +198,21 @@ def test_dead_stock_zero_stock_excluded(session_factory):
 # overstocked
 # ---------------------------------------------------------------------------
 
+
 def test_overstocked_detects(session_factory):
     with session_factory() as s:
-        ing = _add_ingredient_with_consumption(s, "over_xyz", stock_qty=100.0,
-                                               moves=1, qty_delta=-1.0)
+        ing = _add_ingredient_with_consumption(
+            s, "over_xyz", stock_qty=100.0, moves=1, qty_delta=-1.0
+        )
         result = overstocked(s, multiplier=3.0, window_days=30)
         assert any(o.ingredient_id == ing.id for o in result)
 
 
 def test_overstocked_normal_stock_excluded(session_factory):
     with session_factory() as s:
-        ing = _add_ingredient_with_consumption(s, "normal_xyz", stock_qty=1.0,
-                                               moves=30, qty_delta=-1.0)
+        ing = _add_ingredient_with_consumption(
+            s, "normal_xyz", stock_qty=1.0, moves=30, qty_delta=-1.0
+        )
         result = overstocked(s, multiplier=3.0, window_days=30)
         assert not any(o.ingredient_id == ing.id for o in result)
 
@@ -203,12 +221,11 @@ def test_overstocked_normal_stock_excluded(session_factory):
 # stock_value_gs
 # ---------------------------------------------------------------------------
 
+
 def test_stock_value_gs_basic(session_factory):
     with session_factory() as s:
-        s.add(Ingredient(name="v1_xyz", unit="kg", stock_qty=2.0,
-                         purchase_price_gs=1000))
-        s.add(Ingredient(name="v2_xyz", unit="kg", stock_qty=3.0,
-                         purchase_price_gs=500))
+        s.add(Ingredient(name="v1_xyz", unit="kg", stock_qty=2.0, purchase_price_gs=1000))
+        s.add(Ingredient(name="v2_xyz", unit="kg", stock_qty=3.0, purchase_price_gs=500))
         s.commit()
         # 2*1000 + 3*500 = 3500
         assert stock_value_gs(s) == 3500
@@ -223,16 +240,15 @@ def test_stock_value_gs_empty(session_factory):
 # low_stock_alerts
 # ---------------------------------------------------------------------------
 
+
 def test_low_stock_alerts_returns_critical_first(session_factory):
     with session_factory() as s:
-        ing_critical = _add_ingredient_with_consumption(s, "crit_xyz",
-                                                        stock_qty=0.01,
-                                                        moves=50,
-                                                        qty_delta=-0.1)
-        ing_stable = _add_ingredient_with_consumption(s, "stable_xyz",
-                                                     stock_qty=100.0,
-                                                     moves=1,
-                                                     qty_delta=-0.1)
+        ing_critical = _add_ingredient_with_consumption(
+            s, "crit_xyz", stock_qty=0.01, moves=50, qty_delta=-0.1
+        )
+        ing_stable = _add_ingredient_with_consumption(
+            s, "stable_xyz", stock_qty=100.0, moves=1, qty_delta=-0.1
+        )
         alerts = low_stock_alerts(s, top_n=5)
         # Critical should be in alerts.
         assert any(a.ingredient_id == ing_critical.id for a in alerts)

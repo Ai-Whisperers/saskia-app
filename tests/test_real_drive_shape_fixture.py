@@ -25,6 +25,7 @@ What this catches:
   - Removing the extra-column tolerance (so adding ``categoría`` breaks
     the round-trip)
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -45,9 +46,7 @@ from app.services.import_xlsx import ImportResult
 from app.services.import_xlsx import from_file as import_xlsx
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "herbus_drive_sample.xlsx"
-BUILDER_PATH = (
-    Path(__file__).parent / "fixtures" / "build_herbus_drive_fixture.py"
-)
+BUILDER_PATH = Path(__file__).parent / "fixtures" / "build_herbus_drive_fixture.py"
 
 # Expected header layout, mirrored from
 # tests/fixtures/build_herbus_drive_fixture.py. If these drift, the test
@@ -100,9 +99,7 @@ def ensure_fixture_built() -> None:
         # break the test discovery on a fresh checkout.
         import importlib.util
 
-        spec = importlib.util.spec_from_file_location(
-            "build_herbus_drive_fixture", BUILDER_PATH
-        )
+        spec = importlib.util.spec_from_file_location("build_herbus_drive_fixture", BUILDER_PATH)
         assert spec is not None and spec.loader is not None, (
             f"missing fixture builder: {BUILDER_PATH}"
         )
@@ -239,15 +236,10 @@ def test_fixture_handles_unicode_names():
     wb = load_workbook(FIXTURE_PATH, read_only=True)
     try:
         ws = _sheet(wb, "Ingredientes")
-        names = [
-            row[0]
-            for row in ws.iter_rows(min_row=2, values_only=True)
-            if row and row[0]
-        ]
+        names = [row[0] for row in ws.iter_rows(min_row=2, values_only=True) if row and row[0]]
         # 'ñ' is in 'Dulce de leche' recipe context; use 'ñ' or 'á'/'é' on names.
         assert any(
-            ("ñ" in n_str or "á" in n_str or "é" in n_str)
-            for n_str in (str(n) for n in names)
+            ("ñ" in n_str or "á" in n_str or "é" in n_str) for n_str in (str(n) for n in names)
         ), (
             f"Drive fixture must include at least one ingredient name with "
             f"Spanish diacritics. Got: {names}"
@@ -314,9 +306,7 @@ def test_fixture_has_voided_sale():
         header = list(next(ws.iter_rows(min_row=1, max_row=1, values_only=True)))
         void_col = header.index("voided_at")
         rows = list(ws.iter_rows(min_row=2, values_only=True))
-        voided_count = sum(
-            1 for r in rows if r and r[void_col] not in (None, "")
-        )
+        voided_count = sum(1 for r in rows if r and r[void_col] not in (None, ""))
         assert voided_count >= 1, (
             "Drive fixture must include at least one voided sale (voided_at "
             "populated). Without this, the sale-void path in import_xlsx.py "
@@ -375,25 +365,16 @@ def test_drive_fixture_inserts_expected_row_counts(session_factory):
     try:
         result = import_xlsx(s, FIXTURE_PATH)
         # 14 leaf ingredients (Queso Paraguay is intentionally null-priced)
-        assert result.ingredients == 14, (
-            f"expected 14 ingredients, got {result.ingredients}"
-        )
+        assert result.ingredients == 14, f"expected 14 ingredients, got {result.ingredients}"
         # 7 top-level recipes + 3 sub-recipes = 10 recipe rows
         assert result.recipes == 10, (
-            f"expected 10 recipes (7 top-level + 3 sub-recipes), "
-            f"got {result.recipes}"
+            f"expected 10 recipes (7 top-level + 3 sub-recipes), got {result.recipes}"
         )
         # 39 line rows total (leaf + sub_recipe) — see builder for tally
-        assert result.lines == 39, (
-            f"expected 39 recipe_lines, got {result.lines}"
-        )
-        assert result.products == 12, (
-            f"expected 12 products, got {result.products}"
-        )
+        assert result.lines == 39, f"expected 39 recipe_lines, got {result.lines}"
+        assert result.products == 12, f"expected 12 products, got {result.products}"
         # 15 sales (1 voided + 14 normal)
-        assert result.sales == 15, (
-            f"expected 15 sales, got {result.sales}"
-        )
+        assert result.sales == 15, f"expected 15 sales, got {result.sales}"
         # stock_moves are not imported by design (see import_xlsx.py §349)
         assert result.stock_moves == 0, (
             f"expected 0 stock_moves (derived, not imported), got {result.stock_moves}"
@@ -411,12 +392,8 @@ def test_drive_fixture_ingredient_types_are_correct(session_factory):
     s = session_factory()
     try:
         import_xlsx(s, FIXTURE_PATH)
-        harina = s.scalars(
-            select(Ingredient).where(Ingredient.name == "Harina de trigo 000")
-        ).one()
-        assert isinstance(harina.name, str), (
-            f"name must be str, got {type(harina.name).__name__}"
-        )
+        harina = s.scalars(select(Ingredient).where(Ingredient.name == "Harina de trigo 000")).one()
+        assert isinstance(harina.name, str), f"name must be str, got {type(harina.name).__name__}"
         assert harina.unit == "kg"
         assert isinstance(harina.stock_qty, float), (
             f"stock_qty must be float (decimal qty allowed), "
@@ -440,9 +417,7 @@ def test_drive_fixture_ingredient_without_price_stays_null(session_factory):
     s = session_factory()
     try:
         import_xlsx(s, FIXTURE_PATH)
-        queso = s.scalars(
-            select(Ingredient).where(Ingredient.name == "Queso Paraguay")
-        ).one()
+        queso = s.scalars(select(Ingredient).where(Ingredient.name == "Queso Paraguay")).one()
         assert queso.purchase_price_gs is None, (
             f"Queso Paraguay has no price in Drive; must import as NULL, "
             f"got {queso.purchase_price_gs!r}"
@@ -463,9 +438,7 @@ def test_drive_fixture_unicode_name_round_trips(session_factory):
         assert almidon.id is not None
         # 'Dulce de leche' is in a recipe_line; let's also confirm it
         # round-trips through the Lineas → RecipeLine path.
-        lines = s.scalars(
-            select(RecipeLine).join(Recipe).where(Recipe.name == "Masa choux")
-        ).all()
+        lines = s.scalars(select(RecipeLine).join(Recipe).where(Recipe.name == "Masa choux")).all()
         assert lines, "Masa choux should have at least one recipe_line"
         ingredient_names = {ln.line_ref_id for ln in lines}
         assert any(rid > 0 for rid in ingredient_names), (
@@ -487,13 +460,9 @@ def test_drive_fixture_sub_recipe_line_resolves(session_factory):
     try:
         import_xlsx(s, FIXTURE_PATH)
         # Tarta de manzana has a sub_recipe line → Masa de hojaldre rápida
-        tarta = s.scalar(
-            select(Recipe).where(Recipe.name == "Tarta de manzana")
-        )
+        tarta = s.scalar(select(Recipe).where(Recipe.name == "Tarta de manzana"))
         assert tarta is not None
-        lines = s.scalars(
-            select(RecipeLine).where(RecipeLine.recipe_id == tarta.id)
-        ).all()
+        lines = s.scalars(select(RecipeLine).where(RecipeLine.recipe_id == tarta.id)).all()
         sub_lines = [ln for ln in lines if ln.line_kind == "sub_recipe"]
         assert sub_lines, (
             f"Tarta de manzana should have at least one sub_recipe line; "
@@ -504,9 +473,7 @@ def test_drive_fixture_sub_recipe_line_resolves(session_factory):
         for ln in sub_lines:
             # We can't read the original target_name from the RecipeLine,
             # so we read the fixture directly to know what we expect.
-            target_recipe = s.scalar(
-                select(Recipe).where(Recipe.id == ln.line_ref_id)
-            )
+            target_recipe = s.scalar(select(Recipe).where(Recipe.id == ln.line_ref_id))
             assert target_recipe is not None, (
                 f"sub_recipe line_ref_id={ln.line_ref_id} did not resolve "
                 f"to a Recipe row. The importer must look up sub_recipe "
@@ -516,10 +483,7 @@ def test_drive_fixture_sub_recipe_line_resolves(session_factory):
                 "Masa choux",
                 "Masa de hojaldre rápida",
                 "Crema pastelera",
-            }, (
-                f"sub_recipe resolved to an unexpected recipe: "
-                f"{target_recipe.name!r}"
-            )
+            }, f"sub_recipe resolved to an unexpected recipe: {target_recipe.name!r}"
     finally:
         s.close()
 
@@ -531,12 +495,8 @@ def test_drive_fixture_voided_sale_persists(session_factory):
     s = session_factory()
     try:
         import_xlsx(s, FIXTURE_PATH)
-        voided = s.scalars(
-            select(Sale).where(Sale.voided_at.is_not(None))
-        ).all()
-        assert len(voided) >= 1, (
-            "fixture should produce at least one Sale with voided_at populated"
-        )
+        voided = s.scalars(select(Sale).where(Sale.voided_at.is_not(None))).all()
+        assert len(voided) >= 1, "fixture should produce at least one Sale with voided_at populated"
         v = voided[0]
         assert isinstance(v.voided_at, datetime), (
             f"voided_at must be a datetime after import, got "
@@ -574,9 +534,7 @@ def test_drive_fixture_records_import_batch(session_factory):
     try:
         result = import_xlsx(s, FIXTURE_PATH)
         batch = s.get(ImportBatch, result.batch_id)
-        assert batch is not None, (
-            f"ImportBatch id={result.batch_id} not persisted"
-        )
+        assert batch is not None, f"ImportBatch id={result.batch_id} not persisted"
         assert batch.source_filename == "herbus_drive_sample.xlsx"
         assert isinstance(batch.row_counts_json, dict)
         assert batch.row_counts_json.get("ingredients") == 14
@@ -590,14 +548,10 @@ def test_drive_fixture_decimal_qty_on_recipe_line(session_factory):
     try:
         import_xlsx(s, FIXTURE_PATH)
         # 0.25 in the muffin recipe (Leche entera)
-        muffin = s.scalar(
-            select(Recipe).where(Recipe.name == "Muffin de chocolate")
-        )
+        muffin = s.scalar(select(Recipe).where(Recipe.name == "Muffin de chocolate"))
         assert muffin is not None
         leche_line = None
-        for ln in s.scalars(
-            select(RecipeLine).where(RecipeLine.recipe_id == muffin.id)
-        ).all():
+        for ln in s.scalars(select(RecipeLine).where(RecipeLine.recipe_id == muffin.id)).all():
             target = s.get(Ingredient, ln.line_ref_id)
             if target and target.name == "Leche entera":
                 leche_line = ln
@@ -610,9 +564,9 @@ def test_drive_fixture_decimal_qty_on_recipe_line(session_factory):
         # float and Decimal here so legacy test code stays green while
         # new code benefits from exact-decimal storage.
         from decimal import Decimal
+
         assert isinstance(leche_line.qty, (float, Decimal)), (
-            f"qty must be float or Decimal, got "
-            f"{type(leche_line.qty).__name__}: {leche_line.qty!r}"
+            f"qty must be float or Decimal, got {type(leche_line.qty).__name__}: {leche_line.qty!r}"
         )
         # Use Decimal / float comparison via pytest.approx to avoid
         # float drift on round-trip

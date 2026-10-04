@@ -1,4 +1,5 @@
 """tests/test_healthz_errors.py — /healthz/errors endpoint tests."""
+
 from __future__ import annotations
 
 
@@ -36,23 +37,27 @@ def test_healthz_errors_counts_audit_log(client, session_factory):
     with session_factory() as s:
         # Insert 3 recent and 2 old http.500 rows
         for i in range(3):
-            s.add(AuditLog(
-                occurred_at=datetime.now(timezone.utc),
-                action="http.500",
-                user_id=None,
-                target_type="http_error",
-                target_id=f"recent-{i}",
-                detail={"path": "/"},
-            ))
+            s.add(
+                AuditLog(
+                    occurred_at=datetime.now(timezone.utc),
+                    action="http.500",
+                    user_id=None,
+                    target_type="http_error",
+                    target_id=f"recent-{i}",
+                    detail={"path": "/"},
+                )
+            )
         for i in range(2):
-            s.add(AuditLog(
-                occurred_at=datetime.now(timezone.utc) - timedelta(hours=48),
-                action="http.500",
-                user_id=None,
-                target_type="http_error",
-                target_id=f"old-{i}",
-                detail={"path": "/"},
-            ))
+            s.add(
+                AuditLog(
+                    occurred_at=datetime.now(timezone.utc) - timedelta(hours=48),
+                    action="http.500",
+                    user_id=None,
+                    target_type="http_error",
+                    target_id=f"old-{i}",
+                    detail={"path": "/"},
+                )
+            )
         s.commit()
 
     resp = client.get("/healthz/errors")

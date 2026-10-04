@@ -16,8 +16,15 @@ import pytest
 pytestmark = [pytest.mark.crud]
 
 
-def _crud_roundtrip(client, path: str, payload: dict, update: dict,
-                    *, list_key: str | None = None, id_key: str = "id"):
+def _crud_roundtrip(
+    client,
+    path: str,
+    payload: dict,
+    update: dict,
+    *,
+    list_key: str | None = None,
+    id_key: str = "id",
+):
     """Generic create → read → update → delete sweep for one entity type.
 
     Returns the created entity's id.
@@ -45,27 +52,39 @@ def _crud_roundtrip(client, path: str, payload: dict, update: dict,
 
 
 def test_channel_crud_roundtrip(client):
-    _crud_roundtrip(client, "channels",
-                    {"code": "test-ch", "label": "Canal test", "sort_order": 10},
-                    {"label": "Canal editado"})
+    _crud_roundtrip(
+        client,
+        "channels",
+        {"code": "test-ch", "label": "Canal test", "sort_order": 10},
+        {"label": "Canal editado"},
+    )
 
 
 def test_payment_method_crud_roundtrip(client):
-    _crud_roundtrip(client, "payment-methods",
-                    {"code": "test-pm", "label": "Transferencia test", "fee_pct": 1.5},
-                    {"label": "Transferencia editada"})
+    _crud_roundtrip(
+        client,
+        "payment-methods",
+        {"code": "test-pm", "label": "Transferencia test", "fee_pct": 1.5},
+        {"label": "Transferencia editada"},
+    )
 
 
 def test_storage_type_crud_roundtrip(client):
-    _crud_roundtrip(client, "storage-types",
-                    {"code": "test-st", "label": "Freezer test", "requires_temp_min": True},
-                    {"label": "Freezer editado"})
+    _crud_roundtrip(
+        client,
+        "storage-types",
+        {"code": "test-st", "label": "Freezer test", "requires_temp_min": True},
+        {"label": "Freezer editado"},
+    )
 
 
 def test_date_preset_crud_roundtrip(client):
-    _crud_roundtrip(client, "date-presets",
-                    {"code": "test-dp", "label": "Últimos 3 días test", "days": 3},
-                    {"label": "Últimos 3 días editado"})
+    _crud_roundtrip(
+        client,
+        "date-presets",
+        {"code": "test-dp", "label": "Últimos 3 días test", "days": 3},
+        {"label": "Últimos 3 días editado"},
+    )
 
 
 def test_category_crud_roundtrip(client):

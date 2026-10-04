@@ -1,4 +1,5 @@
 """tests/test_clientes_filter.py — /clientes filter by q + tier."""
+
 from __future__ import annotations
 
 import pytest

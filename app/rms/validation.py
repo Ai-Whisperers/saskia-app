@@ -11,6 +11,7 @@ Usage:
     price = parse_money_gs(sale_price_gs, allow_zero=False)
     unit_enum = parse_unit("kg")
 """
+
 from __future__ import annotations
 
 import re
@@ -85,9 +86,7 @@ def optional_int(value: str | int | None, *, default: int | None = None) -> int 
         return default
 
 
-def parse_money_gs(
-    value: str | int | float | None, *, allow_zero: bool = True
-) -> int:
+def parse_money_gs(value: str | int | float | None, *, allow_zero: bool = True) -> int:
     """Parse a money string into integer Gs., HTTP-shaped wrapper around parse_gs.
 
     The canonical parser is :func:`app.rms.money.parse_gs` — it handles the
@@ -133,13 +132,9 @@ def parse_money_gs(
     except ValueError as exc:
         msg = str(exc).lower()
         if "negatives not allowed" in msg:
-            raise HTTPException(
-                status_code=400, detail="Precio no puede ser negativo"
-            ) from exc
+            raise HTTPException(status_code=400, detail="Precio no puede ser negativo") from exc
         # "empty string" or any other parse failure → "inválido".
-        raise HTTPException(
-            status_code=400, detail=f"Precio inválido: {value!r}"
-        ) from exc
+        raise HTTPException(status_code=400, detail=f"Precio inválido: {value!r}") from exc
 
     # parse_gs already rejects negatives via the ValueError branch
     # above, so this defensive check only triggers if parse_gs ever
@@ -151,7 +146,9 @@ def parse_money_gs(
     return amount
 
 
-def parse_quantity(value: str | float | int | None, *, field: str = "cantidad", allow_zero: bool = False) -> float:
+def parse_quantity(
+    value: str | float | int | None, *, field: str = "cantidad", allow_zero: bool = False
+) -> float:
     """Parse a numeric quantity. Rejects negative, optionally rejects zero."""
     if value is None or value == "":
         raise HTTPException(status_code=400, detail=f"{field} es obligatorio")
@@ -203,8 +200,7 @@ def validate_phone(value: str | None) -> str | None:
         raise HTTPException(
             status_code=400,
             detail=(
-                f"Teléfono inválido: {cleaned!r}. "
-                "Usá solo dígitos (ej. 0981234567 o +595981234567)"
+                f"Teléfono inválido: {cleaned!r}. Usá solo dígitos (ej. 0981234567 o +595981234567)"
             ),
         )
     if len(cleaned) > 32:

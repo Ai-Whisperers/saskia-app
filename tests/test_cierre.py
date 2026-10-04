@@ -1,4 +1,5 @@
 """tests/test_cierre.py — Phase 1.E Monthly P&L close (cierre mensual)."""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -12,27 +13,27 @@ from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale
 class TestMonthRange:
     def test_january(self):
         s, e = _month_range(2026, 1)
-        assert s == __import__('datetime').date(2026, 1, 1)
-        assert e == __import__('datetime').date(2026, 1, 31)
+        assert s == __import__("datetime").date(2026, 1, 1)
+        assert e == __import__("datetime").date(2026, 1, 31)
 
     def test_february_non_leap(self):
         _s, e = _month_range(2025, 2)
-        assert e == __import__('datetime').date(2025, 2, 28)
+        assert e == __import__("datetime").date(2025, 2, 28)
 
     def test_february_leap(self):
         _s, e = _month_range(2024, 2)
-        assert e == __import__('datetime').date(2024, 2, 29)
+        assert e == __import__("datetime").date(2024, 2, 29)
 
     def test_december(self):
         s, e = _month_range(2026, 12)
-        assert s == __import__('datetime').date(2026, 12, 1)
-        assert e == __import__('datetime').date(2026, 12, 31)
+        assert s == __import__("datetime").date(2026, 12, 1)
+        assert e == __import__("datetime").date(2026, 12, 31)
 
 
 @pytest.fixture
 def seed_month_data(session_factory):
     """Seed: 1 product + 1 recipe + 5 sales in Sept 2026 + 1 voided sale."""
-# allow-hardcoded-dates: cierre day-of-month / month-end / leap-year edge cases
+    # allow-hardcoded-dates: cierre day-of-month / month-end / leap-year edge cases
     Session = session_factory
 
     def _seed():
@@ -47,12 +48,19 @@ def seed_month_data(session_factory):
             s.commit()
             s.refresh(r)
 
-            rl = RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=ing.id, qty=0.5, line_unit="kg")
+            rl = RecipeLine(
+                recipe_id=r.id, line_kind="ingredient", line_ref_id=ing.id, qty=0.5, line_unit="kg"
+            )
             s.add(rl)
             s.commit()
 
-            p = Product(name="Muffin test", sale_price_gs=25000, portion_label="1 und",
-                        recipe_id=r.id, iva_rate="10")
+            p = Product(
+                name="Muffin test",
+                sale_price_gs=25000,
+                portion_label="1 und",
+                recipe_id=r.id,
+                iva_rate="10",
+            )
             s.add(p)
             s.commit()
             s.refresh(p)
@@ -185,7 +193,9 @@ class TestCierreFactura:
     def test_factura_includes_iva(self, session_factory):
         Session = session_factory
         with Session() as s:
-            p = Product(name="Producto con IVA", sale_price_gs=25000, portion_label="1 und", iva_rate="10")
+            p = Product(
+                name="Producto con IVA", sale_price_gs=25000, portion_label="1 und", iva_rate="10"
+            )
             s.add(p)
             s.commit()
             s.refresh(p)

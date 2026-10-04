@@ -9,6 +9,7 @@ Hits every GET + POST route registered in the FastAPI app. Verifies:
 
 This is the "does everything actually work" test.
 """
+
 from __future__ import annotations
 
 import json
@@ -69,9 +70,11 @@ for r in app.routes:
 print(json.dumps(routes))
 """
     import subprocess
+
     r = subprocess.run(
         ["uv", "run", "python", "-c", code],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
         cwd="/opt/data/profiles/ivan/scratch/saskia-app-work",
     )
     return json.loads(r.stdout)
@@ -202,7 +205,9 @@ def main() -> int:
     for path in ["/login", "/forgot-password"]:
         test_get(path, session)
     # POST to login with bad creds (should fail gracefully, not 500)
-    r = session.post(BASE + "/login", data={"username": "x", "password": "y"}, allow_redirects=False)
+    r = session.post(
+        BASE + "/login", data={"username": "x", "password": "y"}, allow_redirects=False
+    )
     if r.status_code in (200, 303, 422):
         ok(f"POST /login (bad creds) → {r.status_code} (graceful)")
     else:
@@ -217,16 +222,20 @@ def main() -> int:
     print(f"\n{CYAN}[4] Productos, recetas, inventario pages{RESET}")
     # Skip the actual GETs that have param issues (those are POST-only or have different URLs)
     for path in [
-        "/productos", "/productos/nuevo",
-        "/recetas", "/recetas/nueva",
-        "/inventario", "/inventario/nuevo",
+        "/productos",
+        "/productos/nuevo",
+        "/recetas",
+        "/recetas/nueva",
+        "/inventario",
+        "/inventario/nuevo",
     ]:
         test_get(path, session)
     # Detail pages (with id=1)
     for path in [
         "/recetas/1",
         "/recetas/1/set-photo",
-        "/inventario/1", "/inventario/1/editar",
+        "/inventario/1",
+        "/inventario/1/editar",
     ]:
         r = test_get(path, session)
         if r and r.status_code == 200:
@@ -236,24 +245,33 @@ def main() -> int:
     print(f"\n{CYAN}[5] Ventas, pedidos, clientes pages{RESET}")
     for path in [
         "/ventas",
-        "/pedidos", "/pedidos/nuevo",
+        "/pedidos",
+        "/pedidos/nuevo",
         "/clientes",
     ]:
         test_get(path, session)
     # Detail/edit pages (with id=1)
     for path in [
-        "/clientes/1", "/clientes/1/editar",
+        "/clientes/1",
+        "/clientes/1/editar",
     ]:
         r = test_get(path, session)
         if r and r.status_code == 200:
             ok(f"Detail page: {path} renders")
     # /ventas/nueva is POST-only — try POST
     csrf = session.cookies.get("csrf_token", "")
-    r = session.post(BASE + "/ventas/nueva", data={
-        "product_id": "1", "qty": "1", "unit_price_gs": "5000",
-        "channel": "mostrador", "payment_method": "efectivo",
-        "_csrf_token": csrf,
-    }, allow_redirects=False)
+    r = session.post(
+        BASE + "/ventas/nueva",
+        data={
+            "product_id": "1",
+            "qty": "1",
+            "unit_price_gs": "5000",
+            "channel": "mostrador",
+            "payment_method": "efectivo",
+            "_csrf_token": csrf,
+        },
+        allow_redirects=False,
+    )
     if r.status_code in (200, 303, 422):
         ok(f"POST /ventas/nueva → {r.status_code}")
     else:
@@ -273,9 +291,14 @@ def main() -> int:
     # ─── 7. HEREBUS modules ────────────────────────────────────────
     print(f"\n{CYAN}[7] HEREBUS modules (drive integration){RESET}")
     for path in [
-        "/wishlist", "/riesgos", "/pricing",
-        "/vs-mercado", "/vs-mercado/1/edit",
-        "/bank", "/delivery-zones", "/shopping-list",
+        "/wishlist",
+        "/riesgos",
+        "/pricing",
+        "/vs-mercado",
+        "/vs-mercado/1/edit",
+        "/bank",
+        "/delivery-zones",
+        "/shopping-list",
     ]:
         test_get(path, session)
 
@@ -283,7 +306,8 @@ def main() -> int:
     print(f"\n{CYAN}[8] Settings & admin pages{RESET}")
     for path in [
         "/settings",
-        "/excel", "/excel/plantilla",
+        "/excel",
+        "/excel/plantilla",
         "/reportes",
     ]:
         test_get(path, session)
@@ -312,7 +336,11 @@ def main() -> int:
     print(f"\n{CYAN}[10] Critical combo data sources (must return data){RESET}")
     critical = [
         ("/productos/api/search?q=", "products", lambda d: d.get("results", d.get("items", []))),
-        ("/inventario/api/search?q=", "ingredients", lambda d: d.get("results", d.get("items", []))),
+        (
+            "/inventario/api/search?q=",
+            "ingredients",
+            lambda d: d.get("results", d.get("items", [])),
+        ),
         ("/clientes/api/search?q=", "customers", lambda d: d.get("results", d.get("items", []))),
         ("/recetas/api/search?q=", "recipes", lambda d: d.get("results", d.get("items", []))),
         ("/recetas/api/units", "units", lambda d: d.get("results", d.get("items", d))),
@@ -328,7 +356,7 @@ def main() -> int:
         try:
             data = r.json()
             items = extractor(data) if callable(extractor) else data
-            n = len(items) if hasattr(items, '__len__') else 0
+            n = len(items) if hasattr(items, "__len__") else 0
             if n > 0:
                 ok(f"{name} API → {n} items")
             else:
@@ -341,23 +369,29 @@ def main() -> int:
     safe_posts = [
         ("/produccion-planner/compute", {"recipe_id": "1", "batches": "1"}),
         ("/vs-mercado/1/save", {"our_wholesale_gs": "1000", "our_retail_gs": "1500"}),
-        ("/bank/add", {
-            "posted_at": "2026-09-23",
-            "currency": "PYG",
-            "amount": "50000",
-            "counterparty_name": "Test supplier",
-            "counterparty_iban": "",
-            "description": "Smoke test transaction",
-            "category": "manual",
-            "source": "smoke_test",
-        }),
+        (
+            "/bank/add",
+            {
+                "posted_at": "2026-09-23",
+                "currency": "PYG",
+                "amount": "50000",
+                "counterparty_name": "Test supplier",
+                "counterparty_iban": "",
+                "description": "Smoke test transaction",
+                "category": "manual",
+                "source": "smoke_test",
+            },
+        ),
         ("/shopping-list/sync-low-stock", {}),
-        ("/shopping-list/add", {
-            "ingredient_id": "1",
-            "qty_to_buy": "5",
-            "unit": "kg",
-            "purpose_text": "Smoke test",
-        }),
+        (
+            "/shopping-list/add",
+            {
+                "ingredient_id": "1",
+                "qty_to_buy": "5",
+                "unit": "kg",
+                "purpose_text": "Smoke test",
+            },
+        ),
         ("/wishlist/1/send-to-shopping-list", {}),
         ("/bank/1/categorize", {"category": "test_category"}),
     ]
@@ -371,14 +405,17 @@ def main() -> int:
 
     # Create a test ingredient
     test_ing_name = f"SmokeTest_{int(time.time())}"
-    r = session.post(BASE + "/inventario/nuevo", data={
-        "name": test_ing_name,
-        "unit": "kg",
-        "stock_qty": "100",
-        "min_stock_qty": "10",
-        "purchase_price_gs": "1500",
-        "category": "test",
-    })
+    r = session.post(
+        BASE + "/inventario/nuevo",
+        data={
+            "name": test_ing_name,
+            "unit": "kg",
+            "stock_qty": "100",
+            "min_stock_qty": "10",
+            "purchase_price_gs": "1500",
+            "category": "test",
+        },
+    )
     if r.status_code == 303 or r.status_code == 200:
         ok(f"CREATE ingredient '{test_ing_name}' → {r.status_code}")
     else:
@@ -407,13 +444,16 @@ def main() -> int:
 
     # Create a sale (the simplest POST endpoint)
     csrf = session.cookies.get("csrf_token", "")
-    r = session.post(BASE + "/ventas/nueva", data={
-        "product_id": "1",
-        "qty": "1",
-        "unit_price_gs": "5000",
-        "channel": "mostrador",
-        "_csrf_token": csrf,
-    })
+    r = session.post(
+        BASE + "/ventas/nueva",
+        data={
+            "product_id": "1",
+            "qty": "1",
+            "unit_price_gs": "5000",
+            "channel": "mostrador",
+            "_csrf_token": csrf,
+        },
+    )
     if r.status_code in (200, 303):
         ok(f"CREATE: venta/nueva → {r.status_code}")
     else:

@@ -1,4 +1,5 @@
 """Tests for PRO-01: Weekly repeating production plan template + per-date overrides."""
+
 from __future__ import annotations
 
 from datetime import date
@@ -6,7 +7,7 @@ from datetime import date
 
 def test_weekly_template_repeats_across_weeks(app_engine):
     """PRO-01: A Monday template row applies to every Monday."""
-# allow-hardcoded-dates: weekly-plan assertions on a fixed Mon-Sun week
+    # allow-hardcoded-dates: weekly-plan assertions on a fixed Mon-Sun week
     from sqlalchemy.orm import sessionmaker
 
     from app.rms.models import Product
@@ -113,12 +114,14 @@ def test_template_plus_auto_forecast_coexist(app_engine):
     # Sales for Cookie so it gets auto-forecasted
     with sf() as s:
         for i in range(14):
-            s.add(Sale(
-                sold_at=datetime.now(timezone.utc) - timedelta(days=i),
-                product_id=pb_id,
-                qty=10,
-                unit_price_gs=1500,
-            ))
+            s.add(
+                Sale(
+                    sold_at=datetime.now(timezone.utc) - timedelta(days=i),
+                    product_id=pb_id,
+                    qty=10,
+                    unit_price_gs=1500,
+                )
+            )
         s.commit()
 
     # Template: Monday has only Muffin at qty 12
@@ -146,10 +149,14 @@ def test_override_endpoint_persists_to_db(client, app_engine):
     from app.rms.models import Product, ProductionPlanOverride
 
     # First create a product via the public API
-    client.post("/productos/nuevo", data={
-        "name": "Muffin override test",
-        "sale_price_gs": "2500",
-    }, follow_redirects=False)
+    client.post(
+        "/productos/nuevo",
+        data={
+            "name": "Muffin override test",
+            "sale_price_gs": "2500",
+        },
+        follow_redirects=False,
+    )
 
     sf = sessionmaker(bind=app_engine)
     with sf() as s:
@@ -157,19 +164,27 @@ def test_override_endpoint_persists_to_db(client, app_engine):
         pid = prod.id
 
     # POST the override
-    r = client.post("/produccion/override", data={
-        "for_date": "2026-09-21",
-        "product_id": str(pid),
-        "qty": "10",
-    }, follow_redirects=False)
+    r = client.post(
+        "/produccion/override",
+        data={
+            "for_date": "2026-09-21",
+            "product_id": str(pid),
+            "qty": "10",
+        },
+        follow_redirects=False,
+    )
     assert r.status_code == 303, f"Override POST failed: {r.status_code} {r.text}"
 
     # Verify DB has the row
     with sf() as s:
-        ov = s.query(ProductionPlanOverride).filter(
-            ProductionPlanOverride.product_id == pid,
-            ProductionPlanOverride.for_date == date(2026, 9, 21),
-        ).one_or_none()
+        ov = (
+            s.query(ProductionPlanOverride)
+            .filter(
+                ProductionPlanOverride.product_id == pid,
+                ProductionPlanOverride.for_date == date(2026, 9, 21),
+            )
+            .one_or_none()
+        )
         assert ov is not None, "Override should be persisted to DB"
         assert ov.qty == 10
 
@@ -180,10 +195,14 @@ def test_override_endpoint_qty_zero_deletes_row(client, app_engine):
 
     from app.rms.models import Product, ProductionPlanOverride
 
-    client.post("/productos/nuevo", data={
-        "name": "Muffin zero test",
-        "sale_price_gs": "2500",
-    }, follow_redirects=False)
+    client.post(
+        "/productos/nuevo",
+        data={
+            "name": "Muffin zero test",
+            "sale_price_gs": "2500",
+        },
+        follow_redirects=False,
+    )
 
     sf = sessionmaker(bind=app_engine)
     with sf() as s:
@@ -191,24 +210,36 @@ def test_override_endpoint_qty_zero_deletes_row(client, app_engine):
         pid = prod.id
 
     # Create an override
-    client.post("/produccion/override", data={
-        "for_date": "2026-09-21",
-        "product_id": str(pid),
-        "qty": "10",
-    }, follow_redirects=False)
+    client.post(
+        "/produccion/override",
+        data={
+            "for_date": "2026-09-21",
+            "product_id": str(pid),
+            "qty": "10",
+        },
+        follow_redirects=False,
+    )
 
     # Set it to 0 (deletes)
-    r = client.post("/produccion/override", data={
-        "for_date": "2026-09-21",
-        "product_id": str(pid),
-        "qty": "0",
-    }, follow_redirects=False)
+    r = client.post(
+        "/produccion/override",
+        data={
+            "for_date": "2026-09-21",
+            "product_id": str(pid),
+            "qty": "0",
+        },
+        follow_redirects=False,
+    )
     assert r.status_code == 303
 
     with sf() as s:
-        ov = s.query(ProductionPlanOverride).filter(
-            ProductionPlanOverride.product_id == pid,
-        ).one_or_none()
+        ov = (
+            s.query(ProductionPlanOverride)
+            .filter(
+                ProductionPlanOverride.product_id == pid,
+            )
+            .one_or_none()
+        )
         assert ov is None, "qty=0 should remove the override"
 
 
@@ -218,10 +249,14 @@ def test_template_endpoint_persists_to_db(client, app_engine):
 
     from app.rms.models import Product, ProductionPlanTemplate
 
-    client.post("/productos/nuevo", data={
-        "name": "Muffin template test",
-        "sale_price_gs": "2500",
-    }, follow_redirects=False)
+    client.post(
+        "/productos/nuevo",
+        data={
+            "name": "Muffin template test",
+            "sale_price_gs": "2500",
+        },
+        follow_redirects=False,
+    )
 
     sf = sessionmaker(bind=app_engine)
     with sf() as s:
@@ -229,19 +264,27 @@ def test_template_endpoint_persists_to_db(client, app_engine):
         pid = prod.id
 
     # POST the template row
-    r = client.post("/produccion/template", data={
-        "weekday": "0",  # Monday
-        "product_id": str(pid),
-        "qty": "24",
-        "notes": "Lunes de muffins",
-    }, follow_redirects=False)
+    r = client.post(
+        "/produccion/template",
+        data={
+            "weekday": "0",  # Monday
+            "product_id": str(pid),
+            "qty": "24",
+            "notes": "Lunes de muffins",
+        },
+        follow_redirects=False,
+    )
     assert r.status_code == 303
 
     with sf() as s:
-        tpl = s.query(ProductionPlanTemplate).filter(
-            ProductionPlanTemplate.weekday == 0,
-            ProductionPlanTemplate.product_id == pid,
-        ).one_or_none()
+        tpl = (
+            s.query(ProductionPlanTemplate)
+            .filter(
+                ProductionPlanTemplate.weekday == 0,
+                ProductionPlanTemplate.product_id == pid,
+            )
+            .one_or_none()
+        )
         assert tpl is not None
         assert tpl.qty == 24
         assert tpl.notes == "Lunes de muffins"
@@ -249,11 +292,15 @@ def test_template_endpoint_persists_to_db(client, app_engine):
 
 def test_template_endpoint_invalid_weekday_returns_400(client):
     """PRO-01: weekday outside 0..6 returns 400."""
-    r = client.post("/produccion/template", data={
-        "weekday": "9",  # invalid
-        "product_id": "1",
-        "qty": "5",
-    }, follow_redirects=False)
+    r = client.post(
+        "/produccion/template",
+        data={
+            "weekday": "9",  # invalid
+            "product_id": "1",
+            "qty": "5",
+        },
+        follow_redirects=False,
+    )
     assert r.status_code == 400
     assert "weekday" in r.text.lower()
 

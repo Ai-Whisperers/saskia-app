@@ -58,17 +58,28 @@ PY
 ### Step 3 — Once the refresh token is updated, I run:
 ```python
 # Create the Sheet
-sheet = drive.files().create(body={
-    'name': 'Saskia RMS — Datos',
-    'mimeType': 'application/vnd.google-apps.spreadsheet',
-}).execute()
+sheet = (
+    drive.files()
+    .create(
+        body={
+            "name": "Saskia RMS — Datos",
+            "mimeType": "application/vnd.google-apps.spreadsheet",
+        }
+    )
+    .execute()
+)
 # Share with Saskia
-drive.permissions().create(fileId=sheet['id'], body={
-    'type': 'user', 'role': 'writer', 'emailAddress': 'saskia@saskia.com.py',
-}).execute()
+drive.permissions().create(
+    fileId=sheet["id"],
+    body={
+        "type": "user",
+        "role": "writer",
+        "emailAddress": "saskia@saskia.com.py",
+    },
+).execute()
 # Populate from xlsx
-for sheet_name in ['Ingredientes', 'Productos', 'Clientes']:
-    populate_from_xlsx(sheet['id'], sheet_name, xlsx_data[sheet_name])
+for sheet_name in ["Ingredientes", "Productos", "Clientes"]:
+    populate_from_xlsx(sheet["id"], sheet_name, xlsx_data[sheet_name])
 ```
 
 Saskia gets a link like `https://docs.google.com/spreadsheets/d/<id>/edit` and edits directly.

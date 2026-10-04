@@ -1,4 +1,5 @@
 """Observability tests — verify logging and error counters."""
+
 from __future__ import annotations
 
 
@@ -46,9 +47,7 @@ def test_audit_log_records_login_failure(client, session_factory):
     # Check if AuditLog has the failure
     with session_factory() as s:
         audits = s.execute(
-            AuditLog.__table__.select().where(
-                AuditLog.action.like("%login%")
-            )
+            AuditLog.__table__.select().where(AuditLog.action.like("%login%"))
         ).fetchall()
         # Audit log may or may not have entries depending on implementation
         # Just verify no crash
@@ -68,9 +67,7 @@ def test_audit_log_increments_on_write(authed_client, session_factory):
     before_count = 0
     with session_factory() as s:
         before_count = s.execute(
-            AuditLog.__table__.select().where(
-                AuditLog.action.like("%adjust%")
-            )
+            AuditLog.__table__.select().where(AuditLog.action.like("%adjust%"))
         ).fetchall()
         before_count = len(before_count)
 
@@ -84,9 +81,7 @@ def test_audit_log_increments_on_write(authed_client, session_factory):
     # Just verify no crash
     with session_factory() as s:
         after_count = s.execute(
-            AuditLog.__table__.select().where(
-                AuditLog.action.like("%adjust%")
-            )
+            AuditLog.__table__.select().where(AuditLog.action.like("%adjust%"))
         ).fetchall()
         # May or may not increase — depends on implementation
         assert len(after_count) >= 0

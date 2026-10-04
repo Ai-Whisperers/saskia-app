@@ -10,6 +10,7 @@ Covers:
 - _money() formats with thousand dots
 - append_notification_log adds JSON line
 """
+
 # allow-hardcoded-dates: notification templates assert specific date strings
 from __future__ import annotations
 
@@ -36,6 +37,7 @@ def test_money_format():
 def test_format_daily_summary_includes_revenue():
     """Daily summary must include revenue + margin + warnings."""
     from app.rms.workflow import DailyProductRow, DailySummaryFull
+
     summary = DailySummaryFull(
         date=datetime(2026, 3, 15, tzinfo=timezone.utc),
         n_sales=12,
@@ -119,6 +121,7 @@ def test_notification_log_path_exists(tmp_path, monkeypatch):
 def test_format_message_handles_empty_summary():
     """Empty summary still produces a sensible string (no AttributeError)."""
     from app.rms.workflow import DailySummaryFull
+
     summary = DailySummaryFull(
         date=datetime(2026, 3, 15, tzinfo=timezone.utc),
         n_sales=0,

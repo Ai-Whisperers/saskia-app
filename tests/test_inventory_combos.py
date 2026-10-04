@@ -36,7 +36,7 @@ def test_inventory_form_category_combo(client: TestClient):
 
     # Check for category combobox
     assert "category_combo" in response.text
-    assert "data-allow-create=\"true\"" in response.text
+    assert 'data-allow-create="true"' in response.text
     assert "categoryRowLabel" in response.text
 
     # Should not contain native category select

@@ -6,6 +6,7 @@ Pins the round-2 triage workflow so it can't silently drift:
 - Bug template references the round-2 workflow
 - Round-2 cap (≤2h) is explicit so the cap cannot drift
 """
+
 from __future__ import annotations
 
 from pathlib import Path

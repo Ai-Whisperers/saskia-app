@@ -4,6 +4,7 @@ The seed-demo endpoint lets Saskia one-click load realistic bakery data
 
 so the dashboard, reports, and analytics have data to display.
 """
+
 import pytest
 
 pytestmark = pytest.mark.crud
@@ -12,6 +13,7 @@ pytestmark = pytest.mark.crud
 def test_seed_demo_button_on_settings_page(authed_client, session_factory):
     """Settings page shows the demo data tab with both buttons (no full seed)."""
     from app.rms.models import Ingredient
+
     sf = session_factory
     with sf() as s:
         # Drop any data so we have a known fresh state
@@ -31,6 +33,7 @@ def test_seed_demo_button_on_settings_page(authed_client, session_factory):
 def test_seed_demo_adds_data(client, authed_client, session_factory):
     """POST /settings/seed-demo with overwrite=0 inserts expected rows."""
     from app.rms.models import Ingredient, Product, Recipe
+
     sf = session_factory
     # Sanity: pre-seed has nothing in DB (or just test-only data)
     r = authed_client.post(
@@ -53,11 +56,10 @@ def test_seed_demo_adds_data(client, authed_client, session_factory):
     assert prod_count >= 1
 
 
-def test_seed_demo_idempotent_no_op_on_second_call(
-    client, authed_client, session_factory
-):
+def test_seed_demo_idempotent_no_op_on_second_call(client, authed_client, session_factory):
     """Second call with overwrite=0 does NOT duplicate seed rows."""
     from app.rms.models import Ingredient
+
     sf = session_factory
 
     authed_client.post("/settings/seed-demo", data={"overwrite": "0"}, follow_redirects=False)
@@ -73,11 +75,10 @@ def test_seed_demo_idempotent_no_op_on_second_call(
     assert second_count == first_count
 
 
-def test_seed_demo_overwrite_clears_previous(
-    client, authed_client, session_factory
-):
+def test_seed_demo_overwrite_clears_previous(client, authed_client, session_factory):
     """POST with overwrite=1 deletes prior seed-* rows before reseeding."""
     from app.rms.models import Ingredient
+
     sf = session_factory
 
     # First seed
@@ -94,9 +95,7 @@ def test_seed_demo_overwrite_clears_previous(
     assert 10 <= second_count <= 60
 
 
-def test_seed_demo_dashboard_shows_data_after_seed(
-    client, authed_client, session_factory
-):
+def test_seed_demo_dashboard_shows_data_after_seed(client, authed_client, session_factory):
     """After seeding, /inicio dashboard renders with the analytics sections."""
     authed_client.post("/settings/seed-demo", data={"overwrite": "0"}, follow_redirects=False)
     r = authed_client.get("/analisis")
@@ -107,13 +106,15 @@ def test_seed_demo_dashboard_shows_data_after_seed(
     # We seeded 29 ingredients + sales; "Costo concentrado" section should
     # render with actual ingredients OR the empty-but-still-rendered
     # placeholder
-    assert ("Costo concentrado" in body or "Stock turnover" in body
-            or "Concentration" in body or "Productos más rentables" in body)
+    assert (
+        "Costo concentrado" in body
+        or "Stock turnover" in body
+        or "Concentration" in body
+        or "Productos más rentables" in body
+    )
 
 
-def test_seed_demo_returns_spanish_error_on_failure(
-    client, authed_client, monkeypatch
-):
+def test_seed_demo_returns_spanish_error_on_failure(client, authed_client, monkeypatch):
     """If seed_demo_data raises, we redirect with a Spanish error flash."""
     import app.rms.seed as seed_module
 

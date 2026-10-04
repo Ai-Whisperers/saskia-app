@@ -20,10 +20,15 @@ def test_forecast_zero_consumption_via_apply_sale(qseed):
         now = datetime.now(timezone.utc)
         for i in range(10):
             apply_sale(
-                s, product_id=prod_id, qty=1.0,
+                s,
+                product_id=prod_id,
+                qty=1.0,
                 sold_at=now - timedelta(days=i),
-                payment_method="efectivo", channel="Mostrador",
-                notes=None, customer_id=None, discount_gs=0,
+                payment_method="efectivo",
+                channel="Mostrador",
+                notes=None,
+                customer_id=None,
+                discount_gs=0,
             )
         s.commit()
 

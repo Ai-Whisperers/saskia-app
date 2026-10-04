@@ -12,6 +12,7 @@ Two CI gates born from the 2026-09-30 audit:
    reach the menu. Uses the prod-shaped seed if present; otherwise passes
    vacuously (CI fixtures have no products).
 """
+
 from __future__ import annotations
 
 import os
@@ -100,6 +101,5 @@ def test_proprice_no_sellable_product_below_110pct_of_cost():
             )
     S.close()
     assert not offenders, (
-        "Productos activos con precio < costo×1,1 (venta a pérdida o casi): "
-        + "; ".join(offenders)
+        "Productos activos con precio < costo×1,1 (venta a pérdida o casi): " + "; ".join(offenders)
     )

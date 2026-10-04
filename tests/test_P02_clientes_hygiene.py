@@ -16,6 +16,7 @@ These tests verify that:
 6. No placeholder test customers (e.g. "Test Customer", "Cliente Test")
     appear as fixture data
 """
+
 from __future__ import annotations
 
 import re
@@ -60,10 +61,7 @@ def test_clientes_has_search_input(client):
     r = client.get("/clientes")
     assert r.status_code == 200
     body = r.text
-    assert (
-        'name="q"' in body
-        or 'placeholder="Buscar' in body
-    ), "Missing search input on /clientes"
+    assert 'name="q"' in body or 'placeholder="Buscar' in body, "Missing search input on /clientes"
 
 
 def test_clientes_has_new_customer_button(client):
@@ -82,9 +80,7 @@ def test_clientes_has_csv_export(client):
     assert r.status_code == 200
     body = r.text
     # CSV export should be a download link with format=csv param
-    assert (
-        "format=csv" in body or "Exportar CSV" in body
-    ), "Missing CSV export on /clientes"
+    assert "format=csv" in body or "Exportar CSV" in body, "Missing CSV export on /clientes"
 
 
 def test_clientes_api_search_returns_json(client):

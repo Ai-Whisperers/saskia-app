@@ -14,6 +14,7 @@ Features:
 Backups are LOCAL-FIRST (file copy) by default; the operator can
 later point this at R2/S3 by setting the right environment vars.
 """
+
 from __future__ import annotations
 
 import gzip
@@ -106,10 +107,7 @@ def _serialize(value: Any) -> Any:
 
 
 def _row_to_dict(row: Any) -> dict:
-    return {
-        col.name: _serialize(getattr(row, col.name))
-        for col in row.__table__.columns
-    }
+    return {col.name: _serialize(getattr(row, col.name)) for col in row.__table__.columns}
 
 
 def dump_full_state(session: Session) -> dict[str, list[dict]]:
@@ -200,9 +198,7 @@ def verify_backup(path: Path | str) -> BackupManifest:
     flat = json.dumps(tables, sort_keys=True, ensure_ascii=False)
     sha = hashlib.sha256(flat.encode()).hexdigest()
     if sha != manifest.sha256:
-        raise ValueError(
-            f"Backup integrity check failed: expected {manifest.sha256}, got {sha}"
-        )
+        raise ValueError(f"Backup integrity check failed: expected {manifest.sha256}, got {sha}")
     return manifest
 
 

@@ -1,4 +1,5 @@
 """Verify _prune_spool removes only files older than retention."""
+
 import datetime
 import os
 

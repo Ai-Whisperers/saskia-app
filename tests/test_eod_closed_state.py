@@ -7,6 +7,7 @@ The /eod page header should show:
 
 The closed-day state is computed by `app.rms.eod_closed.eod_is_day_closed`.
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
@@ -94,9 +95,7 @@ def test_eod_view_renders_closed_pill_when_day_closed(authed_client, session_fac
     response = authed_client.get("/eod")
     assert response.status_code == 200
     body = response.text
-    assert "Día cerrado" in body, (
-        "Expected 'Día cerrado' pill in /eod body when today is closed"
-    )
+    assert "Día cerrado" in body, "Expected 'Día cerrado' pill in /eod body when today is closed"
 
 
 def test_eod_view_renders_open_days_warn_pill(authed_client, session_factory):
@@ -110,9 +109,7 @@ def test_eod_view_renders_open_days_warn_pill(authed_client, session_factory):
 
         from app.rms.models import AppMeta as _AppMeta
 
-        s.execute(
-            delete(_AppMeta).where(_AppMeta.key.like(f"eod_check_{today_iso}_%"))
-        )
+        s.execute(delete(_AppMeta).where(_AppMeta.key.like(f"eod_check_{today_iso}_%")))
         s.commit()
     finally:
         s.close()

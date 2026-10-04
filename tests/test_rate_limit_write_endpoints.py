@@ -1,4 +1,5 @@
 """tests/test_rate_limit_write_endpoints.py — protect state-changing routes."""
+
 from __future__ import annotations
 
 

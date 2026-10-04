@@ -120,15 +120,19 @@ def forecast_demand(
                 yq = float(r.yield_qty)
                 predicted = avg * factor * trend
                 batches = predicted / yq if yq else 0.0
-        forecasts.append(DemandForecast(
-            product_id=pid, name=d["name"],
-            avg_per_day=round(avg, 2),
-            weekday_factor=round(factor, 2),
-            predicted_qty=round(avg * factor * trend, 1),
-            trend=round(trend, 2),
-            recipe_id=recipe_id, yield_qty=yq,
-            suggested_batches=round(batches, 1),
-        ))
+        forecasts.append(
+            DemandForecast(
+                product_id=pid,
+                name=d["name"],
+                avg_per_day=round(avg, 2),
+                weekday_factor=round(factor, 2),
+                predicted_qty=round(avg * factor * trend, 1),
+                trend=round(trend, 2),
+                recipe_id=recipe_id,
+                yield_qty=yq,
+                suggested_batches=round(batches, 1),
+            )
+        )
     forecasts.sort(key=lambda f: f.predicted_qty, reverse=True)
     return forecasts
 
@@ -149,9 +153,7 @@ def shopping_list_from_forecast(
     for f in forecasts:
         if not f.recipe_id or f.suggested_batches <= 0:
             continue
-        targets, _cycles = walk_recipe_tree(
-            session, f.recipe_id, include_packaging=True
-        )
+        targets, _cycles = walk_recipe_tree(session, f.recipe_id, include_packaging=True)
         for t in targets:
             if not isinstance(t.target, Ingredient):
                 continue
@@ -165,15 +167,17 @@ def shopping_list_from_forecast(
         shortfall = qty_needed - float(ing.stock_qty or 0)
         if shortfall <= 0.01:
             continue
-        out.append({
-            "ingredient_id": ing_id,
-            "name": ing.name,
-            "unit": ing.unit,
-            "needed_qty": round(qty_needed, 3),
-            "stock_qty": float(ing.stock_qty or 0),
-            "buy_qty": round(shortfall, 3),
-            "est_cost_gs": int(shortfall * float(ing.purchase_price_gs or 0)),
-        })
+        out.append(
+            {
+                "ingredient_id": ing_id,
+                "name": ing.name,
+                "unit": ing.unit,
+                "needed_qty": round(qty_needed, 3),
+                "stock_qty": float(ing.stock_qty or 0),
+                "buy_qty": round(shortfall, 3),
+                "est_cost_gs": int(shortfall * float(ing.purchase_price_gs or 0)),
+            }
+        )
     return out
 
 
@@ -228,9 +232,12 @@ def freshness_flags(session: Session) -> list[FreshnessFlag]:
         age_days = (now_cmp - last).days
         remaining = int(shelf) - age_days
         urgency = (
-            "expired" if remaining <= 0
-            else "critical" if remaining <= 2
-            else "soon" if remaining <= 5
+            "expired"
+            if remaining <= 0
+            else "critical"
+            if remaining <= 2
+            else "soon"
+            if remaining <= 5
             else "ok"
         )
         flags.append(FreshnessFlag(iid, name, remaining, urgency, value))
@@ -259,8 +266,7 @@ def cook_today_suggestions(session: Session, limit: int = 5) -> list[dict]:
     scored: dict[int, dict] = {}
     for ref_id, rid, rname in rows:
         f = ing_map[ref_id]
-        e = scored.setdefault(rid, {"recipe_id": rid, "name": rname,
-                                    "rescues": [], "value_gs": 0})
+        e = scored.setdefault(rid, {"recipe_id": rid, "name": rname, "rescues": [], "value_gs": 0})
         e["rescues"].append(f.name)
         e["value_gs"] += f.value_at_risk_gs
     out = sorted(scored.values(), key=lambda x: -x["value_gs"])[:limit]
@@ -314,14 +320,16 @@ def substitutes_for(
         mate_tags = ingredient_dietary_set(mate)
         # Tags the original brought that the mate can't: conflicts.
         conflicts = sorted(orig_tags - mate_tags) if orig_tags else []
-        options.append(SubstituteOption(
-            ingredient_id=mate_id,
-            name=mate.name,
-            role=mate.role,
-            price_delta_per_unit_gs=int(float(mate.purchase_price_gs or 0) - orig_price),
-            keeps_tags=not conflicts,
-            tag_conflicts=conflicts,
-        ))
+        options.append(
+            SubstituteOption(
+                ingredient_id=mate_id,
+                name=mate.name,
+                role=mate.role,
+                price_delta_per_unit_gs=int(float(mate.purchase_price_gs or 0) - orig_price),
+                keeps_tags=not conflicts,
+                tag_conflicts=conflicts,
+            )
+        )
     options.sort(key=lambda o: (not o.keeps_tags, abs(o.price_delta_per_unit_gs)))
     return options
 

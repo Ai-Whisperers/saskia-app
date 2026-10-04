@@ -14,6 +14,7 @@ stored in the DB — an override is a what-if re-plan, not an edit.)
 Seasonal-multiplier editor intentionally absent: blocked on T-0.1
 (forecast_source semantics clarification with Saskia).
 """
+
 from __future__ import annotations
 
 import calendar as _calendar
@@ -140,8 +141,12 @@ def produccion_worksheet(
                 ing_required[ln.ingredient_id]["qty_required"] += ln.qty_required
 
         week_plan_rows = [
-            {"product_name": v["product_name"], "product_id": pid,
-             "recipe_id": v["recipe_id"], "daily_qtys": v["daily_qtys"]}
+            {
+                "product_name": v["product_name"],
+                "product_id": pid,
+                "recipe_id": v["recipe_id"],
+                "daily_qtys": v["daily_qtys"],
+            }
             for pid, v in sorted(product_rows.items(), key=lambda x: x[1]["product_name"])
         ]
         week_ingredients = sorted(ing_required.values(), key=lambda x: x["ingredient_name"])
@@ -150,29 +155,39 @@ def produccion_worksheet(
 
         # Sales data for this week (actual sales in the period)
         from datetime import timezone as tz_cls
-        week_end_dt = datetime.combine(week_start + timedelta(days=6), datetime.max.time()).replace(tzinfo=tz_cls.utc)
+
+        week_end_dt = datetime.combine(week_start + timedelta(days=6), datetime.max.time()).replace(
+            tzinfo=tz_cls.utc
+        )
         week_start_dt = datetime.combine(week_start, datetime.min.time()).replace(tzinfo=tz_cls.utc)
         sales_rows = session.execute(
-            select(
-                Sale.product_id, Product.name, func.sum(Sale.qty), func.count(Sale.id)
-            )
+            select(Sale.product_id, Product.name, func.sum(Sale.qty), func.count(Sale.id))
             .join(Product, Sale.product_id == Product.id)
-            .where(Sale.sold_at >= week_start_dt, Sale.sold_at <= week_end_dt, Sale.voided_at.is_(None))
+            .where(
+                Sale.sold_at >= week_start_dt, Sale.sold_at <= week_end_dt, Sale.voided_at.is_(None)
+            )
             .group_by(Sale.product_id, Product.name)
             .order_by(func.sum(Sale.qty).desc())
         ).all()
-        week_sales = [{"product_id": r[0], "product_name": r[1], "total_qty": float(r[2]), "n_sales": r[3]} for r in sales_rows]
+        week_sales = [
+            {"product_id": r[0], "product_name": r[1], "total_qty": float(r[2]), "n_sales": r[3]}
+            for r in sales_rows
+        ]
 
-        return render(request, "produccion.html", {
-            "view": "week",
-            "week_start": week_start.strftime("%d %b %Y"),
-            "weekdays": ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
-            "week_plan": type("obj", (object,), {"rows": week_plan_rows})(),
-            "week_ingredients": week_ingredients,
-            "prev_week_iso": prev_week,
-            "next_week_iso": next_week,
-            "week_sales": week_sales,
-        })
+        return render(
+            request,
+            "produccion.html",
+            {
+                "view": "week",
+                "week_start": week_start.strftime("%d %b %Y"),
+                "weekdays": ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
+                "week_plan": type("obj", (object,), {"rows": week_plan_rows})(),
+                "week_ingredients": week_ingredients,
+                "prev_week_iso": prev_week,
+                "next_week_iso": next_week,
+                "week_sales": week_sales,
+            },
+        )
 
     if view == "month":
         if month:
@@ -208,49 +223,81 @@ def produccion_worksheet(
                 ing_required[ln.ingredient_id]["qty_required"] += ln.qty_required
 
         month_plan_rows = [
-            {"product_name": v["product_name"], "product_id": pid,
-             "recipe_id": v["recipe_id"], "daily_qtys": v["daily_qtys"]}
+            {
+                "product_name": v["product_name"],
+                "product_id": pid,
+                "recipe_id": v["recipe_id"],
+                "daily_qtys": v["daily_qtys"],
+            }
             for pid, v in sorted(product_rows.items(), key=lambda x: x[1]["product_name"])
         ]
         month_ingredients = sorted(ing_required.values(), key=lambda x: x["ingredient_name"])
-        month_names = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-                       "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+        month_names = [
+            "",
+            "Enero",
+            "Febrero",
+            "Marzo",
+            "Abril",
+            "Mayo",
+            "Junio",
+            "Julio",
+            "Agosto",
+            "Septiembre",
+            "Octubre",
+            "Noviembre",
+            "Diciembre",
+        ]
         prev_month = date(year, mon, 1) - timedelta(days=1)
         next_month = date(year, mon, ndays) + timedelta(days=1)
 
         # Sales data for this month (actual sales)
         from datetime import timezone as tz_cls
+
         month_end_dt = datetime(year, mon, ndays, 23, 59, 59, tzinfo=tz_cls.utc)
         month_start_dt = datetime(year, mon, 1, 0, 0, 0, tzinfo=tz_cls.utc)
         sales_rows = session.execute(
-            select(
-                Sale.product_id, Product.name, func.sum(Sale.qty), func.count(Sale.id)
-            )
+            select(Sale.product_id, Product.name, func.sum(Sale.qty), func.count(Sale.id))
             .join(Product, Sale.product_id == Product.id)
-            .where(Sale.sold_at >= month_start_dt, Sale.sold_at <= month_end_dt, Sale.voided_at.is_(None))
+            .where(
+                Sale.sold_at >= month_start_dt,
+                Sale.sold_at <= month_end_dt,
+                Sale.voided_at.is_(None),
+            )
             .group_by(Sale.product_id, Product.name)
             .order_by(func.sum(Sale.qty).desc())
         ).all()
-        month_sales = [{"product_id": r[0], "product_name": r[1], "total_qty": float(r[2]), "n_sales": r[3]} for r in sales_rows]
-        total_revenue = session.execute(
-            select(func.sum(Sale.qty * Sale.unit_price_gs)).where(
-                Sale.sold_at >= month_start_dt, Sale.sold_at <= month_end_dt, Sale.voided_at.is_(None)
-            )
-        ).scalar() or 0
+        month_sales = [
+            {"product_id": r[0], "product_name": r[1], "total_qty": float(r[2]), "n_sales": r[3]}
+            for r in sales_rows
+        ]
+        total_revenue = (
+            session.execute(
+                select(func.sum(Sale.qty * Sale.unit_price_gs)).where(
+                    Sale.sold_at >= month_start_dt,
+                    Sale.sold_at <= month_end_dt,
+                    Sale.voided_at.is_(None),
+                )
+            ).scalar()
+            or 0
+        )
 
-        return render(request, "produccion.html", {
-            "view": "month",
-            "year": year,
-            "month": mon,
-            "month_name": month_names[mon],
-            "month_days": list(range(1, ndays + 1)),
-            "month_plan": type("obj", (object,), {"rows": month_plan_rows})(),
-            "month_ingredients": month_ingredients,
-            "prev_month_iso": prev_month.strftime("%Y-%m"),
-            "next_month_iso": next_month.strftime("%Y-%m"),
-            "month_sales": month_sales,
-            "month_revenue_gs": int(total_revenue),
-        })
+        return render(
+            request,
+            "produccion.html",
+            {
+                "view": "month",
+                "year": year,
+                "month": mon,
+                "month_name": month_names[mon],
+                "month_days": list(range(1, ndays + 1)),
+                "month_plan": type("obj", (object,), {"rows": month_plan_rows})(),
+                "month_ingredients": month_ingredients,
+                "prev_month_iso": prev_month.strftime("%Y-%m"),
+                "next_month_iso": next_month.strftime("%Y-%m"),
+                "month_sales": month_sales,
+                "month_revenue_gs": int(total_revenue),
+            },
+        )
 
     # day view (default)
     plan = plan_production(session, for_date=for_date, manual_forecast=overrides or None)
@@ -282,11 +329,14 @@ def produccion_worksheet(
     # Also compute last-7-days average cost (so cook can spot trend)
     seven_days_ago = target_date - timedelta(days=7)
     week_start = datetime.combine(seven_days_ago, time.min)
-    last7 = session.execute(
-        select(func.coalesce(func.sum(WasteLog.cost_gs), 0))
-        .where(WasteLog.recorded_at >= week_start)
-        .where(WasteLog.recorded_at <= day_end)
-    ).scalar() or 0
+    last7 = (
+        session.execute(
+            select(func.coalesce(func.sum(WasteLog.cost_gs), 0))
+            .where(WasteLog.recorded_at >= week_start)
+            .where(WasteLog.recorded_at <= day_end)
+        ).scalar()
+        or 0
+    )
     avg_daily_waste_cost_gs = int(last7) // 7 if last7 else 0
 
     # US 4.4 — Surface incoming pedidos for the SAME day as a "kitchen ticket"
@@ -294,61 +344,72 @@ def produccion_worksheet(
     # the demand-driven production plan. Includes pending/confirmed/ready
     # (not fulfilled — those are done — and not cancelled — those are gone).
     pending_pedidos = []
-    pedido_rows = session.execute(
-        select(Pedido)
-        .options(selectinload(Pedido.lines).selectinload(PedidoLine.product))
-        .where(
-            Pedido.promised_date == target_date,
-            Pedido.status.in_(("pending", "confirmed", "ready")),
+    pedido_rows = (
+        session.execute(
+            select(Pedido)
+            .options(selectinload(Pedido.lines).selectinload(PedidoLine.product))
+            .where(
+                Pedido.promised_date == target_date,
+                Pedido.status.in_(("pending", "confirmed", "ready")),
+            )
+            .order_by(Pedido.promised_time.asc().nullslast(), Pedido.created_at.asc())
         )
-        .order_by(Pedido.promised_time.asc().nullslast(), Pedido.created_at.asc())
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for p in pedido_rows:
         line_items = []
         for ln in p.lines:
             if ln.qty <= 0:
                 continue
-            line_items.append({
-                "product_id": ln.product_id,
-                "product_name": ln.product.name if ln.product else "(deleted)",
-                "qty": float(ln.qty),
-                "unit_price_gs": ln.unit_price_gs,
-            })
+            line_items.append(
+                {
+                    "product_id": ln.product_id,
+                    "product_name": ln.product.name if ln.product else "(deleted)",
+                    "qty": float(ln.qty),
+                    "unit_price_gs": ln.unit_price_gs,
+                }
+            )
         if not line_items:
             continue
-        pending_pedidos.append({
-            "id": p.id,
-            "customer_name": p.customer_name or "(sin nombre)",
-            "customer_phone": p.customer_phone or "",
-            "promised_time": p.promised_time or "",
-            "channel": p.channel,
-            "status": p.status,
-            "notes": p.notes or "",
-            "line_items": line_items,
-        })
+        pending_pedidos.append(
+            {
+                "id": p.id,
+                "customer_name": p.customer_name or "(sin nombre)",
+                "customer_phone": p.customer_phone or "",
+                "promised_time": p.promised_time or "",
+                "channel": p.channel,
+                "status": p.status,
+                "notes": p.notes or "",
+                "line_items": line_items,
+            }
+        )
 
     # P-14: template produccion.html:102 references daily_target but the day
     # view never passed it, raising Jinja UndefinedError. Compute target
     # (sum of plan rows) and actual (sum of non-voided Sale.qty for the day).
-    daily_target = sum(
-        r.qty_to_produce for r in plan.rows if r.qty_to_produce > 0
-    )
+    daily_target = sum(r.qty_to_produce for r in plan.rows if r.qty_to_produce > 0)
     from datetime import datetime as _dt_cls
     from datetime import timezone as _tz_cls
+
     target_start = datetime.combine(target_date, _dt_cls.min.time()).replace(tzinfo=_tz_cls.utc)
     target_end = datetime.combine(target_date, _dt_cls.max.time()).replace(tzinfo=_tz_cls.utc)
-    daily_actual = session.execute(
-        select(func.sum(Sale.qty)).where(
-            Sale.sold_at >= target_start,
-            Sale.sold_at <= target_end,
-            Sale.voided_at.is_(None),
-        )
-    ).scalar() or 0
+    daily_actual = (
+        session.execute(
+            select(func.sum(Sale.qty)).where(
+                Sale.sold_at >= target_start,
+                Sale.sold_at <= target_end,
+                Sale.voided_at.is_(None),
+            )
+        ).scalar()
+        or 0
+    )
 
     # Sprint 1: pull actual production completions for the day so the
     # shift-execution table can render pre-filled "Progreso" values
     # instead of blank inputs.
     from app.rms.eod_completions import completions_for_date as _eod_for_date
+
     completions_by_pid = _eod_for_date(session, target_date)
 
     # Sprint 3: demand fusion — count how many units of each product are
@@ -360,8 +421,8 @@ def produccion_worksheet(
         for ln in p.lines:
             if ln.qty <= 0:
                 continue
-            ped_units_by_pid[ln.product_id] = (
-                ped_units_by_pid.get(ln.product_id, 0.0) + float(ln.qty)
+            ped_units_by_pid[ln.product_id] = ped_units_by_pid.get(ln.product_id, 0.0) + float(
+                ln.qty
             )
 
     # Wrap each ProductionRow with the completion + pedido data the
@@ -369,12 +430,12 @@ def produccion_worksheet(
     # is safe inside this function but we don't mutate the original).
     # T-2026-10-04 (P0): also include recipe yield info so the kitchen
     # sees "1 × Docena muffins (12 und)" instead of bare "1".
-    recipe_by_id = {r.id: r for r in (session.execute(
-        select(Recipe).order_by(Recipe.name)
-    ).scalars().all())}
-    product_by_id = {p.id: p for p in (session.execute(
-        select(Product).order_by(Product.name)
-    ).scalars().all())}
+    recipe_by_id = {
+        r.id: r for r in (session.execute(select(Recipe).order_by(Recipe.name)).scalars().all())
+    }
+    product_by_id = {
+        p.id: p for p in (session.execute(select(Product).order_by(Product.name)).scalars().all())
+    }
 
     plan_rows_view = [
         {
@@ -393,20 +454,20 @@ def produccion_worksheet(
             # We just expose the labels so the template shows them.
             "batch_qty": (
                 recipe_by_id[r.recipe_id].yield_qty
-                if r.recipe_id and r.recipe_id in recipe_by_id
+                if r.recipe_id
+                and r.recipe_id in recipe_by_id
                 and recipe_by_id[r.recipe_id].yield_qty
                 else None
             ),
             "batch_unit": (
                 recipe_by_id[r.recipe_id].yield_unit
-                if r.recipe_id and r.recipe_id in recipe_by_id
+                if r.recipe_id
+                and r.recipe_id in recipe_by_id
                 and recipe_by_id[r.recipe_id].yield_qty
                 else None
             ),
             "portion_label": (
-                product_by_id[r.product_id].portion_label
-                if r.product_id in product_by_id
-                else None
+                product_by_id[r.product_id].portion_label if r.product_id in product_by_id else None
             ),
         }
         for r in plan.rows
@@ -422,29 +483,36 @@ def produccion_worksheet(
         prod_obj = session.get(Product, pid)
         if prod_obj is None:
             continue
-        plan_rows_view.append({
-            "product_id": pid,
-            "product_name": prod_obj.name,
-            "recipe_id": None,
-            "qty_to_produce": 0.0,
-            "forecast_source": "ad_hoc",
-            "confidence_pct": 100,
-            "completed_qty": qty,
-            "pending_pedido_qty": ped_units_by_pid.get(pid, 0.0),
-            "is_ad_hoc": True,
-            "batch_qty": None,
-            "batch_unit": None,
-            "portion_label": prod_obj.portion_label if prod_obj else None,
-        })
+        plan_rows_view.append(
+            {
+                "product_id": pid,
+                "product_name": prod_obj.name,
+                "recipe_id": None,
+                "qty_to_produce": 0.0,
+                "forecast_source": "ad_hoc",
+                "confidence_pct": 100,
+                "completed_qty": qty,
+                "pending_pedido_qty": ped_units_by_pid.get(pid, 0.0),
+                "is_ad_hoc": True,
+                "batch_qty": None,
+                "batch_unit": None,
+                "portion_label": prod_obj.portion_label if prod_obj else None,
+            }
+        )
 
     # PRO-TEMPLATE-NUDGE: aviso si no hay template para el weekday de for_date
     _weekday = plan.for_date.weekday() if plan.for_date else 0
     _template_rows = get_weekly_template(session).get(_weekday, {})
-    _has_sales = session.scalar(
-        select(func.count()).select_from(Sale).where(
-            Sale.product_id.in_(select(Product.id)),
+    _has_sales = (
+        session.scalar(
+            select(func.count())
+            .select_from(Sale)
+            .where(
+                Sale.product_id.in_(select(Product.id)),
+            )
         )
-    ) or 0
+        or 0
+    )
     template_nudge = (not _template_rows) and _has_sales > 0
 
     # T-2026-10-04 (P1): cold-start bootstrap state. Distinguish 3 cases:
@@ -457,65 +525,71 @@ def produccion_worksheet(
         cold_start_kind = "no_sales"
     elif not _template_rows:
         cold_start_kind = "no_template"
-    elif all(
-        getattr(r, "qty_to_produce", 0) == 1.0
-        for r in plan_rows_view
-    ) and len(plan_rows_view) > 0:
+    elif (
+        all(getattr(r, "qty_to_produce", 0) == 1.0 for r in plan_rows_view)
+        and len(plan_rows_view) > 0
+    ):
         cold_start_kind = "cold_plan"
     elif sum(1 for r in plan_rows_view if r["qty_to_produce"] > 0) == 0:
         cold_start_kind = "no_rows"
 
-    return render(request, "produccion.html", {
-        "plan": plan,
-        "plan_rows_view": plan_rows_view,
-        "template_nudge": template_nudge,
-        "cold_start_kind": cold_start_kind,
-        "for_date": plan.for_date.isoformat() if plan.for_date else "",
-        "view": "day",
-        "source_labels": FORECAST_SOURCE_LABELS,
-        "source_help": FORECAST_SOURCE_HELP,
-        "overrides": overrides,
-        "recipes": session.execute(
-            select(Recipe).order_by(Recipe.name)
-        ).scalars().all(),
-        "pending_pedidos": pending_pedidos,
-        "daily_target": daily_target,
-        "daily_actual": float(daily_actual),
-        "shift_saved": int(request.query_params.get("shift_saved", 0)),
-        "adhoc_added": request.query_params.get("adhoc_added") == "1",
-        "products_for_adhoc": session.execute(
-            select(Product).order_by(Product.name)
-        ).scalars().all(),
-        # T-2026-10-04 (P2): closed-day flag.
-        "closed_day_active": closed_day_active,
-        "closed_day_reason": closed_day.reason if closed_day else None,
-        "closed_day_at": closed_day.closed_at.isoformat() if closed_day else None,
-        # T-2026-10-04 (P2): confidence calibration — surface low-confidence
-        # rows so the cook knows which auto-suggestions need manual review.
-        "low_confidence_count": sum(
-            1 for r in plan_rows_view
-            if r.get("confidence_pct", 0) < 70 and not r.get("is_ad_hoc", False)
-        ),
-        "confidence_bands": {
-            "high": sum(1 for r in plan_rows_view if r.get("confidence_pct", 0) >= 70),
-            "medium": sum(
-                1 for r in plan_rows_view
-                if 50 <= r.get("confidence_pct", 0) < 70 and not r.get("is_ad_hoc", False)
+    return render(
+        request,
+        "produccion.html",
+        {
+            "plan": plan,
+            "plan_rows_view": plan_rows_view,
+            "template_nudge": template_nudge,
+            "cold_start_kind": cold_start_kind,
+            "for_date": plan.for_date.isoformat() if plan.for_date else "",
+            "view": "day",
+            "source_labels": FORECAST_SOURCE_LABELS,
+            "source_help": FORECAST_SOURCE_HELP,
+            "overrides": overrides,
+            "recipes": session.execute(select(Recipe).order_by(Recipe.name)).scalars().all(),
+            "pending_pedidos": pending_pedidos,
+            "daily_target": daily_target,
+            "daily_actual": float(daily_actual),
+            "shift_saved": int(request.query_params.get("shift_saved", 0)),
+            "adhoc_added": request.query_params.get("adhoc_added") == "1",
+            "products_for_adhoc": session.execute(select(Product).order_by(Product.name))
+            .scalars()
+            .all(),
+            # T-2026-10-04 (P2): closed-day flag.
+            "closed_day_active": closed_day_active,
+            "closed_day_reason": closed_day.reason if closed_day else None,
+            "closed_day_at": closed_day.closed_at.isoformat() if closed_day else None,
+            # T-2026-10-04 (P2): confidence calibration — surface low-confidence
+            # rows so the cook knows which auto-suggestions need manual review.
+            "low_confidence_count": sum(
+                1
+                for r in plan_rows_view
+                if r.get("confidence_pct", 0) < 70 and not r.get("is_ad_hoc", False)
             ),
-            "low": sum(
-                1 for r in plan_rows_view
-                if 0 < r.get("confidence_pct", 0) < 50 and not r.get("is_ad_hoc", False)
-            ),
-            "no_data": sum(
-                1 for r in plan_rows_view
-                if r.get("confidence_pct", 0) == 0 and not r.get("is_ad_hoc", False)
-            ),
+            "confidence_bands": {
+                "high": sum(1 for r in plan_rows_view if r.get("confidence_pct", 0) >= 70),
+                "medium": sum(
+                    1
+                    for r in plan_rows_view
+                    if 50 <= r.get("confidence_pct", 0) < 70 and not r.get("is_ad_hoc", False)
+                ),
+                "low": sum(
+                    1
+                    for r in plan_rows_view
+                    if 0 < r.get("confidence_pct", 0) < 50 and not r.get("is_ad_hoc", False)
+                ),
+                "no_data": sum(
+                    1
+                    for r in plan_rows_view
+                    if r.get("confidence_pct", 0) == 0 and not r.get("is_ad_hoc", False)
+                ),
+            },
+            # T-2026-10-04 (Tier 3-B): today's waste totals for the banner.
+            "today_waste_count": today_waste_count,
+            "today_waste_cost_gs": today_waste_cost_gs,
+            "avg_daily_waste_cost_gs": avg_daily_waste_cost_gs,
         },
-        # T-2026-10-04 (Tier 3-B): today's waste totals for the banner.
-        "today_waste_count": today_waste_count,
-        "today_waste_cost_gs": today_waste_cost_gs,
-        "avg_daily_waste_cost_gs": avg_daily_waste_cost_gs,
-    })
+    )
 
 
 @router.post("/override")
@@ -533,6 +607,7 @@ def produccion_override(
     the override row is removed (so the weekly template takes over again).
     """
     from app.rms.rate_limit import is_write_rate_limited
+
     if is_write_rate_limited(session, request, max_per_minute=10):
         raise HTTPException(
             status_code=429,
@@ -551,10 +626,14 @@ def produccion_override(
     user_id = str(user_id)
     if qty == 0:
         # Remove the override so the weekly template can take over
-        existing = session.query(ProductionPlanOverride).filter(
-            ProductionPlanOverride.product_id == product_id,
-            ProductionPlanOverride.for_date == for_date,
-        ).one_or_none()
+        existing = (
+            session.query(ProductionPlanOverride)
+            .filter(
+                ProductionPlanOverride.product_id == product_id,
+                ProductionPlanOverride.for_date == for_date,
+            )
+            .one_or_none()
+        )
         if existing:
             session.delete(existing)
             session.flush()
@@ -601,8 +680,10 @@ def produccion_closed_toggle(
     """
     from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
+
     if is_write_rate_limited(session, request, max_per_minute=10):
         from fastapi import HTTPException
+
         raise HTTPException(status_code=429, detail="rate_limited")
 
     if action == "close":
@@ -661,6 +742,7 @@ async def produccion_override_bulk(
     single-row /produccion/override, applied N times in one commit.
     """
     from app.rms.rate_limit import is_write_rate_limited
+
     if is_write_rate_limited(session, request, max_per_minute=10):
         raise HTTPException(
             status_code=429,
@@ -694,9 +776,7 @@ async def produccion_override_bulk(
         except (TypeError, ValueError):
             continue
         if qty < 0:
-            raise HTTPException(
-                status_code=400, detail="La cantidad no puede ser negativa"
-            )
+            raise HTTPException(status_code=400, detail="La cantidad no puede ser negativa")
         entries[pid] = qty
 
     applied = 0
@@ -704,16 +784,23 @@ async def produccion_override_bulk(
         if session.get(Product, pid) is None:
             raise HTTPException(status_code=404, detail="Producto no encontrado")
         if qty == 0:
-            existing = session.query(ProductionPlanOverride).filter(
-                ProductionPlanOverride.product_id == pid,
-                ProductionPlanOverride.for_date == for_date,
-            ).one_or_none()
+            existing = (
+                session.query(ProductionPlanOverride)
+                .filter(
+                    ProductionPlanOverride.product_id == pid,
+                    ProductionPlanOverride.for_date == for_date,
+                )
+                .one_or_none()
+            )
             if existing:
                 session.delete(existing)
                 session.flush()
         else:
             upsert_override(
-                session, product_id=pid, for_date=for_date, qty=qty,
+                session,
+                product_id=pid,
+                for_date=for_date,
+                qty=qty,
                 updated_by=user_id,
             )
         record_audit(
@@ -882,6 +969,7 @@ async def produccion_ad_hoc(
 
 # --- PRO-01: weekly template ---
 
+
 @router.post("/template")
 def produccion_template_set(
     request: Request,
@@ -897,6 +985,7 @@ def produccion_template_set(
     occurrence of this weekday from now on, until the row is changed.
     """
     from app.rms.rate_limit import is_write_rate_limited
+
     if is_write_rate_limited(session, request, max_per_minute=10):
         raise HTTPException(
             status_code=429,
@@ -955,6 +1044,7 @@ def produccion_template_fork_week(
     done / sold).
     """
     from app.rms.rate_limit import is_write_rate_limited
+
     if is_write_rate_limited(session, request, max_per_minute=10):
         raise HTTPException(
             status_code=429,
@@ -962,6 +1052,7 @@ def produccion_template_fork_week(
         )
     from datetime import datetime as _dt
     from datetime import timedelta as _td
+
     try:
         src = _dt.strptime(from_date, "%Y-%m-%d").replace(tzinfo=ASUNCION_TZ).date()
     except (TypeError, ValueError):
@@ -983,6 +1074,7 @@ def produccion_template_fork_week(
 
     # Sum qty per (weekday, product) across the 7-day window
     from collections import defaultdict
+
     bucket: dict[tuple[int, int], float] = defaultdict(float)
     for ov in overrides:
         wd = ov.for_date.weekday()  # 0=Mon .. 6=Sun
@@ -1050,9 +1142,7 @@ def produccion_api_forecast(
     try:
         parsed = date.fromisoformat(for_date)
     except ValueError:
-        raise HTTPException(
-            status_code=400, detail=f"for_date inválido: {for_date!r}"
-        ) from None
+        raise HTTPException(status_code=400, detail=f"for_date inválido: {for_date!r}") from None
 
     plan = plan_production(session, for_date=parsed)
 
@@ -1110,7 +1200,8 @@ def produccion_manana(
     # The calendar dict has 'start'/'end' fields (date ranges), not 'date'.
     tomorrow_iso = tomorrow.isoformat()
     events = [
-        ev for ev in calendar_for_year(tomorrow.year)
+        ev
+        for ev in calendar_for_year(tomorrow.year)
         if ev.get("start", "") <= tomorrow_iso <= ev.get("end", "")
     ]
     seasonal_multiplier = None  # already baked into plan.rows[*].qty
@@ -1124,9 +1215,7 @@ def produccion_manana(
     rows = sorted(plan.rows, key=lambda r: (-r.confidence_pct, r.product_name))
 
     # Total estimated production in Gs (sum of qty * product.sale_price_gs)
-    products_by_id = {
-        p.id: p for p in session.execute(select(Product)).scalars()
-    }
+    products_by_id = {p.id: p for p in session.execute(select(Product)).scalars()}
     estimated_revenue_gs = 0
     for row in rows:
         p = products_by_id.get(row.product_id)
@@ -1135,6 +1224,7 @@ def produccion_manana(
 
     # Override form pre-fill (read existing overrides for tomorrow)
     from app.rms.production import get_overrides_for_date
+
     overrides_tomorrow = get_overrides_for_date(session, tomorrow)
 
     # PRO-PED (2026-09-30): pedidos confirmados con entrega/retiro mañana —
@@ -1142,6 +1232,7 @@ def produccion_manana(
     # planifica (antes solo vivían en Pedidos y en el card de Inicio).
     from app.rms.models import Pedido
     from app.routers.pedidos import _pedido_total_gs
+
     pedidos_manana = [
         {
             "id": p_.id,
@@ -1152,10 +1243,12 @@ def produccion_manana(
             "total_gs": _pedido_total_gs(p_),
         }
         for p_ in session.execute(
-            select(Pedido).where(
+            select(Pedido)
+            .where(
                 Pedido.promised_date == tomorrow,
                 Pedido.status.in_(["pending", "confirmed", "ready"]),
-            ).order_by(Pedido.promised_time.nulls_last(), Pedido.id)
+            )
+            .order_by(Pedido.promised_time.nulls_last(), Pedido.id)
         ).scalars()
     ]
 
@@ -1202,12 +1295,12 @@ def produccion_print(
 
     # T-2026-10-04 (P0): batch-size awareness — load recipe+product once
     # so each row knows its yield_qty + portion_label.
-    recipes_by_id = {r.id: r for r in session.execute(
-        select(Recipe).order_by(Recipe.name)
-    ).scalars().all()}
-    products_by_id = {p.id: p for p in session.execute(
-        select(Product).order_by(Product.name)
-    ).scalars().all()}
+    recipes_by_id = {
+        r.id: r for r in session.execute(select(Recipe).order_by(Recipe.name)).scalars().all()
+    }
+    products_by_id = {
+        p.id: p for p in session.execute(select(Product).order_by(Product.name)).scalars().all()
+    }
 
     # Build a flat list of (product, qty_to_produce, qty_completed) — one
     # row per product, no overrides, no forecast_source explanation.
@@ -1217,17 +1310,19 @@ def produccion_print(
             continue
         recipe = recipes_by_id.get(r.recipe_id) if r.recipe_id else None
         product = products_by_id.get(r.product_id)
-        print_rows.append({
-            "product_id": r.product_id,
-            "product_name": r.product_name,
-            "qty_to_produce": r.qty_to_produce,
-            "qty_completed": completions_by_pid.get(r.product_id, 0.0),
-            "recipe_id": r.recipe_id,
-            # T-2026-10-04 (P0): batch info.
-            "yield_qty": recipe.yield_qty if recipe and recipe.yield_qty else None,
-            "yield_unit": recipe.yield_unit if recipe and recipe.yield_qty else None,
-            "portion_label": product.portion_label if product else None,
-        })
+        print_rows.append(
+            {
+                "product_id": r.product_id,
+                "product_name": r.product_name,
+                "qty_to_produce": r.qty_to_produce,
+                "qty_completed": completions_by_pid.get(r.product_id, 0.0),
+                "recipe_id": r.recipe_id,
+                # T-2026-10-04 (P0): batch info.
+                "yield_qty": recipe.yield_qty if recipe and recipe.yield_qty else None,
+                "yield_unit": recipe.yield_unit if recipe and recipe.yield_qty else None,
+                "portion_label": product.portion_label if product else None,
+            }
+        )
     # Include ad-hoc bakes (walk-ins / on-the-fly decisions that the
     # forecast never proposed but Saskia actually produced).
     planned_pids = {r["product_id"] for r in print_rows}
@@ -1237,22 +1332,32 @@ def produccion_print(
         prod_obj = session.get(Product, pid)
         if prod_obj is None:
             continue
-        print_rows.append({
-            "product_id": pid,
-            "product_name": prod_obj.name,
-            "qty_to_produce": 0.0,
-            "qty_completed": qty,
-            "recipe_id": None,
-            "yield_qty": None,
-            "yield_unit": None,
-            "portion_label": prod_obj.portion_label if prod_obj else None,
-        })
+        print_rows.append(
+            {
+                "product_id": pid,
+                "product_name": prod_obj.name,
+                "qty_to_produce": 0.0,
+                "qty_completed": qty,
+                "recipe_id": None,
+                "yield_qty": None,
+                "yield_unit": None,
+                "portion_label": prod_obj.portion_label if prod_obj else None,
+            }
+        )
 
-    return render(request, "produccion_print.html", {
-        "for_date": target_date.isoformat(),
-        "print_rows": print_rows,
-        "shift_saved": int(request.query_params.get("shift_saved", 0)),
-    })
+    return render(
+        request,
+        "produccion_print.html",
+        {
+            "for_date": target_date.isoformat(),
+            "print_rows": print_rows,
+            "shift_saved": int(request.query_params.get("shift_saved", 0)),
+            # T-2026-10-04 (Tier 3-D): worksheet mode strips filled-in
+            # quantities so the operator can use the printout as a blank
+            # sheet to fill by hand. Default = "filled" (current behavior).
+            "worksheet_mode": request.query_params.get("mode") == "worksheet",
+        },
+    )
 
 
 @router.get("/prep", response_class=HTMLResponse)
@@ -1300,12 +1405,14 @@ def produccion_prep(
         else:
             severity = "suficiente"
             to_buy = 0.0
-        prep_rows.append({
-            **v,
-            "severity": severity,
-            "to_buy": to_buy,
-            "delta": delta,
-        })
+        prep_rows.append(
+            {
+                **v,
+                "severity": severity,
+                "to_buy": to_buy,
+                "delta": delta,
+            }
+        )
 
     # Sort by severity (Falta first) then by name
     severity_order = {"falta": 0, "justo": 1, "suficiente": 2}
@@ -1317,14 +1424,18 @@ def produccion_prep(
         "suficiente": sum(1 for r in prep_rows if r["severity"] == "suficiente"),
     }
 
-    return render(request, "produccion_prep.html", {
-        "week_start": week_start.strftime("%d %b %Y"),
-        "week_start_iso": week_start.isoformat(),
-        "prev_week_iso": (week_start - timedelta(days=7)).isoformat(),
-        "next_week_iso": (week_start + timedelta(days=7)).isoformat(),
-        "prep_rows": prep_rows,
-        "counts": counts,
-    })
+    return render(
+        request,
+        "produccion_prep.html",
+        {
+            "week_start": week_start.strftime("%d %b %Y"),
+            "week_start_iso": week_start.isoformat(),
+            "prev_week_iso": (week_start - timedelta(days=7)).isoformat(),
+            "next_week_iso": (week_start + timedelta(days=7)).isoformat(),
+            "prep_rows": prep_rows,
+            "counts": counts,
+        },
+    )
 
 
 @router.get("/accuracy", response_class=HTMLResponse)
@@ -1354,9 +1465,9 @@ def produccion_accuracy(
         for r in plan.rows:
             if r.qty_to_produce <= 0:
                 continue
-            planned[(r.product_id, cur)] = planned.get(
-                (r.product_id, cur), 0.0
-            ) + float(r.qty_to_produce)
+            planned[(r.product_id, cur)] = planned.get((r.product_id, cur), 0.0) + float(
+                r.qty_to_produce
+            )
         cur = cur + timedelta(days=1)
 
     report = compute_plan_accuracy(session, start_date, end_date, planned)

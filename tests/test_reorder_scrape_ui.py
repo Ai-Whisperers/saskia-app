@@ -4,6 +4,7 @@ The /reorder page now includes a "Ver precios" trigger button + a hidden
 results panel for each row. This test confirms the markup is wired so the
 scraper JS has its DOM hooks.
 """
+
 from __future__ import annotations
 
 

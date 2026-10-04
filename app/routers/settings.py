@@ -59,22 +59,26 @@ def settings_page(
     # Phase 1.A — ComplianceInfo row (id=1) for tax / regulatory IDs
     compliance = session.get(ComplianceInfo, 1) or ComplianceInfo(id=1)
 
-    return render(request, "settings.html", {
-        "business_name": business_name.value if business_name else "",
-        "business_ruc": business_ruc.value if business_ruc else "",
-        "business_address": business_address.value if business_address else "",
-        "business_phone": business_phone.value if business_phone else "",
-        "timbrado": timbrado.value if timbrado else "",
-        "punto_expedicion": punto_expedicion.value if punto_expedicion else "",
-        "invoice_sequence": invoice_sequence.value if invoice_sequence else "",
-        "theme": theme.value if theme else "system",
-        "current_user": _safe_get_user(session, user_id),
-        "delivery_zones": session.execute(
-            select(DeliveryZone).order_by(DeliveryZone.position)
-        ).scalars().all(),
-        # Phase 1.A — pass compliance fields to the template
-        "compliance": compliance,
-    })
+    return render(
+        request,
+        "settings.html",
+        {
+            "business_name": business_name.value if business_name else "",
+            "business_ruc": business_ruc.value if business_ruc else "",
+            "business_address": business_address.value if business_address else "",
+            "business_phone": business_phone.value if business_phone else "",
+            "timbrado": timbrado.value if timbrado else "",
+            "punto_expedicion": punto_expedicion.value if punto_expedicion else "",
+            "invoice_sequence": invoice_sequence.value if invoice_sequence else "",
+            "theme": theme.value if theme else "system",
+            "current_user": _safe_get_user(session, user_id),
+            "delivery_zones": session.execute(select(DeliveryZone).order_by(DeliveryZone.position))
+            .scalars()
+            .all(),
+            # Phase 1.A — pass compliance fields to the template
+            "compliance": compliance,
+        },
+    )
 
 
 def _safe_get_user(session: object, user_id: object) -> object:
@@ -244,13 +248,21 @@ def save_fiscal_settings(
             existing.updated_at = now_iso
 
             # Audit change
-            audit_record(session, user_id=user_id, action="settings.change",
-                        detail={"setting": key, "old_value": old_value, "new_value": value})
+            audit_record(
+                session,
+                user_id=user_id,
+                action="settings.change",
+                detail={"setting": key, "old_value": old_value, "new_value": value},
+            )
         else:
             new = AppMeta(key=key, value=value, updated_at=now_iso)
             session.add(new)
-            audit_record(session, user_id=user_id, action="settings.create",
-                        detail={"setting": key, "value": value})
+            audit_record(
+                session,
+                user_id=user_id,
+                action="settings.create",
+                detail={"setting": key, "value": value},
+            )
 
     session.commit()
     return RedirectResponse(url="/settings?flash=Configuración+fiscal+guardada", status_code=303)
@@ -279,13 +291,21 @@ def save_theme_settings(
         old_value = existing.value
         existing.value = theme
         existing.updated_at = now_iso
-        audit_record(session, user_id=user_id, action="settings.change",
-                    detail={"setting": "theme", "old_value": old_value, "new_value": theme})
+        audit_record(
+            session,
+            user_id=user_id,
+            action="settings.change",
+            detail={"setting": "theme", "old_value": old_value, "new_value": theme},
+        )
     else:
         new = AppMeta(key="theme", value=theme, updated_at=now_iso)
         session.add(new)
-        audit_record(session, user_id=user_id, action="settings.create",
-                    detail={"setting": "theme", "value": theme})
+        audit_record(
+            session,
+            user_id=user_id,
+            action="settings.create",
+            detail={"setting": "theme", "value": theme},
+        )
 
     session.commit()
     return RedirectResponse(url=f"/settings?flash=Tema+{theme}+guardado", status_code=303)
@@ -334,19 +354,18 @@ def settings_seed_demo(
         detail={"overwrite": do_overwrite, "inserted": inserted},
     )
     session.commit()
-    msg = (f"Datos de ejemplo cargados: "
-           f"{inserted.get('ingredients', '?')} ingredientes, "
-           f"{inserted.get('recipes', '?')} recetas, "
-           f"{inserted.get('products', '?')} productos")
+    msg = (
+        f"Datos de ejemplo cargados: "
+        f"{inserted.get('ingredients', '?')} ingredientes, "
+        f"{inserted.get('recipes', '?')} recetas, "
+        f"{inserted.get('products', '?')} productos"
+    )
     # URL-encode the plus signs manually so they don't get treated as spaces
     msg_url = msg.replace(" ", "+")
     return RedirectResponse(
         url=f"/settings?flash={msg_url}",
         status_code=303,
     )
-
-
-
 
 
 @router.get("/catalog", response_class=HTMLResponse)
@@ -361,4 +380,6 @@ def settings_catalog_page(
     go through the JSON API endpoints in app/routers/settings_runtime.py.
     """
     return render(request, "settings_catalog.html", {})
+
+
 __all__ = ["router"]

@@ -5,6 +5,7 @@ Per SASKIA_TEST_PLAN.md §5 #11 — POST /inventario/{id}/ajustar must atomicall
 - Update Ingredient.stock_qty
 - Write an AuditLog entry
 """
+
 from __future__ import annotations
 
 from app.rms.models import Ingredient, StockMovement
@@ -28,6 +29,7 @@ def test_inventory_adjust_writes_stock_movement(authed_client, session_factory):
     # Need CSRF token
     r_get = authed_client.get(f"/inventario/{ing_id}/ajustar")
     import re
+
     m = re.search(r'name="_csrf_token" value="([^"]+)"', r_get.text)
     if m:
         m.group(1)
@@ -121,9 +123,7 @@ def test_inventory_adjust_writes_audit_log(authed_client, session_factory):
         # Inventory adjust creates a StockMovement row, NOT an AuditLog entry.
         # The StockMovement is itself the audit trail.
         movements = s.execute(
-            StockMovement.__table__.select().where(
-                StockMovement.ingredient_id == ing_id
-            )
+            StockMovement.__table__.select().where(StockMovement.ingredient_id == ing_id)
         ).fetchall()
         assert len(movements) >= 1, (
             f"Adjustment should write StockMovement for audit. "

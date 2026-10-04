@@ -67,20 +67,26 @@ def forecast_ingredient_consumption(
 
     # Recent consumption (positive total of |qty|).
     # stock_movement has its own recorded_at (no Sale join needed).
-    recent_q = session.scalar(
-        select(func.coalesce(func.sum(-StockMovement.qty), 0.0))
-        .where(StockMovement.ingredient_id == ingredient_id)
-        .where(StockMovement.movement_type == "sale")
-        .where(StockMovement.recorded_at >= recent_cutoff)
-    ) or 0.0
+    recent_q = (
+        session.scalar(
+            select(func.coalesce(func.sum(-StockMovement.qty), 0.0))
+            .where(StockMovement.ingredient_id == ingredient_id)
+            .where(StockMovement.movement_type == "sale")
+            .where(StockMovement.recorded_at >= recent_cutoff)
+        )
+        or 0.0
+    )
 
-    prior_q = session.scalar(
-        select(func.coalesce(func.sum(-StockMovement.qty), 0.0))
-        .where(StockMovement.ingredient_id == ingredient_id)
-        .where(StockMovement.movement_type == "sale")
-        .where(StockMovement.recorded_at >= prior_cutoff)
-        .where(StockMovement.recorded_at < recent_cutoff)
-    ) or 0.0
+    prior_q = (
+        session.scalar(
+            select(func.coalesce(func.sum(-StockMovement.qty), 0.0))
+            .where(StockMovement.ingredient_id == ingredient_id)
+            .where(StockMovement.movement_type == "sale")
+            .where(StockMovement.recorded_at >= prior_cutoff)
+            .where(StockMovement.recorded_at < recent_cutoff)
+        )
+        or 0.0
+    )
 
     avg_daily_recent = recent_q / days_back
     avg_daily_prior = prior_q / days_back
@@ -148,10 +154,10 @@ def forecast_all_ingredients(
 
     Returns ingredients sorted by days_of_stock (most urgent first).
     """
-    ings = session.scalars(
-        select(Ingredient).order_by(Ingredient.name).limit(limit)
-    ).all()
-    forecasts = [forecast_ingredient_consumption(session, ing.id, days_back=days_back) for ing in ings]
+    ings = session.scalars(select(Ingredient).order_by(Ingredient.name).limit(limit)).all()
+    forecasts = [
+        forecast_ingredient_consumption(session, ing.id, days_back=days_back) for ing in ings
+    ]
     # Sort: finite days_of_stock first, ascending (most urgent)
     forecasts.sort(key=lambda f: (f.days_of_stock == float("inf"), f.days_of_stock))
     return forecasts
@@ -159,10 +165,7 @@ def forecast_all_ingredients(
 
 def projected_stockout_in_7_days(forecast: ConsumptionForecast) -> bool:
     """Returns True if forecast suggests stockout within 7 days."""
-    return (
-        forecast.days_of_stock != float("inf")
-        and forecast.days_of_stock < 7
-    )
+    return forecast.days_of_stock != float("inf") and forecast.days_of_stock < 7
 
 
 def batch_forecast_ingredients(
@@ -187,35 +190,43 @@ def batch_forecast_ingredients(
 
     # Recent consumption per ingredient (single GROUP BY query).
     # stock_movement has its own recorded_at column (no Sale join needed).
-    recent_rows = dict(session.execute(
-        select(StockMovement.ingredient_id, func.coalesce(func.sum(-StockMovement.qty), 0.0))
-        .where(StockMovement.ingredient_id.in_(ingredient_ids))
-        .where(StockMovement.movement_type == "sale")
-        .where(StockMovement.recorded_at >= recent_cutoff)
-        .group_by(StockMovement.ingredient_id)
-    ).all())
+    recent_rows = dict(
+        session.execute(
+            select(StockMovement.ingredient_id, func.coalesce(func.sum(-StockMovement.qty), 0.0))
+            .where(StockMovement.ingredient_id.in_(ingredient_ids))
+            .where(StockMovement.movement_type == "sale")
+            .where(StockMovement.recorded_at >= recent_cutoff)
+            .group_by(StockMovement.ingredient_id)
+        ).all()
+    )
 
-    prior_rows = dict(session.execute(
-        select(StockMovement.ingredient_id, func.coalesce(func.sum(-StockMovement.qty), 0.0))
-        .where(StockMovement.ingredient_id.in_(ingredient_ids))
-        .where(StockMovement.movement_type == "sale")
-        .where(StockMovement.recorded_at >= prior_cutoff)
-        .where(StockMovement.recorded_at < recent_cutoff)
-        .group_by(StockMovement.ingredient_id)
-    ).all())
+    prior_rows = dict(
+        session.execute(
+            select(StockMovement.ingredient_id, func.coalesce(func.sum(-StockMovement.qty), 0.0))
+            .where(StockMovement.ingredient_id.in_(ingredient_ids))
+            .where(StockMovement.movement_type == "sale")
+            .where(StockMovement.recorded_at >= prior_cutoff)
+            .where(StockMovement.recorded_at < recent_cutoff)
+            .group_by(StockMovement.ingredient_id)
+        ).all()
+    )
 
     # Last restock price per ingredient (single query)
-    last_price_rows = dict(session.execute(
-        select(IngredientPriceEvent.ingredient_id, func.max(IngredientPriceEvent.recorded_at))
-        .where(IngredientPriceEvent.ingredient_id.in_(ingredient_ids))
-        .where(IngredientPriceEvent.source == "restock")
-        .group_by(IngredientPriceEvent.ingredient_id)
-    ).all())
+    last_price_rows = dict(
+        session.execute(
+            select(IngredientPriceEvent.ingredient_id, func.max(IngredientPriceEvent.recorded_at))
+            .where(IngredientPriceEvent.ingredient_id.in_(ingredient_ids))
+            .where(IngredientPriceEvent.source == "restock")
+            .group_by(IngredientPriceEvent.ingredient_id)
+        ).all()
+    )
 
     last_price_evts = {}
     if last_price_rows:
         evts = session.scalars(
-            select(IngredientPriceEvent).where(IngredientPriceEvent.ingredient_id.in_(last_price_rows.keys()))
+            select(IngredientPriceEvent).where(
+                IngredientPriceEvent.ingredient_id.in_(last_price_rows.keys())
+            )
         ).all()
         for e in evts:
             cur = last_price_evts.get(e.ingredient_id)
@@ -223,9 +234,10 @@ def batch_forecast_ingredients(
                 last_price_evts[e.ingredient_id] = e
 
     # Now build forecast per ingredient
-    ingredients = {ing.id: ing for ing in session.scalars(
-        select(Ingredient).where(Ingredient.id.in_(ingredient_ids))
-    )}
+    ingredients = {
+        ing.id: ing
+        for ing in session.scalars(select(Ingredient).where(Ingredient.id.in_(ingredient_ids)))
+    }
 
     out: dict[int, ConsumptionForecast] = {}
     for ing_id in ingredient_ids:

@@ -5,6 +5,7 @@ Everything that used to stack 8 viewports deep on / now lives here:
 Inteligencia KPIs, stars/dogs, rising/churning, price fluctuation, erosion
 alerts, top margin, concentration, dow averages, turnover, complexity.
 """
+
 from __future__ import annotations
 
 from datetime import datetime

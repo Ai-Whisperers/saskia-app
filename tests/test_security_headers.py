@@ -1,4 +1,5 @@
 """Security headers tests — verify hardening is in place."""
+
 from __future__ import annotations
 
 import pytest
@@ -45,9 +46,7 @@ def test_strict_transport_security_present_on_https(client):
 def test_referrer_policy_present(client):
     """Referrer-Policy header must be present."""
     r = client.get("/login")
-    assert "referrer-policy" in {k.lower() for k in r.headers.keys()}, (
-        "No Referrer-Policy header"
-    )
+    assert "referrer-policy" in {k.lower() for k in r.headers.keys()}, "No Referrer-Policy header"
 
 
 def test_permissions_policy_present(client):

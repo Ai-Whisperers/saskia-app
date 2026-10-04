@@ -13,6 +13,7 @@ Mirrors `POST /ventas/{sale_id}/anular` (void) but for partial / different-day
 refunds. Void = "this didn't happen" (full reversal). Refund = "this happened,
 giving some money back" (partial, with optional restock).
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -96,6 +97,7 @@ async def refund_create(
         msg = _ERROR_MESSAGES.get(e.code, "No se pudo procesar el reembolso.")
         # Map RefundError to flash message + redirect back to the sale detail.
         from urllib.parse import quote as _quote
+
         flash_key = f"refund_err_{e.code}"
         if target_type == "sale":
             back_url = f"/ventas/{target_id}?flash={_quote(flash_key)}"
@@ -103,7 +105,11 @@ async def refund_create(
             back_url = f"/pedidos/{target_id}?flash={_quote(flash_key)}"
         logger.warning(
             "refund failed: type={} id={} amount={} code={} msg={}",
-            target_type, target_id, amount_gs, e.code, msg,
+            target_type,
+            target_id,
+            amount_gs,
+            e.code,
+            msg,
         )
         return RedirectResponse(url=back_url, status_code=303)
     except IntegrityError as e:
@@ -119,6 +125,7 @@ async def refund_create(
     # Audit row (mirror void-anonymous-void's pattern)
     try:
         from app.rms.observability import record_audit
+
         record_audit(
             request,
             session=session,

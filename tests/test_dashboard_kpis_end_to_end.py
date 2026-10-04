@@ -1,4 +1,5 @@
 """Dashboard KPI end-to-end tests."""
+
 from __future__ import annotations
 
 import pytest
@@ -57,19 +58,23 @@ def test_dashboard_loads_with_voided_sales(client, session_factory):
         s.refresh(product)
 
         # One normal, one voided
-        s.add(Sale(
-            product_id=product.id,
-            qty=1,
-            unit_price_gs=5000,
-            sold_at=datetime.now(timezone.utc),
-        ))
-        s.add(Sale(
-            product_id=product.id,
-            qty=1,
-            unit_price_gs=5000,
-            sold_at=datetime.now(timezone.utc),
-            voided_at=datetime.now(timezone.utc),
-        ))
+        s.add(
+            Sale(
+                product_id=product.id,
+                qty=1,
+                unit_price_gs=5000,
+                sold_at=datetime.now(timezone.utc),
+            )
+        )
+        s.add(
+            Sale(
+                product_id=product.id,
+                qty=1,
+                unit_price_gs=5000,
+                sold_at=datetime.now(timezone.utc),
+                voided_at=datetime.now(timezone.utc),
+            )
+        )
         s.commit()
 
     r = client.get("/")

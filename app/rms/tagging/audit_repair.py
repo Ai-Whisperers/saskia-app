@@ -37,29 +37,33 @@ from sqlalchemy.orm import Session
 # already validated that the allergen exists.
 _REPAIR_RULES: list[tuple[str, frozenset[str], frozenset[str]]] = [
     # allergen contradictions (allergens wins)
-    ("sin gluten' but allergens include gluten", frozenset({"gluten"}),
-     frozenset({"sin gluten", "sin tacc"})),
-    ("sin tacc' but allergens include gluten", frozenset({"gluten"}),
-     frozenset({"sin tacc", "sin gluten"})),
-    ("sin lactosa' but allergens include dairy", frozenset({"dairy"}),
-     frozenset({"sin lactosa"})),
-    ("sin huevo' but allergens include eggs", frozenset({"eggs"}),
-     frozenset({"sin huevo"})),
-    ("sin frutos secos' but allergens include nuts", frozenset({"nuts"}),
-     frozenset({"sin frutos secos"})),
+    (
+        "sin gluten' but allergens include gluten",
+        frozenset({"gluten"}),
+        frozenset({"sin gluten", "sin tacc"}),
+    ),
+    (
+        "sin tacc' but allergens include gluten",
+        frozenset({"gluten"}),
+        frozenset({"sin tacc", "sin gluten"}),
+    ),
+    ("sin lactosa' but allergens include dairy", frozenset({"dairy"}), frozenset({"sin lactosa"})),
+    ("sin huevo' but allergens include eggs", frozenset({"eggs"}), frozenset({"sin huevo"})),
+    (
+        "sin frutos secos' but allergens include nuts",
+        frozenset({"nuts"}),
+        frozenset({"sin frutos secos"}),
+    ),
     # 'vegano' but allergens include [anything that disqualifies vegan].
     # Validator currently only flags dairy/eggs; if it ever flags more
     # (e.g. meat allergens), this substring still matches.
-    ("vegano' but allergens include", frozenset(),
-     frozenset({"vegano"})),
+    ("vegano' but allergens include", frozenset(), frozenset({"vegano"})),
     # vegetariano + name is meat → drop BOTH vegetariano and vegano
     # (vegano is stricter than vegetariano; if the ingredient isn't
     # even vegetarian, it definitely isn't vegan).
-    ("vegetariano' but name suggests", frozenset(),
-     frozenset({"vegetariano", "vegano"})),
+    ("vegetariano' but name suggests", frozenset(), frozenset({"vegetariano", "vegano"})),
     # may_contain_gluten overrides sin tacc
-    ("sin tacc cannot be true", frozenset(),
-     frozenset({"sin tacc", "sin gluten"})),
+    ("sin tacc cannot be true", frozenset(), frozenset({"sin tacc", "sin gluten"})),
 ]
 
 
@@ -118,15 +122,24 @@ def repair_ingredient(ing: Any) -> list[str]:
                 except (IndexError, ValueError):
                     continue
                 if (ing.category or "").lower() == stored and inferred in {
-                    "grasas", "lácteos", "harinas", "endulzantes", "frutas",
-                    "carnes", "pescados", "especias", "otros",
-                    "leudantes", "huevos", "decoración", "frutos-secos",
-                    "líquidos", "semillas",
+                    "grasas",
+                    "lácteos",
+                    "harinas",
+                    "endulzantes",
+                    "frutas",
+                    "carnes",
+                    "pescados",
+                    "especias",
+                    "otros",
+                    "leudantes",
+                    "huevos",
+                    "decoración",
+                    "frutos-secos",
+                    "líquidos",
+                    "semillas",
                 }:
                     ing.category = inferred
-                    changes.append(
-                        f"category: '{stored}' → '{inferred}' (from name)"
-                    )
+                    changes.append(f"category: '{stored}' → '{inferred}' (from name)")
                 break  # only one category per ingredient
 
     return changes

@@ -62,13 +62,15 @@ def upsert_completion(
     return row
 
 
-def completions_for_date(
-    session: Session, for_date: date
-) -> dict[int, float]:
+def completions_for_date(session: Session, for_date: date) -> dict[int, float]:
     """Return {product_id: completed_qty} for a given date."""
-    rows = session.execute(
-        select(ProductionCompletion).where(ProductionCompletion.for_date == for_date)
-    ).scalars().all()
+    rows = (
+        session.execute(
+            select(ProductionCompletion).where(ProductionCompletion.for_date == for_date)
+        )
+        .scalars()
+        .all()
+    )
     return {r.product_id: r.completed_qty for r in rows}
 
 

@@ -12,6 +12,7 @@ Used by CI to catch migration drift before deploy. Runs:
 This is the "deploy-shape env" smoke test: same Dockerfile, same DB
 dialect (Postgres), same env-var expectations as production.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -65,15 +66,25 @@ def main() -> int | None:
             print("[smoke] starting ephemeral postgres…")
             r = subprocess.run(
                 [
-                    "docker", "run", "-d", "--rm",
-                    "--name", "saskia-smoke-pg",
-                    "-e", "POSTGRES_USER=saskia",
-                    "-e", "POSTGRES_PASSWORD=saskia",
-                    "-e", "POSTGRES_DB=saskia",
-                    "-p", "5433:5432",
+                    "docker",
+                    "run",
+                    "-d",
+                    "--rm",
+                    "--name",
+                    "saskia-smoke-pg",
+                    "-e",
+                    "POSTGRES_USER=saskia",
+                    "-e",
+                    "POSTGRES_PASSWORD=saskia",
+                    "-e",
+                    "POSTGRES_DB=saskia",
+                    "-p",
+                    "5433:5432",
                     "postgres:16-alpine",
                 ],
-                capture_output=True, text=True, timeout=120,
+                capture_output=True,
+                text=True,
+                timeout=120,
             )
             if r.returncode != 0:
                 print(f"docker run failed: {r.stderr}")
@@ -83,7 +94,9 @@ def main() -> int | None:
             for _ in range(30):
                 rr = subprocess.run(
                     ["docker", "exec", pg_container, "pg_isready", "-U", "saskia"],
-                    capture_output=True, text=True, timeout=10,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
                 )
                 if rr.returncode == 0:
                     print("[smoke] postgres is ready")
@@ -105,10 +118,14 @@ def main() -> int | None:
             env["BIND_HOST"] = "127.0.0.1"
             app_process = subprocess.Popen(
                 [
-                    "uv", "run", "uvicorn",
+                    "uv",
+                    "run",
+                    "uvicorn",
                     "app.rms.main:app",
-                    "--host", "127.0.0.1",
-                    "--port", str(args.port),
+                    "--host",
+                    "127.0.0.1",
+                    "--port",
+                    str(args.port),
                 ],
                 env=env,
                 cwd=str(ROOT),
@@ -117,7 +134,9 @@ def main() -> int | None:
             print("[smoke] building docker image…")
             r = subprocess.run(
                 ["docker", "build", "-t", "saskia-rms:smoke", str(ROOT)],
-                capture_output=True, text=True, timeout=600,
+                capture_output=True,
+                text=True,
+                timeout=600,
             )
             if r.returncode != 0:
                 print(f"docker build failed:\n{r.stderr}")
@@ -125,15 +144,27 @@ def main() -> int | None:
             print(f"[smoke] starting container on :{args.port}…")
             app_process = subprocess.Popen(
                 [
-                    "docker", "run", "-d", "--rm", "--name", "saskia-smoke-app",
-                    "-p", f"{args.port}:8000",
-                    "-e", f"DATABASE_URL={db_url}",
-                    "-e", "AIW_SASKIA_RUN_MIGRATIONS=1",
-                    "-e", "PORT=8000",
-                    "-e", "BIND_HOST=0.0.0.0",
+                    "docker",
+                    "run",
+                    "-d",
+                    "--rm",
+                    "--name",
+                    "saskia-smoke-app",
+                    "-p",
+                    f"{args.port}:8000",
+                    "-e",
+                    f"DATABASE_URL={db_url}",
+                    "-e",
+                    "AIW_SASKIA_RUN_MIGRATIONS=1",
+                    "-e",
+                    "PORT=8000",
+                    "-e",
+                    "BIND_HOST=0.0.0.0",
                     "saskia-rms:smoke",
                 ],
-                capture_output=True, text=True, timeout=60,
+                capture_output=True,
+                text=True,
+                timeout=60,
             )
             time.sleep(2)
 
@@ -191,12 +222,14 @@ def main() -> int | None:
                 # Docker container name
                 subprocess.run(
                     ["docker", "stop", app_process.stdout.strip()],
-                    capture_output=True, timeout=30,
+                    capture_output=True,
+                    timeout=30,
                 )
         if pg_container:
             subprocess.run(
                 ["docker", "stop", pg_container],
-                capture_output=True, timeout=30,
+                capture_output=True,
+                timeout=30,
             )
 
 

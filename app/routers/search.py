@@ -6,6 +6,7 @@ Phase 1B ticket #8: previously each query block silently `pass`ed on
 exception. Now they log a warning so a partial-results UI is visible
 to ops in the logs (silent partial results were a debugging nightmare).
 """
+
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from loguru import logger
@@ -58,14 +59,16 @@ def global_search(
                 tier_label = "Oro"
             else:
                 tier_label = "Platino"
-            results["customers"].append({
-                "id": c.id,
-                "name": c.name or "—",
-                "sub": f"{c.phone or 'sin tel'} · {tier_label}",
-                "badge": tier_label,
-                "badge_class": f"tier-{tier_label.lower()}",
-                "url": f"/clientes/{c.id}",
-            })
+            results["customers"].append(
+                {
+                    "id": c.id,
+                    "name": c.name or "—",
+                    "sub": f"{c.phone or 'sin tel'} · {tier_label}",
+                    "badge": tier_label,
+                    "badge_class": f"tier-{tier_label.lower()}",
+                    "url": f"/clientes/{c.id}",
+                }
+            )
     except Exception as exc:  # noqa: BLE001 — defensive default
         logger.warning(f"global_search: customers query failed: {exc!r}")
 
@@ -79,14 +82,16 @@ def global_search(
         )
         for p in products_q:
             price_str = f"Gs. {p.sale_price_gs:,.0f}".replace(",", ".") if p.sale_price_gs else "—"
-            results["products"].append({
-                "id": p.id,
-                "name": p.name,
-                "sub": f"{p.portion_label or '—'} · {price_str}",
-                "badge": "Con receta" if p.recipe_name else "Sin receta",
-                "badge_class": "info" if p.recipe_name else "neutral",
-                "url": f"/productos/{p.id}/editar",
-            })
+            results["products"].append(
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "sub": f"{p.portion_label or '—'} · {price_str}",
+                    "badge": "Con receta" if p.recipe_name else "Sin receta",
+                    "badge_class": "info" if p.recipe_name else "neutral",
+                    "url": f"/productos/{p.id}/editar",
+                }
+            )
     except Exception as exc:  # noqa: BLE001 — defensive default
         logger.warning(f"global_search: products query failed: {exc!r}")
 
@@ -113,35 +118,36 @@ def global_search(
             }
             label, cls = status_map.get(ped.status, (ped.status or "—", "neutral"))
             date_str = ped.promised_date.strftime("%d/%m/%Y") if ped.promised_date else "—"
-            results["pedidos"].append({
-                "id": ped.id,
-                "name": ped.customer_name or "—",
-                "sub": f"{date_str} · {ped.channel or '—'} · {label}",
-                "badge": label,
-                "badge_class": cls,
-                "url": f"/pedidos/{ped.id}",
-            })
+            results["pedidos"].append(
+                {
+                    "id": ped.id,
+                    "name": ped.customer_name or "—",
+                    "sub": f"{date_str} · {ped.channel or '—'} · {label}",
+                    "badge": label,
+                    "badge_class": cls,
+                    "url": f"/pedidos/{ped.id}",
+                }
+            )
     except Exception as exc:  # noqa: BLE001 — defensive default
         logger.warning(f"global_search: pedidos query failed: {exc!r}")
 
     # ── Recipes ─────────────────────────────────────────────────────────────
     try:
         recipes_q = (
-            session.query(Recipe)
-            .filter(Recipe.name.ilike(pattern))
-            .order_by(Recipe.name)
-            .limit(8)
+            session.query(Recipe).filter(Recipe.name.ilike(pattern)).order_by(Recipe.name).limit(8)
         )
         for r in recipes_q:
             cost_str = f"Gs. {r.unit_cost_gs:,.0f}".replace(",", ".") if r.unit_cost_gs else "—"
-            results["recipes"].append({
-                "id": r.id,
-                "name": r.name,
-                "sub": f"{r.yield_qty} {r.yield_unit or 'porción'} · {cost_str}/porción",
-                "badge": "Receta",
-                "badge_class": "info",
-                "url": f"/recetas/{r.id}/editar",
-            })
+            results["recipes"].append(
+                {
+                    "id": r.id,
+                    "name": r.name,
+                    "sub": f"{r.yield_qty} {r.yield_unit or 'porción'} · {cost_str}/porción",
+                    "badge": "Receta",
+                    "badge_class": "info",
+                    "url": f"/recetas/{r.id}/editar",
+                }
+            )
     except Exception as exc:  # noqa: BLE001 — defensive default
         logger.warning(f"global_search: recipes query failed: {exc!r}")
 

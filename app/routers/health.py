@@ -52,9 +52,7 @@ def _get_last_backup_at(request: Request) -> str | None:
         from app.rms.models import AppMeta
 
         with request.app.state.session_factory() as s:
-            row = s.scalars(
-                select(AppMeta).where(AppMeta.key == "last_backup_at")
-            ).first()
+            row = s.scalars(select(AppMeta).where(AppMeta.key == "last_backup_at")).first()
             return row.value if row else None
     except Exception:  # noqa: BLE001 — defensive default
         # On any DB error we report "no backup" rather than failing the
@@ -62,9 +60,7 @@ def _get_last_backup_at(request: Request) -> str | None:
         return None
 
 
-def _check_supabase_reachable(
-    url: str, timeout: float = 2.0
-) -> dict[str, Any]:
+def _check_supabase_reachable(url: str, timeout: float = 2.0) -> dict[str, Any]:
     """GET the Supabase auth health endpoint. Returns a diagnostic dict.
 
     The Supabase auth API (GoTrue) only accepts GET on /auth/v1/health
@@ -99,11 +95,7 @@ def _check_supabase_reachable(
                 "ok": ok,
                 "http_status": resp.status,
                 "latency_ms": latency_ms,
-                "reason": (
-                    None
-                    if ok
-                    else f"HTTP {resp.status} from auth health endpoint"
-                ),
+                "reason": (None if ok else f"HTTP {resp.status} from auth health endpoint"),
             }
     except urllib.error.HTTPError as e:
         # HEAD returned 405 in production; GET can also hit 401/403 if
@@ -255,16 +247,22 @@ def healthz_errors(request: Request) -> JSONResponse:
     last_24h = now - timedelta(hours=24)
 
     with request.app.state.session_factory() as s:
-        n_1h = s.execute(
-            select(func.count())
-            .select_from(AuditLog)
-            .where(AuditLog.action == "http.500", AuditLog.occurred_at >= last_1h)
-        ).scalar() or 0
-        n_24h = s.execute(
-            select(func.count())
-            .select_from(AuditLog)
-            .where(AuditLog.action == "http.500", AuditLog.occurred_at >= last_24h)
-        ).scalar() or 0
+        n_1h = (
+            s.execute(
+                select(func.count())
+                .select_from(AuditLog)
+                .where(AuditLog.action == "http.500", AuditLog.occurred_at >= last_1h)
+            ).scalar()
+            or 0
+        )
+        n_24h = (
+            s.execute(
+                select(func.count())
+                .select_from(AuditLog)
+                .where(AuditLog.action == "http.500", AuditLog.occurred_at >= last_24h)
+            ).scalar()
+            or 0
+        )
 
     return JSONResponse(
         content={
@@ -447,9 +445,7 @@ def healthz_db(request: Request) -> JSONResponse:
                 # Most recent audit row — diagnostic for "is anything being
                 # written?" without exposing content. SQLite returns the
                 # timestamp as a string; Postgres returns a datetime.
-                last = conn.execute(
-                    text("SELECT MAX(occurred_at) FROM audit_log")
-                ).scalar()
+                last = conn.execute(text("SELECT MAX(occurred_at) FROM audit_log")).scalar()
                 if last is None:
                     payload["last_audit_at"] = None
                 elif hasattr(last, "isoformat"):
@@ -493,18 +489,16 @@ def _summary_check_db(request: Request) -> dict[str, Any]:
             ok = conn.execute(text("SELECT 1")).scalar() == 1
             if not ok:
                 return {"ok": False, "detail": "SELECT 1 failed"}
-            last = conn.execute(
-                text("SELECT MAX(occurred_at) FROM audit_log")
-            ).scalar()
+            last = conn.execute(text("SELECT MAX(occurred_at) FROM audit_log")).scalar()
             actual = schema_version(conn)
             return {
                 "ok": True,
                 "schema_version": actual,
                 "code_schema_version": CURRENT_SCHEMA_VERSION,
                 "migrations_pending": schema_version_mismatch(conn),
-                "last_audit_at": (
-                    last.isoformat() if hasattr(last, "isoformat") else str(last)
-                ) if last else None,
+                "last_audit_at": (last.isoformat() if hasattr(last, "isoformat") else str(last))
+                if last
+                else None,
             }
     except Exception as exc:  # noqa: BLE001 — defensive default
         return {"ok": False, "detail": str(exc)[:200]}
@@ -522,22 +516,28 @@ def _summary_check_errors(request: Request) -> dict[str, Any]:
     try:
         now = datetime.now(ASUNCION_TZ)
         with request.app.state.session_factory() as s:
-            n_1h = s.execute(
-                select(func.count())
-                .select_from(AuditLog)
-                .where(
-                    AuditLog.action == "http.500",
-                    AuditLog.occurred_at >= now - _td(hours=1),
-                )
-            ).scalar() or 0
-            n_24h = s.execute(
-                select(func.count())
-                .select_from(AuditLog)
-                .where(
-                    AuditLog.action == "http.500",
-                    AuditLog.occurred_at >= now - _td(hours=24),
-                )
-            ).scalar() or 0
+            n_1h = (
+                s.execute(
+                    select(func.count())
+                    .select_from(AuditLog)
+                    .where(
+                        AuditLog.action == "http.500",
+                        AuditLog.occurred_at >= now - _td(hours=1),
+                    )
+                ).scalar()
+                or 0
+            )
+            n_24h = (
+                s.execute(
+                    select(func.count())
+                    .select_from(AuditLog)
+                    .where(
+                        AuditLog.action == "http.500",
+                        AuditLog.occurred_at >= now - _td(hours=24),
+                    )
+                ).scalar()
+                or 0
+            )
         return {"ok": True, "last_1h": int(n_1h), "last_24h": int(n_24h)}
     except Exception as exc:  # noqa: BLE001 — defensive default
         return {"ok": False, "detail": str(exc)[:200]}
@@ -734,6 +734,7 @@ def healthz_migrate(request: Request) -> object:
         )
 
     from app.rms.db import schema_version
+
     with engine.connect() as conn:
         new_version = schema_version(conn)
 
@@ -796,6 +797,7 @@ def admin_migrate(request: Request) -> object:
 
     # Read back the new version
     from app.rms.db import schema_version
+
     with engine.connect() as conn:
         new_version = schema_version(conn)
 
@@ -871,9 +873,7 @@ def healthz_backup(request: Request) -> JSONResponse:
         "stale": stale,
         "threshold_hours": BACKUP_STALE_HOURS,
         "hint": (
-            "POST /admin/backup to trigger an immediate backup (auth required)."
-            if stale
-            else None
+            "POST /admin/backup to trigger an immediate backup (auth required)." if stale else None
         ),
     }
     return JSONResponse(

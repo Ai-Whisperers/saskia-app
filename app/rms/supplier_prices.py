@@ -237,7 +237,10 @@ def get_price_comparison(
         # ingredient (multiple package variants), keep the cheapest entry.
         by_supplier: dict[int, _SupplierPrice] = {}
         for sp in g.suppliers:
-            if sp.supplier_id not in by_supplier or sp.price_gs < by_supplier[sp.supplier_id].price_gs:
+            if (
+                sp.supplier_id not in by_supplier
+                or sp.price_gs < by_supplier[sp.supplier_id].price_gs
+            ):
                 by_supplier[sp.supplier_id] = sp
         unique_suppliers = list(by_supplier.values())
         unique_suppliers.sort(key=lambda s: s.price_gs)
@@ -250,9 +253,7 @@ def get_price_comparison(
             for s in g.suppliers:
                 s.delta_gs = s.price_gs - cheapest
                 s.delta_pct = (
-                    round((s.price_gs - cheapest) / cheapest * 100, 1)
-                    if cheapest > 0
-                    else 0.0
+                    round((s.price_gs - cheapest) / cheapest * 100, 1) if cheapest > 0 else 0.0
                 )
                 s.is_cheapest = s.price_gs == cheapest
             g.savings_gs_per_unit = most_expensive - cheapest

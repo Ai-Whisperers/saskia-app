@@ -6,6 +6,7 @@ Compares the version header in docs/user-guide/README.md against:
 
 Exits non-zero if the manual is stale.
 """
+
 from __future__ import annotations
 
 import re
@@ -19,7 +20,13 @@ CONFIG = REPO / "app" / "rms" / "config.py"
 
 
 def get_git_sha() -> str:
-    r = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=REPO, capture_output=True, text=True, check=True)
+    r = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     return r.stdout.strip()
 
 

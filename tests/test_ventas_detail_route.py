@@ -21,15 +21,17 @@ def _make_sale(session_factory, *, with_stock_moves=False):
         if with_stock_moves:
             # BACKLOG #1: sale_stock_move replaced with StockMovement.
             # Use StockMovement to simulate what apply_sale would write
-            s.add(StockMovement(
-                ingredient_id=ing.id,
-                movement_type="sale",
-                qty=-0.5,
-                reason=f"Venta #{sid}",
-                reference_id=sid,
-                reference_type="sale",
-                affected_recipe_id=recipe.id,
-            ))
+            s.add(
+                StockMovement(
+                    ingredient_id=ing.id,
+                    movement_type="sale",
+                    qty=-0.5,
+                    reason=f"Venta #{sid}",
+                    reference_id=sid,
+                    reference_type="sale",
+                    affected_recipe_id=recipe.id,
+                )
+            )
         s.commit()
     return sid
 
@@ -52,9 +54,12 @@ def test_ventas_detail_shows_voided_banner(client, session_factory):
     """When sale.voided_at is set, show the ANULADO banner."""
     sid = _make_sale(session_factory)
     with session_factory() as s:
-        s.execute(text(
-            "UPDATE sale SET voided_at = CURRENT_TIMESTAMP, voided_by = 'tester', void_reason = 'client cancel' WHERE id = :id"
-        ), {"id": sid})
+        s.execute(
+            text(
+                "UPDATE sale SET voided_at = CURRENT_TIMESTAMP, voided_by = 'tester', void_reason = 'client cancel' WHERE id = :id"
+            ),
+            {"id": sid},
+        )
         s.commit()
     r = client.get(f"/ventas/{sid}")
     assert r.status_code == 200

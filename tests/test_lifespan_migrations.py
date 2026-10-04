@@ -9,6 +9,7 @@ These tests verify:
 2. AIW_SASKIA_RUN_MIGRATIONS=0 actually skips (for maintenance windows).
 3. Migrations don't crash the app on failure.
 """
+
 from __future__ import annotations
 
 import os
@@ -63,6 +64,7 @@ def test_lifespan_failure_does_not_crash_app(monkeypatch):
     import inspect
 
     from app.rms import main as main_module
+
     src = inspect.getsource(main_module.lifespan)
     # The migration block must wrap init_db in try/except.
     assert "try:" in src and "init_db" in src

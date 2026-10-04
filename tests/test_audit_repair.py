@@ -227,6 +227,7 @@ def test_word_boundary_fix_no_longer_falsely_matches_res_in_fresco():
     After word-boundary fix, 'res' should NOT match in 'jengibre fresco'.
     """
     from app.rms.ingredient_intel import _keyword_in
+
     # 'res' is in carnes keywords but should NOT match inside 'fresco'
     assert not _keyword_in("res", "jengibre fresco")
     # But it should match standalone 'res' (for carne de res)

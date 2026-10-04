@@ -33,6 +33,7 @@ This module does NOT do I/O or import FastAPI. The router stitches
 the inputs and includes the result in the customer detail payload
 (``/clientes/api/{id}``).
 """
+
 from __future__ import annotations
 
 import datetime as _dt
@@ -198,10 +199,7 @@ def suggest_for_customer(
     # card when it's one of multiple suggestions (it's still useful
     # as an action item in context) or when it carries a unique
     # algorithmic insight we don't surface elsewhere.
-    if (
-        len(out) == 1
-        and out[0].kind == KIND_PUNTOS_DORMIDOS
-    ):
+    if len(out) == 1 and out[0].kind == KIND_PUNTOS_DORMIDOS:
         return []
 
     return out[:MAX_SUGGESTIONS]
@@ -254,9 +252,7 @@ def _maybe_birthday(
     )
 
 
-def _candidate_recurring_birthday(
-    month: int, day: int, today: _dt.date
-) -> _dt.date:
+def _candidate_recurring_birthday(month: int, day: int, today: _dt.date) -> _dt.date:
     """Pick the next occurrence of month/day on or after ``today``."""
     try:
         candidate = today.replace(month=month, day=day)
@@ -295,7 +291,9 @@ def _maybe_lapsed(
         threshold = LAPSED_DAYS_BRONZE
         pct = LAPSED_DISCOUNT_PCT_BRONZE
 
-    last_visit_date = last_sale_at.date() if isinstance(last_sale_at, _dt.datetime) else last_sale_at
+    last_visit_date = (
+        last_sale_at.date() if isinstance(last_sale_at, _dt.datetime) else last_sale_at
+    )
     days_since = (today - last_visit_date).days
     if days_since < threshold:
         return None
@@ -396,6 +394,7 @@ def redeemed_on_last_visit(session: Any, customer_id: int) -> bool:
         from sqlalchemy import select as _sa_select
 
         from app.rms.models import LoyaltyTransaction, Sale
+
         latest_sale = session.execute(
             _sa_select(Sale.id)
             .where(Sale.customer_id == customer_id)

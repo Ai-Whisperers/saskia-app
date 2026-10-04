@@ -43,17 +43,23 @@ def strict_client(session_factory, monkeypatch, tmp_db_path):
     # https base_url: the session cookie is Secure-flagged by default
     # (HTTPS_ONLY defaults true) and httpx won't replay Secure cookies over
     # http — the login would "work" but the session would never stick.
-    with TestClient(main_module.app, raise_server_exceptions=False,
-                    base_url="https://testserver") as c:
+    with TestClient(
+        main_module.app, raise_server_exceptions=False, base_url="https://testserver"
+    ) as c:
         main_module.app.state.engine = test_engine
         main_module.app.state.session_factory = session_factory
         yield c
 
 
 def test_wrong_password_rejected(strict_client):
-    r = strict_client.post("/login", data={
-        "username": "admin", "password": "definitely-wrong",
-    }, follow_redirects=False)
+    r = strict_client.post(
+        "/login",
+        data={
+            "username": "admin",
+            "password": "definitely-wrong",
+        },
+        follow_redirects=False,
+    )
     # Local backend redirects to /login?...error=credenciales+invalidas
     # on bad credentials — the success case redirects to `next` instead.
     assert r.status_code == 303
@@ -63,9 +69,14 @@ def test_wrong_password_rejected(strict_client):
 
 
 def test_right_password_gets_session(strict_client):
-    r = strict_client.post("/login", data={
-        "username": "admin", "password": "pytest-admin-pw-123",
-    }, follow_redirects=False)
+    r = strict_client.post(
+        "/login",
+        data={
+            "username": "admin",
+            "password": "pytest-admin-pw-123",
+        },
+        follow_redirects=False,
+    )
     assert r.status_code == 303, f"login failed: {r.status_code} {r.text[:200]}"
 
 
@@ -77,8 +88,13 @@ def test_protected_route_redirects_anonymous(strict_client):
 
 
 def test_logged_in_session_reaches_dashboard(strict_client):
-    strict_client.post("/login", data={
-        "username": "admin", "password": "pytest-admin-pw-123",
-    }, follow_redirects=False)
+    strict_client.post(
+        "/login",
+        data={
+            "username": "admin",
+            "password": "pytest-admin-pw-123",
+        },
+        follow_redirects=False,
+    )
     r = strict_client.get("/dashboard")
     assert r.status_code == 200

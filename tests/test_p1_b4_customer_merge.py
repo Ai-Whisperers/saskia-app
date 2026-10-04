@@ -152,12 +152,8 @@ def test_merge_basic_two_customers(session_factory, make_customer, make_product,
     with session_factory() as s:
         assert s.get(Customer, source_id) is None
         assert s.get(Customer, target_id) is not None
-        sales_target = s.scalars(
-            select(Sale).where(Sale.customer_id == target_id)
-        ).all()
-        sales_source = s.scalars(
-            select(Sale).where(Sale.customer_id == source_id)
-        ).all()
+        sales_target = s.scalars(select(Sale).where(Sale.customer_id == target_id)).all()
+        sales_source = s.scalars(select(Sale).where(Sale.customer_id == source_id)).all()
         assert len(sales_target) == 6
         assert len(sales_source) == 0
 
@@ -258,9 +254,7 @@ def test_merge_with_pedidos(session_factory, make_customer, make_pedido):
     assert result.sources_merged[0].pedidos_reassigned == 2
 
     with session_factory() as s:
-        target_pedidos = s.scalars(
-            select(Pedido).where(Pedido.customer_id == target_id)
-        ).all()
+        target_pedidos = s.scalars(select(Pedido).where(Pedido.customer_id == target_id)).all()
         assert len(target_pedidos) == 2
         # Source row gone.
         assert s.get(Customer, source_id) is None
@@ -327,9 +321,7 @@ def test_clientes_duplicados_page_finds_duplicate_groups(
     assert f"id={c}" not in body or "Juan Perez" in body  # distractor name appears only as itself
 
 
-def test_clientes_duplicados_page_empty_when_no_duplicates(
-    authed_client, make_customer
-):
+def test_clientes_duplicados_page_empty_when_no_duplicates(authed_client, make_customer):
     """No duplicates → 200 with empty groups.
 
     Phones chosen so the first 5 chars differ ('+5959' vs '+5957').
@@ -392,9 +384,7 @@ def test_merge_endpoint_records_audit_log(
     assert resp.status_code == 303
 
     with session_factory() as s:
-        rows = s.scalars(
-            select(AuditLog).where(AuditLog.action == "write.customer.merge")
-        ).all()
+        rows = s.scalars(select(AuditLog).where(AuditLog.action == "write.customer.merge")).all()
         assert len(rows) == 1
         row = rows[0]
         assert row.target_type == "customer"
@@ -422,9 +412,7 @@ def test_merge_endpoint_requires_csrf(
     assert resp.status_code == 403
 
 
-def test_merge_endpoint_handles_value_error(
-    authed_client, session_factory, make_customer
-):
+def test_merge_endpoint_handles_value_error(authed_client, session_factory, make_customer):
     """POST with target_id in source_ids → redirect with error flash."""
     target_id = make_customer("Maria A")
     csrf = authed_client.cookies.get("csrf_token", "")

@@ -7,6 +7,7 @@ Tests:
 - No Python errors
 """
 
+
 def test_pedidos_stock_preview_endpoint(client):
     """P-13: /pedidos/{id}/stock-preview endpoint exists."""
     r = client.get("/pedidos/1/stock-preview")
@@ -18,9 +19,10 @@ def test_pedidos_stock_preview_in_spanish(client):
     r = client.get("/pedidos/1/stock-preview")
     if r.status_code == 200:
         body = r.text
-        assert any(w in body.lower() for w in [
-            "stock", "inventario", "disponible", "vista previa", "preview", "pedido"
-        ]), "Page not in Spanish"
+        assert any(
+            w in body.lower()
+            for w in ["stock", "inventario", "disponible", "vista previa", "preview", "pedido"]
+        ), "Page not in Spanish"
 
 
 def test_pedidos_stock_preview_has_warning(client):
@@ -43,11 +45,9 @@ def test_pedidos_stock_preview_has_force(client):
     r = client.get("/pedidos/1/stock-preview")
     if r.status_code == 200:
         body = r.text
-        assert (
-            'type="checkbox"' in body
-            or "forzar" in body.lower()
-            or "force" in body.lower()
-        ), "Force checkbox not found"
+        assert 'type="checkbox"' in body or "forzar" in body.lower() or "force" in body.lower(), (
+            "Force checkbox not found"
+        )
 
 
 def test_pedidos_stock_preview_no_python_errors(client):
@@ -68,8 +68,9 @@ def test_pedidos_stock_preview_template_renders(client):
     r = client.get("/pedidos/1/stock-preview")
     if r.status_code == 200:
         body = r.text
-        assert "TemplateSyntaxError" not in body and "UndefinedError" not in body, \
+        assert "TemplateSyntaxError" not in body and "UndefinedError" not in body, (
             "Jinja template error detected"
+        )
 
 
 def test_pedidos_stock_preview_lists_items(client):

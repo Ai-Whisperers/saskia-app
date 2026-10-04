@@ -126,9 +126,7 @@ def prune_audit_log(session: "Session", older_than_days: int = 365) -> int:
     from app.rms.models import AuditLog
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=older_than_days)
-    deleted = session.execute(
-        AuditLog.__table__.delete().where(AuditLog.occurred_at < cutoff)
-    )
+    deleted = session.execute(AuditLog.__table__.delete().where(AuditLog.occurred_at < cutoff))
     return deleted.rowcount
 
 

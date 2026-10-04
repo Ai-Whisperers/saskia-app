@@ -8,6 +8,7 @@ registered for schema version 86".
 Adding real work here when it lands is fine — the file just needs to
 exist and bump the schema version. Re-run is a no-op.
 """
+
 from typing import Any
 
 

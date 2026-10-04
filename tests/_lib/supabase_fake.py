@@ -1,5 +1,6 @@
 """Extracted from conftest (C1): shared Supabase fake."""
 
+
 def _FakeSupabaseForIntegration():
     """Factory — instantiated once per fixture for test isolation."""
 
@@ -16,6 +17,7 @@ def _FakeSupabaseForIntegration():
             if self.users.get(email) != pw:
                 raise Exception("Invalid login credentials")
             import uuid
+
             uid = str(uuid.uuid4())
             self._tokens[uid] = {
                 "access_token": f"fake-access-{uid}",
@@ -50,5 +52,3 @@ def _FakeSupabaseForIntegration():
             return self
 
     return Fake()
-
-

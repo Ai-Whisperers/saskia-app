@@ -25,6 +25,7 @@ What's NOT covered (deferred):
   - UI template button (deferred to UI work)
   - Daily report subtracts refunds (deferred to M1+)
 """
+
 from __future__ import annotations
 
 import os
@@ -69,8 +70,15 @@ def refund_session(refund_engine):
         s.close()
 
 
-def _make_sale(session, *, total_gs: int = 10_000, payment_method: str = "efectivo",
-               customer_id: int | None = None, qty: float = 1.0, voided: bool = False):
+def _make_sale(
+    session,
+    *,
+    total_gs: int = 10_000,
+    payment_method: str = "efectivo",
+    customer_id: int | None = None,
+    qty: float = 1.0,
+    voided: bool = False,
+):
     """Helper to create a minimal Sale row for refund tests.
 
     Ensures a Product row exists so the FK constraint is satisfied.
@@ -78,9 +86,7 @@ def _make_sale(session, *, total_gs: int = 10_000, payment_method: str = "efecti
     from app.rms.models_legacy import Product, Sale
 
     # Idempotent: only create the Product if it doesn't exist
-    existing_product = session.execute(
-        text("SELECT id FROM product WHERE id = 1")
-    ).first()
+    existing_product = session.execute(text("SELECT id FROM product WHERE id = 1")).first()
     if existing_product is None:
         product = Product(
             id=1,
@@ -164,20 +170,26 @@ def test_refund_db_trigger_catches_bypass(refund_engine):
 
     # First insert: 1000 — OK
     with refund_engine.begin() as conn:
-        conn.execute(text(
-            "INSERT INTO refund (target_type, target_id, target_amount_gs, amount_gs, "
-            "payment_method, restock_qty, restocked_qty, recorded_at, loyalty_reversed, eod_date) "
-            "VALUES ('sale', :sid, 1000, 1000, 'efectivo', 0, 0, :ts, 0, :d)"
-        ), {"sid": sale_id, "ts": datetime.utcnow(), "d": datetime.utcnow().date()})
+        conn.execute(
+            text(
+                "INSERT INTO refund (target_type, target_id, target_amount_gs, amount_gs, "
+                "payment_method, restock_qty, restocked_qty, recorded_at, loyalty_reversed, eod_date) "
+                "VALUES ('sale', :sid, 1000, 1000, 'efectivo', 0, 0, :ts, 0, :d)"
+            ),
+            {"sid": sale_id, "ts": datetime.utcnow(), "d": datetime.utcnow().date()},
+        )
 
     # Second insert: 1500 — must fail (would total 2500 > 1000)
     with pytest.raises(IntegrityError):
         with refund_engine.begin() as conn:
-            conn.execute(text(
-                "INSERT INTO refund (target_type, target_id, target_amount_gs, amount_gs, "
-                "payment_method, restock_qty, restocked_qty, recorded_at, loyalty_reversed, eod_date) "
-                "VALUES ('sale', :sid, 1000, 1500, 'efectivo', 0, 0, :ts, 0, :d)"
-            ), {"sid": sale_id, "ts": datetime.utcnow(), "d": datetime.utcnow().date()})
+            conn.execute(
+                text(
+                    "INSERT INTO refund (target_type, target_id, target_amount_gs, amount_gs, "
+                    "payment_method, restock_qty, restocked_qty, recorded_at, loyalty_reversed, eod_date) "
+                    "VALUES ('sale', :sid, 1000, 1500, 'efectivo', 0, 0, :ts, 0, :d)"
+                ),
+                {"sid": sale_id, "ts": datetime.utcnow(), "d": datetime.utcnow().date()},
+            )
 
 
 # --- 2. Voided sale rejection ---------------------------------------------
@@ -239,11 +251,14 @@ def test_refund_amount_zero_blocked_by_db(refund_engine):
     with refund_engine.connect() as conn:
         with pytest.raises(IntegrityError):
             with conn.begin():
-                conn.execute(text(
-                    "INSERT INTO refund (target_type, target_id, target_amount_gs, amount_gs, "
-                    "payment_method, restock_qty, restocked_qty, recorded_at, loyalty_reversed) "
-                    "VALUES ('sale', :sid, 5000, 0, 'efectivo', 0, 0, :ts, 0)"
-                ), {"sid": sale.id, "ts": datetime.utcnow()})
+                conn.execute(
+                    text(
+                        "INSERT INTO refund (target_type, target_id, target_amount_gs, amount_gs, "
+                        "payment_method, restock_qty, restocked_qty, recorded_at, loyalty_reversed) "
+                        "VALUES ('sale', :sid, 5000, 0, 'efectivo', 0, 0, :ts, 0)"
+                    ),
+                    {"sid": sale.id, "ts": datetime.utcnow()},
+                )
 
 
 # --- 5. Loyalty proportional reversal ------------------------------------
@@ -274,9 +289,7 @@ def test_refund_loyalty_reverses_proportionally(refund_session):
     assert pts_earned == 10  # sanity
 
     # Refund 25% of the sale (= 2_500 Gs) → should reverse floor(10 * 0.25) = 2 points
-    result = create_refund(
-        refund_session, "sale", sale.id, 2_500, recorded_by="op"
-    )
+    result = create_refund(refund_session, "sale", sale.id, 2_500, recorded_by="op")
     assert result.loyalty_reversed == 2
 
     # Customer balance should be 10 - 2 = 8
@@ -349,10 +362,14 @@ def test_refund_with_restock_updates_stock(refund_session):
     refund_session.add(recipe)
     refund_session.flush()
     # RecipeLine uses polymorphic line_kind + line_ref_id (not ingredient_id)
-    refund_session.add(RecipeLine(
-        recipe_id=recipe.id, line_kind="ingredient",
-        line_ref_id=ing.id, qty=2.0,
-    ))
+    refund_session.add(
+        RecipeLine(
+            recipe_id=recipe.id,
+            line_kind="ingredient",
+            line_ref_id=ing.id,
+            qty=2.0,
+        )
+    )
     refund_session.flush()
 
     sale = _make_sale(refund_session, total_gs=10_000, qty=4.0)
@@ -374,12 +391,17 @@ def test_refund_with_restock_updates_stock(refund_session):
     assert initial_stock == 10.0
 
     from app.rms.refunds import create_refund
+
     # The service computes share = |qty_delta| / total_delta * restocked_qty.
     # With one move of qty_delta=-8.0 and restocked_qty=2.0, share = 2.0 kg.
     expected_share = 2.0
     result = create_refund(
-        refund_session, "sale", sale.id, 5_000,
-        restock_qty=True, restocked_qty=2.0,  # refund 2 of 4 portions
+        refund_session,
+        "sale",
+        sale.id,
+        5_000,
+        restock_qty=True,
+        restocked_qty=2.0,  # refund 2 of 4 portions
         recorded_by="op",
     )
 
@@ -395,6 +417,7 @@ def test_refund_with_restock_updates_stock(refund_session):
     # We filter by reference_type='refund_sale' so we don't pick up the
     # original sale's consumption row (which is reference_type='sale').
     from app.rms.models import StockMovement
+
     moves = refund_session.scalars(
         sa_select(StockMovement).where(
             StockMovement.reference_id == result.refund.id,

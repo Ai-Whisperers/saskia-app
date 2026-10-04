@@ -420,9 +420,7 @@ def test_metric_label_uses_mono_eyebrow():
     assert "font-family:var(--font-mono)" in rule, (
         ".metric-label should use mono font (Square eyebrow pattern)"
     )
-    assert "font-weight:600" in rule, (
-        ".metric-label should be bolder (eyebrow pattern)"
-    )
+    assert "font-weight:600" in rule, ".metric-label should be bolder (eyebrow pattern)"
 
 
 def test_btn_pill_class_defined():
@@ -459,12 +457,8 @@ def test_shortcut_button_wired_in_js():
     """shortcuts.js should wire the new #open-shortcuts button to showShortcutHelp()."""
     with open("app/static/shortcuts.js") as f:
         js = f.read()
-    assert "open-shortcuts" in js, (
-        "shortcuts.js must wire the new nav button"
-    )
-    assert "navBtn._shortcutsWired" in js, (
-        "shortcuts.js must guard against double-binding"
-    )
+    assert "open-shortcuts" in js, "shortcuts.js must wire the new nav button"
+    assert "navBtn._shortcutsWired" in js, "shortcuts.js must guard against double-binding"
 
 
 # ---- P0 insight-card tests --------------------------------------------------
@@ -474,9 +468,7 @@ def test_insight_card_macro_defined():
     """The insight_card macro should be defined in macros.html (Lightspeed-style)."""
     with open("app/templates/_components/macros.html") as f:
         macros = f.read()
-    assert "{% macro insight_card" in macros, (
-        "macros.html must define insight_card macro"
-    )
+    assert "{% macro insight_card" in macros, "macros.html must define insight_card macro"
     assert 'severity="{{ severity }}"' in macros or "severity-" in macros, (
         "insight_card macro must use severity-* classes"
     )
@@ -516,10 +508,10 @@ def test_old_quadrant_unstyled_lists_removed():
     """The bare <ul> stars/dogs blocks should no longer be in inicio.html."""
     with open("app/templates/inicio.html") as f:
         inicio = f.read()
-    assert "<h3 class=\"quadrant-star\">" not in inicio, (
+    assert '<h3 class="quadrant-star">' not in inicio, (
         "Old bare <ul> quadrant-star block should be replaced by insight_card"
     )
-    assert "<h3 class=\"quadrant-dog\">" not in inicio, (
+    assert '<h3 class="quadrant-dog">' not in inicio, (
         "Old bare <ul> quadrant-dog block should be replaced by insight_card"
     )
 
@@ -531,9 +523,7 @@ def test_delta_pill_macro_defined():
     """The delta_pill macro should be defined in macros.html."""
     with open("app/templates/_components/macros.html") as f:
         macros = f.read()
-    assert "{% macro delta_pill" in macros, (
-        "macros.html must define delta_pill macro"
-    )
+    assert "{% macro delta_pill" in macros, "macros.html must define delta_pill macro"
     assert "metric-delta is-" in macros, (
         "delta_pill macro must use the existing .metric-delta.is-* classes"
     )

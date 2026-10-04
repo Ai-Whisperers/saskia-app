@@ -59,9 +59,11 @@ def test_with_kyrian_full_creates_expected_dataset(qseed, session_factory):
     # by the time we run this assertion, so we count lines via SQL
     # rather than relying on the lazy-loaded relationship.
     from sqlalchemy import func, select
+
     with session_factory() as s:
         line_count = s.execute(
-            select(func.count()).select_from(PedidoLine)
+            select(func.count())
+            .select_from(PedidoLine)
             .where(PedidoLine.pedido_id.in_(p.id for p in fulfilled))
         ).scalar_one()
     assert len(bundle.sales) == line_count
@@ -186,9 +188,7 @@ def test_seed_kyrian_replaces_prior_data(session_factory):
 
     # Garbage pedido should be gone
     with sf() as s:
-        still_there = s.execute(
-            select(Pedido).where(Pedido.id == garbage_id)
-        ).scalar_one_or_none()
+        still_there = s.execute(select(Pedido).where(Pedido.id == garbage_id)).scalar_one_or_none()
         assert still_there is None, "Garbage pedido was not cleaned up"
 
 

@@ -35,6 +35,7 @@ def test_award_points_writes_ledger_row_and_credits_balance(session_factory):
 
     with session_factory() as s:
         from app.rms.models import Customer
+
         cust = s.get(Customer, cust_id)
         pts = award_points(s, cust, total_gs=25_000, sale_id=None, actor="test")
         s.commit()
@@ -43,6 +44,7 @@ def test_award_points_writes_ledger_row_and_credits_balance(session_factory):
 
     with session_factory() as s:
         from app.rms.models import Customer
+
         cust = s.get(Customer, cust_id)
         assert cust.loyalty_points == 25
 
@@ -68,6 +70,7 @@ def test_award_points_zero_when_below_threshold(session_factory):
 
     with session_factory() as s:
         from app.rms.models import Customer
+
         cust = s.get(Customer, cust_id)
         pts = award_points(s, cust, total_gs=500, sale_id=None)
         s.commit()
@@ -95,7 +98,9 @@ def test_redeem_points_writes_ledger_row_and_debits_balance(session_factory):
 
     with session_factory() as s:
         cust = s.get(Customer, cust_id)
-        redeemed, discount = redeem_points(s, cust, 10, actor="saskia", notes="descuento cumpleaños")
+        redeemed, discount = redeem_points(
+            s, cust, 10, actor="saskia", notes="descuento cumpleaños"
+        )
         s.commit()
 
     assert redeemed == 10
@@ -109,11 +114,7 @@ def test_redeem_points_writes_ledger_row_and_debits_balance(session_factory):
         cust = s.get(Customer, cust_id)
         assert cust.loyalty_points == 40
 
-        rows = (
-            s.query(LoyaltyTransaction)
-            .filter_by(customer_id=cust_id, reason="redeem")
-            .all()
-        )
+        rows = s.query(LoyaltyTransaction).filter_by(customer_id=cust_id, reason="redeem").all()
         assert len(rows) == 1
         assert rows[0].delta == -10
         assert rows[0].notes == "descuento cumpleaños"
@@ -195,9 +196,7 @@ def test_reverse_points_for_void_writes_negative_ledger(session_factory, qseed):
     # Verify the earn_sale row exists with the right sale_id.
     with sf() as s:
         earn = (
-            s.query(LoyaltyTransaction)
-            .filter_by(customer_id=cust.id, reason="earn_sale")
-            .first()
+            s.query(LoyaltyTransaction).filter_by(customer_id=cust.id, reason="earn_sale").first()
         )
         assert earn is not None and earn.sale_id == sale_id
         # Re-fetch the customer in this session (committed by the prior session).
@@ -218,14 +217,10 @@ def test_reverse_points_for_void_writes_negative_ledger(session_factory, qseed):
         assert cust.loyalty_points == 0, "balance back to zero after void reversal"
 
         earn_rows = (
-            s.query(LoyaltyTransaction)
-            .filter_by(customer_id=cust.id, reason="earn_sale")
-            .all()
+            s.query(LoyaltyTransaction).filter_by(customer_id=cust.id, reason="earn_sale").all()
         )
         void_rows = (
-            s.query(LoyaltyTransaction)
-            .filter_by(customer_id=cust.id, reason="void_reversal")
-            .all()
+            s.query(LoyaltyTransaction).filter_by(customer_id=cust.id, reason="void_reversal").all()
         )
         assert len(earn_rows) == 1 and earn_rows[0].delta == 50
         assert len(void_rows) == 1 and void_rows[0].delta == -50
@@ -249,9 +244,7 @@ def test_reverse_points_for_void_noop_when_no_earn(session_factory):
 
     assert result == 0
     with session_factory() as s:
-        rows = (
-            s.query(LoyaltyTransaction).filter_by(customer_id=cust_id).all()
-        )
+        rows = s.query(LoyaltyTransaction).filter_by(customer_id=cust_id).all()
         assert len(rows) == 0
 
 
@@ -418,11 +411,7 @@ def test_redeem_endpoint_writes_ledger_and_redirects(authed_client, qseed):
     assert resp.status_code in (303, 307), resp.text
 
     with sf() as s:
-        rows = (
-            s.query(LoyaltyTransaction)
-            .filter_by(customer_id=cust_id, reason="redeem")
-            .all()
-        )
+        rows = s.query(LoyaltyTransaction).filter_by(customer_id=cust_id, reason="redeem").all()
         assert len(rows) == 1
         assert rows[0].delta == -10
         assert rows[0].notes == "test redemption"
@@ -503,9 +492,7 @@ def test_sale_creation_credits_points_to_customer(authed_client, qseed):
 
     with sf() as s:
         earn_rows = (
-            s.query(LoyaltyTransaction)
-            .filter_by(customer_id=cust.id, reason="earn_sale")
-            .all()
+            s.query(LoyaltyTransaction).filter_by(customer_id=cust.id, reason="earn_sale").all()
         )
         assert len(earn_rows) >= 1, "expected at least one earn_sale ledger row"
         total_earned = sum(r.delta for r in earn_rows)

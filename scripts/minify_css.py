@@ -21,6 +21,7 @@ What it does NOT touch (intentional):
 This is the "good enough for our 13KB file" minifier. If we ever need
 lightningcss-grade output, switch to lightningcss-cli (per resource 6.4).
 """
+
 from __future__ import annotations
 
 import argparse

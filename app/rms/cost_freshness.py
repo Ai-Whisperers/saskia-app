@@ -30,19 +30,21 @@ def _walk_recipe_ids(session: Session, recipe_ids: list[int]) -> set[int]:
             break
         out.update(batch)
         # Children: sub_recipe lines FROM these recipes point at their children.
-        rows = session.execute(
-            select(RecipeLine.line_ref_id).where(
-                RecipeLine.line_kind == "sub_recipe",
-                RecipeLine.recipe_id.in_(batch),
+        rows = (
+            session.execute(
+                select(RecipeLine.line_ref_id).where(
+                    RecipeLine.line_kind == "sub_recipe",
+                    RecipeLine.recipe_id.in_(batch),
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         frontier = list(set(rows))
     return out
 
 
-def product_cost_freshness(
-    session: Session, products: list
-) -> dict[int, datetime | None]:
+def product_cost_freshness(session: Session, products: list) -> dict[int, datetime | None]:
     """Map product_id → latest ingredient-price timestamp (or None).
 
     None means: no recipe, or the recipe tree has zero priced events —
@@ -65,7 +67,9 @@ def product_cost_freshness(
                 RecipeLine.recipe_id.in_(all_recipe_ids),
                 RecipeLine.line_kind == "ingredient",
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     if not ingredient_ids:
         return {p.id: None for p in products}
@@ -104,12 +108,16 @@ def product_cost_freshness(
             if not batch:
                 break
             seen.update(batch)
-            children = session.execute(
-                select(RecipeLine.line_ref_id).where(
-                    RecipeLine.line_kind == "sub_recipe",
-                    RecipeLine.recipe_id.in_(batch),
+            children = (
+                session.execute(
+                    select(RecipeLine.line_ref_id).where(
+                        RecipeLine.line_kind == "sub_recipe",
+                        RecipeLine.recipe_id.in_(batch),
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
             frontier = list(set(children))
         return seen
 
@@ -122,9 +130,7 @@ def product_cost_freshness(
         ings: set[int] = set()
         for rid in tree_ids:
             ings |= recipe_ings.get(rid, set())
-        stamps = [
-            latest_by_ingredient[i] for i in ings if i in latest_by_ingredient
-        ]
+        stamps = [latest_by_ingredient[i] for i in ings if i in latest_by_ingredient]
         result[p.id] = max(stamps) if stamps else None
     return result
 

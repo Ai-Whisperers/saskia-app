@@ -20,6 +20,7 @@ from app.services.pedido_history import (
 def _kyrian_customer_id(session_factory):
     from app.rms.models import Customer
     from app.seed.kyrian import KYRIAN_PHONE
+
     with session_factory() as s:
         c = s.query(Customer).filter_by(phone=KYRIAN_PHONE).one()
         return c.id
@@ -31,10 +32,9 @@ def test_timeline_for_fresh_pedido(qseed, session_factory):
     cid = _kyrian_customer_id(session_factory)
     with session_factory() as s:
         from app.rms.models import Pedido
+
         pedido = s.execute(
-            __import__("sqlalchemy").select(Pedido)
-            .where(Pedido.customer_id == cid)
-            .limit(1)
+            __import__("sqlalchemy").select(Pedido).where(Pedido.customer_id == cid).limit(1)
         ).scalar_one()
         timeline = build_pedido_timeline(s, pedido)
     # The seed doesn't write audit_log entries, so empty is expected
@@ -49,8 +49,10 @@ def test_timeline_includes_audit_status_change(qseed, session_factory):
 
     with session_factory() as s:
         from app.rms.models import AuditLog, Pedido
+
         pedido = s.execute(
-            __import__("sqlalchemy").select(Pedido)
+            __import__("sqlalchemy")
+            .select(Pedido)
             .where(Pedido.customer_id == cid)
             .order_by(Pedido.id.asc())
             .limit(1)
@@ -59,14 +61,17 @@ def test_timeline_includes_audit_status_change(qseed, session_factory):
 
         # Manually create an audit row (simulating a status transition)
         from datetime import datetime
-        s.add(AuditLog(
-            occurred_at=datetime.utcnow(),
-            user_id="test-operator",
-            action="write.pedido.status",
-            target_type="pedido",
-            target_id=str(pedido_id),
-            detail={"old_status": "pending", "new_status": "confirmed"},
-        ))
+
+        s.add(
+            AuditLog(
+                occurred_at=datetime.utcnow(),
+                user_id="test-operator",
+                action="write.pedido.status",
+                target_type="pedido",
+                target_id=str(pedido_id),
+                detail={"old_status": "pending", "new_status": "confirmed"},
+            )
+        )
         s.commit()
 
     with session_factory() as s:
@@ -86,11 +91,17 @@ def test_recent_pedidos_excludes_current(qseed, session_factory):
 
     with session_factory() as s:
         from app.rms.models import Pedido
-        all_pedidos = s.execute(
-            __import__("sqlalchemy").select(Pedido)
-            .where(Pedido.customer_id == cid)
-            .order_by(Pedido.promised_date.desc())
-        ).scalars().all()
+
+        all_pedidos = (
+            s.execute(
+                __import__("sqlalchemy")
+                .select(Pedido)
+                .where(Pedido.customer_id == cid)
+                .order_by(Pedido.promised_date.desc())
+            )
+            .scalars()
+            .all()
+        )
         assert len(all_pedidos) == 6
 
         current = all_pedidos[0]
@@ -133,6 +144,7 @@ def test_detail_page_renders_timeline(client, monkeypatch, qseed, session_factor
     cid = _kyrian_customer_id(session_factory)
     with session_factory() as s:
         from app.rms.models import Pedido
+
         pedido = s.execute(
             __import__("sqlalchemy").select(Pedido).where(Pedido.customer_id == cid).limit(1)
         ).scalar_one()
@@ -153,6 +165,7 @@ def test_detail_page_shows_recent_pedidos_section(client, monkeypatch, qseed, se
     cid = _kyrian_customer_id(session_factory)
     with session_factory() as s:
         from app.rms.models import Pedido
+
         pedido = s.execute(
             __import__("sqlalchemy").select(Pedido).where(Pedido.customer_id == cid).limit(1)
         ).scalar_one()
@@ -171,6 +184,7 @@ def test_detail_page_pedir_de_nuevo_link(client, monkeypatch, qseed, session_fac
     cid = _kyrian_customer_id(session_factory)
     with session_factory() as s:
         from app.rms.models import Pedido
+
         pedido = s.execute(
             __import__("sqlalchemy").select(Pedido).where(Pedido.customer_id == cid).limit(1)
         ).scalar_one()
@@ -188,6 +202,7 @@ def test_nuevo_with_from_param_prefills_lines(client, monkeypatch, qseed, sessio
     cid = _kyrian_customer_id(session_factory)
     with session_factory() as s:
         from app.rms.models import Pedido
+
         source = s.execute(
             __import__("sqlalchemy").select(Pedido).where(Pedido.customer_id == cid).limit(1)
         ).scalar_one()
@@ -200,6 +215,7 @@ def test_nuevo_with_from_param_prefills_lines(client, monkeypatch, qseed, sessio
     assert "customer-prefill" in html
     # Extract the JSON between the script tags
     import re
+
     m = re.search(r'<script id="customer-prefill"[^>]*>(.*?)</script>', html, re.DOTALL)
     assert m, "customer-prefill script not found"
     prefill = json.loads(m.group(1))

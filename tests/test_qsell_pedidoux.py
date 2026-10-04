@@ -10,6 +10,7 @@ PRO-PED-UX: seleccionar cliente en /pedidos/nuevo prellena teléfono/hint.
   existe en ningún template) → el hook nunca enganchaba. Ahora matchea
   saskia-combo[name=customer_id] + delega en el evento change del elemento.
 """
+
 from __future__ import annotations
 
 
@@ -18,7 +19,7 @@ def test_quick_sell_grid_tiene_listener_ajax(authed_client, session_factory):
     r = authed_client.get("/ventas")
     assert r.status_code == 200
     # el listener delegado en el grid existe
-    assert 'onQsSubmit' in r.text
+    assert "onQsSubmit" in r.text
     # agrega al carrito existente en vez de dejar pasar el submit
     assert "qsAddToCart(form)" in r.text
     # quickAddToCart vive en el IIFE del carrito (siempre presente)
@@ -40,8 +41,7 @@ def test_quick_sell_endpoint_sigue_creando_venta(authed_client, session_factory)
         s.close()
     r = authed_client.post(
         "/ventas/nueva",
-        data={"product_id": pid, "qty": "1", "channel": "mostrador",
-              "payment_method": "efectivo"},
+        data={"product_id": pid, "qty": "1", "channel": "mostrador", "payment_method": "efectivo"},
         follow_redirects=False,
     )
     assert r.status_code == 303, r.text[:300]
@@ -72,7 +72,7 @@ def test_pedido_combos_js_matchea_customer_id(tmp_path=None):
     import pathlib
 
     js = pathlib.Path("app/static/pedido-combos.js").read_text()
-    assert "saskia-combo[name=\"customer_id\"]" in js
+    assert 'saskia-combo[name="customer_id"]' in js
     # el handler prellena teléfono fill-if-empty
     assert "phoneInput.value = item.phone" in js
     # y actualiza el hint de cliente seleccionado

@@ -27,6 +27,7 @@ All models here share the same declarative Base as the rest of the
 project — see app/rms/models/core.py.
 """
 
+
 class Pedido(Base):
     """A pre-order (pedido) — Phase 3 (2026-09-17 prelaunch roadmap).
 
@@ -59,24 +60,16 @@ class Pedido(Base):
     customer_id: Mapped[int | None] = mapped_column(
         ForeignKey("customer.id"), index=True, nullable=True
     )
-    customer_name: Mapped[str] = mapped_column(
-        String(120), nullable=False, default=""
-    )
-    customer_phone: Mapped[str | None] = mapped_column(
-        String(32), nullable=True, index=True
-    )
+    customer_name: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    customer_phone: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     promised_date: Mapped[datetime] = mapped_column(Date, nullable=False, index=True)
     promised_time: Mapped[str | None] = mapped_column(String(8), nullable=True)
     channel: Mapped[Channel] = mapped_column(
         Enum(Channel), nullable=False, default=Channel.default()
     )
 
-    status: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="pending", index=True
-    )
-    payment_intent: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="efectivo"
-    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending", index=True)
+    payment_intent: Mapped[str] = mapped_column(String(32), nullable=False, default="efectivo")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     # HEREBUS integration: link to delivery zone (drives cost + min order)
     delivery_zone_id: Mapped[int | None] = mapped_column(
@@ -91,9 +84,7 @@ class Pedido(Base):
     public_token: Mapped[str] = mapped_column(
         String(40), nullable=False, unique=True, index=True, default=""
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
@@ -108,9 +99,7 @@ class Pedido(Base):
     # P1-B3: customer-uploaded comprobante de pago from /p/{public_token}.
     # Relative path like "payment_receipts/123/2026-09-29_141503.jpg".
     payment_receipt_path: Mapped[str | None] = mapped_column(Text, nullable=True)
-    payment_receipt_uploaded_at: Mapped[datetime | None] = mapped_column(
-        DateTime, nullable=True
-    )
+    payment_receipt_uploaded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     lines: Mapped[list["PedidoLine"]] = relationship(
@@ -128,6 +117,7 @@ class Pedido(Base):
         ),
     )
 
+
 class PedidoLine(Base):
     """A line in a pedido. Mirrors the PedidoLine spec in the 2026-09-17 plan.
 
@@ -142,9 +132,7 @@ class PedidoLine(Base):
     pedido_id: Mapped[int] = mapped_column(
         ForeignKey("pedido.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    product_id: Mapped[int] = mapped_column(
-        ForeignKey("product.id"), nullable=False, index=True
-    )
+    product_id: Mapped[int] = mapped_column(ForeignKey("product.id"), nullable=False, index=True)
     qty: Mapped[float] = mapped_column(Float, nullable=False)
     unit_price_gs: Mapped[int] = mapped_column(Integer, nullable=False)
     fulfilled_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0)

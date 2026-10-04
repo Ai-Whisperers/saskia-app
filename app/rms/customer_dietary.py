@@ -27,9 +27,9 @@ from app.rms.tagging.vocabulary import CANONICAL_DIETARY_TAGS
 class DietaryPreference:
     """One approved choice in the customer's preference order."""
 
-    tag: str          # canonical dietary tag OR free-text product choice
-    rank: int = 1     # 1 = offer first
-    note: str = ""    # "leche de almendra", "marca X", etc.
+    tag: str  # canonical dietary tag OR free-text product choice
+    rank: int = 1  # 1 = offer first
+    note: str = ""  # "leche de almendra", "marca X", etc.
 
 
 @dataclass

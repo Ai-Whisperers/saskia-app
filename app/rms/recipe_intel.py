@@ -23,14 +23,26 @@ from app.rms.models import Recipe
 
 # Family classification — keyword on recipe.name.
 _FAMILY_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
-    "panadería": ("pan", "factura", "croissant", "medialuna", "baguette",
-                  "brioche", "hojaldre"),
-    "pastelería": ("torta", "muffin", "cupcake", "brownie", "galleta",
-                   "cookie", "macaron", "cheesecake", "tart", "pie", "roll",
-                   "rolls", "budín", "budin", "cake"),
+    "panadería": ("pan", "factura", "croissant", "medialuna", "baguette", "brioche", "hojaldre"),
+    "pastelería": (
+        "torta",
+        "muffin",
+        "cupcake",
+        "brownie",
+        "galleta",
+        "cookie",
+        "macaron",
+        "cheesecake",
+        "tart",
+        "pie",
+        "roll",
+        "rolls",
+        "budín",
+        "budin",
+        "cake",
+    ),
     "fríos": ("cheesecake", "tiramisu", "mousse", "pavlova"),
-    "salados": ("empanada", "tarta", "quiche", "sandwich", "tostado",
-                "chipá", "scon"),
+    "salados": ("empanada", "tarta", "quiche", "sandwich", "tostado", "chipá", "scon"),
     "dulces regionales": ("alfajor", "factura", "rosca"),
     "frituras": ("oliebollen", "donut", "buñuelo"),
 }
@@ -63,6 +75,7 @@ _MAX_RECIPE_DEPTH = 10
 # Family + difficulty + cook-time
 # ---------------------------------------------------------------------------
 
+
 def infer_recipe_family_from_name(name: str) -> str:
     """Classify recipe by name string (no Recipe object needed).
 
@@ -72,18 +85,57 @@ def infer_recipe_family_from_name(name: str) -> str:
     name = (name or "").lower()
     ordered_keywords = [
         ("frituras", ("oliebollen", "donut", "buñuelo", "frikandel")),
-        ("salados", ("empanada", "quiche", "sandwich", "tostado",
-                    "chipá", "scon", "pasta fresca", "pasta")),
-        ("panadería", ("pan ", "pan de", "pan_", "medialuna", "croissant",
-                       "baguette", "brioche", "hojaldre", "factura",
-                       "rosca", "alfajor", "ciabatta", "bagel")),
+        (
+            "salados",
+            ("empanada", "quiche", "sandwich", "tostado", "chipá", "scon", "pasta fresca", "pasta"),
+        ),
+        (
+            "panadería",
+            (
+                "pan ",
+                "pan de",
+                "pan_",
+                "medialuna",
+                "croissant",
+                "baguette",
+                "brioche",
+                "hojaldre",
+                "factura",
+                "rosca",
+                "alfajor",
+                "ciabatta",
+                "bagel",
+            ),
+        ),
         ("fríos", ("cheesecake", "tiramisu", "mousse", "pavlova")),
         ("dulces regionales", ("rosca", "alfajor")),
-        ("pastelería", ("torta", "muffin", "cupcake", "brownie", "galleta",
-                        "cookie", "macaron", "tart", "pie", "appeltaart",
-                        "tarta", "roll", "rolls", "budín", "budin", "cake",
-                        "bizcocho", "queque", "crêpes", "crepes",
-                        "waffle", "chocolate")),
+        (
+            "pastelería",
+            (
+                "torta",
+                "muffin",
+                "cupcake",
+                "brownie",
+                "galleta",
+                "cookie",
+                "macaron",
+                "tart",
+                "pie",
+                "appeltaart",
+                "tarta",
+                "roll",
+                "rolls",
+                "budín",
+                "budin",
+                "cake",
+                "bizcocho",
+                "queque",
+                "crêpes",
+                "crepes",
+                "waffle",
+                "chocolate",
+            ),
+        ),
     ]
     for family, keywords in ordered_keywords:
         for kw in keywords:
@@ -109,18 +161,57 @@ def infer_recipe_family_with_keywords(recipe: Recipe) -> tuple[str, str]:
     name = (recipe.name or "").lower()
     ordered_keywords = [
         ("frituras", ("oliebollen", "donut", "buñuelo", "frikandel")),
-        ("salados", ("empanada", "quiche", "sandwich", "tostado",
-                    "chipá", "scon", "pasta fresca", "pasta")),
-        ("panadería", ("pan ", "pan de", "pan_", "medialuna", "croissant",
-                       "baguette", "brioche", "hojaldre", "factura",
-                       "rosca", "alfajor", "ciabatta", "bagel")),
+        (
+            "salados",
+            ("empanada", "quiche", "sandwich", "tostado", "chipá", "scon", "pasta fresca", "pasta"),
+        ),
+        (
+            "panadería",
+            (
+                "pan ",
+                "pan de",
+                "pan_",
+                "medialuna",
+                "croissant",
+                "baguette",
+                "brioche",
+                "hojaldre",
+                "factura",
+                "rosca",
+                "alfajor",
+                "ciabatta",
+                "bagel",
+            ),
+        ),
         ("fríos", ("cheesecake", "tiramisu", "mousse", "pavlova")),
         ("dulces regionales", ("rosca", "alfajor")),
-        ("pastelería", ("torta", "muffin", "cupcake", "brownie", "galleta",
-                        "cookie", "macaron", "tart", "pie", "appeltaart",
-                        "tarta", "roll", "rolls", "budín", "budin", "cake",
-                        "bizcocho", "queque", "crêpes", "crepes",
-                        "waffle", "chocolate")),
+        (
+            "pastelería",
+            (
+                "torta",
+                "muffin",
+                "cupcake",
+                "brownie",
+                "galleta",
+                "cookie",
+                "macaron",
+                "tart",
+                "pie",
+                "appeltaart",
+                "tarta",
+                "roll",
+                "rolls",
+                "budín",
+                "budin",
+                "cake",
+                "bizcocho",
+                "queque",
+                "crêpes",
+                "crepes",
+                "waffle",
+                "chocolate",
+            ),
+        ),
     ]
     for family, keywords in ordered_keywords:
         for kw in keywords:
@@ -164,6 +255,7 @@ def infer_difficulty(recipe: Recipe, ingredient_count: int, sub_recipe_depth: in
 # Dietary compatibility
 # ---------------------------------------------------------------------------
 
+
 def infer_recipe_dietary(session: Session, recipe: Recipe) -> set[str]:
     """Recipe is vegan/vegetarian/etc. only if ALL ingredients qualify.
 
@@ -194,8 +286,14 @@ def infer_recipe_dietary(session: Session, recipe: Recipe) -> set[str]:
         # only called from classify_recipe paths.
         for eng, es in TAG_ALIASES.items():
             if es == canonical and eng in {
-                "vegan", "vegetarian", "gluten_free", "sugar_free",
-                "keto_friendly", "lactose_free", "egg_free", "nut_free",
+                "vegan",
+                "vegetarian",
+                "gluten_free",
+                "sugar_free",
+                "keto_friendly",
+                "lactose_free",
+                "egg_free",
+                "nut_free",
             }:
                 out.add(eng)
                 break
@@ -209,6 +307,7 @@ def infer_recipe_dietary(session: Session, recipe: Recipe) -> set[str]:
 # ---------------------------------------------------------------------------
 # Yield-in-grams + cost-per-gram
 # ---------------------------------------------------------------------------
+
 
 def recipe_yield_grams(recipe: Recipe) -> float | None:
     """Convert yield to grams using yield_unit. None if unit unknown."""
@@ -239,22 +338,22 @@ def recipe_cost_per_gram(session: Session, recipe: Recipe) -> float | None:
 # Recipe ingredients helper
 # ---------------------------------------------------------------------------
 
+
 def _recipe_ingredients(session: Session, recipe: Recipe) -> list:
     """Resolve ingredient lines to Ingredient objects."""
     from app.rms.models import Ingredient
 
-    ing_ids = [
-        ln.line_ref_id
-        for ln in recipe.lines
-        if ln.line_kind == "ingredient"
-    ]
+    ing_ids = [ln.line_ref_id for ln in recipe.lines if ln.line_kind == "ingredient"]
     if not ing_ids:
         return []
-    return list(session.scalars(
-        Ingredient.id.in_(ing_ids).select() if False else
-        # Use select() for clarity.
-        __import__("sqlalchemy").select(Ingredient).where(Ingredient.id.in_(ing_ids))
-    ).all())
+    return list(
+        session.scalars(
+            Ingredient.id.in_(ing_ids).select()
+            if False
+            # Use select() for clarity.
+            else __import__("sqlalchemy").select(Ingredient).where(Ingredient.id.in_(ing_ids))
+        ).all()
+    )
 
 
 def recipe_ingredient_count(recipe: Recipe) -> int:
@@ -272,9 +371,7 @@ def recipe_sub_recipe_depth(session: Session, recipe: Recipe, _seen: set | None 
         return 0
     _seen = _seen | {recipe.id}
 
-    sub_recipe_ids = [
-        ln.line_ref_id for ln in recipe.lines if ln.line_kind == "sub_recipe"
-    ]
+    sub_recipe_ids = [ln.line_ref_id for ln in recipe.lines if ln.line_kind == "sub_recipe"]
     if not sub_recipe_ids:
         return 0
 
@@ -291,6 +388,7 @@ def recipe_sub_recipe_depth(session: Session, recipe: Recipe, _seen: set | None 
 # ---------------------------------------------------------------------------
 # classify_recipe — composite result
 # ---------------------------------------------------------------------------
+
 
 def classify_recipe(session: Session, recipe: Recipe) -> dict:
     """Full classification result for one recipe."""
@@ -313,9 +411,10 @@ def classify_all_recipes(session: Session) -> dict[int, dict]:
     """Bulk-classify all recipes. Returns {recipe_id: classification}."""
     from app.rms.models import Recipe
 
-    return {r.id: classify_recipe(session, r) for r in session.scalars(
-        __import__("sqlalchemy").select(Recipe)
-    ).all()}
+    return {
+        r.id: classify_recipe(session, r)
+        for r in session.scalars(__import__("sqlalchemy").select(Recipe)).all()
+    }
 
 
 __all__ = [

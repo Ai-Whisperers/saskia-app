@@ -37,6 +37,7 @@ Note: The canonical roadmap lists these as "test gaps" but most are actually cov
 - Supplier preference ordering in reorder workflow
 - Comprehensive XSS testing (not just 2 edge cases)
 """
+
 from __future__ import annotations
 
 import pytest
@@ -66,7 +67,7 @@ def test_excel_modes_are_covered():
         "test_excel_patch.py",
         "test_excel_import_full_flow.py",
         "e2e/test_excel_full_multisheet.py",
-        "e2e/test_excel_import_journey.py"
+        "e2e/test_excel_import_journey.py",
     ]
 
     for test_file in excel_test_files:
@@ -80,6 +81,7 @@ def test_excel_modes_are_covered():
 def test_recipes_subrecipes_are_covered():
     """Verify recipes subrecipes tests exist."""
     import os
+
     assert os.path.exists("tests/test_saskia_r2_recipe_filters.py")
     assert os.path.exists("tests/test_recipes_polymorphic_roundtrip.py")
     assert True
@@ -88,11 +90,12 @@ def test_recipes_subrecipes_are_covered():
 def test_csrf_is_comprehensive():
     """Verify csrf tests are comprehensive across the codebase."""
     import os
+
     csrf_test_files = [
         "test_csrf.py",
         "test_csrf_local_dev.py",
         "test_csrf_on_forms.py",
-        "test_p0_confirm_modal_csrf.py"
+        "test_p0_confirm_modal_csrf.py",
     ]
 
     for test_file in csrf_test_files:
@@ -104,6 +107,7 @@ def test_csrf_is_comprehensive():
 def test_xss_coverage_is_limited():
     """Demonstrate that XSS testing is limited to just 2 tests."""
     import os
+
     assert os.path.exists("tests/e2e/test_dark_routes_batch.py")
     assert os.path.exists("tests/test_dashboard_visual.py")
 

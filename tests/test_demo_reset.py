@@ -9,6 +9,7 @@ Stream A prelaunch cleanup. Verifies:
 - family users can call (real user call works)
 - dashboard empty-state shows "Sin ventas todavía" copy after reset
 """
+
 # allow-hardcoded-dates: demo seed timestamps are stable for snapshot diffs
 from __future__ import annotations
 
@@ -95,18 +96,22 @@ def test_reset_clears_audit_seed_complete_rows(client, session_factory):
     with session_factory() as s:
         # Tag two rows: one seed.complete (should be wiped) and one
         # write.sale.create (should survive — represents real activity).
-        s.add(AuditLog(
-            occurred_at=datetime.now(timezone.utc),
-            user_id="seed",
-            action="seed.complete",
-            detail={"synthetic": True},
-        ))
-        s.add(AuditLog(
-            occurred_at=datetime.now(timezone.utc),
-            user_id="operator",
-            action="write.sale.create",
-            detail={"product_id": 1, "qty": 1},
-        ))
+        s.add(
+            AuditLog(
+                occurred_at=datetime.now(timezone.utc),
+                user_id="seed",
+                action="seed.complete",
+                detail={"synthetic": True},
+            )
+        )
+        s.add(
+            AuditLog(
+                occurred_at=datetime.now(timezone.utc),
+                user_id="operator",
+                action="write.sale.create",
+                detail={"product_id": 1, "qty": 1},
+            )
+        )
         s.commit()
 
     with session_factory() as s:
@@ -166,9 +171,11 @@ def test_reset_records_audit_log_own_action(client, session_factory):
         reset_demo_data(s)
 
     with session_factory() as s:
-        rows = s.execute(
-            select(AuditLog).where(AuditLog.action == "system.demo_reset")
-        ).scalars().all()
+        rows = (
+            s.execute(select(AuditLog).where(AuditLog.action == "system.demo_reset"))
+            .scalars()
+            .all()
+        )
     assert len(rows) == 1
     assert rows[0].detail.get("sales_deleted", 0) == 0
 
@@ -213,20 +220,24 @@ def test_reset_does_not_touch_users(client, session_factory):
         demo.set_password("demo1234")
         s.add(demo)
         # family accounts
-        s.add(User(
-            username="saskia@paragu-ai.com",
-            is_active=True,
-            created_at=datetime.now(timezone.utc).isoformat(),
-            last_login_at=None,
-            password_hash="placeholder",
-        ))
-        s.add(User(
-            username="ivan@paragu-ai.com",
-            is_active=True,
-            created_at=datetime.now(timezone.utc).isoformat(),
-            last_login_at=None,
-            password_hash="placeholder",
-        ))
+        s.add(
+            User(
+                username="saskia@paragu-ai.com",
+                is_active=True,
+                created_at=datetime.now(timezone.utc).isoformat(),
+                last_login_at=None,
+                password_hash="placeholder",
+            )
+        )
+        s.add(
+            User(
+                username="ivan@paragu-ai.com",
+                is_active=True,
+                created_at=datetime.now(timezone.utc).isoformat(),
+                last_login_at=None,
+                password_hash="placeholder",
+            )
+        )
         s.commit()
 
     with session_factory() as s:
@@ -317,9 +328,11 @@ def test_reset_endpoint_audit_recorded_for_real_user(client, session_factory):
     client.post("/ops/reset-demo-data")
 
     with session_factory() as s:
-        rows = s.execute(
-            select(AuditLog).where(AuditLog.action == "system.demo_reset")
-        ).scalars().all()
+        rows = (
+            s.execute(select(AuditLog).where(AuditLog.action == "system.demo_reset"))
+            .scalars()
+            .all()
+        )
     assert len(rows) == 1
     # The endpoint's own audit row uses user_id="system" (we don't
     # thread current_user_id into reset_demo_data to keep the helper

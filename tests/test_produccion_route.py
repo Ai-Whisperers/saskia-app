@@ -1,4 +1,5 @@
 """tests/test_produccion_route.py — /produccion route tests."""
+
 from __future__ import annotations
 
 

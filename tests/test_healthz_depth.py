@@ -9,6 +9,7 @@ Each test runs in-process via FastAPI TestClient with a SessionLocal
 backed by in-memory SQLite so the lifespan completes successfully and
 `/healthz/depth` returns 200 (not 503 warming_up).
 """
+
 from __future__ import annotations
 
 import pytest

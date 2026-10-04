@@ -46,8 +46,17 @@ def test_migrate_first_run_creates_all_tables(tmp_path):
     engine = make_engine(f"sqlite:///{db_path}")
     insp = inspect(engine)
     tables = set(insp.get_table_names())
-    expected = {"ingredient", "recipe", "recipe_line", "product",
-                "sale", "sale_stock_move", "user", "app_meta", "import_batch"}
+    expected = {
+        "ingredient",
+        "recipe",
+        "recipe_line",
+        "product",
+        "sale",
+        "sale_stock_move",
+        "user",
+        "app_meta",
+        "import_batch",
+    }
     missing = expected - tables
     assert not missing, f"missing tables after first migrate: {missing}"
 

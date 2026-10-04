@@ -34,25 +34,50 @@ def seeded_sales(session_factory):
         s.add(line)
         s.flush()
 
-        p1 = Product(name="Torta chocolate", sku="TOR-CHOC", sale_price_gs=50000, recipe_id=recipe.id)
-        p2 = Product(name="Torta vainilla", sku="TOR-VAIN", sale_price_gs=45000, recipe_id=recipe.id)
+        p1 = Product(
+            name="Torta chocolate", sku="TOR-CHOC", sale_price_gs=50000, recipe_id=recipe.id
+        )
+        p2 = Product(
+            name="Torta vainilla", sku="TOR-VAIN", sale_price_gs=45000, recipe_id=recipe.id
+        )
         s.add_all([p1, p2])
         s.flush()
 
         now = datetime.now(ASUNCION_TZ)
         # 3 p1 sales + 2 p2 sales + 1 voided p1 sale
-        s.add_all([
-            Sale(product_id=p1.id, qty=1, unit_price_gs=50000, sold_at=now - timedelta(days=2), voided_at=None),
-            Sale(product_id=p1.id, qty=2, unit_price_gs=50000, sold_at=now - timedelta(days=1), voided_at=None),
-            Sale(product_id=p2.id, qty=3, unit_price_gs=45000, sold_at=now - timedelta(days=1), voided_at=None),
-            Sale(product_id=p1.id, qty=1, unit_price_gs=50000, sold_at=now, voided_at=now),
-            Sale(product_id=p2.id, qty=1, unit_price_gs=45000, sold_at=now, voided_at=None),
-        ])
+        s.add_all(
+            [
+                Sale(
+                    product_id=p1.id,
+                    qty=1,
+                    unit_price_gs=50000,
+                    sold_at=now - timedelta(days=2),
+                    voided_at=None,
+                ),
+                Sale(
+                    product_id=p1.id,
+                    qty=2,
+                    unit_price_gs=50000,
+                    sold_at=now - timedelta(days=1),
+                    voided_at=None,
+                ),
+                Sale(
+                    product_id=p2.id,
+                    qty=3,
+                    unit_price_gs=45000,
+                    sold_at=now - timedelta(days=1),
+                    voided_at=None,
+                ),
+                Sale(product_id=p1.id, qty=1, unit_price_gs=50000, sold_at=now, voided_at=now),
+                Sale(product_id=p2.id, qty=1, unit_price_gs=45000, sold_at=now, voided_at=None),
+            ]
+        )
         s.commit()
         return {"p1": p1, "p2": p2}
 
 
 # ---- summary card ----
+
 
 def test_ventas_renders_summary_card(client, session_factory):
     """/ventas/historial includes the totals card for active (non-voided) sales."""
@@ -71,7 +96,7 @@ def test_ventas_renders_summary_card(client, session_factory):
     assert "Total recaudado" in body
     assert "Ticket promedio" in body
     # Sale count should be 1
-    assert ">1</div>" in body or '"metric-value">1' in body or "metric-value\">1" in body
+    assert ">1</div>" in body or '"metric-value">1' in body or 'metric-value">1' in body
 
 
 def test_ventas_summary_excludes_voided(client, seeded_sales):
@@ -94,6 +119,7 @@ def test_ventas_filtered_totals(client, seeded_sales):
 
 
 # ---- CSV export ----
+
 
 def test_csv_export_returns_csv_with_bom(client, seeded_sales):
     """/ventas/export.csv returns text/csv with UTF-8 BOM + the right headers."""
@@ -136,6 +162,7 @@ def test_csv_export_filters_by_product(client, seeded_sales):
 
 # ---- receipt ----
 
+
 def test_recibo_renders_for_existing_sale(client, seeded_sales, session_factory):
     """/ventas/{id}/recibo renders the printable receipt."""
     with session_factory() as s:
@@ -167,6 +194,7 @@ def test_recibo_marks_voided_sale(client, seeded_sales, session_factory):
 
 
 # ---- summary card link ----
+
 
 def test_ventas_has_export_button_in_card(client, seeded_sales):
     """The summary card exposes a CSV export link with the current filters."""

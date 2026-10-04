@@ -31,13 +31,19 @@ def _make_sale(s, customer_id, product_id, qty=1.0, price=10000, when=None, void
     # the "today" window. Without this, a sale at 02:00 UTC (e.g.
     # 23:00 PY the previous day) gets bucketed into the prior period.
     from app.rms.config import ASUNCION_TZ
+
     if when is None:
         when = datetime.now(ASUNCION_TZ)
-    s.add(Sale(
-        customer_id=customer_id, product_id=product_id, qty=qty,
-        unit_price_gs=price, sold_at=when,
-        voided_at=datetime.now(timezone.utc) if voided else None,
-    ))
+    s.add(
+        Sale(
+            customer_id=customer_id,
+            product_id=product_id,
+            qty=qty,
+            unit_price_gs=price,
+            sold_at=when,
+            voided_at=datetime.now(timezone.utc) if voided else None,
+        )
+    )
     s.flush()
 
 
@@ -49,11 +55,10 @@ def test_enrollment_card_empty_when_no_sales(client, session_factory, qseed):
     assert "sin ventas" in r.text
 
 
-def test_enrollment_card_full_when_every_sale_has_customer(
-    client, session_factory, qseed
-):
+def test_enrollment_card_full_when_every_sale_has_customer(client, session_factory, qseed):
     """All sales with a customer → 100%."""
     from tests.factories import make_sellable
+
     with session_factory() as s:
         product = make_sellable(s)
         c1 = _make_customer(s, "Cust1")
@@ -69,21 +74,26 @@ def test_enrollment_card_full_when_every_sale_has_customer(
     assert "3 de 3 ventas" in r.text
 
 
-def test_enrollment_card_half_when_half_sales_have_customer(
-    client, session_factory, qseed
-):
+def test_enrollment_card_half_when_half_sales_have_customer(client, session_factory, qseed):
     """Half with customer → 50.0%."""
     from tests.factories import make_sellable
+
     with session_factory() as s:
         product = make_sellable(s)
         c = _make_customer(s, "LoyalOne")
         now = datetime.now(ASUNCION_TZ)
         _make_sale(s, c.id, product.id, when=now)
         # Walk-in (no customer)
-        s.add(Sale(
-            customer_id=None, product_id=product.id, qty=1.0,
-            unit_price_gs=10000, sold_at=now, voided_at=None,
-        ))
+        s.add(
+            Sale(
+                customer_id=None,
+                product_id=product.id,
+                qty=1.0,
+                unit_price_gs=10000,
+                sold_at=now,
+                voided_at=None,
+            )
+        )
         s.flush()
         s.commit()
     r = client.get("/")
@@ -92,11 +102,10 @@ def test_enrollment_card_half_when_half_sales_have_customer(
     assert "1 de 2 ventas" in r.text
 
 
-def test_enrollment_card_excludes_voided_sales(
-    client, session_factory, qseed
-):
+def test_enrollment_card_excludes_voided_sales(client, session_factory, qseed):
     """Voided sales don't count in either numerator or denominator."""
     from tests.factories import make_sellable
+
     with session_factory() as s:
         product = make_sellable(s)
         c = _make_customer(s, "VoidTest")

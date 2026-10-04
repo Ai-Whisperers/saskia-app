@@ -16,6 +16,7 @@ Covers:
 - Mode selector on UI renders PATCH + FULL
 - Endpoints return 422 if mode param missing/garbage
 """
+
 from __future__ import annotations
 
 import io

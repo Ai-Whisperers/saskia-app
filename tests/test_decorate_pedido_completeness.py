@@ -25,6 +25,7 @@ def _make_pedido(session_factory):
     import uuid as _uuid
 
     from app.rms.models import Pedido
+
     with session_factory() as s:
         p = Pedido(
             customer_name="Fase14 Cliente",
@@ -103,6 +104,7 @@ def test_decorate_pedido_includes_payment_method_alias():
     Adding `payment_method` as an alias means the template shows the
     human label without a snake_case mismatch."""
     from app.routers.pedidos import _decorate_pedido
+
     src = inspect.getsource(_decorate_pedido)
     assert "payment_method" in src, (
         "_decorate_pedido should expose `payment_method` as an alias of "
@@ -114,6 +116,7 @@ def test_decorate_pedido_includes_phase13_fk_pointers():
     """Phase 13 FK pointers to the structured address + invoice profile
     are useful for cross-navigation (pedido → address edit page)."""
     from app.routers.pedidos import _decorate_pedido
+
     src = inspect.getsource(_decorate_pedido)
     for k in ("customer_address_id", "customer_invoice_profile_id"):
         assert k in src, f"_decorate_pedido should expose {k}"

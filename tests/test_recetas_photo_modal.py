@@ -30,10 +30,15 @@ def recipes_with_and_without_photos(session_factory):
 
     sf = session_factory
     with sf() as s:
-        s.add(Recipe(name="Brownie con foto", yield_qty=12, yield_unit="und",
-                     image_url="/static/recipes/brownie.jpg"))
-        s.add(Recipe(name="Galleta sin foto", yield_qty=24, yield_unit="und",
-                     image_url=None))
+        s.add(
+            Recipe(
+                name="Brownie con foto",
+                yield_qty=12,
+                yield_unit="und",
+                image_url="/static/recipes/brownie.jpg",
+            )
+        )
+        s.add(Recipe(name="Galleta sin foto", yield_qty=24, yield_unit="und", image_url=None))
         s.commit()
     # Verify image_url really persisted (catches the "_decorate drops it" bug)
     with sf() as s:
@@ -95,9 +100,7 @@ def test_recetas_template_no_legacy_image_inline(authed_client):
     assert "object-fit:cover;border-radius:6px" not in body
 
 
-def test_recetas_with_photo_row_renders_button(
-    authed_client, recipes_with_and_without_photos
-):
+def test_recetas_with_photo_row_renders_button(authed_client, recipes_with_and_without_photos):
     """Recipe with image_url renders a [data-recipe-photo] button per row.
 
     Regression guard for the bug where _decorate() in app/routers/recipes.py
@@ -116,9 +119,7 @@ def test_recetas_with_photo_row_renders_button(
     assert 'aria-label="Ver foto de Brownie con foto"' in body
 
 
-def test_recetas_without_photo_row_shows_dash(
-    authed_client, recipes_with_and_without_photos
-):
+def test_recetas_without_photo_row_shows_dash(authed_client, recipes_with_and_without_photos):
     """Recipe without image_url renders the em-dash placeholder, not a button.
 
     The placeholder <span aria-label="Sin foto">—</span> must appear in
@@ -132,7 +133,7 @@ def test_recetas_without_photo_row_shows_dash(
     assert 'aria-label="Sin foto"' in body
     # Button elements (not the JS querySelector that references the same
     # attribute) — count occurrences of `<button ... data-recipe-photo`.
-    body.count("<button") - body.count("<button type=\"submit\"")
+    body.count("<button") - body.count('<button type="submit"')
     body.count(" data-recipe-photo")
     # The opener script also references the attribute once, but it's inside
     # a JS string (querySelectorAll('[data-recipe-photo]')). We count

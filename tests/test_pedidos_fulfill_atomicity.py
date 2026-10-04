@@ -7,6 +7,7 @@ Per SASKIA_TEST_PLAN.md §5 #12 — POST /pedidos/{id}/fulfill must atomically:
 - Update pedido status to fulfilled
 - Double-fulfill must return 4xx
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone

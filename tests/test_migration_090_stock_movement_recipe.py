@@ -6,6 +6,7 @@ Verifies:
 - Idempotent: re-running init_db doesn't fail
 - Backfill helper (future work) will be able to read from sale_stock_move
 """
+
 from __future__ import annotations
 
 from sqlalchemy import inspect, text

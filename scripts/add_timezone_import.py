@@ -14,6 +14,7 @@ Specifically handles:
 Skip if the file already has `, timezone` somewhere in its datetime imports
 or any plain `import datetime; datetime.timezone` access pattern.
 """
+
 from __future__ import annotations
 
 import re
@@ -22,9 +23,9 @@ import subprocess
 
 def get_files_using_timezone_utc() -> list[str]:
     out = subprocess.run(
-        ["grep", "-l", "-E", r"timezone\.utc", "-r", ".",
-         "--include=*.py"],
-        capture_output=True, text=True
+        ["grep", "-l", "-E", r"timezone\.utc", "-r", ".", "--include=*.py"],
+        capture_output=True,
+        text=True,
     )
     return [f for f in out.stdout.split("\n") if f]
 
@@ -55,7 +56,9 @@ def fix_file(path: str) -> str | None:
         content = re.sub(
             r"^(\s*)from datetime import datetime$",
             r"\1from datetime import datetime, timezone",
-            content, flags=re.M, count=1,
+            content,
+            flags=re.M,
+            count=1,
         )
 
     # Case B: `from datetime import datetime, X, Y` — extend with `, timezone`
@@ -143,4 +146,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(main())

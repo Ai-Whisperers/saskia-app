@@ -1,4 +1,5 @@
 """Nav dropdown ARIA tests."""
+
 from __future__ import annotations
 
 
@@ -7,9 +8,7 @@ def test_nav_has_aria_haspopup(client):
     r = client.get("/")
     assert r.status_code == 200
     body = r.text
-    assert 'aria-haspopup' in body, (
-        f"Nav missing aria-haspopup. Body preview: {body[:500]}"
-    )
+    assert "aria-haspopup" in body, f"Nav missing aria-haspopup. Body preview: {body[:500]}"
 
 
 def test_nav_has_aria_expanded(client):
@@ -17,9 +16,7 @@ def test_nav_has_aria_expanded(client):
     r = client.get("/")
     assert r.status_code == 200
     body = r.text
-    assert 'aria-expanded' in body, (
-        f"Nav missing aria-expanded. Body preview: {body[:500]}"
-    )
+    assert "aria-expanded" in body, f"Nav missing aria-expanded. Body preview: {body[:500]}"
 
 
 def test_nav_has_role_menu(client):
@@ -28,7 +25,7 @@ def test_nav_has_role_menu(client):
     assert r.status_code == 200
     body = r.text
     # role=menu may be set via attribute or class
-    assert 'role="menu"' in body or 'role=\'menu\'' in body or 'role:menu' in body, (
+    assert 'role="menu"' in body or "role='menu'" in body or "role:menu" in body, (
         f"Nav missing role=menu. Body preview: {body[:500]}"
     )
 

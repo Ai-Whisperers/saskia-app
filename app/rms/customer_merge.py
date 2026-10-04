@@ -97,20 +97,15 @@ def customer_merge(
 
     if int(target_id) in source_id_list:
         raise ValueError(
-            f"target_id={target_id} is in source_ids; "
-            "cannot merge a customer into itself"
+            f"target_id={target_id} is in source_ids; cannot merge a customer into itself"
         )
 
     # 2. Load sources in one query.
-    sources = session.scalars(
-        select(Customer).where(Customer.id.in_(source_id_list))
-    ).all()
+    sources = session.scalars(select(Customer).where(Customer.id.in_(source_id_list))).all()
     found_ids = {c.id for c in sources}
     missing = [sid for sid in source_id_list if sid not in found_ids]
     if missing:
-        raise ValueError(
-            f"source customer(s) not found: {missing}"
-        )
+        raise ValueError(f"source customer(s) not found: {missing}")
 
     result = MergeResult(target_id=target.id)
 
@@ -118,12 +113,12 @@ def customer_merge(
 
     # 3. Reassign Sales + Pedidos per source.
     for src in sources:
-        sales_count = session.scalar(
-            select(func.count(Sale.id)).where(Sale.customer_id == src.id)
-        ) or 0
-        pedidos_count = session.scalar(
-            select(func.count(Pedido.id)).where(Pedido.customer_id == src.id)
-        ) or 0
+        sales_count = (
+            session.scalar(select(func.count(Sale.id)).where(Sale.customer_id == src.id)) or 0
+        )
+        pedidos_count = (
+            session.scalar(select(func.count(Pedido.id)).where(Pedido.customer_id == src.id)) or 0
+        )
 
         # UPDATE … WHERE customer_id = src.id. SQLAlchemy emits the
         # right SQL for both SQLite (test) and Postgres (prod).

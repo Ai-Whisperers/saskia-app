@@ -4,6 +4,7 @@ Sprint 2.4: split from monolithic seed_competitor_prices.py.
 
 86 rows: supermercados + cafes + importados.
 """
+
 COMPETITOR_SEED = [
     (
         "Don Mario Panadería Confitería",

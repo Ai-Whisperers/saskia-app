@@ -149,7 +149,7 @@ def is_write_rate_limited(
     *,
     max_per_minute: int = 10,
     window_seconds: int = 60,
-    now: object=None,
+    now: object = None,
 ) -> bool:
     """Return True if this client has exceeded max_per_minute writes.
 
@@ -288,6 +288,7 @@ def is_read_rate_limited(
 
 # Read-endpoint audit helpers (cheap INSERTs; throttle on these).
 
+
 def record_read_heavy(session: Session, request: object, route_tag: str) -> None:
     """Append a `read.heavy.<route_tag>` audit row.
 
@@ -329,22 +330,28 @@ def read_rate_limit_dependency(
     FAIL OPEN: returns None on any DB error so a DB outage doesn't
     brick the route.
     """
+
     def _dep(request: Request, session: Session = Depends(get_session)) -> None:
         if is_disabled():
             return None
         decision = is_read_rate_limited(
-            session, request,
+            session,
+            request,
             max_per_minute=max_per_minute,
             window_seconds=window_seconds,
         )
         if not decision.allowed:
             raise HTTPException(
                 status_code=429,
-                detail={"reason": "rate_limited", "retry_after_seconds": decision.retry_after_seconds},
+                detail={
+                    "reason": "rate_limited",
+                    "retry_after_seconds": decision.retry_after_seconds,
+                },
                 headers={"Retry-After": str(decision.retry_after_seconds)},
             )
         record_read_heavy(session, request, route_tag=route_tag)
         return None
+
     return _dep
 
 

@@ -68,14 +68,17 @@ def build_insights(session: Session) -> InsightsPanel:
     classifications = classify_products(session)
     quadrants: dict[str, list[dict]] = {q.value: [] for q in Quadrant}
     for c in classifications:
-        quadrants[c.quadrant.value].append({
-            "product_id": c.product_id,
-            "product_name": c.product_name,
-            "margin_gs": c.margin_gs,
-            "volume": c.volume,
-        })
-    stars = sorted(quadrants.get(Quadrant.STAR.value, []),
-                   key=lambda x: x["margin_gs"], reverse=True)[:3]
+        quadrants[c.quadrant.value].append(
+            {
+                "product_id": c.product_id,
+                "product_name": c.product_name,
+                "margin_gs": c.margin_gs,
+                "volume": c.volume,
+            }
+        )
+    stars = sorted(
+        quadrants.get(Quadrant.STAR.value, []), key=lambda x: x["margin_gs"], reverse=True
+    )[:3]
     dogs = quadrants.get(Quadrant.DOG.value, [])
 
     # Production tomorrow (batched — replaces per-product N+1 loop)
@@ -98,10 +101,12 @@ def build_insights(session: Session) -> InsightsPanel:
             continue
         pct = (stats["current"] - stats["avg"]) / stats["avg"] * 100
         if pct > 20:
-            price_fluctuation.append({
-                "name": ing.name,
-                "pct_above_avg": round(pct, 1),
-            })
+            price_fluctuation.append(
+                {
+                    "name": ing.name,
+                    "pct_above_avg": round(pct, 1),
+                }
+            )
     price_fluctuation.sort(key=lambda x: -x["pct_above_avg"])
 
     return InsightsPanel(
@@ -123,6 +128,7 @@ def build_insights(session: Session) -> InsightsPanel:
 
 def _peak_dow_helper(session: Session) -> int:
     from app.rms.sales_intel import peak_day_of_week
+
     return peak_day_of_week(session)
 
 
@@ -146,7 +152,7 @@ def restock_urgent(session: Session) -> dict | None:
         "action_text": "Reordenar",
         "action_href": f"/reorder?ingredient={alert.ingredient_id}",
         "severity": "warn" if alert.days_of_stock > 0 else "danger",
-        "icon": "icon-reorder"
+        "icon": "icon-reorder",
     }
 
 
@@ -174,13 +180,14 @@ def bestseller_drop(session: Session) -> dict | None:
                 Sale.product_id == product.id,
                 Sale.sold_at >= start_utc,
                 Sale.sold_at <= end_utc,
-                Sale.voided_at.is_(None)
+                Sale.voided_at.is_(None),
             )
         ).all()
 
         recent_total = sum(
             to_int_gs(float(str(s.qty)) * float(str(s.unit_price_gs)))
-            for s in recent_sales if s.unit_price_gs is not None
+            for s in recent_sales
+            if s.unit_price_gs is not None
         )
 
         # Sales in prior 7 days for comparison
@@ -190,13 +197,14 @@ def bestseller_drop(session: Session) -> dict | None:
                 Sale.product_id == product.id,
                 Sale.sold_at >= prior_start_utc,
                 Sale.sold_at < start_utc,
-                Sale.voided_at.is_(None)
+                Sale.voided_at.is_(None),
             )
         ).all()
 
         prior_total = sum(
             to_int_gs(float(str(s.qty)) * float(str(s.unit_price_gs)))
-            for s in prior_sales if s.unit_price_gs is not None
+            for s in prior_sales
+            if s.unit_price_gs is not None
         )
 
         # Check if recent is <50% of prior avg (if prior had sales)
@@ -204,11 +212,11 @@ def bestseller_drop(session: Session) -> dict | None:
             return {
                 "id": "bestseller_drop",
                 "title": "Mejor vendedor en caída",
-                "detail": f"{product.name} vendió un {recent_total/prior_total*100:.0f}% menos que el promedio de 7 días",
+                "detail": f"{product.name} vendió un {recent_total / prior_total * 100:.0f}% menos que el promedio de 7 días",
                 "action_text": "Ver análisis",
                 "action_href": f"/analisis?focus={product.id}",
                 "severity": "warn",
-                "icon": "icon-chart-line-down"
+                "icon": "icon-chart-line-down",
             }
 
     return None
@@ -238,15 +246,13 @@ def cash_flow_warning(session: Session) -> dict | None:
     month_end_utc = month_end.astimezone(timezone.utc).replace(tzinfo=None)
 
     month_sales = session.scalars(
-        select(Sale).where(
-            Sale.sold_at >= month_start_utc,
-            Sale.sold_at <= month_end_utc
-        )
+        select(Sale).where(Sale.sold_at >= month_start_utc, Sale.sold_at <= month_end_utc)
     ).all()
 
     current_month_revenue = sum(
         to_int_gs(float(str(s.qty)) * float(str(s.unit_price_gs)))
-        for s in month_sales if s.unit_price_gs is not None
+        for s in month_sales
+        if s.unit_price_gs is not None
     )
 
     # Get previous month same window
@@ -256,13 +262,14 @@ def cash_flow_warning(session: Session) -> dict | None:
     prev_month_sales = session.scalars(
         select(Sale).where(
             Sale.sold_at >= prev_month_start.astimezone(timezone.utc).replace(tzinfo=None),
-            Sale.sold_at <= prev_month_end.astimezone(timezone.utc).replace(tzinfo=None)
+            Sale.sold_at <= prev_month_end.astimezone(timezone.utc).replace(tzinfo=None),
         )
     ).all()
 
     prev_month_revenue = sum(
         to_int_gs(float(str(s.qty)) * float(str(s.unit_price_gs)))
-        for s in prev_month_sales if s.unit_price_gs is not None
+        for s in prev_month_sales
+        if s.unit_price_gs is not None
     )
 
     # Check if <60% of previous month
@@ -270,11 +277,11 @@ def cash_flow_warning(session: Session) -> dict | None:
         return {
             "id": "cash_flow_warn",
             "title": "Alerta de flujo de caja",
-            "detail": f"Ventas del mes ({current_month_revenue}) son solo {current_month_revenue/prev_month_revenue*100:.0f}% del mes pasado",
+            "detail": f"Ventas del mes ({current_month_revenue}) son solo {current_month_revenue / prev_month_revenue * 100:.0f}% del mes pasado",
             "action_text": "Ver reportes",
             "action_href": "/reportes",
             "severity": "danger",
-            "icon": "icon-warn"
+            "icon": "icon-warn",
         }
 
     return None
@@ -292,6 +299,7 @@ def build_actionable_insights(session: Session) -> list[dict]:
                 insights.append(insight)
         except Exception as e:  # noqa: BLE001 — log but don't break the dashboard
             from loguru import logger
+
             logger.debug(f"Actionable insight calculation failed: {e}")
 
     return insights

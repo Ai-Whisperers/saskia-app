@@ -1,4 +1,5 @@
 """Produccion override endpoint tests."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -32,8 +33,10 @@ def test_produccion_override_updates_completion(authed_client, session_factory):
 
     r = authed_client.post(
         "/produccion/override",
-        data={"for_date": datetime.utcnow().date().isoformat(), "product_id": str(product.id), "qty": "12"},
+        data={
+            "for_date": datetime.utcnow().date().isoformat(),
+            "product_id": str(product.id),
+            "qty": "12",
+        },
     )
-    assert r.status_code < 500, (
-        f"/produccion/override returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"/produccion/override returned {r.status_code}: {r.text[:200]}"

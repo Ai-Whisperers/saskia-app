@@ -23,6 +23,7 @@ This module is read-only — never writes. The DayView rendering on /produccion
 already shows per-product progress; this module is the historical aggregator
 for the dashboard.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -37,6 +38,7 @@ from app.rms.models_legacy import Product, ProductionCompletion, Sale
 @dataclass(frozen=True)
 class DailyAccuracyRow:
     """One (product, day) summary row."""
+
     product_id: int
     product_name: str
     for_date: date
@@ -70,6 +72,7 @@ class DailyAccuracyRow:
 @dataclass
 class ProductAccuracySummary:
     """Per-product aggregate over the period."""
+
     product_id: int
     product_name: str
     n_days_with_plan: int
@@ -91,6 +94,7 @@ class ProductAccuracySummary:
 @dataclass
 class AccuracyReport:
     """Full dashboard response — list-friendly + summary stats."""
+
     daily_rows: list[DailyAccuracyRow] = field(default_factory=list)
     product_summary: list[ProductAccuracySummary] = field(default_factory=list)
     n_days_in_period: int = 0
@@ -214,8 +218,7 @@ def compute_plan_accuracy(
     # Resolve product names in one query (avoid N+1).
     pids = sorted({k[0] for k in all_keys})
     product_names = {
-        p.id: p.name
-        for p in session.query(Product).filter(Product.id.in_(pids)).all()
+        p.id: p.name for p in session.query(Product).filter(Product.id.in_(pids)).all()
     }
 
     rows: list[DailyAccuracyRow] = []
@@ -256,9 +259,7 @@ def compute_plan_accuracy(
         )
     summaries.sort(key=lambda s: -(s.under_baked_units + s.over_baked_units))
 
-    n_days_with_completion = sum(
-        1 for r in rows if r.completed_qty > 0
-    )
+    n_days_with_completion = sum(1 for r in rows if r.completed_qty > 0)
     all_accs = [r.accuracy for r in rows if r.accuracy is not None]
     total_planned = round(sum(r.planned_qty for r in rows), 4)
     total_completed = round(sum(r.completed_qty for r in rows), 4)

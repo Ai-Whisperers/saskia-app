@@ -11,6 +11,7 @@ Severity rules:
 The signal appears as a 5th <saskia-kpi-card> in the HOY band with
 severity + value + href=/reorder.
 """
+
 # allow-hardcoded-dates: stock math doesn't depend on the calendar.
 from __future__ import annotations
 
@@ -24,9 +25,7 @@ from app.rms.models import Ingredient
 
 
 def _make_ing(s, name, stock, min_stock):
-    ing = Ingredient(
-        name=name, stock_qty=stock, min_stock_qty=min_stock, unit="g"
-    )
+    ing = Ingredient(name=name, stock_qty=stock, min_stock_qty=min_stock, unit="g")
     s.add(ing)
     s.flush()
     return ing

@@ -14,6 +14,7 @@ Covers:
 - empty-data: returns empty list (no exceptions) when DB is fresh
 - session_factory fixture driven by real init_db() + E6 seed
 """
+
 from __future__ import annotations
 
 import pytest

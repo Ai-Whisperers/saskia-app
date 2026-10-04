@@ -12,6 +12,7 @@ Phase 3 of the 2026-09-17 prelaunch roadmap. Covers:
 - public_token unique per pedido
 - Audit log records pedido.create / status / fulfill events
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -59,7 +60,9 @@ def test_pedido_model_persists_with_lines(session_factory):
         p = Pedido(
             customer_name="Cliente W",
             customer_phone="+595999111",
-            promised_date=datetime.combine(datetime.utcnow().date() + timedelta(days=1), datetime.min.time()),
+            promised_date=datetime.combine(
+                datetime.utcnow().date() + timedelta(days=1), datetime.min.time()
+            ),
             promised_time="10:00",
             channel="whatsapp",
             status="pending",
@@ -74,7 +77,9 @@ def test_pedido_model_persists_with_lines(session_factory):
         pedido_id = p.id
 
     with session_factory() as s:
-        rows = s.execute(select(PedidoLine).where(PedidoLine.pedido_id == pedido_id)).scalars().all()
+        rows = (
+            s.execute(select(PedidoLine).where(PedidoLine.pedido_id == pedido_id)).scalars().all()
+        )
         assert len(rows) == 2
         # total = 3*12000 + 2*12000 = 60000
         assert sum(int(r.qty * r.unit_price_gs) for r in rows) == 60_000
@@ -123,10 +128,35 @@ def test_pedidos_list_groups_by_recency(session_factory, client):
 
     today = datetime.utcnow().date()
     with session_factory() as s:
-        s.add(Pedido(customer_name="Hoy", promised_date=datetime.combine(today, datetime.min.time()), public_token="tk-hoy"))
-        s.add(Pedido(customer_name="Manana", promised_date=datetime.combine(today + timedelta(days=1), datetime.min.time()), public_token="tk-man"))
-        s.add(Pedido(customer_name="Semana", promised_date=datetime.combine(today + timedelta(days=4), datetime.min.time()), public_token="tk-sem"))
-        s.add(Pedido(customer_name="Viejo", promised_date=datetime.combine(today - timedelta(days=3), datetime.min.time()), status="pending", public_token="tk-vj"))
+        s.add(
+            Pedido(
+                customer_name="Hoy",
+                promised_date=datetime.combine(today, datetime.min.time()),
+                public_token="tk-hoy",
+            )
+        )
+        s.add(
+            Pedido(
+                customer_name="Manana",
+                promised_date=datetime.combine(today + timedelta(days=1), datetime.min.time()),
+                public_token="tk-man",
+            )
+        )
+        s.add(
+            Pedido(
+                customer_name="Semana",
+                promised_date=datetime.combine(today + timedelta(days=4), datetime.min.time()),
+                public_token="tk-sem",
+            )
+        )
+        s.add(
+            Pedido(
+                customer_name="Viejo",
+                promised_date=datetime.combine(today - timedelta(days=3), datetime.min.time()),
+                status="pending",
+                public_token="tk-vj",
+            )
+        )
         s.commit()
 
     resp = client.get("/pedidos")
@@ -152,12 +182,14 @@ def test_pedidos_list_excludes_fulfilled_past_due(session_factory, client):
 
     today = datetime.utcnow().date()
     with session_factory() as s:
-        s.add(Pedido(
-            customer_name="YA-ENTREGADO",
-            promised_date=datetime.combine(today - timedelta(days=5), datetime.min.time()),
-            status="fulfilled",
-            public_token="tk-fe",
-        ))
+        s.add(
+            Pedido(
+                customer_name="YA-ENTREGADO",
+                promised_date=datetime.combine(today - timedelta(days=5), datetime.min.time()),
+                status="fulfilled",
+                public_token="tk-fe",
+            )
+        )
         s.commit()
 
     resp = client.get("/pedidos")
@@ -295,14 +327,20 @@ def test_fulfill_creates_sales_and_decrements_stock(client, session_factory):
         assert sale.qty == 2
         assert sale.unit_price_gs == 8000
         # Stock moved (1 stock move for 1 ingredient line × 2/12 × 0.3 = 0.05 kg)
-        moves = s.execute(
-            select(StockMovement).where(
-                StockMovement.reference_id == sale.id,
-                StockMovement.reference_type == "sale",
+        moves = (
+            s.execute(
+                select(StockMovement).where(
+                    StockMovement.reference_id == sale.id,
+                    StockMovement.reference_type == "sale",
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(moves) >= 1
-        ing_row = s.execute(select(Ingredient).where(Ingredient.id == moves[0].ingredient_id)).scalar_one()
+        ing_row = s.execute(
+            select(Ingredient).where(Ingredient.id == moves[0].ingredient_id)
+        ).scalar_one()
         # Original 10.0 - (2/12)*0.3 = 10.0 - 0.05 = 9.95
         assert abs(ing_row.stock_qty - 9.95) < 0.01
 
@@ -367,10 +405,14 @@ def test_status_transition_pending_to_confirmed_to_ready_to_fulfilled(client, se
         pedido_id = s.execute(select(Pedido)).scalar_one().id
 
     # pending -> confirmed
-    r = client.post(f"/pedidos/{pedido_id}/status", data={"new_status": "confirmed"}, follow_redirects=False)
+    r = client.post(
+        f"/pedidos/{pedido_id}/status", data={"new_status": "confirmed"}, follow_redirects=False
+    )
     assert r.status_code in (302, 303)
     # confirmed -> ready
-    r = client.post(f"/pedidos/{pedido_id}/status", data={"new_status": "ready"}, follow_redirects=False)
+    r = client.post(
+        f"/pedidos/{pedido_id}/status", data={"new_status": "ready"}, follow_redirects=False
+    )
     assert r.status_code in (302, 303)
     # ready -> fulfilled via /fulfill endpoint
     r = client.post(f"/pedidos/{pedido_id}/fulfill", follow_redirects=False)
@@ -434,7 +476,9 @@ def test_invalid_status_value_returns_422(client, session_factory):
     with session_factory() as s:
         pedido_id = s.execute(select(Pedido)).scalar_one().id
 
-    r = client.post(f"/pedidos/{pedido_id}/status", data={"new_status": "frobnicated"}, follow_redirects=False)
+    r = client.post(
+        f"/pedidos/{pedido_id}/status", data={"new_status": "frobnicated"}, follow_redirects=False
+    )
     assert r.status_code == 422
 
 
@@ -457,7 +501,9 @@ def test_cancel_from_pending(client, session_factory):
     with session_factory() as s:
         pedido_id = s.execute(select(Pedido)).scalar_one().id
 
-    r = client.post(f"/pedidos/{pedido_id}/status", data={"new_status": "cancelled"}, follow_redirects=False)
+    r = client.post(
+        f"/pedidos/{pedido_id}/status", data={"new_status": "cancelled"}, follow_redirects=False
+    )
     assert r.status_code in (302, 303)
 
     with session_factory() as s:
@@ -492,6 +538,7 @@ def test_public_pickup_page_works_without_login(client, session_factory):
     # Use the same `client` fixture (which already monkey-patches
     # make_engine_dialect to point at the test engine); just clear cookies.
     from starlette.testclient import TestClient
+
     c2 = TestClient(client.app)
     c2.cookies.clear()
     r = c2.get(f"/p/{token}", follow_redirects=False)
@@ -533,11 +580,15 @@ def test_audit_log_records_pedido_create_and_fulfill(client, session_factory):
     client.post(f"/pedidos/{pedido_id}/fulfill", follow_redirects=False)
 
     with session_factory() as s:
-        rows = s.execute(
-            select(AuditLog).where(
-                AuditLog.action.in_(("write.pedido.create", "write.pedido.fulfill"))
+        rows = (
+            s.execute(
+                select(AuditLog).where(
+                    AuditLog.action.in_(("write.pedido.create", "write.pedido.fulfill"))
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         actions = {r.action for r in rows}
         assert "write.pedido.create" in actions
         assert "write.pedido.fulfill" in actions

@@ -10,6 +10,7 @@ than the debug stock placeholder.
 The implementation (app/routers/shopping.py) currently sets
 `purpose_text = f'Reposición: {ing.name}'` for low-stock auto-sync items.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -45,17 +46,20 @@ def test_shopping_list_has_para_que_column(client, session_factory):
     Insert a real item so the table renders and the header is visible.
     """
     from app.rms.models import Ingredient, ShoppingListItem
+
     with session_factory() as s:
         ing = s.query(Ingredient).first()
         if ing is None:
             # No ingredient → can't render table → skip
             pytest.skip("No ingredient in test DB; cannot render shopping list table")
-        s.add(ShoppingListItem(
-            ingredient_id=ing.id,
-            qty_to_buy=1.0,
-            unit=ing.unit or "kg",
-            purpose_text="Reposición: Test",
-        ))
+        s.add(
+            ShoppingListItem(
+                ingredient_id=ing.id,
+                qty_to_buy=1.0,
+                unit=ing.unit or "kg",
+                purpose_text="Reposición: Test",
+            )
+        )
         s.commit()
 
     r = client.get("/shopping-list")
@@ -80,6 +84,7 @@ def test_sync_low_stock_sets_meaningful_purpose_text(client, session_factory):
         )
         # Disable other ingredients' min_stock_qty so only `ing` triggers
         from app.rms.models import Ingredient
+
         for other in s.query(Ingredient).filter(Ingredient.id != ing.id).all():
             other.min_stock_qty = 0
         s.commit()

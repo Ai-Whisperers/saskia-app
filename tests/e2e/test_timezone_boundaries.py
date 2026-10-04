@@ -43,16 +43,20 @@ def _pedido_today(s, *, promised_date):
     cust = make_customer(s)
     make_ingredient(s)
     prod = make_product(s, recipe_id=None, sale_price_gs=9000)
-    return make_pedido(s, customer=cust, items=[pedido_item(prod, qty=1)],
-                       promised_date=promised_date)
+    return make_pedido(
+        s, customer=cust, items=[pedido_item(prod, qty=1)], promised_date=promised_date
+    )
 
 
-@pytest.mark.parametrize("boundary", [
-    date(2026, 9, 25),  # normal day
-    date(2026, 12, 31),  # year boundary
-    date(2027, 1, 1),
-    date(2026, 3, 1),  # post-leap-day
-])
+@pytest.mark.parametrize(
+    "boundary",
+    [
+        date(2026, 9, 25),  # normal day
+        date(2026, 12, 31),  # year boundary
+        date(2027, 1, 1),
+        date(2026, 3, 1),  # post-leap-day
+    ],
+)
 def test_produccion_matches_pedidos_on_boundary_dates(
     client, session_factory, monkeypatch, boundary
 ):
@@ -67,8 +71,7 @@ def test_produccion_matches_pedidos_on_boundary_dates(
         cust = make_customer(s, name=f"Borde {boundary} {uuid.uuid4().hex[:6]}")
         make_ingredient(s)
         prod = make_product(s, sale_price_gs=9000)
-        ped = make_pedido(s, customer=cust, items=[pedido_item(prod)],
-                          promised_date=boundary)
+        ped = make_pedido(s, customer=cust, items=[pedido_item(prod)], promised_date=boundary)
         s.commit()
 
     with frozen(boundary):
@@ -85,6 +88,7 @@ def test_produccion_matches_pedidos_on_boundary_dates(
     with frozen(date.fromordinal(boundary.toordinal() + 30)):
         r2 = client.get("/produccion")
         if ped.status == "pending" and boundary.toordinal() + 30 != boundary.toordinal():
-            assert "Pedidos pendientes" not in r2.text or "0" in r2.text.split("Pedidos pendientes")[1][:20], (
-                "stale pedido shown for a different Asunción day"
-            )
+            assert (
+                "Pedidos pendientes" not in r2.text
+                or "0" in r2.text.split("Pedidos pendientes")[1][:20]
+            ), "stale pedido shown for a different Asunción day"

@@ -3,6 +3,7 @@
 Cashier scans a product barcode → lookup SKU → create sale with the
 matched product. This is the primary UX on a busy day.
 """
+
 from __future__ import annotations
 
 
@@ -63,6 +64,7 @@ def test_post_sale_accepts_sku(client, session_factory):
     assert resp.status_code == 303, f"Got {resp.status_code}: {resp.text[:200]}"
     # Verify the sale was created with the right product
     from app.rms.models import Sale
+
     with session_factory() as s2:
         sales = s2.query(Sale).all()
         assert any(sale.product_id == pid for sale in sales)

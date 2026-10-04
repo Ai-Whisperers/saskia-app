@@ -27,6 +27,7 @@ When to add a constant here:
   - It might change in the future
   - It documents the business rule being enforced
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -54,9 +55,9 @@ DEFAULT_INVOICE_TYPE = "boleta_resimple"
 # These are DEFAULTS — operators can override via the stock_status_config
 # table (migration 046) or via /api/stock-status-config. The DB values win
 # when present.
-DEFAULT_STOCK_RATIO_CRITICO = Decimal("0.5")      # stock_qty / min_stock_qty
-DEFAULT_STOCK_RATIO_SOBRESTOCK = Decimal("5.0")   # stock_qty / min_stock_qty
-DEFAULT_DEAD_STOCK_DAYS = 30                       # no consumption in N days
+DEFAULT_STOCK_RATIO_CRITICO = Decimal("0.5")  # stock_qty / min_stock_qty
+DEFAULT_STOCK_RATIO_SOBRESTOCK = Decimal("5.0")  # stock_qty / min_stock_qty
+DEFAULT_DEAD_STOCK_DAYS = 30  # no consumption in N days
 
 # Status codes (used as keys in stock_status_config table)
 STOCK_STATUS_BAJO_MIN = "bajo_min"
@@ -75,7 +76,7 @@ ALL_STOCK_STATUSES = (
 # These are FALLBACK defaults when ComplianceInfo doesn't have a row yet.
 DEFAULT_LABOR_COST_PER_HOUR_GS = 25_000
 DEFAULT_OVERHEAD_MULTIPLIER_PCT = 15
-DEFAULT_YIELD_PERCENTAGE = Decimal("0.85")       # 15% moisture loss for breads
+DEFAULT_YIELD_PERCENTAGE = Decimal("0.85")  # 15% moisture loss for breads
 
 
 # ─── Pagination ───────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 """Tests for app.services.template_render — m helper for templates."""
+
 import pytest
 
 from app.services.template_render import templates
@@ -30,13 +31,18 @@ class TestMoneyGs:
 
 class TestStockBadge:
     def test_zero_is_agotado(self, m):
-        assert m.stock_badge(0, 5) == '<span class="badge--stock-out" title="Sin stock">Agotado</span>'
+        assert (
+            m.stock_badge(0, 5) == '<span class="badge--stock-out" title="Sin stock">Agotado</span>'
+        )
 
     def test_negative_is_negativo(self, m):
         assert "Negativo" in m.stock_badge(-1, 5)
 
     def test_below_min_is_bajo(self, m):
-        assert m.stock_badge(2, 5) == '<span class="badge--stock-low" title="Stock bajo el mínimo">Bajo</span>'
+        assert (
+            m.stock_badge(2, 5)
+            == '<span class="badge--stock-low" title="Stock bajo el mínimo">Bajo</span>'
+        )
 
     def test_at_or_above_min_is_ok(self, m):
         assert "OK" in m.stock_badge(5, 5)

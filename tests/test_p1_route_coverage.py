@@ -12,6 +12,7 @@ Covers the 18 routers that lack dedicated test coverage:
 
 These are integration tests using the test client + auth fixture.
 """
+
 # allow-hardcoded-dates: route-coverage snapshot uses fixed timestamps
 from __future__ import annotations
 
@@ -27,6 +28,7 @@ def auth_client(client):
 
 # --- /eod (end-of-day) ---
 
+
 def test_eod_page_loads(auth_client):
     """End-of-day page must load without 500."""
     r = auth_client.get("/eod")
@@ -36,6 +38,7 @@ def test_eod_page_loads(auth_client):
 def test_eod_completion_creates_summary_record(auth_client, session_factory):
     """EOD closure must atomically create DailySummary + audit log entries."""
     from sqlalchemy import text as sa_text
+
     with session_factory() as s:
         before_audits = s.execute(sa_text("SELECT COUNT(*) FROM audit_log")).scalar()
 
@@ -53,11 +56,14 @@ def test_eod_completion_creates_summary_record(auth_client, session_factory):
 
 # --- /users ---
 
-@pytest.mark.skip(reason="Pre-existing issue: admin role check returns 403/401 "
-                  "instead of 200 when auth-bypass test user is used. "
-                  "The auth gate IS being bypassed (other routes work); "
-                  "the _require_admin role check is too strict for the fake user. "
-                  "Tracked separately — out of scope for P1.")
+
+@pytest.mark.skip(
+    reason="Pre-existing issue: admin role check returns 403/401 "
+    "instead of 200 when auth-bypass test user is used. "
+    "The auth gate IS being bypassed (other routes work); "
+    "the _require_admin role check is too strict for the fake user. "
+    "Tracked separately — out of scope for P1."
+)
 def test_users_page_loads(auth_client):
     """User management page must be reachable (200 or admin-required 403).
 
@@ -102,6 +108,7 @@ def test_users_list_returns_existing_users(auth_client, session_factory):
 
 # --- /suppliers ---
 
+
 def test_suppliers_page_loads(auth_client):
     """Suppliers page must load (recent migration 023)."""
     r = auth_client.get("/suppliers")
@@ -111,12 +118,15 @@ def test_suppliers_page_loads(auth_client):
 def test_supplier_crud_roundtrip(auth_client, session_factory):
     """Create + edit + delete a supplier must work atomically."""
     # Create (route is /suppliers/nuevo, not /suppliers/new)
-    r = auth_client.post("/suppliers/nuevo", data={
-        "name": "Test Supplier XYZ",
-        "phone": "+595991234567",
-        "email": "test@example.com",
-        "address": "Test 123",
-    })
+    r = auth_client.post(
+        "/suppliers/nuevo",
+        data={
+            "name": "Test Supplier XYZ",
+            "phone": "+595991234567",
+            "email": "test@example.com",
+            "address": "Test 123",
+        },
+    )
     assert r.status_code in (200, 303), f"Create supplier returned {r.status_code}"
 
     with session_factory() as s:
@@ -132,13 +142,13 @@ def test_supplier_crud_roundtrip(auth_client, session_factory):
 
     with session_factory() as s:
         still_exists = s.execute(
-            text("SELECT COUNT(*) FROM supplier WHERE id = :id"),
-            {"id": supplier_id}
+            text("SELECT COUNT(*) FROM supplier WHERE id = :id"), {"id": supplier_id}
         ).scalar()
         assert still_exists == 0, "Supplier not deleted"
 
 
 # --- /excel_io ---
+
 
 def test_excel_page_loads(auth_client):
     """Excel import/export page must load (prefix=/excel, not /excel_io)."""
@@ -154,6 +164,7 @@ def test_excel_template_downloads(auth_client):
 
 # --- /auditoria ---
 
+
 def test_auditoria_page_loads(auth_client):
     """Audit log page must load for operator diagnostics."""
     r = auth_client.get("/auditoria")
@@ -168,6 +179,7 @@ def test_auditoria_filters_by_action(auth_client):
 
 # --- /produccion ---
 
+
 def test_produccion_page_loads(auth_client):
     """Production planning page must load."""
     r = auth_client.get("/produccion")
@@ -175,6 +187,7 @@ def test_produccion_page_loads(auth_client):
 
 
 # --- /merma ---
+
 
 def test_merma_page_loads(auth_client):
     """Waste tracking page must load."""
@@ -184,6 +197,7 @@ def test_merma_page_loads(auth_client):
 
 # --- /reorder ---
 
+
 def test_reorder_page_loads(auth_client):
     """Reorder suggestions page must load."""
     r = auth_client.get("/reorder")
@@ -191,6 +205,7 @@ def test_reorder_page_loads(auth_client):
 
 
 # --- /reportes ---
+
 
 def test_reportes_page_loads(auth_client):
     """Reports page must load."""
@@ -200,6 +215,7 @@ def test_reportes_page_loads(auth_client):
 
 # --- /help ---
 
+
 def test_help_page_loads(auth_client):
     """Help/guide page must load (prefix=/guia, not /help)."""
     r = auth_client.get("/guia")
@@ -207,6 +223,7 @@ def test_help_page_loads(auth_client):
 
 
 # --- /search ---
+
 
 def test_search_returns_results_for_existing_product(auth_client, session_factory):
     """Global search must find existing products."""

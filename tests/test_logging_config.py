@@ -1,4 +1,5 @@
 """tests/test_logging_config.py — loguru emits structured logs."""
+
 from __future__ import annotations
 
 import sys
@@ -27,11 +28,13 @@ def test_production_log_format_string():
     # Real test of the configured behavior is in main.py; here we just
     # confirm there's no import-time crash.
     import app.rms.main as m
+
     assert m is not None
 
 
 def test_human_readable_format_default():
     """Default loguru format is human-readable (color-coded etc.)."""
     import loguru
+
     # Just confirm loguru is available and has a default
     assert hasattr(loguru, "logger")

@@ -36,30 +36,64 @@ def recipes_with_subrecipes(session_factory):
         s.add(child)
         s.flush()
         # Parent has 2 ingredient lines: flour + sugar
-        s.add(RecipeLine(recipe_id=parent.id, line_kind="ingredient",
-                         line_ref_id=1, qty=0.5, line_unit="kg"))
-        s.add(RecipeLine(recipe_id=parent.id, line_kind="ingredient",
-                         line_ref_id=2, qty=0.2, line_unit="kg"))
+        s.add(
+            RecipeLine(
+                recipe_id=parent.id, line_kind="ingredient", line_ref_id=1, qty=0.5, line_unit="kg"
+            )
+        )
+        s.add(
+            RecipeLine(
+                recipe_id=parent.id, line_kind="ingredient", line_ref_id=2, qty=0.2, line_unit="kg"
+            )
+        )
         # Child has flour + cocoa
-        s.add(RecipeLine(recipe_id=child.id, line_kind="ingredient",
-                         line_ref_id=1, qty=0.1, line_unit="kg"))
-        s.add(RecipeLine(recipe_id=child.id, line_kind="ingredient",
-                         line_ref_id=3, qty=0.05, line_unit="kg"))
+        s.add(
+            RecipeLine(
+                recipe_id=child.id, line_kind="ingredient", line_ref_id=1, qty=0.1, line_unit="kg"
+            )
+        )
+        s.add(
+            RecipeLine(
+                recipe_id=child.id, line_kind="ingredient", line_ref_id=3, qty=0.05, line_unit="kg"
+            )
+        )
         # A third recipe that uses flour + sugar + cocoa (the AND set)
         combined = Recipe(name="Torta combinada", yield_qty=8, yield_unit="und")
         s.add(combined)
         s.flush()
-        s.add(RecipeLine(recipe_id=combined.id, line_kind="ingredient",
-                         line_ref_id=1, qty=0.3, line_unit="kg"))
-        s.add(RecipeLine(recipe_id=combined.id, line_kind="ingredient",
-                         line_ref_id=2, qty=0.2, line_unit="kg"))
-        s.add(RecipeLine(recipe_id=combined.id, line_kind="ingredient",
-                         line_ref_id=3, qty=0.1, line_unit="kg"))
+        s.add(
+            RecipeLine(
+                recipe_id=combined.id,
+                line_kind="ingredient",
+                line_ref_id=1,
+                qty=0.3,
+                line_unit="kg",
+            )
+        )
+        s.add(
+            RecipeLine(
+                recipe_id=combined.id,
+                line_kind="ingredient",
+                line_ref_id=2,
+                qty=0.2,
+                line_unit="kg",
+            )
+        )
+        s.add(
+            RecipeLine(
+                recipe_id=combined.id,
+                line_kind="ingredient",
+                line_ref_id=3,
+                qty=0.1,
+                line_unit="kg",
+            )
+        )
         s.commit()
     return sf
 
 
 # --- US 3.1: sub-recipe UI in receta_form.html ---
+
 
 def test_receta_form_has_sub_recipe_kind_option(authed_client):
     """The recipe form line-kind combo must include 'sub_recipe'."""
@@ -98,14 +132,16 @@ def test_receta_form_visual_distinction_css_present():
     which lines are sub-recipes vs raw ingredients.
     """
     from pathlib import Path
+
     template = Path("/opt/data/work/saskia-app/app/templates/receta_form.html").read_text()
-    assert ".line-row[data-kind=\"sub_recipe\"]" in template, (
+    assert '.line-row[data-kind="sub_recipe"]' in template, (
         "US 3.1 AC violation: no visual distinction for sub-recipe lines. "
         "Add a CSS rule that targets .line-row[data-kind='sub_recipe']."
     )
 
 
 # --- US 3.2: multi-ingredient reverse filter ---
+
 
 def test_recetas_single_ingredient_filter_still_works(authed_client, recipes_with_subrecipes):
     """Legacy single-ingredient filter must keep working (backward compat)."""
@@ -145,8 +181,12 @@ def test_recetas_multi_ingredient_filter_single_id(authed_client, recipes_with_s
     assert "Brownie con foto" not in body  # only flour+cocoa, no sugar
 
 
-@pytest.mark.skip(reason="Pre-existing conftest fixture ordering issue: seeded RecipeLine\n                  rows aren't visible to the GET /recetas handler when this\n                  test runs in isolation. Other 8 S4 tests pass; this one fails\n                  the same way as test_a11y_forms_and_modals.py::test_dashboard_uses_semantic_html\n                  fails — pre-existing on main.")
-def test_recetas_multi_ingredient_filter_invalid_ids_ignored(authed_client, recipes_with_subrecipes):
+@pytest.mark.skip(
+    reason="Pre-existing conftest fixture ordering issue: seeded RecipeLine\n                  rows aren't visible to the GET /recetas handler when this\n                  test runs in isolation. Other 8 S4 tests pass; this one fails\n                  the same way as test_a11y_forms_and_modals.py::test_dashboard_uses_semantic_html\n                  fails — pre-existing on main."
+)
+def test_recetas_multi_ingredient_filter_invalid_ids_ignored(
+    authed_client, recipes_with_subrecipes
+):
     """Invalid IDs in the comma list must be silently skipped, not 500."""
     r = authed_client.get("/recetas?ingredient_ids=1,abc,3,,99999")
     assert r.status_code == 200
@@ -156,18 +196,21 @@ def test_recetas_multi_ingredient_filter_invalid_ids_ignored(authed_client, reci
     assert "Torta combinada" in body
 
 
-def test_recetas_template_preserves_ingredient_ids_in_sort_links(authed_client, recipes_with_subrecipes):
+def test_recetas_template_preserves_ingredient_ids_in_sort_links(
+    authed_client, recipes_with_subrecipes
+):
     """Sort header links must carry ingredient_ids forward (don't drop filter on sort)."""
     r = authed_client.get("/recetas?ingredient_ids=1,3")
     body = r.text
     # Each sort link should have ingredient_ids in the URL
     assert "ingredient_ids=1%2C3" in body or "ingredient_ids=1,3" in body, (
-        "Sort header links must carry ingredient_ids forward. "
-        "Otherwise sorting loses the filter."
+        "Sort header links must carry ingredient_ids forward. Otherwise sorting loses the filter."
     )
 
 
-def test_recetas_sort_links_preserve_multi_ingredient_filter(authed_client, recipes_with_subrecipes):
+def test_recetas_sort_links_preserve_multi_ingredient_filter(
+    authed_client, recipes_with_subrecipes
+):
     """The recetas list's sort links must preserve the multi-ingredient
     filter query string so applying a sort doesn't drop the filter.
 

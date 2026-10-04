@@ -17,12 +17,14 @@ sys.path.insert(0, "/opt/data/.venv/lib/python3.11/site-packages")
 from bitwarden_sdk import BitwardenClient, ClientSettings, DeviceType
 
 token = Path("/opt/data/.hermes/inbox/bws-token.secret").read_text().strip()
-c = BitwardenClient(ClientSettings(
-    api_url="https://api.bitwarden.com",
-    identity_url="https://identity.bitwarden.com",
-    user_agent="ops/1",
-    device_type=DeviceType.SERVER,
-))
+c = BitwardenClient(
+    ClientSettings(
+        api_url="https://api.bitwarden.com",
+        identity_url="https://identity.bitwarden.com",
+        user_agent="ops/1",
+        device_type=DeviceType.SERVER,
+    )
+)
 c.auth().login_access_token(token, None)
 
 cache = {}

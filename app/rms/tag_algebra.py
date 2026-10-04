@@ -65,6 +65,7 @@ def _legacy_ingredient_dietary_set(ing: object) -> frozenset[str]:
     external scripts. Now delegated to the public normalize_all().
     """
     from app.rms.tagging.classify import normalize_all as _impl
+
     return _impl(getattr(ing, "dietary_tags", None))
 
 

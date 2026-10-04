@@ -4,6 +4,7 @@ These were dropped in the Phase-2B package refactor; restored verbatim
 from the pre-refactor models.py (b9b5288) — every router still imports
 them and migrations 039-049 create their tables.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -49,9 +50,7 @@ class Category(Base):
     scope: Mapped[str] = mapped_column(String(16), nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (
         UniqueConstraint("scope", "name", name="uq_category_scope_name"),
@@ -96,13 +95,9 @@ class DateRangePreset(Base):
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
-    __table_args__ = (
-        Index("ix_date_range_preset_active_sort", "is_active", "sort_order"),
-    )
+    __table_args__ = (Index("ix_date_range_preset_active_sort", "is_active", "sort_order"),)
 
 
 class MarginTier(Base):
@@ -134,13 +129,9 @@ class MarginTier(Base):
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
-    __table_args__ = (
-        Index("ix_margin_tier_active_sort", "is_active", "sort_order"),
-    )
+    __table_args__ = (Index("ix_margin_tier_active_sort", "is_active", "sort_order"),)
 
 
 class MessageTemplate(Base):
@@ -172,8 +163,10 @@ class MessageTemplate(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False,
-        default=datetime.utcnow, onupdate=datetime.utcnow,
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
 
     __table_args__ = (
@@ -204,13 +197,9 @@ class PaymentMethod(Base):
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
-    __table_args__ = (
-        Index("ix_payment_method_active_sort", "is_active", "sort_order"),
-    )
+    __table_args__ = (Index("ix_payment_method_active_sort", "is_active", "sort_order"),)
 
 
 class StockStatusConfig(Base):
@@ -246,13 +235,13 @@ class StockStatusConfig(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False,
-        default=datetime.utcnow, onupdate=datetime.utcnow,
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
 
-    __table_args__ = (
-        Index("ix_stock_status_config_active", "is_active", "sort_order"),
-    )
+    __table_args__ = (Index("ix_stock_status_config_active", "is_active", "sort_order"),)
 
 
 class StorageKeyword(Base):
@@ -280,9 +269,7 @@ class StorageKeyword(Base):
     keyword: Mapped[str] = mapped_column(String(64), nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (
         Index("ix_storage_keyword_active_sort", "storage_code", "is_active", "sort_order"),
@@ -315,10 +302,6 @@ class StorageType(Base):
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
-    __table_args__ = (
-        Index("ix_storage_type_active_sort", "is_active", "sort_order"),
-    )
+    __table_args__ = (Index("ix_storage_type_active_sort", "is_active", "sort_order"),)

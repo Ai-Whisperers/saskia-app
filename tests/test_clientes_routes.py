@@ -1,4 +1,5 @@
 """tests/test_clientes_routes.py — /clientes + /clientes/{id} route tests."""
+
 from __future__ import annotations
 
 
@@ -66,4 +67,9 @@ def test_clientes_empty_state_message(client):
     assert resp.status_code == 200
     # Should not 500 just because no customers exist
     # (the page should render with empty table + a message)
-    assert "No hay" in resp.text or "no hay" in resp.text.lower() or "Agregar" in resp.text or "Clientes" in resp.text
+    assert (
+        "No hay" in resp.text
+        or "no hay" in resp.text.lower()
+        or "Agregar" in resp.text
+        or "Clientes" in resp.text
+    )

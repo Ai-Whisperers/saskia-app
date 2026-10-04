@@ -10,6 +10,7 @@ What we verify:
   - A CTA links to /merma with today's date pre-filled.
   - 'today_waste_count' and 'today_waste_cost_gs' are in the context.
 """
+
 from datetime import date
 
 

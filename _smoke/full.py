@@ -14,6 +14,7 @@ Tests these flows:
  11. Wishlist: list, mark-purchased
  12. Settings: list, update
 """
+
 from __future__ import annotations
 
 import time
@@ -38,7 +39,7 @@ def ok(msg: Any):
     results["pass"] += 1
 
 
-def fail(msg: Any, detail: Any=""):
+def fail(msg: Any, detail: Any = ""):
     print(f"  {RED}✗{RESET} {msg}")
     if detail:
         print(f"    {detail[:200]}")
@@ -76,11 +77,18 @@ def main() -> int:
         ok("GET /inventario/nuevo")
     # Create
     name = f"SmokeFull_{int(time.time())}"
-    r = session.post(BASE + "/inventario/nuevo", data={
-        "name": name, "unit": "kg", "stock_qty": "10",
-        "min_stock_qty": "1", "purchase_price_gs": "100",
-        "_csrf_token": csrf,
-    }, allow_redirects=False)
+    r = session.post(
+        BASE + "/inventario/nuevo",
+        data={
+            "name": name,
+            "unit": "kg",
+            "stock_qty": "10",
+            "min_stock_qty": "1",
+            "purchase_price_gs": "100",
+            "_csrf_token": csrf,
+        },
+        allow_redirects=False,
+    )
     if r.status_code == 303:
         ok(f"POST /inventario/nuevo (create '{name}')")
     else:
@@ -134,11 +142,15 @@ def main() -> int:
         ok("GET /pedidos/nuevo")
 
     # /pedidos/bulk-cancel exercises the cancel_reason column
-    r = session.post(BASE + "/pedidos/bulk-cancel", data={
-        "ids": "999999",  # non-existent ID — should handle gracefully
-        "reason": "Smoke test cancel",
-        "_csrf_token": csrf,
-    }, allow_redirects=False)
+    r = session.post(
+        BASE + "/pedidos/bulk-cancel",
+        data={
+            "ids": "999999",  # non-existent ID — should handle gracefully
+            "reason": "Smoke test cancel",
+            "_csrf_token": csrf,
+        },
+        allow_redirects=False,
+    )
     if r.status_code in (303, 200, 422):
         ok(f"POST /pedidos/bulk-cancel (cancel_reason field) → {r.status_code}")
     else:
@@ -183,12 +195,20 @@ def main() -> int:
     if r.status_code == 200:
         ok("GET /bank")
     supplier = f"SmokeBank_{int(time.time())}"
-    r = session.post(BASE + "/bank/add", data={
-        "posted_at": "2026-09-23", "currency": "USD",
-        "amount": "-50.00", "counterparty_name": supplier,
-        "description": "Smoke", "category": "manual", "source": "smoke",
-        "_csrf_token": csrf,
-    }, allow_redirects=False)
+    r = session.post(
+        BASE + "/bank/add",
+        data={
+            "posted_at": "2026-09-23",
+            "currency": "USD",
+            "amount": "-50.00",
+            "counterparty_name": supplier,
+            "description": "Smoke",
+            "category": "manual",
+            "source": "smoke",
+            "_csrf_token": csrf,
+        },
+        allow_redirects=False,
+    )
     if r.status_code == 303:
         ok("POST /bank/add")
     else:
@@ -209,11 +229,15 @@ def main() -> int:
     # ─── 13. ERROR PAGE QUALITY ──────────────────────────────────
     section("[13] ERROR PAGE quality (404 + 500 paths)")
     r = session.get(BASE + "/inventario/999999999", headers={"Accept": "text/html"})
-    if r.status_code == 404 and ("no encontrado" in r.text.lower() or "no existe" in r.text.lower()):
+    if r.status_code == 404 and (
+        "no encontrado" in r.text.lower() or "no existe" in r.text.lower()
+    ):
         ok("404 for missing ingredient: friendly Spanish error")
 
     r = session.get(BASE + "/this-route-does-not-exist", headers={"Accept": "text/html"})
-    if r.status_code == 404 and ("no encontrado" in r.text.lower() or "no existe" in r.text.lower()):
+    if r.status_code == 404 and (
+        "no encontrado" in r.text.lower() or "no existe" in r.text.lower()
+    ):
         ok("404 for missing route: friendly Spanish error")
 
     # ─── SUMMARY ────────────────────────────────────────────────
@@ -231,4 +255,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(main())

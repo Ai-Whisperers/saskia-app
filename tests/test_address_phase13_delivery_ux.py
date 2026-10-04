@@ -9,6 +9,7 @@ Covers:
   4. Migration 079 → 081 schema_version sanity (CURRENT_SCHEMA_VERSION
      is 81 after init_db runs).
 """
+
 from app.services.customer_address import (
     compose_address_text,
     default_invoice_profile_payload,
@@ -18,17 +19,19 @@ from app.services.customer_address import (
 
 # ── 1. address_compose ─────────────────────────────────────────────
 def test_address_compose_full_fields():
-    out = compose_address_text({
-        "calle_principal": "Av. España",
-        "calle_secundaria": "Curupayty",
-        "numero": "1234",
-        "edificio": "Torre X",
-        "piso": "5",
-        "unidad": "B",
-        "barrio": "Las Carmelitas",
-        "ciudad": "Asunción",
-        "departamento": "Central",
-    })
+    out = compose_address_text(
+        {
+            "calle_principal": "Av. España",
+            "calle_secundaria": "Curupayty",
+            "numero": "1234",
+            "edificio": "Torre X",
+            "piso": "5",
+            "unidad": "B",
+            "barrio": "Las Carmelitas",
+            "ciudad": "Asunción",
+            "departamento": "Central",
+        }
+    )
     assert "Av. España" in out
     assert "Curupayty" in out or "e/" in out  # "entre" indicator
     assert "1234" in out
@@ -41,11 +44,13 @@ def test_address_compose_full_fields():
 
 def test_address_compose_omits_empty_fields():
     # No edificio/piso/unidad → no parenthesis; calle_secundaria not present
-    out = compose_address_text({
-        "calle_principal": "Av. España",
-        "numero": "1234",
-        "barrio": "Recoleta",
-    })
+    out = compose_address_text(
+        {
+            "calle_principal": "Av. España",
+            "numero": "1234",
+            "barrio": "Recoleta",
+        }
+    )
     assert out == "Av. España 1234, Barrio Recoleta"
     # No parenthesis since no edificio/piso
     assert "(" not in out
@@ -126,18 +131,21 @@ def test_schema_version_is_at_least_81():
     ≥ 81. After init_db on a fresh DB, schema_version == 81."""
     from app.rms.config import CURRENT_SCHEMA_VERSION
     from app.rms.db import init_db
+
     assert CURRENT_SCHEMA_VERSION >= 81, (
         f"Expected CURRENT_SCHEMA_VERSION ≥ 81, got {CURRENT_SCHEMA_VERSION}"
     )
     # Smoke-run init_db on a fresh in-memory engine; if migrations 079-081
     # are not wired in init_db, schema stays at 78 (and init_db raises).
     from sqlalchemy import create_engine
+
     eng = create_engine("sqlite:///:memory:")
     init_db(eng)
     # We don't import init_db here without engine; use a quick smoke
     # through the live DB initialiser path with a tmp file.
     import os
     import tempfile
+
     fd, path = tempfile.mkstemp(suffix=".sqlite")
     os.close(fd)
     try:
@@ -145,6 +153,7 @@ def test_schema_version_is_at_least_81():
         init_db(eng2)
         with eng2.connect() as conn:
             from sqlalchemy import text
+
             ver = conn.execute(
                 text("SELECT value FROM app_meta WHERE key='schema_version'")
             ).scalar_one_or_none()

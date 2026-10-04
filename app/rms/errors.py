@@ -31,6 +31,7 @@ This mirrors what a real production team would do: every error has a
 typed code that ops can grep for, a localized message that support can
 show to the user, and a context dict for log aggregation.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -95,18 +96,21 @@ class AppError(Exception):
 
 class BadRequest(AppError):
     """Generic 400: malformed request that doesn't fit other categories."""
+
     status_code = 400
     reason_code = "bad_request"
 
 
 class ValidationError(AppError):
     """422: Pydantic / schema validation failure."""
+
     status_code = 422
     reason_code = "validation_failed"
 
 
 class NotFound(AppError):
     """404: requested entity doesn't exist or user can't see it."""
+
     status_code = 404
     reason_code = "not_found"
 
@@ -130,30 +134,35 @@ class NotFound(AppError):
 
 class AlreadyExists(AppError):
     """409: unique constraint violation."""
+
     status_code = 409
     reason_code = "already_exists"
 
 
 class Conflict(AppError):
     """409: business rule conflict (e.g. trying to delete a referenced entity)."""
+
     status_code = 409
     reason_code = "conflict"
 
 
 class Unauthenticated(AppError):
     """401: no session or session expired."""
+
     status_code = 401
     reason_code = "unauthenticated"
 
 
 class Forbidden(AppError):
     """403: RBAC denies this user."""
+
     status_code = 403
     reason_code = "forbidden"
 
 
 class RateLimited(AppError):
     """429: too many requests."""
+
     status_code = 429
     reason_code = "rate_limited"
 
@@ -163,18 +172,21 @@ class RateLimited(AppError):
 
 class DataIntegrityError(AppError):
     """500: DB constraint, FK, or migration mismatch."""
+
     status_code = 500
     reason_code = "data_integrity_error"
 
 
 class DependencyError(AppError):
     """502/503: an external dependency failed (Drive, bank feed, etc.)."""
+
     status_code = 502
     reason_code = "dependency_unavailable"
 
 
 class AppInternalError(AppError):
     """500: unexpected internal failure."""
+
     status_code = 500
     reason_code = "internal_error"
 
@@ -185,6 +197,7 @@ class AppInternalError(AppError):
 def to_http_exception(err: AppError) -> object:
     """Convert an AppError to a FastAPI HTTPException with our extended payload."""
     from fastapi import HTTPException
+
     return HTTPException(
         status_code=err.status_code,
         detail=err.to_dict(),

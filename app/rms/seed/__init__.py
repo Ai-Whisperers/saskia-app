@@ -4,6 +4,7 @@ Split from monolithic seed_competitor_prices.py. The legacy seed_demo_data
 function and seed constants moved into this package at app.rms.seed.demo
 and are re-exported here so `from app.rms.seed import X` keeps working.
 """
+
 from app.rms.seed import (
     competitor_prices,
     competitor_seed,

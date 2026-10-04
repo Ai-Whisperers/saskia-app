@@ -20,6 +20,7 @@ This module verifies:
 
 Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_p1_b2_forecast_enchufado.py -v
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -30,7 +31,10 @@ from app.rms.models import Product, Sale
 
 # --- helpers ---
 
-def _seed_product_with_sales(session_factory, *, name: str, n_sales: int, days_span: int, qty_per_sale: float = 2.0):
+
+def _seed_product_with_sales(
+    session_factory, *, name: str, n_sales: int, days_span: int, qty_per_sale: float = 2.0
+):
     """Create a product + N sales spread across `days_span` calendar days."""
     with session_factory() as s:
         prod = Product(name=name, sale_price_gs=2500)
@@ -42,8 +46,11 @@ def _seed_product_with_sales(session_factory, *, name: str, n_sales: int, days_s
             day_offset = (i * days_span // n_sales) if n_sales > 0 else 0
             sold_at = now - timedelta(days=day_offset, hours=12 - (i % 12))
             sa = Sale(
-                product_id=prod.id, qty=qty_per_sale, sold_at=sold_at,
-                unit_price_gs=2500, channel="mostrador",
+                product_id=prod.id,
+                qty=qty_per_sale,
+                sold_at=sold_at,
+                unit_price_gs=2500,
+                channel="mostrador",
             )
             s.add(sa)
         s.commit()
@@ -53,23 +60,28 @@ def _seed_product_with_sales(session_factory, *, name: str, n_sales: int, days_s
 
 # --- tests ---
 
+
 def test_forecast_confidence_zero_sales():
     from app.rms.production import _forecast_confidence
+
     assert _forecast_confidence(0, 0) == 0
 
 
 def test_forecast_confidence_single_sale():
     from app.rms.production import _forecast_confidence
+
     assert _forecast_confidence(1, 1) == 25
 
 
 def test_forecast_confidence_two_sales():
     from app.rms.production import _forecast_confidence
+
     assert _forecast_confidence(2, 2) == 40
 
 
 def test_forecast_confidence_high_sample_size():
     from app.rms.production import _forecast_confidence
+
     # 30 sales across 14 days → 50 + (30-3)*1.5 + 14 = 50+40.5+14 = 104.5 → capped 95
     assert _forecast_confidence(30, 14) >= 90
     assert _forecast_confidence(30, 14) <= 95
@@ -77,6 +89,7 @@ def test_forecast_confidence_high_sample_size():
 
 def test_forecast_confidence_capped_at_95():
     from app.rms.production import _forecast_confidence
+
     assert _forecast_confidence(1000, 30) == 95
 
 
@@ -84,6 +97,7 @@ def test_forecast_confidence_low_sales_high_spread_lower():
     """Few sales across many days should NOT be more trustworthy than few sales
     on one day (it should still be low — the spread bonus helps but doesn't dominate)."""
     from app.rms.production import _forecast_confidence
+
     # 3 sales across 1 day vs 3 sales across 3 days
     conf_1d = _forecast_confidence(3, 1)
     conf_3d = _forecast_confidence(3, 3)
@@ -93,6 +107,7 @@ def test_forecast_confidence_low_sales_high_spread_lower():
 def test_production_plan_includes_confidence(session_factory) -> None:
     """plan_production now stamps confidence_pct on each row."""
     from app.rms.production import plan_production
+
     _seed_product_with_sales(session_factory, name="Chipa_test", n_sales=10, days_span=7)
     with session_factory() as s:
         plan = plan_production(s, for_date=datetime.utcnow().date() + timedelta(days=1))
@@ -105,10 +120,12 @@ def test_production_plan_includes_confidence(session_factory) -> None:
 def test_production_plan_manual_override_gets_100_confidence(session_factory) -> None:
     """Manual overrides always have 100% confidence (operator-typed)."""
     from app.rms.production import plan_production
+
     _seed_product_with_sales(session_factory, name="Chipa_manual", n_sales=5, days_span=3)
     with session_factory() as s:
         plan = plan_production(
-            s, for_date=datetime.utcnow().date() + timedelta(days=1),
+            s,
+            for_date=datetime.utcnow().date() + timedelta(days=1),
             manual_forecast={1: 50.0},  # forces manual source
         )
     assert plan.rows
@@ -121,8 +138,11 @@ def test_production_plan_manual_override_gets_100_confidence(session_factory) ->
 def test_production_plan_rounds_up_whole_pieces(session_factory) -> None:
     """Auto-forecast qty rounds up to whole pieces (PRO-02)."""
     from app.rms.production import plan_production
+
     # 7 sales × 0.3 qty each = 2.1 → should round up to 3
-    _seed_product_with_sales(session_factory, name="Medialuna_test", n_sales=7, days_span=7, qty_per_sale=0.3)
+    _seed_product_with_sales(
+        session_factory, name="Medialuna_test", n_sales=7, days_span=7, qty_per_sale=0.3
+    )
     with session_factory() as s:
         plan = plan_production(s, for_date=datetime.utcnow().date() + timedelta(days=1))
     assert plan.rows
@@ -152,12 +172,19 @@ def test_manana_route_shows_confidence_pill(client, session_factory) -> None:
     body = r.text
     # confidence-pill class is used for the % display
     # Either there are rows (showing pills) or empty state — both valid
-    assert "confidence-pill" in body or "No hay productos" in body or "rows|length == 0" in body or "Esperá unos días" in body
+    assert (
+        "confidence-pill" in body
+        or "No hay productos" in body
+        or "rows|length == 0" in body
+        or "Esperá unos días" in body
+    )
 
 
 def test_manana_route_shows_estimated_revenue(client, session_factory) -> None:
     """The 'Ingreso estimado mañana' KPI card renders."""
-    _seed_product_with_sales(session_factory, name="Croissant_gs", n_sales=5, days_span=4, qty_per_sale=3.0)
+    _seed_product_with_sales(
+        session_factory, name="Croissant_gs", n_sales=5, days_span=4, qty_per_sale=3.0
+    )
     r = client.get("/produccion/manana")
     assert r.status_code == 200
     # The currency formatter m.gs_full is used → "Gs." prefix expected
@@ -202,7 +229,11 @@ def test_manana_route_renders_seasonal_note_when_event_matches(client) -> None:
         r = client.get("/produccion/manana")
         assert r.status_code == 200
         # The page rendered without 500
-        assert "Día patrio test" in r.text or "No hay productos" in r.text or "Esperá unos días" in r.text
+        assert (
+            "Día patrio test" in r.text
+            or "No hay productos" in r.text
+            or "Esperá unos días" in r.text
+        )
 
 
 def test_nav_includes_manana_link(client) -> None:
@@ -217,6 +248,7 @@ def test_nav_includes_manana_link(client) -> None:
 def test_forecast_sample_stats_counts_unique_days(session_factory) -> None:
     """_forecast_sample_stats returns (sale_count, distinct_days)."""
     from app.rms.production import _forecast_sample_stats
+
     pid = _seed_product_with_sales(session_factory, name="Sample_test", n_sales=8, days_span=4)
     with session_factory() as s:
         count, days = _forecast_sample_stats(s, product_id=pid, days_history=14)
@@ -227,6 +259,7 @@ def test_forecast_sample_stats_counts_unique_days(session_factory) -> None:
 def test_forecast_sample_stats_zero_when_no_sales(session_factory) -> None:
     """Empty data → (0, 0)."""
     from app.rms.production import _forecast_sample_stats
+
     pid = _seed_product_with_sales(session_factory, name="Empty_test", n_sales=0, days_span=0)
     with session_factory() as s:
         count, days = _forecast_sample_stats(s, product_id=pid, days_history=14)
@@ -240,9 +273,7 @@ def test_manana_override_bulk_roundtrip(client, session_factory) -> None:
 
     from app.rms.models import ProductionPlanOverride
 
-    pid = _seed_product_with_sales(
-        session_factory, name="Bulk_ov_prod", n_sales=12, days_span=7
-    )
+    pid = _seed_product_with_sales(session_factory, name="Bulk_ov_prod", n_sales=12, days_span=7)
     tomorrow = datetime.utcnow().date() + timedelta(days=1)
 
     r = client.post(

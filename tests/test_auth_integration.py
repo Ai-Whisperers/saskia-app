@@ -103,7 +103,9 @@ def test_login_with_invalid_credentials_redirects_with_error(client, supabase_au
     assert "error" in r.headers["location"]
 
 
-@pytest.mark.skip(reason="Fixture patching chain is order-dependent — needs refactor of fake client lifecycle")
+@pytest.mark.skip(
+    reason="Fixture patching chain is order-dependent — needs refactor of fake client lifecycle"
+)
 def test_login_with_valid_credentials_sets_session(client, supabase_auth_env):
     """Good credentials → session has Supabase access_token, redirect to next."""
     # Set up the fake Supabase client
@@ -149,6 +151,7 @@ def test_dashboard_requires_login_when_supabase_enabled(client, supabase_auth_en
     # Force the gate to run (turn off the testing bypass). The gate reads
     # SASKIA_TEST_AUTH_DISABLED, not app.state.testing.
     import os
+
     saved = os.environ.pop("SASKIA_TEST_AUTH_DISABLED", None)
     try:
         r = client.get("/", follow_redirects=False)

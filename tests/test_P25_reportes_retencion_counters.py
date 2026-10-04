@@ -13,6 +13,7 @@ This test locks in:
 4. Date range filter form has start/end inputs
 5. Empty period → 0 counters (graceful, not 500)
 """
+
 from __future__ import annotations
 
 import pytest
@@ -90,7 +91,10 @@ def test_retencion_counters_populate_with_data(client, session_factory):
     # additional rows from sales_intel rather than strict customer table,
     # but must NOT be 0 when customers exist).
     import re
-    m = re.search(r'metric-label">Total clientes</div>\s*<div class="metric-value">\s*(\d+)', r.text)
+
+    m = re.search(
+        r'metric-label">Total clientes</div>\s*<div class="metric-value">\s*(\d+)', r.text
+    )
     assert m, "Could not find Total clientes metric-value in HTML"
     shown_total = int(m.group(1))
     assert shown_total >= 1, (

@@ -34,6 +34,7 @@ Cron entry:
 
 (Send at 22:00 UTC = 18:00 PY, end of business day.)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -96,9 +97,12 @@ with factory() as s:
     print(f"backend={{result.kind}}, ok={{result.ok}}, detail={{result.detail or ''}}")
 """
     import subprocess
+
     result = subprocess.run(
         [sys.executable, "-c", code],
-        capture_output=True, text=True, timeout=120,
+        capture_output=True,
+        text=True,
+        timeout=120,
     )
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] daily_summary for {day_label}")
     print(result.stdout)

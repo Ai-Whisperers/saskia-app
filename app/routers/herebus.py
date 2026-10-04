@@ -248,7 +248,9 @@ def risk_list(request: Request, session: Session = Depends(get_session)) -> HTML
             "active_count": sum(1 for i in items if i.status == "activo"),
             "mitigated_count": sum(1 for i in items if i.status == "mitigated"),
             "closed_count": sum(1 for i in items if i.status == "cerrado"),
-            "flash": request.session.pop("flash_risk", None) if hasattr(request, "session") else None,
+            "flash": request.session.pop("flash_risk", None)
+            if hasattr(request, "session")
+            else None,
         },
     )
 
@@ -1272,6 +1274,7 @@ def planner_compute(
         # Converge with the other flows (plan→list, auto-sync): merge
         # duplicate open items so the list shows one row per ingredient.
         from app.routers.shopping import consolidate_open_items
+
         consolidate_open_items(session)
 
     return render(

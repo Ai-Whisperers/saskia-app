@@ -17,6 +17,7 @@ This test file guards:
   - Slug normalization (accent strip + dash collapse)
   - Validation helpers (slugify, validate_slug) work as expected
 """
+
 from __future__ import annotations
 
 import json
@@ -64,22 +65,16 @@ def _make_product(session_factory, **overrides) -> int:
 def test_menu_unknown_slug_returns_404(client):
     """C2 #1: /m/{slug} returns 404 for a slug that doesn't exist."""
     r = client.get("/m/no-existe-este-slug")
-    assert r.status_code == 404, (
-        f"/m/no-existe-este-slug returned {r.status_code}, expected 404"
-    )
+    assert r.status_code == 404, f"/m/no-existe-este-slug returned {r.status_code}, expected 404"
 
 
 def test_menu_visible_product_returns_200(client, session_factory):
     """C2 #2: /m/{slug} returns 200 when a visible product with that slug exists."""
     _make_product(session_factory, name="Croissant", tablet_slug="croissant")
     r = client.get("/m/croissant")
-    assert r.status_code == 200, (
-        f"/m/croissant returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code == 200, f"/m/croissant returned {r.status_code}: {r.text[:200]}"
     body = r.text
-    assert "Croissant" in body, (
-        f"Tablet page missing product name: {body[:500]}"
-    )
+    assert "Croissant" in body, f"Tablet page missing product name: {body[:500]}"
 
 
 def test_menu_no_auth_required(client, session_factory):
@@ -87,9 +82,7 @@ def test_menu_no_auth_required(client, session_factory):
     _make_product(session_factory, name="Facturas", tablet_slug="facturas")
     # Bare `client` (no auth_client) — must succeed.
     r = client.get("/m/facturas")
-    assert r.status_code == 200, (
-        f"/m/facturas without auth returned {r.status_code}"
-    )
+    assert r.status_code == 200, f"/m/facturas without auth returned {r.status_code}"
 
 
 def test_menu_integer_path_returns_404(client, session_factory):
@@ -98,9 +91,7 @@ def test_menu_integer_path_returns_404(client, session_factory):
     Mirrors K6's /p/{token} guard against enumeration attacks. An
     attacker who guesses /m/1, /m/2, … must NOT see product data.
     """
-    p_id = _make_product(
-        session_factory, name="Enumerate Me", tablet_slug="enumerate-me"
-    )
+    p_id = _make_product(session_factory, name="Enumerate Me", tablet_slug="enumerate-me")
     r = client.get(f"/m/{p_id}")
     assert r.status_code == 404, (
         f"/m/{p_id} returned {r.status_code}, expected 404. "
@@ -125,9 +116,7 @@ def test_menu_hidden_product_returns_404(client, session_factory):
         tablet_visible=False,
     )
     r = client.get("/m/secreto")
-    assert r.status_code == 404, (
-        f"Hidden product /m/secreto returned {r.status_code}, expected 404"
-    )
+    assert r.status_code == 404, f"Hidden product /m/secreto returned {r.status_code}, expected 404"
 
 
 def test_menu_no_slug_returns_404(client, session_factory):
@@ -210,9 +199,7 @@ def test_menu_404_message_does_not_leak(client, session_factory):
     detail2 = _detail(r2).lower()
     # Strip the request path leakage (the URL contains 'secret-xyz')
     for needle in ("secret-xyz", "internal"):
-        assert needle not in detail1, (
-            f"Hidden product detail leaks info: {detail1!r}"
-        )
+        assert needle not in detail1, f"Hidden product detail leaks info: {detail1!r}"
     # The two details should be the same shape (we don't pin the
     # exact wording — different error templates can land here).
     assert len(detail1) > 0 and len(detail2) > 0
@@ -245,9 +232,7 @@ def test_product_form_persists_tablet_slug(authed_client, session_factory):
         assert p_obj.tablet_visible is True
 
 
-def test_product_form_auto_generates_slug_from_name(
-    authed_client, session_factory
-):
+def test_product_form_auto_generates_slug_from_name(authed_client, session_factory):
     """C2 #11: blank tablet_slug auto-fills from the product name."""
     r = authed_client.post(
         "/productos/nuevo",
@@ -305,9 +290,7 @@ def test_product_form_rejects_invalid_slug(authed_client):
         },
     )
     # The validate_slug helper raises 400 on bad input.
-    assert r.status_code == 400, (
-        f"Invalid slug POST returned {r.status_code}, expected 400"
-    )
+    assert r.status_code == 400, f"Invalid slug POST returned {r.status_code}, expected 400"
 
 
 def test_product_form_unset_visibility_unchecks(authed_client, session_factory):
@@ -396,9 +379,7 @@ def test_product_edit_can_change_visibility(authed_client, session_factory):
 
     # And the /m/{slug} page must now 404.
     r2 = authed_client.get("/m/toggle-me")
-    assert r2.status_code == 404, (
-        f"/m/toggle-me after hide returned {r2.status_code}, expected 404"
-    )
+    assert r2.status_code == 404, f"/m/toggle-me after hide returned {r2.status_code}, expected 404"
 
 
 # ── Migration tests ───────────────────────────────────────────────────────
@@ -423,18 +404,14 @@ def test_migration_066_runs_clean(tmp_db_path):
         cols = conn.execute(text("PRAGMA table_info(product)")).fetchall()
         col_names = {c[1] for c in cols}
         assert "tablet_slug" in col_names, (
-            f"tablet_slug column missing from product table. "
-            f"Columns: {sorted(col_names)}"
+            f"tablet_slug column missing from product table. Columns: {sorted(col_names)}"
         )
         assert "tablet_visible" in col_names, (
-            f"tablet_visible column missing from product table. "
-            f"Columns: {sorted(col_names)}"
+            f"tablet_visible column missing from product table. Columns: {sorted(col_names)}"
         )
 
         # Confirm schema_version is current.
-        row = conn.execute(
-            text("SELECT value FROM app_meta WHERE key='schema_version'")
-        ).first()
+        row = conn.execute(text("SELECT value FROM app_meta WHERE key='schema_version'")).first()
         assert row is not None
         # Stored as JSON string '"64"' or similar; just confirm >= 64.
         try:

@@ -20,6 +20,7 @@ def test_get_database_url_default_is_sqlite(tmp_path, monkeypatch):
 def test_get_database_url_postgres_when_set(monkeypatch):
     """DATABASE_URL=postgres://... wins over the SQLite default."""
     from app.rms.db_dialect import get_database_url
+
     get_database_url.cache_clear()  # reset LRU cache from prior test
     monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://user:pass@host.example/db")
     assert get_database_url().startswith("postgresql")

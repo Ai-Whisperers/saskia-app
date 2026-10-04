@@ -4,6 +4,7 @@ These tables back the /ventas form-selects and validation. They are
 DB-driven so operators can add/edit channels and payment methods from
 /settings/channels and /settings/payment-methods without code deploy.
 """
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -51,7 +52,9 @@ def default_channel_code(session: Session) -> str:
 def default_payment_method_code(session: Session) -> str:
     """Return the code marked is_default=True, or 'efectivo' as fallback."""
     row = session.execute(
-        select(PaymentMethod).where(PaymentMethod.is_default.is_(True), PaymentMethod.is_active.is_(True))
+        select(PaymentMethod).where(
+            PaymentMethod.is_default.is_(True), PaymentMethod.is_active.is_(True)
+        )
     ).scalar_one_or_none()
     return row.code if row else "efectivo"
 

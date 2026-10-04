@@ -24,9 +24,7 @@ def _kyrian_customer_id(session_factory):
         from app.rms.models import Customer
 
         c = s.execute(
-            __import__("sqlalchemy").select(Customer).where(
-                Customer.name.ilike("%kyrian%")
-            )
+            __import__("sqlalchemy").select(Customer).where(Customer.name.ilike("%kyrian%"))
         ).scalar_one_or_none()
         assert c is not None, "Kyrian customer must exist in with_kyrian_full"
         return c.id
@@ -145,7 +143,8 @@ def test_detalle_suggestion_post_endpoint_writes_ledger(client, qseed, session_f
         from app.rms.models import LoyaltyTransaction
 
         tx = s.execute(
-            __import__("sqlalchemy").select(LoyaltyTransaction)
+            __import__("sqlalchemy")
+            .select(LoyaltyTransaction)
             .where(LoyaltyTransaction.customer_id == cid)
             .where(LoyaltyTransaction.reason == "suggestion_applied")
         ).scalar_one_or_none()
@@ -174,7 +173,8 @@ def test_detalle_suggestion_form_post_endpoint_writes_correct_kind(client, qseed
         from app.rms.models import LoyaltyTransaction
 
         tx = s.execute(
-            __import__("sqlalchemy").select(LoyaltyTransaction)
+            __import__("sqlalchemy")
+            .select(LoyaltyTransaction)
             .where(LoyaltyTransaction.customer_id == cid)
             .where(LoyaltyTransaction.reason == "suggestion_applied")
             .where(LoyaltyTransaction.notes.like("%cumple%"))
@@ -202,11 +202,16 @@ def test_detalle_suggestion_form_post_empty_kind_is_unknown(client, qseed, sessi
     with session_factory() as s:
         from app.rms.models import LoyaltyTransaction
 
-        tx = s.execute(
-            __import__("sqlalchemy").select(LoyaltyTransaction)
-            .where(LoyaltyTransaction.customer_id == cid)
-            .where(LoyaltyTransaction.reason == "suggestion_applied")
-        ).scalars().all()
+        tx = (
+            s.execute(
+                __import__("sqlalchemy")
+                .select(LoyaltyTransaction)
+                .where(LoyaltyTransaction.customer_id == cid)
+                .where(LoyaltyTransaction.reason == "suggestion_applied")
+            )
+            .scalars()
+            .all()
+        )
         assert tx, "expected at least one row"
         # Latest row (most-recent) should be the unknown one
         latest = tx[-1]

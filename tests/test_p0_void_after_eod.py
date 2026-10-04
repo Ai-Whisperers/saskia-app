@@ -15,6 +15,7 @@ This module verifies:
 
 Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_p0_void_after_eod.py -v
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
@@ -30,10 +31,12 @@ from app.rms.workflow import fresh_eod_checklist
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def yesterday() -> date:
     """Yesterday in Asuncion local time."""
     from app.rms.config import ASUNCION_TZ
+
     return (datetime.now(ASUNCION_TZ) - timedelta(days=1)).date()
 
 
@@ -43,7 +46,9 @@ def mark_yesterday_closed(session_factory, yesterday: date) -> None:
     items = fresh_eod_checklist()
     # Skip notes_for_tomorrow — it's a text input, not a checkbox.
     checkable_items = [item for item in items if item.key != "notes_for_tomorrow"]
-    assert len(checkable_items) >= 9, f"Expected at least 9 checkable EOD items, got {len(checkable_items)}"
+    assert len(checkable_items) >= 9, (
+        f"Expected at least 9 checkable EOD items, got {len(checkable_items)}"
+    )
     now_iso = datetime.utcnow().isoformat()
     with session_factory() as s:
         for item in checkable_items:
@@ -60,7 +65,9 @@ def mark_yesterday_closed(session_factory, yesterday: date) -> None:
 @pytest.fixture
 def sale_yesterday(session_factory, yesterday: date) -> int:
     """Insert a sale dated yesterday and return its id."""
-    sold_at = datetime.combine(yesterday, datetime.min.time(), tzinfo=timezone.utc) + timedelta(hours=12)
+    sold_at = datetime.combine(yesterday, datetime.min.time(), tzinfo=timezone.utc) + timedelta(
+        hours=12
+    )
     with session_factory() as s:
         product = s.scalar(select(Product).limit(1))
         if product is None:
@@ -87,13 +94,16 @@ def sale_yesterday(session_factory, yesterday: date) -> int:
 # eod_closed unit tests
 # ---------------------------------------------------------------------------
 
+
 def test_eod_is_day_closed_returns_false_when_no_rows(session_factory, yesterday: date) -> None:
     """A day with no AppMeta rows is not closed."""
     with session_factory() as s:
         assert eod_is_day_closed(s, yesterday) is False
 
 
-def test_eod_is_day_closed_returns_false_with_partial_checklist(session_factory, yesterday: date) -> None:
+def test_eod_is_day_closed_returns_false_with_partial_checklist(
+    session_factory, yesterday: date
+) -> None:
     """A day with only some checklist items is not closed."""
     items = fresh_eod_checklist()
     checkable_items = [item for item in items if item.key != "notes_for_tomorrow"]
@@ -117,6 +127,7 @@ def test_eod_is_day_closed_ignores_notes_for_tomorrow(session_factory, yesterday
     """notes_for_tomorrow is a text input, not a checkbox — its absence
     doesn't block the day from being closed."""
     from app.rms.workflow import fresh_eod_checklist
+
     checkable_items = [item for item in fresh_eod_checklist() if item.key != "notes_for_tomorrow"]
     assert len(checkable_items) >= 9, f"Expected ≥9 checkable items, got {len(checkable_items)}"
     now_iso = datetime.utcnow().isoformat()
@@ -156,6 +167,7 @@ def test_eod_get_open_days_excludes_closed_days(
 # void_sale integration tests
 # ---------------------------------------------------------------------------
 
+
 def test_void_sale_blocked_after_eod_closed(
     session_factory, yesterday: date, mark_yesterday_closed, sale_yesterday: int
 ) -> None:
@@ -181,7 +193,9 @@ def test_void_sale_succeeds_when_eod_open(session_factory, sale_yesterday: int) 
         assert sale.voided_at is not None, "Sale must be voided when EOD is open"
 
 
-def test_void_sale_already_voided_still_raises_valueerror(session_factory, sale_yesterday: int) -> None:
+def test_void_sale_already_voided_still_raises_valueerror(
+    session_factory, sale_yesterday: int
+) -> None:
     """Idempotency check still works: double-void raises the original ValueError."""
     from app.rms.costing import void_sale
 
@@ -195,6 +209,7 @@ def test_void_sale_already_voided_still_raises_valueerror(session_factory, sale_
 # ---------------------------------------------------------------------------
 # Router integration test
 # ---------------------------------------------------------------------------
+
 
 def test_void_sale_router_returns_spanish_409_after_eod_close(
     client, session_factory, yesterday: date, mark_yesterday_closed, sale_yesterday: int
@@ -213,7 +228,9 @@ def test_void_sale_router_returns_spanish_409_after_eod_close(
     )
 
 
-def test_void_sale_router_succeeds_when_eod_open(client, session_factory, sale_yesterday: int) -> None:
+def test_void_sale_router_succeeds_when_eod_open(
+    client, session_factory, sale_yesterday: int
+) -> None:
     """The /ventas/{id}/anular endpoint returns 303 redirect when EOD is open."""
     r = client.post(
         f"/ventas/{sale_yesterday}/anular",

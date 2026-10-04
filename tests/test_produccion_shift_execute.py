@@ -4,6 +4,7 @@ The shift-execute endpoint must persist actual production via the
 ProductionCompletion helper (one row per (product, for_date) — UPSERT
 semantics, NOT the production_plan_override table).
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -78,9 +79,7 @@ def test_shift_execute_creates_completion_rows(
     assert by_pid.get(other_product_id) == 12.0
 
 
-def test_shift_execute_updates_existing_completion(
-    authed_client, session_factory, product_id
-):
+def test_shift_execute_updates_existing_completion(authed_client, session_factory, product_id):
     """Re-recording the same (product, date) MUST update in place (upsert)."""
     from app.rms.eod_completions import upsert_completion
 
@@ -130,17 +129,13 @@ def test_shift_execute_ignores_invalid_qty(authed_client, session_factory, produ
     with session_factory() as s:
         rows = list(
             s.execute(
-                select(ProductionCompletion).where(
-                    ProductionCompletion.product_id == product_id
-                )
+                select(ProductionCompletion).where(ProductionCompletion.product_id == product_id)
             ).scalars()
         )
     assert len(rows) == 0, "non-numeric qty must not write a row"
 
 
-def test_shift_execute_does_not_write_plan_override(
-    authed_client, session_factory, product_id
-):
+def test_shift_execute_does_not_write_plan_override(authed_client, session_factory, product_id):
     """The endpoint writes ProductionCompletion, NOT ProductionPlanOverride.
 
     This is the core invariant — actual production must live in its own
@@ -158,9 +153,7 @@ def test_shift_execute_does_not_write_plan_override(
     with session_factory() as s:
         overrides = list(
             s.execute(
-                select(ProductionPlanOverride).where(
-                    ProductionPlanOverride.for_date == today
-                )
+                select(ProductionPlanOverride).where(ProductionPlanOverride.for_date == today)
             ).scalars()
         )
     assert overrides == [], (
@@ -171,9 +164,7 @@ def test_shift_execute_does_not_write_plan_override(
 # --- ad-hoc bake entry ---
 
 
-def test_ad_hoc_creates_completion_with_adhoc_tag(
-    authed_client, session_factory, product_id
-):
+def test_ad_hoc_creates_completion_with_adhoc_tag(authed_client, session_factory, product_id):
     """POST /produccion/ad-hoc must record a ProductionCompletion with notes='ad_hoc'."""
     today = datetime.now(_UTC).date()
     r = authed_client.post(

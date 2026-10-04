@@ -17,6 +17,7 @@ generates a fresh token per call and stores expiry at the same time).
 
 Idempotent: ALTER try/except (matches _067 pattern).
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -34,28 +35,23 @@ def _migration_085_sale_public_token(conn: Any) -> None:
     # Import locally to avoid the circular-import trap: db.py imports this
     # module at top, so any top-level import from db.py would fail.
     from app.rms.db import _bump_schema_version
+
     # 1. Add public_token column (nullable; only populated when share is called)
     try:
-        conn.execute(
-            text("ALTER TABLE sale ADD COLUMN public_token VARCHAR(64)")
-        )
+        conn.execute(text("ALTER TABLE sale ADD COLUMN public_token VARCHAR(64)"))
     except Exception:  # noqa: S110 — column may already exist
         pass
 
     # 2. Add public_token_expires_at column (nullable; matches /p/{token} pattern)
     try:
-        conn.execute(
-            text("ALTER TABLE sale ADD COLUMN public_token_expires_at TIMESTAMP")
-        )
+        conn.execute(text("ALTER TABLE sale ADD COLUMN public_token_expires_at TIMESTAMP"))
     except Exception:  # noqa: S110
         pass
 
     # 3. Add public_token_shared_at column — when did the share happen.
     # Used for "Last shared" display on /ventas/{id} and for audit.
     try:
-        conn.execute(
-            text("ALTER TABLE sale ADD COLUMN public_token_shared_at TIMESTAMP")
-        )
+        conn.execute(text("ALTER TABLE sale ADD COLUMN public_token_shared_at TIMESTAMP"))
     except Exception:  # noqa: S110
         pass
 
@@ -63,10 +59,7 @@ def _migration_085_sale_public_token(conn: Any) -> None:
     # window. Rows where sold_at is NULL or unparseable fall back to now+30d.
     try:
         rows = conn.execute(
-            text(
-                "SELECT id, sold_at FROM sale "
-                "WHERE public_token_expires_at IS NULL"
-            )
+            text("SELECT id, sold_at FROM sale WHERE public_token_expires_at IS NULL")
         ).all()
 
         now = datetime.now(timezone.utc)
@@ -88,10 +81,7 @@ def _migration_085_sale_public_token(conn: Any) -> None:
                 expires = sold + timedelta(days=30)
 
             conn.execute(
-                text(
-                    "UPDATE sale SET public_token_expires_at = :exp "
-                    "WHERE id = :sid"
-                ),
+                text("UPDATE sale SET public_token_expires_at = :exp WHERE id = :sid"),
                 {"exp": expires, "sid": row.id},
             )
     except Exception:  # noqa: S110 — best-effort backfill

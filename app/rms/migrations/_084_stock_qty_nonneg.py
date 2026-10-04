@@ -38,9 +38,7 @@ def _migration_084_stock_qty_nonneg(conn: Any) -> None:
     if dialect_name == "sqlite":
         # First, backfill existing negative stock_qty to 0
         try:
-            result = conn.execute(
-                text("UPDATE ingredient SET stock_qty = 0 WHERE stock_qty < 0")
-            )
+            result = conn.execute(text("UPDATE ingredient SET stock_qty = 0 WHERE stock_qty < 0"))
             backfilled_count = result.rowcount
             if backfilled_count > 0:
                 print(f"Backfilled {backfilled_count} ingredients with negative stock_qty to 0")
@@ -49,7 +47,8 @@ def _migration_084_stock_qty_nonneg(conn: Any) -> None:
 
         # Create trigger to prevent negative stock_qty on INSERT
         try:
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 CREATE TRIGGER IF NOT EXISTS ingredient_stock_qty_positive_insert
                 BEFORE INSERT ON ingredient
                 FOR EACH ROW
@@ -57,13 +56,15 @@ def _migration_084_stock_qty_nonneg(conn: Any) -> None:
                 BEGIN
                     SELECT RAISE(ABORT, 'ingredient.stock_qty must be >= 0 (or NULL for unmanaged)');
                 END
-            """))
+            """)
+            )
         except Exception as exc:
             print(f"Warning: Could not create INSERT trigger: {exc}")
 
         # Create trigger to prevent negative stock_qty on UPDATE
         try:
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 CREATE TRIGGER IF NOT EXISTS ingredient_stock_qty_positive_update
                 BEFORE UPDATE ON ingredient
                 FOR EACH ROW
@@ -71,7 +72,8 @@ def _migration_084_stock_qty_nonneg(conn: Any) -> None:
                 BEGIN
                     SELECT RAISE(ABORT, 'ingredient.stock_qty must be >= 0 (or NULL for unmanaged)');
                 END
-            """))
+            """)
+            )
         except Exception as exc:
             print(f"Warning: Could not create UPDATE trigger: {exc}")
 
@@ -87,6 +89,7 @@ def _migration_084_stock_qty_nonneg(conn: Any) -> None:
     # init_db kept reporting `migrations_pending=1`. This uses the
     # same helper as every other migration.)
     from app.rms.db import _bump_schema_version
+
     _bump_schema_version(conn, 84)
 
 
@@ -99,10 +102,12 @@ def run_post_migration(session: Any) -> dict[str, int]:
 
     # Count ingredients that were backfilled
     try:
-        session.execute(text(
-            "SELECT COUNT(*) as count FROM ingredient WHERE stock_qty = 0 "
-            "AND EXISTS (SELECT 1 FROM ingredient WHERE stock_qty < 0 LIMIT 1)"
-        )).fetchone()
+        session.execute(
+            text(
+                "SELECT COUNT(*) as count FROM ingredient WHERE stock_qty = 0 "
+                "AND EXISTS (SELECT 1 FROM ingredient WHERE stock_qty < 0 LIMIT 1)"
+            )
+        ).fetchone()
 
         # This is a rough estimate - actual backfilled count would need to be tracked
         stats["estimated_backfilled"] = 0  # Will be set by migration output

@@ -1,4 +1,5 @@
 """tests/test_inference_autofill.py — Wave 2: server-side auto-fill tests."""
+
 from __future__ import annotations
 
 
@@ -9,6 +10,7 @@ class TestIngredientAutoFill:
     def test_create_autofills_harina_classification(self):
         """'Harina' alone should classify to harinas + gluten allergen."""
         from app.rms.ingredient_intel import classify_ingredient
+
         cls = classify_ingredient("Harina")
         assert cls["category"] == "harinas"
         assert "gluten" in cls["allergens"]
@@ -18,6 +20,7 @@ class TestIngredientAutoFill:
     def test_create_autofills_huevos(self):
         """'huevos' should classify to huevos category + eggs allergen."""
         from app.rms.ingredient_intel import classify_ingredient
+
         cls = classify_ingredient("huevos")
         assert cls["category"] == "huevos"
         assert "eggs" in cls["allergens"]
@@ -26,6 +29,7 @@ class TestIngredientAutoFill:
     def test_create_autofills_pechuga_no_vegetarian(self):
         """'Pechuga de pollo' should classify to carnes + no vegan/vegetarian."""
         from app.rms.ingredient_intel import classify_ingredient
+
         cls = classify_ingredient("Pechuga de pollo")
         assert cls["category"] == "carnes"
         assert "vegan" not in cls["dietary_tags"]
@@ -34,12 +38,14 @@ class TestIngredientAutoFill:
     def test_create_autofills_storage_zone(self):
         """Dairy ingredients should be classified as refrigerated."""
         from app.rms.ingredient_intel import classify_ingredient
+
         cls = classify_ingredient("Crema de leche")
         assert cls["storage"] == "refrigerated"
 
     def test_create_autofills_shelf_life(self):
         """Each category returns a sensible shelf life default."""
         from app.rms.ingredient_intel import classify_ingredient
+
         assert classify_ingredient("Harina")["shelf_life_days"] == 180
         assert classify_ingredient("Azúcar")["shelf_life_days"] == 730
         assert classify_ingredient("Aceite vegetal")["shelf_life_days"] == 120
@@ -52,6 +58,7 @@ class TestRecipeFamilyInference:
 
     def test_family_from_name(self):
         from app.rms.recipe_intel import infer_recipe_family_from_name
+
         assert infer_recipe_family_from_name("Muffin de chocolate") == "pastelería"
         assert infer_recipe_family_from_name("Pan lactal") == "panadería"
         assert infer_recipe_family_from_name("Cheesecake clásico") == "fríos"
@@ -73,6 +80,7 @@ class TestIngredientInferenceOverrides:
         """If operator explicitly sets category='decoración' for 'Harina',
         that overrides the inferred 'harinas'."""
         from app.rms.ingredient_intel import classify_ingredient
+
         # Inference itself doesn't know about operator form values — that's the
         # router's job. Here we just verify inference can be computed alongside.
         # The router test (TestRouterInferenceWiring) verifies the override.

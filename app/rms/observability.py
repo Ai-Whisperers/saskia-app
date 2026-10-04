@@ -15,6 +15,7 @@ Also exposes a `record_audit()` helper that:
 - wraps `app.rms.audit.record` with structured error handling
 - catches DB failures (so a buggy audit never crashes the request)
 """
+
 from __future__ import annotations
 
 import time
@@ -113,6 +114,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                 from fastapi import HTTPException
 
                 from app.rms.errors import AppError
+
                 if isinstance(exc, (AppError, HTTPException)):
                     raise
                 # True unhandled: log + re-raise so the global handler picks it up.
@@ -120,21 +122,28 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                     elapsed_ms = (time.perf_counter() - start) * 1000  # type: ignore
                     logger.error(
                         "request CRASHED method={} path={} elapsed_ms={:.0f} error={!r}",
-                        request.method, request.url.path, elapsed_ms, exc,
+                        request.method,
+                        request.url.path,
+                        elapsed_ms,
+                        exc,
                     )
                 raise
             if not skip_log:
                 elapsed_ms = (time.perf_counter() - start) * 1000  # type: ignore
                 # INFO for 2xx/3xx, WARNING for 4xx, ERROR for 5xx
                 log_fn = (
-                    logger.error if response.status_code >= 500 else
-                    logger.warning if response.status_code >= 400 else
-                    logger.info
+                    logger.error
+                    if response.status_code >= 500
+                    else logger.warning
+                    if response.status_code >= 400
+                    else logger.info
                 )
                 log_fn(
                     "access method={} path={} status={} elapsed_ms={:.0f}",
-                    request.method, request.url.path,
-                    response.status_code, elapsed_ms,
+                    request.method,
+                    request.url.path,
+                    response.status_code,
+                    elapsed_ms,
                 )
             # CRITICAL: do not read response.body here. Reading it would
             # consume the body iterator that GZipMiddleware (registered
@@ -188,6 +197,10 @@ def record_audit(
     except Exception as e:  # pragma: no cover — defensive  # noqa: BLE001
         logger.error(
             "audit_log_failed action={} target={}#{} rid={}: {!r}",
-            action, target_type, target_id, rid, e,
+            action,
+            target_type,
+            target_id,
+            rid,
+            e,
         )
         return None

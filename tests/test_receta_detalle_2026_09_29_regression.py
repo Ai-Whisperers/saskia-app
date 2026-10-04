@@ -42,22 +42,37 @@ _RECIPE_FIXTURE = {
     "family": "pastelería",
     "dietary_tags": "",
     "notes": "Tarta de manzanas tradicional.",
-    "instructions": json.dumps([
-        {"phase": "Sub-receta", "title": "Relleno de manzana", "steps": [
-            "Peyá y fileteá las manzanas en láminas finas.",
-            "Mezclá con azúcar, canela y unas gotas de limón.",
-            "Reservá 15 minutos para que largue jugo.",
-        ]},
-        {"phase": "Base", "title": "Masa brisée", "steps": [
-            "Mezclá la harina con la manteca fría hasta formar un arenado.",
-            "Agregá el azúcar y los huevos; uní sin trabajar de más.",
-        ]},
-        {"phase": "Ensamblaje", "title": "Tarta de manzanas", "steps": [
-            "Disponé las láminas de manzana sobre la masa en forma concéntrica.",
-            "Cubrí con tiras de masa formando un enrejado con el resto.",
-            "Horneá a 200 °C durante 35 a 40 minutos hasta dorar.",
-        ]},
-    ], ensure_ascii=False),
+    "instructions": json.dumps(
+        [
+            {
+                "phase": "Sub-receta",
+                "title": "Relleno de manzana",
+                "steps": [
+                    "Peyá y fileteá las manzanas en láminas finas.",
+                    "Mezclá con azúcar, canela y unas gotas de limón.",
+                    "Reservá 15 minutos para que largue jugo.",
+                ],
+            },
+            {
+                "phase": "Base",
+                "title": "Masa brisée",
+                "steps": [
+                    "Mezclá la harina con la manteca fría hasta formar un arenado.",
+                    "Agregá el azúcar y los huevos; uní sin trabajar de más.",
+                ],
+            },
+            {
+                "phase": "Ensamblaje",
+                "title": "Tarta de manzanas",
+                "steps": [
+                    "Disponé las láminas de manzana sobre la masa en forma concéntrica.",
+                    "Cubrí con tiras de masa formando un enrejado con el resto.",
+                    "Horneá a 200 °C durante 35 a 40 minutos hasta dorar.",
+                ],
+            },
+        ],
+        ensure_ascii=False,
+    ),
 }
 
 _RECIPE_LINE_FIXTURES = [
@@ -79,18 +94,29 @@ def seeded_recipe_6(session_factory):
 
     with session_factory() as s:
         for iid, iname, iunit, iprice, iallergens in _INGREDIENT_FIXTURES:
-            s.add(Ingredient(
-                id=iid, name=iname, unit=iunit,
-                purchase_price_gs=iprice,
-                allergens=(iallergens or None),
-                stock_qty=10.0, min_stock_qty=1.0,
-            ))
+            s.add(
+                Ingredient(
+                    id=iid,
+                    name=iname,
+                    unit=iunit,
+                    purchase_price_gs=iprice,
+                    allergens=(iallergens or None),
+                    stock_qty=10.0,
+                    min_stock_qty=1.0,
+                )
+            )
         s.add(Recipe(**_RECIPE_FIXTURE))
         for lid, rid, lkind, lref, lqty, lunit in _RECIPE_LINE_FIXTURES:
-            s.add(RecipeLine(
-                id=lid, recipe_id=rid, line_kind=lkind,
-                line_ref_id=lref, qty=lqty, line_unit=lunit,
-            ))
+            s.add(
+                RecipeLine(
+                    id=lid,
+                    recipe_id=rid,
+                    line_kind=lkind,
+                    line_ref_id=lref,
+                    qty=lqty,
+                    line_unit=lunit,
+                )
+            )
         s.commit()
 
         # Seed tag_link rows so derived_tags has a non-empty intersection
@@ -99,21 +125,26 @@ def seeded_recipe_6(session_factory):
         dairy_tag = ensure_tag(s, "alergeno-lactosa", "ingredient", "#ff6f00")
         eggs_tag = ensure_tag(s, "con-huevo", "ingredient", "#ff6f00")
         # harina → gluten, manteca → dairy, huevos → eggs
-        s.add_all([
-            TagLink(tag_id=gluten_tag.id, target_kind="ingredient", target_id=1),
-            TagLink(tag_id=dairy_tag.id, target_kind="ingredient", target_id=11),
-            TagLink(tag_id=eggs_tag.id, target_kind="ingredient", target_id=15),
-        ])
+        s.add_all(
+            [
+                TagLink(tag_id=gluten_tag.id, target_kind="ingredient", target_id=1),
+                TagLink(tag_id=dairy_tag.id, target_kind="ingredient", target_id=11),
+                TagLink(tag_id=eggs_tag.id, target_kind="ingredient", target_id=15),
+            ]
+        )
         # Recipe 6 inherits: gluten, dairy, eggs
-        s.add_all([
-            TagLink(tag_id=gluten_tag.id, target_kind="recipe", target_id=6),
-            TagLink(tag_id=dairy_tag.id, target_kind="recipe", target_id=6),
-            TagLink(tag_id=eggs_tag.id, target_kind="recipe", target_id=6),
-        ])
+        s.add_all(
+            [
+                TagLink(tag_id=gluten_tag.id, target_kind="recipe", target_id=6),
+                TagLink(tag_id=dairy_tag.id, target_kind="recipe", target_id=6),
+                TagLink(tag_id=eggs_tag.id, target_kind="recipe", target_id=6),
+            ]
+        )
         s.commit()
 
         # Run cascade_refresh so recipe.allergens/derived_dietary_tags caches populate
         from app.rms.tag_algebra import cascade_refresh
+
         try:
             cascade_refresh(s, recipe_id=6)
             s.commit()
@@ -125,11 +156,16 @@ def seeded_recipe_6(session_factory):
 
 # --- Tests ---
 
+
 def test_receta_6_renders_200(client, seeded_recipe_6):
     """Sanity: page is reachable and returns HTML."""
     r = client.get("/recetas/6")
     assert r.status_code == 200
-    assert "appeltaart" in r.text.lower() or "apple pie" in r.text.lower() or "receta" in r.text.lower()
+    assert (
+        "appeltaart" in r.text.lower()
+        or "apple pie" in r.text.lower()
+        or "receta" in r.text.lower()
+    )
 
 
 def test_receta_6_shows_ingredient_table(client, seeded_recipe_6):
@@ -148,10 +184,11 @@ def test_receta_6_lists_all_six_ingredients(client, seeded_recipe_6):
 def test_receta_6_cost_is_non_zero(client, seeded_recipe_6):
     """Costo del lote must be a real number, not Gs. 0 (price engine works)."""
     import re
+
     body = client.get("/recetas/6").text
     i = body.find("Costo del lote")
     assert i > 0, "Costo del lote label not found"
-    snippet = body[i:i + 400]
+    snippet = body[i : i + 400]
     m = re.search(r'class="metric-value">\s*([^<]+?)\s*</div>', snippet)
     assert m is not None, "Costo del lote metric-value not found"
     val = m.group(1).strip()

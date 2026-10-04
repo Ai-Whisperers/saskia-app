@@ -8,6 +8,7 @@ Tests:
 - No Python errors
 """
 
+
 def test_merma_renders(client):
     """P-16: Merma page renders."""
     r = client.get("/merma")
@@ -28,9 +29,7 @@ def test_merma_has_ingredient_combo(client):
     assert r.status_code == 200
     body = r.text
     assert (
-        "saskia-combo" in body
-        or "ingrediente" in body.lower()
-        or "ingredient" in body.lower()
+        "saskia-combo" in body or "ingrediente" in body.lower() or "ingredient" in body.lower()
     ), "Ingredient combo not found"
 
 
@@ -39,11 +38,9 @@ def test_merma_has_quantity_field(client):
     r = client.get("/merma")
     assert r.status_code == 200
     body = r.text
-    assert (
-        'name="cantidad"' in body
-        or 'name="quantity"' in body
-        or 'type="number"' in body
-    ), "Quantity field not found"
+    assert 'name="cantidad"' in body or 'name="quantity"' in body or 'type="number"' in body, (
+        "Quantity field not found"
+    )
 
 
 def test_merma_has_reason_field(client):
@@ -66,11 +63,12 @@ def test_merma_has_date_field(client):
     body = r.text
     # Date may be auto-filled with today
     import re
+
     has_date = (
         'type="date"' in body
         or 'name="fecha"' in body
         or 'name="date"' in body
-        or bool(re.search(r'\d{4}-\d{2}-\d{2}', body))
+        or bool(re.search(r"\d{4}-\d{2}-\d{2}", body))
     )
     assert has_date, "Date field not found"
 
@@ -91,11 +89,14 @@ def test_merma_no_python_errors(client):
 
 def test_merma_post_minimal(client):
     """P-16: Minimal POST doesn't crash."""
-    r = client.post("/merma", data={
-        "ingredient_id": "1",
-        "cantidad": "1.0",
-        "razon": "test",
-    })
+    r = client.post(
+        "/merma",
+        data={
+            "ingredient_id": "1",
+            "cantidad": "1.0",
+            "razon": "test",
+        },
+    )
     assert r.status_code != 500, "POST returned 500"
 
 

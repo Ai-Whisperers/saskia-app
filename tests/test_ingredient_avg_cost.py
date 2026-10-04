@@ -16,6 +16,7 @@ These tests assert:
 - Initial NULL avg_cost_gs falls back to purchase_price_gs in analytics
   (no behavioural change for fresh installs).
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -29,16 +30,21 @@ def fresh_db(app_engine, session_factory):
     """Confirm the new column exists and provide a session_factory helper."""
     insp = inspect(app_engine)
     cols = {c["name"]: c for c in insp.get_columns("ingredient")}
-    assert "avg_cost_gs" in cols, (
-        "Ingredient.avg_cost_gs column missing — Sprint 4.4 not landed"
-    )
+    assert "avg_cost_gs" in cols, "Ingredient.avg_cost_gs column missing — Sprint 4.4 not landed"
     return app_engine, session_factory
 
 
-def _seed_ingredient(s, *, name: str = "harina", stock_qty: float = 100.0,
-                     purchase_price_gs: int = 10_000, avg_cost_gs: int | None = None):
+def _seed_ingredient(
+    s,
+    *,
+    name: str = "harina",
+    stock_qty: float = 100.0,
+    purchase_price_gs: int = 10_000,
+    avg_cost_gs: int | None = None,
+):
     """Helper: create an ingredient with explicit avg_cost_gs."""
     from app.rms.models import Ingredient
+
     ing = Ingredient(
         name=name,
         unit="kg",
@@ -91,8 +97,9 @@ def test_record_waste_recomputes_avg_cost(session_factory):
     s = session_factory()
     try:
         # Setup: 10 kg of "sal" with avg_cost_gs = 10000 (purchase = 10000 too)
-        ing = _seed_ingredient(s, name="sal", stock_qty=10.0,
-                               purchase_price_gs=10_000, avg_cost_gs=10_000)
+        ing = _seed_ingredient(
+            s, name="sal", stock_qty=10.0, purchase_price_gs=10_000, avg_cost_gs=10_000
+        )
         s.commit()
         ing_id = ing.id
     finally:
@@ -100,6 +107,7 @@ def test_record_waste_recomputes_avg_cost(session_factory):
 
     # Record a 2 kg waste at 10000 Gs/kg → waste_cost = 20000
     from app.rms.waste import WasteReason
+
     s = session_factory()
     try:
         record_waste(
@@ -113,6 +121,7 @@ def test_record_waste_recomputes_avg_cost(session_factory):
 
         # Re-fetch the ingredient in this session
         from app.rms.models import Ingredient as _Ing
+
         ing2 = s.get(_Ing, ing_id)
         # After 2kg waste: stock = 8, waste cost = 2 * 10000 = 20000
         # New avg = ((10000 * 10) - 20000) / 8 = 80000/8 = 10000
@@ -129,8 +138,9 @@ def test_record_waste_preserves_avg_when_purchase_price_changes(session_factory)
     s = session_factory()
     try:
         # avg_cost_gs deliberately differs from purchase_price_gs
-        ing = _seed_ingredient(s, name="azucar", stock_qty=20.0,
-                               purchase_price_gs=8_000, avg_cost_gs=12_000)
+        ing = _seed_ingredient(
+            s, name="azucar", stock_qty=20.0, purchase_price_gs=8_000, avg_cost_gs=12_000
+        )
         s.commit()
         ing_id = ing.id
     finally:
@@ -141,6 +151,7 @@ def test_record_waste_preserves_avg_when_purchase_price_changes(session_factory)
         # Waste records cost_gs from PURCHASE price (not avg) — that's the
         # denormalization rule (WasteLog.cost_gs is locked at event time).
         from app.rms.waste import WasteReason
+
         record_waste(
             s,
             ingredient_id=ing_id,
@@ -151,6 +162,7 @@ def test_record_waste_preserves_avg_when_purchase_price_changes(session_factory)
         s.commit()
         # Re-fetch the ingredient in this session
         from app.rms.models import Ingredient as _Ing
+
         ing2 = s.get(_Ing, ing_id)
 
         # ((12000 * 20) - (5 * 8000)) / 15 = (240000 - 40000) / 15 = 13333.33
@@ -169,21 +181,23 @@ def test_analytics_falls_back_to_purchase_price_when_avg_is_null(session_factory
 
     s = session_factory()
     try:
-        ing = _seed_ingredient(s, name="harina-legacy", stock_qty=100.0,
-                               purchase_price_gs=5_000, avg_cost_gs=None)
+        ing = _seed_ingredient(
+            s, name="harina-legacy", stock_qty=100.0, purchase_price_gs=5_000, avg_cost_gs=None
+        )
         s.flush()
         recipe = Recipe(name="receta-legacy", yield_qty=10, prep_minutes=5)
         s.add(recipe)
         s.flush()
         # Use Decimal value
-        s.add(RecipeLine(
-            recipe_id=recipe.id,
-            line_kind="ingredient",
-            line_ref_id=ing.id,
-            qty=Decimal("0.250"),
-        ))
-        product = Product(name="producto-legacy", recipe_id=recipe.id,
-                          sale_price_gs=20_000)
+        s.add(
+            RecipeLine(
+                recipe_id=recipe.id,
+                line_kind="ingredient",
+                line_ref_id=ing.id,
+                qty=Decimal("0.250"),
+            )
+        )
+        product = Product(name="producto-legacy", recipe_id=recipe.id, sale_price_gs=20_000)
         s.add(product)
         s.commit()
 

@@ -8,6 +8,7 @@ Covers:
 - Message template rendering
 - /api/* endpoints
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -51,9 +52,7 @@ def test_schema_is_current(db_engine):
     """All migrations applied (1-48)."""
     with db_engine.connect() as c:
         row = c.execute(
-            __import__("sqlalchemy").text(
-                "SELECT value FROM app_meta WHERE key='schema_version'"
-            )
+            __import__("sqlalchemy").text("SELECT value FROM app_meta WHERE key='schema_version'")
         ).first()
     assert row is not None
     assert int(row[0]) == CURRENT_SCHEMA_VERSION

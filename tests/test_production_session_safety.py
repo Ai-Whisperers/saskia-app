@@ -4,6 +4,7 @@ Regression: any future route handler that holds a session outside a
 context manager would leak connections. This test scans the source tree
 for unsafe patterns and fails on them.
 """
+
 from __future__ import annotations
 
 import re
@@ -47,7 +48,9 @@ def test_no_bare_session_assignments_in_app():
             if in_def and "session" in in_def.lower():
                 # Factory function — OK.
                 continue
-            violations.append(f"{p}:{line_no}: {indent}{m.group(2)} = session_factory() — needs 'with' block")
+            violations.append(
+                f"{p}:{line_no}: {indent}{m.group(2)} = session_factory() — needs 'with' block"
+            )
 
     assert not violations, "\n".join(violations)
 
@@ -61,7 +64,7 @@ def test_all_engine_connect_uses_context_manager():
         # by searching for the pattern.
         for m in re.finditer(r"(\s+)engine\.connect\(\)", src):
             # Find the next 80 chars
-            rest = src[m.end(): m.end() + 100]
+            rest = src[m.end() : m.end() + 100]
             assert " as " in rest, (
                 f"{p}: bare engine.connect() needs `with` block. Found at: {m.group(0)}"
             )

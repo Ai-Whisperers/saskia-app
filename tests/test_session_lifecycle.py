@@ -1,4 +1,5 @@
 """Session lifecycle tests — verify auth gate behavior."""
+
 from __future__ import annotations
 
 
@@ -55,6 +56,4 @@ def test_login_creates_session_cookie(client):
         follow_redirects=False,
     )
     # Cookie may or may not be set (depends on flow). Just verify no crash.
-    assert r.status_code in (200, 303, 422), (
-        f"POST /login crashed: {r.status_code}"
-    )
+    assert r.status_code in (200, 303, 422), f"POST /login crashed: {r.status_code}"

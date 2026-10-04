@@ -40,18 +40,17 @@ def _migration_093_expense_receipt_recurring(conn: Any) -> None:
     # BACKLOG #4 (2026-10-02): wrap each ADD COLUMN in atomic_ddl_block so
     # Postgres DDL auto-commits are isolated per-statement.
     if "recurring_period" not in existing:
-        atomic_ddl_block(conn, [
-            "ALTER TABLE expense ADD COLUMN recurring_period VARCHAR(32) "
-            "DEFAULT 'once' NOT NULL"
-        ])
+        atomic_ddl_block(
+            conn,
+            ["ALTER TABLE expense ADD COLUMN recurring_period VARCHAR(32) DEFAULT 'once' NOT NULL"],
+        )
 
     if "receipt_url" not in existing:
-        atomic_ddl_block(conn, [
-            "ALTER TABLE expense ADD COLUMN receipt_url VARCHAR(512)"
-        ])
+        atomic_ddl_block(conn, ["ALTER TABLE expense ADD COLUMN receipt_url VARCHAR(512)"])
 
     # BACKLOG #4 (2026-10-02): migrations 085+ shipped without bumping
     # schema_version, silently breaking fresh installs. Sprint 4.5 fixed
     # this — each migration MUST bump its own version.
     from app.rms.db import _bump_schema_version
+
     _bump_schema_version(conn, 93)

@@ -1,4 +1,5 @@
 """Backup pre-mutate tests."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -19,14 +20,16 @@ def test_ventas_nueva_triggers_backup_check(authed_client):
 
     # Backup pre-mutate is verified by the fact that the operation succeeds
     # (if backup failed, the operation would be aborted)
-    r = authed_client.post("/ventas/nueva", data={
-        "product_id": "1",
-        "qty": "1",
-    }, follow_redirects=False)
-    # Either 303 (success) or 422/404 (validation failure)
-    assert r.status_code < 500, (
-        f"POST /ventas/nueva returned {r.status_code}: {r.text[:200]}"
+    r = authed_client.post(
+        "/ventas/nueva",
+        data={
+            "product_id": "1",
+            "qty": "1",
+        },
+        follow_redirects=False,
     )
+    # Either 303 (success) or 422/404 (validation failure)
+    assert r.status_code < 500, f"POST /ventas/nueva returned {r.status_code}: {r.text[:200]}"
 
 
 def test_pedidos_fulfill_no_500_when_backup_missing(authed_client, session_factory):
@@ -55,24 +58,22 @@ def test_pedidos_fulfill_no_500_when_backup_missing(authed_client, session_facto
         s.commit()
         s.refresh(pedido)
 
-        s.add(PedidoLine(
-            pedido_id=pedido.id,
-            product_id=product.id,
-            qty=1,
-            unit_price_gs=5000,
-        ))
+        s.add(
+            PedidoLine(
+                pedido_id=pedido.id,
+                product_id=product.id,
+                qty=1,
+                unit_price_gs=5000,
+            )
+        )
         s.commit()
 
     r = authed_client.post(f"/pedidos/{pedido.id}/fulfill", follow_redirects=False)
-    assert r.status_code < 500, (
-        f"Pedido fulfill returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"Pedido fulfill returned {r.status_code}: {r.text[:200]}"
 
 
 def test_excel_importar_no_500(authed_client):
     """POST /excel/importar must not 500 even with bad file."""
     # Send empty upload
     r = authed_client.post("/excel/importar", data={}, follow_redirects=False)
-    assert r.status_code < 500, (
-        f"/excel/importar returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"/excel/importar returned {r.status_code}: {r.text[:200]}"

@@ -8,6 +8,7 @@ This is the regression net that would have caught:
 - 2026-09-22 /healthz/db returning null schema when DB drift
 - Any future route that starts 500-ing due to missing columns or templates
 """
+
 from __future__ import annotations
 
 import pytest
@@ -107,6 +108,4 @@ def test_login_post_redirects_on_success_or_returns_form_on_failure(client):
         follow_redirects=False,
     )
     # 303 redirect to login page with error, or 200 with form re-shown
-    assert r.status_code in (200, 303, 422), (
-        f"POST /login returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code in (200, 303, 422), f"POST /login returned {r.status_code}: {r.text[:200]}"

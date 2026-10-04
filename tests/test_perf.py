@@ -11,6 +11,7 @@ Covers:
 - count_models returns dict of row counts
 - apply_postgres_indexes is idempotent
 """
+
 from __future__ import annotations
 
 from app.rms.perf import (
@@ -63,6 +64,7 @@ def test_query_timer_warns_on_slow(caplog):
     """If duration > threshold, log warning (capture via caplog)."""
     import logging
     import time as _t
+
     with caplog.at_level(logging.WARNING, logger="saskia.perf"):
         with query_timer("slow-op", threshold_ms=0.0):
             _t.sleep(0.005)
@@ -72,6 +74,7 @@ def test_query_timer_warns_on_slow(caplog):
 def test_index_hints_include_key_columns():
     """Sale.sold_at, AuditLog.occurred_at must be in INDEX_HINTS."""
     from app.rms.models import AuditLog, Sale
+
     sale_hints = [(m, c) for (m, c, u) in INDEX_HINTS if m is Sale]
     audit_hints = [(m, c) for (m, c, u) in INDEX_HINTS if m is AuditLog]
     assert any(c == "sold_at" for (m, c) in sale_hints)

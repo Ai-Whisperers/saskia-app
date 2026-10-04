@@ -2,6 +2,7 @@
 
 Validates the idempotent first-boot behavior in app/rms/bootstrap.py.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -23,6 +24,7 @@ def _make_user(username, password):
 def test_no_op_when_env_vars_unset(session_factory):
     """If no SASKIA_*_PASSWORD env vars are set, the sync is a no-op."""
     from app.rms.bootstrap import run_password_sync
+
     Session = session_factory
     session = Session()
     try:
@@ -43,6 +45,7 @@ def test_no_op_when_env_vars_unset(session_factory):
 def test_creates_user_when_env_var_set_and_user_missing(session_factory, monkeypatch):
     """If SASKIA_ADMIN_PASSWORD is set but no 'admin' user exists, create it."""
     from app.rms.bootstrap import run_password_sync
+
     Session = session_factory
     session = Session()
     try:
@@ -63,6 +66,7 @@ def test_creates_user_when_env_var_set_and_user_missing(session_factory, monkeyp
 def test_updates_password_when_env_var_set_and_mismatch(session_factory, monkeypatch):
     """If SASKIA_ADMIN_PASSWORD is set and password mismatches, update the hash."""
     from app.rms.bootstrap import run_password_sync
+
     Session = session_factory
     session = Session()
     try:
@@ -83,6 +87,7 @@ def test_updates_password_when_env_var_set_and_mismatch(session_factory, monkeyp
 def test_no_op_when_env_var_matches_existing_hash(session_factory, monkeypatch):
     """If SASKIA_ADMIN_PASSWORD matches, no hash update happens."""
     from app.rms.bootstrap import run_password_sync
+
     Session = session_factory
     session = Session()
     try:
@@ -104,6 +109,7 @@ def test_no_op_when_env_var_matches_existing_hash(session_factory, monkeypatch):
 def test_syncs_demo_user_from_user_password_env(session_factory, monkeypatch):
     """SASKIA_USER_PASSWORD targets the 'demo' user."""
     from app.rms.bootstrap import run_password_sync
+
     Session = session_factory
     session = Session()
     try:
@@ -124,6 +130,7 @@ def test_syncs_demo_user_from_user_password_env(session_factory, monkeypatch):
 def test_env_var_with_whitespace_is_ignored(session_factory, monkeypatch):
     """If the env var is just whitespace, treat as unset (no-op)."""
     from app.rms.bootstrap import run_password_sync
+
     Session = session_factory
     session = Session()
     try:

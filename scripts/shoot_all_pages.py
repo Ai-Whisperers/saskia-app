@@ -10,6 +10,7 @@ Usage:
 
 Output: <dir>/*.png + index.html (contact sheet) + summary.json
 """
+
 from __future__ import annotations
 
 import json
@@ -55,8 +56,9 @@ def boot_app():
 
     with sf() as s:
         cat = make_catalog(s, price_gs=10_000)
-        ing2 = make_ingredient(s, name="Levadura seca", stock_qty=0.4,
-                               min_stock_qty=1.0, purchase_price_gs=18_000)
+        ing2 = make_ingredient(
+            s, name="Levadura seca", stock_qty=0.4, min_stock_qty=1.0, purchase_price_gs=18_000
+        )
         make_product(s, name="Café con leche", sale_price_gs=7_000)
         make_recipe(s, name="Chipa guazú", lines=[ing_line(ing2, qty=0.05)])
         from tests.factories import pedido_item
@@ -68,18 +70,28 @@ def boot_app():
         for i in range(6):
             sale = make_sale(s, product=cat["product"], qty=2, at=t0 + timedelta(hours=i * 8))
             sale_ids.append(sale.id)
-        ped = make_pedido(s, customer=c1,
-                          items=[pedido_item(cat["product"])],
-                          promised_date=datetime.utcnow().date())
+        ped = make_pedido(
+            s,
+            customer=c1,
+            items=[pedido_item(cat["product"])],
+            promised_date=datetime.utcnow().date(),
+        )
         from app.rms.models import MarketBenchmark
 
-        bench = MarketBenchmark(product_label="Chipa grande", our_retail_gs=5000,
-                                comp_min_gs=4500, comp_avg_gs=5500)
+        bench = MarketBenchmark(
+            product_label="Chipa grande", our_retail_gs=5000, comp_min_gs=4500, comp_avg_gs=5500
+        )
         s.add(bench)
         s.commit()
-        ids = {"product": cat["product"].id, "ingredient": cat["ingredient"].id,
-               "recipe": cat["recipe"].id, "customer": c1.id,
-               "sale": sale_ids[-1], "pedido": ped.id, "bench": bench.id}
+        ids = {
+            "product": cat["product"].id,
+            "ingredient": cat["ingredient"].id,
+            "recipe": cat["recipe"].id,
+            "customer": c1.id,
+            "sale": sale_ids[-1],
+            "pedido": ped.id,
+            "bench": bench.id,
+        }
 
     from app.rms import db as db_module
     from app.rms import main as main_module
@@ -239,7 +251,7 @@ def main():
                         page.goto("about:blank")
                         page.set_content(
                             f"<pre style='font:12px monospace;padding:16px'>"
-                            f"{text.replace('&','&amp;').replace('<','&lt;')}</pre>"
+                            f"{text.replace('&', '&amp;').replace('<', '&lt;')}</pre>"
                         )
                         page.screenshot(path=str(OUT / f"{fname[:-4]}.png"), full_page=True)
                     status = f"ok ({len(body)} bytes)"
@@ -259,7 +271,8 @@ def main():
     # contact sheet
     cards = "\n".join(
         f'<figure><img src="{v["file"]}" loading="lazy"><figcaption>{k}</figcaption></figure>'
-        for k, v in summary.items() if v["status"].startswith("ok")
+        for k, v in summary.items()
+        if v["status"].startswith("ok")
     )
     (OUT / "index.html").write_text(
         f"<!doctype html><meta charset='utf-8'><title>Saskia pages</title>"

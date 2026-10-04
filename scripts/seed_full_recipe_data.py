@@ -64,267 +64,479 @@ _CONTAMINATED_NAMES = {"1.0", "1", "RECETA", "test"}
 
 _RECIPE_INSTRUCTIONS: dict[str, list[dict]] = {
     "appeltaart": [
-        {"phase": "Sub-receta", "title": "Relleno de manzana", "steps": [
-            "Pela y fileteá las manzanas en láminas finas.",
-            "Mezclá con azúcar, canela y unas gotas de limón.",
-            "Reservá 15 minutos para que largue jugo.",
-        ]},
-        {"phase": "Base", "title": "Masa brisée", "steps": [
-            "Mezclá la harina con la manteca fría hasta formar un arenado.",
-            "Agregá el azúcar y los huevos; uní sin trabajar de más.",
-            "Reservá en heladera 30 minutos envuelta en film.",
-        ]},
-        {"phase": "Ensamblaje", "title": "Tarta de manzanas", "steps": [
-            "Estirá la masa y forrá un molde enmantecado.",
-            "Disponé las láminas de manzana en forma concéntrica.",
-            "Cubrí con tiras de masa formando un enrejado.",
-            "Horneá a 200 °C durante 35 a 40 minutos hasta dorar.",
-        ]},
+        {
+            "phase": "Sub-receta",
+            "title": "Relleno de manzana",
+            "steps": [
+                "Pela y fileteá las manzanas en láminas finas.",
+                "Mezclá con azúcar, canela y unas gotas de limón.",
+                "Reservá 15 minutos para que largue jugo.",
+            ],
+        },
+        {
+            "phase": "Base",
+            "title": "Masa brisée",
+            "steps": [
+                "Mezclá la harina con la manteca fría hasta formar un arenado.",
+                "Agregá el azúcar y los huevos; uní sin trabajar de más.",
+                "Reservá en heladera 30 minutos envuelta en film.",
+            ],
+        },
+        {
+            "phase": "Ensamblaje",
+            "title": "Tarta de manzanas",
+            "steps": [
+                "Estirá la masa y forrá un molde enmantecado.",
+                "Disponé las láminas de manzana en forma concéntrica.",
+                "Cubrí con tiras de masa formando un enrejado.",
+                "Horneá a 200 °C durante 35 a 40 minutos hasta dorar.",
+            ],
+        },
     ],
     "tarta de manzana": [
-        {"phase": "Base", "title": "Masa", "steps": [
-            "Tamá harina, azúcar y manteca hasta arenar.",
-            "Sumá huevo y agua helada; uní sin amasar.",
-            "Reposá 20 minutos en la heladera.",
-        ]},
-        {"phase": "Relleno", "title": "Manzanas acarameladas", "steps": [
-            "Pelá y cortá las manzanas en gajos finos.",
-            "Caramelizalas con azúcar y canela en una sartén.",
-        ]},
-        {"phase": "Horneado", "title": "Ensamblaje final", "steps": [
-            "Estirá la masa, colocá el relleno y cerrá con un enrejado.",
-            "Horneá a 180 °C durante 40 minutos.",
-        ]},
+        {
+            "phase": "Base",
+            "title": "Masa",
+            "steps": [
+                "Tamá harina, azúcar y manteca hasta arenar.",
+                "Sumá huevo y agua helada; uní sin amasar.",
+                "Reposá 20 minutos en la heladera.",
+            ],
+        },
+        {
+            "phase": "Relleno",
+            "title": "Manzanas acarameladas",
+            "steps": [
+                "Pelá y cortá las manzanas en gajos finos.",
+                "Caramelizalas con azúcar y canela en una sartén.",
+            ],
+        },
+        {
+            "phase": "Horneado",
+            "title": "Ensamblaje final",
+            "steps": [
+                "Estirá la masa, colocá el relleno y cerrá con un enrejado.",
+                "Horneá a 180 °C durante 40 minutos.",
+            ],
+        },
     ],
     "brownie de chocolate": [
-        {"phase": "Preparación", "title": "Base de chocolate", "steps": [
-            "Derretí el chocolate con la manteca a baño María.",
-            "Batí los huevos con el azúcar hasta punto cinta.",
-        ]},
-        {"phase": "Mezcla", "title": "Incorporación", "steps": [
-            "Sumá el chocolate tibio a los huevos en forma envolvente.",
-            "Incorporá harina y nueces picadas con movimientos suaves.",
-        ]},
-        {"phase": "Horneado", "title": "Cocción", "steps": [
-            "Volcá en molde enmantecado y enharinado.",
-            "Horneá a 170 °C durante 25 minutos (centro húmedo).",
-        ]},
+        {
+            "phase": "Preparación",
+            "title": "Base de chocolate",
+            "steps": [
+                "Derretí el chocolate con la manteca a baño María.",
+                "Batí los huevos con el azúcar hasta punto cinta.",
+            ],
+        },
+        {
+            "phase": "Mezcla",
+            "title": "Incorporación",
+            "steps": [
+                "Sumá el chocolate tibio a los huevos en forma envolvente.",
+                "Incorporá harina y nueces picadas con movimientos suaves.",
+            ],
+        },
+        {
+            "phase": "Horneado",
+            "title": "Cocción",
+            "steps": [
+                "Volcá en molde enmantecado y enharinado.",
+                "Horneá a 170 °C durante 25 minutos (centro húmedo).",
+            ],
+        },
     ],
     "pan de banana": [
-        {"phase": "Preparación", "title": "Puré de banana", "steps": [
-            "Pisá las bananas maduras con un tenedor.",
-            "Sumá el azúcar y los huevos; batí hasta integrar.",
-        ]},
-        {"phase": "Mezcla", "title": "Incorporación", "steps": [
-            "Tamizá harina con polvo de hornear y canela.",
-            "Alterná secos y manteca derretida con la mezcla de banana.",
-        ]},
-        {"phase": "Horneado", "title": "Cocción", "steps": [
-            "Volcá en molde enmantecado.",
-            "Horneá a 180 °C durante 50 minutos o hasta que al pinchar salga limpio.",
-        ]},
+        {
+            "phase": "Preparación",
+            "title": "Puré de banana",
+            "steps": [
+                "Pisá las bananas maduras con un tenedor.",
+                "Sumá el azúcar y los huevos; batí hasta integrar.",
+            ],
+        },
+        {
+            "phase": "Mezcla",
+            "title": "Incorporación",
+            "steps": [
+                "Tamizá harina con polvo de hornear y canela.",
+                "Alterná secos y manteca derretida con la mezcla de banana.",
+            ],
+        },
+        {
+            "phase": "Horneado",
+            "title": "Cocción",
+            "steps": [
+                "Volcá en molde enmantecado.",
+                "Horneá a 180 °C durante 50 minutos o hasta que al pinchar salga limpio.",
+            ],
+        },
     ],
     "cheesecake": [
-        {"phase": "Base", "title": "Costra de galleta", "steps": [
-            "Triturá las galletas y mezclá con manteca derretida.",
-            "Presioná en el fondo de un molde desmontable.",
-        ]},
-        {"phase": "Relleno", "title": "Crema de queso", "steps": [
-            "Batí el queso crema con azúcar y huevos.",
-            "Sumá crema de leche y esencia de vainilla.",
-        ]},
-        {"phase": "Cocción", "title": "Horneado a baño María", "steps": [
-            "Verté sobre la base y horneá a 150 °C a baño María durante 60 minutos.",
-            "Enfriá en el horno apagado para evitar grietas.",
-        ]},
+        {
+            "phase": "Base",
+            "title": "Costra de galleta",
+            "steps": [
+                "Triturá las galletas y mezclá con manteca derretida.",
+                "Presioná en el fondo de un molde desmontable.",
+            ],
+        },
+        {
+            "phase": "Relleno",
+            "title": "Crema de queso",
+            "steps": [
+                "Batí el queso crema con azúcar y huevos.",
+                "Sumá crema de leche y esencia de vainilla.",
+            ],
+        },
+        {
+            "phase": "Cocción",
+            "title": "Horneado a baño María",
+            "steps": [
+                "Verté sobre la base y horneá a 150 °C a baño María durante 60 minutos.",
+                "Enfriá en el horno apagado para evitar grietas.",
+            ],
+        },
     ],
     "galletas de avena": [
-        {"phase": "Mezcla", "title": "Masa de avena", "steps": [
-            "Batí manteca con azúcar hasta cremoso.",
-            "Sumá huevo y esencia de vainilla.",
-            "Incorporá avena, harina y polvo de hornear.",
-        ]},
-        {"phase": "Formado", "title": "Porcionado", "steps": [
-            "Formá bolitas y disponé en bandeja con separación.",
-            "Aplastá levemente con el dorso de una cuchara.",
-        ]},
-        {"phase": "Horneado", "title": "Cocción", "steps": [
-            "Horneá a 180 °C durante 12 minutos hasta dorar.",
-        ]},
+        {
+            "phase": "Mezcla",
+            "title": "Masa de avena",
+            "steps": [
+                "Batí manteca con azúcar hasta cremoso.",
+                "Sumá huevo y esencia de vainilla.",
+                "Incorporá avena, harina y polvo de hornear.",
+            ],
+        },
+        {
+            "phase": "Formado",
+            "title": "Porcionado",
+            "steps": [
+                "Formá bolitas y disponé en bandeja con separación.",
+                "Aplastá levemente con el dorso de una cuchara.",
+            ],
+        },
+        {
+            "phase": "Horneado",
+            "title": "Cocción",
+            "steps": [
+                "Horneá a 180 °C durante 12 minutos hasta dorar.",
+            ],
+        },
     ],
     "galletas de chocolate": [
-        {"phase": "Mezcla", "title": "Masa", "steps": [
-            "Batí manteca con azúcar hasta cremoso.",
-            "Sumá huevo y esencia de vainilla.",
-            "Tamizá harina con cocoa y polvo de hornear; incorporá.",
-            "Sumá chips de chocolate.",
-        ]},
-        {"phase": "Formado", "title": "Porcionado", "steps": [
-            "Formá bolitas y disponé en bandeja enmantecada.",
-        ]},
-        {"phase": "Horneado", "title": "Cocción", "steps": [
-            "Horneá a 180 °C durante 12 minutos.",
-            "Enfriá sobre rejilla.",
-        ]},
+        {
+            "phase": "Mezcla",
+            "title": "Masa",
+            "steps": [
+                "Batí manteca con azúcar hasta cremoso.",
+                "Sumá huevo y esencia de vainilla.",
+                "Tamizá harina con cocoa y polvo de hornear; incorporá.",
+                "Sumá chips de chocolate.",
+            ],
+        },
+        {
+            "phase": "Formado",
+            "title": "Porcionado",
+            "steps": [
+                "Formá bolitas y disponé en bandeja enmantecada.",
+            ],
+        },
+        {
+            "phase": "Horneado",
+            "title": "Cocción",
+            "steps": [
+                "Horneá a 180 °C durante 12 minutos.",
+                "Enfriá sobre rejilla.",
+            ],
+        },
     ],
     "empanada de carne": [
-        {"phase": "Relleno", "title": "Picadillo", "steps": [
-            "Rehogá cebolla, ajo y pimiento.",
-            "Sumá la carne picada; cociná hasta dorar.",
-            "Agregá comino, pimentón y un toque de vinagre.",
-            "Dejá enfriar antes de armar.",
-        ]},
-        {"phase": "Armado", "title": "Repulgue", "steps": [
-            "Estirá la masa y cortá círculos de 10 cm.",
-            "Rellená, cerrá en media luna y repulgá con un tenedor.",
-        ]},
-        {"phase": "Cocción", "title": "Horneado", "steps": [
-            "Horneá a 200 °C durante 20 minutos hasta dorar.",
-        ]},
+        {
+            "phase": "Relleno",
+            "title": "Picadillo",
+            "steps": [
+                "Rehogá cebolla, ajo y pimiento.",
+                "Sumá la carne picada; cociná hasta dorar.",
+                "Agregá comino, pimentón y un toque de vinagre.",
+                "Dejá enfriar antes de armar.",
+            ],
+        },
+        {
+            "phase": "Armado",
+            "title": "Repulgue",
+            "steps": [
+                "Estirá la masa y cortá círculos de 10 cm.",
+                "Rellená, cerrá en media luna y repulgá con un tenedor.",
+            ],
+        },
+        {
+            "phase": "Cocción",
+            "title": "Horneado",
+            "steps": [
+                "Horneá a 200 °C durante 20 minutos hasta dorar.",
+            ],
+        },
     ],
     "budín de pan": [
-        {"phase": "Preparación", "title": "Mezcla base", "steps": [
-            "Cortá el pan en rebanadas y remojá en leche.",
-            "Batí huevos con azúcar y esencia de vainilla.",
-            "Sumá el pan remojado y procesá hasta homogeneizar.",
-        ]},
-        {"phase": "Cocción", "title": "Horneado a baño María", "steps": [
-            "Sumá pasas de uva si lo deseás.",
-            "Verté en molde enmantecado y caramelizado.",
-            "Horneá a 170 °C a baño María durante 50 minutos.",
-        ]},
+        {
+            "phase": "Preparación",
+            "title": "Mezcla base",
+            "steps": [
+                "Cortá el pan en rebanadas y remojá en leche.",
+                "Batí huevos con azúcar y esencia de vainilla.",
+                "Sumá el pan remojado y procesá hasta homogeneizar.",
+            ],
+        },
+        {
+            "phase": "Cocción",
+            "title": "Horneado a baño María",
+            "steps": [
+                "Sumá pasas de uva si lo deseás.",
+                "Verté en molde enmantecado y caramelizado.",
+                "Horneá a 170 °C a baño María durante 50 minutos.",
+            ],
+        },
     ],
     "crêpes": [
-        {"phase": "Mezcla", "title": "Masa", "steps": [
-            "Licuá huevos, leche, harina, manteca derretida y sal.",
-            "Reposá la masa 30 minutos en la heladera.",
-        ]},
-        {"phase": "Cocción", "title": "Sellado", "steps": [
-            "Calentá una sartén antiadherente enmantecada.",
-            "Verté una porción fina y cociná 1 minuto por lado.",
-        ]},
-        {"phase": "Presentación", "title": "Servicio", "steps": [
-            "Rellená al gusto: dulce de leche, frutas o queso.",
-        ]},
+        {
+            "phase": "Mezcla",
+            "title": "Masa",
+            "steps": [
+                "Licuá huevos, leche, harina, manteca derretida y sal.",
+                "Reposá la masa 30 minutos en la heladera.",
+            ],
+        },
+        {
+            "phase": "Cocción",
+            "title": "Sellado",
+            "steps": [
+                "Calentá una sartén antiadherente enmantecada.",
+                "Verté una porción fina y cociná 1 minuto por lado.",
+            ],
+        },
+        {
+            "phase": "Presentación",
+            "title": "Servicio",
+            "steps": [
+                "Rellená al gusto: dulce de leche, frutas o queso.",
+            ],
+        },
     ],
     "tarta de chocolate": [
-        {"phase": "Base", "title": "Masa", "steps": [
-            "Tamá harina, cocoa y polvo de hornear.",
-            "Batí manteca con azúcar; sumá huevo.",
-            "Uní secos y húmedos sin amasar.",
-        ]},
-        {"phase": "Relleno", "title": "Ganache", "steps": [
-            "Calentá crema y verté sobre el chocolate picado.",
-            "Dejá reposar 2 minutos y emulsioná hasta brilloso.",
-        ]},
-        {"phase": "Ensamblaje", "title": "Armado y cocción", "steps": [
-            "Forrá el molde con la masa, precociná 10 minutos.",
-            "Verté el ganache y horneá 5 minutos más.",
-        ]},
+        {
+            "phase": "Base",
+            "title": "Masa",
+            "steps": [
+                "Tamá harina, cocoa y polvo de hornear.",
+                "Batí manteca con azúcar; sumá huevo.",
+                "Uní secos y húmedos sin amasar.",
+            ],
+        },
+        {
+            "phase": "Relleno",
+            "title": "Ganache",
+            "steps": [
+                "Calentá crema y verté sobre el chocolate picado.",
+                "Dejá reposar 2 minutos y emulsioná hasta brilloso.",
+            ],
+        },
+        {
+            "phase": "Ensamblaje",
+            "title": "Armado y cocción",
+            "steps": [
+                "Forrá el molde con la masa, precociná 10 minutos.",
+                "Verté el ganache y horneá 5 minutos más.",
+            ],
+        },
     ],
     "muffin de chocolate": [
-        {"phase": "Húmedos", "title": "Mezcla líquida", "steps": [
-            "Batí huevos con aceite y buttermilk (o leche + limón).",
-            "Sumá esencia de vainilla.",
-        ]},
-        {"phase": "Secos", "title": "Mezcla seca", "steps": [
-            "Tamizá harina, cocoa, polvo de hornear y sal.",
-            "Incorporá chips de chocolate.",
-        ]},
-        {"phase": "Horneado", "title": "Cocción", "steps": [
-            "Alterná húmedos y secos sin trabajar de más.",
-            "Llená pirotines hasta 3/4 y horneá a 190 °C durante 22 minutos.",
-        ]},
+        {
+            "phase": "Húmedos",
+            "title": "Mezcla líquida",
+            "steps": [
+                "Batí huevos con aceite y buttermilk (o leche + limón).",
+                "Sumá esencia de vainilla.",
+            ],
+        },
+        {
+            "phase": "Secos",
+            "title": "Mezcla seca",
+            "steps": [
+                "Tamizá harina, cocoa, polvo de hornear y sal.",
+                "Incorporá chips de chocolate.",
+            ],
+        },
+        {
+            "phase": "Horneado",
+            "title": "Cocción",
+            "steps": [
+                "Alterná húmedos y secos sin trabajar de más.",
+                "Llená pirotines hasta 3/4 y horneá a 190 °C durante 22 minutos.",
+            ],
+        },
     ],
     "pasta fresca": [
-        {"phase": "Masa", "title": "Amasado", "steps": [
-            "Disponé la harina en forma de corona.",
-            "Sumá huevos en el centro y amasá hasta homogeneizar.",
-            "Reposá 30 minutos envuelta en film.",
-        ]},
-        {"phase": "Estirado", "title": "Laminado", "steps": [
-            "Estirá la masa con máquina o palote hasta 1 mm de espesor.",
-            "Cortá en fettuccine o ravioles según gusto.",
-        ]},
-        {"phase": "Cocción", "title": "Hervido", "steps": [
-            "Herví en agua con sal durante 2 a 3 minutos.",
-            "Serví con salsa a elección.",
-        ]},
+        {
+            "phase": "Masa",
+            "title": "Amasado",
+            "steps": [
+                "Disponé la harina en forma de corona.",
+                "Sumá huevos en el centro y amasá hasta homogeneizar.",
+                "Reposá 30 minutos envuelta en film.",
+            ],
+        },
+        {
+            "phase": "Estirado",
+            "title": "Laminado",
+            "steps": [
+                "Estirá la masa con máquina o palote hasta 1 mm de espesor.",
+                "Cortá en fettuccine o ravioles según gusto.",
+            ],
+        },
+        {
+            "phase": "Cocción",
+            "title": "Hervido",
+            "steps": [
+                "Herví en agua con sal durante 2 a 3 minutos.",
+                "Serví con salsa a elección.",
+            ],
+        },
     ],
     "frikandel": [
-        {"phase": "Mezcla", "title": "Picada especiada", "steps": [
-            "Mezclá las carnes picadas con pan remojado en leche.",
-            "Sumá cebolla rehogada, nuez moscada y pimienta.",
-        ]},
-        {"phase": "Formado", "title": "Embutido", "steps": [
-            "Formá cilindros de 12 cm y pasá por pan rallado.",
-        ]},
-        {"phase": "Cocción", "title": "Fritura", "steps": [
-            "Fritá en aceite caliente a 170 °C durante 6 minutos.",
-            "Serví en pan con mostaza y cebolla.",
-        ]},
+        {
+            "phase": "Mezcla",
+            "title": "Picada especiada",
+            "steps": [
+                "Mezclá las carnes picadas con pan remojado en leche.",
+                "Sumá cebolla rehogada, nuez moscada y pimienta.",
+            ],
+        },
+        {
+            "phase": "Formado",
+            "title": "Embutido",
+            "steps": [
+                "Formá cilindros de 12 cm y pasá por pan rallado.",
+            ],
+        },
+        {
+            "phase": "Cocción",
+            "title": "Fritura",
+            "steps": [
+                "Fritá en aceite caliente a 170 °C durante 6 minutos.",
+                "Serví en pan con mostaza y cebolla.",
+            ],
+        },
     ],
     "pan ciabatta": [
-        {"phase": "Masa madre", "title": "Poolish", "steps": [
-            "Mezclá 100 g de harina, 100 ml de agua y 1 g de levadura.",
-            "Reposá 12 a 16 horas a temperatura ambiente.",
-        ]},
-        {"phase": "Amasado", "title": "Masa final", "steps": [
-            "Sumá harina, agua, sal y el poolish.",
-            "Amasá plegando cada 30 minutos durante 3 horas.",
-        ]},
-        {"phase": "Horneado", "title": "Cocción", "steps": [
-            "Volcá sobre placa enharinada y horneá a 230 °C durante 25 minutos.",
-        ]},
+        {
+            "phase": "Masa madre",
+            "title": "Poolish",
+            "steps": [
+                "Mezclá 100 g de harina, 100 ml de agua y 1 g de levadura.",
+                "Reposá 12 a 16 horas a temperatura ambiente.",
+            ],
+        },
+        {
+            "phase": "Amasado",
+            "title": "Masa final",
+            "steps": [
+                "Sumá harina, agua, sal y el poolish.",
+                "Amasá plegando cada 30 minutos durante 3 horas.",
+            ],
+        },
+        {
+            "phase": "Horneado",
+            "title": "Cocción",
+            "steps": [
+                "Volcá sobre placa enharinada y horneá a 230 °C durante 25 minutos.",
+            ],
+        },
     ],
     "bizcocho de chocolate": [
-        {"phase": "Preparación", "title": "Masa", "steps": [
-            "Derretí el chocolate con la manteca a baño María.",
-            "Batí huevos con azúcar hasta punto cinta.",
-            "Tamizá harina y polvo de hornear; alterná con la mezcla de chocolate.",
-        ]},
-        {"phase": "Horneado", "title": "Cocción", "steps": [
-            "Volcá en molde enmantecado.",
-            "Horneá a 180 °C durante 35 minutos.",
-        ]},
+        {
+            "phase": "Preparación",
+            "title": "Masa",
+            "steps": [
+                "Derretí el chocolate con la manteca a baño María.",
+                "Batí huevos con azúcar hasta punto cinta.",
+                "Tamizá harina y polvo de hornear; alterná con la mezcla de chocolate.",
+            ],
+        },
+        {
+            "phase": "Horneado",
+            "title": "Cocción",
+            "steps": [
+                "Volcá en molde enmantecado.",
+                "Horneá a 180 °C durante 35 minutos.",
+            ],
+        },
     ],
     "bizcocho marmolado": [
-        {"phase": "Masa base", "title": "Bizcocho neutro", "steps": [
-            "Batí manteca con azúcar hasta cremoso.",
-            "Sumá huevos uno a uno y esencia de vainilla.",
-            "Incorporá harina con polvo de hornear alternando con leche.",
-        ]},
-        {"phase": "Veteado", "title": "Mezcla de cocoa", "steps": [
-            "Separó un tercio de la masa y mezclá con cocoa tamizada.",
-            "Alterná cucharadas de masa clara y oscura en el molde.",
-            "Pasá un palote para marmolar.",
-        ]},
-        {"phase": "Horneado", "title": "Cocción", "steps": [
-            "Horneá a 180 °C durante 40 minutos.",
-        ]},
+        {
+            "phase": "Masa base",
+            "title": "Bizcocho neutro",
+            "steps": [
+                "Batí manteca con azúcar hasta cremoso.",
+                "Sumá huevos uno a uno y esencia de vainilla.",
+                "Incorporá harina con polvo de hornear alternando con leche.",
+            ],
+        },
+        {
+            "phase": "Veteado",
+            "title": "Mezcla de cocoa",
+            "steps": [
+                "Separó un tercio de la masa y mezclá con cocoa tamizada.",
+                "Alterná cucharadas de masa clara y oscura en el molde.",
+                "Pasá un palote para marmolar.",
+            ],
+        },
+        {
+            "phase": "Horneado",
+            "title": "Cocción",
+            "steps": [
+                "Horneá a 180 °C durante 40 minutos.",
+            ],
+        },
     ],
     "queque de yogur": [
-        {"phase": "Mezcla", "title": "Masa en vaso", "steps": [
-            "Usá el vaso de yogur como medida.",
-            "Mezclá yogur, huevos y aceite.",
-            "Sumá azúcar, harina y polvo de hornear.",
-            "Ralladura de limón para perfumar.",
-        ]},
-        {"phase": "Horneado", "title": "Cocción", "steps": [
-            "Volcá en molde enmantecado.",
-            "Horneá a 180 °C durante 35 minutos.",
-        ]},
+        {
+            "phase": "Mezcla",
+            "title": "Masa en vaso",
+            "steps": [
+                "Usá el vaso de yogur como medida.",
+                "Mezclá yogur, huevos y aceite.",
+                "Sumá azúcar, harina y polvo de hornear.",
+                "Ralladura de limón para perfumar.",
+            ],
+        },
+        {
+            "phase": "Horneado",
+            "title": "Cocción",
+            "steps": [
+                "Volcá en molde enmantecado.",
+                "Horneá a 180 °C durante 35 minutos.",
+            ],
+        },
     ],
     "queque de vainilla": [
-        {"phase": "Mezcla", "title": "Masa", "steps": [
-            "Batí manteca con azúcar hasta cremoso.",
-            "Sumá huevos uno a uno y esencia de vainilla.",
-            "Incorporá harina y polvo de hornear.",
-        ]},
-        {"phase": "Horneado", "title": "Cocción", "steps": [
-            "Volcá en molde enmantecado.",
-            "Horneá a 180 °C durante 35 minutos.",
-        ]},
+        {
+            "phase": "Mezcla",
+            "title": "Masa",
+            "steps": [
+                "Batí manteca con azúcar hasta cremoso.",
+                "Sumá huevos uno a uno y esencia de vainilla.",
+                "Incorporá harina y polvo de hornear.",
+            ],
+        },
+        {
+            "phase": "Horneado",
+            "title": "Cocción",
+            "steps": [
+                "Volcá en molde enmantecado.",
+                "Horneá a 180 °C durante 35 minutos.",
+            ],
+        },
     ],
 }
 
@@ -443,9 +655,7 @@ def _seed_recipe_metadata(session: Any) -> tuple[int, int]:
 
         # Instructions JSON
         if not r.instructions and r.name in _RECIPE_INSTRUCTIONS:
-            r.instructions = json.dumps(
-                _RECIPE_INSTRUCTIONS[r.name], ensure_ascii=False
-            )
+            r.instructions = json.dumps(_RECIPE_INSTRUCTIONS[r.name], ensure_ascii=False)
 
         # Classify (updates family/dietary/allergens if not already set)
         try:
@@ -500,9 +710,7 @@ def _seed_tag_links(session: Any) -> tuple[int, int]:
                 .first()
             )
             if existing is None:
-                session.add(
-                    TagLink(tag_id=tag.id, target_kind="ingredient", target_id=ing.id)
-                )
+                session.add(TagLink(tag_id=tag.id, target_kind="ingredient", target_id=ing.id))
                 ing_links += 1
 
     # recipes
@@ -523,9 +731,7 @@ def _seed_tag_links(session: Any) -> tuple[int, int]:
                 .first()
             )
             if existing is None:
-                session.add(
-                    TagLink(tag_id=tag.id, target_kind="recipe", target_id=r.id)
-                )
+                session.add(TagLink(tag_id=tag.id, target_kind="recipe", target_id=r.id))
                 rec_links += 1
 
     return ing_links, rec_links
@@ -546,9 +752,7 @@ def _run_cascade_refresh(session: Any) -> int:
 
 
 def main() -> None:
-    db_path = os.environ.get(
-        "AIW_SASKIA_DB_PATH", "/opt/data/.local/share/AIW-Saskia/rms.sqlite"
-    )
+    db_path = os.environ.get("AIW_SASKIA_DB_PATH", "/opt/data/.local/share/AIW-Saskia/rms.sqlite")
     os.environ["AIW_SASKIA_DB_PATH"] = db_path
 
     engine = make_engine()

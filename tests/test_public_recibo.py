@@ -9,6 +9,7 @@ Coverage:
   - Rate-limit 429 after 30 hits in 5 minutes
   - public_tokens helper unit tests (token shape, issue_token, is_token_valid)
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -38,9 +39,7 @@ def test_generate_public_token_is_url_safe_and_long_enough():
     assert t1 != t2, "tokens must be unique across calls"
     assert len(t1) >= 22, f"expected ≥22 chars (96 bits base64url), got {len(t1)}"
     # URL-safe alphabet: A-Z, a-z, 0-9, '-', '_'
-    allowed = set(
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
-    )
+    allowed = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
     assert set(t1) <= allowed, "token chars must be URL-safe base64"
 
 
@@ -192,9 +191,7 @@ def test_public_recibo_410_gone_for_expired_token(client, session_factory):
     # Force expiry to the past via raw SQL (bypasses model type-checking).
     with session_factory() as s:
         s.execute(
-            text(
-                "UPDATE sale SET public_token_expires_at = :exp WHERE id = :sid"
-            ),
+            text("UPDATE sale SET public_token_expires_at = :exp WHERE id = :sid"),
             {"exp": "2020-01-01 00:00:00", "sid": sid},
         )
         s.commit()

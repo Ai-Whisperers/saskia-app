@@ -21,6 +21,7 @@ Generates:
 Run directly to (re)build:
     uv run python tests/fixtures/build_herbus_fixture.py
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -31,7 +32,15 @@ from openpyxl.utils import get_column_letter
 
 FIXTURE_DIR = Path(__file__).parent
 
-INGREDIENT_HEADER = ["id", "name", "unit", "stock_qty", "purchase_price_gs", "min_stock_qty", "notes"]
+INGREDIENT_HEADER = [
+    "id",
+    "name",
+    "unit",
+    "stock_qty",
+    "purchase_price_gs",
+    "min_stock_qty",
+    "notes",
+]
 RECIPE_HEADER = ["id", "name", "yield_qty", "yield_unit", "notes"]
 LINE_HEADER = ["id", "recipe_id", "line_kind", "line_ref_id", "qty", "notes"]
 PRODUCT_HEADER = ["id", "name", "portion_label", "sale_price_gs", "recipe_id", "notes"]
@@ -98,27 +107,31 @@ def build_realistic(path: Path) -> None:
     # Lines use name lookups (recipe_name, target_name) per import_xlsx contract
     lin.append(["id", "recipe_name", "line_kind", "target_name", "qty", "notes"])
     for i, (rec_name, ing_name, qty) in enumerate(RECIPE_LINES, 1):
-        lin.append([
-            i,
-            rec_name,
-            "ingredient",
-            ing_name,
-            qty,
-            "",
-        ])
+        lin.append(
+            [
+                i,
+                rec_name,
+                "ingredient",
+                ing_name,
+                qty,
+                "",
+            ]
+        )
 
     prod = wb.create_sheet("Productos")
     prod.append(PRODUCT_HEADER)
     for i, row in enumerate(PRODUCTS, 1):
         # (name, recipe_name, portion_label, sale_price_gs, category)
-        prod.append([
-            i,
-            row[0],
-            row[2],
-            row[3],
-            row[1],
-            row[4] or "",
-        ])
+        prod.append(
+            [
+                i,
+                row[0],
+                row[2],
+                row[3],
+                row[1],
+                row[4] or "",
+            ]
+        )
 
     # Add a few sales (one per product, last 7 days)
     # Ventas use product_name lookup, not product_id
@@ -127,15 +140,17 @@ def build_realistic(path: Path) -> None:
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     for i in range(20):
         prod_name = PRODUCTS[i % 20][0]
-        sales.append([
-            i + 1,
-            now.strftime("%Y-%m-%dT%H:%M:%S"),
-            prod_name,
-            1.0,
-            2500,
-            "",
-            "",
-        ])
+        sales.append(
+            [
+                i + 1,
+                now.strftime("%Y-%m-%dT%H:%M:%S"),
+                prod_name,
+                1.0,
+                2500,
+                "",
+                "",
+            ]
+        )
 
     for ws in wb.worksheets:
         _auto_width(ws)
@@ -214,31 +229,37 @@ def build_herbus_compat(path: Path) -> None:
 
     prod = wb.create_sheet("Productos")
     # Productos use recipe_name lookup, not recipe_id
-    prod.append(["id", "name", "portion_label", "sale_price_gs", "recipe_name", "category", "notes"])
+    prod.append(
+        ["id", "name", "portion_label", "sale_price_gs", "recipe_name", "category", "notes"]
+    )
     prod.append([1, "Chipá unitario", "unidad", 3500, "Chipá", "Panadería", "popular"])
     prod.append([2, "Docena de chipá", "docena", 35000, "Chipá", "Panadería", "encargo"])
 
     sales = wb.create_sheet("Ventas")
     sales.append(["id", "sold_at", "product_name", "qty", "unit_price_gs", "notes", "voided_at"])
     # Ventas use product_name lookup, not product_id
-    sales.append([
-        1,
-        "2026-09-01T08:30:00",
-        "Chipá unitario",
-        2.0,
-        3500,
-        "Cliente: María pidió sin sal",
-        "",
-    ])
-    sales.append([
-        2,
-        "2026-09-02T11:15:00",
-        "Docena de chipá",
-        1.0,
-        35000,
-        "Encargo para cumpleaños",
-        "",
-    ])
+    sales.append(
+        [
+            1,
+            "2026-09-01T08:30:00",
+            "Chipá unitario",
+            2.0,
+            3500,
+            "Cliente: María pidió sin sal",
+            "",
+        ]
+    )
+    sales.append(
+        [
+            2,
+            "2026-09-02T11:15:00",
+            "Docena de chipá",
+            1.0,
+            35000,
+            "Encargo para cumpleaños",
+            "",
+        ]
+    )
 
     for ws in wb.worksheets:
         _auto_width(ws)

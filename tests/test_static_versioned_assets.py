@@ -1,4 +1,5 @@
 """Static asset versioned query tests."""
+
 from __future__ import annotations
 
 import pytest
@@ -9,9 +10,7 @@ def test_app_css_has_version_query_string(client):
     r = client.get("/")
     assert r.status_code == 200
     body = r.text
-    assert 'app.css?v=' in body, (
-        f"app.css missing cache-busting version. Body: {body[:500]}"
-    )
+    assert "app.css?v=" in body, f"app.css missing cache-busting version. Body: {body[:500]}"
 
 
 def test_app_js_has_version_query_string(client):
@@ -19,9 +18,7 @@ def test_app_js_has_version_query_string(client):
     r = client.get("/")
     assert r.status_code == 200
     body = r.text
-    assert 'app.js?v=' in body, (
-        f"app.js missing cache-busting version. Body: {body[:500]}"
-    )
+    assert "app.js?v=" in body, f"app.js missing cache-busting version. Body: {body[:500]}"
 
 
 def test_static_asset_cache_control_header(client):
@@ -38,9 +35,7 @@ def test_static_asset_cache_control_header(client):
 def test_static_asset_accessible(client):
     """/static/app.css must be accessible without auth."""
     r = client.get("/static/app.css")
-    assert r.status_code == 200, (
-        f"/static/app.css returned {r.status_code}"
-    )
+    assert r.status_code == 200, f"/static/app.css returned {r.status_code}"
 
 
 def test_favicon_served(client):

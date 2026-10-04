@@ -11,6 +11,7 @@ This test file:
 We accept 401 (auth bypass broken), 403 (admin required), 422 (validation)
 as valid "blocked" responses. The ONLY unacceptable response is 500 (crash).
 """
+
 from __future__ import annotations
 
 
@@ -35,13 +36,16 @@ def test_users_post_eliminar_does_not_crash(client):
 
 def test_users_create_form_does_not_crash(client):
     """K7 #3: POST /users/crear must return non-500 status."""
-    r = client.post("/users/crear", data={
-        "email": "k7test@example.com",
-        "password": "TestPass123",
-        "role": "cashier",
-    }, follow_redirects=False)
+    r = client.post(
+        "/users/crear",
+        data={
+            "email": "k7test@example.com",
+            "password": "TestPass123",
+            "role": "cashier",
+        },
+        follow_redirects=False,
+    )
     assert r.status_code < 500, (
         f"/users/crear returned {r.status_code}: {r.text[:200]}. "
         f"500 = route crash; any blocked status is acceptable."
     )
-

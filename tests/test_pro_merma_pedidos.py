@@ -5,6 +5,7 @@ PRO-MERMA: botón de merma en cada fila de /inventario → modal que postea a
 se incluya, que el botón esté por fila y que el POST rápido funcione.
 PRO-PED: /produccion/manana muestra los pedidos confirmados de mañana.
 """
+
 from __future__ import annotations
 
 from sqlalchemy.orm import sessionmaker
@@ -36,14 +37,20 @@ def test_merma_rapida_desde_modal_registra(authed_client, session_factory):
         s.close()
     r = authed_client.post(
         "/merma/registrar",
-        data={"ingredient_id": iid, "qty": "0.5", "qty_unit": "kg",
-              "reason": "vencida", "notes": "test rápido"},
+        data={
+            "ingredient_id": iid,
+            "qty": "0.5",
+            "qty_unit": "kg",
+            "reason": "vencida",
+            "notes": "test rápido",
+        },
         follow_redirects=False,
     )
     assert r.status_code == 303, r.text[:300]
     s2 = sessionmaker(bind=session_factory.kw["bind"])()
     try:
         from app.rms.models_legacy import WasteLog
+
         w = s2.query(WasteLog).order_by(WasteLog.id.desc()).first()
         assert w is not None and w.ingredient_id == iid and w.qty == 0.5
     finally:
@@ -60,6 +67,7 @@ def test_produccion_manana_muestra_pedidos(authed_client, session_factory):
         p = make_product(s, sale_price_gs=8000)
         manana = (datetime.now(ASUNCION_TZ) + timedelta(days=1)).date()
         from app.rms.models_legacy import Pedido, PedidoLine
+
         ped = Pedido(
             customer_name="Cliente Test",
             promised_date=manana,
@@ -72,8 +80,11 @@ def test_produccion_manana_muestra_pedidos(authed_client, session_factory):
         )
         s.add(ped)
         s.flush()
-        s.add(PedidoLine(pedido_id=ped.id, product_id=p.id, qty=3,
-                         unit_price_gs=8000, fulfilled_qty=0))
+        s.add(
+            PedidoLine(
+                pedido_id=ped.id, product_id=p.id, qty=3, unit_price_gs=8000, fulfilled_qty=0
+            )
+        )
         s.commit()
     finally:
         s.close()

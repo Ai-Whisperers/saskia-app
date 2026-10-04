@@ -10,6 +10,7 @@ UptimeRobot) and add /admin/backup as an operator escape hatch
 (matches the /admin/migrate pattern). The lifespan call remains as a
 first-line guarantee on deploy.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta

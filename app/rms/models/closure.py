@@ -34,9 +34,7 @@ class MonthlyClosure(Base):
     reopened_by_user_id: Mapped[Optional[str]] = mapped_column(
         String(64), nullable=True, default=None
     )
-    reopen_reason: Mapped[Optional[str]] = mapped_column(
-        String(255), nullable=True, default=None
-    )
+    reopen_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, default=None)
 
     __table_args__ = (
         CheckConstraint(

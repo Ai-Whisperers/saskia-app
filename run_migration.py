@@ -22,7 +22,9 @@ print("Checking if triggers exist...")
 # Check triggers directly
 try:
     result = conn.execute(
-        text("SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'ingredient_stock_qty%'")
+        text(
+            "SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'ingredient_stock_qty%'"
+        )
     )
     triggers = result.fetchall()
     print(f"Triggers found: {triggers}")

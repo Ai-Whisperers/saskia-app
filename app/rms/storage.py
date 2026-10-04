@@ -22,6 +22,7 @@ project appears to have been deleted/renamed. Until that's fixed,
 `is_storage_enabled()` returns False and the existing local-storage
 upload path keeps working (this module is fully backward-compatible).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -122,24 +123,20 @@ def upload_product_image(
     shouldn't depend on it).
     """
     if not ALLOWED_CONTENT_TYPES.__contains__(content_type):
-        raise ValueError(
-            f"unsupported_content_type:{content_type}"
-        )
+        raise ValueError(f"unsupported_content_type:{content_type}")
     if not content_bytes:
         raise ValueError("empty_content")
     if len(content_bytes) > MAX_BYTES:
-        raise ValueError(
-            f"too_large:{len(content_bytes) // 1024}KB > {MAX_BYTES // 1024}KB"
-        )
+        raise ValueError(f"too_large:{len(content_bytes) // 1024}KB > {MAX_BYTES // 1024}KB")
 
     ext = EXT_BY_CONTENT_TYPE[content_type]
     # Use a hash prefix of the content + original filename + a short
     # random token — keeps the URL collision-resistant without exposing
     # raw filenames to the public CDN.
     body_hash = hashlib.sha256(content_bytes).hexdigest()[:8]
-    safe_name = "".join(
-        c for c in Path(original_filename).stem if c.isalnum() or c in "-_"
-    )[:32] or "img"
+    safe_name = (
+        "".join(c for c in Path(original_filename).stem if c.isalnum() or c in "-_")[:32] or "img"
+    )
     filename = f"{body_hash}-{safe_name}{ext}"
     object_path = filename  # bucket root is fine; we don't nest
 

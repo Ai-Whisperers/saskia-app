@@ -11,6 +11,7 @@ GET /eod?start=YYYY-MM-DD&end=YYYY-MM-DD
                                link to each individual /eod?date=... from
                                the summary.
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
@@ -77,23 +78,21 @@ def eod_view(
     saved_prefix = f"eod_check_{today.isoformat()}_"
     saved_notes_key = f"eod_notes_{today}"
     from app.rms.models import AppMeta
-    rows = session.scalars(
-        select(AppMeta).where(AppMeta.key.like(f"{saved_prefix}%"))
-    ).all()
+
+    rows = session.scalars(select(AppMeta).where(AppMeta.key.like(f"{saved_prefix}%"))).all()
     for r in rows:
         # key is "eod_check_<date>_<item_key>"
-        item_key = r.key[len(saved_prefix):]
+        item_key = r.key[len(saved_prefix) :]
         if r.value == "1":
             saved_keys.add(item_key)
-    notes_row = session.scalar(
-        select(AppMeta).where(AppMeta.key == saved_notes_key)
-    )
+    notes_row = session.scalar(select(AppMeta).where(AppMeta.key == saved_notes_key))
     if notes_row:
         saved_notes = notes_row.value or ""
 
     # Mark each checklist item as DONE using the saved set so the form
     # renders with the operator's progress preserved across reloads.
     from app.rms.workflow import EODItemStatus
+
     for item in items:
         if item.key in saved_keys:
             item.status = EODItemStatus.DONE
@@ -101,6 +100,7 @@ def eod_view(
     # CIE-02: restock step — show ingredients below minimum with a link to
     # /reorder. Checking the close step means she has looked at it.
     from app.rms.reorder import compute_reorder_list
+
     reorder_items = compute_reorder_list(session)
     # Cap at top 5 most urgent for the dashboard
     reorder_items_top = reorder_items[:5]
@@ -116,9 +116,7 @@ def eod_view(
     # 14-day trailing window for the "open days" reminder so the operator
     # can act on any stale days even when this one is closed.
     open_days = (
-        eod_get_open_days(session, today - timedelta(days=14))
-        if not today_is_closed
-        else []
+        eod_get_open_days(session, today - timedelta(days=14)) if not today_is_closed else []
     )
 
     # ── Weekend batch: ?start=&end= ──────────────────────────────────────
@@ -144,12 +142,13 @@ def eod_view(
                 select(Sale).where(
                     Sale.sold_at.isnot(None),
                     Sale.voided_at.is_(None),
-                    Sale.sold_at >= datetime.combine(
-                        range_start, datetime.min.time()
-                    ).replace(tzinfo=ASUNCION_TZ),
-                    Sale.sold_at < (
-                        datetime.combine(range_end, datetime.min.time())
-                        + timedelta(days=1)
+                    Sale.sold_at
+                    >= datetime.combine(range_start, datetime.min.time()).replace(
+                        tzinfo=ASUNCION_TZ
+                    ),
+                    Sale.sold_at
+                    < (
+                        datetime.combine(range_end, datetime.min.time()) + timedelta(days=1)
                     ).replace(tzinfo=ASUNCION_TZ),
                 )
             ).all()
@@ -161,12 +160,13 @@ def eod_view(
             # Waste in range (WasteLog.value_lost_gs)
             waste_rows = session.scalars(
                 select(WasteLog).where(
-                    WasteLog.recorded_at >= datetime.combine(
-                        range_start, datetime.min.time()
-                    ).replace(tzinfo=ASUNCION_TZ),
-                    WasteLog.recorded_at < (
-                        datetime.combine(range_end, datetime.min.time())
-                        + timedelta(days=1)
+                    WasteLog.recorded_at
+                    >= datetime.combine(range_start, datetime.min.time()).replace(
+                        tzinfo=ASUNCION_TZ
+                    ),
+                    WasteLog.recorded_at
+                    < (
+                        datetime.combine(range_end, datetime.min.time()) + timedelta(days=1)
                     ).replace(tzinfo=ASUNCION_TZ),
                 )
             ).all()
@@ -177,37 +177,43 @@ def eod_view(
             while cur <= range_end:
                 day_plan = plan_production(session, for_date=cur)
                 day_comp = completions_for_date(session, cur)
-                range_summary.append({
-                    "date_iso": cur.isoformat(),
-                    "plan_rows": len(day_plan.rows) if hasattr(day_plan, "rows") else 0,
-                    "completed": sum(day_comp.values()),
-                })
+                range_summary.append(
+                    {
+                        "date_iso": cur.isoformat(),
+                        "plan_rows": len(day_plan.rows) if hasattr(day_plan, "rows") else 0,
+                        "completed": sum(day_comp.values()),
+                    }
+                )
                 cur += timedelta(days=1)
 
-    return render(request, "eod.html", {
-        "items": items,
-        "progress": progress,
-        "today_plan": today_plan,
-        "completions": completions,
-        "today_iso": today.isoformat(),
-        # BACKLOG #15 — closed-day state surfaced on the page header
-        "today_is_closed": today_is_closed,
-        "open_days": [d.isoformat() for d in open_days],
-        "saved_notes": saved_notes,
-        # CIE-02: restock context for the close
-        "reorder_items": reorder_items_top,
-        "reorder_count": reorder_count,
-        "reorder_total_gs": reorder_total_gs,
-        # Weekend batch (prelaunch roadmap 2026-09-17)
-        "is_range_mode": is_range_mode,
-        "range_start_iso": range_start.isoformat() if range_start else "",
-        "range_end_iso": range_end.isoformat() if range_end else "",
-        "range_days": range_days,
-        "range_summary": range_summary,
-        "range_total_ventas_gs": range_total_ventas_gs,
-        "range_total_merma_gs": range_total_merma_gs,
-        "range_total_operaciones": range_total_operaciones,
-    })
+    return render(
+        request,
+        "eod.html",
+        {
+            "items": items,
+            "progress": progress,
+            "today_plan": today_plan,
+            "completions": completions,
+            "today_iso": today.isoformat(),
+            # BACKLOG #15 — closed-day state surfaced on the page header
+            "today_is_closed": today_is_closed,
+            "open_days": [d.isoformat() for d in open_days],
+            "saved_notes": saved_notes,
+            # CIE-02: restock context for the close
+            "reorder_items": reorder_items_top,
+            "reorder_count": reorder_count,
+            "reorder_total_gs": reorder_total_gs,
+            # Weekend batch (prelaunch roadmap 2026-09-17)
+            "is_range_mode": is_range_mode,
+            "range_start_iso": range_start.isoformat() if range_start else "",
+            "range_end_iso": range_end.isoformat() if range_end else "",
+            "range_days": range_days,
+            "range_summary": range_summary,
+            "range_total_ventas_gs": range_total_ventas_gs,
+            "range_total_merma_gs": range_total_merma_gs,
+            "range_total_operaciones": range_total_operaciones,
+        },
+    )
 
 
 @router.post("/check")
@@ -257,14 +263,18 @@ def eod_check_save(
     if idempotency_key:
         try:
             request_id_eod = getattr(request.state, "request_id", None) or ""
-            session.add(AppMeta(
-                key=f"eod_save_idem:{idempotency_key}",
-                value=__import__("json").dumps({
-                    "saved_at": datetime.now(timezone.utc).isoformat(),
-                    "request_id": request_id_eod,
-                }),
-                updated_at=datetime.now(timezone.utc).isoformat(),
-            ))
+            session.add(
+                AppMeta(
+                    key=f"eod_save_idem:{idempotency_key}",
+                    value=__import__("json").dumps(
+                        {
+                            "saved_at": datetime.now(timezone.utc).isoformat(),
+                            "request_id": request_id_eod,
+                        }
+                    ),
+                    updated_at=datetime.now(timezone.utc).isoformat(),
+                )
+            )
             session.flush()  # surface IntegrityError without committing
             idem_reserved = True
         except IntegrityError:
@@ -308,9 +318,13 @@ def eod_check_save(
             existing.value = notes_for_next.strip()[:2000]
             existing.updated_at = now_iso
         else:
-            session.add(AppMeta(
-                key=meta_key, value=notes_for_next.strip()[:2000], updated_at=now_iso,
-            ))
+            session.add(
+                AppMeta(
+                    key=meta_key,
+                    value=notes_for_next.strip()[:2000],
+                    updated_at=now_iso,
+                )
+            )
 
     items_done = [k for k, v in checkboxes.items() if v in ("on", "true", "1", "yes")]
     record_audit(
@@ -334,6 +348,7 @@ def eod_check_save(
         try:
             from app.rms.config import DB_PATH
             from app.services.backup_scheduler import run_backup
+
             backup_result = run_backup(session, DB_PATH)
             if not backup_result.skipped:
                 record_audit(
@@ -344,7 +359,9 @@ def eod_check_save(
                     target_id=0,
                     detail={
                         "trigger": "eod_checklist_complete",
-                        "local_path": str(backup_result.local_path) if backup_result.local_path else None,
+                        "local_path": str(backup_result.local_path)
+                        if backup_result.local_path
+                        else None,
                         "r2_uploaded": backup_result.r2_uploaded,
                         "local_pruned": backup_result.local_pruned,
                     },
@@ -369,6 +386,7 @@ def eod_completar(
 ) -> RedirectResponse:
     """Record how much of a planned product was actually produced (T5)."""
     from app.rms.rate_limit import is_write_rate_limited
+
     if is_write_rate_limited(session, request, max_per_minute=10):
         raise HTTPException(
             status_code=429,

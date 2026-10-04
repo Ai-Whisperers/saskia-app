@@ -6,6 +6,7 @@ queries). This batch function computes the same PrimeCostBreakdown for N
 products in a single pass with eager-loaded .recipe + a single
 ComplianceInfo lookup.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -219,6 +220,7 @@ def test_compliance_info_fetched_once_for_n_products(session_factory, compliance
 def test_zero_labor_minutes_noted_but_not_blocking(session_factory, compliance):
     """direct_labor_minutes=0 → 'sin tiempo' note, but product is still usable."""
     import uuid
+
     session = session_factory()
     ing_name = f"flour-nolabor-{uuid.uuid4().hex[:8]}"
     ing = _make_flour(session, ing_name, 200)

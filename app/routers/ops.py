@@ -6,6 +6,7 @@ give one-page views of system health and quick links to investigate.
 
 Mounted at /ops/* with the standard require_login dependency.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
@@ -63,10 +64,14 @@ def ops_status(request: Request) -> HTMLResponse:
         # If the query fails, the dashboard still renders with zeros.
         pass
 
-    return render(request, "ops_status.html", {
-        "endpoints": _OPERATIONAL_ENDPOINTS,
-        "reorder_stats": reorder_stats,
-    })
+    return render(
+        request,
+        "ops_status.html",
+        {
+            "endpoints": _OPERATIONAL_ENDPOINTS,
+            "reorder_stats": reorder_stats,
+        },
+    )
 
 
 @router.post("/reset-demo-data")
@@ -94,14 +99,11 @@ async def ops_reset_demo_data(request: Request) -> JSONResponse:
         # Annotate the audit detail with the caller's user id
         # (reset_demo_data already recorded a row, so just log here).
         from loguru import logger
-        logger.info(
-            f"demo_reset invoked by user_id={user_id} counts={counts}"
-        )
+
+        logger.info(f"demo_reset invoked by user_id={user_id} counts={counts}")
     except Exception as exc:
         session.close()
-        raise HTTPException(
-            status_code=500, detail=f"reset_demo_data failed: {exc}"
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"reset_demo_data failed: {exc}") from exc
     finally:
         try:
             session.close()

@@ -114,10 +114,14 @@ def suppliers_volatility(
     """
     days = max(7, min(int(days), 365))
     rows = supplier_volatility(session, since_days=days)
-    return render(request, "suppliers_volatility.html", {
-        "rows": rows,
-        "days": days,
-    })
+    return render(
+        request,
+        "suppliers_volatility.html",
+        {
+            "rows": rows,
+            "days": days,
+        },
+    )
 
 
 @router.get("/{s_id}/editar", response_class=HTMLResponse)

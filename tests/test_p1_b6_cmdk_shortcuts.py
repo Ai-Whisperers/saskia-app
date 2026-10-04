@@ -10,6 +10,7 @@ Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m
 Note: this is a JS-only feature; tests verify the SHIPPED JS file contains
 the expected wiring. Functional behavior must be smoke-tested in the browser.
 """
+
 from __future__ import annotations
 
 import re

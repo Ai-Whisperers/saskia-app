@@ -21,6 +21,7 @@ listings (E9.S2):
 - filter_recipes(): margin tier + tag + yield range
 - filter_products(): category + tag + is_active + has_recipe
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -127,18 +128,10 @@ def list_tags_for_kind(session: Session, kind: str) -> list[Tag]:
     static lists previously hardcoded in app/templates/_components/tags.html
     are gone. Sort order: alphabetical by name.
     """
-    return list(
-        session.execute(
-            select(Tag)
-            .where(Tag.kind == kind)
-            .order_by(Tag.name)
-        ).scalars()
-    )
+    return list(session.execute(select(Tag).where(Tag.kind == kind).order_by(Tag.name)).scalars())
 
 
-def tag_target(
-    session: Session, tag: Tag, target_kind: str, target_id: int
-) -> TagLink:
+def tag_target(session: Session, tag: Tag, target_kind: str, target_id: int) -> TagLink:
     """Add a tag to a target. Idempotent."""
     existing = session.execute(
         select(TagLink).where(
@@ -155,9 +148,7 @@ def tag_target(
     return link
 
 
-def untag_target(
-    session: Session, tag: Tag, target_kind: str, target_id: int
-) -> bool:
+def untag_target(session: Session, tag: Tag, target_kind: str, target_id: int) -> bool:
     """Remove a tag from a target. Returns True if removed."""
     link = session.execute(
         select(TagLink).where(
@@ -173,9 +164,7 @@ def untag_target(
     return True
 
 
-def tags_for_target(
-    session: Session, target_kind: str, target_id: int
-) -> list[Tag]:
+def tags_for_target(session: Session, target_kind: str, target_id: int) -> list[Tag]:
     """Return all Tag rows attached to a given target."""
     return list(
         session.execute(
@@ -259,10 +248,18 @@ def filter_sales(session: Session, f: SalesFilter) -> list[Sale]:
     """Apply SalesFilter and return matching sales (newest first)."""
     q = select(Sale)
     if f.start_date:
-        start = f.start_date.astimezone(timezone.utc).replace(tzinfo=None) if f.start_date.tzinfo else f.start_date
+        start = (
+            f.start_date.astimezone(timezone.utc).replace(tzinfo=None)
+            if f.start_date.tzinfo
+            else f.start_date
+        )
         q = q.where(Sale.sold_at >= start)
     if f.end_date:
-        end = f.end_date.astimezone(timezone.utc).replace(tzinfo=None) if f.end_date.tzinfo else f.end_date
+        end = (
+            f.end_date.astimezone(timezone.utc).replace(tzinfo=None)
+            if f.end_date.tzinfo
+            else f.end_date
+        )
         q = q.where(Sale.sold_at <= end)
     if f.product_ids:
         q = q.where(Sale.product_id.in_(f.product_ids))
@@ -289,8 +286,14 @@ def filter_sales(session: Session, f: SalesFilter) -> list[Sale]:
         sales = [
             s
             for s in sales
-            if (f.min_amount_gs is None or to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) >= f.min_amount_gs)
-            and (f.max_amount_gs is None or to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) <= f.max_amount_gs)
+            if (
+                f.min_amount_gs is None
+                or to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) >= f.min_amount_gs
+            )
+            and (
+                f.max_amount_gs is None
+                or to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) <= f.max_amount_gs
+            )
         ]
     return sales
 

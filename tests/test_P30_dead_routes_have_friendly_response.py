@@ -2,6 +2,7 @@
 
 Output is a table: route → status code → friendly-body marker.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -16,13 +17,32 @@ pytestmark = [pytest.mark.smoke]
 # - return 410 Gone with a friendly "en construcción" body
 # Returning plain 404 is a bug — the user clicked a real-looking link.
 SIDEBAR_ROUTES = [
-    "/", "/ventas", "/pedidos", "/produccion", "/eod",
-    "/productos", "/recetas", "/inventario", "/merma",
-    "/reorder", "/shopping-list", "/suppliers", "/wishlist",
+    "/",
+    "/ventas",
+    "/pedidos",
+    "/produccion",
+    "/eod",
+    "/productos",
+    "/recetas",
+    "/inventario",
+    "/merma",
+    "/reorder",
+    "/shopping-list",
+    "/suppliers",
+    "/wishlist",
     "/clientes",
-    "/reportes", "/analisis", "/dashboard", "/pricing", "/vs-mercado",
-    "/bank", "/riesgos",
-    "/settings", "/users", "/excel", "/auditoria", "/guia",
+    "/reportes",
+    "/analisis",
+    "/dashboard",
+    "/pricing",
+    "/vs-mercado",
+    "/bank",
+    "/riesgos",
+    "/settings",
+    "/users",
+    "/excel",
+    "/auditoria",
+    "/guia",
 ]
 
 

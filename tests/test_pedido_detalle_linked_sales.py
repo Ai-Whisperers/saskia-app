@@ -11,6 +11,7 @@ Three small flows added to /pedidos/{id}:
 
 Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_pedido_detalle_linked_sales.py -v
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -48,12 +49,14 @@ def pedido_with_linked_sale(session_factory) -> tuple[int, int, int]:
         )
         s.add(pedido)
         s.flush()
-        s.add(PedidoLine(
-            pedido_id=pedido.id,
-            product_id=prod.id,
-            qty=2,
-            unit_price_gs=20_000,
-        ))
+        s.add(
+            PedidoLine(
+                pedido_id=pedido.id,
+                product_id=prod.id,
+                qty=2,
+                unit_price_gs=20_000,
+            )
+        )
         # Linked sale (linked_pedido_id set)
         sale = Sale(
             customer_id=cust.id,
@@ -68,13 +71,15 @@ def pedido_with_linked_sale(session_factory) -> tuple[int, int, int]:
         s.add(sale)
         s.flush()
         # Loyalty transaction pointing at the sale
-        s.add(LoyaltyTransaction(
-            customer_id=cust.id,
-            sale_id=sale.id,
-            delta=40,  # 2 × 20000 / 1000 = 40 points
-            reason="earn_sale",
-            recorded_at=datetime(2026, 9, 25, 10, 5),
-        ))
+        s.add(
+            LoyaltyTransaction(
+                customer_id=cust.id,
+                sale_id=sale.id,
+                delta=40,  # 2 × 20000 / 1000 = 40 points
+                reason="earn_sale",
+                recorded_at=datetime(2026, 9, 25, 10, 5),
+            )
+        )
         s.commit()
         return pedido.id, cust.id, sale.id
 
@@ -105,7 +110,7 @@ def test_pedido_detalle_renders_customer_link(client, pedido_with_linked_sale) -
     resp = client.get(f"/pedidos/{pedido_id}")
     assert resp.status_code == 200
     body = resp.text
-    assert f'/clientes/{cust_id}' in body, (
+    assert f"/clientes/{cust_id}" in body, (
         f"Expected /clientes/{cust_id} link in /pedidos/{pedido_id}; "
         f"looking for Tier 6.3 'Ver ficha' button"
     )
@@ -118,11 +123,9 @@ def test_pedido_detalle_renders_linked_sales(client, pedido_with_linked_sale) ->
     assert resp.status_code == 200
     body = resp.text
     # The "Ventas generadas" section must appear
-    assert "Ventas generadas" in body, (
-        "Expected 'Ventas generadas' section in /pedidos/{id}"
-    )
+    assert "Ventas generadas" in body, "Expected 'Ventas generadas' section in /pedidos/{id}"
     # The linked sale must appear in the table
-    assert f"#{sale_id}" in body or f"#{ sale_id }" in body, (
+    assert f"#{sale_id}" in body or f"#{sale_id}" in body, (
         f"Expected sale #{sale_id} referenced in linked_sales table"
     )
 
@@ -134,9 +137,7 @@ def test_pedido_detalle_renders_loyalty_impact(client, pedido_with_linked_sale) 
     assert resp.status_code == 200
     body = resp.text
     # The "Impacto en puntos" section must appear
-    assert "Impacto en puntos" in body, (
-        "Expected 'Impacto en puntos' card in /pedidos/{id}"
-    )
+    assert "Impacto en puntos" in body, "Expected 'Impacto en puntos' card in /pedidos/{id}"
     # 40 points earned badge
     assert "+40 pts ganados" in body, (
         "Expected '+40 pts ganados' badge for the earn_sale loyalty transaction"
@@ -159,12 +160,8 @@ def test_pedido_detalle_no_loyalty_shows_empty_state(client, pedido_no_sales) ->
     resp = client.get(f"/pedidos/{pedido_no_sales}")
     assert resp.status_code == 200
     body = resp.text
-    assert "Impacto en puntos" in body, (
-        "Card title 'Impacto en puntos' must always render"
-    )
-    assert "Sin impacto en puntos" in body, (
-        "Expected 'Sin impacto en puntos todavía' empty state"
-    )
+    assert "Impacto en puntos" in body, "Card title 'Impacto en puntos' must always render"
+    assert "Sin impacto en puntos" in body, "Expected 'Sin impacto en puntos todavía' empty state"
 
 
 def test_pedido_detalle_does_not_break_when_no_customer(client, session_factory) -> None:
@@ -212,21 +209,35 @@ def test_pedido_detalle_redeem_loyalty_subtraction(client, session_factory) -> N
         s.flush()
         # Two sales: one earns, one redeems
         s_earn = Sale(
-            customer_id=cust.id, product_id=prod.id, qty=2,
-            unit_price_gs=10_000, sold_at=datetime(2026, 9, 26, 10, 0),
-            channel="mostrador", tz="America/Asuncion",
+            customer_id=cust.id,
+            product_id=prod.id,
+            qty=2,
+            unit_price_gs=10_000,
+            sold_at=datetime(2026, 9, 26, 10, 0),
+            channel="mostrador",
+            tz="America/Asuncion",
             linked_pedido_id=pedido.id,
         )
         s.add(s_earn)
         s.flush()
-        s.add(LoyaltyTransaction(
-            customer_id=cust.id, sale_id=s_earn.id, delta=20,
-            reason="earn_sale", recorded_at=datetime(2026, 9, 26, 10, 5),
-        ))
-        s.add(LoyaltyTransaction(
-            customer_id=cust.id, sale_id=s_earn.id, delta=-50,
-            reason="redeem", recorded_at=datetime(2026, 9, 26, 10, 6),
-        ))
+        s.add(
+            LoyaltyTransaction(
+                customer_id=cust.id,
+                sale_id=s_earn.id,
+                delta=20,
+                reason="earn_sale",
+                recorded_at=datetime(2026, 9, 26, 10, 5),
+            )
+        )
+        s.add(
+            LoyaltyTransaction(
+                customer_id=cust.id,
+                sale_id=s_earn.id,
+                delta=-50,
+                reason="redeem",
+                recorded_at=datetime(2026, 9, 26, 10, 6),
+            )
+        )
         s.commit()
         pid = pedido.id
 

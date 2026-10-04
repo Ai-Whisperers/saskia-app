@@ -27,7 +27,9 @@ WARN_THRESHOLD_DAYS = 7
 DEFAULT_KEEP_LAST_N = 30
 
 
-def needs_auto_backup(last_backup_at: object, threshold_hours: int = AUTO_BACKUP_THRESHOLD_HOURS) -> bool:
+def needs_auto_backup(
+    last_backup_at: object, threshold_hours: int = AUTO_BACKUP_THRESHOLD_HOURS
+) -> bool:
     """True if last_backup_at is older than threshold, or no backup yet.
 
     Examples:

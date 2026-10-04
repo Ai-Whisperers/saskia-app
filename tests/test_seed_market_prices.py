@@ -4,6 +4,7 @@ Exercises the MARKET_REFERENCE_SEED constant in app.rms.seed_market_prices
 against the seeded ingredient inventory, verifying each row inserts cleanly
 and the delta computation produces sensible results.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -21,6 +22,7 @@ def _ensure_seeded(session):
     count = session.query(Ingredient).count()
     if count == 0:
         from app.rms.seed import seed_demo_data
+
         seed_demo_data(session, seed=20260922)
         count = session.query(Ingredient).count()
     return count
@@ -83,15 +85,19 @@ def test_seed_is_idempotent(session_factory):
             session.query(MarketPriceReference).delete()
             today = datetime.now(_UTC).date()
             for name, unit, price_gs, source, notes in MARKET_REFERENCE_SEED:
-                ing = next(
-                    (i for n_, i in existing.items() if n_.lower() == name.lower()), None
-                )
+                ing = next((i for n_, i in existing.items() if n_.lower() == name.lower()), None)
                 if not ing:
                     continue
-                session.add(MarketPriceReference(
-                    ingredient_id=ing.id, unit=unit, price_gs=price_gs,
-                    source=source, notes=notes, as_of=today,
-                ))
+                session.add(
+                    MarketPriceReference(
+                        ingredient_id=ing.id,
+                        unit=unit,
+                        price_gs=price_gs,
+                        source=source,
+                        notes=notes,
+                        as_of=today,
+                    )
+                )
             session.commit()
 
         count = session.query(MarketPriceReference).count()
@@ -102,6 +108,7 @@ def test_seed_is_idempotent(session_factory):
 
 def test_market_price_delta_helper():
     """Delta computation: positive = above market, negative = below."""
+
     class MockIng:
         purchase_price_gs = 6500
 

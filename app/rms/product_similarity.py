@@ -23,6 +23,7 @@ from app.rms.models import Product, RecipeLine
 # Set extraction
 # ---------------------------------------------------------------------------
 
+
 def product_ingredient_set(session: Session, product: Product) -> set[int]:
     """Return the set of ingredient IDs used in a product's recipe.
 
@@ -31,8 +32,9 @@ def product_ingredient_set(session: Session, product: Product) -> set[int]:
     return _flatten_ingredients(session, product.recipe_id, seen_recipes=None)
 
 
-def _flatten_ingredients(session: Session, recipe_id: int | None,
-                         seen_recipes: set[int] | None) -> set[int]:
+def _flatten_ingredients(
+    session: Session, recipe_id: int | None, seen_recipes: set[int] | None
+) -> set[int]:
     """Recursively gather ingredients from a recipe + its sub-recipes."""
     if recipe_id is None:
         return set()
@@ -45,9 +47,7 @@ def _flatten_ingredients(session: Session, recipe_id: int | None,
     ingredients: set[int] = set()
     sub_recipe_ids: list[int] = []
 
-    for line in session.scalars(
-        select(RecipeLine).where(RecipeLine.recipe_id == recipe_id)
-    ).all():
+    for line in session.scalars(select(RecipeLine).where(RecipeLine.recipe_id == recipe_id)).all():
         if line.line_kind == "ingredient":
             ingredients.add(line.line_ref_id)
         elif line.line_kind == "sub_recipe":
@@ -61,6 +61,7 @@ def _flatten_ingredients(session: Session, recipe_id: int | None,
 # ---------------------------------------------------------------------------
 # Jaccard
 # ---------------------------------------------------------------------------
+
 
 def jaccard_similarity(set_a: set[int], set_b: set[int]) -> float:
     """Jaccard index: |A ∩ B| / |A ∪ B|.
@@ -85,8 +86,10 @@ def ingredient_overlap_count(set_a: set[int], set_b: set[int]) -> int:
 # Most similar products
 # ---------------------------------------------------------------------------
 
-def most_similar_products(session: Session, product_id: int,
-                          top_n: int = 5) -> list[tuple[Product, float]]:
+
+def most_similar_products(
+    session: Session, product_id: int, top_n: int = 5
+) -> list[tuple[Product, float]]:
     """Top N products by Jaccard similarity to product_id, excluding self."""
     target = session.get(Product, product_id)
     if target is None:
@@ -114,10 +117,14 @@ def most_similar_products(session: Session, product_id: int,
 # Substitution suggestions
 # ---------------------------------------------------------------------------
 
-def suggest_substitute(session: Session, product_id: int,
-                       similarity_threshold: float = 0.7,
-                       price_band_pct: float = 0.20,
-                       top_n: int = 5) -> list[Product]:
+
+def suggest_substitute(
+    session: Session,
+    product_id: int,
+    similarity_threshold: float = 0.7,
+    price_band_pct: float = 0.20,
+    top_n: int = 5,
+) -> list[Product]:
     """Products that could substitute for this one.
 
     Criteria:
@@ -159,9 +166,10 @@ def suggest_substitute(session: Session, product_id: int,
 # Cross-product overlap matrix (for menu rationalization dashboard)
 # ---------------------------------------------------------------------------
 
-def similarity_matrix(session: Session,
-                      products: list[Product] | None = None
-                      ) -> dict[tuple[int, int], float]:
+
+def similarity_matrix(
+    session: Session, products: list[Product] | None = None
+) -> dict[tuple[int, int], float]:
     """Pairwise Jaccard similarity between all products.
 
     Returns dict keyed by (smaller_id, larger_id) → similarity.
@@ -175,7 +183,7 @@ def similarity_matrix(session: Session,
 
     out: dict[tuple[int, int], float] = {}
     for i, a in enumerate(products):
-        for b in products[i + 1:]:
+        for b in products[i + 1 :]:
             sim = jaccard_similarity(sets[a.id], sets[b.id])
             if sim > 0:
                 key = (min(a.id, b.id), max(a.id, b.id))

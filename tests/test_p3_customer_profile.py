@@ -32,11 +32,10 @@ def test_edit_saves_profile_fields(client, session_factory):
         c = make_customer(s, name="Profile UX")
         s.commit()
         cid = c.id
-    r = client.post(
-        f"/clientes/{cid}/editar", data=_edit_payload(), follow_redirects=False
-    )
+    r = client.post(f"/clientes/{cid}/editar", data=_edit_payload(), follow_redirects=False)
     assert r.status_code == 303, r.status_code
     from app.rms.models import Customer
+
     with session_factory() as s:
         c = s.get(Customer, cid)
         assert c.birthday == "03-15"  # normalized to MM-DD by validation
@@ -72,6 +71,7 @@ def test_edit_clears_consent(client, session_factory):
         follow_redirects=False,
     )
     from app.rms.models import Customer
+
     with session_factory() as s:
         assert s.get(Customer, cid).marketing_consent is False
 
@@ -99,6 +99,7 @@ def test_edit_form_renders_profile_fields(client, session_factory):
 
 # ── Address manager API ──────────────────────────────────────────────────
 
+
 def test_address_add_and_delete_api(client, session_factory):
     with session_factory() as s:
         c = make_customer(s, name="AddrMgr UX")
@@ -115,6 +116,7 @@ def test_address_add_and_delete_api(client, session_factory):
     r2 = client.delete(f"/clientes/api/{cid}/addresses/{aid}")
     assert r2.status_code == 200
     from app.rms.models import CustomerAddress
+
     with session_factory() as s:
         assert s.get(CustomerAddress, aid) is None
 
@@ -124,9 +126,7 @@ def test_address_api_rejects_empty_text(client, session_factory):
         c = make_customer(s, name="AddrEmpty UX")
         s.commit()
         cid = c.id
-    r = client.post(
-        f"/clientes/api/{cid}/addresses", json={"label": "x", "address_text": "  "}
-    )
+    r = client.post(f"/clientes/api/{cid}/addresses", json={"label": "x", "address_text": "  "})
     assert r.status_code == 400
 
 
@@ -147,6 +147,7 @@ def test_address_delete_wrong_customer_404(client, session_factory):
 
 # ── Pedido invoice prefill ───────────────────────────────────────────────
 
+
 def test_pedido_prefills_invoice_from_profile(client, session_factory):
     with session_factory() as s:
         c = make_customer(s, name="InvoicePrefill UX")
@@ -164,13 +165,14 @@ def test_pedido_prefills_invoice_from_profile(client, session_factory):
             "line_product_id": str(pid),
             "line_qty": "1",
             "line_unit_price_gs": "10000",
-            "invoice_name": "",   # operator left empty → profile defaults
+            "invoice_name": "",  # operator left empty → profile defaults
             "invoice_ruc": "",
         },
         follow_redirects=False,
     )
     assert r.status_code in (302, 303)
     from app.rms.models import Pedido
+
     with session_factory() as s:
         ped = s.query(Pedido).order_by(Pedido.id.desc()).first()
         assert ped.invoice_name == "Prefill SRL"
@@ -198,12 +200,14 @@ def test_pedido_explicit_invoice_overrides_profile(client, session_factory):
         follow_redirects=False,
     )
     from app.rms.models import Pedido
+
     with session_factory() as s:
         ped = s.query(Pedido).order_by(Pedido.id.desc()).first()
         assert ped.invoice_name == "Explicit S.A."
 
 
 # ── Completion nudge ─────────────────────────────────────────────────────
+
 
 def test_clientes_list_shows_nudge_banner(client, session_factory):
     with session_factory() as s:
@@ -226,9 +230,9 @@ def test_nudge_hidden_when_data_complete(client, session_factory):
         s.commit()
         cid = c.id
     from app.rms.models import CustomerAddress
+
     with session_factory() as s:
-        s.add(CustomerAddress(customer_id=cid, label="casa",
-                              address_text="Calle 1"))
+        s.add(CustomerAddress(customer_id=cid, label="casa", address_text="Calle 1"))
         s.commit()
     r = client.get("/clientes?q=NudgeComplete")
     assert r.status_code == 200

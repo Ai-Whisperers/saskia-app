@@ -8,6 +8,7 @@ and that every JSON endpoint returns well-formed JSON. They run fast (no DB
 setup per test, shared fixture) and serve as the first line of defense
 against template/runtime regressions.
 """
+
 from __future__ import annotations
 
 import json
@@ -58,8 +59,6 @@ HTML_PAGE_ROUTES = [
 
 
 @pytest.mark.parametrize("route,label", HTML_PAGE_ROUTES)
-
-
 def test_html_page_loads(client, route, label):
     """Every HTML route must return 2xx, 3xx, or 422 (validation). NOT 5xx.
 
@@ -71,8 +70,7 @@ def test_html_page_loads(client, route, label):
     status = r.status_code
     # 200 = page rendered. 303 = redirect (e.g., not configured). 422 = form validation.
     assert status < 500, (
-        f"GET {route} ({label}) returned {status}: {r.text[:200]}. "
-        f"5xx means template/DB/env error."
+        f"GET {route} ({label}) returned {status}: {r.text[:200]}. 5xx means template/DB/env error."
     )
 
 

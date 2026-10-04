@@ -9,6 +9,7 @@ This test verifies that:
     "no data yet" / "coming soon" placeholder — NOT a Python traceback.
 3. No 500s, no template render errors, no missing attribute exceptions.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -20,8 +21,7 @@ def test_reportes_margenes_does_not_500(client):
     """P-26 #3: /reportes/margenes must not crash with 500."""
     r = client.get("/reportes/margenes", follow_redirects=True)
     assert r.status_code != 500, (
-        f"/reportes/margenes returned 500 — audit #3 crash. "
-        f"Body excerpt: {r.text[:500]}"
+        f"/reportes/margenes returned 500 — audit #3 crash. Body excerpt: {r.text[:500]}"
     )
     # Acceptable outcomes:
     #  200 — page rendered (with data or empty state)
@@ -62,9 +62,9 @@ def test_reportes_margenes_has_page_chrome(client):
     r = client.get("/reportes/margenes", follow_redirects=True)
     if r.status_code == 200:
         body = r.text
-        assert (
-            "page-header" in body or "container" in body or "main" in body
-        ), "Missing page chrome on /reportes/margenes"
+        assert "page-header" in body or "container" in body or "main" in body, (
+            "Missing page chrome on /reportes/margenes"
+        )
 
 
 def test_sidebar_margenes_link_consistent(client):
@@ -78,6 +78,4 @@ def test_sidebar_margenes_link_consistent(client):
         # verify it works.
         if "/reportes/margenes" in body:
             r2 = client.get("/reportes/margenes", follow_redirects=True)
-            assert r2.status_code != 500, (
-                "Sidebar links to /reportes/margenes but the route 500s."
-            )
+            assert r2.status_code != 500, "Sidebar links to /reportes/margenes but the route 500s."

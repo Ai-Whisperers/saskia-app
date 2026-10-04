@@ -141,6 +141,7 @@ def _configure_logging() -> None:
     if log_file is None:
         # Default location: <data_dir>/logs/app.log (created lazily).
         from app.rms.config import DATA_DIR  # local import to avoid cycle
+
         log_dir = DATA_DIR / "logs"
         log_file = str(log_dir / "app.log")
     if log_file:
@@ -159,9 +160,7 @@ def _configure_logging() -> None:
                 format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <7} | {extra[request_id]} | {extra[user_id]} | {name}:{function}:{line} | {message}",
             )
         except Exception as exc:  # noqa: BLE001 — defensive default: never break startup over a logging config failure.
-            sys.stderr.write(
-                f"WARN: could not initialise log file sink at {log_file!r}: {exc!r}\n"
-            )
+            sys.stderr.write(f"WARN: could not initialise log file sink at {log_file!r}: {exc!r}\n")
 
 
 _configure_logging()
@@ -171,10 +170,7 @@ _configure_logging()
 # the whole app served without login). Fail loudly at boot if it's ever set
 # OUTSIDE a pytest run (the test suite itself needs the bypass via conftest).
 _UNDER_PYTEST = "pytest" in sys.modules
-if (
-    os.getenv("SASKIA_TEST_AUTH_DISABLED") not in (None, "", "0")
-    and not _UNDER_PYTEST
-):
+if os.getenv("SASKIA_TEST_AUTH_DISABLED") not in (None, "", "0") and not _UNDER_PYTEST:
     raise RuntimeError(
         "SASKIA_TEST_AUTH_DISABLED está activo: este bypass es solo para tests. "
         "Producción nunca debe arrancar con esta variable definida."

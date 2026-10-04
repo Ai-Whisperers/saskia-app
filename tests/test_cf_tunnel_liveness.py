@@ -5,6 +5,7 @@ The script is the production cron probe for CF-Tunnel flap detection;
 the matrix below is the spec. Any future change must keep these
 mappings or update this test FIRST.
 """
+
 import importlib.util
 import sys
 from pathlib import Path
@@ -28,15 +29,18 @@ def _patch_probes(monkeypatch, *, public_ok, dns_ok, local_ok):
     """Replace probe_public/probe_dns/probe_local with canned values."""
     mod = _load_module()
     monkeypatch.setattr(
-        mod, "probe_public",
+        mod,
+        "probe_public",
         lambda: (public_ok, "mock public"),
     )
     monkeypatch.setattr(
-        mod, "probe_dns",
+        mod,
+        "probe_dns",
         lambda: (dns_ok, "mock dns"),
     )
     monkeypatch.setattr(
-        mod, "probe_local",
+        mod,
+        "probe_local",
         lambda: (local_ok, "mock local"),
     )
     return mod

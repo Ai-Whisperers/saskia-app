@@ -107,9 +107,7 @@ def test_partial_void_redeems_reversal_row_signed_negative(session):
     assert reasons == ["earn_sale", "void_reversal"], (
         f"expected exactly earn_sale + void_reversal, got {reasons}"
     )
-    assert deltas == [15, -15], (
-        f"void_reversal delta must be the negation of earn, got {deltas}"
-    )
+    assert deltas == [15, -15], f"void_reversal delta must be the negation of earn, got {deltas}"
 
 
 def test_partial_void_balance_round_trip(session):
@@ -129,8 +127,7 @@ def test_partial_void_balance_round_trip(session):
     reverse_points_for_void(session, c2, sale_id=2)
     session.commit()
     assert c2.loyalty_points == 100, (
-        "void should add back to the customer's pre-sale balance, "
-        "not reset to 0"
+        "void should add back to the customer's pre-sale balance, not reset to 0"
     )
 
 
@@ -152,12 +149,9 @@ def test_partial_void_with_redeem_in_same_sale(session):
 
     # The reversal is for the EARN (30), not the redeem. The redeem
     # row stays because the customer received the discount.
-    assert reversed_pts == 30, (
-        f"void should reverse only the earn portion, got {reversed_pts}"
-    )
+    assert reversed_pts == 30, f"void should reverse only the earn portion, got {reversed_pts}"
     assert c.loyalty_points == 0, (
-        f"expected 0 after full reversal (start=20, +30, -20, -30 void), "
-        f"got {c.loyalty_points}"
+        f"expected 0 after full reversal (start=20, +30, -20, -30 void), got {c.loyalty_points}"
     )
 
     rows = session.scalars(

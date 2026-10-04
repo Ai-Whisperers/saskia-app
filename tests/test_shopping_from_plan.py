@@ -144,7 +144,9 @@ def _assert_plan(session, subrecipe_world):
     from app.rms.production import plan_production
 
     tomorrow = datetime.utcnow().date() + timedelta(days=1)
-    plan = plan_production(session, for_date=tomorrow, manual_forecast={subrecipe_world["product"].id: 10})
+    plan = plan_production(
+        session, for_date=tomorrow, manual_forecast={subrecipe_world["product"].id: 10}
+    )
     by_ing = {ln.ingredient_id: ln for ln in plan.lines}
 
     # Azúcar: 100g (masa) + 200g (glaseado) = 300g required — summed, not duplicated
@@ -169,9 +171,7 @@ def test_from_production_plan_creates_shortage_items(session_factory, subrecipe_
     assert "/shopping-list?from_plan=" in resp.headers["location"]
 
     with session_factory() as session:
-        items = session.query(ShoppingListItem).filter(
-            ShoppingListItem.purchased.is_(False)
-        ).all()
+        items = session.query(ShoppingListItem).filter(ShoppingListItem.purchased.is_(False)).all()
         by_ing = {i.ingredient_id: i for i in items}
         # queso: stock 0 → full 300g shortage
         assert by_ing[subrecipe_world["queso"].id].qty_to_buy == pytest.approx(300.0)
@@ -193,9 +193,7 @@ def test_from_production_plan_is_idempotent(session_factory, subrecipe_world, cl
     client.post("/shopping-list/from-production-plan", data={"for_date": tomorrow.isoformat()})
 
     with session_factory() as session:
-        items = session.query(ShoppingListItem).filter(
-            ShoppingListItem.purchased.is_(False)
-        ).all()
+        items = session.query(ShoppingListItem).filter(ShoppingListItem.purchased.is_(False)).all()
         # Same plan, same shortages → quantities unchanged, one row per ingredient
         assert len(items) == 3
         by_ing = {i.ingredient_id: i.qty_to_buy for i in items}
@@ -243,11 +241,15 @@ def test_consolidate_merges_duplicate_ingredients(session_factory, subrecipe_wor
     with session_factory() as session:
         queso = session.merge(subrecipe_world["queso"])
         s1 = ShoppingListItem(
-            ingredient_id=queso.id, qty_to_buy=300.0, unit="g",
+            ingredient_id=queso.id,
+            qty_to_buy=300.0,
+            unit="g",
             purpose_text="Plan #1 (1× Carrot Cake)",
         )
         s2 = ShoppingListItem(
-            ingredient_id=queso.id, qty_to_buy=20.0, unit="g",
+            ingredient_id=queso.id,
+            qty_to_buy=20.0,
+            unit="g",
             purpose_text="Auto: stock 0.253333333333326 < min 0.3",
         )
         session.add_all([s1, s2])
@@ -259,10 +261,14 @@ def test_consolidate_merges_duplicate_ingredients(session_factory, subrecipe_wor
         assert deleted >= 1
 
     with session_factory() as session:
-        rows = session.query(ShoppingListItem).filter(
-            ShoppingListItem.ingredient_id == queso.id,
-            ShoppingListItem.purchased.is_(False),
-        ).all()
+        rows = (
+            session.query(ShoppingListItem)
+            .filter(
+                ShoppingListItem.ingredient_id == queso.id,
+                ShoppingListItem.purchased.is_(False),
+            )
+            .all()
+        )
         assert len(rows) == 1
         assert rows[0].qty_to_buy == pytest.approx(320.0)
         assert "Plan #1" in rows[0].purpose_text

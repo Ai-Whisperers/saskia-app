@@ -6,6 +6,7 @@ pyproject.toml + utcnow replacements: 0 warnings.
 
 This test asserts that a clean run reports zero warnings.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -16,14 +17,21 @@ pytestmark = pytest.mark.manual
 def test_clean_run_reports_zero_warnings():
     """Running a few representative tests should emit zero warnings."""
     import subprocess
+
     result = subprocess.run(
         [
-            "uv", "run", "pytest", "-q", "--tb=no",
+            "uv",
+            "run",
+            "pytest",
+            "-q",
+            "--tb=no",
             "tests/test_audit_prune.py",
             "tests/test_dependencies.py",
             "tests/test_daily_summary.py",
         ],
-        capture_output=True, text=True, timeout=60,
+        capture_output=True,
+        text=True,
+        timeout=60,
         cwd="/opt/data/work/saskia-app",
     )
     # Should pass.
@@ -34,6 +42,4 @@ def test_clean_run_reports_zero_warnings():
     )
     # The literal substring "warnings" should NOT appear in the summary line.
     summary = result.stdout.split("====")[-1] if "====" in result.stdout else result.stdout
-    assert "warnings" not in summary, (
-        f"Unexpected warnings in summary:\n{summary}"
-    )
+    assert "warnings" not in summary, f"Unexpected warnings in summary:\n{summary}"

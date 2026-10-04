@@ -10,11 +10,13 @@ the cashier. They assert the contract on:
   2. The JS bundle (so the renderer can't regress)
   3. The /ventas rendered HTML (so the wiring can't regress)
 """
+
 from __future__ import annotations
 
 import re
 
 # ── CSS bundle contains the new customer-row classes ─────────────────
+
 
 def test_combobox_css_includes_customer_row_classes(client):
     """The CSS bundle must include the new customer-row styles."""
@@ -38,16 +40,16 @@ def test_combobox_css_disables_nowrap_on_customer_main(client):
     # Find the customer row block
     m = re.search(
         r"\.combo-row--customer\s+\.combo-row-main[^}]+}",
-        body, re.S,
+        body,
+        re.S,
     )
     assert m, "no .combo-row--customer .combo-row-main rule in combobox.css"
     block = m.group(0)
-    assert "white-space: normal" in block, (
-        f"Expected white-space:normal override inside {block!r}"
-    )
+    assert "white-space: normal" in block, f"Expected white-space:normal override inside {block!r}"
 
 
 # ── JS bundle contains the new 3-line renderer ──────────────────────
+
 
 def test_combo_rows_js_has_three_line_customer_row(client):
     """The JS bundle must contain the new 3-line customer renderer."""
@@ -76,11 +78,13 @@ def test_combo_rows_js_uses_dietary_and_lifetime_fields(client):
 
 # ── Wiring on /ventas (the picker) ──────────────────────────────────
 
+
 def test_customer_picker_html_passes_row_label_attribute(client, session_factory):
     """The /ventas page must set row-label='customerRowLabel' so the
     combo uses our new 3-line renderer (otherwise it falls back to
     defaultRowLabel which is the cramped one-line layout)."""
     from tests.factories import make_customer
+
     with session_factory() as s:
         make_customer(s, name="Test Pick", phone="+595****9911")
         s.commit()
@@ -97,6 +101,7 @@ def test_ventas_page_loads_combo_rows_bundle(client, session_factory):
     """combo-rows.js must be served on /ventas so customerRowLabel
     is in scope for the combo's row-label lookup."""
     from tests.factories import make_customer
+
     with session_factory() as s:
         make_customer(s, name="Bundle Test")
         s.commit()
@@ -108,12 +113,14 @@ def test_ventas_page_loads_combo_rows_bundle(client, session_factory):
 
 # ── Search endpoint returns the fields the renderer needs ───────────
 
+
 def test_search_endpoint_returns_tier_and_lifetime(client, session_factory):
     """The search API must include `tier` and `lifetime_label` so the
     new renderer has something to show in the tier chip and lifetime cell."""
     # Create one customer with no sales (lifetime = 0) so the search
     # endpoint has at least one result to assert fields on.
     from app.rms.models import Customer
+
     with session_factory() as s:
         c = Customer(name="Tier Test", phone="+595****8800")
         s.add(c)
@@ -136,6 +143,7 @@ def test_search_endpoint_returns_dietary_when_present(client, session_factory):
     """Customers with dietary restrictions must have the field
     populated so the chip renders in the dropdown row."""
     from app.rms.models import Customer
+
     with session_factory() as s:
         c = Customer(
             name="Sin Nueces Test",
@@ -163,6 +171,7 @@ def test_search_endpoint_returns_email_and_cedula(client, session_factory, qseed
     """Email + cedula fields must be present in the search response
     so the renderer can show them on the contact line."""
     from app.rms.models import Customer
+
     with session_factory() as s:
         c = Customer(
             name="Contacto Test",

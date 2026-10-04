@@ -87,9 +87,7 @@ def test_block_writes_audit_row(session_factory):
 
         is_rate_limited(s, req)  # blocked, writes audit row
 
-        rows = (
-            s.query(AuditLog).filter(AuditLog.action == "login.rate_limited").all()
-        )
+        rows = s.query(AuditLog).filter(AuditLog.action == "login.rate_limited").all()
         assert len(rows) == 1
         assert rows[0].ip == ip
         assert rows[0].detail["limit"] == DEFAULT_LIMIT
@@ -113,9 +111,7 @@ def test_sliding_window_expires_old_failures(session_factory):
 
         # Backdate all to 10 minutes ago
         ten_min_ago = datetime.now(timezone.utc) - timedelta(minutes=10)
-        s.query(AuditLog).filter(AuditLog.ip == ip).update(
-            {"occurred_at": ten_min_ago}
-        )
+        s.query(AuditLog).filter(AuditLog.ip == ip).update({"occurred_at": ten_min_ago})
         s.commit()
 
         # Now (within 5-min window), no recent failures → allowed
@@ -213,11 +209,7 @@ def test_login_returns_429_after_failures(session_factory, monkeypatch):
         assert decision.current_count >= 5
 
         # Verify the rate-limited audit row was written
-        rows = (
-            s.query(AuditLog)
-            .filter(AuditLog.action == "login.rate_limited")
-            .all()
-        )
+        rows = s.query(AuditLog).filter(AuditLog.action == "login.rate_limited").all()
         assert len(rows) == 1
 
 
@@ -262,10 +254,14 @@ def test_login_submit_returns_429_when_limiter_blocks(client, session_factory, m
     assert "Retry-After" in r.headers
     # Confirm audit row written
     with session_factory() as s:
-        rl_rows = s.query(AuditLog).filter(
-            AuditLog.action == "login.rate_limited",
-            AuditLog.ip == test_ip,
-        ).all()
+        rl_rows = (
+            s.query(AuditLog)
+            .filter(
+                AuditLog.action == "login.rate_limited",
+                AuditLog.ip == test_ip,
+            )
+            .all()
+        )
         assert len(rl_rows) >= 1
 
 

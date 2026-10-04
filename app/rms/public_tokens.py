@@ -19,6 +19,7 @@ Why a shared module:
   - Tests in this module cover both routes' invariants; routers only
     test their own wiring.
 """
+
 from __future__ import annotations
 
 import secrets
@@ -58,7 +59,9 @@ def generate_public_token() -> str:
     return secrets.token_urlsafe(_TOKEN_BYTES)
 
 
-def issue_token(now: Optional[datetime] = None, ttl: timedelta = _DEFAULT_TTL) -> tuple[str, datetime]:
+def issue_token(
+    now: Optional[datetime] = None, ttl: timedelta = _DEFAULT_TTL
+) -> tuple[str, datetime]:
     """Return a fresh ``(token, expires_at)`` pair.
 
     ``expires_at`` is a timezone-aware UTC datetime so the column

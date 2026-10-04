@@ -134,9 +134,16 @@ _ING_TRAITS: dict = {
 }
 
 
-def make_ingredient_variant(s, ingredient: Ingredient, *, price_gs: int = 3500,
-                            package_size: float = 1.0, package_unit: str = "kg",
-                            preferred: bool = True, **kw) -> IngredientVariant:
+def make_ingredient_variant(
+    s,
+    ingredient: Ingredient,
+    *,
+    price_gs: int = 3500,
+    package_size: float = 1.0,
+    package_unit: str = "kg",
+    preferred: bool = True,
+    **kw,
+) -> IngredientVariant:
     # NOTE: IngredientVariant has no `label` column — package identity is
     # (package_size, package_unit). `preferred` exists per variants.py.
     v = IngredientVariant(
@@ -152,8 +159,14 @@ def make_ingredient_variant(s, ingredient: Ingredient, *, price_gs: int = 3500,
     return v
 
 
-def make_price_event(s, ingredient: Ingredient, *, price_gs: int = 3000,
-                     at: datetime | None = None, source: str = "manual") -> IngredientPriceEvent:
+def make_price_event(
+    s,
+    ingredient: Ingredient,
+    *,
+    price_gs: int = 3000,
+    at: datetime | None = None,
+    source: str = "manual",
+) -> IngredientPriceEvent:
     # Auto-propagate supplier_id from the ingredient so the price-history
     # leaderboard has a complete attribution. Tests that need a different
     # supplier_id (cross-supplier test fixtures) override via kwargs.
@@ -169,42 +182,75 @@ def make_price_event(s, ingredient: Ingredient, *, price_gs: int = 3000,
     return ev
 
 
-def make_user(s, *, username: str | None = None, role: str = "operator",
-              is_active: bool = True, password_hash: str | None = None, **kw) -> User:
+def make_user(
+    s,
+    *,
+    username: str | None = None,
+    role: str = "operator",
+    is_active: bool = True,
+    password_hash: str | None = None,
+    **kw,
+) -> User:
     """Local-backend user (G3 groundwork: role param ready for authz matrix).
     password_hash None = unusable-by-password probe account."""
     from datetime import datetime
     from datetime import timezone as _tz
-    u = User(username=username or _uniq("user"), role=role, is_active=is_active,
-             password_hash=password_hash or "!",
-             created_at=kw.pop("created_at", None) or datetime.now(_tz.utc), **kw)
+
+    u = User(
+        username=username or _uniq("user"),
+        role=role,
+        is_active=is_active,
+        password_hash=password_hash or "!",
+        created_at=kw.pop("created_at", None) or datetime.now(_tz.utc),
+        **kw,
+    )
     s.add(u)
     s.flush()
     return u
 
 
-def make_delivery_zone(s, *, name: str | None = None, code: str | None = None, **kw) -> DeliveryZone:
-    z = DeliveryZone(code=code or _uuid.uuid4().hex[:8].upper(),
-                     name=name or _uniq("Zona"), **kw)
+def make_delivery_zone(
+    s, *, name: str | None = None, code: str | None = None, **kw
+) -> DeliveryZone:
+    z = DeliveryZone(code=code or _uuid.uuid4().hex[:8].upper(), name=name or _uniq("Zona"), **kw)
     s.add(z)
     s.flush()
     return z
 
 
-def make_waste_log(s, *, ingredient: Ingredient, qty: float = 0.5,
-                   reason: str = "vencida", at: datetime | None = None, **kw) -> WasteLog:
-    w = WasteLog(ingredient_id=ingredient.id, qty=qty, reason=reason,
-                 recorded_at=at or _now(), **kw)
+def make_waste_log(
+    s,
+    *,
+    ingredient: Ingredient,
+    qty: float = 0.5,
+    reason: str = "vencida",
+    at: datetime | None = None,
+    **kw,
+) -> WasteLog:
+    w = WasteLog(
+        ingredient_id=ingredient.id, qty=qty, reason=reason, recorded_at=at or _now(), **kw
+    )
     s.add(w)
     s.flush()
     return w
 
 
-def make_stock_move(s, *, ingredient: Ingredient, delta: float,
-                    movement_type: str = "adjustment", at: datetime | None = None,
-                    **kw) -> StockMovement:
-    m = StockMovement(ingredient_id=ingredient.id, movement_type=movement_type,
-                      qty=delta, recorded_at=at or _now(), **kw)
+def make_stock_move(
+    s,
+    *,
+    ingredient: Ingredient,
+    delta: float,
+    movement_type: str = "adjustment",
+    at: datetime | None = None,
+    **kw,
+) -> StockMovement:
+    m = StockMovement(
+        ingredient_id=ingredient.id,
+        movement_type=movement_type,
+        qty=delta,
+        recorded_at=at or _now(),
+        **kw,
+    )
     s.add(m)
     s.flush()
     return m
@@ -217,8 +263,15 @@ def make_tag(s, *, name: str | None = None, kind: str = "dietary", **kw) -> Tag:
     return t
 
 
-def make_tag_link(s, *, tag: Tag, ingredient: Ingredient | None = None,
-                  recipe: Recipe | None = None, product: Product | None = None, **kw) -> TagLink:
+def make_tag_link(
+    s,
+    *,
+    tag: Tag,
+    ingredient: Ingredient | None = None,
+    recipe: Recipe | None = None,
+    product: Product | None = None,
+    **kw,
+) -> TagLink:
     # TagLink is polymorphic: (target_kind, target_id) — not per-table FKs.
     if ingredient is not None:
         kind, tid = "ingredient", ingredient.id
@@ -323,8 +376,14 @@ def make_product(
 # ---------------------------------------------------------------------------
 
 
-def make_catalog(s, *, price_gs: int = 25000, stock_qty: float = 100.0,
-                 line_qty: float = 0.3, ingredient_kwargs: dict | None = None) -> dict:
+def make_catalog(
+    s,
+    *,
+    price_gs: int = 25000,
+    stock_qty: float = 100.0,
+    line_qty: float = 0.3,
+    ingredient_kwargs: dict | None = None,
+) -> dict:
     """ingredient + recipe (1 line) + product wired together.
 
     Returns {"ingredient", "recipe", "product"}.
@@ -405,12 +464,14 @@ def make_pedido(
     if promised_date is None:
         from datetime import datetime as _dt
 
-        promised_date = _dt.utcnow().astimezone(
-            __import__("zoneinfo").ZoneInfo("America/Asuncion")
-        ).date()
+        promised_date = (
+            _dt.utcnow().astimezone(__import__("zoneinfo").ZoneInfo("America/Asuncion")).date()
+        )
     ped = Pedido(
         customer_id=customer.id if customer else None,
-        customer_name=(customer.name if customer else kw.pop("customer_name", None) or _uniq("Cliente")),
+        customer_name=(
+            customer.name if customer else kw.pop("customer_name", None) or _uniq("Cliente")
+        ),
         customer_phone=kw.pop("customer_phone", getattr(customer, "phone", None)),
         promised_date=promised_date,
         promised_time=promised_time,

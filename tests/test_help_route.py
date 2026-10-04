@@ -1,4 +1,6 @@
 """tests/test_help_route.py — verify /guia renders user-guide content."""
+
+
 def test_guia_index_returns_200(client):
     resp = client.get("/guia")
     assert resp.status_code == 200
@@ -40,5 +42,5 @@ def test_help_link_in_nav(client):
     resp = client.get("/")
     assert resp.status_code == 200
     body = resp.text
-    assert '/guia' in body
+    assert "/guia" in body
     assert 'aria-label="Guía de uso"' in body or 'title="Guía de uso"' in body

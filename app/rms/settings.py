@@ -1,4 +1,5 @@
 """Optimized settings.py with N+1 query elimination."""
+
 import json
 import logging
 from dataclasses import dataclass, field
@@ -313,9 +314,7 @@ SETTINGS: list[Setting] = [
 
 def get_setting(session: Session, key: str) -> str | None:
     """Read a single setting; returns None if not set (use default)."""
-    row = session.execute(
-        select(AppMeta).where(AppMeta.key == key)
-    ).scalar_one_or_none()
+    row = session.execute(select(AppMeta).where(AppMeta.key == key)).scalar_one_or_none()
     return row.value if row else None
 
 
@@ -331,9 +330,7 @@ def fetch_all_settings_once(session: Session) -> dict[str, str]:
     """Fetch ALL settings in 1 query instead of N+1."""
     logger.debug("Fetching all settings in single query")
     rows = session.execute(
-        select(AppMeta.key, AppMeta.value).where(
-            AppMeta.key.in_(s.key for s in SETTINGS)
-        )
+        select(AppMeta.key, AppMeta.value).where(AppMeta.key.in_(s.key for s in SETTINGS))
     ).all()
     return {r.key: r.value for r in rows}
 
@@ -346,15 +343,17 @@ def list_settings_optimized(session: Session) -> list[dict]:
     for spec in SETTINGS:
         stored = all_settings.get(spec.key)  # No DB call, use cache
         current = get_setting_value_optimized(spec, stored)  # No DB call
-        out.append({
-            "key": spec.key,
-            "value": current,
-            "default": spec.default,
-            "stored_raw": stored,
-            "description": spec.description,
-            "group": spec.group.value,
-            "choices": spec.choices,
-        })
+        out.append(
+            {
+                "key": spec.key,
+                "value": current,
+                "default": spec.default,
+                "stored_raw": stored,
+                "description": spec.description,
+                "group": spec.group.value,
+                "choices": spec.choices,
+            }
+        )
     return out
 
 
@@ -368,9 +367,7 @@ def settings_by_group_optimized(session: Session) -> dict[str, list[dict]]:
 
 def get_setting_optimized(session: Session, key: str) -> str | None:
     """Get single setting with single query (no N+1)."""
-    row = session.execute(
-        select(AppMeta).where(AppMeta.key == key)
-    ).scalar_one_or_none()
+    row = session.execute(select(AppMeta).where(AppMeta.key == key)).scalar_one_or_none()
     return row.value if row else None
 
 
@@ -386,9 +383,7 @@ def get_setting_value(session: Session, key: str) -> object:
     return validator(raw)
 
 
-def set_setting(
-    session: Session, key: str, value: object, *, user_id: str | None = None
-) -> None:
+def set_setting(session: Session, key: str, value: object, *, user_id: str | None = None) -> None:
     """Persist a setting. Validates against the spec's validator.
 
     Raises ValueError on unknown key or invalid value.
@@ -407,15 +402,9 @@ def set_setting(
         raw = str(value)
     # Validate round-trip
     VALIDATORS[spec.validator](raw)
-    row = session.execute(
-        select(AppMeta).where(AppMeta.key == key)
-    ).scalar_one_or_none()
+    row = session.execute(select(AppMeta).where(AppMeta.key == key)).scalar_one_or_none()
     if row is None:
-        row = AppMeta(
-            key=key,
-            value=raw,
-            updated_at=datetime.now(timezone.utc).isoformat()
-        )
+        row = AppMeta(key=key, value=raw, updated_at=datetime.now(timezone.utc).isoformat())
         session.add(row)
     else:
         row.value = raw
@@ -425,9 +414,7 @@ def set_setting(
 
 def reset_setting_to_default(session: Session, key: str) -> None:
     """Clear stored value (revert to spec default)."""
-    row = session.execute(
-        select(AppMeta).where(AppMeta.key == key)
-    ).scalar_one_or_none()
+    row = session.execute(select(AppMeta).where(AppMeta.key == key)).scalar_one_or_none()
     if row is not None:
         session.delete(row)
         session.flush()

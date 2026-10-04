@@ -5,6 +5,7 @@ printable A6 receipt; this is a normal-width operator-facing detail
 page showing the same sale with full product info, payment method,
 and void metadata.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -17,6 +18,7 @@ def _seed_sale(session_factory, *, payment_method: str = "efectivo") -> int:
     s = session_factory()
     try:
         from tests.factories import make_catalog, make_sale
+
         cat = make_catalog(s, price_gs=10_000)
         cust = Customer(
             name="Detalle Test",
@@ -84,8 +86,6 @@ def test_ventas_detail_route_protected_by_require_login():
             )
             # require_login is wrapped via require_login_or_disabled in test
             dep = route.dependencies[0]
-            assert "require_login" in str(dep), (
-                f"Expected require_login dependency, got {dep}"
-            )
+            assert "require_login" in str(dep), f"Expected require_login dependency, got {dep}"
             found = True
     assert found, "/ventas/{sale_id:int} route not registered"

@@ -11,8 +11,17 @@ Covers:
 from __future__ import annotations
 
 
-def _mk_product(session, name, *, category="panaderia", price=5000,
-                available=True, visible=True, slug=None, portion="1 und"):
+def _mk_product(
+    session,
+    name,
+    *,
+    category="panaderia",
+    price=5000,
+    available=True,
+    visible=True,
+    slug=None,
+    portion="1 und",
+):
     from app.rms.models import Product
 
     p = Product(
@@ -78,7 +87,7 @@ def test_menu_publico_groups_by_category_with_links(client, session_factory):
     resp = client.get("/menu")
     body = resp.text
     # Deep link
-    assert '/m/medialuna-menu' in body
+    assert "/m/medialuna-menu" in body
     # Pastelería section appears after Panadería (canonical order)
     idx_pan = body.find("Panadería")
     idx_pas = body.find("Pastelería")
@@ -107,15 +116,22 @@ def test_menu_shows_order_ui_with_whatsapp(session_factory, client):
     from app.rms.models import Product, Recipe, SettingsKV
 
     with session_factory() as session:
-        session.add(SettingsKV(key="shop_whatsapp", value_json="595981123456",
-                               updated_at=_dt.utcnow()))
+        session.add(
+            SettingsKV(key="shop_whatsapp", value_json="595981123456", updated_at=_dt.utcnow())
+        )
         # Seed one visible product so a card (+ its Agregar button) renders.
         recipe = Recipe(name="R menu", yield_qty=1, yield_unit="und")
         session.add(recipe)
         session.flush()
-        session.add(Product(name="Torta test", recipe_id=recipe.id,
-                            sale_price_gs=10000, is_available=True,
-                            tablet_visible=True))
+        session.add(
+            Product(
+                name="Torta test",
+                recipe_id=recipe.id,
+                sale_price_gs=10000,
+                is_available=True,
+                tablet_visible=True,
+            )
+        )
         session.commit()
 
     resp = client.get("/menu")

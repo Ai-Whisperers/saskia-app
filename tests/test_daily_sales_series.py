@@ -12,6 +12,7 @@ Tests cover:
 - daily_sales_series: picks top product by qty, ties by name
 - daily_sales_series: respects preset boundaries
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
@@ -32,6 +33,7 @@ def _asuncion_today() -> date:
     keeps tests that assert "today's row has N sales" deterministic.
     """
     from zoneinfo import ZoneInfo
+
     return datetime.now(ZoneInfo("America/Asuncion")).date()
 
 
@@ -70,6 +72,7 @@ def test_resolve_daily_range_last_month_october_from_nov():
 
 def test_resolve_daily_range_unknown_preset_raises():
     import pytest
+
     with pytest.raises(ValueError):
         _resolve_daily_range("garbage")
 
@@ -100,19 +103,30 @@ def test_daily_sales_series_buckets_sales_by_local_date(session_factory, qseed):
         from datetime import timezone
 
         from app.rms.costing import apply_sale
+
         # Day -1 (yesterday)
         apply_sale(
-            s, product_id=p.id, qty=1.0,
+            s,
+            product_id=p.id,
+            qty=1.0,
             sold_at=datetime.now(timezone.utc) - timedelta(days=1),
-            notes=None, customer_id=None,
-            payment_method="efectivo", discount_gs=0, channel="Mostrador",
+            notes=None,
+            customer_id=None,
+            payment_method="efectivo",
+            discount_gs=0,
+            channel="Mostrador",
         )
         # Day -3
         apply_sale(
-            s, product_id=p.id, qty=2.0,
+            s,
+            product_id=p.id,
+            qty=2.0,
             sold_at=datetime.now(timezone.utc) - timedelta(days=3),
-            notes=None, customer_id=None,
-            payment_method="efectivo", discount_gs=0, channel="Mostrador",
+            notes=None,
+            customer_id=None,
+            payment_method="efectivo",
+            discount_gs=0,
+            channel="Mostrador",
         )
         s.commit()
         rows = daily_sales_series(s, preset="7d", today=_asuncion_today())
@@ -131,11 +145,17 @@ def test_daily_sales_series_excludes_voided_sales(session_factory, qseed):
     p = data["product"]
     with Session() as s:
         from app.rms.costing import apply_sale
+
         apply_sale(
-            s, product_id=p.id, qty=1.0,
+            s,
+            product_id=p.id,
+            qty=1.0,
             sold_at=datetime.now(timezone.utc),
-            notes=None, customer_id=None,
-            payment_method="efectivo", discount_gs=0, channel="Mostrador",
+            notes=None,
+            customer_id=None,
+            payment_method="efectivo",
+            discount_gs=0,
+            channel="Mostrador",
         )
         s.commit()
         rows_today = daily_sales_series(s, preset="7d", today=_asuncion_today())
@@ -155,14 +175,20 @@ def test_daily_sales_series_top_product_by_qty(session_factory, qseed):
     with Session() as s:
         # Create a second product
         from app.rms.models import Ingredient, Product, Recipe, RecipeLine
+
         ing = s.query(Ingredient).first()
         rec2 = Recipe(name="Otra Receta", yield_qty=5.0, yield_unit="und")
         s.add(rec2)
         s.flush()
-        s.add(RecipeLine(
-            recipe_id=rec2.id, line_kind="ingredient",
-            line_ref_id=ing.id, qty=0.2, line_unit="kg",
-        ))
+        s.add(
+            RecipeLine(
+                recipe_id=rec2.id,
+                line_kind="ingredient",
+                line_ref_id=ing.id,
+                qty=0.2,
+                line_unit="kg",
+            )
+        )
         p2 = Product(name="Otro Producto", recipe_id=rec2.id, sale_price_gs=2000)
         s.add(p2)
         s.flush()
@@ -172,14 +198,29 @@ def test_daily_sales_series_top_product_by_qty(session_factory, qseed):
     # Now sell 1× p1 and 5× p2 today. p2 should be top.
     with Session() as s:
         from app.rms.costing import apply_sale
-        apply_sale(s, product_id=data["product"].id, qty=1.0,
-                   sold_at=datetime.now(timezone.utc),
-                   notes=None, customer_id=None,
-                   payment_method="efectivo", discount_gs=0, channel="Mostrador")
-        apply_sale(s, product_id=p2_id, qty=5.0,
-                   sold_at=datetime.now(timezone.utc),
-                   notes=None, customer_id=None,
-                   payment_method="efectivo", discount_gs=0, channel="Mostrador")
+
+        apply_sale(
+            s,
+            product_id=data["product"].id,
+            qty=1.0,
+            sold_at=datetime.now(timezone.utc),
+            notes=None,
+            customer_id=None,
+            payment_method="efectivo",
+            discount_gs=0,
+            channel="Mostrador",
+        )
+        apply_sale(
+            s,
+            product_id=p2_id,
+            qty=5.0,
+            sold_at=datetime.now(timezone.utc),
+            notes=None,
+            customer_id=None,
+            payment_method="efectivo",
+            discount_gs=0,
+            channel="Mostrador",
+        )
         s.commit()
         rows = daily_sales_series(s, preset="7d", today=_asuncion_today())
         today = rows[-1]
@@ -197,9 +238,7 @@ def test_daily_sales_series_respects_preset_range(session_factory, qseed):
     assert len(rows_30) == 30
 
     with Session() as s:
-        rows_month = daily_sales_series(
-            s, preset="current_month", today=date(2026, 10, 15)
-        )
+        rows_month = daily_sales_series(s, preset="current_month", today=date(2026, 10, 15))
     assert len(rows_month) == 15  # 1st through 15th
 
 
@@ -215,6 +254,7 @@ def test_daily_sales_series_to_dict_serializable(session_factory, qseed):
     assert isinstance(d["sale_count"], int)
     # JSON-safe — no datetime, no Decimal.
     import json
+
     json.dumps(d)
 
 

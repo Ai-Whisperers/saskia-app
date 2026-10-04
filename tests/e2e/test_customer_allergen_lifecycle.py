@@ -34,15 +34,20 @@ def test_allergen_note_edit_toggles_pos_guard(client, session_factory):
     pid = _catalog(session_factory)
 
     # 1. Create customer WITH gluten allergy via the real form
-    r = client.post("/clientes/api/create", json={
-        "name": "Cliente Alergia E2E", "phone": "0981234567",
-        "notes": "alergia: gluten",
-    })
+    r = client.post(
+        "/clientes/api/create",
+        json={
+            "name": "Cliente Alergia E2E",
+            "phone": "0981234567",
+            "notes": "alergia: gluten",
+        },
+    )
     assert r.status_code in (200, 201), f"{r.status_code} {r.text[:200]}"
     cid = r.json().get("id")
 
     with session_factory() as s:
         from app.rms.models import Customer
+
         assert cid is not None or s.query(Customer).count() >= 1
 
     # 2. POS sale to that customer must be blocked (409)
@@ -50,10 +55,15 @@ def test_allergen_note_edit_toggles_pos_guard(client, session_factory):
     assert blocked.status_code == 409, f"expected 409, got {blocked.status_code}"
 
     # 3. Operator clears the allergy via the edit form (the real-world path)
-    r = client.post(f"/clientes/{cid}/editar", data={
-        "name": "Cliente Alergia E2E", "phone": "0981234567",
-        "notes": "sin alergias declaradas",
-    }, follow_redirects=False)
+    r = client.post(
+        f"/clientes/{cid}/editar",
+        data={
+            "name": "Cliente Alergia E2E",
+            "phone": "0981234567",
+            "notes": "sin alergias declaradas",
+        },
+        follow_redirects=False,
+    )
     assert r.status_code == 303, f"{r.status_code} {getattr(r, 'text', '')[:300]}"
 
     # 4. Same sale now passes

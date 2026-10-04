@@ -9,6 +9,7 @@ This test verifies that the engine config survives future refactors.
 If someone accidentally removes pool_pre_ping or sets a too-long
 pool_recycle, the test will fail.
 """
+
 from __future__ import annotations
 
 
@@ -16,16 +17,16 @@ def test_engine_has_pool_pre_ping_for_postgres(monkeypatch):
     """Postgres engine must have pool_pre_ping=True to recover from Neon pauses."""
     monkeypatch.setenv("DATABASE_URL", "postgresql://user:pw@host/db")
     from app.rms.db_dialect import make_engine as _make_engine_dialect
+
     e = _make_engine_dialect("postgresql://user:pw@host/db")
-    assert e.pool._pre_ping is True, (
-        "pool_pre_ping must be enabled to survive Neon auto-pauses."
-    )
+    assert e.pool._pre_ping is True, "pool_pre_ping must be enabled to survive Neon auto-pauses."
 
 
 def test_engine_pool_size_configured(monkeypatch):
     """Engine must have a non-None pool size for postgres connections."""
     monkeypatch.setenv("DATABASE_URL", "postgresql://user:pw@host/db")
     from app.rms.db_dialect import make_engine as _make_engine_dialect
+
     e = _make_engine_dialect("postgresql://user:pw@host/db")
     # SQLAlchemy default is 5; we configure explicitly to 5 in db_dialect
     assert e.pool._pool.maxsize is not None
@@ -40,6 +41,7 @@ def test_engine_pool_recycle_configured(monkeypatch):
     """
     monkeypatch.setenv("DATABASE_URL", "postgresql://user:pw@host/db")
     from app.rms.db_dialect import make_engine as _make_engine_dialect
+
     e = _make_engine_dialect("postgresql://user:pw@host/db")
     assert e.pool._recycle is not None, "pool_recycle must be set"
 
@@ -54,10 +56,12 @@ def test_sqlite_engine_does_not_use_pre_ping(monkeypatch):
     # Skip if no sqlite available
     try:
         from app.rms.db_dialect import make_engine as _make_engine_dialect
+
         e = _make_engine_dialect("sqlite:///:memory:")
         # SQLite uses StaticPool which has no _pre_ping attribute.
         # Just confirm engine works.
         from sqlalchemy import text
+
         with e.connect() as conn:
             result = conn.execute(text("SELECT 1")).scalar()
             assert result == 1

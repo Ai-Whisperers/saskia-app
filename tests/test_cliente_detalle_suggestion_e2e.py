@@ -5,6 +5,7 @@ on /clientes/{id}, the loyalty ledger gets a row with the REAL kind
 This is the test that would have caught the content-type bug if it
 had existed when the suggestion-CTA feature shipped.
 """
+
 from __future__ import annotations
 
 import sqlalchemy
@@ -15,15 +16,14 @@ from app.rms.models import Customer, LoyaltyTransaction
 def _kyrian_seed(session_factory):
     """Seed a customer with enough state to render the page."""
     from tests.factories import make_customer
+
     with session_factory() as s:
         c = make_customer(s, name="E2ESuggestion", phone="0983334455")
         s.commit()
         return c.id
 
 
-def test_suggestion_form_post_writes_real_kind_in_ledger(
-    client, qseed, session_factory
-):
+def test_suggestion_form_post_writes_real_kind_in_ledger(client, qseed, session_factory):
     """T-2026-10-01: the form-encoded POST from /clientes/{id} now
     writes kind='cumple', not 'unknown'."""
     qseed("with_kyrian_full")
@@ -62,9 +62,7 @@ def test_suggestion_form_post_writes_real_kind_in_ledger(
         assert "pct=15" in rows[0].notes
 
 
-def test_suggestion_form_post_with_no_kind_logs_unknown(
-    client, qseed, session_factory
-):
+def test_suggestion_form_post_with_no_kind_logs_unknown(client, qseed, session_factory):
     """T-2026-10-01: missing/empty kind falls back to 'unknown' so a
     misconfigured form never crashes the telemetry endpoint."""
     qseed("with_kyrian_full")

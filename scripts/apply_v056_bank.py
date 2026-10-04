@@ -9,6 +9,7 @@ Run once via SSH+docker exec:
     docker cp apply_v056.py <container>:/tmp/
     docker exec <container> python3 /tmp/apply_v056.py
 """
+
 from sqlalchemy import inspect
 
 from app.rms.db import make_engine
@@ -22,8 +23,13 @@ with eng.begin() as conn:
     insp = inspect(conn)
     cols = {c["name"] for c in insp.get_columns("bank_transaction")}
     print(f"Before: {len(cols)} columns")
-    missing = {"reconciled", "reconciled_with_type", "reconciled_with_id",
-               "reconciled_at", "reconciled_by"} - cols
+    missing = {
+        "reconciled",
+        "reconciled_with_type",
+        "reconciled_with_id",
+        "reconciled_at",
+        "reconciled_by",
+    } - cols
     print(f"Missing: {missing}")
     if not missing:
         print("Already applied. Nothing to do.")

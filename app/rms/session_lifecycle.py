@@ -19,6 +19,7 @@ NOTE: DISABLED in production (SASKIA_DEBUG only). The gc.get_objects()
 walk is too expensive on every request. Leaking sessions are better
 caught via the dependency pattern + explicit session.close() calls.
 """
+
 from __future__ import annotations
 
 import gc

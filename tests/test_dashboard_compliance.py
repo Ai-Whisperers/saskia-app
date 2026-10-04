@@ -1,4 +1,5 @@
 """tests/test_dashboard_compliance.py — Phase 1.A compliance alerts on dashboard."""
+
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
@@ -16,6 +17,8 @@ def _asuncion_today() -> date:
     from datetime import datetime
 
     return datetime.now(ASUNCION_TZ).date()
+
+
 from app.routers.dashboard import _compliance_alerts
 
 
@@ -101,7 +104,9 @@ class TestMunicipalExpiry:
         with Session() as s:
             ci = s.get(ComplianceInfo, 1)
             ci.municipal_habilitacion = "HAB-2024-001234"
-            ci.municipal_habilitacion_expiry = (datetime.utcnow().date() + timedelta(days=7)).isoformat()
+            ci.municipal_habilitacion_expiry = (
+                datetime.utcnow().date() + timedelta(days=7)
+            ).isoformat()
             s.commit()
             alerts = _compliance_alerts(s)
         hab_alerts = [a for a in alerts if "Habilitación" in a["message"]]
@@ -130,7 +135,9 @@ class TestRSPAPerProduct:
             s.add(p)
             s.commit()
             alerts = _compliance_alerts(s)
-        rspa_alerts = [a for a in alerts if "R.S.P.A." in a["message"] and "Pan lactal" in a["message"]]
+        rspa_alerts = [
+            a for a in alerts if "R.S.P.A." in a["message"] and "Pan lactal" in a["message"]
+        ]
         assert len(rspa_alerts) == 1
         assert rspa_alerts[0]["severity"] == "danger"
 

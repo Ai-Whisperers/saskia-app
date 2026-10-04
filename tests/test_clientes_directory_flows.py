@@ -8,6 +8,7 @@ Three small flows added to /clientes:
 
 Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_clientes_directory_flows.py -v
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -27,25 +28,35 @@ def customer_with_sub(session_factory) -> int:
         prod = Product(name="Chipa", sale_price_gs=20000)
         s.add(prod)
         s.flush()
-        s.add(Sale(
-            customer_id=cust.id, product_id=prod.id, qty=2,
-            unit_price_gs=20000, sold_at=datetime(2026, 9, 25, 10, 0),
-            channel="mostrador", tz="America/Asuncion",
-        ))
-        s.add(Suscripcion(
-            customer_id=cust.id,
-            product_summary="2 chipas semanales",
-            cadence="semanal",
-            status="activa",
-            start_date=datetime(2026, 9, 1).date(),
-        ))
-        s.add(Pedido(
-            customer_id=cust.id,
-            customer_name="Sub Customer",
-            customer_phone="+595****9100",
-            status="pending",
-            promised_date=datetime.utcnow().date() + timedelta(days=1),
-        ))
+        s.add(
+            Sale(
+                customer_id=cust.id,
+                product_id=prod.id,
+                qty=2,
+                unit_price_gs=20000,
+                sold_at=datetime(2026, 9, 25, 10, 0),
+                channel="mostrador",
+                tz="America/Asuncion",
+            )
+        )
+        s.add(
+            Suscripcion(
+                customer_id=cust.id,
+                product_summary="2 chipas semanales",
+                cadence="semanal",
+                status="activa",
+                start_date=datetime(2026, 9, 1).date(),
+            )
+        )
+        s.add(
+            Pedido(
+                customer_id=cust.id,
+                customer_name="Sub Customer",
+                customer_phone="+595****9100",
+                status="pending",
+                promised_date=datetime.utcnow().date() + timedelta(days=1),
+            )
+        )
         s.commit()
         return cust.id
 
@@ -66,7 +77,7 @@ def test_clientes_list_renders_pedido_action(client, customer_with_sub) -> None:
     assert resp.status_code == 200
     body = resp.text
     # The link must be present, pointing to /pedidos/nuevo with the right customer_id
-    expected = f'/pedidos/nuevo?customer_id={customer_with_sub}'
+    expected = f"/pedidos/nuevo?customer_id={customer_with_sub}"
     assert expected in body, (
         f"Expected '+ Pedido' shortcut link {expected!r} in /clientes; "
         f"found: {body.count('/pedidos/nuevo?customer_id=')} matches total"
@@ -123,11 +134,17 @@ def test_clientes_sort_by_last_sale_at(client, customer_with_sub, session_factor
         prod = Product(name="Old Prod", sale_price_gs=15000)
         s.add(prod)
         s.flush()
-        s.add(Sale(
-            customer_id=cust_old.id, product_id=prod.id, qty=1,
-            unit_price_gs=15000, sold_at=datetime(2026, 8, 1, 10, 0),
-            channel="mostrador", tz="America/Asuncion",
-        ))
+        s.add(
+            Sale(
+                customer_id=cust_old.id,
+                product_id=prod.id,
+                qty=1,
+                unit_price_gs=15000,
+                sold_at=datetime(2026, 8, 1, 10, 0),
+                channel="mostrador",
+                tz="America/Asuncion",
+            )
+        )
         s.commit()
 
     # Sort by last_sale_at DESC — most recent first

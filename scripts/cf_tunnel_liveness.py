@@ -45,6 +45,7 @@ Cron wiring:
   probe so a flap is detected within 30 min. Cron registration is
   documented in docs/operations/2026-10-01-phase14-cf-tunnel-cron.md.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -57,9 +58,7 @@ import time
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
-PUBLIC_URL = os.environ.get(
-    "SASKIA_PUBLIC_URL", "https://saskia-vps.paragu-ai.com"
-)
+PUBLIC_URL = os.environ.get("SASKIA_PUBLIC_URL", "https://saskia-vps.paragu-ai.com")
 PUBLIC_HOST = re.sub(r"^https?://", "", PUBLIC_URL).rstrip("/")
 LOCAL_PROBE_PORT = int(os.environ.get("SASKIA_LOCAL_HEALTH_PORT", "8080"))
 TIMEOUT_S = int(os.environ.get("SASKIA_PROBE_TIMEOUT_S", "15"))
@@ -67,7 +66,10 @@ TIMEOUT_S = int(os.environ.get("SASKIA_PROBE_TIMEOUT_S", "15"))
 # INSIDE the swarm (the container's 127.0.0.1 is the loopback of
 # its own network namespace, not the swarm's published port).
 SKIP_LOCAL = os.environ.get("SASKIA_SKIP_LOCAL", "").lower() in (
-    "1", "true", "yes", "on",
+    "1",
+    "true",
+    "yes",
+    "on",
 )
 
 
@@ -141,8 +143,7 @@ def probe_local() -> tuple[bool, str]:
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--quiet", action="store_true",
-                   help="one-line output (cron-friendly)")
+    p.add_argument("--quiet", action="store_true", help="one-line output (cron-friendly)")
     return p
 
 

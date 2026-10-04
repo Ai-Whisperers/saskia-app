@@ -10,6 +10,7 @@ indentation. This script is conservative:
   - Skips lines that look like compound statement heads (if/for/while
     on one line with `:` followed by a semicolon-separated body)
 """
+
 from __future__ import annotations
 
 import re
@@ -21,9 +22,20 @@ from collections import defaultdict
 def get_e702_lines() -> dict[str, list[int]]:
     """Return {file: [line_numbers]} for all E702 violations."""
     out = subprocess.run(
-        ["uv", "run", "ruff", "check", ".", "--select", "E702",
-         "--output-format", "concise", "--no-fix"],
-        capture_output=True, text=True
+        [
+            "uv",
+            "run",
+            "ruff",
+            "check",
+            ".",
+            "--select",
+            "E702",
+            "--output-format",
+            "concise",
+            "--no-fix",
+        ],
+        capture_output=True,
+        text=True,
     )
     by_file: dict[str, list[int]] = defaultdict(list)
     for line in out.stdout.splitlines():
@@ -57,7 +69,7 @@ def fix_file(path: str, line_nums: list[int]) -> int:
         # touch (would break Python). Detect: `: ` followed by code with
         # a `;` after the colon.
         head_match = re.match(r"^(\s*)(if|while|for|elif|else)\b.*:\s+", original)
-        if head_match and "; " in original[head_match.end():]:
+        if head_match and "; " in original[head_match.end() :]:
             # Insert newline between `:` block and the next statement.
             # Split at the first `; ` after the colon, indent the
             # remaining statements.
@@ -66,7 +78,9 @@ def fix_file(path: str, line_nums: list[int]) -> int:
             parts = tail.split("; ")
             # Re-indent: the `:` body starts at leading + 4 spaces (PEP 8).
             inner_indent = leading + "    "
-            new_tail = parts[0] + ("\n" + inner_indent + "; ".join(parts[1:]).rstrip() if len(parts) > 1 else "")
+            new_tail = parts[0] + (
+                "\n" + inner_indent + "; ".join(parts[1:]).rstrip() if len(parts) > 1 else ""
+            )
             new_line = original[:tail_start] + new_tail
             lines[idx] = new_line
             fixed += 1

@@ -10,6 +10,7 @@ Symptom (2026-09-29 live VPS):
   found nothing matching. Fix: normalize on read in
   app/rms/tag_algebra.py via _TAG_NORMALIZE.
 """
+
 from __future__ import annotations
 
 from app.rms.tag_algebra import (
@@ -19,6 +20,7 @@ from app.rms.tag_algebra import (
 )
 
 # _normalize_tag -------------------------------------------------------------
+
 
 class TestNormalizeTag:
     def test_english_vegan_to_vegano(self):
@@ -57,6 +59,7 @@ class TestNormalizeTag:
 # ingredient_dietary_set ------------------------------------------------------
 # Use a tiny stub object so we don't need the SQLAlchemy model here.
 
+
 class _StubIng:
     def __init__(self, name: str, dietary_tags: str | None):
         self.name = name
@@ -73,15 +76,24 @@ class TestIngredientDietarySet:
             "harina de almendras",
             "vegan,vegetarian,gluten_free,keto_friendly",
         )
-        assert ingredient_dietary_set(ing) == frozenset({
-            "vegano", "vegetariano", "sin gluten", "keto",
-        })
+        assert ingredient_dietary_set(ing) == frozenset(
+            {
+                "vegano",
+                "vegetariano",
+                "sin gluten",
+                "keto",
+            }
+        )
 
     def test_already_spanish_unchanged(self):
         ing = _StubIng("manteca", "sin gluten,keto,vegetariano")
-        assert ingredient_dietary_set(ing) == frozenset({
-            "sin gluten", "keto", "vegetariano",
-        })
+        assert ingredient_dietary_set(ing) == frozenset(
+            {
+                "sin gluten",
+                "keto",
+                "vegetariano",
+            }
+        )
 
     def test_unknown_tags_dropped_silently(self):
         ing = _StubIng("sal", "vegano,unknown-tag,sin gluten")
@@ -89,6 +101,7 @@ class TestIngredientDietarySet:
 
 
 # ingredient_blocks ----------------------------------------------------------
+
 
 class TestIngredientBlocks:
     """The function that drives the 'CANCELADAS (N) — ver por qué' UI."""
@@ -124,7 +137,14 @@ class TestIngredientBlocks:
     def test_neutral_salt_never_blocks(self):
         ing = _StubIng("sal", None)
         for tag in (
-            "sin gluten", "vegano", "vegetariano", "keto", "sin lactosa",
-            "sin azúcar", "orgánico", "integral", "sin tacc",
+            "sin gluten",
+            "vegano",
+            "vegetariano",
+            "keto",
+            "sin lactosa",
+            "sin azúcar",
+            "orgánico",
+            "integral",
+            "sin tacc",
         ):
             assert ingredient_blocks(ing, tag) is False, f"sal should not block {tag}"

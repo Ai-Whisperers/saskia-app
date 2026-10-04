@@ -14,6 +14,7 @@ Covers:
 - Audit log rows are written (system.startup + seed.complete)
 - No PII in seeded data (only public domain product names)
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -52,14 +53,14 @@ def test_seed_inserts_all_entity_types(session_factory):
         # Count assertions
         assert report.ingredients == 30, f"expected 30 ingredients, got {report.ingredients}"
         assert report.recipes == 12, f"expected 12 recipes, got {report.recipes}"
-        assert report.products == 21, f"expected 21 products (20 catalog + 1 Venta libre), got {report.products}"
+        assert report.products == 21, (
+            f"expected 21 products (20 catalog + 1 Venta libre), got {report.products}"
+        )
         assert report.recipe_lines > 60, f"expected >60 recipe_lines, got {report.recipe_lines}"
         assert report.sales >= 200, f"expected >=200 sales, got {report.sales}"
         assert report.stock_moves > 100, f"expected >100 stock_moves, got {report.stock_moves}"
         assert report.users == 1, f"expected 1 demo user, got {report.users}"
-        assert report.audit_log_rows == 2, (
-            f"expected 2 audit log rows, got {report.audit_log_rows}"
-        )
+        assert report.audit_log_rows == 2, f"expected 2 audit log rows, got {report.audit_log_rows}"
 
         # Verify row counts in DB
         n_ingredients = session.execute(select(Ingredient)).scalars().all()
@@ -69,7 +70,9 @@ def test_seed_inserts_all_entity_types(session_factory):
         assert len(n_recipes) == 12
 
         n_products = session.execute(select(Product)).scalars().all()
-        assert len(n_products) == 21, f"expected 21 products (20 catalog + 1 Venta libre), got {len(n_products)}"
+        assert len(n_products) == 21, (
+            f"expected 21 products (20 catalog + 1 Venta libre), got {len(n_products)}"
+        )
 
         n_sales = session.execute(select(Sale)).scalars().all()
         assert len(n_sales) >= 200
@@ -133,9 +136,7 @@ def test_demo_user_has_bcrypt_hash(session_factory):
     try:
         seed_demo_data(session, seed=42)
 
-        user = session.execute(
-            select(User).where(User.username == DEMO_USER_USERNAME)
-        ).scalar_one()
+        user = session.execute(select(User).where(User.username == DEMO_USER_USERNAME)).scalar_one()
         assert user is not None
         assert user.is_active
         assert user.password_hash != DEMO_USER_PASSWORD  # must be hashed
@@ -184,9 +185,7 @@ def test_voided_sale_has_notes_and_voided_at(session_factory):
     try:
         seed_demo_data(session, seed=42)
 
-        voided = (
-            session.execute(select(Sale).where(Sale.voided_at.is_not(None))).scalars().first()
-        )
+        voided = session.execute(select(Sale).where(Sale.voided_at.is_not(None))).scalars().first()
         assert voided is not None, "should have at least one voided sale"
         assert voided.notes is not None and "cambió" in voided.notes.lower()
         assert voided.voided_at > voided.sold_at, "voided_at must be after sold_at"
@@ -201,9 +200,7 @@ def test_encargo_sale_has_encargo_note(session_factory):
     try:
         seed_demo_data(session, seed=42)
 
-        encargos = (
-            session.execute(select(Sale).where(Sale.notes.like("%encargo%"))).scalars().all()
-        )
+        encargos = session.execute(select(Sale).where(Sale.notes.like("%encargo%"))).scalars().all()
         assert len(encargos) >= 1, "should have at least one encargo sale"
         assert "cumpleaños" in encargos[0].notes.lower()
     finally:
@@ -217,9 +214,11 @@ def test_stock_moves_tied_to_sales_with_correct_signs(session_factory):
     try:
         seed_demo_data(session, seed=42)
 
-        moves = session.execute(
-            select(StockMovement).where(StockMovement.reference_type == "sale")
-        ).scalars().all()
+        moves = (
+            session.execute(select(StockMovement).where(StockMovement.reference_type == "sale"))
+            .scalars()
+            .all()
+        )
         assert len(moves) > 0
 
         # Find a voided sale's moves
@@ -236,9 +235,7 @@ def test_stock_moves_tied_to_sales_with_correct_signs(session_factory):
                 )
 
         # Find a non-voided sale's moves — all should be negative
-        normal_sales = (
-            session.execute(select(Sale).where(Sale.voided_at.is_(None))).scalars().all()
-        )
+        normal_sales = session.execute(select(Sale).where(Sale.voided_at.is_(None))).scalars().all()
         if normal_sales:
             normal = normal_sales[0]
             normal_moves = [m for m in moves if m.reference_id == normal.id]
@@ -290,9 +287,7 @@ def test_no_pii_in_seeded_data(session_factory):
         seed_demo_data(session, seed=42)
 
         # All ingredient names should be in the INGREDIENTS list (no surprise inserts)
-        ingredient_names = {
-            row.name for row in session.execute(select(Ingredient)).scalars()
-        }
+        ingredient_names = {row.name for row in session.execute(select(Ingredient)).scalars()}
         expected_names = {row[0] for row in INGREDIENTS}
         assert ingredient_names == expected_names, (
             f"unexpected ingredient names: {ingredient_names - expected_names}"
@@ -324,9 +319,7 @@ def test_recipe_lines_link_to_real_ingredients(session_factory):
     try:
         seed_demo_data(session, seed=42)
 
-        ingredient_ids = {
-            row.id for row in session.execute(select(Ingredient)).scalars()
-        }
+        ingredient_ids = {row.id for row in session.execute(select(Ingredient)).scalars()}
         lines = session.execute(select(RecipeLine)).scalars().all()
         for line in lines:
             assert line.line_kind == "ingredient"

@@ -15,6 +15,7 @@ Covers:
 - customer_stats computes lifetime spend from sales
 - customer_purchase_history returns recent sales
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -144,6 +145,7 @@ def test_redeem_points_returns_discount(session_factory):
     now it's the tunable POINTS_VALUE_GS (100 Gs at current defaults,
     so 10 pts = 1.000 Gs of discount)."""
     from app.rms.loyalty import POINTS_VALUE_GS
+
     s = session_factory()
     try:
         cust = ensure_customer(s, "Test", phone="+595****0011")
@@ -209,14 +211,31 @@ def test_customer_stats_lifetime_spend(session_factory):
         cust = ensure_customer(s, "Test", phone="+595981000020")
         s.commit()
         # Three sales: 1, 2, 4 muffins = 17_500 Gs.
-        s.add_all([
-            Sale(customer_id=cust.id, product_id=prod.id, qty=1.0, unit_price_gs=2500,
-                 sold_at=datetime.now(timezone.utc) - timedelta(days=10)),
-            Sale(customer_id=cust.id, product_id=prod.id, qty=2.0, unit_price_gs=2500,
-                 sold_at=datetime.now(timezone.utc) - timedelta(days=5)),
-            Sale(customer_id=cust.id, product_id=prod.id, qty=4.0, unit_price_gs=2500,
-                 sold_at=datetime.now(timezone.utc) - timedelta(days=1)),
-        ])
+        s.add_all(
+            [
+                Sale(
+                    customer_id=cust.id,
+                    product_id=prod.id,
+                    qty=1.0,
+                    unit_price_gs=2500,
+                    sold_at=datetime.now(timezone.utc) - timedelta(days=10),
+                ),
+                Sale(
+                    customer_id=cust.id,
+                    product_id=prod.id,
+                    qty=2.0,
+                    unit_price_gs=2500,
+                    sold_at=datetime.now(timezone.utc) - timedelta(days=5),
+                ),
+                Sale(
+                    customer_id=cust.id,
+                    product_id=prod.id,
+                    qty=4.0,
+                    unit_price_gs=2500,
+                    sold_at=datetime.now(timezone.utc) - timedelta(days=1),
+                ),
+            ]
+        )
         s.commit()
         stats = customer_stats(s, cust)
         assert stats.lifetime_spend_gs == 17_500
@@ -236,12 +255,25 @@ def test_customer_stats_excludes_voided(session_factory):
         s.flush()
         cust = ensure_customer(s, "T", phone="+595981000021")
         s.commit()
-        s.add_all([
-            Sale(customer_id=cust.id, product_id=prod.id, qty=1.0, unit_price_gs=2500,
-                 sold_at=datetime.now(timezone.utc)),
-            Sale(customer_id=cust.id, product_id=prod.id, qty=10.0, unit_price_gs=2500,
-                 sold_at=datetime.now(timezone.utc), voided_at=datetime.now(timezone.utc)),
-        ])
+        s.add_all(
+            [
+                Sale(
+                    customer_id=cust.id,
+                    product_id=prod.id,
+                    qty=1.0,
+                    unit_price_gs=2500,
+                    sold_at=datetime.now(timezone.utc),
+                ),
+                Sale(
+                    customer_id=cust.id,
+                    product_id=prod.id,
+                    qty=10.0,
+                    unit_price_gs=2500,
+                    sold_at=datetime.now(timezone.utc),
+                    voided_at=datetime.now(timezone.utc),
+                ),
+            ]
+        )
         s.commit()
         stats = customer_stats(s, cust)
         assert stats.lifetime_spend_gs == 2500  # voided excluded
@@ -259,13 +291,15 @@ def test_customer_purchase_history(session_factory):
         cust = ensure_customer(s, "T", phone="+595981000022")
         s.commit()
         for i in range(5):
-            s.add(Sale(
-                customer_id=cust.id,
-                product_id=prod.id,
-                qty=1.0,
-                unit_price_gs=2500,
-                sold_at=datetime.now(timezone.utc) - timedelta(days=i),
-            ))
+            s.add(
+                Sale(
+                    customer_id=cust.id,
+                    product_id=prod.id,
+                    qty=1.0,
+                    unit_price_gs=2500,
+                    sold_at=datetime.now(timezone.utc) - timedelta(days=i),
+                )
+            )
         s.commit()
         history = customer_purchase_history(s, cust.id, limit=3)
         assert len(history) == 3

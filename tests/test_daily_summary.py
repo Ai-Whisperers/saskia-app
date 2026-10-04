@@ -1,4 +1,5 @@
 """tests/test_daily_summary.py — verify scripts/daily_summary.py."""
+
 from __future__ import annotations
 
 
@@ -19,9 +20,16 @@ def test_daily_summary_dryrun():
     env.pop("DATABASE_URL", None)
     result = subprocess.run(
         [
-            "uv", "run", "python", "scripts/daily_summary.py", "--backend", "dryrun",
+            "uv",
+            "run",
+            "python",
+            "scripts/daily_summary.py",
+            "--backend",
+            "dryrun",
         ],
-        capture_output=True, text=True, timeout=60,
+        capture_output=True,
+        text=True,
+        timeout=60,
         cwd="/opt/data/work/saskia-app",
         env=env,
     )
@@ -44,12 +52,21 @@ def test_daily_summary_with_yesterday_flag():
     env.pop("DATABASE_URL", None)
     result = subprocess.run(
         [
-            "uv", "run", "python", "scripts/daily_summary.py",
-            "--yesterday", "--backend", "dryrun",
+            "uv",
+            "run",
+            "python",
+            "scripts/daily_summary.py",
+            "--yesterday",
+            "--backend",
+            "dryrun",
         ],
-        capture_output=True, text=True, timeout=60,
+        capture_output=True,
+        text=True,
+        timeout=60,
         cwd="/opt/data/work/saskia-app",
         env=env,
     )
-    assert "(ayer)" in result.stdout or "yesterday" in result.stdout.lower() or result.returncode == 0
+    assert (
+        "(ayer)" in result.stdout or "yesterday" in result.stdout.lower() or result.returncode == 0
+    )
     os.unlink(db_path)

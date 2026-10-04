@@ -21,6 +21,7 @@ from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale
 # Dataclass
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class ProductionPlan:
     product_id: int
@@ -41,8 +42,8 @@ class ProductionDay:
 # Daily expected sales (from velocity)
 # ---------------------------------------------------------------------------
 
-def expected_daily_sales(session: Session, product_id: int,
-                         window_days: int = 14) -> float:
+
+def expected_daily_sales(session: Session, product_id: int, window_days: int = 14) -> float:
     """Average daily sales count for a product."""
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(days=window_days)
@@ -114,16 +115,18 @@ def batch_production_plans(
         yield_per_batch = max(1, _recipe_yield(session, p))
         batches = max(1, -(-target // yield_per_batch))
         reason = (
-            f"Vendés ~{velocity:.1f}/día; con {int(safety_pct*100)}% de colchón "
+            f"Vendés ~{velocity:.1f}/día; con {int(safety_pct * 100)}% de colchón "
             f"→ hacer {target} u. ({batches} tanda{'s' if batches > 1 else ''})"
         )
-        plans.append(ProductionPlan(
-            product_id=p.id,
-            product_name=p.name,
-            target_qty=target,
-            reason=reason,
-            batch_count=batches,
-        ))
+        plans.append(
+            ProductionPlan(
+                product_id=p.id,
+                product_name=p.name,
+                target_qty=target,
+                reason=reason,
+                batch_count=batches,
+            )
+        )
     return plans
 
 
@@ -131,8 +134,10 @@ def batch_production_plans(
 # Stock coverage
 # ---------------------------------------------------------------------------
 
-def stock_coverage_hours(session: Session, product: Product,
-                        velocity_per_day: float) -> float | None:
+
+def stock_coverage_hours(
+    session: Session, product: Product, velocity_per_day: float
+) -> float | None:
     """How many hours of sales are covered by current stock.
 
     Returns None if velocity is zero.
@@ -149,10 +154,13 @@ def stock_coverage_hours(session: Session, product: Product,
 # Production plan
 # ---------------------------------------------------------------------------
 
-def production_plan_for_day(session: Session, product: Product,
-                            target_date: datetime | None = None,
-                            safety_pct: float = 0.20
-                            ) -> ProductionPlan:
+
+def production_plan_for_day(
+    session: Session,
+    product: Product,
+    target_date: datetime | None = None,
+    safety_pct: float = 0.20,
+) -> ProductionPlan:
     """Plan production for ONE product on ONE day.
 
     Formula: daily_velocity × (1 + safety_pct) - finished_stock_buffer.
@@ -164,7 +172,7 @@ def production_plan_for_day(session: Session, product: Product,
     yield_per_batch = max(1, _recipe_yield(session, product))
     batches = max(1, -(-target // yield_per_batch))  # ceil div
     reason = (
-        f"Vendés ~{velocity:.1f}/día; con {int(safety_pct*100)}% de colchón "
+        f"Vendés ~{velocity:.1f}/día; con {int(safety_pct * 100)}% de colchón "
         f"→ hacer {target} u. ({batches} tanda{'s' if batches > 1 else ''})"
     )
     return ProductionPlan(
@@ -190,9 +198,10 @@ def _recipe_yield(session: Session, product: Product) -> int:
 # Multi-day plan
 # ---------------------------------------------------------------------------
 
-def production_calendar(session: Session,
-                        days: int = 7,
-                        safety_pct: float = 0.20) -> list[ProductionDay]:
+
+def production_calendar(
+    session: Session, days: int = 7, safety_pct: float = 0.20
+) -> list[ProductionDay]:
     """Plan production for the next N days.
 
     Each day uses the standard velocity (no DOW modifier for simplicity).
@@ -202,8 +211,7 @@ def production_calendar(session: Session,
     dow_mult = _build_dow_multiplier(session)
 
     out = []
-    now = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0,
-                                             microsecond=0)
+    now = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     for i in range(days):
         day = now + timedelta(days=i)
         weekday = day.weekday()
@@ -217,24 +225,28 @@ def production_calendar(session: Session,
             target = max(1, round(adj_velocity * (1 + safety_pct)))
             yield_per_batch = max(1, _recipe_yield(session, p))
             batches = max(1, -(-target // yield_per_batch))
-            plans.append(ProductionPlan(
-                product_id=p.id,
-                product_name=p.name,
-                target_qty=target,
-                reason=(
-                    f"base {base:.1f}/day × DOW {mult:.2f} + "
-                    f"{int(safety_pct*100)}% safety → {target} "
-                    f"({batches} batch{'es' if batches > 1 else ''})"
-                ),
-                batch_count=batches,
-            ))
+            plans.append(
+                ProductionPlan(
+                    product_id=p.id,
+                    product_name=p.name,
+                    target_qty=target,
+                    reason=(
+                        f"base {base:.1f}/day × DOW {mult:.2f} + "
+                        f"{int(safety_pct * 100)}% safety → {target} "
+                        f"({batches} batch{'es' if batches > 1 else ''})"
+                    ),
+                    batch_count=batches,
+                )
+            )
             expected_total += target
 
-        out.append(ProductionDay(
-            date=day.strftime("%Y-%m-%d"),
-            expected_sales=expected_total,
-            plans=sorted(plans, key=lambda x: x.target_qty, reverse=True),
-        ))
+        out.append(
+            ProductionDay(
+                date=day.strftime("%Y-%m-%d"),
+                expected_sales=expected_total,
+                plans=sorted(plans, key=lambda x: x.target_qty, reverse=True),
+            )
+        )
     return out
 
 
@@ -243,12 +255,11 @@ def _build_dow_multiplier(session: Session) -> dict[int, float]:
 
     Computed as: weekday_sales / avg_weekday_sales.
     """
-    rows = session.execute(
-        select(Sale.sold_at).where(Sale.voided_at.is_(None))
-    ).all()
+    rows = session.execute(select(Sale.sold_at).where(Sale.voided_at.is_(None))).all()
     if not rows:
         return {d: 1.0 for d in range(7)}
     from collections import Counter
+
     dow_counts: Counter[int] = Counter()
     for (sold_at,) in rows:
         if sold_at is None:
@@ -256,13 +267,13 @@ def _build_dow_multiplier(session: Session) -> dict[int, float]:
         dow_counts[sold_at.weekday()] += 1
     total = sum(dow_counts.values())
     avg = total / 7
-    return {d: (dow_counts.get(d, 0) / avg) if avg > 0 else 1.0
-            for d in range(7)}
+    return {d: (dow_counts.get(d, 0) / avg) if avg > 0 else 1.0 for d in range(7)}
 
 
 # ---------------------------------------------------------------------------
 # Stock-check: can we actually bake this plan?
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class IngredientShortage:
@@ -273,8 +284,7 @@ class IngredientShortage:
     deficit: float
 
 
-def ingredient_requirements(session: Session,
-                             plan: ProductionPlan) -> list[tuple[int, float]]:
+def ingredient_requirements(session: Session, plan: ProductionPlan) -> list[tuple[int, float]]:
     """Compute ingredient requirements for one ProductionPlan.
 
     Returns list of (ingredient_id, total_qty_needed).
@@ -285,12 +295,16 @@ def ingredient_requirements(session: Session,
     lines = session.scalars(
         select(RecipeLine).where(RecipeLine.recipe_id == product.recipe_id)
     ).all()
-    return [(line.line_ref_id, (line.qty or 0) * plan.batch_count)
-            for line in lines if line.line_kind == "ingredient"]
+    return [
+        (line.line_ref_id, (line.qty or 0) * plan.batch_count)
+        for line in lines
+        if line.line_kind == "ingredient"
+    ]
 
 
-def check_ingredient_availability(session: Session,
-                                  plan: ProductionPlan) -> list[IngredientShortage]:
+def check_ingredient_availability(
+    session: Session, plan: ProductionPlan
+) -> list[IngredientShortage]:
     """Return shortages (deficit > 0). Empty list = can produce."""
     reqs = ingredient_requirements(session, plan)
     shortages = []
@@ -300,13 +314,15 @@ def check_ingredient_availability(session: Session,
             continue
         avail = float(ing.stock_qty or 0)
         if needed > avail:
-            shortages.append(IngredientShortage(
-                ingredient_id=ing_id,
-                ingredient_name=ing.name,
-                needed=needed,
-                available=avail,
-                deficit=needed - avail,
-            ))
+            shortages.append(
+                IngredientShortage(
+                    ingredient_id=ing_id,
+                    ingredient_name=ing.name,
+                    needed=needed,
+                    available=avail,
+                    deficit=needed - avail,
+                )
+            )
     return shortages
 
 

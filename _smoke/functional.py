@@ -11,6 +11,7 @@ Tests the FULL flow of every important feature, not just page rendering:
   - Merma: register → verify stock decreased
   - Settings: update → verify change
 """
+
 from __future__ import annotations
 
 import time
@@ -36,7 +37,7 @@ def ok(msg: Any):
     results["pass"] += 1
 
 
-def fail(msg: Any, detail: Any=""):
+def fail(msg: Any, detail: Any = ""):
     print(f"  {RED}✗{RESET} {msg}")
     if detail:
         print(f"    {detail[:150]}")
@@ -66,11 +67,18 @@ def main() -> int:
     test_name = f"SmokeIng_{int(time.time())}"
 
     # CREATE
-    r = session.post(BASE + "/inventario/nuevo", data={
-        "name": test_name, "unit": "kg", "stock_qty": "50",
-        "min_stock_qty": "5", "purchase_price_gs": "2000",
-        "_csrf_token": csrf,
-    }, allow_redirects=False)
+    r = session.post(
+        BASE + "/inventario/nuevo",
+        data={
+            "name": test_name,
+            "unit": "kg",
+            "stock_qty": "50",
+            "min_stock_qty": "5",
+            "purchase_price_gs": "2000",
+            "_csrf_token": csrf,
+        },
+        allow_redirects=False,
+    )
     if r.status_code == 303:
         ok(f"CREATE ingredient '{test_name}'")
     else:
@@ -97,9 +105,15 @@ def main() -> int:
         ok("GET /produccion-planner renders")
 
     # Use an existing recipe (id=13)
-    r = session.post(BASE + "/produccion-planner/compute", data={
-        "recipe_id": "13", "batches": "1", "_csrf_token": csrf,
-    }, allow_redirects=False)
+    r = session.post(
+        BASE + "/produccion-planner/compute",
+        data={
+            "recipe_id": "13",
+            "batches": "1",
+            "_csrf_token": csrf,
+        },
+        allow_redirects=False,
+    )
     if r.status_code == 200 and "líneas" in r.text:
         ok("POST /produccion-planner/compute renders results")
     else:
@@ -108,12 +122,20 @@ def main() -> int:
     # ─── 4. BANK RECONCILIATION ───────────────────────────────────
     section("[4] BANK reconciliation flow")
     supplier = f"SmokeBank_{int(time.time())}"
-    r = session.post(BASE + "/bank/add", data={
-        "posted_at": "2026-09-23", "currency": "EUR", "amount": "-150.00",
-        "counterparty_name": supplier, "description": "Smoke test outgoing",
-        "category": "manual", "source": "smoke",
-        "_csrf_token": csrf,
-    }, allow_redirects=False)
+    r = session.post(
+        BASE + "/bank/add",
+        data={
+            "posted_at": "2026-09-23",
+            "currency": "EUR",
+            "amount": "-150.00",
+            "counterparty_name": supplier,
+            "description": "Smoke test outgoing",
+            "category": "manual",
+            "source": "smoke",
+            "_csrf_token": csrf,
+        },
+        allow_redirects=False,
+    )
     if r.status_code == 303:
         ok(f"CREATE bank transaction '{supplier}'")
     else:
@@ -129,9 +151,13 @@ def main() -> int:
 
     # ─── 5. SHOPPING LIST FLOW ────────────────────────────────────
     section("[5] SHOPPING LIST flow")
-    r = session.post(BASE + "/shopping-list/sync-low-stock", data={
-        "_csrf_token": csrf,
-    }, allow_redirects=False)
+    r = session.post(
+        BASE + "/shopping-list/sync-low-stock",
+        data={
+            "_csrf_token": csrf,
+        },
+        allow_redirects=False,
+    )
     if r.status_code == 303:
         ok("POST sync-low-stock → 303")
     else:
@@ -147,9 +173,15 @@ def main() -> int:
     r = session.get(BASE + "/dashboard")
     if r.status_code == 200:
         # Check that new HEREBUS nav links are in the page
-        expected_links = ["/dashboard", "/produccion-planner",
-                          "/shopping-list", "/wishlist", "/vs-mercado",
-                          "/delivery-zones", "/bank"]
+        expected_links = [
+            "/dashboard",
+            "/produccion-planner",
+            "/shopping-list",
+            "/wishlist",
+            "/vs-mercado",
+            "/delivery-zones",
+            "/bank",
+        ]
         for link in expected_links:
             if link in r.text:
                 ok(f"NAV: {link} linked from /dashboard")
@@ -215,4 +247,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(main())

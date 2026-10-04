@@ -9,6 +9,7 @@ Usage:
     uv run python scripts/backup.py --prune          # apply retention
     uv run python scripts/backup.py --list           # list backups
 """
+
 from __future__ import annotations
 
 import argparse

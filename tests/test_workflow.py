@@ -12,6 +12,7 @@ Covers:
 - upcoming_events returns events in the next 14 days
 - demand_multiplier is 1.0 when no events active
 """
+
 # allow-hardcoded-dates: workflow step timestamps are fixed for replay
 from __future__ import annotations
 
@@ -147,8 +148,7 @@ def test_daily_summary_full_warns_on_high_void_rate(session_factory):
         for _ in range(5):
             s.add(Sale(sold_at=now, product_id=prod.id, qty=1, unit_price_gs=2500))
         for _ in range(3):
-            s.add(Sale(sold_at=now, product_id=prod.id, qty=1, unit_price_gs=2500,
-                       voided_at=now))
+            s.add(Sale(sold_at=now, product_id=prod.id, qty=1, unit_price_gs=2500, voided_at=now))
         s.commit()
         summary = daily_summary_full(s, now)
         assert summary.n_sales == 5
@@ -180,8 +180,12 @@ def test_daily_summary_full_warns_on_low_margin(session_factory):
 def test_daily_summary_full_lists_low_stock(session_factory):
     s = session_factory()
     try:
-        low = Ingredient(name="harina", unit="kg", stock_qty=1.0, min_stock_qty=10.0, purchase_price_gs=4500)
-        ok = Ingredient(name="azúcar", unit="kg", stock_qty=20.0, min_stock_qty=5.0, purchase_price_gs=5200)
+        low = Ingredient(
+            name="harina", unit="kg", stock_qty=1.0, min_stock_qty=10.0, purchase_price_gs=4500
+        )
+        ok = Ingredient(
+            name="azúcar", unit="kg", stock_qty=20.0, min_stock_qty=5.0, purchase_price_gs=5200
+        )
         s.add_all([low, ok])
         s.commit()
         summary = daily_summary_full(s, datetime.now(timezone.utc))

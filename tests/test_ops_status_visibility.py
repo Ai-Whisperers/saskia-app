@@ -1,4 +1,5 @@
 """Ops status visibility tests."""
+
 from __future__ import annotations
 
 
@@ -28,6 +29,7 @@ def test_ops_status_no_secrets_leaked(authed_client):
         # Note: "password" as a JavaScript variable name is OK,
         # but actual values like "password=foo" are NOT OK.
         import re
+
         for pattern in [
             r"(?i)password\s*[=:]\s*['\"][^'\"]+['\"]",
             r"(?i)api[_-]?key\s*[=:]\s*['\"][^'\"]+['\"]",
@@ -43,6 +45,4 @@ def test_ops_status_no_secrets_leaked(authed_client):
 def test_ops_reset_demo_data_admin_gated(authed_client):
     """POST /ops/reset-demo-data must not 500 (admin gate)."""
     r = authed_client.post("/ops/reset-demo-data", follow_redirects=False)
-    assert r.status_code < 500, (
-        f"/ops/reset-demo-data returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"/ops/reset-demo-data returned {r.status_code}: {r.text[:200]}"

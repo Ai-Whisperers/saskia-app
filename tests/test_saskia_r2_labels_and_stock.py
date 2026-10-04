@@ -23,7 +23,6 @@ pytestmark = pytest.mark.xfail(
 )
 
 
-
 def test_inventario_form_category_combo_supports_on_the_fly_create(authed_client):
     """The category combo on /inventario/nuevo must have data-allow-create=true."""
     r = authed_client.get("/inventario/nuevo")
@@ -47,6 +46,7 @@ def test_inventario_form_category_combo_no_duplicate_name(authed_client):
     body = r.text
     # Find the category combo section
     import re
+
     # Look for the visible text input
     visible_match = re.search(
         r'<input type="text"\s+id="category_combo"[^>]*>',
@@ -73,6 +73,7 @@ def test_inventario_form_unit_combo_no_duplicate_name(authed_client):
     assert r.status_code == 200
     body = r.text
     import re
+
     visible_match = re.search(
         r'<input type="text"\s+id="unit_combo"[^>]*>',
         body,
@@ -107,6 +108,7 @@ def test_reorder_page_spanish_urgency_labels(authed_client):
 def test_reorder_urgency_label_spanish_in_template():
     """The /reorder template contains Spanish urgency labels (no raw %)."""
     from pathlib import Path
+
     template = Path("/opt/data/work/saskia-app/app/templates/reorder.html").read_text()
     # Spanish labels per app/rms/reorder.py
     assert "sin stock" in template.lower()

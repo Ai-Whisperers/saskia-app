@@ -27,6 +27,7 @@ Edge cases:
 - Dates before EOD feature shipped: never closed (no rows means open)
 - Day with 0 checklist items: not closed (defensive; shouldn't happen)
 """
+
 from __future__ import annotations
 
 from datetime import date, timedelta
@@ -44,6 +45,7 @@ def _today_local() -> date:
 
     try:
         from app.rms.config import ASUNCION_TZ
+
         return datetime.now(ASUNCION_TZ).date()
     except ImportError:
         # Fallback if config module is unavailable in tests.
@@ -76,9 +78,7 @@ def eod_is_day_closed(session: Session, day: date) -> bool:
 
     prefix = f"eod_check_{day.isoformat()}_"
     keys = [prefix + item.key for item in checkable_items]
-    rows = session.scalars(
-        select(AppMeta).where(AppMeta.key.in_(keys))
-    ).all()
+    rows = session.scalars(select(AppMeta).where(AppMeta.key.in_(keys))).all()
     completed_keys = {row.key for row in rows if row.value == "1"}
     return all(prefix + item.key in completed_keys for item in checkable_items)
 
@@ -106,9 +106,7 @@ class EODClosedError(ValueError):
     """
 
 
-def assert_day_open_or_raise(
-    session: Session, day: date | None, *, action: str
-) -> None:
+def assert_day_open_or_raise(session: Session, day: date | None, *, action: str) -> None:
     """Guard an accounting-sensitive write: raise EODClosedError if `day`
     is closed.
 
@@ -133,9 +131,7 @@ def assert_day_open_or_raise(
         return  # Treat unknown date as today — let the call site decide.
     if not eod_is_day_closed(session, day):
         return
-    raise EODClosedError(
-        f"eod_closed:{day.isoformat()}:{action}"
-    )
+    raise EODClosedError(f"eod_closed:{day.isoformat()}:{action}")
 
 
 __all__ = ["EODClosedError", "assert_day_open_or_raise", "eod_get_open_days", "eod_is_day_closed"]

@@ -58,13 +58,17 @@ def users_list(
     User = get_user_model()
     users = session.query(User).order_by(User.id).all()
 
-    return render(request, "users.html", {
-        "users": users,
-        "current_user_id": current_user_id(request),
-        "total": len(users),
-        "page_start": 1,
-        "page_end": len(users),
-    })
+    return render(
+        request,
+        "users.html",
+        {
+            "users": users,
+            "current_user_id": current_user_id(request),
+            "total": len(users),
+            "page_start": 1,
+            "page_end": len(users),
+        },
+    )
 
 
 @router.post("/crear", response_class=RedirectResponse)
@@ -148,10 +152,14 @@ def users_edit(
         return RedirectResponse(url="/users?flash=Usuario+no+encontrado", status_code=303)
 
     # Check username uniqueness (excluding self)
-    existing = session.query(User).filter(
-        User.username == clean_username,
-        User.id != user_id,
-    ).first()
+    existing = (
+        session.query(User)
+        .filter(
+            User.username == clean_username,
+            User.id != user_id,
+        )
+        .first()
+    )
     if existing:
         return RedirectResponse(
             url="/users?flash=El+nombre+de+usuario+ya+existe",
@@ -173,7 +181,12 @@ def users_edit(
             session,
             user_id=current_user_id(request),
             action="user.password_change",
-            detail={"target_user": clean_username, "changed_by": admin_user.username if hasattr(admin_user, 'username') else str(admin_user)},
+            detail={
+                "target_user": clean_username,
+                "changed_by": admin_user.username
+                if hasattr(admin_user, "username")
+                else str(admin_user),
+            },
         )
 
     audit_record(
@@ -234,15 +247,14 @@ def user_roles_api() -> JSONResponse:
         ("manager", "Gerente"),
         ("admin", "Administrador"),
     ]:
-        payload.append({
-            "value": value,
-            "display": display,
-        })
+        payload.append(
+            {
+                "value": value,
+                "display": display,
+            }
+        )
 
-    return JSONResponse({
-        "results": payload,
-        "count": len(payload)
-    })
+    return JSONResponse({"results": payload, "count": len(payload)})
 
 
 __all__ = ["router"]

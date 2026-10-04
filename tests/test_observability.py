@@ -1,6 +1,5 @@
 """Tests for the new error/observability/logging infrastructure."""
 
-
 from app.rms.errors import (
     AlreadyExists,
     AppError,
@@ -77,8 +76,16 @@ def test_to_http_exception_carries_reason_code_header():
 
 def test_exception_hierarchy_inheritance():
     """All typed errors inherit from AppError."""
-    for cls in [BadRequest, ValidationError, NotFound, AlreadyExists,
-                Conflict, Unauthenticated, Forbidden, RateLimited]:
+    for cls in [
+        BadRequest,
+        ValidationError,
+        NotFound,
+        AlreadyExists,
+        Conflict,
+        Unauthenticated,
+        Forbidden,
+        RateLimited,
+    ]:
         assert issubclass(cls, AppError)
 
 
@@ -127,16 +134,23 @@ def _add_test_route(app_obj, path: str, exc_factory):
     may give you the OLD one.
     """
     import uuid
+
     unique = f"/__test_{uuid.uuid4().hex[:8]}_{path.lstrip('/').replace('/', '_')}"
+
     @app_obj.get(unique)
     def _raise():
         raise exc_factory()
+
     return unique
 
 
 def test_app_error_returns_structured_json(client):
     """A 4xx AppError on a JSON route returns the structured payload."""
-    path = _add_test_route(client.app, "/__test_bad_request", lambda: BadRequest("test bad input", context={"foo": "bar"}))
+    path = _add_test_route(
+        client.app,
+        "/__test_bad_request",
+        lambda: BadRequest("test bad input", context={"foo": "bar"}),
+    )
     try:
         r = client.get(path, headers={"Accept": "application/json"})
         assert r.status_code == 400
@@ -149,8 +163,7 @@ def test_app_error_returns_structured_json(client):
         assert r.headers.get("x-reason-code") == "bad_request"
     finally:
         client.app.router.routes = [
-            r for r in client.app.router.routes
-            if not getattr(r, "path", "").startswith("/__test_")
+            r for r in client.app.router.routes if not getattr(r, "path", "").startswith("/__test_")
         ]
 
 
@@ -166,22 +179,22 @@ def test_not_found_returns_404_with_reason(client):
         assert r.headers.get("x-reason-code") == "TestEntity_not_found"
     finally:
         client.app.router.routes = [
-            r for r in client.app.router.routes
-            if not getattr(r, "path", "").startswith("/__test_")
+            r for r in client.app.router.routes if not getattr(r, "path", "").startswith("/__test_")
         ]
 
 
 def test_dependency_error_502(client):
     """DependencyError surfaces as 502."""
-    path = _add_test_route(client.app, "/__test_dep_error", lambda: DependencyError("Bank feed down"))
+    path = _add_test_route(
+        client.app, "/__test_dep_error", lambda: DependencyError("Bank feed down")
+    )
     try:
         r = client.get(path, headers={"Accept": "application/json"})
         assert r.status_code == 502
         assert r.json()["reason"] == "dependency_unavailable"
     finally:
         client.app.router.routes = [
-            r for r in client.app.router.routes
-            if not getattr(r, "path", "").startswith("/__test_")
+            r for r in client.app.router.routes if not getattr(r, "path", "").startswith("/__test_")
         ]
 
 
@@ -194,8 +207,7 @@ def test_unauthenticated_error_returns_401(client):
         assert r.json()["reason"] == "unauthenticated"
     finally:
         client.app.router.routes = [
-            r for r in client.app.router.routes
-            if not getattr(r, "path", "").startswith("/__test_")
+            r for r in client.app.router.routes if not getattr(r, "path", "").startswith("/__test_")
         ]
 
 
@@ -210,6 +222,7 @@ def test_unauthenticated_error_returns_401(client):
 def test_4xx_html_template_exists():
     """The shared 4xx.html template is in place at the canonical path."""
     import os
+
     p = os.path.join(os.path.dirname(__file__), "..", "app", "templates", "errors", "4xx.html")
     assert os.path.isfile(p), f"missing 4xx.html at {p}"
     with open(p, encoding="utf-8") as f:
@@ -235,7 +248,8 @@ def test_bad_request_renders_html_for_browser(client):
     from app.rms.errors import BadRequest
 
     path = _add_test_route(
-        client.app, "/__test_bad_html",
+        client.app,
+        "/__test_bad_html",
         lambda: BadRequest("Dato inválido en el campo X"),
     )
     try:
@@ -244,19 +258,19 @@ def test_bad_request_renders_html_for_browser(client):
         body = r.text
         assert "400" in body, "status code not rendered"
         # Spanish title — match by token to avoid UTF-8 quoting.
-        assert "Solicitud" in body and "inv" in body.lower(), \
-            "Spanish title not rendered"
+        assert "Solicitud" in body and "inv" in body.lower(), "Spanish title not rendered"
         # User-supplied message is the source of truth.
         assert "Dato" in body and "campo X" in body, "user message not rendered"
         # request_id is surfaced both in the body and as a header.
-        assert "x-request-id" in {h.lower() for h in r.headers.keys()}, \
+        assert "x-request-id" in {h.lower() for h in r.headers.keys()}, (
             "X-Request-Id header must be set so a copy-paste by user includes it"
-        assert "ID de seguimiento" in body, \
+        )
+        assert "ID de seguimiento" in body, (
             "request_id is not visible in the body — support can't grep it"
+        )
     finally:
         client.app.router.routes = [
-            r for r in client.app.router.routes
-            if not getattr(r, "path", "").startswith("/__test_")
+            r for r in client.app.router.routes if not getattr(r, "path", "").startswith("/__test_")
         ]
 
 
@@ -265,7 +279,8 @@ def test_unauthorized_renders_html_for_browser(client):
     from app.rms.errors import Unauthenticated
 
     path = _add_test_route(
-        client.app, "/__test_unauth_html",
+        client.app,
+        "/__test_unauth_html",
         lambda: Unauthenticated("Tu sesión expiró."),
     )
     try:
@@ -277,8 +292,7 @@ def test_unauthorized_renders_html_for_browser(client):
         assert "Tu" in body and "expir" in body, "user message missing"
     finally:
         client.app.router.routes = [
-            r for r in client.app.router.routes
-            if not getattr(r, "path", "").startswith("/__test_")
+            r for r in client.app.router.routes if not getattr(r, "path", "").startswith("/__test_")
         ]
 
 
@@ -291,7 +305,8 @@ def test_bad_request_api_client_still_gets_json(client):
     from app.rms.errors import BadRequest
 
     path = _add_test_route(
-        client.app, "/__test_bad_json",
+        client.app,
+        "/__test_bad_json",
         lambda: BadRequest("test bad input"),
     )
     try:
@@ -302,8 +317,7 @@ def test_bad_request_api_client_still_gets_json(client):
         assert body["error"] == "test bad input"
     finally:
         client.app.router.routes = [
-            r for r in client.app.router.routes
-            if not getattr(r, "path", "").startswith("/__test_")
+            r for r in client.app.router.routes if not getattr(r, "path", "").startswith("/__test_")
         ]
 
 
@@ -321,6 +335,7 @@ def test_messages_catalog_imports():
         SHOPPING_LIST_DELETED,
         WISHLIST_ITEM_PURCHASED,
     )
+
     assert isinstance(PEDIDO_NOT_FOUND, str)
     assert isinstance(RECIPE_NOT_FOUND, str)
     assert isinstance(INGREDIENT_NOT_FOUND, str)
@@ -336,10 +351,12 @@ def test_observability_helpers_importable():
         RequestContextMiddleware,
         generate_request_id,
     )
+
     rid = generate_request_id()
     assert len(rid) == 12
     assert all(c in "0123456789abcdef" for c in rid)
     from starlette.middleware.base import BaseHTTPMiddleware
+
     assert issubclass(RequestContextMiddleware, BaseHTTPMiddleware)
 
 
@@ -415,9 +432,7 @@ def test_safe_get_user_id_priority_order():
     ``local_user_id`` wins because it's the bcrypt default."""
     from app.rms.observability import _safe_get_user_id
 
-    req = _fake_request_with_session(
-        {"local_user_id": 1, "supabase_user_id": "2", "user_id": 3}
-    )
+    req = _fake_request_with_session({"local_user_id": 1, "supabase_user_id": "2", "user_id": 3})
     assert _safe_get_user_id(req) == "1"
 
 

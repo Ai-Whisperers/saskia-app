@@ -6,6 +6,7 @@ don't exist in the schema. This test:
   2. For pages that load model data, verifies the ORM query doesn't error
   3. Reports 500s with full traceback
 """
+
 from __future__ import annotations
 
 import json
@@ -36,7 +37,9 @@ print(json.dumps(routes))
 """
     r = subprocess.run(
         ["uv", "run", "python", "-c", code],
-        capture_output=True, text=True, cwd=REPO,
+        capture_output=True,
+        text=True,
+        cwd=REPO,
     )
     return json.loads(r.stdout)
 
@@ -106,7 +109,10 @@ print(json.dumps(errors))
     # Save routes to a file and pass via stdin
     proc = subprocess.run(
         ["uv", "run", "python", "-c", code, json.dumps(html_routes)],
-        capture_output=True, text=True, cwd=REPO, timeout=180,
+        capture_output=True,
+        text=True,
+        cwd=REPO,
+        timeout=180,
     )
     if proc.returncode != 0:
         print(f"ERROR: {proc.stderr[:500]}")

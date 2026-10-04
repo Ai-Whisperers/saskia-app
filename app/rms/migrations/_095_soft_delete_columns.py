@@ -23,9 +23,7 @@ from sqlalchemy import DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 # Who archived the record - text to support both Supabase UUID and local int
-ArchivedByUserId: Mapped[Optional[str]] = mapped_column(
-    String(64), nullable=True, default=None
-)
+ArchivedByUserId: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, default=None)
 # When archived - UTC timestamp for consistency
 ArchivedAt: Mapped[Optional[datetime]] = mapped_column(
     DateTime(timezone=True), nullable=True, default=None, index=True
@@ -54,12 +52,12 @@ def _migration_095_soft_delete_columns(conn: Any) -> None:
     # Add columns if they don't exist (idempotent)
     for table in owned_tables:
         try:
-            atomic_ddl_block(conn, [
-                f"ALTER TABLE {table} ADD COLUMN deleted_at TIMESTAMP WITH TIME ZONE"
-            ])
-            atomic_ddl_block(conn, [
-                f"ALTER TABLE {table} ADD COLUMN deleted_by_user_id VARCHAR(64)"
-            ])
+            atomic_ddl_block(
+                conn, [f"ALTER TABLE {table} ADD COLUMN deleted_at TIMESTAMP WITH TIME ZONE"]
+            )
+            atomic_ddl_block(
+                conn, [f"ALTER TABLE {table} ADD COLUMN deleted_by_user_id VARCHAR(64)"]
+            )
             print(f"Added soft-delete columns to {table}")
         except Exception as exc:
             # Column likely already exists - idempotent continue
@@ -68,15 +66,16 @@ def _migration_095_soft_delete_columns(conn: Any) -> None:
     # Set index on deleted_at for performance
     for table in owned_tables:
         try:
-            atomic_ddl_block(conn, [
-                f"CREATE INDEX IF NOT EXISTS idx_deleted_at ON {table}(deleted_at)"
-            ])
+            atomic_ddl_block(
+                conn, [f"CREATE INDEX IF NOT EXISTS idx_deleted_at ON {table}(deleted_at)"]
+            )
         except Exception:  # noqa: S110 — Index may already exist from a partial migration run; ignore.
             pass
 
     # BACKLOG #4 (2026-10-02): migrations 085+ shipped without bumping
     # schema_version, silently breaking fresh installs. Sprint 4.5 fixed.
     from app.rms.db import _bump_schema_version
+
     _bump_schema_version(conn, 95)
 
 

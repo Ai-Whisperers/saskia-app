@@ -11,6 +11,7 @@ Covers:
 - prune_old_backups keeps newest N + last-D-days, removes rest
 - _MODEL_BY_NAME maps all expected models
 """
+
 from __future__ import annotations
 
 import pytest
@@ -119,6 +120,7 @@ def test_verify_backup_raises_on_tampered(tmp_path, session_factory):
         out_file = next(tmp_path.glob("saskia-backup-*.json.gz"))
         # Decompress, mutate, recompress
         import gzip
+
         raw = gzip.decompress(out_file.read_bytes())
         text = raw.decode("utf-8").replace("Torta", "Torta_TAMPERED")
         out_file.write_bytes(gzip.compress(text.encode("utf-8")))
@@ -168,6 +170,7 @@ def test_prune_old_backups_removes_old_keeps_newest(tmp_path):
         p.write_bytes(b"test")
         # Set mtime explicitly
         import os
+
         os.utime(p, (1700000000 + i * 86400, 1700000000 + i * 86400))
         paths.append(p)
 
@@ -189,10 +192,20 @@ def test_backup_tables_lists_expected_models():
     # M1 (2026-10-02): `sale_stock_move` was dropped by migration 092
     # (BACKLOG #1); sale-driven stock-out now lives in `stock_movement`.
     expected_names = {
-        "app_meta", "ingredient", "recipe", "recipe_line",
-        "product", "sale", "stock_movement", "import_batch",
-        "audit_log", "customer", "waste_log", "user",
-        "tag", "tag_link",
+        "app_meta",
+        "ingredient",
+        "recipe",
+        "recipe_line",
+        "product",
+        "sale",
+        "stock_movement",
+        "import_batch",
+        "audit_log",
+        "customer",
+        "waste_log",
+        "user",
+        "tag",
+        "tag_link",
     }
     actual = {m.__tablename__ for m in BACKUP_TABLES}
     assert expected_names <= actual

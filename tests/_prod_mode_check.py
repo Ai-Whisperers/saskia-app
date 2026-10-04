@@ -4,6 +4,7 @@ Used by tests/test_review_quick_wins.py to verify AIW_SASKIA_INTERNAL_ROUTES
 gating without purging sys.modules in-process (which poisoned later tests).
 Usage: python tests/_prod_mode_check.py /auditoria
 """
+
 import sys
 
 path = sys.argv[1]

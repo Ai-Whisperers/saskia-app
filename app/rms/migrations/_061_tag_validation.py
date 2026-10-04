@@ -26,9 +26,7 @@ from app.rms.db import _bump_schema_version
 def _migration_061_tag_validation(conn: Any) -> None:
     """Add ingredient.tag_validation_issues (TEXT, nullable)."""
     try:
-        conn.execute(
-            text("ALTER TABLE ingredient ADD COLUMN tag_validation_issues TEXT")
-        )
+        conn.execute(text("ALTER TABLE ingredient ADD COLUMN tag_validation_issues TEXT"))
     except Exception:  # noqa: S110 — column may already exist
         pass
 

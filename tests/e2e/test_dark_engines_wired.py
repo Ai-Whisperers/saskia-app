@@ -60,8 +60,7 @@ def test_margenes_page_and_product_history(client, session_factory):
         cat = make_catalog(s, price_gs=10_000)
         t0 = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=10)
         make_sale(s, product=cat["product"], qty=1, at=t0, unit_price_gs=10_000)
-        make_sale(s, product=cat["product"], qty=1, at=t0 + timedelta(days=5),
-                  unit_price_gs=12_000)
+        make_sale(s, product=cat["product"], qty=1, at=t0 + timedelta(days=5), unit_price_gs=12_000)
         s.commit()
         pid = cat["product"].id
 
@@ -87,10 +86,15 @@ def test_preferred_variant_price_drives_costing(session_factory):
     with session_factory() as s:
         ing = make_ingredient(s, name="Harina V", purchase_price_gs=5_000)
         # preferred variant cheaper than parent
-        s.add(IngredientVariant(
-            ingredient_id=ing.id, package_size=1.0, package_unit="kg",
-            purchase_price_gs=3_000, preferred=True,
-        ))
+        s.add(
+            IngredientVariant(
+                ingredient_id=ing.id,
+                package_size=1.0,
+                package_unit="kg",
+                purchase_price_gs=3_000,
+                preferred=True,
+            )
+        )
         rec = make_recipe(s, lines=[ing_line(ing, qty=1.0)])  # 1 kg per batch
         rec.yield_qty = 1.0
         s.commit()

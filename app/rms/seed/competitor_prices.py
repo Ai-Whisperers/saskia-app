@@ -8,6 +8,7 @@ Provides:
 - COMPETITOR_SEED_ALL: 144 total entries (new combined list)
 - seed_competitor_prices(session): DB insert orchestrator
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -19,6 +20,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 COMPETITOR_SEED_ALL = list(COMPETITOR_SEED) + list(COMPETITOR_SEED_SHOPPINGS)
+
+
 def seed_competitor_prices(session: "Session") -> "tuple[int, int]":
     """Inserta observaciones si no existen (idempotente). Devuelve (nuevas, omitidas)."""
     from datetime import date

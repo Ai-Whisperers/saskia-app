@@ -87,6 +87,7 @@ def test_no_sentry_init_without_dsn(no_dsn) -> None:
     # `if sentry_dsn:` check must short-circuit, so client is None.
     if sentry_dsn:
         import sentry_sdk  # pragma: no cover
+
         sentry_sdk.init(dsn=sentry_dsn)  # pragma: no cover
     # When DSN is unset, no client should be initialized (or sentry
     # shouldn't be imported at all, per the lazy-load rule).
@@ -97,6 +98,7 @@ def test_no_sentry_init_without_dsn(no_dsn) -> None:
     else:
         # sentry was imported (e.g. via test ordering) but no client.
         import sentry_sdk
+
         # init() wasn't called, so client is None
         assert sentry_sdk.Hub.current.client is None
 
@@ -146,6 +148,7 @@ def test_sentry_set_tag_request_id_no_op_when_uninitialized(no_dsn) -> None:
     # Simulate the middleware block at main.py:917-928.
     try:
         import sentry_sdk as _sentry
+
         if _sentry.Hub.current.client is not None:
             _sentry.set_tag("request_id", "test-req-id")
     except Exception:

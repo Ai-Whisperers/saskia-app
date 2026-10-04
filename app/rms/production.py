@@ -10,6 +10,7 @@ Adds:
 - plan_production(): given a forecast + recipes, computes the
   ingredient shopping list
 """
+
 from __future__ import annotations
 
 import math
@@ -117,15 +118,17 @@ def forecast_sales(
     """
     end = datetime.now(timezone.utc)
     start = end - timedelta(days=days_history)
-    base_q = session.execute(
-        select(func.sum(Sale.qty))
-        .where(
-            Sale.product_id == product_id,
-            Sale.sold_at >= start,
-            Sale.sold_at <= end,
-            Sale.voided_at.is_(None),
-        )
-    ).scalar() or 0.0
+    base_q = (
+        session.execute(
+            select(func.sum(Sale.qty)).where(
+                Sale.product_id == product_id,
+                Sale.sold_at >= start,
+                Sale.sold_at <= end,
+                Sale.voided_at.is_(None),
+            )
+        ).scalar()
+        or 0.0
+    )
 
     if target_weekday is None:
         # Legacy flat average.
@@ -136,8 +139,7 @@ def forecast_sales(
     from app.rms.config import ASUNCION_TZ
 
     rows = session.execute(
-        select(Sale.sold_at, Sale.qty)
-        .where(
+        select(Sale.sold_at, Sale.qty).where(
             Sale.product_id == product_id,
             Sale.sold_at >= start,
             Sale.sold_at <= end,
@@ -164,7 +166,9 @@ def forecast_sales(
     return target_qty / target_days
 
 
-def _forecast_sample_stats(session: Session, *, product_id: int, days_history: int) -> tuple[int, int]:
+def _forecast_sample_stats(
+    session: Session, *, product_id: int, days_history: int
+) -> tuple[int, int]:
     """Return (sale_count, days_span) for the confidence calculation.
 
     sale_count = number of distinct sales of this product in the window.
@@ -174,11 +178,11 @@ def _forecast_sample_stats(session: Session, *, product_id: int, days_history: i
                 trustworthy than one sold 5 times across 5 days.
     """
     from app.rms.config import ASUNCION_TZ
+
     end = datetime.now(timezone.utc)
     start = end - timedelta(days=days_history)
     rows = session.execute(
-        select(Sale.sold_at)
-        .where(
+        select(Sale.sold_at).where(
             Sale.product_id == product_id,
             Sale.sold_at >= start,
             Sale.sold_at <= end,
@@ -388,9 +392,11 @@ def get_overrides_for_date(session: Session, for_date: date) -> dict[int, float]
     Overrides are date-scoped (not weekday-scoped): changing one Thursday does
     NOT affect other Thursdays.
     """
-    rows = session.query(ProductionPlanOverride).filter(
-        ProductionPlanOverride.for_date == for_date
-    ).all()
+    rows = (
+        session.query(ProductionPlanOverride)
+        .filter(ProductionPlanOverride.for_date == for_date)
+        .all()
+    )
     return {r.product_id: r.qty for r in rows}
 
 
@@ -410,10 +416,14 @@ def upsert_template_row(
         raise ValueError(f"weekday must be 0..6 (Mon..Sun); got {weekday}")
     if qty < 0:
         raise ValueError(f"qty must be ≥ 0; got {qty}")
-    row = session.query(ProductionPlanTemplate).filter(
-        ProductionPlanTemplate.weekday == weekday,
-        ProductionPlanTemplate.product_id == product_id,
-    ).one_or_none()
+    row = (
+        session.query(ProductionPlanTemplate)
+        .filter(
+            ProductionPlanTemplate.weekday == weekday,
+            ProductionPlanTemplate.product_id == product_id,
+        )
+        .one_or_none()
+    )
     if row is None:
         row = ProductionPlanTemplate(
             weekday=weekday,
@@ -444,10 +454,14 @@ def upsert_override(
     """Insert or update the per-date override for (product, date)."""
     if qty < 0:
         raise ValueError(f"qty must be ≥ 0; got {qty}")
-    row = session.query(ProductionPlanOverride).filter(
-        ProductionPlanOverride.product_id == product_id,
-        ProductionPlanOverride.for_date == for_date,
-    ).one_or_none()
+    row = (
+        session.query(ProductionPlanOverride)
+        .filter(
+            ProductionPlanOverride.product_id == product_id,
+            ProductionPlanOverride.for_date == for_date,
+        )
+        .one_or_none()
+    )
     if row is None:
         row = ProductionPlanOverride(
             product_id=product_id,

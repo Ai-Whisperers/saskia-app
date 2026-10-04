@@ -40,6 +40,7 @@ from app.rms.models import (
 def _asuncion_today() -> date:
     from datetime import datetime
     from zoneinfo import ZoneInfo
+
     return datetime.utcnow().astimezone(ZoneInfo("America/Asuncion")).date()
 
 
@@ -81,10 +82,14 @@ def _seed_pedido(
         )
         s.add(pedido)
         s.flush()
-        s.add(PedidoLine(
-            pedido_id=pedido.id, product_id=p.id,
-            qty=qty, unit_price_gs=50000,
-        ))
+        s.add(
+            PedidoLine(
+                pedido_id=pedido.id,
+                product_id=p.id,
+                qty=qty,
+                unit_price_gs=50000,
+            )
+        )
         s.commit()
         return pedido.id
 
@@ -107,8 +112,11 @@ def test_produccion_day_shows_pedido_for_today(client, session_factory):
 def test_produccion_day_excludes_other_dates(client, session_factory):
     """US 4.4 — pedidos for OTHER dates do not appear in today's view."""
     # Pedido for tomorrow
-    _seed_pedido(session_factory, status="pending",
-                 promised_date=datetime.utcnow().date() + timedelta(days=1))
+    _seed_pedido(
+        session_factory,
+        status="pending",
+        promised_date=datetime.utcnow().date() + timedelta(days=1),
+    )
     resp = client.get("/produccion")
     assert resp.status_code == 200
     body = resp.text
@@ -156,12 +164,16 @@ def test_produccion_day_pedidos_have_link_to_detail(client, session_factory):
 def test_produccion_day_sorts_by_promised_time_asc(client, session_factory):
     """US 4.4 — pedidos are sorted by promised_time ASC (earliest first)."""
     pid_late = _seed_pedido(
-        session_factory, status="pending",
-        customer_name="Late", promised_time="18:00",
+        session_factory,
+        status="pending",
+        customer_name="Late",
+        promised_time="18:00",
     )
     pid_early = _seed_pedido(
-        session_factory, status="pending",
-        customer_name="Early", promised_time="09:00",
+        session_factory,
+        status="pending",
+        customer_name="Early",
+        promised_time="09:00",
     )
     resp = client.get("/produccion")
     assert resp.status_code == 200
@@ -205,8 +217,9 @@ def test_void_sale_persists_reason_and_voided_by(session_factory):
     from app.rms.costing import void_sale
 
     sale_id = _seed_sale(session_factory)
-    void_sale(session_factory(), sale_id,
-              reason="Cliente devolvió producto", voided_by="operator42")
+    void_sale(
+        session_factory(), sale_id, reason="Cliente devolvió producto", voided_by="operator42"
+    )
 
     with session_factory() as s:
         sale = s.get(Sale, sale_id)
@@ -248,23 +261,29 @@ def test_void_sale_appends_reason_to_stock_movement(session_factory):
         s.add(rcp)
         s.flush()
         p.recipe_id = rcp.id
-        s.add(RecipeLine(
-            recipe_id=rcp.id, line_kind="ingredient",
-            line_ref_id=ing.id, qty=50.0, line_unit="g",
-        ))
+        s.add(
+            RecipeLine(
+                recipe_id=rcp.id,
+                line_kind="ingredient",
+                line_ref_id=ing.id,
+                qty=50.0,
+                line_unit="g",
+            )
+        )
         s.commit()
         product_id = p.id
 
     with session_factory() as s:
         result = apply_sale(
-            s, product_id=product_id, qty=2.0,
+            s,
+            product_id=product_id,
+            qty=2.0,
             sold_at=datetime.now(ASUNCION_TZ),
         )
         s.commit()
         sale_id = result.sale_id
 
-    void_sale(session_factory(), sale_id,
-              reason="error de cobro", voided_by="operator")
+    void_sale(session_factory(), sale_id, reason="error de cobro", voided_by="operator")
 
     with session_factory() as s:
         moves = s.query(StockMovement).filter_by(reference_id=sale_id).all()
@@ -357,24 +376,29 @@ def test_void_sale_restores_stock_with_reason(session_factory):
         s.add(p)
         s.flush()
         sale = Sale(
-            product_id=p.id, qty=5, unit_price_gs=10000,
+            product_id=p.id,
+            qty=5,
+            unit_price_gs=10000,
             sold_at=datetime.utcnow(),
         )
         s.add(sale)
         s.flush()
-        s.add(StockMovement(
-            ingredient_id=ing.id, movement_type="sale",
-            qty=-100.0,  # sold 100g
-            reason=f"Sale #{sale.id}",
-            reference_id=sale.id, reference_type="sale",
-            recorded_at=datetime.utcnow(),
-        ))
+        s.add(
+            StockMovement(
+                ingredient_id=ing.id,
+                movement_type="sale",
+                qty=-100.0,  # sold 100g
+                reason=f"Sale #{sale.id}",
+                reference_id=sale.id,
+                reference_type="sale",
+                recorded_at=datetime.utcnow(),
+            )
+        )
         s.commit()
         sale_id = sale.id
         ing_id = ing.id
 
-    void_sale(session_factory(), sale_id,
-              reason="error de cobro", voided_by="operator")
+    void_sale(session_factory(), sale_id, reason="error de cobro", voided_by="operator")
 
     with session_factory() as s:
         ing = s.get(Ingredient, ing_id)
@@ -387,8 +411,7 @@ def test_historial_renders_void_reason_and_by(client, session_factory):
     from app.rms.costing import void_sale
 
     sale_id = _seed_sale(session_factory)
-    void_sale(session_factory(), sale_id,
-              reason="prueba auditoría", voided_by="admin")
+    void_sale(session_factory(), sale_id, reason="prueba auditoría", voided_by="admin")
 
     resp = client.get("/ventas/historial")
     assert resp.status_code == 200

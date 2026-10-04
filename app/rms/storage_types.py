@@ -8,6 +8,7 @@ is preserved as columns on the storage_type table. Downstream HACCP
 reports can use these flags to know which temperature/humidity fields
 to surface for ingredients stored under each code.
 """
+
 from __future__ import annotations
 
 from sqlalchemy import select

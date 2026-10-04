@@ -30,10 +30,23 @@ def test_communication_log_table_exists_with_columns(session_factory):
         assert "communication_log" in tables
         cols = {c["name"] for c in insp.get_columns("communication_log")}
         for required in (
-            "id", "direction", "channel", "customer_id", "pedido_id",
-            "template_id", "phone", "email", "subject", "body",
-            "status", "provider_message_id", "error_message",
-            "ts_sent", "ts_delivered", "ts_read", "actor",
+            "id",
+            "direction",
+            "channel",
+            "customer_id",
+            "pedido_id",
+            "template_id",
+            "phone",
+            "email",
+            "subject",
+            "body",
+            "status",
+            "provider_message_id",
+            "error_message",
+            "ts_sent",
+            "ts_delivered",
+            "ts_read",
+            "actor",
         ):
             assert required in cols, f"missing column {required}"
 
@@ -79,9 +92,11 @@ def test_communication_log_check_constraints(session_factory):
             s.commit()
         s.rollback()
         # Make sure the bad row is gone
-        assert "ck_communication_log_direction" in str(exc_info.value) or \
-               "CHECK" in str(exc_info.value) or \
-               "constraint" in str(exc_info.value).lower()
+        assert (
+            "ck_communication_log_direction" in str(exc_info.value)
+            or "CHECK" in str(exc_info.value)
+            or "constraint" in str(exc_info.value).lower()
+        )
 
         # Invalid channel → CHECK violation
         with pytest.raises(Exception) as exc_info:
@@ -95,9 +110,11 @@ def test_communication_log_check_constraints(session_factory):
             s.add(bad)
             s.commit()
         s.rollback()
-        assert "ck_communication_log_channel" in str(exc_info.value) or \
-               "CHECK" in str(exc_info.value) or \
-               "constraint" in str(exc_info.value).lower()
+        assert (
+            "ck_communication_log_channel" in str(exc_info.value)
+            or "CHECK" in str(exc_info.value)
+            or "constraint" in str(exc_info.value).lower()
+        )
 
         # Invalid status → CHECK violation
         with pytest.raises(Exception) as exc_info:
@@ -112,9 +129,11 @@ def test_communication_log_check_constraints(session_factory):
             s.add(bad)
             s.commit()
         s.rollback()
-        assert "ck_communication_log_status" in str(exc_info.value) or \
-               "CHECK" in str(exc_info.value) or \
-               "constraint" in str(exc_info.value).lower()
+        assert (
+            "ck_communication_log_status" in str(exc_info.value)
+            or "CHECK" in str(exc_info.value)
+            or "constraint" in str(exc_info.value).lower()
+        )
 
 
 def test_communication_log_cascades_on_customer_delete(session_factory):
@@ -128,12 +147,16 @@ def test_communication_log_cascades_on_customer_delete(session_factory):
         s.add(c)
         s.flush()
         for i in range(3):
-            s.add(CommunicationLog(
-                direction="outbound", channel="whatsapp",
-                customer_id=c.id, body=f"msg {i}",
-                status="sent",
-                ts_sent=datetime.utcnow(),
-            ))
+            s.add(
+                CommunicationLog(
+                    direction="outbound",
+                    channel="whatsapp",
+                    customer_id=c.id,
+                    body=f"msg {i}",
+                    status="sent",
+                    ts_sent=datetime.utcnow(),
+                )
+            )
         s.commit()
         cid = c.id
         n = s.query(CommunicationLog).filter_by(customer_id=cid).count()
@@ -156,16 +179,23 @@ def test_communication_log_set_null_on_pedido_delete(session_factory):
         c = Customer(name="Pedido Comm Test", phone="0998000003")
         s.add(c)
         s.flush()
-        p = Pedido(customer_id=c.id, customer_name=c.name,
-                   customer_phone=c.phone,
-                   promised_date=datetime.utcnow().date(),
-                   status="pending", public_token="comm-test-ped")
+        p = Pedido(
+            customer_id=c.id,
+            customer_name=c.name,
+            customer_phone=c.phone,
+            promised_date=datetime.utcnow().date(),
+            status="pending",
+            public_token="comm-test-ped",
+        )
         s.add(p)
         s.flush()
         msg = CommunicationLog(
-            direction="outbound", channel="whatsapp",
-            customer_id=c.id, pedido_id=p.id,
-            body="hello", status="sent",
+            direction="outbound",
+            channel="whatsapp",
+            customer_id=c.id,
+            pedido_id=p.id,
+            body="hello",
+            status="sent",
             ts_sent=datetime.utcnow(),
         )
         s.add(msg)
@@ -178,7 +208,12 @@ def test_communication_log_set_null_on_pedido_delete(session_factory):
 
         # The message still exists; pedido_id was nulled
         s.expire_all()
-        m2 = s.get(_Message := __import__("app.rms.models", fromlist=["CommunicationLog"]).CommunicationLog, msg_id)
+        m2 = s.get(
+            _Message := __import__(
+                "app.rms.models", fromlist=["CommunicationLog"]
+            ).CommunicationLog,
+            msg_id,
+        )
         assert m2 is not None
         assert m2.pedido_id is None
         assert m2.customer_id == c.id  # customer FK still intact

@@ -28,6 +28,7 @@ AppMeta slices are already empty).
 Records its own action as an audit_log row with action='system.demo_reset'
 so the operator can see when the cleanup happened.
 """
+
 from __future__ import annotations
 
 from sqlalchemy import delete, func, select
@@ -54,17 +55,14 @@ def reset_demo_data(session: Session) -> dict[str, int]:
     # cascade (no FK from stock_movement to sale), so we run an
     # explicit delete here.
     stock_moves_before = session.execute(
-        select(func.count(StockMovement.id))
-        .where(StockMovement.movement_type == "sale")
+        select(func.count(StockMovement.id)).where(StockMovement.movement_type == "sale")
     ).scalar_one()
 
     sales_deleted = session.execute(delete(Sale)).rowcount
 
     # Delete sale-driven StockMovement rows (the read-path equivalent
     # of the legacy sale_stock_move table — see BACKLOG #1).
-    session.execute(
-        delete(StockMovement).where(StockMovement.movement_type == "sale")
-    )
+    session.execute(delete(StockMovement).where(StockMovement.movement_type == "sale"))
 
     stock_moves_deleted = stock_moves_before
 

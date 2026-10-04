@@ -5,7 +5,7 @@ from typing import Any, TypeVar
 
 from sqlalchemy.orm import Session
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class BaseService(ABC):

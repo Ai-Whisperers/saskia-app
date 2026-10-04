@@ -9,6 +9,7 @@ This regression test ensures the page heading stays meaningful and the
 tabs are labeled with bakery-domain language (Categorías, Familias,
 Canales, etc.). It must NOT regress to placeholder/internal text.
 """
+
 from __future__ import annotations
 
 import re
@@ -35,9 +36,9 @@ FORBIDDEN_HEADING_FRAGMENTS = [
 # labeled with bakery-domain vocabulary.
 REQUIRED_VOCABULARY = [
     "Categorías producto",  # first tab
-    "Familias de receta",   # second tab
-    "Canales de venta",     # third tab
-    "Formas de pago",       # fourth tab
+    "Familias de receta",  # second tab
+    "Canales de venta",  # third tab
+    "Formas de pago",  # fourth tab
 ]
 
 
@@ -55,8 +56,7 @@ def test_settings_catalog_has_page_title(client):
     assert title_m, "Page missing <title> tag"
     title = title_m.group("t").strip()
     assert "Catálog" in title or "Catalog" in title, (
-        f"Page title '{title}' should mention Catálogo/Catalog — "
-        f"this is the settings catalog page"
+        f"Page title '{title}' should mention Catálogo/Catalog — this is the settings catalog page"
     )
 
 

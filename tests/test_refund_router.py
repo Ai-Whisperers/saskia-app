@@ -6,6 +6,7 @@ returns JSON, error codes map to user-facing Spanish flash messages.
 Uses the standard conftest `client` + fixtures (SaskiaTestClient via
 tests/conftest.py). Auth is bypassed via SASKIA_TEST_AUTH_DISABLED=1.
 """
+
 from __future__ import annotations
 
 import os
@@ -40,7 +41,10 @@ def _make_sale_for_router(client):
     SessionLocal = sessionmaker(bind=engine)
     s = SessionLocal()
     # Idempotent Product
-    if s.execute(__import__("sqlalchemy").text("SELECT id FROM product WHERE id=1")).first() is None:
+    if (
+        s.execute(__import__("sqlalchemy").text("SELECT id FROM product WHERE id=1")).first()
+        is None
+    ):
         s.add(Product(id=1, name="Router Test Product", sale_price_gs=10_000, portion_label="unit"))
         s.flush()
     # Idempotent Sale (id=1)
@@ -99,25 +103,44 @@ def test_refund_list_target_returns_count(client):
     SessionLocal = sessionmaker(bind=engine)
     s = SessionLocal()
     # Idempotent setup
-    if s.execute(__import__("sqlalchemy").text("SELECT id FROM product WHERE id=1")).first() is None:
+    if (
+        s.execute(__import__("sqlalchemy").text("SELECT id FROM product WHERE id=1")).first()
+        is None
+    ):
         s.add(Product(id=1, name="List Test Product", sale_price_gs=10_000, portion_label="unit"))
         s.flush()
     if s.get(Sale, 1) is None:
-        s.add(Sale(
-            id=1, product_id=1, qty=1.0, unit_price_gs=10_000,
-            sold_at=datetime.now(timezone.utc), payment_method="efectivo",
-            discount_gs=0, channel="mostrador", invoice_type="none",
-            tz="America/Asuncion",
-        ))
+        s.add(
+            Sale(
+                id=1,
+                product_id=1,
+                qty=1.0,
+                unit_price_gs=10_000,
+                sold_at=datetime.now(timezone.utc),
+                payment_method="efectivo",
+                discount_gs=0,
+                channel="mostrador",
+                invoice_type="none",
+                tz="America/Asuncion",
+            )
+        )
         s.flush()
     if s.execute(__import__("sqlalchemy").text("SELECT id FROM refund WHERE id=1")).first() is None:
-        s.add(Refund(
-            id=1, target_type="sale", target_id=1, target_amount_gs=10_000,
-            amount_gs=5_000, payment_method="efectivo",
-            restock_qty=False, restocked_qty=0.0,
-            recorded_at=datetime.now(timezone.utc), recorded_by="op",
-            loyalty_reversed=0,
-        ))
+        s.add(
+            Refund(
+                id=1,
+                target_type="sale",
+                target_id=1,
+                target_amount_gs=10_000,
+                amount_gs=5_000,
+                payment_method="efectivo",
+                restock_qty=False,
+                restocked_qty=0.0,
+                recorded_at=datetime.now(timezone.utc),
+                recorded_by="op",
+                loyalty_reversed=0,
+            )
+        )
         s.commit()
     s.close()
 

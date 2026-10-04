@@ -1,4 +1,5 @@
 """Rate limit write endpoints tests."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -14,6 +15,7 @@ def test_inventory_adjust_no_rate_limit_in_test(authed_client):
     # Use the test engine
     from app.rms.db import init_db, make_engine
     from app.rms.models import Ingredient
+
     tmpdir = tempfile.mkdtemp()
     engine = make_engine(f"sqlite:///{tmpdir}/test_rate.sqlite")
     init_db(engine)
@@ -32,9 +34,7 @@ def test_inventory_adjust_no_rate_limit_in_test(authed_client):
             data={"adjustment": "1", "reason": f"rate_test_{i}"},
         )
         # In test env, rate limit should be disabled or very high
-        assert r.status_code < 500, (
-            f"Inventory adjust #{i} returned {r.status_code}"
-        )
+        assert r.status_code < 500, f"Inventory adjust #{i} returned {r.status_code}"
 
 
 def test_produccion_override_no_rate_limit_in_test(authed_client):
@@ -50,15 +50,11 @@ def test_produccion_override_no_rate_limit_in_test(authed_client):
                 "qty": str(i + 1),
             },
         )
-        assert r.status_code < 500, (
-            f"Override #{i} returned {r.status_code}: {r.text[:200]}"
-        )
+        assert r.status_code < 500, f"Override #{i} returned {r.status_code}: {r.text[:200]}"
 
 
 def test_excel_importar_repeated_no_500(authed_client):
     """Repeated /excel/importar POSTs should not 500."""
     for i in range(3):
         r = authed_client.post("/excel/importar", data={}, follow_redirects=False)
-        assert r.status_code < 500, (
-            f"Excel import #{i} returned {r.status_code}"
-        )
+        assert r.status_code < 500, f"Excel import #{i} returned {r.status_code}"

@@ -11,6 +11,7 @@ Covers:
 
 Refs: Saskia review round 1 (Thu 18-sep) — Q2 (c) calendar dashboard.
 """
+
 # allow-hardcoded-dates: production calendar asserts on a fixed week
 from __future__ import annotations
 
@@ -27,9 +28,7 @@ def _seed_product_with_recipe_and_sales(session_factory) -> int:
     history so the rolling forecast is > 0. Returns product id."""
     s = session_factory()
     try:
-        ing = Ingredient(
-            name="Harina", unit="kg", stock_qty=0.0, purchase_price_gs=4500
-        )
+        ing = Ingredient(name="Harina", unit="kg", stock_qty=0.0, purchase_price_gs=4500)
         rec = Recipe(name="Muffin", yield_qty=12.0, yield_unit="und")
         s.add_all([ing, rec])
         s.flush()
@@ -73,9 +72,7 @@ def test_production_math_multiplication(session_factory):
     """
     s = session_factory()
     try:
-        ing = Ingredient(
-            name="Harina", unit="kg", stock_qty=0.0, purchase_price_gs=4500
-        )
+        ing = Ingredient(name="Harina", unit="kg", stock_qty=0.0, purchase_price_gs=4500)
         rec = Recipe(name="Muffin", yield_qty=12.0, yield_unit="und")
         s.add_all([ing, rec])
         s.flush()
@@ -110,9 +107,7 @@ def test_production_math_multiplication(session_factory):
         assert abs(plan_half.lines[0].qty_required - 0.15) < 1e-6
 
         # The two must scale linearly with the forecast.
-        assert abs(
-            plan_2x.lines[0].qty_required - 4 * plan_half.lines[0].qty_required
-        ) < 1e-6
+        assert abs(plan_2x.lines[0].qty_required - 4 * plan_half.lines[0].qty_required) < 1e-6
     finally:
         s.close()
 
@@ -142,6 +137,7 @@ def test_week_view_renders_seven_cells(client, session_factory):
 def test_month_view_renders_day_count(client, session_factory):
     _seed_product_with_recipe_and_sales(session_factory)
     import calendar as _cal
+
     today = datetime.utcnow().date()
     r = client.get(f"/produccion?view=month&month={today.strftime('%Y-%m')}")
     assert r.status_code == 200
@@ -177,7 +173,11 @@ def test_override_re_renders_with_manual_qty(client, session_factory):
     pid = _seed_product_with_recipe_and_sales(session_factory)
     r = client.post(
         "/produccion/override",
-        data={"for_date": datetime.utcnow().date().isoformat(), "product_id": str(pid), "qty": "10"},
+        data={
+            "for_date": datetime.utcnow().date().isoformat(),
+            "product_id": str(pid),
+            "qty": "10",
+        },
         follow_redirects=False,
     )
     assert r.status_code == 303
@@ -197,7 +197,11 @@ def test_override_rejects_negative(client, session_factory):
     pid = _seed_product_with_recipe_and_sales(session_factory)
     r = client.post(
         "/produccion/override",
-        data={"for_date": datetime.utcnow().date().isoformat(), "product_id": str(pid), "qty": "-1"},
+        data={
+            "for_date": datetime.utcnow().date().isoformat(),
+            "product_id": str(pid),
+            "qty": "-1",
+        },
     )
     assert r.status_code == 400
 

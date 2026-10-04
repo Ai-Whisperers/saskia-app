@@ -4,6 +4,7 @@ GET /reorder                — HTML view
 GET /reorder?format=json    — machine-readable for future /scripts integrations
 POST /reorder/generate-po   — bulk generate purchase order as WhatsApp text
 """
+
 from __future__ import annotations
 
 from urllib.parse import quote
@@ -73,9 +74,7 @@ def reorder_view(
         effective_supplier_map[item.ingredient_id] = eff_id
         locked_supplier_map[item.ingredient_id] = ing.locked_supplier_id
         # Pick the supplier object to show name + phone from
-        eff_supplier = (
-            session.get(Supplier, eff_id) if eff_id is not None else None
-        )
+        eff_supplier = session.get(Supplier, eff_id) if eff_id is not None else None
         if eff_supplier is not None:
             supplier_map[item.ingredient_id] = (eff_supplier.name, eff_supplier.phone or "")
         elif ing.supplier is not None:
@@ -101,9 +100,7 @@ def reorder_view(
     all_suppliers = session.scalars(
         select(Supplier).where(Supplier.is_active).order_by(Supplier.name)
     ).all()
-    supplier_options = [
-        {"id": s.id, "name": s.name, "phone": s.phone or ""} for s in all_suppliers
-    ]
+    supplier_options = [{"id": s.id, "name": s.name, "phone": s.phone or ""} for s in all_suppliers]
 
     # Price-history stats per ingredient (used for the sparkline on /reorder).
     # Single SQL query covers all items; 90-day window.
@@ -117,6 +114,7 @@ def reorder_view(
     # Predictive forecast (BACKLOG #7): avg_daily consumption + days_of_stock.
     # Single batched query for all items (no N+1).
     from app.rms.forecast import batch_forecast_ingredients
+
     forecast_objs = batch_forecast_ingredients(session, ingredient_ids, days_back=30)
     forecast_map: dict[int, dict] = {
         ing_id: {
@@ -130,48 +128,54 @@ def reorder_view(
     }
 
     if format == "json":
-        return JSONResponse({
-            "items": [
-                {
-                    "ingredient_id": i.ingredient_id,
-                    "name": i.name,
-                    "unit": i.unit,
-                    "current_stock": i.current_stock,
-                    "min_stock": i.min_stock,
-                    "max_stock": i.max_stock,
-                    "suggested_qty": i.suggested_qty,
-                    "estimated_cost_gs": i.estimated_cost_gs,
-                    "purchase_price_gs": i.purchase_price_gs,
-                    "urgency": i.urgency,
-                    "supplier_name": supplier_map.get(i.ingredient_id, (None, ""))[0],
-                    "supplier_phone": supplier_map.get(i.ingredient_id, ("", ""))[1],
-                    "effective_supplier_id": effective_supplier_map.get(i.ingredient_id),
-                    "locked_supplier_id": locked_supplier_map.get(i.ingredient_id),
-                }
-                for i in items
-            ],
-            "supplier_options": supplier_options,
-            "total_estimated_cost_gs": total_cost,
-            "count": len(items),
-            "lock_threshold": LOCK_THRESHOLD,  # analytics-only; locks are now manual
-        })
+        return JSONResponse(
+            {
+                "items": [
+                    {
+                        "ingredient_id": i.ingredient_id,
+                        "name": i.name,
+                        "unit": i.unit,
+                        "current_stock": i.current_stock,
+                        "min_stock": i.min_stock,
+                        "max_stock": i.max_stock,
+                        "suggested_qty": i.suggested_qty,
+                        "estimated_cost_gs": i.estimated_cost_gs,
+                        "purchase_price_gs": i.purchase_price_gs,
+                        "urgency": i.urgency,
+                        "supplier_name": supplier_map.get(i.ingredient_id, (None, ""))[0],
+                        "supplier_phone": supplier_map.get(i.ingredient_id, ("", ""))[1],
+                        "effective_supplier_id": effective_supplier_map.get(i.ingredient_id),
+                        "locked_supplier_id": locked_supplier_map.get(i.ingredient_id),
+                    }
+                    for i in items
+                ],
+                "supplier_options": supplier_options,
+                "total_estimated_cost_gs": total_cost,
+                "count": len(items),
+                "lock_threshold": LOCK_THRESHOLD,  # analytics-only; locks are now manual
+            }
+        )
 
-    return render(request, "reorder.html", {
-        "items": items,
-        "total_cost_gs": total_cost,
-        "count": len(items),
-        "supplier_map": supplier_map,
-        "effective_supplier_map": effective_supplier_map,
-        "locked_supplier_map": locked_supplier_map,
-        "supplier_prices_map": supplier_prices_map,
-        "supplier_options": supplier_options,
-        "lock_threshold": LOCK_THRESHOLD,
-        "price_stats": price_stats,
-        "cheapest_suppliers": cheapest_suppliers,
-        "forecast_map": forecast_map,
-        "page_start": 1,
-        "page_end": len(items),
-    })
+    return render(
+        request,
+        "reorder.html",
+        {
+            "items": items,
+            "total_cost_gs": total_cost,
+            "count": len(items),
+            "supplier_map": supplier_map,
+            "effective_supplier_map": effective_supplier_map,
+            "locked_supplier_map": locked_supplier_map,
+            "supplier_prices_map": supplier_prices_map,
+            "supplier_options": supplier_options,
+            "lock_threshold": LOCK_THRESHOLD,
+            "price_stats": price_stats,
+            "cheapest_suppliers": cheapest_suppliers,
+            "forecast_map": forecast_map,
+            "page_start": 1,
+            "page_end": len(items),
+        },
+    )
 
 
 @router.post("/registrar")
@@ -230,6 +234,7 @@ def reorder_registrar(
     # Convert qty from the form unit to the ingredient's stock unit so
     # "5000 g" on the form lands as +5.00 kg on the ingredient.
     from app.rms.units import Unit, can_convert, convert_qty
+
     qty_in_stock_unit = qty
     if qty_unit and ing.unit and qty_unit != ing.unit:
         from_unit = Unit.coerce(qty_unit)
@@ -408,7 +413,6 @@ def reorder_unlock_supplier(
     return JSONResponse({"ok": True, "ingredient_id": ingredient_id})
 
 
-
 @router.post("/upload-prices")
 async def reorder_upload_prices(
     request: Request,
@@ -502,15 +506,16 @@ async def reorder_upload_prices(
     # of one per row (cheap, but the test seed has 76 ingredients × 8
     # suppliers × 90 days = 54k possible rows; we'd be there all day).
     ingredients_by_name: dict[str, Ingredient] = {
-        i.name.lower(): i for i in (
-            session.execute(select(Ingredient)).scalars().all()
-        )
+        i.name.lower(): i for i in (session.execute(select(Ingredient)).scalars().all())
     }
     suppliers_by_name: dict[str, Supplier] = {
-        s.name.lower(): s for s in (
+        s.name.lower(): s
+        for s in (
             session.execute(
                 select(Supplier).where(Supplier.is_active == True)  # noqa: E712
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
     }
 
@@ -532,23 +537,41 @@ async def reorder_upload_prices(
         try:
             price_int = int(price_raw)
         except (ValueError, TypeError):
-            errors.append({"row": row_idx, "ingredient_name": ing_name, "supplier_name": sup_name,
-                           "error": f"price_gs inválido: {price_raw!r}"})
+            errors.append(
+                {
+                    "row": row_idx,
+                    "ingredient_name": ing_name,
+                    "supplier_name": sup_name,
+                    "error": f"price_gs inválido: {price_raw!r}",
+                }
+            )
             continue
         if price_int <= 0:
-            errors.append({"row": row_idx, "ingredient_name": ing_name, "supplier_name": sup_name,
-                           "error": "price_gs debe ser > 0"})
+            errors.append(
+                {
+                    "row": row_idx,
+                    "ingredient_name": ing_name,
+                    "supplier_name": sup_name,
+                    "error": "price_gs debe ser > 0",
+                }
+            )
             continue
 
         ing = ingredients_by_name.get(ing_name.lower())
         if ing is None:
-            errors.append({"row": row_idx, "ingredient_name": ing_name,
-                           "error": "ingrediente no encontrado"})
+            errors.append(
+                {"row": row_idx, "ingredient_name": ing_name, "error": "ingrediente no encontrado"}
+            )
             continue
         sup = suppliers_by_name.get(sup_name.lower())
         if sup is None:
-            errors.append({"row": row_idx, "supplier_name": sup_name,
-                           "error": "proveedor no encontrado (o inactivo)"})
+            errors.append(
+                {
+                    "row": row_idx,
+                    "supplier_name": sup_name,
+                    "error": "proveedor no encontrado (o inactivo)",
+                }
+            )
             continue
 
         # Date parsing
@@ -556,8 +579,13 @@ async def reorder_upload_prices(
             try:
                 when = _datetime.strptime(date_raw, "%Y-%m-%d").date()  # noqa: DTZ007 — only .date() is consumed
             except ValueError:
-                errors.append({"row": row_idx, "ingredient_name": ing_name,
-                               "error": f"date inválido: {date_raw!r} (usá YYYY-MM-DD)"})
+                errors.append(
+                    {
+                        "row": row_idx,
+                        "ingredient_name": ing_name,
+                        "error": f"date inválido: {date_raw!r} (usá YYYY-MM-DD)",
+                    }
+                )
                 continue
         else:
             when = today
@@ -565,29 +593,43 @@ async def reorder_upload_prices(
         # Skip future-dated rows but warn
         if when > today:
             skipped += 1
-            preview.append({
-                "ingredient": ing.name, "supplier": sup.name,
-                "price_gs": price_int, "date": when.isoformat(),
-                "warning": "fecha futura — no se importó",
-            })
+            preview.append(
+                {
+                    "ingredient": ing.name,
+                    "supplier": sup.name,
+                    "price_gs": price_int,
+                    "date": when.isoformat(),
+                    "warning": "fecha futura — no se importó",
+                }
+            )
             continue
 
         # Dedup: one (ingredient, supplier, date) per restock makes sense
-        existing = session.execute(
-            select(IngredientPriceEvent).where(
-                IngredientPriceEvent.ingredient_id == ing.id,
-                IngredientPriceEvent.supplier_id == sup.id,
-                IngredientPriceEvent.recorded_at >= _datetime.combine(when, _datetime.min.time()),
-                IngredientPriceEvent.recorded_at < _datetime.combine(when, _datetime.max.time()),
+        existing = (
+            session.execute(
+                select(IngredientPriceEvent).where(
+                    IngredientPriceEvent.ingredient_id == ing.id,
+                    IngredientPriceEvent.supplier_id == sup.id,
+                    IngredientPriceEvent.recorded_at
+                    >= _datetime.combine(when, _datetime.min.time()),
+                    IngredientPriceEvent.recorded_at
+                    < _datetime.combine(when, _datetime.max.time()),
+                )
             )
-        ).scalars().first()
+            .scalars()
+            .first()
+        )
         if existing is not None:
             skipped += 1
-            preview.append({
-                "ingredient": ing.name, "supplier": sup.name,
-                "price_gs": price_int, "date": when.isoformat(),
-                "warning": "duplicado — ya hay un evento para esta fecha",
-            })
+            preview.append(
+                {
+                    "ingredient": ing.name,
+                    "supplier": sup.name,
+                    "price_gs": price_int,
+                    "date": when.isoformat(),
+                    "warning": "duplicado — ya hay un evento para esta fecha",
+                }
+            )
             continue
 
         record_price_event(
@@ -599,10 +641,14 @@ async def reorder_upload_prices(
             supplier_id=sup.id,
         )
         imported += 1
-        preview.append({
-            "ingredient": ing.name, "supplier": sup.name,
-            "price_gs": price_int, "date": when.isoformat(),
-        })
+        preview.append(
+            {
+                "ingredient": ing.name,
+                "supplier": sup.name,
+                "price_gs": price_int,
+                "date": when.isoformat(),
+            }
+        )
 
     audit_record(
         session,
@@ -618,15 +664,15 @@ async def reorder_upload_prices(
     )
     session.commit()
 
-    return JSONResponse({
-        "ok": True,
-        "imported": imported,
-        "skipped": skipped,
-        "errors": errors[:50],  # cap error list
-        "preview": preview[:50],
-    })
-
-
+    return JSONResponse(
+        {
+            "ok": True,
+            "imported": imported,
+            "skipped": skipped,
+            "errors": errors[:50],  # cap error list
+            "preview": preview[:50],
+        }
+    )
 
 
 @router.post("/generate-po")
@@ -672,7 +718,9 @@ def reorder_generate_po(
         lines.append("")
     if no_supplier:
         lines.append("📦 *Sin proveedor asignado*")
-        lines.extend(f"  • {item.name}: {item.suggested_qty:.2f} {item.unit}" for item in no_supplier)
+        lines.extend(
+            f"  • {item.name}: {item.suggested_qty:.2f} {item.unit}" for item in no_supplier
+        )
         lines.append("")
 
     text = "\n".join(lines).strip()

@@ -1,4 +1,5 @@
 """tests/test_productos_filter.py — filter by q + has_recipe."""
+
 from __future__ import annotations
 
 

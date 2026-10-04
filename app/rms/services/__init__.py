@@ -51,5 +51,5 @@ __all__ = [
     "reopen_month",
     "total_expenses_gs",
     "update_expense",
-    "void_expense"
+    "void_expense",
 ]

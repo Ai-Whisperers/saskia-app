@@ -4,6 +4,7 @@ Verifies the route context + template renders the venta libre tile
 with a populated product id, and that the cart price column header is in
 place. NOT a pytest test — just a one-shot script for the dev to run.
 """
+
 from __future__ import annotations
 
 import os
@@ -29,8 +30,10 @@ init_db(engine)
 sf = make_session_factory(engine)
 
 
-def _make_for_test(url: Any=None, *, for_tests: Any=False):
+def _make_for_test(url: Any = None, *, for_tests: Any = False):
     return engine
+
+
 main_module.make_engine_dialect = _make_for_test
 
 from app.rms.seed import seed_demo_data
@@ -48,14 +51,16 @@ with TestClient(main_module.app, raise_server_exceptions=False) as c:
     body = r.text
     print("HAS_VL_BTN", 'id="venta-libre-btn"' in body)
     print("HAS_PRICE_COL", '<th style="text-align:right;width:110px">Precio</th>' in body)
-    print("HAS_CSS_VL", 'quick-sell-btn--varios' in body)
+    print("HAS_CSS_VL", "quick-sell-btn--varios" in body)
     import re
+
     m = re.search(r'id="venta-libre-btn"[^>]*data-product-id="(\d+)"', body)
     print("VL_PID", m.group(1) if m else None)
     m2 = re.search(r'class="quick-sell-btn"[^>]*data-product-id="(\d+)"', body)
     print("SAMPLE_PID", m2.group(1) if m2 else None)
     # Confirm a Venta libre row exists in DB
     from app.rms.models import Product
+
     with sf() as s:
         p = s.query(Product).filter_by(sku="VAR-001").one()
         print("DB_VL_NAME", p.name, "price", p.sale_price_gs, "cat", p.category)

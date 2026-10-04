@@ -20,9 +20,7 @@ def test_login_error_renders_alert_error_class(client):
     resp = client.get("/login?error=credenciales+inv%C3%A1lidas")
     assert resp.status_code == 200
     body = resp.text
-    assert 'class="alert alert-error"' in body, (
-        "Error alert missing alert-error class"
-    )
+    assert 'class="alert alert-error"' in body, "Error alert missing alert-error class"
     # role=alert + aria-live for screen reader announcement
     assert 'role="alert"' in body
     assert 'aria-live="assertive"' in body
@@ -62,9 +60,7 @@ def test_login_no_error_no_aria_invalid(client):
     # Note: Jinja renders {% if error %}...{% else %}autofocus{% endif %}
     # as just `autofocus` when no error. The password input should NOT have autofocus.
     password_autofocus = re.search(r'<input\s+type="password"[^>]*autofocus', resp.text)
-    assert password_autofocus is None, (
-        "Password should NOT have autofocus when there's no error"
-    )
+    assert password_autofocus is None, "Password should NOT have autofocus when there's no error"
     # Username should have it (via required+autofocus attribute in template)
     # Just check that exactly one input has autofocus
     autofocus_count = resp.text.count("autofocus")
@@ -180,9 +176,7 @@ def test_login_full_alert_block_visible(client):
     form_pos = body.find("<form")
     assert alert_pos != -1, "No alert-error div in HTML"
     assert form_pos != -1, "No form in HTML"
-    assert alert_pos < form_pos, (
-        "Alert must appear BEFORE the form so user sees it before retyping"
-    )
+    assert alert_pos < form_pos, "Alert must appear BEFORE the form so user sees it before retyping"
     # Must be inside main (not in a hidden offscreen element)
     main_pos = body.find("<main")
     assert main_pos < alert_pos, "Alert must be inside <main>"
@@ -191,4 +185,4 @@ def test_login_full_alert_block_visible(client):
 def test_login_form_has_novalidate_for_our_validation(client):
     """novalidate lets the browser's native required validation work but our server validates too."""
     resp = client.get("/login")
-    assert 'novalidate' in resp.text
+    assert "novalidate" in resp.text

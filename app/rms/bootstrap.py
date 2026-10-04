@@ -23,6 +23,7 @@ Why env vars? Two reasons:
 
 Reference: AGENTS.md rule #1 (no new deps), rule #11 (no leaked creds).
 """
+
 from __future__ import annotations
 
 import logging
@@ -58,9 +59,7 @@ def _sync_user_password(
     # Local import to keep bcrypt optional at import time.
     from app.rms.models import User
 
-    user = session.scalar(
-        select(User).where(User.username == username)
-    )
+    user = session.scalar(select(User).where(User.username == username))
     if user is None:
         # First boot — create the user.
         user = User(
@@ -73,7 +72,9 @@ def _sync_user_password(
         session.add(user)
         log.info(
             "bootstrap: created user %r (role=%s) from %s",
-            username, role, env_var,
+            username,
+            role,
+            env_var,
         )
         session.commit()
         return
@@ -83,7 +84,8 @@ def _sync_user_password(
         session.commit()
         log.info(
             "bootstrap: synced password for user %r from %s",
-            username, env_var,
+            username,
+            env_var,
         )
 
 

@@ -13,58 +13,80 @@ reads from these tables:
 RULE: never hardcode a nav label, crumb, or status string in a template.
 Add/fix it here; tests assert consistency.
 """
+
 from __future__ import annotations
 
 # ── SS-1: navigation ──────────────────────────────────────────────────
 # (route, label, icon, sub?)  — order matters; groups of ≤7.
 NAV_GROUPS: list[tuple[str, list[dict]]] = [
-    ("Operación", [
-        {"route": "/", "label": "Inicio", "icon": "icon-home", "exact": True},
-        {"route": "/ventas", "label": "Ventas", "icon": "icon-sale"},
-        {"route": "/pedidos", "label": "Pedidos", "icon": "icon-box"},
-        {"route": "/produccion", "label": "Producción", "icon": "icon-production"},
-        # /produccion/manana is intentionally NOT in the sidebar — surfaced as a
-        # button on /produccion and / instead (see produccion.html + inicio.html).
-        {"route": "/eod", "label": "Cierre del día", "icon": "icon-close"},
-    ]),
-    ("Catálogo", [
-        {"route": "/productos", "label": "Productos", "icon": "icon-box"},
-        {"route": "/recetas", "label": "Recetas", "icon": "icon-recipe"},
-        {"route": "/inventario", "label": "Inventario", "icon": "icon-inventory"},
-        {"route": "/merma", "label": "Merma", "icon": "icon-waste"},
-    ]),
-    ("Compras", [
-        {"route": "/reorder", "label": "Reponer", "icon": "icon-reorder"},
-        {"route": "/shopping-list", "label": "Lista de compras", "icon": "icon-list"},
-        {"route": "/suppliers", "label": "Proveedores", "icon": "icon-supplier"},
-        {"route": "/wishlist", "label": "Equipamiento", "icon": "icon-wrench"},
-    ]),
-    ("Ventas y clientes", [
-        {"route": "/clientes", "label": "Clientes", "icon": "icon-customer"},
-        {"route": "/suscripciones", "label": "Suscripciones", "icon": "icon-customer"},
-    ]),
-    ("Finanzas", [
-        {"route": "/reportes", "label": "Reportes", "icon": "icon-report"},
-        {"route": "/analisis", "label": "Análisis", "icon": "icon-chart"},
-        {"route": "/dashboard", "label": "KPIs mensuales", "icon": "icon-report", "sub": True},
-        {"route": "/pricing", "label": "Precios por canal", "icon": "icon-tag", "sub": True},
-        {"route": "/vs-mercado", "label": "Precios vs mercado", "icon": "icon-tag", "sub": True},
-        {"route": "/bank", "label": "Banco", "icon": "icon-bank"},
-        {"route": "/riesgos", "label": "Riesgos", "icon": "icon-warn"},
-    ]),
-    ("Sistema", [
-        {"route": "/settings", "label": "Configuración", "icon": "icon-settings"},
-        {"route": "/users", "label": "Usuarios", "icon": "icon-user"},
-        {"route": "/excel", "label": "Excel", "icon": "icon-excel"},
-        {"route": "/auditoria", "label": "Auditoría", "icon": "icon-list"},
-        {"route": "/guia", "label": "Guía", "icon": "icon-help"},
-    ]),
+    (
+        "Operación",
+        [
+            {"route": "/", "label": "Inicio", "icon": "icon-home", "exact": True},
+            {"route": "/ventas", "label": "Ventas", "icon": "icon-sale"},
+            {"route": "/pedidos", "label": "Pedidos", "icon": "icon-box"},
+            {"route": "/produccion", "label": "Producción", "icon": "icon-production"},
+            # /produccion/manana is intentionally NOT in the sidebar — surfaced as a
+            # button on /produccion and / instead (see produccion.html + inicio.html).
+            {"route": "/eod", "label": "Cierre del día", "icon": "icon-close"},
+        ],
+    ),
+    (
+        "Catálogo",
+        [
+            {"route": "/productos", "label": "Productos", "icon": "icon-box"},
+            {"route": "/recetas", "label": "Recetas", "icon": "icon-recipe"},
+            {"route": "/inventario", "label": "Inventario", "icon": "icon-inventory"},
+            {"route": "/merma", "label": "Merma", "icon": "icon-waste"},
+        ],
+    ),
+    (
+        "Compras",
+        [
+            {"route": "/reorder", "label": "Reponer", "icon": "icon-reorder"},
+            {"route": "/shopping-list", "label": "Lista de compras", "icon": "icon-list"},
+            {"route": "/suppliers", "label": "Proveedores", "icon": "icon-supplier"},
+            {"route": "/wishlist", "label": "Equipamiento", "icon": "icon-wrench"},
+        ],
+    ),
+    (
+        "Ventas y clientes",
+        [
+            {"route": "/clientes", "label": "Clientes", "icon": "icon-customer"},
+            {"route": "/suscripciones", "label": "Suscripciones", "icon": "icon-customer"},
+        ],
+    ),
+    (
+        "Finanzas",
+        [
+            {"route": "/reportes", "label": "Reportes", "icon": "icon-report"},
+            {"route": "/analisis", "label": "Análisis", "icon": "icon-chart"},
+            {"route": "/dashboard", "label": "KPIs mensuales", "icon": "icon-report", "sub": True},
+            {"route": "/pricing", "label": "Precios por canal", "icon": "icon-tag", "sub": True},
+            {
+                "route": "/vs-mercado",
+                "label": "Precios vs mercado",
+                "icon": "icon-tag",
+                "sub": True,
+            },
+            {"route": "/bank", "label": "Banco", "icon": "icon-bank"},
+            {"route": "/riesgos", "label": "Riesgos", "icon": "icon-warn"},
+        ],
+    ),
+    (
+        "Sistema",
+        [
+            {"route": "/settings", "label": "Configuración", "icon": "icon-settings"},
+            {"route": "/users", "label": "Usuarios", "icon": "icon-user"},
+            {"route": "/excel", "label": "Excel", "icon": "icon-excel"},
+            {"route": "/auditoria", "label": "Auditoría", "icon": "icon-list"},
+            {"route": "/guia", "label": "Guía", "icon": "icon-help"},
+        ],
+    ),
 ]
 
 NAV_INDEX: dict[str, dict] = {
-    item["route"]: {**item, "group": group}
-    for group, items in NAV_GROUPS
-    for item in items
+    item["route"]: {**item, "group": group} for group, items in NAV_GROUPS for item in items
 }
 
 # ── SS-2: breadcrumbs ─────────────────────────────────────────────────
@@ -155,7 +177,7 @@ def crumbs_for(path: str, entity_name: str | None = None) -> list[tuple[str, str
     }
     for prefix, (parent_label, parent_href, fmt) in ENTITY_CRUMBS.items():
         if path.startswith(prefix):
-            rest = path[len(prefix):].strip("/").split("/")
+            rest = path[len(prefix) :].strip("/").split("/")
             if not rest:
                 continue
             try:
@@ -168,7 +190,10 @@ def crumbs_for(path: str, entity_name: str | None = None) -> list[tuple[str, str
                 (fmt.format(name=entity_name or f"#{entity_id}", id=entity_id), None),
             ]
             if len(rest) > 1 and rest[-1] in ACTION_ES:
-                crumbs[-1] = (fmt.format(name=entity_name or f"#{entity_id}", id=entity_id), parent_href)
+                crumbs[-1] = (
+                    fmt.format(name=entity_name or f"#{entity_id}", id=entity_id),
+                    parent_href,
+                )
                 crumbs.append((ACTION_ES[rest[-1]], None))
             return crumbs
     return [("Inicio", "/")]

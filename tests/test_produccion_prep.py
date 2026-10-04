@@ -5,6 +5,7 @@ prep for the whole week, not just today. This route aggregates the
 plan across 7 days and shows: ingredient, total qty required for the
 week, current stock, to buy, severity badge (OK / Justo / Falta).
 """
+
 from datetime import date
 
 
@@ -14,7 +15,11 @@ def test_prep_view_renders(authed_client):
     assert r.status_code == 200
     body = r.text
     # The prep sheet has a clear heading
-    assert "Plan de preparación" in body or "preparación semanal" in body.lower() or "prep" in body.lower()
+    assert (
+        "Plan de preparación" in body
+        or "preparación semanal" in body.lower()
+        or "prep" in body.lower()
+    )
 
 
 def test_prep_view_handles_no_data(authed_client):

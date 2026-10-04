@@ -8,6 +8,7 @@ Test plan:
 5. POST batches=0 or non-integer → handled gracefully (redirect or 422)
 6. POST non-existent recipe_id → handled (redirect or 404)
 """
+
 from __future__ import annotations
 
 import pytest
@@ -27,11 +28,8 @@ def test_planner_get_returns_empty_state(client):
     assert "Calcular" in body, "Missing 'Calcular' button text"
     # The empty-state message
     assert (
-        "Elegí una receta" in body or "tandas" in body or "Probar" in body
-        or "no hay datos" in body
-    ), (
-        "Missing empty-state message on /produccion-planner"
-    )
+        "Elegí una receta" in body or "tandas" in body or "Probar" in body or "no hay datos" in body
+    ), "Missing empty-state message on /produccion-planner"
 
 
 def test_planner_compute_succeeds(client, session_factory):
@@ -39,7 +37,9 @@ def test_planner_compute_succeeds(client, session_factory):
     from tests.factories import ing_line, make_ingredient, make_recipe
 
     with session_factory() as s:
-        ing = make_ingredient(s, name=f"Harina-P15-{__import__('uuid').uuid4().hex[:6]}", stock_qty=50.0)
+        ing = make_ingredient(
+            s, name=f"Harina-P15-{__import__('uuid').uuid4().hex[:6]}", stock_qty=50.0
+        )
         recipe = make_recipe(
             s,
             name=f"Bolillo-P15-{__import__('uuid').uuid4().hex[:6]}",
@@ -56,9 +56,7 @@ def test_planner_compute_succeeds(client, session_factory):
     # Heading shows recipe × batches
     assert "10" in body, "Missing batches=10 in rendered output"
     # Ingredient name appears (calculation row)
-    assert ing_name in body, (
-        f"Calculated ingredient '{ing_name}' missing from planner output"
-    )
+    assert ing_name in body, f"Calculated ingredient '{ing_name}' missing from planner output"
 
 
 def test_planner_compute_invalid_batches_redirects(client, session_factory):

@@ -17,6 +17,7 @@ from tests.factories import make_customer
 
 # ── POS bridge ───────────────────────────────────────────────────────────
 
+
 def test_cliente_detalle_has_crear_pedido_button(client, session_factory):
     with session_factory() as s:
         c = make_customer(s, name="PosBridge UX")
@@ -24,7 +25,7 @@ def test_cliente_detalle_has_crear_pedido_button(client, session_factory):
         cid = c.id
     r = client.get(f"/clientes/{cid}")
     assert r.status_code == 200
-    assert f'/pedidos/nuevo?customer_id={cid}' in r.text
+    assert f"/pedidos/nuevo?customer_id={cid}" in r.text
     assert "Crear pedido" in r.text
 
 
@@ -36,9 +37,9 @@ def test_pedidos_nuevo_prefills_customer(client, session_factory):
     r = client.get(f"/pedidos/nuevo?customer_id={cid}")
     assert r.status_code == 200
     body = r.text
-    assert "Preset Cust UX" in body          # combo display + hint
-    assert "0983112233" in body               # phone prefilled
-    assert 'data-empty="false"' in body       # hint state = picked
+    assert "Preset Cust UX" in body  # combo display + hint
+    assert "0983112233" in body  # phone prefilled
+    assert 'data-empty="false"' in body  # hint state = picked
 
 
 def test_pedidos_nuevo_without_param_unchanged(client):
@@ -55,12 +56,14 @@ def test_pedidos_nuevo_unknown_customer_no_crash(client):
 
 # ── Birthday widget ──────────────────────────────────────────────────────
 
+
 def test_dashboard_shows_upcoming_birthday(client, session_factory):
     from datetime import datetime as dt
 
     now = dt.now()
     # birthday 3 days from now, stored MM-DD
     from datetime import timedelta
+
     bdate = now + timedelta(days=3)
     mmdd = f"{bdate.month:02d}-{bdate.day:02d}"
     with session_factory() as s:
@@ -85,10 +88,12 @@ def test_dashboard_hides_old_birthdays(client, session_factory):
     # Only fails if run Jan 1-7; acceptable test-time caveat
     if "OldBday Ux" in body:
         from datetime import datetime, timedelta
+
         assert datetime.now() + timedelta(days=7) >= datetime(datetime.now().year, 1, 1)
 
 
 # ── Birthday validation ──────────────────────────────────────────────────
+
 
 def test_birthday_valid_formats_accepted(client, session_factory):
     with session_factory() as s:
@@ -102,6 +107,7 @@ def test_birthday_valid_formats_accepted(client, session_factory):
     )
     assert r.status_code == 303
     from app.rms.models import Customer
+
     with session_factory() as s:
         assert s.get(Customer, cid).birthday == "03-15"  # normalized MM-DD
 
@@ -118,6 +124,7 @@ def test_birthday_full_date_accepted(client, session_factory):
     )
     assert r.status_code == 303
     from app.rms.models import Customer
+
     with session_factory() as s:
         assert s.get(Customer, cid).birthday == "03-15"
 
@@ -138,6 +145,7 @@ def test_birthday_invalid_rejected(client, session_factory):
 
 # ── CSV enrichment ───────────────────────────────────────────────────────
 
+
 def test_csv_export_includes_profile_fields(client, session_factory):
     with session_factory() as s:
         c = make_customer(s, name="CsvUX person", phone="0983112233")
@@ -150,8 +158,14 @@ def test_csv_export_includes_profile_fields(client, session_factory):
     r = client.get("/clientes?format=csv")
     assert r.status_code == 200
     text = r.text
-    for col in ("email", "birthday", "how_found", "preferred_channel",
-                "marketing_consent", "dietary_restrictions"):
+    for col in (
+        "email",
+        "birthday",
+        "how_found",
+        "preferred_channel",
+        "marketing_consent",
+        "dietary_restrictions",
+    ):
         assert col in text, col
     assert "CsvUX person" in text
     assert "vegano" in text
@@ -160,17 +174,19 @@ def test_csv_export_includes_profile_fields(client, session_factory):
 
 # ── Zone names + ventas channel ──────────────────────────────────────────
 
+
 def test_edit_form_shows_zone_names(client, session_factory):
     from app.rms.models import CustomerAddress, DeliveryZone
+
     with session_factory() as s:
         c = make_customer(s, name="ZoneName UX")
         s.flush()
-        z = DeliveryZone(code="zx", name="Zona Centro UX", position=99,
-                         delivery_cost_gs=5000, min_order_gs=0)
+        z = DeliveryZone(
+            code="zx", name="Zona Centro UX", position=99, delivery_cost_gs=5000, min_order_gs=0
+        )
         s.add(z)
         s.flush()
-        s.add(CustomerAddress(customer_id=c.id, label="casa",
-                              address_text="Calle 1", zone_id=z.id))
+        s.add(CustomerAddress(customer_id=c.id, label="casa", address_text="Calle 1", zone_id=z.id))
         s.commit()
         cid = c.id
     r = client.get(f"/clientes/{cid}/editar")

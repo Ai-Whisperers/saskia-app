@@ -63,9 +63,7 @@ def sync_product_inheritance(session: Session, recipe_id: int) -> list[int]:
     allergens = _split(r.allergens or "")
     value = ",".join(inherited + [f"al:{a}" for a in allergens]) or None
 
-    products = session.scalars(
-        select(Product).where(Product.recipe_id == recipe_id)
-    ).all()
+    products = session.scalars(select(Product).where(Product.recipe_id == recipe_id)).all()
     for p_ in products:
         p_.inherited_tags = value
     return [p_.id for p_ in products]

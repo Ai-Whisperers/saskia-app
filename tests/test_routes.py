@@ -23,12 +23,20 @@ def _seed(session_factory):
         flour = make_ingredient(s, name="Harina", unit="kg", stock_qty=2.0, purchase_price_gs=5000)
         sugar = make_ingredient(s, name="Azúcar", unit="kg", stock_qty=1.5, purchase_price_gs=4000)
         egg = make_ingredient(s, name="Huevo", unit="und", stock_qty=20.0, purchase_price_gs=1500)
-        recipe = make_recipe(s, name="Muffin", yield_qty=12.0, yield_unit="und",
-                             lines=[ing_line(flour, qty=0.3, unit="kg"),
-                                    ing_line(sugar, qty=0.2, unit="kg"),
-                                    ing_line(egg, qty=2.0, unit="und")])
-        product = make_product(s, name="Muffin", recipe=recipe, sale_price_gs=8000,
-                               portion_label="1 muffin")
+        recipe = make_recipe(
+            s,
+            name="Muffin",
+            yield_qty=12.0,
+            yield_unit="und",
+            lines=[
+                ing_line(flour, qty=0.3, unit="kg"),
+                ing_line(sugar, qty=0.2, unit="kg"),
+                ing_line(egg, qty=2.0, unit="und"),
+            ],
+        )
+        product = make_product(
+            s, name="Muffin", recipe=recipe, sale_price_gs=8000, portion_label="1 muffin"
+        )
         s.commit()
         return product.id
 
@@ -223,7 +231,9 @@ def test_recipes_list_empty(client):
     assert r.status_code == 200
 
 
-@pytest.mark.xfail(reason="Recipe without lines now requires at least one (RECIPE_LINES_REQUIRED)", strict=False)
+@pytest.mark.xfail(
+    reason="Recipe without lines now requires at least one (RECIPE_LINES_REQUIRED)", strict=False
+)
 def test_recipe_create_no_lines(client, session_factory):
     """Recipe with no lines should still save (cost shows 'falta precio')."""
     r = client.post(

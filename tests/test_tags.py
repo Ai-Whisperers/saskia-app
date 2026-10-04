@@ -14,6 +14,7 @@ Covers:
 - filter_recipes respects margin tier, tag, yield range
 - filter_products respects category equivalent, tag, has_recipe
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -97,7 +98,13 @@ def test_tag_target_is_idempotent(session_factory):
         tag_target(s, tag, TagKind.INGREDIENT.value, ing.id)  # again
         s.commit()
 
-        n_links = len(list(s.execute(select(TagLink).where(TagLink.tag_id == tag.id, TagLink.target_id == ing.id)).scalars()))
+        n_links = len(
+            list(
+                s.execute(
+                    select(TagLink).where(TagLink.tag_id == tag.id, TagLink.target_id == ing.id)
+                ).scalars()
+            )
+        )
         assert n_links == 1
     finally:
         s.close()
@@ -173,8 +180,12 @@ def test_filter_sales_by_date_range(session_factory):
         s.flush()
 
         now = datetime.now(timezone.utc)
-        old_sale = Sale(sold_at=now - timedelta(days=30), product_id=prod.id, qty=1.0, unit_price_gs=2500)
-        new_sale = Sale(sold_at=now - timedelta(days=2), product_id=prod.id, qty=1.0, unit_price_gs=2500)
+        old_sale = Sale(
+            sold_at=now - timedelta(days=30), product_id=prod.id, qty=1.0, unit_price_gs=2500
+        )
+        new_sale = Sale(
+            sold_at=now - timedelta(days=2), product_id=prod.id, qty=1.0, unit_price_gs=2500
+        )
         s.add_all([old_sale, new_sale])
         s.commit()
 
@@ -198,10 +209,22 @@ def test_filter_sales_by_product_ids(session_factory):
         p2 = make_product(s, name="Cheesecake", sale_price_gs=35000)
         s.add_all([p1, p2])
         s.flush()
-        s.add_all([
-            Sale(sold_at=datetime.now(timezone.utc), product_id=p1.id, qty=1.0, unit_price_gs=25000),
-            Sale(sold_at=datetime.now(timezone.utc), product_id=p2.id, qty=1.0, unit_price_gs=35000),
-        ])
+        s.add_all(
+            [
+                Sale(
+                    sold_at=datetime.now(timezone.utc),
+                    product_id=p1.id,
+                    qty=1.0,
+                    unit_price_gs=25000,
+                ),
+                Sale(
+                    sold_at=datetime.now(timezone.utc),
+                    product_id=p2.id,
+                    qty=1.0,
+                    unit_price_gs=35000,
+                ),
+            ]
+        )
         s.commit()
 
         f = SalesFilter(product_ids=[p1.id])
@@ -219,15 +242,23 @@ def test_filter_sales_by_only_voided(session_factory):
         prod = make_product(s, name="Muffin", sale_price_gs=2500)
         s.add(prod)
         s.flush()
-        s.add_all([
-            Sale(sold_at=datetime.now(timezone.utc), product_id=prod.id, qty=1.0, unit_price_gs=2500),
-            Sale(
-                sold_at=datetime.now(timezone.utc), product_id=prod.id,
-                qty=1.0,
-                unit_price_gs=2500,
-                voided_at=datetime.now(timezone.utc),
-            ),
-        ])
+        s.add_all(
+            [
+                Sale(
+                    sold_at=datetime.now(timezone.utc),
+                    product_id=prod.id,
+                    qty=1.0,
+                    unit_price_gs=2500,
+                ),
+                Sale(
+                    sold_at=datetime.now(timezone.utc),
+                    product_id=prod.id,
+                    qty=1.0,
+                    unit_price_gs=2500,
+                    voided_at=datetime.now(timezone.utc),
+                ),
+            ]
+        )
         s.commit()
 
         f = SalesFilter(only_voided=True)
@@ -246,10 +277,22 @@ def test_filter_sales_by_amount_range(session_factory):
         s.add(prod)
         s.flush()
         # One small (qty=1, total=2500), one big (qty=10, total=25000)
-        s.add_all([
-            Sale(sold_at=datetime.now(timezone.utc), product_id=prod.id, qty=1.0, unit_price_gs=2500),
-            Sale(sold_at=datetime.now(timezone.utc), product_id=prod.id, qty=10.0, unit_price_gs=2500),
-        ])
+        s.add_all(
+            [
+                Sale(
+                    sold_at=datetime.now(timezone.utc),
+                    product_id=prod.id,
+                    qty=1.0,
+                    unit_price_gs=2500,
+                ),
+                Sale(
+                    sold_at=datetime.now(timezone.utc),
+                    product_id=prod.id,
+                    qty=10.0,
+                    unit_price_gs=2500,
+                ),
+            ]
+        )
         s.commit()
 
         f = SalesFilter(min_amount_gs=10000)
@@ -270,10 +313,22 @@ def test_filter_sales_by_tag(session_factory):
         s.flush()
         tag = ensure_tag(s, "popular", TagKind.PRODUCT.value)
         tag_target(s, tag, TagKind.PRODUCT.value, p_tagged.id)
-        s.add_all([
-            Sale(sold_at=datetime.now(timezone.utc), product_id=p_tagged.id, qty=1.0, unit_price_gs=2500),
-            Sale(sold_at=datetime.now(timezone.utc), product_id=p_other.id, qty=1.0, unit_price_gs=3000),
-        ])
+        s.add_all(
+            [
+                Sale(
+                    sold_at=datetime.now(timezone.utc),
+                    product_id=p_tagged.id,
+                    qty=1.0,
+                    unit_price_gs=2500,
+                ),
+                Sale(
+                    sold_at=datetime.now(timezone.utc),
+                    product_id=p_other.id,
+                    qty=1.0,
+                    unit_price_gs=3000,
+                ),
+            ]
+        )
         s.commit()
 
         f = SalesFilter(product_tag_names=["popular"])
@@ -305,9 +360,25 @@ def test_filter_inventory_by_stock_status(session_factory):
     try:
         recent = datetime.now(timezone.utc) - timedelta(days=1)
         # stock=6, min=10 → ratio=0.6 → 'bajo_min' (above critico threshold)
-        bajo = make_ingredient(s, name="harina", unit="kg", stock_qty=6.0, min_stock_qty=10.0, purchase_price_gs=4500, last_consumed_at=recent)
+        bajo = make_ingredient(
+            s,
+            name="harina",
+            unit="kg",
+            stock_qty=6.0,
+            min_stock_qty=10.0,
+            purchase_price_gs=4500,
+            last_consumed_at=recent,
+        )
         # stock=100, min=5 → ratio=20 → 'sobrestock'
-        high = make_ingredient(s, name="azúcar", unit="kg", stock_qty=100.0, min_stock_qty=5.0, purchase_price_gs=5200, last_consumed_at=recent)
+        high = make_ingredient(
+            s,
+            name="azúcar",
+            unit="kg",
+            stock_qty=100.0,
+            min_stock_qty=5.0,
+            purchase_price_gs=5200,
+            last_consumed_at=recent,
+        )
         s.add_all([bajo, high])
         s.commit()
 
@@ -325,7 +396,9 @@ def test_filter_inventory_by_cost_band(session_factory):
     s = session_factory()
     try:
         cheap = make_ingredient(s, name="sal", unit="kg", stock_qty=2.0, purchase_price_gs=1800)
-        expensive = make_ingredient(s, name="almendra", unit="kg", stock_qty=1.0, purchase_price_gs=85000)
+        expensive = make_ingredient(
+            s, name="almendra", unit="kg", stock_qty=1.0, purchase_price_gs=85000
+        )
         s.add_all([cheap, expensive])
         s.commit()
 

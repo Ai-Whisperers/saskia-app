@@ -1,4 +1,5 @@
 """tests/test_schema_version_helper.py — schema version drift detector."""
+
 from app.rms.db import (
     CURRENT_SCHEMA_VERSION,
     app_meta_read,
@@ -11,6 +12,7 @@ from app.rms.db import (
 def test_schema_version_returns_int(session_factory):
     """schema_version(conn) returns the current row's value as int."""
     from app.rms.db import init_db
+
     engine = session_factory.kw["bind"]
     init_db(engine)
     with session_factory() as s:
@@ -22,6 +24,7 @@ def test_schema_version_returns_int(session_factory):
 def test_schema_version_mismatch_returns_diff(session_factory):
     """schema_version_mismatch(conn) returns 0 when versions match."""
     from app.rms.db import init_db
+
     engine = session_factory.kw["bind"]
     init_db(engine)
     with session_factory() as s:
@@ -32,6 +35,7 @@ def test_schema_version_mismatch_returns_diff(session_factory):
 def test_schema_version_mismatch_returns_positive_when_drift(session_factory):
     """schema_version_mismatch returns CURRENT - DB when DB is behind."""
     from app.rms.db import init_db
+
     engine = session_factory.kw["bind"]
     init_db(engine)
     # Force DB schema to an older version
@@ -55,6 +59,7 @@ def test_app_meta_write_creates_row_if_missing(session_factory):
 def test_app_meta_write_updates_existing_row(session_factory):
     """app_meta_write UPDATES an existing key (upsert behavior)."""
     from app.rms.db import init_db
+
     engine = session_factory.kw["bind"]
     init_db(engine)
     with session_factory() as s:

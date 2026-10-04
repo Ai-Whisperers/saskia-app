@@ -10,6 +10,7 @@ These tests verify:
 3. The currency formatter is used consistently.
 4. No Python errors when iterating an empty benchmark list.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -28,11 +29,9 @@ def test_vs_mercado_has_page_header(client):
     r = client.get("/vs-mercado")
     assert r.status_code == 200
     body = r.text
-    assert (
-        "Comparativa" in body
-        or "vs mercado" in body.lower()
-        or "Benchmarks" in body
-    ), "Missing page header on /vs-mercado"
+    assert "Comparativa" in body or "vs mercado" in body.lower() or "Benchmarks" in body, (
+        "Missing page header on /vs-mercado"
+    )
 
 
 def test_vs_mercado_empty_state_when_no_data(client):
@@ -43,13 +42,10 @@ def test_vs_mercado_empty_state_when_no_data(client):
     # With an empty DB, the template must show the empty-state block.
     # We look for distinctive markers: the empty-state class and the
     # helpful copy.
-    has_empty_state = (
-        "empty-state" in body
-        and (
-            "Sin datos de mercado cargados" in body
-            or "Sin benchmarks" in body
-            or "Agregar primer benchmark" in body
-        )
+    has_empty_state = "empty-state" in body and (
+        "Sin datos de mercado cargados" in body
+        or "Sin benchmarks" in body
+        or "Agregar primer benchmark" in body
     )
     # Allow the test to pass if there are actual benchmarks (data was seeded).
     has_table_rows = "data-delta-gs" in body and "<tbody>" in body
@@ -75,9 +71,9 @@ def test_vs_mercado_csv_export_link(client):
     r = client.get("/vs-mercado")
     assert r.status_code == 200
     body = r.text
-    assert (
-        "format=csv" in body or ("vs-mercado" in body and ".csv" in body)
-    ), "Missing CSV export link on /vs-mercado"
+    assert "format=csv" in body or ("vs-mercado" in body and ".csv" in body), (
+        "Missing CSV export link on /vs-mercado"
+    )
 
 
 def test_vs_mercado_edit_endpoint(client):
@@ -85,6 +81,4 @@ def test_vs_mercado_edit_endpoint(client):
     r = client.get("/vs-mercado/1/edit")
     # Should be 200 (page renders with form) or 404 (no benchmark with id=1)
     # Both are acceptable.
-    assert r.status_code in (200, 303, 404), (
-        f"/vs-mercado/1/edit returned {r.status_code}"
-    )
+    assert r.status_code in (200, 303, 404), f"/vs-mercado/1/edit returned {r.status_code}"

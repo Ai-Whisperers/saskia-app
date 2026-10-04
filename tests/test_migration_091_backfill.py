@@ -11,6 +11,7 @@ probe + idempotency). The pre-90 → 92 in-place upgrade scenario is
 not directly testable here because recreating a legacy schema is
 out of scope for the test suite.
 """
+
 from __future__ import annotations
 
 from sqlalchemy import create_engine, text
@@ -20,6 +21,7 @@ def _init_db_to_92():
     """Helper: build a fresh in-memory DB at schema 92."""
     engine = create_engine("sqlite:///:memory:")
     from app.rms.db import init_db
+
     init_db(engine)
     return engine
 

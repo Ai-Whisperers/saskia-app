@@ -83,7 +83,11 @@ def test_first_read_allowed_on_clean_db(session_factory) -> None:
         request = _fake_request(ip="203.0.113.1")
         when = datetime.now(timezone.utc)
         decision = is_read_rate_limited(
-            s, request, max_per_minute=5, window_seconds=60, now=when,
+            s,
+            request,
+            max_per_minute=5,
+            window_seconds=60,
+            now=when,
         )
         assert decision.allowed is True
         assert decision.current_count == 0
@@ -99,7 +103,11 @@ def test_blocks_after_threshold(session_factory) -> None:
         _populate_audit(s, ip, "read.heavy.api.search.products", n=5, when=when)
         request = _fake_request(ip=ip)
         decision = is_read_rate_limited(
-            s, request, max_per_minute=5, window_seconds=60, now=when,
+            s,
+            request,
+            max_per_minute=5,
+            window_seconds=60,
+            now=when,
         )
         assert decision.allowed is False
         assert decision.current_count == 5
@@ -117,7 +125,11 @@ def test_uses_xff_first_hop_ip(session_factory) -> None:
         _populate_audit(s, spoofed_ip, "read.heavy.test", n=5, when=when)
         request = _fake_request(ip=real_ip, xff=xff)
         decision = is_read_rate_limited(
-            s, request, max_per_minute=5, window_seconds=60, now=when,
+            s,
+            request,
+            max_per_minute=5,
+            window_seconds=60,
+            now=when,
         )
         assert decision.allowed is False, "should have used spoofed IP from XFF"
 
@@ -132,7 +144,11 @@ def test_window_does_not_count_old_reads(session_factory) -> None:
         _populate_audit(s, ip, "read.heavy", n=5, when=long_ago)
         request = _fake_request(ip=ip)
         decision = is_read_rate_limited(
-            s, request, max_per_minute=5, window_seconds=60, now=now,
+            s,
+            request,
+            max_per_minute=5,
+            window_seconds=60,
+            now=now,
         )
         assert decision.allowed is True
 
@@ -143,7 +159,10 @@ def test_fail_open_on_db_error() -> None:
     bogus_session.query.side_effect = RuntimeError("DB unavailable")
     request = _fake_request(ip="203.0.113.30")
     decision = is_read_rate_limited(
-        bogus_session, request, max_per_minute=5, window_seconds=60,
+        bogus_session,
+        request,
+        max_per_minute=5,
+        window_seconds=60,
     )
     assert decision.allowed is True
     assert decision.limit == 5
@@ -154,11 +173,7 @@ def test_record_read_heavy_writes_audit_row(session_factory) -> None:
     with session_factory() as s:
         request = _fake_request(ip="203.0.113.40")
         record_read_heavy(s, request, route_tag="unit.test")
-        row = (
-            s.query(AuditLog)
-            .filter(AuditLog.action == "read.heavy.unit.test")
-            .one()
-        )
+        row = s.query(AuditLog).filter(AuditLog.action == "read.heavy.unit.test").one()
         assert row.ip == "203.0.113.40"
 
 
@@ -190,11 +205,7 @@ def test_dependency_records_when_allowed(monkeypatch, session_factory) -> None:
     with session_factory() as s:
         result = dep(request=request, session=s)
         assert result is None
-        row = (
-            s.query(AuditLog)
-            .filter(AuditLog.action == "read.heavy.dep.record.test")
-            .first()
-        )
+        row = s.query(AuditLog).filter(AuditLog.action == "read.heavy.dep.record.test").first()
         assert row is not None
 
 
@@ -224,6 +235,7 @@ def test_healthz_db_not_rate_limited() -> None:
     fails this test (operator + cron would break).
     """
     from app.routers.health import router as health_router
+
     routes = [r.path for r in health_router.routes]
     # Confirm healthz routes exist
     assert "/healthz/db" in routes
@@ -235,8 +247,7 @@ def test_healthz_db_not_rate_limited() -> None:
                 # The dep object has a `dependency` attribute pointing to the
                 # underlying function. Our dep is `read_rate_limit_dependency`.
                 assert "read_rate_limit_dependency" not in str(dep.dependency), (
-                    f"{r.path} carries read_rate_limit_dependency -- "
-                    "UptimeRobot polling will 429!"
+                    f"{r.path} carries read_rate_limit_dependency -- UptimeRobot polling will 429!"
                 )
 
 

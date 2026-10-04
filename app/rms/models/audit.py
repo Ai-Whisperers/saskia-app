@@ -15,6 +15,7 @@ All models here share the same declarative Base as the rest of the
 project — see app/rms/models/core.py.
 """
 
+
 class AppMeta(Base):
     """Key-value store for app metadata (schema version, last_backup_at, etc.)."""
 

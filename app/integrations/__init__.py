@@ -8,6 +8,7 @@ Modules:
 - barcode: barcode generation/parsing
 - printer: thermal printer / receipt integration
 """
+
 from app.integrations import barcode, printer, scrapers
 
 __all__ = ["barcode", "printer", "scrapers"]

@@ -48,7 +48,7 @@ def _is_enabled() -> bool:
 
 
 @router.post("/seed")
-def demo_seed(session: Any=Depends(get_session)) -> JSONResponse:
+def demo_seed(session: Any = Depends(get_session)) -> JSONResponse:
     """Build the Kyrian demo customer. Idempotent.
 
     Returns a JSON summary of what was created/replaced. Errors with
@@ -69,9 +69,7 @@ def demo_seed(session: Any=Depends(get_session)) -> JSONResponse:
         session.commit()
     except Exception as exc:
         session.rollback()
-        raise HTTPException(
-            status_code=500, detail=f"Demo seed failed: {exc!r}"
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"Demo seed failed: {exc!r}") from exc
 
     return JSONResponse(
         {

@@ -1,4 +1,5 @@
 """tests/test_haccp_seed.py — Phase 1.C HACCP defaults per category."""
+
 from __future__ import annotations
 
 from app.rms.haccp_seed import CATEGORY_HACCP, apply_haccp_defaults
@@ -25,6 +26,7 @@ class TestHacpCategoryTable:
     def test_all_categories_covered(self):
         """Every product category used in the inference engine has HACCP defaults."""
         from app.rms.ingredient_intel import _CATEGORY_KEYWORDS
+
         for cat in _CATEGORY_KEYWORDS.keys():
             assert cat in CATEGORY_HACCP, f"Category {cat!r} missing from HACCP defaults"
 
@@ -78,9 +80,14 @@ class TestApplyHaccpDefaults:
         Session = session_factory
         with Session() as s:
             ing = _make_ingredient(
-                s, "Harina especial", category="harinas",
-                temp_min_c=10.0, temp_max_c=20.0, humidity_max_pct=50.0,
-                water_activity_aw=0.5, lot_required=False,
+                s,
+                "Harina especial",
+                category="harinas",
+                temp_min_c=10.0,
+                temp_max_c=20.0,
+                humidity_max_pct=50.0,
+                water_activity_aw=0.5,
+                lot_required=False,
             )
             original_temp_min = ing.temp_min_c
             n = apply_haccp_defaults(s)
@@ -102,7 +109,9 @@ class TestApplyHaccpDefaults:
         Session = session_factory
         with Session() as s:
             ing = _make_ingredient(
-                s, "Azúcar test", category="endulzantes",
+                s,
+                "Azúcar test",
+                category="endulzantes",
                 temp_min_c=20.0,  # only temp_min populated
             )
             n = apply_haccp_defaults(s)

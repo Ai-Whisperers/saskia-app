@@ -97,14 +97,15 @@ def login_submit(
     # always have SASKIA_TEST_AUTH_DISABLED unset (or =0), so this branch
     # is unreachable there.
     from app.auth import is_auth_disabled
+
     if is_auth_disabled():
         from app.auth import login_user_local
+
         # Use a stable test user id and seed a local session cookie.
         login_user_local(request, user_id=999, username=username or "test")
         resp = RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
         resp.set_cookie(
-            "last_username", username or "test",
-            max_age=86400 * 30, httponly=True, samesite="lax"
+            "last_username", username or "test", max_age=86400 * 30, httponly=True, samesite="lax"
         )
         return resp
 
@@ -136,9 +137,7 @@ def _login_supabase(
 
     resp = RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
     # Remember username for next login
-    resp.set_cookie(
-        "last_username", email, max_age=86400 * 30, httponly=True, samesite="lax"
-    )
+    resp.set_cookie("last_username", email, max_age=86400 * 30, httponly=True, samesite="lax")
     return resp
 
 
@@ -186,9 +185,7 @@ def _login_local(
     )
     session.commit()
     resp = RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
-    resp.set_cookie(
-        "last_username", username, max_age=86400 * 30, httponly=True, samesite="lax"
-    )
+    resp.set_cookie("last_username", username, max_age=86400 * 30, httponly=True, samesite="lax")
     return resp
 
 

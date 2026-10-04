@@ -52,7 +52,8 @@ def test_record_populates_histogram_buckets():
 
     # Find the bucket lines for /api/test
     bucket_lines = [
-        line for line in out.split("\n")
+        line
+        for line in out.split("\n")
         if "rms_request_duration_seconds_bucket" in line and 'path="/api/test"' in line
     ]
     # 11 buckets (10 finite + 1 +Inf)
@@ -76,11 +77,19 @@ def test_histogram_sum_and_count():
     record_request("/x", "GET", 200, 0.2)
     out = render()
     # Sum should be 0.3 (within rounding)
-    sum_line = [line for line in out.split("\n") if "rms_request_duration_seconds_sum" in line and 'path="/x"' in line]
+    sum_line = [
+        line
+        for line in out.split("\n")
+        if "rms_request_duration_seconds_sum" in line and 'path="/x"' in line
+    ]
     assert len(sum_line) == 1
     assert sum_line[0].endswith(" 0.300000") or sum_line[0].endswith(" 0.3")
     # Count should be 2
-    count_line = [line for line in out.split("\n") if "rms_request_duration_seconds_count" in line and 'path="/x"' in line]
+    count_line = [
+        line
+        for line in out.split("\n")
+        if "rms_request_duration_seconds_count" in line and 'path="/x"' in line
+    ]
     assert count_line[0].endswith(" 2")
 
 
@@ -94,10 +103,10 @@ def test_db_up_gauge():
 def test_app_info_emitted_when_set():
     set_app_info(version="1.0", schema_version=84)
     out = render()
-    assert 'rms_app_info{' in out
+    assert "rms_app_info{" in out
     assert 'schema_version="84"' in out
     assert 'version="1.0"' in out
-    assert out.count('rms_app_info{') == 1
+    assert out.count("rms_app_info{") == 1
     # The line must end with " 1" (Prometheus info-gauge convention)
     info_line = [line for line in out.split("\n") if line.startswith("rms_app_info{")]
     assert info_line[0].endswith(" 1")
@@ -138,7 +147,7 @@ def test_metric_thread_safety_smoke():
 
 def test_escape_in_path():
     """Backslash, quote, and newline must be escaped in labels."""
-    record_request("/weird/\\path\"quote\"", "GET", 200, 0.01)
+    record_request('/weird/\\path"quote"', "GET", 200, 0.01)
     out = render()
     # Both backslash and quote should be doubled in the label value
     assert 'path="/weird/\\\\path\\"quote\\""' in out

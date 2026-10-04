@@ -43,11 +43,14 @@ def _set_version(conn, v: int) -> None:
     from datetime import datetime, timezone
 
     ts = datetime.now(timezone.utc).isoformat()
-    conn.execute(text(
-        "INSERT INTO app_meta (key, value, updated_at) "
-        "VALUES ('schema_version', :v, :ts) "
-        "ON CONFLICT(key) DO UPDATE SET value = :v, updated_at = :ts"
-    ), {"v": f'"{v}"', "ts": ts})
+    conn.execute(
+        text(
+            "INSERT INTO app_meta (key, value, updated_at) "
+            "VALUES ('schema_version', :v, :ts) "
+            "ON CONFLICT(key) DO UPDATE SET value = :v, updated_at = :ts"
+        ),
+        {"v": f'"{v}"', "ts": ts},
+    )
     conn.commit()
 
 
@@ -59,8 +62,14 @@ def _sentinels(factory) -> dict:
         rec = make_recipe(s, lines=[ing_line(ing, qty=0.25)])
         prod = make_product(s, recipe=rec, sale_price_gs=99000)
         s.commit()
-        return {"ing": ing.id, "rec": rec.id, "prod": prod.id,
-                "ing_price": 12345, "ing_stock": 7.5, "prod_price": 99000}
+        return {
+            "ing": ing.id,
+            "rec": rec.id,
+            "prod": prod.id,
+            "ing_price": 12345,
+            "ing_stock": 7.5,
+            "prod_price": 99000,
+        }
 
 
 @pytest.mark.parametrize("start_v", SAMPLE_VERSIONS)
@@ -84,6 +93,7 @@ def test_upgrade_from_populated_version_reaches_head(
 
     with app_engine.connect() as conn:
         from app.rms.db import schema_version as sv
+
         assert sv(conn) == CURRENT_SCHEMA_VERSION
 
     with session_factory() as s:

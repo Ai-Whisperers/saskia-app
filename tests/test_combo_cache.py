@@ -45,8 +45,9 @@ def test_combo_cache_expiry_evicts():
     """Expired cache entries should be evicted on read."""
     js = Path("/opt/data/work/saskia-app/app/static/saskia-combo.js").read_text()
     # Should delete cache entry on expiry (using either instance or shared cache handle)
-    assert "_sharedCache.delete(" in js or "sharedCache.delete(cacheKey)" in js, \
+    assert "_sharedCache.delete(" in js or "sharedCache.delete(cacheKey)" in js, (
         "Expected cache eviction on expiry"
+    )
 
 
 def test_combo_cache_shared_across_instances():
@@ -61,7 +62,9 @@ def test_combo_clear_cache_helper():
     """A clearCache() method should be exposed on the class."""
     js = Path("/opt/data/work/saskia-app/app/static/saskia-combo.js").read_text()
     # Static method to flush the cache
-    m = re.search(r"static\s+clearCache\s*\(\s*\)\s*\{[^}]*_sharedCache\.clear\s*\(\s*\)", js, re.DOTALL)
+    m = re.search(
+        r"static\s+clearCache\s*\(\s*\)\s*\{[^}]*_sharedCache\.clear\s*\(\s*\)", js, re.DOTALL
+    )
     assert m is not None, "Expected a static clearCache() method that clears _sharedCache"
 
 
@@ -79,7 +82,7 @@ def test_combo_no_naive_per_row_append():
     js = Path("/opt/data/work/saskia-app/app/static/saskia-combo.js").read_text()
     # Find the _render section and confirm there's no direct results.appendChild inside
     # the forEach body (only fragment appendChild is allowed).
-    render_section = js[js.index("_render(matches)"): js.index("setValue(item)")]
+    render_section = js[js.index("_render(matches)") : js.index("setValue(item)")]
     # There should be results.appendChild(...) exactly once (the fragment mount)
     assert render_section.count("this.results.appendChild") == 1
 
@@ -98,7 +101,7 @@ def test_base_template_preloads_combo():
     # Preload hint should exist
     assert '<link rel="preload" href="/static/saskia-combo.js"' in base
     # And the script should be version-busted for safe cache hits
-    assert 'combo.js?v={{ asset_version() }}' in base
+    assert "combo.js?v={{ asset_version() }}" in base
 
 
 def test_users_api_roles_response_shape():
@@ -129,7 +132,7 @@ def test_productos_uses_static_combo():
     p = Path("/opt/data/work/saskia-app/app/templates/productos.html").read_text()
     # Old native select should be gone
     assert '<select name="has_recipe">' not in p
-    assert '<select' not in p
+    assert "<select" not in p
     # mf-pop radio popover with 3 options
     assert 'data-mf="has_recipe"' in p
     assert p.count('value="{{ val }}"') >= 1  # loop-generated radio options
@@ -145,7 +148,7 @@ def test_receta_form_scale_uses_static_combo():
     # Should have the scale_combo + 8 multiplier options
     assert "scale_combo" in r
     # Should auto-submit the form on pick (matching the old onchange)
-    assert "combo.closest(\"form\").submit()" in r
+    assert 'combo.closest("form").submit()' in r
 
 
 def test_receta_form_yield_unit_uses_combo():

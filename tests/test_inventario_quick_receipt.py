@@ -7,6 +7,7 @@ without leaving the list.
 Implementation: form POSTs to the existing /inventario/{id}/ajustar
 endpoint with a positive adjustment. No new router needed.
 """
+
 # allow-hardcoded-dates: stock math doesn't depend on calendar.
 from __future__ import annotations
 
@@ -54,6 +55,7 @@ def test_quick_receipt_adds_stock(client, session_factory):
     assert r.status_code == 200
     # Pull CSRF token from rendered page (search for hidden input)
     import re
+
     m = re.search(r'name="csrf_token" value="([^"]+)"', r.text)
     assert m, "CSRF token not found in /inventario"
     csrf = m.group(1)
@@ -81,6 +83,7 @@ def test_quick_receipt_zero_or_empty_rejected(client, session_factory):
         s.commit()
     r = client.get("/inventario")
     import re
+
     m = re.search(r'name="csrf_token" value="([^"]+)"', r.text)
     csrf = m.group(1)
     # Empty adjustment → form HTML5 `required` blocks it client-side, but
@@ -105,6 +108,7 @@ def test_quick_receipt_creates_movement_record(client, session_factory):
         s.commit()
     r = client.get("/inventario")
     import re
+
     m = re.search(r'name="csrf_token" value="([^"]+)"', r.text)
     csrf = m.group(1)
     client.post(
@@ -114,9 +118,10 @@ def test_quick_receipt_creates_movement_record(client, session_factory):
     )
     # Check StockMovement exists
     from app.rms.models import StockMovement
+
     with session_factory() as s:
-        moves = s.query(StockMovement).filter_by(
-            ingredient_id=ing_id, movement_type="adjustment"
-        ).all()
+        moves = (
+            s.query(StockMovement).filter_by(ingredient_id=ing_id, movement_type="adjustment").all()
+        )
         assert len(moves) >= 1
         assert any(m.qty == 3000 for m in moves)

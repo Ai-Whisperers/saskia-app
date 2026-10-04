@@ -6,10 +6,10 @@ button that goes to ?page=2.
 """
 
 
-
 def test_recetas_paginates_above_50(qseed, authed_client, session_factory):
     """When >50 recipes exist, /recetas?page=2 lists the next batch."""
     from app.rms.models import Recipe
+
     sf = session_factory
     # Create 60 recipes
     with sf() as s:
@@ -23,18 +23,19 @@ def test_recetas_paginates_above_50(qseed, authed_client, session_factory):
     body = r.text
     assert "página" in body or "Mostrando" in body
     # First page should NOT include the Siguiente → button should be there
-    assert 'Siguiente' in body
+    assert "Siguiente" in body
 
     r2 = authed_client.get("/recetas?page=2&page_size=50")
     assert r2.status_code == 200
     body2 = r2.text
     # Page 2 should have anterior
-    assert 'Anterior' in body2
+    assert "Anterior" in body2
 
 
 def test_recetas_pagination_singular_page_when_few(qseed, authed_client, session_factory):
     """When <50 recipes, no pagination nav is rendered."""
     from app.rms.models import Recipe
+
     sf = session_factory
     with sf() as s:
         for i in range(5):
@@ -53,6 +54,7 @@ def test_recetas_pagination_singular_page_when_few(qseed, authed_client, session
 def test_recetas_pagination_respects_search(qseed, authed_client, session_factory):
     """?q=foo filters the count too (pagination aware)."""
     from app.rms.models import Recipe
+
     sf = session_factory
     with sf() as s:
         for i in range(20):

@@ -10,6 +10,7 @@ These tests assert:
 - Roundtrip Decimal values through insert + select.
 - Decimal arithmetic does not lose precision.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -25,9 +26,7 @@ def test_recipe_line_qty_column_declared_numeric(app_engine):
     cols = {c["name"]: c for c in insp.get_columns("recipe_line")}
     assert "qty" in cols
     qty_type = str(cols["qty"]["type"]).upper()
-    assert "NUMERIC" in qty_type, (
-        f"recipe_line.qty should be NUMERIC, got {qty_type}"
-    )
+    assert "NUMERIC" in qty_type, f"recipe_line.qty should be NUMERIC, got {qty_type}"
     assert "FLOAT" not in qty_type and "REAL" not in qty_type
 
 

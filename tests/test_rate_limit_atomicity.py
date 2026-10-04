@@ -13,6 +13,7 @@ This test documents the race exists (verifies the current behavior matches
 the documented race description) and locks in the atomic-fix expectations.
 The actual atomic fix is tracked separately.
 """
+
 from __future__ import annotations
 
 # ─── Existing behavior lock-in (RED for the proper fix) ──────────────────────

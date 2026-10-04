@@ -20,6 +20,7 @@ restock column.
 This test reproduces the broken render. It should FAIL before the fix
 and PASS after.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -73,8 +74,8 @@ def test_reorder_template_renders_valid_html(client, session_factory):
     # times: ingredient_id (hidden), notes (hidden), qty, qty_unit
     # (combo), price_gs.
     assert body.count('value="') >= 5, (
-        f"expected >=5 value=\" attrs in body (ingredient_id, notes, qty, "
-        f"qty_unit, price_gs); got {body.count('value=\"')}\n"
+        f'expected >=5 value=" attrs in body (ingredient_id, notes, qty, '
+        f"qty_unit, price_gs); got {body.count('value="')}\n"
         f"first 2KB of body:\n{body[:2000]}"
     )
 

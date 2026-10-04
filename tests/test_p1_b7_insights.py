@@ -162,10 +162,10 @@ def test_dashboard_render_insights(client: TestClient, session: Session) -> None
     content = response.text
 
     # Check for insight card container (may be empty if no insights active)
-    assert 'insights-band' in content
+    assert "insights-band" in content
 
     # Check for the custom element script
-    assert 'saskia-insight-card' in content
+    assert "saskia-insight-card" in content
 
 
 def test_insights_dismiss_endpoint_removed(client: TestClient) -> None:
@@ -182,7 +182,7 @@ def test_insight_card_javascript_loaded(client: TestClient) -> None:
     assert response.status_code == 200
 
     content = response.text
-    assert 'saskia-insight-card.js' in content
+    assert "saskia-insight-card.js" in content
 
 
 def test_insight_attributes_in_template(client: TestClient, session: Session) -> None:
@@ -234,7 +234,7 @@ def test_insights_hidden_when_empty(client: TestClient) -> None:
 
     # When there are no insights, the insights band should exist but be empty
     content = response.text
-    assert 'insights-band' in content
+    assert "insights-band" in content
 
     # But there should be no insight cards
-    assert content.count('<saskia-insight-card') == 0
+    assert content.count("<saskia-insight-card") == 0

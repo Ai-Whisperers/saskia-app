@@ -5,6 +5,7 @@ source. Tests focus on the empty-query path (no HTTP), the
 graceful-degradation path (mocked scraper fails), and the happy path
 against a mocked source.
 """
+
 from __future__ import annotations
 
 from app.integrations.scrapers import ScrapedPrice, ScrapeResult
@@ -12,6 +13,7 @@ from app.integrations.scrapers import ScrapedPrice, ScrapeResult
 
 def test_reorder_scrape_empty_query_returns_empty_no_http(client, monkeypatch):
     """Empty query → 200 with ok=True and zero matches everywhere."""
+
     def fake_scrape_all(query, sources=None):
         # Confirm scrape_all IS called even for empty query.
         assert query == ""
@@ -94,9 +96,7 @@ def test_reorder_scrape_writes_audit_row(client, monkeypatch, session_factory):
     from app.rms.models import AuditLog
 
     with Session() as s:
-        audits = s.query(AuditLog).filter(
-            AuditLog.action == "read.scraper.run"
-        ).all()
+        audits = s.query(AuditLog).filter(AuditLog.action == "read.scraper.run").all()
         assert len(audits) == 1
         assert audits[0].detail["query"] == "leche"
         assert audits[0].detail["match_count"] == 1
@@ -108,6 +108,7 @@ def test_reorder_scrape_audit_failure_does_not_break_scrape(client, monkeypatch)
     Operator might lose one audit row but the user gets their prices —
     price scraping is more valuable than the audit trace.
     """
+
     def fake_scrape_all(query, sources=None):
         return [ScrapeResult(source="superseis", query=query, matches=())]
 

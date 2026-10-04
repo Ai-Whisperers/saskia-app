@@ -29,14 +29,13 @@ CreatedTimestamp: Mapped[datetime] = mapped_column(
     DateTime(timezone=True), nullable=False, default=datetime.now(timezone.utc)
 )
 UpdatedTimestamp: Mapped[datetime] = mapped_column(
-    DateTime(timezone=True), nullable=False, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc)
+    DateTime(timezone=True),
+    nullable=False,
+    default=datetime.now(timezone.utc),
+    onupdate=datetime.now(timezone.utc),
 )
-CreatedByUserId: Mapped[Optional[str]] = mapped_column(
-    String(64), nullable=True, default=None
-)
-UpdatedByUserId: Mapped[Optional[str]] = mapped_column(
-    String(64), nullable=True, default=None
-)
+CreatedByUserId: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, default=None)
+UpdatedByUserId: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, default=None)
 
 
 def _migration_096_audit_columns(conn: Any) -> None:
@@ -61,15 +60,11 @@ def _migration_096_audit_columns(conn: Any) -> None:
             conn.execute(
                 f"ALTER TABLE {table} ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"
             )
-            conn.execute(
-                f"ALTER TABLE {table} ADD COLUMN created_by_user_id VARCHAR(64)"
-            )
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN created_by_user_id VARCHAR(64)")
             conn.execute(
                 f"ALTER TABLE {table} ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"
             )
-            conn.execute(
-                f"ALTER TABLE {table} ADD COLUMN updated_by_user_id VARCHAR(64)"
-            )
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN updated_by_user_id VARCHAR(64)")
             print(f"Added audit columns to {table}")
         except Exception as exc:
             # Columns likely already exist - idempotent continue
@@ -86,12 +81,8 @@ def _migration_096_audit_columns(conn: Any) -> None:
     # BACKLOG #4 (2026-10-02): migrations 085+ shipped without bumping
     # schema_version, silently breaking fresh installs. Sprint 4.5 fixed.
     from app.rms.db import _bump_schema_version
+
     _bump_schema_version(conn, 96)
 
 
-__all__ = [
-    "CreatedByUserId",
-    "CreatedTimestamp",
-    "UpdatedByUserId",
-    "UpdatedTimestamp"
-]
+__all__ = ["CreatedByUserId", "CreatedTimestamp", "UpdatedByUserId", "UpdatedTimestamp"]

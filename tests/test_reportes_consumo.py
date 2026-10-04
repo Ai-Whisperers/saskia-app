@@ -9,6 +9,7 @@ Voided sales are tested with TWO StockMovement rows (a negative qty
 on the sale + a positive qty on the void reversal) — they net out
 to zero in the route's SUM(qty) GROUP BY.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -43,10 +44,14 @@ def consumption_seed(session_factory):
         s.flush()
 
         for ing, line_qty in ((har, 0.1), (azu, 0.2), (lev, 0.05)):
-            s.add(RecipeLine(
-                recipe_id=r.id, line_kind="ingredient",
-                line_ref_id=ing.id, qty=line_qty,
-            ))
+            s.add(
+                RecipeLine(
+                    recipe_id=r.id,
+                    line_kind="ingredient",
+                    line_ref_id=ing.id,
+                    qty=line_qty,
+                )
+            )
         s.commit()
 
         now = datetime.now(timezone.utc)
@@ -57,76 +62,89 @@ def consumption_seed(session_factory):
             s.add(sale)
             s.flush()
             for _ in range(2):
-                s.add(StockMovement(
-                    ingredient_id=har.id,
-                    movement_type="sale",
-                    qty=-0.1,
-                    reason=f"Venta #{sale.id}",
-                    reference_id=sale.id,
-                    reference_type="sale",
-                    affected_recipe_id=r.id,
-                    recorded_at=now,
-                ))
+                s.add(
+                    StockMovement(
+                        ingredient_id=har.id,
+                        movement_type="sale",
+                        qty=-0.1,
+                        reason=f"Venta #{sale.id}",
+                        reference_id=sale.id,
+                        reference_type="sale",
+                        affected_recipe_id=r.id,
+                        recorded_at=now,
+                    )
+                )
         # 3 Azúcar sales × 1 move = 3
         for _ in range(3):
             sale = Sale(sold_at=now, product_id=p.id, qty=1, unit_price_gs=1000)
             s.add(sale)
             s.flush()
-            s.add(StockMovement(
-                ingredient_id=azu.id,
-                movement_type="sale",
-                qty=-0.2,
-                reason=f"Venta #{sale.id}",
-                reference_id=sale.id,
-                reference_type="sale",
-                affected_recipe_id=r.id,
-                recorded_at=now,
-            ))
+            s.add(
+                StockMovement(
+                    ingredient_id=azu.id,
+                    movement_type="sale",
+                    qty=-0.2,
+                    reason=f"Venta #{sale.id}",
+                    reference_id=sale.id,
+                    reference_type="sale",
+                    affected_recipe_id=r.id,
+                    recorded_at=now,
+                )
+            )
         # 5 Levadura sales × 1 move = 5
         for _ in range(5):
             sale = Sale(sold_at=now, product_id=p.id, qty=1, unit_price_gs=1000)
             s.add(sale)
             s.flush()
-            s.add(StockMovement(
-                ingredient_id=lev.id,
-                movement_type="sale",
-                qty=-0.05,
-                reason=f"Venta #{sale.id}",
-                reference_id=sale.id,
-                reference_type="sale",
-                affected_recipe_id=r.id,
-                recorded_at=now,
-            ))
+            s.add(
+                StockMovement(
+                    ingredient_id=lev.id,
+                    movement_type="sale",
+                    qty=-0.05,
+                    reason=f"Venta #{sale.id}",
+                    reference_id=sale.id,
+                    reference_type="sale",
+                    affected_recipe_id=r.id,
+                    recorded_at=now,
+                )
+            )
 
         # A VOIDED sale: -0.5 kg + reversal +0.5 kg → nets to 0,
         # so it must NOT inflate Harina's total.
         voided = Sale(
-            sold_at=now, product_id=p.id, qty=1, unit_price_gs=1000,
+            sold_at=now,
+            product_id=p.id,
+            qty=1,
+            unit_price_gs=1000,
             voided_at=now,
         )
         s.add(voided)
         s.flush()
-        s.add(StockMovement(
-            ingredient_id=har.id,
-            movement_type="sale",
-            qty=-0.5,
-            reason=f"Venta #{voided.id}",
-            reference_id=voided.id,
-            reference_type="sale",
-            affected_recipe_id=r.id,
-            recorded_at=now,
-        ))
+        s.add(
+            StockMovement(
+                ingredient_id=har.id,
+                movement_type="sale",
+                qty=-0.5,
+                reason=f"Venta #{voided.id}",
+                reference_id=voided.id,
+                reference_type="sale",
+                affected_recipe_id=r.id,
+                recorded_at=now,
+            )
+        )
         # The void reversal: void_sale creates a NEW positive row.
-        s.add(StockMovement(
-            ingredient_id=har.id,
-            movement_type="sale",
-            qty=+0.5,
-            reason=f"Anulación venta #{voided.id}",
-            reference_id=voided.id,
-            reference_type="sale",
-            affected_recipe_id=r.id,
-            recorded_at=now,
-        ))
+        s.add(
+            StockMovement(
+                ingredient_id=har.id,
+                movement_type="sale",
+                qty=+0.5,
+                reason=f"Anulación venta #{voided.id}",
+                reference_id=voided.id,
+                reference_type="sale",
+                affected_recipe_id=r.id,
+                recorded_at=now,
+            )
+        )
         s.commit()
 
 

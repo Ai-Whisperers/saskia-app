@@ -4,6 +4,7 @@ Sale.tz is recorded for every sale but the column was never queried
 on the cliente detail page. We expose a tz breakdown (most-used tz
 first) for fraud-spotting and multi-location migration planning.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -31,24 +32,28 @@ def tz_breakdown_customer(session_factory) -> int:
         s.add(prod)
         s.flush()
         for i in range(3):
-            s.add(Sale(
+            s.add(
+                Sale(
+                    customer_id=cust.id,
+                    product_id=prod.id,
+                    qty=1,
+                    unit_price_gs=10000,
+                    tz="America/Asuncion",
+                    sold_at=datetime(2026, 9, 1, 10 + i, 0),
+                    channel="mostrador",
+                )
+            )
+        s.add(
+            Sale(
                 customer_id=cust.id,
                 product_id=prod.id,
-                qty=1,
+                qty=2,
                 unit_price_gs=10000,
-                tz="America/Asuncion",
-                sold_at=datetime(2026, 9, 1, 10 + i, 0),
+                tz="America/Argentina/Buenos_Aires",
+                sold_at=datetime(2026, 9, 5, 14, 0),
                 channel="mostrador",
-            ))
-        s.add(Sale(
-            customer_id=cust.id,
-            product_id=prod.id,
-            qty=2,
-            unit_price_gs=10000,
-            tz="America/Argentina/Buenos_Aires",
-            sold_at=datetime(2026, 9, 5, 14, 0),
-            channel="mostrador",
-        ))
+            )
+        )
         s.commit()
         return cust.id
 
@@ -83,6 +88,7 @@ def test_tz_breakdown_sorted_most_used_first(client, tz_breakdown_customer) -> N
 def test_cliente_with_no_sales_omits_tz_breakdown(client, session_factory) -> None:
     """A customer with no sales → no tz_breakdown section rendered."""
     from app.rms.models import Customer
+
     with session_factory() as s:
         cust = Customer(name="Empty Cust", phone="+595****0002")
         s.add(cust)

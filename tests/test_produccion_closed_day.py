@@ -8,6 +8,7 @@ Two routes to exercise:
   - GET /produccion?view=day (rendering with closed_day_active=True)
   - POST /produccion/closed action=close / action=reopen
 """
+
 from datetime import date, timedelta
 
 from app.rms.models import ProductionClosedDay
@@ -18,12 +19,15 @@ def test_closed_day_banner_shows_when_active(authed_client, session_factory):
     target = (date.today() + timedelta(days=3)).isoformat()
     with session_factory() as s:
         from datetime import datetime
-        s.add(ProductionClosedDay(
-            for_date=date.fromisoformat(target),
-            reason="Feriado nacional",
-            closed_by="test",
-            closed_at=datetime.utcnow(),
-        ))
+
+        s.add(
+            ProductionClosedDay(
+                for_date=date.fromisoformat(target),
+                reason="Feriado nacional",
+                closed_by="test",
+                closed_at=datetime.utcnow(),
+            )
+        )
         s.commit()
     r = authed_client.get(f"/produccion?view=day&for_date={target}")
     assert r.status_code == 200
@@ -70,12 +74,15 @@ def test_closed_day_post_reopen_deletes_row(authed_client, session_factory):
     target = (date.today() + timedelta(days=6)).isoformat()
     with session_factory() as s:
         from datetime import datetime
-        s.add(ProductionClosedDay(
-            for_date=date.fromisoformat(target),
-            reason="Test",
-            closed_by="test",
-            closed_at=datetime.utcnow(),
-        ))
+
+        s.add(
+            ProductionClosedDay(
+                for_date=date.fromisoformat(target),
+                reason="Test",
+                closed_by="test",
+                closed_at=datetime.utcnow(),
+            )
+        )
         s.commit()
     r = authed_client.post(
         "/produccion/closed",
@@ -98,9 +105,7 @@ def test_closed_day_post_invalid_action_rejected(authed_client):
     )
     # Either 400 (CSRF) or 422 (Pydantic pattern) is acceptable — both
     # indicate the request was not accepted.
-    assert r.status_code in (400, 422), (
-        f"Expected 400 or 422, got {r.status_code}"
-    )
+    assert r.status_code in (400, 422), f"Expected 400 or 422, got {r.status_code}"
 
 
 def test_closed_day_close_default_reason(authed_client, session_factory):
@@ -123,12 +128,15 @@ def test_closed_day_no_banner_after_reopen(authed_client, session_factory):
     target = (date.today() + timedelta(days=9)).isoformat()
     with session_factory() as s:
         from datetime import datetime
-        s.add(ProductionClosedDay(
-            for_date=date.fromisoformat(target),
-            reason="X",
-            closed_by="t",
-            closed_at=datetime.utcnow(),
-        ))
+
+        s.add(
+            ProductionClosedDay(
+                for_date=date.fromisoformat(target),
+                reason="X",
+                closed_by="t",
+                closed_at=datetime.utcnow(),
+            )
+        )
         s.commit()
     r1 = authed_client.get(f"/produccion?view=day&for_date={target}")
     assert "closed-day-banner" in r1.text

@@ -9,6 +9,7 @@ This test guards against regressions:
 - Integer-style path (e.g., /p/123) returns 404 (must be token, not PK)
 - Unknown token returns 404
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -43,9 +44,7 @@ def test_public_pedido_token_returns_200(client, session_factory):
         s.commit()
 
     r = client.get("/p/k6test01")
-    assert r.status_code == 200, (
-        f"/p/k6test01 returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code == 200, f"/p/k6test01 returned {r.status_code}: {r.text[:200]}"
     # Body should mention the customer
     body = r.text
     assert "K6 Test Customer" in body or "k6test01" in body, (
@@ -56,14 +55,13 @@ def test_public_pedido_token_returns_200(client, session_factory):
 def test_public_pedido_unknown_token_returns_404(client):
     """K6 #2: GET /p/{unknown_token} returns 404."""
     r = client.get("/p/nonexistent_token_zzz")
-    assert r.status_code == 404, (
-        f"/p/nonexistent returned {r.status_code}, expected 404"
-    )
+    assert r.status_code == 404, f"/p/nonexistent returned {r.status_code}, expected 404"
 
 
 def test_public_pedido_integer_path_returns_404(client, session_factory):
     """K6 #3: /p/123 must NOT resolve by integer PK — must be token-based."""
     from app.rms.models import Pedido
+
     # Create a pedido
     with session_factory() as s:
         pedido = Pedido(
@@ -87,14 +85,13 @@ def test_public_pedido_integer_path_returns_404(client, session_factory):
 
     # The token route should still work
     r2 = client.get("/p/k6pk01")
-    assert r2.status_code == 200, (
-        f"/p/k6pk01 returned {r2.status_code}, expected 200"
-    )
+    assert r2.status_code == 200, f"/p/k6pk01 returned {r2.status_code}, expected 200"
 
 
 def test_public_pedido_tampered_token_returns_404(client, session_factory):
     """K6 #4: Tampered token (same length, different chars) returns 404."""
     from app.rms.models import Pedido
+
     with session_factory() as s:
         pedido = Pedido(
             customer_name="K6 Tamper Test",
@@ -107,14 +104,13 @@ def test_public_pedido_tampered_token_returns_404(client, session_factory):
 
     # Same length as valid token but different chars
     r = client.get("/p/bbbb2222")
-    assert r.status_code == 404, (
-        f"/p/bbbb2222 (close-but-wrong token) returned {r.status_code}"
-    )
+    assert r.status_code == 404, f"/p/bbbb2222 (close-but-wrong token) returned {r.status_code}"
 
 
 def test_public_pedido_no_auth_required(client, session_factory):
     """K6 #5: /p/{token} must work without any auth or session cookie."""
     from app.rms.models import Pedido
+
     with session_factory() as s:
         pedido = Pedido(
             customer_name="K6 No Auth",
@@ -128,6 +124,4 @@ def test_public_pedido_no_auth_required(client, session_factory):
 
     # No auth_client — use the bare client
     r = client.get("/p/k6noauth")
-    assert r.status_code == 200, (
-        f"/p/k6noauth without auth returned {r.status_code}"
-    )
+    assert r.status_code == 200, f"/p/k6noauth without auth returned {r.status_code}"

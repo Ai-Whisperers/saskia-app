@@ -26,6 +26,7 @@ All models here share the same declarative Base as the rest of the
 project — see app/rms/models/core.py.
 """
 
+
 class ProductionCompletion(Base):
     """How much of a planned product was actually produced on a given day.
 
@@ -52,6 +53,7 @@ class ProductionCompletion(Base):
 
     # Relationships
     product: Mapped["Product"] = relationship("Product")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+
 
 class ProductionPlanTemplate(Base):
     """PRO-01: Repeating weekly production plan template.
@@ -83,6 +85,7 @@ class ProductionPlanTemplate(Base):
     # Relationships
     product: Mapped["Product"] = relationship("Product")  # noqa: F821 — SQLAlchemy 2.0 forward ref
 
+
 class ProductionPlanOverride(Base):
     """PRO-01: Per-date override of the weekly template.
 
@@ -110,6 +113,7 @@ class ProductionPlanOverride(Base):
     # Relationships
     product: Mapped["Product"] = relationship("Product")  # noqa: F821 — SQLAlchemy 2.0 forward ref
 
+
 class ProductionPlan(Base):
     """A planned batch — output of the Production Planner.
 
@@ -121,9 +125,7 @@ class ProductionPlan(Base):
     __tablename__ = "production_plan"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    recipe_id: Mapped[int] = mapped_column(
-        ForeignKey("recipe.id"), nullable=False, index=True
-    )
+    recipe_id: Mapped[int] = mapped_column(ForeignKey("recipe.id"), nullable=False, index=True)
     batches_qty: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     planned_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="planned")

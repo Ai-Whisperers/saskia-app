@@ -32,10 +32,12 @@ def pytest_collection_modifyitems(config, items):
     """Mark the not-yet-shipped tests as xfail."""
     for item in items:
         if item.name in _NOT_SHIPPED:
-            item.add_marker(pytest.mark.xfail(
-                reason="US 4.2 Quick-Sell one-tap form & multi-field customer search not yet shipped",
-                strict=False,
-            ))
+            item.add_marker(
+                pytest.mark.xfail(
+                    reason="US 4.2 Quick-Sell one-tap form & multi-field customer search not yet shipped",
+                    strict=False,
+                )
+            )
 
 
 from datetime import datetime, timedelta, timezone
@@ -68,8 +70,7 @@ def test_historial_page_renders_history(client, session_factory):
         p = Product(name="BrownieSplit", sale_price_gs=10000, recipe_id=None)
         s.add(p)
         s.flush()
-        s.add(Sale(product_id=p.id, qty=2, unit_price_gs=10000,
-                   sold_at=datetime.now(timezone.utc)))
+        s.add(Sale(product_id=p.id, qty=2, unit_price_gs=10000, sold_at=datetime.now(timezone.utc)))
         s.commit()
 
     resp = client.get("/ventas/historial")
@@ -109,8 +110,7 @@ def test_historial_anular_button_has_csrf_token(client, session_factory):
         p = Product(name="AnulameSplit", sale_price_gs=5000, recipe_id=None)
         s.add(p)
         s.flush()
-        sale = Sale(product_id=p.id, qty=1, unit_price_gs=5000,
-                    sold_at=datetime.now(timezone.utc))
+        sale = Sale(product_id=p.id, qty=1, unit_price_gs=5000, sold_at=datetime.now(timezone.utc))
         s.add(sale)
         s.commit()
         sale_id = sale.id
@@ -121,6 +121,7 @@ def test_historial_anular_button_has_csrf_token(client, session_factory):
     assert f'action="/ventas/{sale_id}/anular"' in body
     # CSRF token rendered server-side, must be non-empty (signed nonce)
     import re
+
     m = re.search(
         r'name="_csrf_token" value="([^"]*)"',
         body,
@@ -137,10 +138,10 @@ def test_historial_filter_returns_relevant_rows(client, session_factory):
         p2 = Product(name="BreadSplit", sale_price_gs=5000, recipe_id=None)
         s.add_all([p1, p2])
         s.flush()
-        s.add(Sale(product_id=p1.id, qty=1, unit_price_gs=10000,
-                   sold_at=datetime.now(timezone.utc)))
-        s.add(Sale(product_id=p2.id, qty=1, unit_price_gs=5000,
-                   sold_at=datetime.now(timezone.utc)))
+        s.add(
+            Sale(product_id=p1.id, qty=1, unit_price_gs=10000, sold_at=datetime.now(timezone.utc))
+        )
+        s.add(Sale(product_id=p2.id, qty=1, unit_price_gs=5000, sold_at=datetime.now(timezone.utc)))
         s.commit()
 
     resp = client.get("/ventas/historial?q=CakeSplit")

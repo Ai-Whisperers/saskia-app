@@ -12,10 +12,14 @@ import pytest
 pytestmark = [pytest.mark.smoke]
 
 
-@pytest.mark.parametrize("path,needles", [
-    ("/login", ["Iniciar sesión", "contraseña"]),
-    ("/dashboard", ["dashboard", "ventas"]),
-], ids=["login", "dashboard"])
+@pytest.mark.parametrize(
+    "path,needles",
+    [
+        ("/login", ["Iniciar sesión", "contraseña"]),
+        ("/dashboard", ["dashboard", "ventas"]),
+    ],
+    ids=["login", "dashboard"],
+)
 def test_public_pages_speak_spanish(client, path, needles):
     r = client.get(path, follow_redirects=True)
     if r.status_code != 200:
@@ -36,7 +40,6 @@ def test_404_is_structured_not_stacktrace(client):
 
 def test_flash_messages_are_spanish(client, session_factory):
     """Wrong-password style flash through login → Spanish, never raw English."""
-    r = client.post("/login", data={"username": "x", "password": "bad"},
-                    follow_redirects=True)
+    r = client.post("/login", data={"username": "x", "password": "bad"}, follow_redirects=True)
     body = r.text.lower()
     assert "invalid username or password" not in body, "English error leaked"
