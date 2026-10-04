@@ -63,22 +63,53 @@ def test_reorder_point_zero_consumption():
 def _add_ingredient_with_consumption(
     s, name, stock_qty=1.0, purchase_price_gs=1000, lead_time_days=3, moves=10, qty_delta=-0.1
 ):
-    """Create ingredient + recipe + sale + N SaleStockMove rows."""
+    """Create ingredient + recipe + sale + N SaleStockMove rows.
+
+    When stock_qty < 0, fall back to raw SQL + temporary trigger drop
+    (mirrors the approach in test_dashboard_stock_led.py) because
+    migration 084's stock_qty >= 0 constraint makes negative stock
+    unreachable through the ORM.
+    """
     r = Recipe(name=f"r_for_{name}", yield_qty=10, yield_unit="und")
     s.add(r)
     s.flush()
     p = Product(name=f"p_for_{name}", portion_label="und", sale_price_gs=1000, recipe_id=r.id)
     s.add(p)
     s.flush()
-    ing = Ingredient(
-        name=name,
-        unit="kg",
-        stock_qty=stock_qty,
-        purchase_price_gs=purchase_price_gs,
-        lead_time_days=lead_time_days,
-    )
-    s.add(ing)
-    s.flush()
+    if stock_qty < 0:
+        # Bypass path: raw SQL + drop+recreate the safety trigger.
+        from sqlalchemy import text as _sa_text
+
+        s.execute(_sa_text("DROP TRIGGER IF EXISTS ingredient_stock_qty_positive_insert"))
+        try:
+            ing = Ingredient(
+                name=name,
+                unit="kg",
+                stock_qty=stock_qty,
+                purchase_price_gs=purchase_price_gs,
+                lead_time_days=lead_time_days,
+            )
+            s.add(ing)
+            s.flush()
+        finally:
+            s.execute(
+                _sa_text(
+                    "CREATE TRIGGER IF NOT EXISTS ingredient_stock_qty_positive_insert "
+                    "BEFORE INSERT ON ingredient "
+                    "FOR EACH ROW WHEN NEW.stock_qty < 0 "
+                    "BEGIN SELECT RAISE(ABORT, 'ingredient.stock_qty must be >= 0'); END"
+                )
+            )
+    else:
+        ing = Ingredient(
+            name=name,
+            unit="kg",
+            stock_qty=stock_qty,
+            purchase_price_gs=purchase_price_gs,
+            lead_time_days=lead_time_days,
+        )
+        s.add(ing)
+        s.flush()
     s.add(RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=ing.id, qty=0.1))
     sale = Sale(sold_at=datetime.now(timezone.utc), product_id=p.id, qty=1, unit_price_gs=1000)
     s.add(sale)

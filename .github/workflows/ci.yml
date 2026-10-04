@@ -52,19 +52,21 @@ jobs:
           uv run ruff format --check .
 
       - name: Test (pytest)
-        # -n auto: parallelize across all available cores via pytest-xdist
-        # (already in dev deps). Drops 5,400-test run from ~10 min to ~2 min
-        # on a 4-core runner. See docs/operations/2026-10-04-parallel-tests.md
-        # for the before/after numbers and the rationale for also bumping
-        # the coverage floor to 40% once these land.
-        run: uv run pytest -n auto --cov=app --cov-report=term-missing
+        # -n 2 (not -n auto): 2 parallel workers to balance disk usage on
+        # the shared GH runner (which is 30 GB total, with system + uv cache
+        # + pytest-xdist worker logs eating ~8 GB at peak). 4+ workers ran
+        # out of disk and got killed mid-run; 2 workers is the safe upper
+        # limit and still drops full suite from ~10 min to ~6 min on a
+        # 2-core runner. See docs/operations/2026-10-04-parallel-tests.md
+        # for the disk-usage analysis and the rationale.
+        run: uv run pytest -n 2 --cov=app --cov-report=term-missing
 
       # ---- E2.S2: real Postgres tests via testcontainers ----
       # Boots a real Postgres container (postgres:16-alpine), runs only the
       # @pytest.mark.pg tests. Local devs without Docker get the same skip;
       # CI has Docker so this always runs.
       - name: Test (postgres via testcontainers)
-        run: uv run pytest -m pg -n auto --no-cov
+        run: uv run pytest -m pg -n 2 --no-cov
 
       # Coverage gate: matches pyproject.toml's `--cov-fail-under=35`. The
       # strategy plan (docs/plans/2026-10-01-phase14-coverage-strategy.md)
