@@ -298,10 +298,32 @@ def to_file(
         )
     _autosize(ws)
 
-    # NOTE: BACKLOG #1 (2026-10-02): SaleStockMove table dropped (migration 092).
-    # StockMoves are now derived from SaleStockMovement (via affected_recipe_id /
-    # ingredient_id) rather than Sale.stock_moves relationship. The StockMoves
-    # export sheet is no longer derivable from sales alone; nothing to do here.
+    # T-2026-10-04: StockMoves sheet was dropped from the export after
+    # migration 092 (BACKLOG #1) because the SaleStockMove table no
+    # longer exists. But the test suite (test_import_roundtrip) and
+    # external operators still expect a 7-sheet workbook. Re-add the
+    # sheet as a derived view of StockMovement with movement_type='sale'
+    # so a roundtrip (export → import) keeps the expected shape.
+    from app.rms.models import StockMovement
+
+    ws = wb.create_sheet("StockMoves")
+    _write_header(ws, STOCKMOVES_COLS)
+    moves_q = (
+        select(StockMovement)
+        .where(StockMovement.movement_type == "sale")
+        .order_by(StockMovement.id)
+    )
+    for mv in session.scalars(moves_q).all():
+        ws.append(
+            [
+                mv.id,
+                mv.reference_id,  # was sale_id on the legacy table
+                mv.affected_recipe_id,
+                mv.ingredient_id,
+                mv.qty,  # was qty_delta; sign convention matches (negative = out)
+            ]
+        )
+    _autosize(ws)
 
     wb.save(str(path))
     return path.resolve()
