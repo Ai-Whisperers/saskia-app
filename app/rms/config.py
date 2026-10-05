@@ -68,7 +68,7 @@ BACKUP_THRESHOLD_HOURS = int(os.getenv("AIW_SASKIA_BACKUP_HOURS", "24"))
 KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_SASKIA_KEEP_LOCAL_DAYS", "30"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 101  # 099-101 (production_completion.updated_at, freezer_temperature_log, recipe.fermentation_minutes)
+CURRENT_SCHEMA_VERSION = 102  # 102 = waste_log.source denormalized (PROD-MERMA-2 Batch I)
     # 086 = monthly_closure table (Sprint 3.1 BACKLOG #15)
     # 087 = soft_delete_columns on owned tables (Sprint 3.2)
     # 088 = audit_columns on owned tables (Sprint 3.2)

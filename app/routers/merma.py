@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.errors import BadRequest, NotFound
-from app.rms.models import AuditLog, Ingredient, Recipe, Sale, WasteLog
+from app.rms.models import Ingredient, Recipe, Sale, WasteLog
 from app.rms.observability import record_audit
 from app.rms.waste import (
     WasteReason,
@@ -38,6 +38,9 @@ def merma_list(
     since: str | None = Query(None, description="ISO date start override"),
     until: str | None = Query(None, description="ISO date end override"),
     reason: str | None = Query(None, description="Filter by waste reason"),
+    # PROD-MERMA-2 (Batch I): filter by denormalized WasteLog.source.
+    # Mirrors the /auditoria?source= filter so operators can pivot by entrypoint.
+    source: str | None = Query(None, description="Filter by entrypoint source (manual|production)"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """List recent waste + summary with date range filter.
@@ -76,7 +79,12 @@ def merma_list(
             reason_filter = None
 
     items = list_waste(
-        session, start_date=start_date, end_date=end_date, reason=reason_filter, limit=200
+        session,
+        start_date=start_date,
+        end_date=end_date,
+        reason=reason_filter,
+        source=source,  # PROD-MERMA-2 (Batch I): column-side filter, no join
+        limit=200,
     )
     impact = waste_impact(session, start_date=start_date, end_date=end_date)
     # Estimate revenue from sales in same window
@@ -109,31 +117,12 @@ def merma_list(
     # Top merma ingredients: group impact.by_ingredient and sort descending
     top_ingredients = sorted(impact.by_ingredient, key=lambda x: x[2], reverse=True)[:10]
 
-    # PROD-MERMA-2: surface the entrypoint on the /merma eventos table so the
-    # operator can distinguish events from the new quick-merma modal
-    # (source='production') from entries logged the legacy way (source='manual').
-    # Build a map waste_log_id → source by joining AuditLog on target_id.
-    waste_ids = [w.id for w in items]
-    source_by_waste_id: dict[int, str] = {}
-    if waste_ids:
-        audit_rows = session.execute(
-            select(AuditLog.target_id, AuditLog.detail).where(
-                AuditLog.action == "write.merma.create",
-                AuditLog.target_type == "merma",
-                AuditLog.target_id.in_(waste_ids),
-            )
-        ).all()
-        for target_id, detail in audit_rows:
-            src = "manual"
-            if isinstance(detail, dict):
-                src = str(detail.get("source", "manual") or "manual")
-            # Normalize to int for template lookup (waste_ids are ints; the
-            # audit row stores target_id as str for UUID compat).
-            try:
-                key = int(target_id)
-            except (TypeError, ValueError):
-                key = target_id
-            source_by_waste_id[key] = src
+    # PROD-MERMA-2 (Batch I): surface the entrypoint on the /merma eventos
+    # table so the operator can distinguish events from the new quick-merma
+    # modal (source='production') from entries logged the legacy way
+    # (source='manual'). Pre-Batch-I this was a AuditLog join; now it's a
+    # direct read of the denormalized WasteLog.source column.
+    source_by_waste_id: dict[int, str] = {w.id: w.source for w in items if w.source}
 
     # PROD-MERMA-2 (Batch F): surface a "Hoy" panel so operators see what
     # moved TODAY (not just the 30-day aggregate). Includes today's event
@@ -286,6 +275,10 @@ def merma_register(
             qty_unit=qty_unit or None,
             reason=reason_enum,
             notes=notes or None,
+            # Use the form's `source` value (manual | production). The
+            # default in the form is "manual" so legacy callers keep
+            # their behavior. Quick-merma modal posts "production".
+            source=source,  # PROD-MERMA-2 (Batch I)
         )
     except ValueError as exc:
         # Unknown ingredient FK etc. — 404, not a 500 crash (found by the

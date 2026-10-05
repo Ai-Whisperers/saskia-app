@@ -50,6 +50,7 @@ from app.rms.migrations._098_customer_phone import _migration_098_customer_phone
 from app.rms.migrations._099_production_completion_updated_at import _migration_099_production_completion_updated_at
 from app.rms.migrations._100_freezer_temperature_log import _migration_100_freezer_temperature_log
 from app.rms.migrations._101_recipe_fermentation_minutes import _migration_101_recipe_fermentation_minutes
+from app.rms.migrations._102_waste_log_source import _migration_102_waste_log_source
 
 from loguru import logger
 from sqlalchemy import create_engine, event, text
@@ -4175,6 +4176,7 @@ MIGRATIONS = {
     99: _migration_099_production_completion_updated_at,
     100: _migration_100_freezer_temperature_log,
     101: _migration_101_recipe_fermentation_minutes,
+    102: _migration_102_waste_log_source,
 }
 
 

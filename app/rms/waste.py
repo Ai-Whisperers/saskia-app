@@ -62,11 +62,17 @@ def record_waste(
     recorded_by: str | None = None,
     notes: str | None = None,
     qty_unit: str | None = None,
+    source: str = "manual",  # PROD-MERMA-2 (Batch I): entrypoint tag, denormalized on WasteLog
 ) -> WasteLog:
     """Log a waste event. Decrements stock + records cost-at-time.
 
     Cost is denormalized at insert time so historical waste reports
     remain stable even if purchase prices change.
+
+    PROD-MERMA-2 (Batch I): `source` is denormalized at insert so
+    /merma and /auditoria don't have to join AuditLog to render the
+    entrypoint chip. Values: 'manual' (default), 'production'
+    (per-batch loss from /produccion modal).
 
     MER-01: qty_unit lets the operator enter 200 g of harina instead of
     0.2 kg (or 50 ml of leche instead of 0.05 l). Cross-family conversion
@@ -93,6 +99,11 @@ def record_waste(
         if ing.purchase_price_gs is not None
         else 0
     )
+    # PROD-MERMA-2 (Batch I): defensive normalize source to a known set.
+    # Anything we don't recognize stays 'manual' so the column never
+    # carries garbage that breaks the /auditoria filter.
+    if source not in ("manual", "production"):
+        source = "manual"
     log = WasteLog(
         ingredient_id=ingredient_id,
         qty=qty_in_stock_unit,
@@ -101,6 +112,7 @@ def record_waste(
         recorded_at=datetime.now(timezone.utc),
         recorded_by=recorded_by,
         notes=notes,
+        source=source,
     )
     session.add(log)
     # Decrement stock
@@ -151,9 +163,14 @@ def list_waste(
     end_date: datetime | None = None,
     reason: WasteReason | None = None,
     ingredient_id: int | None = None,
+    source: str | None = None,  # PROD-MERMA-2 (Batch I): 'manual' | 'production'
     limit: int = 100,
 ) -> list[WasteLog]:
-    """Return recent waste events with optional filters."""
+    """Return recent waste events with optional filters.
+
+    PROD-MERMA-2 (Batch I): `source` filters by the denormalized
+    entrypoint tag (manual | production). None means "all sources".
+    """
     q = select(WasteLog).order_by(WasteLog.recorded_at.desc())
     if start_date:
         q = q.where(WasteLog.recorded_at >= start_date)
@@ -163,6 +180,8 @@ def list_waste(
         q = q.where(WasteLog.reason == reason.value)
     if ingredient_id is not None:
         q = q.where(WasteLog.ingredient_id == ingredient_id)
+    if source is not None:
+        q = q.where(WasteLog.source == source)
     return list(session.execute(q.limit(limit)).scalars())
 
 
@@ -261,6 +280,7 @@ def record_recipe_waste(
     reason: WasteReason,
     recorded_by: str | None = None,
     notes: str | None = None,
+    source: str = "production",  # PROD-MERMA-2 (Batch I): recipe losses come from /produccion modal
 ) -> RecipeWasteResult:
     """Log a whole-batch waste event for a recipe (Saskia review T6).
 
@@ -320,6 +340,7 @@ def record_recipe_waste(
             recorded_at=now,
             recorded_by=recorded_by,
             notes=notes,
+            source=source,  # PROD-MERMA-2 (Batch I)
         )
         session.add(log)
         ing.stock_qty = max(0.0, (ing.stock_qty or 0) - qty)
