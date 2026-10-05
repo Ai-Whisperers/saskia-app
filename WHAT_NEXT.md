@@ -1,3 +1,18 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved / Superseded
+
+**This file has been moved or superseded.** The canonical location is:
+
+> **`docs/roadmap/STATUS.md`**
+
+WHAT_NEXT has been replaced by `docs/roadmap/STATUS.md` (current state) and `docs/roadmap/BACKLOG.md` (forward-looking work).
+
+See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # Saskia · What Next? (Oct 2026)
 
 ## 📊 Current State — Where We Are

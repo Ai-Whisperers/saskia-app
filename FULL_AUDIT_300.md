@@ -1,3 +1,18 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved / Superseded
+
+**This file has been moved or superseded.** The canonical location is:
+
+> **`docs/roadmap/audits/FULL_AUDIT_300.md`**
+
+Audit, items extracted.
+
+See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # Saskia RMS — Full Site Audit: 300 Issues Across All Pages
 
 **Date:** 2026-09-21

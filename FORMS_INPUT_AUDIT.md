@@ -1,3 +1,18 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved / Superseded
+
+**This file has been moved or superseded.** The canonical location is:
+
+> **`docs/roadmap/audits/FORMS_INPUT_AUDIT.md`**
+
+Forms audit, archived.
+
+See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # Saskia RMS — Form & Input Audit (2026-09-23)
 
 ## Input types in use across the app

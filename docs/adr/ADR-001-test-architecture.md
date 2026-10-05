@@ -1,3 +1,16 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved
+
+**This ADR has been moved.** The canonical location is:
+
+> **`docs/roadmap/decisions/ADR-001-test-architecture.md`**
+
+See [`docs/roadmap/decisions/`](../../docs/roadmap/decisions/) for the full decisions index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # ADR-001 — Test architecture: factories, flows, invariants
 
 **Status:** accepted (2026-09-25)

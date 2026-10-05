@@ -1,3 +1,18 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved / Superseded
+
+**This file has been moved or superseded.** The canonical location is:
+
+> **`docs/roadmap/audits/FRONTEND_AUDIT_2026-09-22.md`**
+
+Audit, items extracted.
+
+See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # Saskia RMS — Frontend Critical Audit (2026-09-22)
 
 **Scope:** Every page, table, form, affordance, use case, and data-display gap in

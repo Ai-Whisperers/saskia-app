@@ -1,3 +1,18 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved / Superseded
+
+**This file has been moved or superseded.** The canonical location is:
+
+> **`docs/roadmap/historical-plans/intake/SASKIA-201-visual-revolution-phase0.md`**
+
+Intake ticket (archived).
+
+See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # SASKIA-201: Visual Revolution Phase 0 — Token foundation + icons + error pages
 
 **Date:** 2026-09-17

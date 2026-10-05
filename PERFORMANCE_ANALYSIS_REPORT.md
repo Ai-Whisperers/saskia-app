@@ -1,3 +1,18 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved / Superseded
+
+**This file has been moved or superseded.** The canonical location is:
+
+> **`docs/roadmap/audits/PERFORMANCE_ANALYSIS_REPORT.md`**
+
+Perf analysis, archived.
+
+See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # Performance Analysis Report: Saskia RMS Tab-Switching Latency
 
 ## Executive Summary

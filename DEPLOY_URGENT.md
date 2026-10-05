@@ -1,3 +1,18 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved / Superseded
+
+**This file has been moved or superseded.** The canonical location is:
+
+> **`docs/roadmap/audits/DEPLOY_URGENT_2026-09.md`**
+
+Incident note (historical).
+
+See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # 🚨 URGENT: Production Server Stuck at Schema v27
 
 ## Current state (live verified at https://saskia-rms.paragu-ai.com)

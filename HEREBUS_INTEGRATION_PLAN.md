@@ -1,3 +1,18 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved / Superseded
+
+**This file has been moved or superseded.** The canonical location is:
+
+> **`docs/roadmap/historical-plans/HEREBUS_INTEGRATION_PLAN_2026-09.md`**
+
+HEREBUS plan shipped; see sprint summary at `docs/roadmap/sessions/herebus-sprint/2026-09-23-herebus-sprint.md`.
+
+See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # 📋 COMPLETE IMPLEMENTATION ITEM LIST — Saskia × HEREBUS Drive
 
 Based on analysis of all 33 files in the HEREBUS Google Drive folder

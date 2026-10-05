@@ -1,3 +1,18 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved / Superseded
+
+**This file has been moved or superseded.** The canonical location is:
+
+> **`docs/roadmap/historical-plans/COMPREHENSIVE_WORK_PLAN_2026-09.md`**
+
+Superseded.
+
+See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # 🎯 COMPREHENSIVE WORK PLAN - Saskia RMS UI/UX Optimization
 
 ## 📊 CURRENT STATUS SUMMARY

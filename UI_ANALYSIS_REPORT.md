@@ -1,3 +1,18 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved / Superseded
+
+**This file has been moved or superseded.** The canonical location is:
+
+> **`docs/roadmap/audits/UI_ANALYSIS_REPORT.md`**
+
+UI analysis, archived.
+
+See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # COMPREHENSIVE UI ANALYSIS REPORT
 ## Saskia RMS Application Forms and UI Elements
 

@@ -1,3 +1,18 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved / Superseded
+
+**This file has been moved or superseded.** The canonical location is:
+
+> **`docs/roadmap/audits/2026-09-29/LOGGING_STATUS_2026-09-29.md`**
+
+Logging status, archived.
+
+See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # Saskia Logging/Errors Audit & Fixes — Status Report
 
 **Date:** 2026-09-29

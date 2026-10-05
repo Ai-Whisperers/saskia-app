@@ -1,3 +1,18 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved / Superseded
+
+**This file has been moved or superseded.** The canonical location is:
+
+> **`docs/roadmap/sessions/herebus-sprint/2026-09-23-herebus-sprint.md`**
+
+HEREBUS sprint summary.
+
+See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # 🎉 HEREBUS Plan Sprint — Complete Summary
 
 **Date**: Sep 23, 2026  

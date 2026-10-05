@@ -1,3 +1,18 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved / Superseded
+
+**This file has been moved or superseded.** The canonical location is:
+
+> **`docs/roadmap/BACKLOG.md`**
+
+The IMPROVEMENT_BACKLOG is one of two source files; the other is `docs/decisions/2026-09-29-canonical-roadmap-alignment.md`. Both are merged into the canonical `docs/roadmap/BACKLOG.md`.
+
+See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # Saskia RMS — Improvement Backlog (Operator-curated)
 
 **Last updated:** 2026-10-01

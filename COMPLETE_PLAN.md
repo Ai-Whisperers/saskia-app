@@ -1,3 +1,18 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved / Superseded
+
+**This file has been moved or superseded.** The canonical location is:
+
+> **`docs/roadmap/historical-plans/COMPLETE_PLAN_2026-09.md`**
+
+Original at root is preserved; this historical plan informed the current epic plan (`docs/roadmap/epics/`).
+
+See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # Saskia RMS — Complete State Analysis & Remaining Work Plan
 
 **Generated:** 2026-09-22 (after all sessions in this turn)

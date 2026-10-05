@@ -1,3 +1,18 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved / Superseded
+
+**This file has been moved or superseded.** The canonical location is:
+
+> **`docs/roadmap/audits/SASKIA_BACKEND_AUDIT_2026-09-22.md`**
+
+Audit, items extracted into `docs/roadmap/BACKLOG.md`.
+
+See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # Saskia RMS — Backend Logic & Data-Flow Audit (2026-09-22)
 
 **Scope.** Every `app/rms/*.py`, `app/routers/*.py`, `app/services/*.py`, plus
