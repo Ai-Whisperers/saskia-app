@@ -397,11 +397,7 @@ def _decorate_pedido(p: Pedido, session: Session) -> dict:
         # them.
         "delivery_zone_id": p.delivery_zone_id,
         "payment_receipt_path": p.payment_receipt_path,
-        "payment_receipt_uploaded_at": (
-            p.payment_receipt_uploaded_at.isoformat()
-            if p.payment_receipt_uploaded_at
-            else None
-        ),
+        "payment_receipt_uploaded_at": p.payment_receipt_uploaded_at,
         "public_token_expires_at": (
             p.public_token_expires_at.isoformat()
             if p.public_token_expires_at
