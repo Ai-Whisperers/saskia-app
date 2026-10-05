@@ -30,7 +30,7 @@ from app.rms.dependencies import get_session
 from app.rms.models import Ingredient, IngredientPriceEvent, Sale, StockMovement
 from app.rms.price_history import batch_price_stats, price_history, price_stats
 from app.rms.rate_limit import read_rate_limit_dependency
-from app.rms.sales_intel import customer_retention
+from app.rms.sales_intel import customer_retention, waste_roi_by_ingredient
 from app.services.template_render import render
 
 # BACKLOG #10: rate-limit all /reportes/* reads at 30/min/IP. Reports
@@ -627,7 +627,7 @@ def reportes_metricas(
     by_payment = sales_by_payment_method(session, start_date=start_dt, end_date=end_dt)
 
     # Retention snapshot
-    from app.rms.sales_intel import customer_retention
+    from app.rms.sales_intel import customer_retention, waste_roi_by_ingredient
     retention = customer_retention(session, start_date=start_dt, end_date=end_dt)
 
     # Sales by hour
