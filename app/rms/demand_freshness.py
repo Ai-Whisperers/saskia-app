@@ -155,7 +155,7 @@ def shopping_list_from_forecast(
         for t in targets:
             if not isinstance(t.target, Ingredient):
                 continue
-            need[t.target.id] = need.get(t.target.id, 0.0) + t.line.qty * f.suggested_batches
+            need[t.target.id] = need.get(t.target.id, 0.0) + float(t.line.qty) * f.suggested_batches
 
     out: list[dict] = []
     for ing_id, qty_needed in sorted(need.items()):
