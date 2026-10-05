@@ -13,7 +13,8 @@
 | [`round-2-feedback.md`](round-2-feedback.md) | 2026-09 | Round-2 raw feedback notes |
 | [`2026-10-05-session-0-drift.md`](2026-10-05-session-0-drift.md) | 2026-10-05 | Session 0 of EXECUTION-PLAN.md: drift fix (DRIFT-2 migration 098 done; DRIFT-1 redeploy + DRIFT-3 env vars pending operator) |
 | [`2026-10-05-session-1-cerrar-puertas.md`](2026-10-05-session-1-cerrar-puertas.md) | 2026-10-05 | Session 1 of EXECUTION-PLAN.md: A.1-A.6 verification — all 6 items already done in source; no code changes needed |
-| [`2026-10-05-session-2-p1-highest-roi.md`](2026-10-05-session-2-p1-highest-roi.md) | 2026-10-05 | Session 2 of EXECUTION-PLAN.md: B.8/B.1/B.9 verification — all 3 P1 highest-ROI items already done; 68/68 tests pass |
+| [`2026-10-05-session-2-p1-highest-roi.md`](2026-10-05-session-2-p1-highest-roi.md) | 2026-10-05 | Session 2 of EXECUTION-PLAN.md: B.2-B.9 verification — all 9 P1 items already done; 276/276 tests pass; only 1 minor template datetime fix needed |
+| [`2026-10-05-bulk-sessions-3-7.md`](2026-10-05-bulk-sessions-3-7.md) | 2026-10-05 | Sessions 3-7 bulk verification — Sessions 3,4,6 fully done; 5 missing only Telegram alerts; 7 missing only Glossary; 76/76 P2/P3 tests pass |
 
 ## HEREBUS sprint
 

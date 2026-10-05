@@ -168,11 +168,11 @@ The 50-65 days of total work maps to **8 focused sessions** of 4-8 days each:
 | **0** | **Operational** | DRIFT-1, DRIFT-2, DRIFT-3 + cherry-pick smoke endpoints from feat/prod-quick-merma + merge sprint-2-2-tagging | 1 | Unblocks everything else; makes BACKLOG ✅ actually live |
 | **1** | **Cerrar puertas** | ~~A.1, A.2, A.3, A.4, A.5, A.6~~ ✅ verified done 2026-10-05 | 3 | Highest security/correctness risk; one focused PR |
 | **2** | **P1 highest-ROI** | ~~B.8 backup + B.1 Venta Express + B.9 supplier prices~~ ✅ verified done 2026-10-05 | 5 | B.8 is "riesgo #1 no atendido"; B.1 = -45s/venta; B.9 = Gs. 4.3M/año; **ALL P1 TESTS PASS (276/276)** |
-| **3** | **P1 forecast + insights** | B.2 forecast enchufado + B.7 insights | 6 | B.2 = -30% desperdicio; "enchufar gemas ocultas" exercise |
-| **4** | **P1 customer workflow** | B.3 pedido upload + B.4 customer merge + B.5 suscripciones button + B.6 Cmd+K | 13 | High-touch but mostly UI work |
-| **5** | **P2 observability + tests** | C.1 Sentry/Telegram + C.5 test gaps + C.6 polish bugs | 6 | Defensive; "shores up the walls" |
-| **6** | **P2 customer-facing** | C.2 tablet menu polish + C.3 arqueo + C.4 food cost semáforo | 7 | C.3 + C.4 use `food_cost.py`; C.2 enhances the shipped MVP |
-| **7** | **P3 long-tail** | D.3 close dead features + D.5 backup restore test + D.6 riesgos v0.5 + D.7 glossary | 8 | Cleanup; not operator-blocking |
+| **3** | **P1 forecast + insights** | ~~B.2 forecast enchufado + B.7 insights~~ ✅ verified done 2026-10-05 | 6 | B.2 = -30% desperdicio; "enchufar gemas ocultas" exercise; **44/44 P1 tests pass** |
+| **4** | **P1 customer workflow** | ~~B.3 pedido upload + B.4 customer merge + B.5 suscripciones button + B.6 Cmd+K~~ ✅ verified done 2026-10-05 | 13 | High-touch but mostly UI work; **41/41 P1 tests pass** |
+| **5** | **P2 observability + tests** | ~~C.1 Sentry~~ ✅ + C.1 Telegram ⚠️ missing + ~~C.5 test gaps~~ ✅ + ~~C.6 polish~~ ✅ | 6 | Defensive; "shores up the walls"; **Telegram alerts not implemented** |
+| **6** | **P2 customer-facing** | ~~C.2 tablet menu polish + C.3 arqueo + C.4 food cost semáforo~~ ✅ verified done 2026-10-05 | 7 | C.3 + C.4 use `food_cost.py`; C.2 enhances the shipped MVP |
+| **7** | **P3 long-tail** | D.3 close dead features ❓ + ~~D.5 backup restore test~~ ✅ + ~~D.6 riesgos v0.5~~ ✅ + D.7 glossary ⚠️ missing | 8 | Cleanup; not operator-blocking; **Glossary missing** |
 | **(defer)** | **Refactor** | BL#1 + BL#4 + Epic 23 barcode + E25 S25.7 i18n prep | 10+ | Multi-session, less time-sensitive |
 | **(defer)** | **AI** | D.4 / BL#32 Poisson regression | 10+ | L effort, future |
 
