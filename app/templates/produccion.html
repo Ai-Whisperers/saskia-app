@@ -41,7 +41,18 @@
     </h1>
     {% if view == 'day' %}
     <p class="hint" style="margin: var(--space-1) 0 0 0; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;">
-      Plan diario para el <strong>{{ for_date }}</strong>
+      {# T-2026-10-05: past-day navigation — ← prev | date | next →.
+         Lets the operator walk back through history to review what was
+         planned vs what was actually produced each day. #}
+      <a href="/produccion?view=day&for_date={{ prev_day_iso }}" class="btn btn-sm btn-ghost" aria-label="Día anterior">←</a>
+      <strong>{{ for_date }}</strong>
+      {% if not is_today %}
+      <a href="/produccion?view=day&for_date={{ next_day_iso }}" class="btn btn-sm btn-ghost" aria-label="Día siguiente">→</a>
+      {% endif %}
+      {% if is_past_day %}
+        <span class="badge" style="background: var(--color-surface-raised); color: var(--color-text-muted);" title="Día pasado: consultá qué se planificó y qué se produjo">📜 Historial</span>
+        <a href="/produccion?view=day" class="btn btn-sm btn-ghost">Volver a hoy</a>
+      {% endif %}
       {# T-2026-10-04 (D.2): shift-context deep-link. When Ivan/Sebas
          hand a cook a URL like /produccion?for_date=2026-10-05&shift=PM
          over WhatsApp, this badge makes the shift context unmissable
@@ -67,9 +78,9 @@
 
   <nav class="view-tabs" aria-label="Cambiar vista" role="tablist"
        style="display:inline-flex; gap: var(--space-1); padding: 2px; background: var(--color-surface-subtle); border-radius: var(--radius);">
-    <a href="/produccion?view=day" class="btn btn-sm {% if view == 'day' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'day' else 'false' }}">Día</a>
-    <a href="/produccion?view=week{% if view == 'week' and prev_week_iso %}&week={{ prev_week_iso }}{% endif %}" class="btn btn-sm {% if view == 'week' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'week' else 'false' }}">Semana</a>
-    <a href="/produccion?view=month" class="btn btn-sm {% if view == 'month' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'month' else 'false' }}">Mes</a>
+    <a href="/produccion?view=day{% if view == 'day' and for_date %}&for_date={{ for_date }}{% endif %}" class="btn btn-sm {% if view == 'day' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'day' else 'false' }}">Día</a>
+    <a href="/produccion?view=week{% if view == 'week' and prev_week_iso %}&week={{ request.query_params.get('week', '') }}{% endif %}" class="btn btn-sm {% if view == 'week' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'week' else 'false' }}">Semana</a>
+    <a href="/produccion?view=month{% if view == 'month' and request.query_params.get('month') %}&month={{ request.query_params.get('month') }}{% endif %}" class="btn btn-sm {% if view == 'month' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'month' else 'false' }}">Mes</a>
   </nav>
   {# PRODUCCION-V2 Fase 2: UI version toggle (v1 ⇄ v2). Default v1 keeps
      the existing 8-col grilla; v2 adds the DEMANDA column (decomposed
@@ -393,21 +404,19 @@
   <small><strong>✓ Horneado extra agregado.</strong> Aparece abajo con badge naranja.</small>
 </div>
 {% endif %}
-{# PROD-MERMA-1: merma flash banner after a quick-merma POST from this page. #}
-{% if request.query_params.get('merma') == 'ok' %}
-{% set merma_lines = request.query_params.get('lines', '1')|int %}
-<div class="card mb-4" data-merma-flash style="background: var(--color-warning-soft, #fef3c7); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-warning, #f59e0b);">
+{# T-2026-10-04 (P0:B.5): shift-execute success flash + audio chime.
+   Triggered by the `?shift_saved=N` query param that the shift-execute
+   handler appends to the redirect. Plays a short WebAudio beep (no asset
+   to ship, no autoplay friction) so the cook knows without re-reading
+   the page. Muteable via localStorage setting `sazon.audio.muted=1`. #}
+{% if shift_saved and shift_saved > 0 %}
+<div class="card mb-4" data-shift-saved="{{ shift_saved }}"
+     style="background: var(--color-success-soft, #d1fae5); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-success, #10b981); display: flex; align-items: center; gap: var(--space-3);">
+  <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
   <small>
-    <strong>✓ Merma registrada:</strong>
-    {{ merma_lines }} línea{{ '' if merma_lines == 1 else 's' }} descontada{{ '' if merma_lines == 1 else 's' }} de stock.
-    <a href="/merma">Ver historial →</a>
+    <strong>✓ Turno guardado: {{ shift_saved }} producto{{ 's' if shift_saved != 1 else '' }} actualizado{{ 's' if shift_saved != 1 else '' }}.</strong>
   </small>
 </div>
-
-{# T-2026-10-04 (P0:B.5): shift-save audio chime (from feat/phase-3-ci-cleanup;
-   the branch's duplicate second banner was dropped — the banner above already
-   shows the save confirmation). Muteable via localStorage `sazon.audio.muted=1`. #}
-{% if shift_saved and shift_saved > 0 %}
 <script>
 (function() {
   // T-2026-10-04 (P0:B.5) — short audio chime on successful shift save.
@@ -437,6 +446,150 @@
 })();
 </script>
 {% endif %}
+
+{# T-2026-10-04 (P1): Closed-day banner + reopen action. #}
+{% if closed_day_active %}
+<div class="card closed-day-banner" data-closed-day="1"
+     style="background: var(--color-info-bg, #eff6ff); border-left: 4px solid var(--color-info, #3b82f6); padding: var(--space-4); margin-bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+  <div>
+    <h3 style="margin: 0 0 var(--space-1) 0; font-size: 1.125rem;">
+      🏖️ Día cerrado — no se hornearán productos
+    </h3>
+    {% if closed_day_reason %}
+    <p class="text-muted" style="margin: 0;">
+      <strong>Motivo:</strong> {{ closed_day_reason }}
+    </p>
+    {% endif %}
+    {% if closed_day_at %}
+    <small class="text-muted">Cerrado el {{ closed_day_at[:10] }}</small>
+    {% endif %}
+  </div>
+  <form method="post" action="/produccion/closed" style="display: inline-flex; gap: var(--space-2); align-items: center;">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="for_date" value="{{ for_date }}">
+    <input type="hidden" name="action" value="reopen">
+    <button type="submit" class="btn btn-ghost"
+            aria-label="Reabrir {{ for_date }}">
+      Reabrir día
+    </button>
+  </form>
+</div>
+{% endif %}
+
+{# T-2026-10-04 (P1): closed-day toggle form (when NOT closed). #}
+{% if not closed_day_active and view == 'day' %}
+<form method="post" action="/produccion/closed"
+      class="closed-day-toggle no-print"
+      style="margin-bottom: var(--space-3); display: inline-flex; gap: var(--space-2); align-items: center;">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="for_date" value="{{ for_date }}">
+  <input type="hidden" name="action" value="close">
+  <input type="text" name="reason" placeholder="Motivo (opcional)" maxlength="120"
+         style="padding: var(--space-1) var(--space-2); border: 1px solid var(--color-border); border-radius: 4px; font-size: var(--text-sm);"
+         aria-label="Motivo del cierre">
+  <button type="button" class="btn btn-ghost btn-sm" id="close-day-btn" data-action="toggle-close-day">
+    🏖️ Cerrar este día
+  </button>
+</form>
+{# T-2026-10-04 (P0:D.1): UIConfirmModal replaces legacy confirm() JS.
+   The submit button is now type="button" with id="close-day-btn" so JS can
+   intercept the click, show the modal, and only call form.submit() on OK. #}
+<script>
+  (function () {
+    var btn = document.getElementById('close-day-btn');
+    var form = btn && btn.closest('form');
+    if (!btn || !form) return;
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      var forDate = form.querySelector('input[name="for_date"]').value;
+      var doSubmit = function () { form.submit(); };
+      if (window.UIConfirmModal) {
+        UIConfirmModal.show({
+          title: '¿Cerrar el día?',
+          body: 'Marcar ' + forDate + ' como cerrado. La producción se desactivará para este día.',
+          confirmLabel: 'Cerrar día',
+          danger: true
+        }).then(function (ok) { if (ok) doSubmit(); });
+      } else {
+        // UIConfirmModal failed to load — fall back to the legacy
+        // window.confirm so we still get an explicit gate.
+        if (window.confirm('¿Marcar ' + forDate + ' como cerrado? La producción se desactivará para este día.')) doSubmit();
+      }
+    });
+  })();
+</script>
+{# T-2026-10-05 (B.7): Bulk-CSV modal opener. Lightweight click
+   handler — the modal does the heavy lifting via native form POST. #}
+<script>
+  (function () {
+    var btn = document.querySelector('[data-action="open-adhoc-bulk"]');
+    var modal = document.getElementById('adhoc-bulk-modal');
+    if (!btn || !modal) return;
+    btn.addEventListener('click', function () {
+      modal.showModal();
+      // Focus the textarea for instant paste.
+      var ta = document.getElementById('adhoc-bulk-csv');
+      if (ta) ta.focus();
+    });
+  })();
+</script>
+{% endif %}
+
+{# PRODUCCION-V2 Fase 2: closure summary card + cold-start hint.
+   Renders UNCONDITIONALLY on the day view, even on cold-start days
+   when plan_rows_view is empty. The cook always sees "0/0 del día"
+   so they know the page rendered, plus a useful CTA when there's
+   no plan. The full execution form + grilla is rendered below
+   inside the {% if plan_rows_view %} gate — that part is unchanged. #}
+{% if view == 'day' %}
+<section class="card mb-4" data-execution-summary-card>
+  <div class="card-header" style="margin-bottom: var(--space-2);">
+    <h2 class="card-title" style="margin: 0; font-size: var(--text-lg);">Ejecución del turno</h2>
+    <p class="text-muted" style="font-size: var(--text-xs); margin: var(--space-1) 0 0 0;">
+      Marcá a medida que sale del horno. El cierre EOD usa estos números.
+    </p>
+    <div class="closure-summary" data-closure-summary
+         style="display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-2); flex-wrap: wrap;">
+      <span class="closure-count closure-count-done"
+            data-closure-count="done"
+            style="font-size: var(--text-xs); padding: 2px 8px; border-radius: 999px; background: #d1fae5; color: #065f46; font-weight: 600;">
+        ✅ {{ day_done_count | default(0) }} cerradas
+      </span>
+      {% if (day_cancelled_count | default(0)) > 0 %}
+        <span class="closure-count closure-count-cancelled"
+              data-closure-count="cancelled"
+              style="font-size: var(--text-xs); padding: 2px 8px; border-radius: 999px; background: #fee2e2; color: #991b1b; font-weight: 600;">
+          ⊘ {{ day_cancelled_count | default(0) }} no horneadas
+        </span>
+      {% endif %}
+      <span class="closure-count closure-count-open"
+            data-closure-count="open"
+            style="font-size: var(--text-xs); padding: 2px 8px; border-radius: 999px; background: #f3f4f6; color: #374151; font-weight: 600;">
+        ⏳ {{ day_open_count | default(0) }} pendientes
+      </span>
+      <small class="text-muted" style="font-size: var(--text-xs);">
+        / {{ day_total_count | default(0) }} del día
+      </small>
+    </div>
+    {% if not plan_rows_view and cold_start_kind %}
+      <div class="cold-start-hint" data-cold-start="{{ cold_start_kind }}"
+           style="margin-top: var(--space-3); padding: var(--space-3); background: #fffbeb; border: 1px solid #fbbf24; border-radius: 6px;">
+        <strong style="display: block; margin-bottom: var(--space-1);">📋 Sin plan para hoy</strong>
+        <small class="text-muted">
+          {% if cold_start_kind == "no_sales" %}
+            Aún no hay ventas registradas. <a href="/ventas/nueva">Registrá la primera venta</a> o
+            usá la acción rápida "Cerrar este día" arriba si es feriado.
+          {% elif cold_start_kind == "no_template" %}
+            Hay ventas pero falta una plantilla semanal. Definila en
+            <a href="/produccion?view=week">Semana →</a>.
+          {% else %}
+            No hay producción planificada. Verificá que haya ventas registradas en los últimos 14 días.
+          {% endif %}
+        </small>
+      </div>
+    {% endif %}
+  </div>
+</section>
 {% endif %}
 
 {% if plan_rows_view %}
@@ -783,17 +936,6 @@
             {% else %}
             <span class="text-muted">Sin receta</span>
             {% endif %}
-            {# PROD-MERMA-1: per-row 🔥 Merma trigger. Always renders so the
-               operator can log ingredient-only spoilage even without a recipe. #}
-            <button type="button" class="btn btn-sm btn-ghost"
-                    data-quick-merma
-                    data-recipe-id="{{ r.recipe_id or '' }}"
-                    data-product-name="{{ r.product_name }}"
-                    onclick="openQuickMerma(this)"
-                    title="Registrar merma para {{ r.product_name }}"
-                    style="margin-left: var(--space-1);">
-              🔥 Merma
-            </button>
           </td>
           {# T-2026-10-04 (C.5): inline cost/margin cell. Shows
              - Total cost of the planned batch (cost_per_unit × qty)
@@ -855,6 +997,48 @@
              fix a mistake. Hidden on the printed worksheet.
              closure_status is one of: open, done, cancelled. #}
           <td class="num no-print closure-cell" data-label="Cierre">
+            {% set cs = r.closure_status | default('open') %}
+            {% if cs == 'done' %}
+              <span class="closure-pill closure-done" title="Cerrado como hecho. {{ r.closure_notes or '' }}">✅ Cerrado</span>
+              <button type="button" class="btn btn-ghost btn-sm closure-btn"
+                      data-action="reopen-day"
+                      data-product-id="{{ r.product_id }}"
+                      data-product-name="{{ r.product_name }}"
+                      title="Reabrir este producto (corrección de cierre)">
+                Reabrir
+              </button>
+            {% elif cs == 'cancelled' %}
+              <span class="closure-pill closure-cancelled" title="Cerrado como no-horneado. {{ r.closure_notes or '' }}">⊘ No horneado</span>
+              <button type="button" class="btn btn-ghost btn-sm closure-btn"
+                      data-action="reopen-day"
+                      data-product-id="{{ r.product_id }}"
+                      data-product-name="{{ r.product_name }}">
+                Reabrir
+              </button>
+            {% else %}
+              <div style="display: flex; flex-direction: column; gap: var(--space-1);">
+                <div>
+                  <label style="font-size: var(--text-xs); margin-right: var(--space-1);">¿Cuánto se produjo?</label>
+                  <input type="number" 
+                         name="completed_qty_{{ r.product_id }}" 
+                         step="0.5" 
+                         min="0" 
+                         size="4"
+                         value="{{ '%.1f'|format(r.completed_qty or 0) }}"
+                         style="font-size: var(--text-xs);"
+                         aria-label="Cantidad producida para {{ r.product_name }}">
+                </div>
+                <button type="button" class="btn btn-primary btn-sm closure-btn"
+                        data-action="close-day"
+                        data-product-id="{{ r.product_id }}"
+                        data-product-name="{{ r.product_name }}"
+                        data-completed-qty="{{ r.completed_qty or 0 }}"
+                        title="Marcar este producto como cerrado para el turno">
+                  Cerrar turno
+                </button>
+              </div>
+            {% endif %}
+          </td>
             {% set cs = r.closure_status | default('open') %}
             {% if cs == 'done' %}
               <span class="closure-pill closure-done" title="Cerrado como hecho. {{ r.closure_notes or '' }}">✅ Cerrado</span>
@@ -988,7 +1172,6 @@
     </div>
   </form>
 </dialog>
-
 {% else %}
 <div class="card empty-state-cold-start" data-cold-start="{{ cold_start_kind or 'unknown' }}"
      style="background: var(--color-warning-bg, #fff7ed); border-left: 4px solid var(--color-warning, #f59e0b); padding: var(--space-4); margin-bottom: var(--space-4);">
@@ -1052,257 +1235,6 @@
   {% endif %}
 </div>
 {% endif %}
-{# /PROD-MERMA-1: end of plan-rows block #}
-
-{# ── Quick Merma Modal (PROD-MERMA-1) ──
-   Rendered OUTSIDE the {% if plan_rows_view %} guard so it's available
-   even on quiet days — the trigger buttons live inside the table above
-   and the deficit-prompt below can also open it.
-   PROD-MERMA-2: added role="dialog" + aria-modal="true" + aria-labelledby
-   for screen-reader semantics. Browser-native <dialog> handles Esc-to-close
-   and focus trap, but we still emit the ARIA roles for older AT. #}
-<dialog id="quick-merma-modal" role="dialog" aria-modal="true" aria-labelledby="qm-title" style="border: none; border-radius: 8px; padding: 0; max-width: min(540px, 95vw); box-shadow: var(--shadow-lg);">
-  <form method="post" id="quick-merma-form" style="padding: var(--space-4);">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <input type="hidden" name="source" value="production">
-    <input type="hidden" name="recipe_id" id="qm-recipe-id" value="">
-    <input type="hidden" name="product_label" id="qm-product-label" value="">
-
-    <h3 id="qm-title" style="margin: 0 0 var(--space-2) 0;">🔥 Merma — <span id="qm-product-name">producto</span></h3>
-    <p class="text-muted" style="margin: 0 0 var(--space-3) 0; font-size: var(--text-sm);">
-      Anotá lo que se perdió. Para un lote entero usá la pestaña <em>Lote entero</em>.
-    </p>
-
-    {# Tab switcher (vanilla, no JS framework) #}
-    <div role="tablist" style="display:inline-flex; gap: 2px; padding: 2px; background: var(--color-surface-subtle); border-radius: var(--radius); margin-bottom: var(--space-3);">
-      <button type="button" role="tab" aria-selected="true" id="qm-tab-ingredient"
-              onclick="qmSwitchTab('ingredient')"
-              class="btn btn-sm btn-primary">Ingrediente suelto</button>
-      <button type="button" role="tab" aria-selected="false" id="qm-tab-recipe"
-              onclick="qmSwitchTab('recipe')"
-              class="btn btn-sm btn-ghost" disabled id="qm-tab-recipe-btn">Lote entero</button>
-    </div>
-
-    {# ── Ingrediente suelto (default tab) ── #}
-    <div id="qm-panel-ingredient" data-qm-panel="ingredient">
-      <div class="form-row" style="margin-bottom: var(--space-3);">
-        <label for="qm-ingredient" style="display:block; margin-bottom: var(--space-1); font-weight:bold;">Ingrediente</label>
-        {{ ui.combo_field(
-          name='ingredient_id',
-          placeholder='Escribí el ingrediente (harina, aceite…)',
-          endpoint='/inventario/api/search?q=',
-          value_field='id',
-          label_field='name',
-        ) }}
-      </div>
-      <div class="form-row" style="margin-bottom: var(--space-3); display:flex; gap: var(--space-2);">
-        <div style="flex:2;">
-          <label for="qm-qty" style="display:block; margin-bottom: var(--space-1); font-weight:bold;">Cantidad</label>
-          <input type="number" name="qty" id="qm-qty" required step="0.01" min="0.01" max="9999"
-                 style="width:100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;">
-        </div>
-        <div style="flex:1;">
-          <label for="qm-qty-unit" style="display:block; margin-bottom: var(--space-1); font-weight:bold;">Unidad</label>
-          {{ ui.combo_field(
-            name='qty_unit',
-            placeholder='Unidad',
-            endpoint='/recetas/api/units?q=',
-            value_field='value',
-            label_field='display',
-          ) }}
-        </div>
-      </div>
-      <div class="form-row" style="margin-bottom: var(--space-3);">
-        <label for="qm-reason-ing" style="display:block; margin-bottom: var(--space-1); font-weight:bold;">Motivo</label>
-        {{ ui.combo_field(
-          name='reason',
-          placeholder='Seleccioná motivo',
-          endpoint='/merma/api/reasons?q=',
-          value_field='value',
-          label_field='value',
-        ) }}
-      </div>
-      <div class="form-row" style="margin-bottom: var(--space-3);">
-        <label for="qm-notes-ing" style="display:block; margin-bottom: var(--space-1); font-weight:bold;">Notas</label>
-        <textarea name="notes" id="qm-notes-ing" rows="2"
-                  style="width:100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;"></textarea>
-      </div>
-      <input type="hidden" name="form_action" value="ingredient">
-    </div>
-
-    {# ── Lote entero (only enabled when row has a recipe_id) ── #}
-    <div id="qm-panel-recipe" data-qm-panel="recipe" hidden>
-      <p class="text-muted" style="font-size: var(--text-sm); margin-bottom: var(--space-3);">
-        Se descontarán los ingredientes de la receta <strong id="qm-recipe-label">—</strong>
-        proporcionalmente a la cantidad de lotes.
-      </p>
-      <div class="form-row" style="margin-bottom: var(--space-3);">
-        <label for="qm-batch-qty" style="display:block; margin-bottom: var(--space-1); font-weight:bold;">Lotes perdidos</label>
-        <input type="number" name="batch_qty" id="qm-batch-qty" required step="0.01" min="0.01" max="999" value="1"
-               style="width:100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;">
-        <small class="text-muted">1 = un lote entero; 0.5 = media tanda.</small>
-      </div>
-      <div class="form-row" style="margin-bottom: var(--space-3);">
-        <label for="qm-reason-rec" style="display:block; margin-bottom: var(--space-1); font-weight:bold;">Motivo</label>
-        {{ ui.combo_field(
-          name='reason',
-          placeholder='Seleccioná motivo',
-          endpoint='/merma/api/reasons?q=',
-          value_field='value',
-          label_field='value',
-        ) }}
-      </div>
-      <div class="form-row" style="margin-bottom: var(--space-3);">
-        <label for="qm-notes-rec" style="display:block; margin-bottom: var(--space-1); font-weight:bold;">Notas</label>
-        <textarea name="notes" id="qm-notes-rec" rows="2"
-                  style="width:100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;"></textarea>
-      </div>
-      <input type="hidden" name="form_action" value="recipe">
-    </div>
-
-    <div style="display: flex; gap: var(--space-2); justify-content: flex-end; margin-top: var(--space-3);">
-      <button type="button" class="btn btn-ghost" onclick="document.getElementById('quick-merma-modal').close()">Cancelar</button>
-      <button type="submit" class="btn btn-primary" id="qm-submit">
-        <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-        Registrar merma
-      </button>
-    </div>
-  </form>
-</dialog>
-
-<section class="card mb-4" id="shift-deficit-prompt" hidden
-         style="background: var(--color-warning-soft, #fef3c7); border-left: 4px solid var(--color-warning, #f59e0b);">
-  <div class="card-body">
-    <strong>Unidades sin registrar</strong>
-    <p class="text-muted" style="font-size: var(--text-sm); margin: var(--space-1) 0 var(--space-2) 0;">
-      Estas cantidades quedaron pendientes después del turno. ¿Querés registrarlas como merma?
-    </p>
-    <ul style="margin: 0; padding-left: var(--space-5);"></ul>
-  </div>
-</section>
-
-<script>
-  // PROD-MERMA-1: open + tab-switch logic for the quick-merma dialog.
-  // The form action switches between /merma/registrar (ingredient tab) and
-  // /merma/receta (recipe tab) at submit time based on which panel is active.
-  function openQuickMerma(btn) {
-    var recipeId = btn.getAttribute('data-recipe-id') || '';
-    var productName = btn.getAttribute('data-product-name') || 'producto';
-    var batchQty = btn.getAttribute('data-batch-qty') || '';
-    var modal = document.getElementById('quick-merma-modal');
-    document.getElementById('qm-recipe-id').value = recipeId;
-    document.getElementById('qm-product-label').value = productName;
-    document.getElementById('qm-product-name').textContent = productName;
-    document.getElementById('qm-recipe-label').textContent = productName + ' (receta #' + recipeId + ')';
-    // Pre-fill the batch-qty input when a deficit was passed.
-    if (batchQty) {
-      var bq = document.getElementById('qm-batch-qty');
-      if (bq) bq.value = batchQty;
-    }
-    // Enable / disable recipe tab based on whether the row has a recipe.
-    var recipeBtn = document.getElementById('qm-tab-recipe-btn');
-    if (recipeId) {
-      recipeBtn.disabled = false;
-      recipeBtn.title = '';
-    } else {
-      recipeBtn.disabled = true;
-      recipeBtn.title = 'Esta fila no tiene receta cargada. Usá Ingrediente suelto.';
-    }
-    // When the trigger button had data-recipe-id AND a batch qty, default to
-    // the "Lote entero" tab so the operator registers the whole missing batch.
-    // Otherwise default to "Ingrediente suelto" (single-ingredient loss).
-    if (recipeId && batchQty) {
-      qmSwitchTab('recipe');
-    } else {
-      qmSwitchTab('ingredient');
-    }
-    modal.showModal();
-  }
-  function qmSwitchTab(tab) {
-    var ingPanel = document.getElementById('qm-panel-ingredient');
-    var recPanel = document.getElementById('qm-panel-recipe');
-    var ingTab = document.getElementById('qm-tab-ingredient');
-    var recTab = document.getElementById('qm-tab-recipe');
-    var form = document.getElementById('quick-merma-form');
-    if (tab === 'ingredient') {
-      ingPanel.hidden = false; recPanel.hidden = true;
-      // PROD-MERMA-2: disable inputs in the hidden tab so its empty values
-      // don't double-submit `reason`/`notes` and confuse the backend.
-      togglePanelInputs(ingPanel, true);
-      togglePanelInputs(recPanel, false);
-      ingTab.classList.add('btn-primary'); ingTab.classList.remove('btn-ghost');
-      recTab.classList.add('btn-ghost'); recTab.classList.remove('btn-primary');
-      ingTab.setAttribute('aria-selected', 'true'); recTab.setAttribute('aria-selected', 'false');
-      form.action = '/merma/registrar';
-    } else {
-      ingPanel.hidden = true; recPanel.hidden = false;
-      togglePanelInputs(ingPanel, false);
-      togglePanelInputs(recPanel, true);
-      recTab.classList.add('btn-primary'); recTab.classList.remove('btn-ghost');
-      ingTab.classList.add('btn-ghost'); ingTab.classList.remove('btn-primary');
-      recTab.setAttribute('aria-selected', 'true'); ingTab.setAttribute('aria-selected', 'false');
-      form.action = '/merma/receta';
-    }
-  }
-  // PROD-MERMA-2: walk a panel and disable/enable every input so the hidden
-  // tab doesn't submit empty `reason`/`notes` (or anything else named) when
-  // the form posts. The hidden attribute alone doesn't prevent submission.
-  function togglePanelInputs(panel, enable) {
-    panel.querySelectorAll('input, select, textarea, ui-combo').forEach(function(el) {
-      if (enable) {
-        el.removeAttribute('disabled');
-      } else {
-        el.setAttribute('disabled', 'disabled');
-      }
-    });
-  }
-  // PROD-MERMA-2 (T4 wired): after a shift-save, when completed < target on
-  // any row, show the inline "Unidades sin registrar" prompt with one-click
-  // buttons that open the quick-merma modal pre-populated with the deficit.
-  (function() {
-    var saved = document.querySelector('[data-shift-saved]');
-    if (!saved) return;
-    var rows = document.querySelectorAll('.production-row');
-    var deficits = [];
-    rows.forEach(function(row) {
-      var targetEl = row.querySelector('.qty-target');
-      var completedEl = row.querySelector('.progress-input');
-      if (!targetEl || !completedEl) return;
-      var target = parseFloat(targetEl.textContent || '0');
-      var completed = parseFloat(completedEl.value || '0');
-      if (target > 0 && completed < target) {
-        var mermaBtn = row.querySelector('[data-quick-merma]');
-        deficits.push({
-          product_name: (row.querySelector('.product-name') || {}).textContent || '',
-          missing: target - completed,
-          recipe_id: mermaBtn ? (mermaBtn.getAttribute('data-recipe-id') || '') : '',
-        });
-      }
-    });
-    if (deficits.length === 0) return;
-    var container = document.getElementById('shift-deficit-prompt');
-    if (!container) return;
-    container.hidden = false;
-    var ul = container.querySelector('ul');
-    deficits.forEach(function(d) {
-      var li = document.createElement('li');
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn btn-sm btn-warning';
-      btn.setAttribute('data-quick-merma', '');
-      btn.setAttribute('data-recipe-id', d.recipe_id);
-      btn.setAttribute('data-product-name', d.product_name);
-      // PROD-MERMA-2: pass the deficit qty so openQuickMerma() pre-fills the
-      // batch_qty input AND auto-switches to the "Lote entero" tab.
-      btn.setAttribute('data-batch-qty', String(d.missing));
-      btn.textContent = '🔥 Registrar ' + d.missing + ' como merma';
-      btn.addEventListener('click', function() { openQuickMerma(btn); });
-      li.innerHTML = '<strong>' + d.product_name + '</strong>: faltan ' + d.missing + ' unidades ';
-      li.appendChild(btn);
-      ul.appendChild(li);
-    });
-  })();
-</script>
 
 {# ── Ingredients needed ── Bug 2 + Bug 4 fix ── #}
 {% if plan.lines %}
@@ -1740,6 +1672,10 @@
 
 {% if week_plan and week_plan.rows %}
 <h3>Producción por día</h3>
+{# T-2026-10-05: Plan-vs-Hecho grid. Each cell shows planned qty, and
+   below it the confirmed Hecho (green ✓) when the day was closed in
+   day view — confirmations stay visible across views. Past days that
+   were never confirmed show ⚠ pendiente. Cells link to that day. #}
 <table class="table is-hoverable is-striped">
   <thead>
     <tr>
@@ -1752,7 +1688,16 @@
     <tr>
       <td><strong>{{ r.product_name }}</strong></td>
       {% for day_qty in r.daily_qtys %}
-      <td class="num">{{ "%.1f"|format(day_qty) if day_qty else '—' }}</td>
+      {% set d_iso = week_day_isos[loop.index0] %}
+      {% set hecho = week_completions.get(d_iso, {}).get(r.product_id) %}
+      <td class="num" style="line-height: 1.3;">
+        <a href="/produccion?view=day&for_date={{ d_iso }}" class="text-link" title="Abrir día {{ d_iso }}">{{ "%.1f"|format(day_qty) if day_qty else '—' }}</a>
+        {% if hecho is not none %}
+          <br><small style="color: var(--color-success, #2e7d32);">✓ {{ "%.1f"|format(hecho) }}</small>
+        {% elif d_iso < week_today_iso and day_qty %}
+          <br><small class="text-muted" title="Planificado pero sin confirmar">⚠ pendiente</small>
+        {% endif %}
+      </td>
       {% endfor %}
     </tr>
     {% endfor %}
@@ -1848,15 +1793,18 @@
     <tr>
       <td><strong>{{ r.product_name }}</strong></td>
       {% for day_qty in r.daily_qtys %}
+        {% set d_num = loop.index %}
+        {% set d_iso = '%04d-%02d-%02d'|format(year, mon, d_num) %}
+        {% set hecho = month_completions.get(d_iso, {}).get(r.product_id) %}
         {% set q = day_qty or 0 %}
         {% if q == 0 %}
-          <td class="num month-cell month-cell--empty" title="Sin plan">—</td>
+          <td class="num month-cell month-cell--empty" title="Sin plan"><a href="/produccion?view=day&for_date={{ d_iso }}" style="color: inherit; text-decoration: none;">—</a></td>
         {% elif q < 1 %}
-          <td class="num month-cell month-cell--light" title="{{ '%.1f'|format(q) }}">{{ '%.0f'|format(q) }}</td>
+          <td class="num month-cell month-cell--light" title="{{ '%.1f'|format(q) }}{% if hecho is not none %} · hecho {{ '%.1f'|format(hecho) }}{% endif %} — click para abrir el día"><a href="/produccion?view=day&for_date={{ d_iso }}" style="color: inherit; text-decoration: none;">{{ '%.0f'|format(q) }}{% if hecho is not none %}<small style="color: var(--color-success, #2e7d32);">✓</small>{% endif %}</a></td>
         {% elif q < 3 %}
-          <td class="num month-cell month-cell--mid" title="{{ '%.1f'|format(q) }}">{{ '%.0f'|format(q) }}</td>
+          <td class="num month-cell month-cell--mid" title="{{ '%.1f'|format(q) }}{% if hecho is not none %} · hecho {{ '%.1f'|format(hecho) }}{% endif %} — click para abrir el día"><a href="/produccion?view=day&for_date={{ d_iso }}" style="color: inherit; text-decoration: none;">{{ '%.0f'|format(q) }}{% if hecho is not none %}<small style="color: var(--color-success, #2e7d32);">✓</small>{% endif %}</a></td>
         {% else %}
-          <td class="num month-cell month-cell--full" title="{{ '%.1f'|format(q) }}">{{ '%.0f'|format(q) }}</td>
+          <td class="num month-cell month-cell--full" title="{{ '%.1f'|format(q) }}{% if hecho is not none %} · hecho {{ '%.1f'|format(hecho) }}{% endif %} — click para abrir el día"><a href="/produccion?view=day&for_date={{ d_iso }}" style="color: inherit; text-decoration: none;">{{ '%.0f'|format(q) }}{% if hecho is not none %}<small style="color: var(--color-success, #2e7d32);">✓</small>{% endif %}</a></td>
         {% endif %}
       {% endfor %}
     </tr>
@@ -1897,6 +1845,7 @@
     <form method="post" action="/produccion/close-day" data-close-day-form>
       <input type="hidden" name="for_date" value="{{ for_date }}">
       <input type="hidden" name="product_id" data-modal-product-id>
+      <input type="hidden" name="completed_qty" data-modal-completed-qty value="0">
       <input type="hidden" name="ui" value="{{ ui_version }}">
       <div style="margin-bottom: var(--space-3);">
         <label style="display: block; font-size: var(--text-sm); margin-bottom: var(--space-1); font-weight: 600;">
@@ -1943,11 +1892,21 @@
   function openModal(productId, productName, completedQty) {
     modal.querySelector('[data-modal-product-name]').textContent = productName;
     modal.querySelector('[data-modal-product-id]').value = productId;
+    // T-2026-10-05: read the qty the cook TYPED in the row input (not the
+    // render-time data attr) so the modal carries the current value.
+    var rowInput = document.querySelector(
+      'input[name="completed_qty_' + productId + '"]'
+    ) || document.querySelector(
+      'input[name="completed_' + productId + '"]'
+    );
+    var liveQty = rowInput ? (parseFloat(rowInput.value) || 0) : completedQty;
+    var hiddenQty = modal.querySelector('[data-modal-completed-qty]');
+    if (hiddenQty) hiddenQty.value = String(liveQty);
     // Default: status=done IF completedQty > 0, else cancelled. The cook
     // can always override by clicking the other radio.
     var doneRadio = modal.querySelector('[data-modal-radio-done]');
     var cancRadio = modal.querySelector('[data-modal-radio-cancelled]');
-    if (completedQty > 0) {
+    if (liveQty > 0) {
       doneRadio.checked = true;
     } else {
       cancRadio.checked = true;
