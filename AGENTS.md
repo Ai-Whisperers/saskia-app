@@ -83,10 +83,17 @@ Per `docs/operations/2026-09-tech-stack-review.md`:
 ## Testing
 
 - Pytest with `uv run pytest`.
-- Coverage gate: 80% (CI fails below).
+- Coverage gate: 80% (CI fails below). Current gate is 35%; Phase 1-4
+  plan bumps it in 4 stages. See `state/test-coverage-2026-10-04.json`.
 - Property-based tests for money (`test_money.py`); unit tests for unit
   coercion (`test_units.py`); roundtrip tests for import.
 - **No Selenium / Playwright** in fase 1. Backend tests only.
+- **Test strategy + roadmap**: see
+  `docs/operations/2026-10-04-test-execution-plan.md` (the master
+  plan). Pairs with `docs/TEST_ARCHITECTURE.md` (5 levels × 8 domains),
+  `docs/operations/2026-10-04-qa-hats-playbook.md` (12 hats ×
+  wishlists), and `docs/operations/2026-10-04-test-infra-one-pager.md`
+  (condensed).
 
 ## CI
 

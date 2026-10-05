@@ -32,6 +32,7 @@ plan_production returns a non-empty plan_rows_view even for ancient
 dates. The empty-state fires only in the operator's first-day
 scenario.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -104,16 +105,10 @@ def test_produccion_template_has_confidence_pill_tooltip_breakdown():
 # ---------------------------------------------------------------- C.5
 def test_produccion_template_has_cost_margin_column():
     """C.5 — Inline 'Costo / Margen' column on /produccion rows."""
-    assert "Costo / Margen" in SRC, (
-        "C.5 — column header 'Costo / Margen' must exist"
-    )
+    assert "Costo / Margen" in SRC, "C.5 — column header 'Costo / Margen' must exist"
     # Must reference cost_per_unit_gs and retail_gs (the RecipePricing fields)
-    assert "cost_per_unit_gs" in SRC, (
-        "C.5 — template must read r.cost_per_unit_gs to render cost"
-    )
-    assert "retail_gs" in SRC, (
-        "C.5 — template must read r.retail_gs to compute margin"
-    )
+    assert "cost_per_unit_gs" in SRC, "C.5 — template must read r.cost_per_unit_gs to render cost"
+    assert "retail_gs" in SRC, "C.5 — template must read r.retail_gs to compute margin"
     # The cost cell must be hidden on print (no-print class)
     assert 'class="num no-print" data-label="Costo / Margen"' in SRC, (
         "C.5 — cost column must be hidden on print via .no-print class"
@@ -122,17 +117,13 @@ def test_produccion_template_has_cost_margin_column():
 
 def test_produccion_template_renders_margin_percentage():
     """C.5 — Margin % is shown in a small caption below the cost line."""
-    assert "% margen" in SRC, (
-        "C.5 — must show 'XX% margen' caption next to the cost"
-    )
+    assert "% margen" in SRC, "C.5 — must show 'XX% margen' caption next to the cost"
 
 
 # ---------------------------------------------------------------- C.6
 def test_produccion_template_has_allergen_badge():
     """C.6 — Allergen badge on each row, capped at 3 + ellipsis."""
-    assert "allergen-badge" in SRC, (
-        "C.6 — allergen badge class must exist in template"
-    )
+    assert "allergen-badge" in SRC, "C.6 — allergen badge class must exist in template"
     assert "data-allergens=" in SRC, (
         "C.6 — allergen badge must carry data-allergens for testability"
     )
@@ -141,16 +132,12 @@ def test_produccion_template_has_allergen_badge():
         "C.6 — allergen list must be split by comma and capped at 3 + ellipsis"
     )
     # ⚠️ prefix for visibility
-    assert "⚠️" in SRC, (
-        "C.6 — allergen badge must use warning emoji for visibility"
-    )
+    assert "⚠️" in SRC, "C.6 — allergen badge must use warning emoji for visibility"
 
 
 def test_produccion_template_has_difficulty_badge():
     """C.6 — Difficulty badge on each row, ⭐ stars for 1-5 scale."""
-    assert "difficulty-badge" in SRC, (
-        "C.6 — difficulty badge class must exist in template"
-    )
+    assert "difficulty-badge" in SRC, "C.6 — difficulty badge class must exist in template"
     assert "data-difficulty=" in SRC, (
         "C.6 — difficulty badge must carry data-difficulty for testability"
     )
@@ -158,9 +145,7 @@ def test_produccion_template_has_difficulty_badge():
     assert "for i in range(r.recipe_difficulty)" in SRC, (
         "C.6 — difficulty must render as N stars via for-loop"
     )
-    assert "⭐" in SRC, (
-        "C.6 — difficulty stars must use ⭐ glyph"
-    )
+    assert "⭐" in SRC, "C.6 — difficulty stars must use ⭐ glyph"
     # Difficulty class is rendered via interpolation: difficulty-{{ r.recipe_difficulty }}
     assert "difficulty-{{ r.recipe_difficulty }}" in SRC, (
         "C.6 — difficulty must use interpolated class hook for color tier"

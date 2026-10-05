@@ -888,12 +888,8 @@ class FreezerTemperatureLog(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
-        CheckConstraint(
-            "temperature_c BETWEEN -40 AND 30", name="ck_freezer_temp_range"
-        ),
-        CheckConstraint(
-            "shift IN ('AM', 'PM')", name="ck_freezer_shift"
-        ),
+        CheckConstraint("temperature_c BETWEEN -40 AND 30", name="ck_freezer_temp_range"),
+        CheckConstraint("shift IN ('AM', 'PM')", name="ck_freezer_shift"),
         Index("ix_freezer_temp_date_location", "for_date", "location"),
     )
 

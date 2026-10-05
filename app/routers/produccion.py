@@ -499,7 +499,9 @@ def produccion_worksheet(
         _sa_text("SELECT recipe_id, cost_per_unit_gs, retail_gs FROM recipe_pricing")
     ).all()
     pricing_by_recipe_id = {
-        row.recipe_id: type("P", (), {"cost_per_unit_gs": row.cost_per_unit_gs, "retail_gs": row.retail_gs})()
+        row.recipe_id: type(
+            "P", (), {"cost_per_unit_gs": row.cost_per_unit_gs, "retail_gs": row.retail_gs}
+        )()
         for row in pricing_rows
     }
 
@@ -1773,18 +1775,13 @@ def _count_haccp_missing_for_date(session: Session, for_date: date) -> int:
     MSPBS expects 2 readings/day per location (AM + PM). The cook should
     see a nudge if N of those 6 expected entries are missing.
     """
-    rows = (
-        session.execute(
-            select(FreezerTemperatureLog.location, FreezerTemperatureLog.shift).where(
-                FreezerTemperatureLog.for_date == for_date
-            )
+    rows = session.execute(
+        select(FreezerTemperatureLog.location, FreezerTemperatureLog.shift).where(
+            FreezerTemperatureLog.for_date == for_date
         )
-        .all()
-    )
+    ).all()
     recorded: set[tuple[str, str]] = {(r.location, r.shift) for r in rows}
-    expected = {
-        (loc, sh) for loc in _DEFAULT_FREEZER_LOCATIONS for sh in ("AM", "PM")
-    }
+    expected = {(loc, sh) for loc in _DEFAULT_FREEZER_LOCATIONS for sh in ("AM", "PM")}
     return len(expected - recorded)
 
 
@@ -1822,11 +1819,12 @@ def produccion_haccp(
     # Detect missing shifts (the cook should record AM + PM for each
     # location). The form shows a "Falta" pill so they know to add it.
     recorded_shifts: set[tuple[str, str]] = {(e.location, e.shift) for e in entries}
-    missing: list[dict[str, str]] = []
-    for loc in _DEFAULT_FREEZER_LOCATIONS:
-        for sh in ("AM", "PM"):
-            if (loc, sh) not in recorded_shifts:
-                missing.append({"location": loc, "shift": sh})
+    missing: list[dict[str, str]] = [
+        {"location": loc, "shift": sh}
+        for loc in _DEFAULT_FREEZER_LOCATIONS
+        for sh in ("AM", "PM")
+        if (loc, sh) not in recorded_shifts
+    ]
 
     # Pull the last 7 days for the history strip. Limit by tenant.
     week_ago = target_date - timedelta(days=7)
@@ -1839,7 +1837,9 @@ def produccion_haccp(
                     FreezerTemperatureLog.for_date <= target_date,
                 )
             )
-            .order_by(FreezerTemperatureLog.for_date.desc(), FreezerTemperatureLog.recorded_at.desc())
+            .order_by(
+                FreezerTemperatureLog.for_date.desc(), FreezerTemperatureLog.recorded_at.desc()
+            )
         )
         .scalars()
         .all()

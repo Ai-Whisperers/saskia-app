@@ -24,7 +24,6 @@ import pytest
 
 from app.rms.models import FreezerTemperatureLog
 
-
 # ─────────────────────────── GET /produccion/haccp ───────────────────────────
 
 
