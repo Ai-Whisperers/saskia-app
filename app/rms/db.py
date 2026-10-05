@@ -62,6 +62,9 @@ from app.rms.migrations._098_production_closed_day import _migration_098_product
 from app.rms.migrations._099_production_completion_updated_at import (
     _migration_099_production_completion_updated_at,
 )
+from app.rms.migrations._100_freezer_temperature_log import (
+    _migration_100_freezer_temperature_log,
+)
 
 
 def _set_sqlite_pragmas(dbapi_conn: Any, _: Any) -> None:
@@ -4222,6 +4225,7 @@ MIGRATIONS = {
     97: _migration_097_ingredient_avg_cost,
     98: _migration_098_production_closed_day,
     99: _migration_099_production_completion_updated_at,
+    100: _migration_100_freezer_temperature_log,
 }
 
 

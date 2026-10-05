@@ -852,6 +852,52 @@ class ProductionCompletion(Base):
     product: Mapped["Product"] = relationship("Product")
 
 
+class FreezerTemperatureLog(Base):
+    """T-2026-10-04 (B.6) — HACCP freezer-temperature log.
+
+    Regulatory context: Paraguay MSPBS HACCP exige registro de temperatura
+    de heladeras/freezers donde se almacenan productos crudos, semi-elaborados
+    y elaborados. Sin registro continuo, una inspección puede multar al
+    local. Saskia opera con un freezer de masa y uno de productos finales.
+
+    One row per (location, for_date, shift) — el cocinero registra la
+    temperatura 2 veces al día (apertura AM, cierre PM). Las filas se
+    acumulan para auditoría MSPBS.
+
+    Schema:
+      - id, location (e.g. "freezer-1")
+      - temperature_c (float, obligatorio)
+      - for_date (date — día de operación)
+      - shift (AM|PM — cuándo se tomó)
+      - recorded_at (datetime — cuándo se tipeó, con fines de auditoría)
+      - recorded_by_user_id (FK user.id — quién lo tipeó)
+      - notes (text, opcional — "puerta quedó abierta 5 min" etc.)
+    """
+
+    __tablename__ = "freezer_temperature_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    location: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    temperature_c: Mapped[float] = mapped_column(Float, nullable=False)
+    for_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    shift: Mapped[str] = mapped_column(String(8), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    recorded_by_user_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("user.id"), nullable=True
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "temperature_c BETWEEN -40 AND 30", name="ck_freezer_temp_range"
+        ),
+        CheckConstraint(
+            "shift IN ('AM', 'PM')", name="ck_freezer_shift"
+        ),
+        Index("ix_freezer_temp_date_location", "for_date", "location"),
+    )
+
+
 class ProductionPlanTemplate(Base):
     """PRO-01: Repeating weekly production plan template.
 
@@ -2223,6 +2269,7 @@ __all__ = [
     # Static-content-audit Phase 9 — migration 048
     "DateRangePreset",
     "DeliveryZone",
+    "FreezerTemperatureLog",  # B.6 HACCP freezer temp log
     "ImportBatch",
     "Ingredient",
     "IngredientPriceEvent",

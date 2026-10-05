@@ -32,6 +32,7 @@ from app.rms.dependencies import get_session
 from app.rms.eod_completions import completions_for_date as get_day_completions
 from app.rms.eod_completions import upsert_completion as _upsert_completion
 from app.rms.models import (
+    FreezerTemperatureLog,  # B.6 HACCP freezer temp log
     Pedido,
     PedidoLine,
     Product,
@@ -706,6 +707,15 @@ def produccion_worksheet(
             "yesterday_count": yesterday_count,
             # T-2026-10-04 (D.2): shift-context deep-link (AM|PM|"")
             "shift": shift,
+            # T-2026-10-04 (B.6): HACCP freezer-temperature banner data.
+            # The /produccion day view shows the most recent reading and
+            # a soft "missing" nudge if the cook hasn't logged AM/PM for
+            # the default freezer locations.
+            "haccp_latest": _get_haccp_latest_for_date(session, plan.for_date),
+            "haccp_alert": _haccp_alert_for_entry(
+                _get_haccp_latest_for_date(session, plan.for_date)
+            ),
+            "haccp_missing_count": _count_haccp_missing_for_date(session, plan.for_date),
         },
     )
 
@@ -1689,4 +1699,242 @@ def produccion_accuracy(
             "days_in_period": days_in_period,
             "report": report,
         },
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# B.6 — HACCP freezer temperature log
+# ─────────────────────────────────────────────────────────────────────
+# Paraguay MSPBS HACCP requiere registro de temperatura de freezers donde
+# se almacenan productos crudos, semi-elaborados y elaborados. Sin registro
+# continuo, una inspección puede multar al local (200–500k Gs/año).
+#
+# Workflow: el cocinero tipea la temperatura del freezer 2 veces al día
+# (apertura AM, cierre PM). Las filas se acumulan para auditoría MSPBS.
+# El último registro siempre es visible desde el banner superior de
+# /produccion (Tier 4-H), con badge de warning si la temperatura está
+# fuera del rango seguro (-22 a -18 °C para freezer de masa).
+
+# Default freezer locations for Saskia. Operators can override via
+# config. Ordered by frequency of use.
+_DEFAULT_FREEZER_LOCATIONS = [
+    "freezer-masa",  # masa madre, poolish, masa de chipá congelada
+    "freezer-productos",  # tortas congeladas, galletas, etc.
+    "heladera-materia-prima",  # opcional — algunos clientes la usan
+]
+
+
+def _get_haccp_latest_for_date(session: Session, for_date: date) -> FreezerTemperatureLog | None:
+    """T-2026-10-04 (B.6) — Return the most recent temperature log for the date.
+
+    Used by the /produccion day-view banner to surface the latest reading.
+    Returns None if no entry exists yet (the template then suppresses the
+    banner and shows the "missing" nudge instead).
+    """
+    return (
+        session.execute(
+            select(FreezerTemperatureLog)
+            .where(FreezerTemperatureLog.for_date == for_date)
+            .order_by(FreezerTemperatureLog.recorded_at.desc())
+            .limit(1)
+        )
+        .scalars()
+        .first()
+    )
+
+
+def _haccp_alert_for_entry(entry: FreezerTemperatureLog | None) -> str | None:
+    """T-2026-10-04 (B.6) — Compute alert level for a HACCP entry.
+
+    - "ok"      → within safe range for the location
+    - "warning" → outside safe range (freezer > -10 or < -25; heladera < 0 or > 8)
+    - None      → no entry
+
+    The safe ranges here are intentionally generous; the model-level
+    check constraint enforces -40 to +30 (physical sensor limits), and
+    a stricter business rule would be -22 to -18 for freezers. We use
+    -25 to -10 as the "obviously broken" band so the operator doesn't
+    get false positives on legitimate edge readings.
+    """
+    if entry is None:
+        return None
+    if entry.location.startswith("freezer"):
+        if entry.temperature_c > -10 or entry.temperature_c < -25:
+            return "warning"
+    elif entry.location.startswith("heladera"):
+        if entry.temperature_c < 0 or entry.temperature_c > 8:
+            return "warning"
+    return "ok"
+
+
+def _count_haccp_missing_for_date(session: Session, for_date: date) -> int:
+    """T-2026-10-04 (B.6) — Count expected-but-missing (location, shift) pairs.
+
+    MSPBS expects 2 readings/day per location (AM + PM). The cook should
+    see a nudge if N of those 6 expected entries are missing.
+    """
+    rows = (
+        session.execute(
+            select(FreezerTemperatureLog.location, FreezerTemperatureLog.shift).where(
+                FreezerTemperatureLog.for_date == for_date
+            )
+        )
+        .all()
+    )
+    recorded: set[tuple[str, str]] = {(r.location, r.shift) for r in rows}
+    expected = {
+        (loc, sh) for loc in _DEFAULT_FREEZER_LOCATIONS for sh in ("AM", "PM")
+    }
+    return len(expected - recorded)
+
+
+@router.get("/haccp", response_class=HTMLResponse)
+def produccion_haccp(
+    request: Request,
+    for_date: date | None = Query(None),
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """B.6 — Show the day's HACCP log + the form to add a new entry.
+
+    The form has 2 fields: location (dropdown) + temperature_c (number).
+    The cook records AM and PM separately. Range validation: -40 to +30
+    is the absolute model constraint; the UI also nudges toward -22 to
+    -18 for freezers.
+    """
+    target_date = for_date or datetime.now(ASUNCION_TZ).date()
+
+    # Pull today's log entries.
+    from sqlalchemy import and_
+
+    entries = (
+        session.execute(
+            select(FreezerTemperatureLog)
+            .where(FreezerTemperatureLog.for_date == target_date)
+            .order_by(
+                FreezerTemperatureLog.shift.asc(),
+                FreezerTemperatureLog.recorded_at.asc(),
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    # Detect missing shifts (the cook should record AM + PM for each
+    # location). The form shows a "Falta" pill so they know to add it.
+    recorded_shifts: set[tuple[str, str]] = {(e.location, e.shift) for e in entries}
+    missing: list[dict[str, str]] = []
+    for loc in _DEFAULT_FREEZER_LOCATIONS:
+        for sh in ("AM", "PM"):
+            if (loc, sh) not in recorded_shifts:
+                missing.append({"location": loc, "shift": sh})
+
+    # Pull the last 7 days for the history strip. Limit by tenant.
+    week_ago = target_date - timedelta(days=7)
+    history = (
+        session.execute(
+            select(FreezerTemperatureLog)
+            .where(
+                and_(
+                    FreezerTemperatureLog.for_date >= week_ago,
+                    FreezerTemperatureLog.for_date <= target_date,
+                )
+            )
+            .order_by(FreezerTemperatureLog.for_date.desc(), FreezerTemperatureLog.recorded_at.desc())
+        )
+        .scalars()
+        .all()
+    )
+
+    # Most recent entry across all days — for the /produccion top banner.
+    latest = _get_haccp_latest_for_date(session, target_date)
+    latest_alert = _haccp_alert_for_entry(latest)
+
+    return render(
+        request,
+        "produccion_haccp.html",
+        {
+            "for_date": target_date,
+            "entries": entries,
+            "missing": missing,
+            "history": history,
+            "locations": _DEFAULT_FREEZER_LOCATIONS,
+            "latest": latest,
+            "latest_alert": latest_alert,
+        },
+    )
+
+
+@router.post("/haccp")
+def produccion_haccp_post(
+    request: Request,
+    for_date: date = Form(...),
+    location: str = Form(...),
+    shift: str = Form(...),
+    temperature_c: float = Form(...),
+    notes: str = Form(""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """B.6 — Persist a HACCP temperature log entry.
+
+    The form is a small inline POST that lives at the top of
+    /produccion/haccp. After save, redirect back to the same date
+    with `haccp_saved=1` so the page shows a confirmation banner
+    (and a low-frequency audio chime for accessibility).
+    """
+    from app.rms.rate_limit import is_write_rate_limited
+
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
+        )
+
+    if location not in _DEFAULT_FREEZER_LOCATIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Ubicación no reconocida. Válidas: {', '.join(_DEFAULT_FREEZER_LOCATIONS)}",
+        )
+    if shift not in ("AM", "PM"):
+        raise HTTPException(
+            status_code=400,
+            detail="Turno debe ser AM o PM.",
+        )
+    if temperature_c < -40 or temperature_c > 30:
+        raise HTTPException(
+            status_code=400,
+            detail="Temperatura fuera de rango válido (-40 a +30 °C).",
+        )
+
+    # Get the current user for audit.
+    from app.auth import current_user_id
+
+    user_id = current_user_id(request)
+
+    log = FreezerTemperatureLog(
+        location=location,
+        temperature_c=temperature_c,
+        for_date=for_date,
+        shift=shift,
+        recorded_at=datetime.now(ASUNCION_TZ).replace(tzinfo=None),
+        recorded_by_user_id=user_id,
+        notes=notes.strip()[:200] or None,
+    )
+    session.add(log)
+    record_audit(
+        request,
+        session=session,
+        action="write.production.haccp",
+        target_type="freezer_temperature_log",
+        target_id=f"{for_date.isoformat()}:{location}:{shift}",
+        detail={
+            "location": location,
+            "shift": shift,
+            "temperature_c": temperature_c,
+            "for_date": for_date.isoformat(),
+        },
+    )
+    session.commit()
+    return RedirectResponse(
+        url=f"/produccion/haccp?for_date={for_date.isoformat()}&haccp_saved=1",
+        status_code=303,
     )

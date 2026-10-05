@@ -33,6 +33,7 @@ from app.rms.models_legacy import (
     DateRangePreset,  # noqa: F401 — re-exported via __all__
     DeliveryZone,  # noqa: F401 — re-exported via __all__
     Expense,  # noqa: F401 — Phase 14 operating-expense rows
+    FreezerTemperatureLog,  # noqa: F401 — B.6 HACCP freezer temp log
     ImportBatch,  # noqa: F401 — re-exported via __all__
     Ingredient,  # noqa: F401 — re-exported via __all__
     IngredientPriceEvent,  # noqa: F401 — re-exported via __all__

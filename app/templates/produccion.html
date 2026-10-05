@@ -219,6 +219,41 @@
 </div>
 {% endif %}
 
+{# T-2026-10-04 (B.6): HACCP freezer-temperature banner on /produccion day view.
+   Shows the most recent reading with a colored dot (green = OK, red = out
+   of range) so the cook doesn't forget to log the day's AM/PM readings. #}
+{% if haccp_latest %}
+<div class="card mb-3" data-haccp-banner style="border-left: 4px solid {% if haccp_alert == 'warning' %}var(--color-danger, #dc2626){% else %}var(--color-success, #16a34a){% endif %};">
+  <div class="card-body" style="display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+    <span>
+      <strong>🌡️ HACCP:</strong>
+      {{ haccp_latest.location }} · {{ haccp_latest.shift }} ·
+      <strong style="color: {% if haccp_alert == 'warning' %}var(--color-danger, #dc2626){% else %}var(--color-success, #16a34a){% endif %};">
+        {{ "%.1f"|format(haccp_latest.temperature_c) }} °C
+      </strong>
+      <small class="text-muted">({{ haccp_latest.recorded_at.strftime("%H:%M") }})</small>
+    </span>
+    {% if haccp_alert == "warning" %}
+    <span class="badge" style="background: var(--color-danger, #dc2626); color: white;">FUERA DE RANGO</span>
+    {% endif %}
+    <a href="/produccion/haccp?for_date={{ for_date }}" class="btn btn-sm btn-ghost" style="margin-left: auto;">
+      Ver registro completo →
+    </a>
+  </div>
+</div>
+{% endif %}
+
+{# If the user has zero HACCP entries today, show a soft nudge. #}
+{% if haccp_missing_count and haccp_missing_count > 0 %}
+<div class="card mb-3" data-haccp-missing style="background: var(--color-surface-muted); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-warning, #f59e0b);">
+  <small>
+    <strong>⚠️ {{ haccp_missing_count }} lectura{{ 's' if haccp_missing_count != 1 else '' }} HACCP pendiente{{ 's' if haccp_missing_count != 1 else '' }}</strong>
+    para hoy.
+    <a href="/produccion/haccp?for_date={{ for_date }}">Registr&aacute; ahora →</a>
+  </small>
+</div>
+{% endif %}
+
 {# ────────────────────────────────────────────────────────────────
    SHIFT EXECUTION LAYER — "Ya salió del horno" tracker
    Sprint 1: persist via /produccion/shift-execute (writes
