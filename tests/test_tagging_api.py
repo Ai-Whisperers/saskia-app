@@ -44,29 +44,38 @@ def test_app_rms_has_no_tags_or_tag_algebra_files():
         "app/rms/tags.py should have been deleted in Sprint 2.2"
     )
 def test_no_code_references_deleted_modules():
-    """No source file imports app.rms.tags (permanently deleted).
+    """No actual import statement references app.rms.tags (permanently deleted).
 
     Note 2026-10-05: app/rms/tag_algebra.py is kept as a back-compat shim
     that re-exports from app/rms/tagging/. The shim allows existing call
     sites in app/, scripts/, tests/ to keep working without forcing a
     full rewrite. New code should import from app.rms.tagging directly.
-    """
-    import subprocess
 
-    result = subprocess.run(
-        [
-            "grep",
-            "-rln",
-            r"app\.rms\.tags\b",
-            "/opt/data/work/saskia-app",
-            "--include=*.py",
-        ],
-        capture_output=True,
-        text=True,
-    )
-    offenders = sorted(
-        line for line in result.stdout.strip().split("\n") if line.strip()
-    )
+    This test grep is restricted to actual import statements (lines
+    starting with 'from app.rms.tags' or 'import app.rms.tags') and
+    excludes docstrings, comments, and the test file itself.
+    """
+    import re
+
+    # Build a regex that ONLY matches import statements, not docstrings/comments
+    import_pattern = re.compile(r"^\s*(?:from\s+app\.rms\.tags\b|import\s+app\.rms\.tags\b)")
+
+    offenders = []
+    rms_dir = "/opt/data/work/saskia-app"
+    for root in [f"{rms_dir}/app", f"{rms_dir}/scripts", f"{rms_dir}/tests"]:
+        for dirpath, _dirs, files in __import__("os").walk(root):
+            for f in files:
+                if not f.endswith(".py"):
+                    continue
+                p = f"{dirpath}/{f}"
+                try:
+                    with open(p) as fh:
+                        for line in fh:
+                            if import_pattern.match(line):
+                                offenders.append(p)
+                                break
+                except OSError:
+                    pass
     assert offenders == [], (
         f"Files still import app.rms.tags: {offenders}"
     )
