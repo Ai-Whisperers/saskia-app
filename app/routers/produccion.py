@@ -104,6 +104,14 @@ def produccion_worksheet(
     for_date: date | None = Query(None),
     week: date | None = Query(None),
     month: str | None = Query(None, pattern=r"^\d{4}-\d{2}$"),
+    # T-2026-10-04 (D.2): shift-context deep-link. Cooks get a WhatsApp
+    # message like "Mirá /produccion?for_date=2026-10-05&shift=PM" — the
+    # page surfaces a "Turno PM" badge so they know which shift's
+    # quantities to mark. The shift param is purely visual (production
+    # data is per-date, not per-shift) but it prevents the
+    # AM-vs-PM-confusion footgun where one cook updates the wrong
+    # column. Validated to AM|PM|empty.
+    shift: str = Query("", pattern="^(AM|PM)?$"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Production plan: day table, week grid, or month grid."""
@@ -612,6 +620,8 @@ def produccion_worksheet(
             # T-2026-10-04 (Tier 3-C): yesterday snapshot.
             "yesterday_total_qty": yesterday_total_qty,
             "yesterday_count": yesterday_count,
+            # T-2026-10-04 (D.2): shift-context deep-link (AM|PM|"")
+            "shift": shift,
         },
     )
 
@@ -970,6 +980,13 @@ async def produccion_shift_execute(
     )
     session.commit()
     redirect_url = f"/produccion?for_date={for_date.isoformat()}&shift_saved={saved}"
+    # T-2026-10-04 (D.2): preserve shift context on redirect. If the
+    # cook deep-linked into the PM shift and saved, we want to send
+    # them back to the PM view (not default to ""). The form was
+    # already parsed at the top of the function — reuse it.
+    shift_ctx = str(form.get("shift", "")).strip()
+    if shift_ctx in ("AM", "PM"):
+        redirect_url += f"&shift={shift_ctx}"
     if concurrent_modify:
         # T-2026-10-04 (Tier 5-K): append the flag so the day view can
         # render the "se actualizó mientras escribías" warning.

@@ -137,7 +137,7 @@ The factories (`make_*`) return one entity with **default values**. Tests then h
 
 **Solution:** Add a `with_*` namespace on each factory:
 ```python
-make_recipe()             # 1 recipe, 1 line, default name
+make_recipe()  # 1 recipe, 1 line, default name
 make_recipe(with_n_lines=5, with_low_margin=True, named="Special cake")
 make_recipe(with_lines="invalid_qty")  # for invalid-input tests
 ```
@@ -237,6 +237,7 @@ assert_redirected_to(r, expected_path)
 def seeded_world(session_factory_module):
     """Heavy seed once per module."""
     return seed_minimal_world()
+
 
 @pytest.fixture(autouse=True)
 def rollback_session(session_factory, seeded_world):

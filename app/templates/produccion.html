@@ -40,8 +40,19 @@
       Producción
     </h1>
     {% if view == 'day' %}
-    <p class="hint" style="margin: var(--space-1) 0 0 0;">
+    <p class="hint" style="margin: var(--space-1) 0 0 0; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;">
       Plan diario para el <strong>{{ for_date }}</strong>
+      {# T-2026-10-04 (D.2): shift-context deep-link. When Ivan/Sebas
+         hand a cook a URL like /produccion?for_date=2026-10-05&shift=PM
+         over WhatsApp, this badge makes the shift context unmissable
+         so they don't mark the AM row by mistake. #}
+      {% if shift %}
+        <span class="shift-badge shift-{{ shift|lower }}"
+              data-shift="{{ shift }}"
+              style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: var(--text-xs); font-weight: 600; {% if shift == 'AM' %}background: #fef3c7; color: #92400e; border: 1px solid #fbbf24;{% else %}background: #e0e7ff; color: #3730a3; border: 1px solid #818cf8;{% endif %}">
+          🕐 Turno {{ shift }}
+        </span>
+      {% endif %}
     </p>
     {% elif view == 'week' %}
     <p class="hint" style="margin: var(--space-1) 0 0 0;">
@@ -441,6 +452,10 @@
 <form method="post" action="/produccion/shift-execute" id="shift-form">
   <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
   <input type="hidden" name="for_date" value="{{ for_date }}">
+  {# T-2026-10-04 (D.2): preserve the shift context (AM|PM) across
+     the form submit so the cook lands back on the same shift after
+     saving. The shift-execute handler echoes it on the redirect. #}
+  {% if shift %}<input type="hidden" name="shift" value="{{ shift }}">{% endif %}
   {# T-2026-10-04 (Tier 5-K): track form-open time so we can detect
      concurrent edits (another cook saved while you were filling). #}
   <input type="hidden" name="form_opened_at" id="form-opened-at" value="">

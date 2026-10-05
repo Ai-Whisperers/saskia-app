@@ -24,7 +24,9 @@ plan_production returns a non-empty plan_rows_view even for ancient
 dates. The empty-state fires only in the operator's first-day
 scenario.
 """
+
 from __future__ import annotations
+
 from pathlib import Path
 
 TEMPLATE = Path(__file__).parent.parent / "app" / "templates" / "produccion.html"
@@ -34,18 +36,12 @@ SRC = TEMPLATE.read_text(encoding="utf-8")
 # ---------------------------------------------------------------- P0:D.3
 def test_produccion_template_has_cold_start_card():
     """The empty-state-cold-start card (Tier 4-G) is wired into the page."""
-    assert "empty-state-cold-start" in SRC, (
-        "Tier 4-G cold-start card must exist in produccion.html"
-    )
+    assert "empty-state-cold-start" in SRC, "Tier 4-G cold-start card must exist in produccion.html"
     assert "/produccion/manana" in SRC, (
         "Cold-start must link to /produccion/manana (create first plan)"
     )
-    assert "/ventas/nueva" in SRC, (
-        "Cold-start must link to /ventas/nueva (register first sale)"
-    )
-    assert "quick-seed" in SRC, (
-        "Tier 4-G quick-seed (+1 producto) buttons must exist"
-    )
+    assert "/ventas/nueva" in SRC, "Cold-start must link to /ventas/nueva (register first sale)"
+    assert "quick-seed" in SRC, "Tier 4-G quick-seed (+1 producto) buttons must exist"
 
 
 def test_produccion_template_else_branch_handles_cold_start_kinds():
@@ -65,9 +61,7 @@ def test_produccion_template_has_shift_saved_flash_banner():
     assert "{% if shift_saved" in SRC, (
         "P0:B.5 — `{% if shift_saved %}` flash banner block must exist"
     )
-    assert "Turno guardado" in SRC, (
-        "P0:B.5 — flash banner must say 'Turno guardado'"
-    )
+    assert "Turno guardado" in SRC, "P0:B.5 — flash banner must say 'Turno guardado'"
 
 
 def test_produccion_template_has_audio_chime_script():
@@ -76,15 +70,11 @@ def test_produccion_template_has_audio_chime_script():
     assert m_start > 0
     # Whole block until the matching {% endif %}
     block = SRC[m_start : m_start + 5000]
-    assert "AudioContext" in block, (
-        "P0:B.5 — chime must use WebAudio AudioContext"
-    )
+    assert "AudioContext" in block, "P0:B.5 — chime must use WebAudio AudioContext"
     assert "createOscillator" in block, (
         "P0:B.5 — chime must use createOscillator (no asset to ship)"
     )
-    assert "saskia.audio.muted" in block, (
-        "P0:B.5 — chime must respect localStorage mute toggle"
-    )
+    assert "saskia.audio.muted" in block, "P0:B.5 — chime must respect localStorage mute toggle"
     assert "prefers-reduced-motion" in block, (
         "P0:B.5 — chime must skip when prefers-reduced-motion is set"
     )
