@@ -403,7 +403,7 @@
   <input type="text" name="reason" placeholder="Motivo (opcional)" maxlength="120"
          style="padding: var(--space-1) var(--space-2); border: 1px solid var(--color-border); border-radius: 4px; font-size: var(--text-sm);"
          aria-label="Motivo del cierre">
-  <button type="button" class="btn btn-ghost btn-sm" id="close-day-btn">
+  <button type="button" class="btn btn-ghost btn-sm" id="close-day-btn" data-action="toggle-close-day">
     🏖️ Cerrar este día
   </button>
 </form>
@@ -529,6 +529,17 @@
         <small class="text-muted" data-difficulty-count
                style="display: block; margin-top: var(--space-1); font-size: var(--text-xs);">
           {{ plan_rows_view | length }} / {{ plan_rows_view | length }} productos
+        </small>
+        {# T-2026-10-04 (D.5): keyboard shortcut hint. Shown only on
+           non-touch viewports (≥768px) via CSS, since mobile users
+           have no keyboard. The hint is small and tucked into the
+           section header so it doesn't compete with the day view. #}
+        <small class="text-muted kbd-hint no-print" data-kbd-hint
+               style="display: inline-block; margin-top: var(--space-1); font-size: var(--text-xs); color: var(--color-text-muted);">
+          <kbd style="font-size:0.7rem;padding:1px 4px;">J</kbd>/<kbd style="font-size:0.7rem;padding:1px 4px;">K</kbd> navegar ·
+          <kbd style="font-size:0.7rem;padding:1px 4px;">O</kbd> override ·
+          <kbd style="font-size:0.7rem;padding:1px 4px;">C</kbd> cerrar día ·
+          <kbd style="font-size:0.7rem;padding:1px 4px;">?</kbd> ayuda
         </small>
       </div>
       {# T-2026-10-04 (B.10): difficulty filter. Cooks self-select
@@ -1147,6 +1158,13 @@
   /* Direction-specific hover colors (subtle hint) */
   .step-btn.step-down:hover { background: var(--color-warning-bg, #fef3c7); }
   .step-btn.step-up:hover { background: var(--color-success-bg, #d1fae5); }
+
+  /* T-2026-10-04 (D.5): hide keyboard shortcut hint on mobile (no
+     physical keyboard, would just be visual noise). The check uses
+     pointer:coarse first (tablet touch) and falls back to width. */
+  @media (max-width: 767px), (pointer: coarse) {
+    .kbd-hint { display: none !important; }
+  }
 
   /* T-2026-10-04 (P2): mobile-friendly shift execution.
      On narrow viewports (≤640px) the 8-column table becomes unreadable.

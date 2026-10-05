@@ -48,6 +48,56 @@
     },
   };
 
+  // Production hotkeys (only fire on /produccion) — D.5
+  // Cooks self-pace through shift execution: J/K navigate rows,
+  // O opens the per-row override form, C toggles the close-day form.
+  // Mobile-aware: shortcuts only fire on viewports ≥768px (no keyboard
+  // on phones, no accidental fires from input focus changes).
+  const PROD_HOTKEYS = {
+    'j': () => {
+      // Move focus to the next production row's qty input
+      const rows = Array.from(document.querySelectorAll('#shift-form .production-row'));
+      if (rows.length === 0) return;
+      const current = document.activeElement && document.activeElement.closest('.production-row');
+      const idx = current ? rows.indexOf(current) : -1;
+      const next = rows[Math.min(idx + 1, rows.length - 1)];
+      if (next) {
+        const input = next.querySelector('.progress-input');
+        if (input) { input.focus(); input.select && input.select(); }
+        next.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    },
+    'k': () => {
+      // Move focus to the previous production row's qty input
+      const rows = Array.from(document.querySelectorAll('#shift-form .production-row'));
+      if (rows.length === 0) return;
+      const current = document.activeElement && document.activeElement.closest('.production-row');
+      const idx = current ? rows.indexOf(current) : rows.length;
+      const prev = rows[Math.max(idx - 1, 0)];
+      if (prev) {
+        const input = prev.querySelector('.progress-input');
+        if (input) { input.focus(); input.select && input.select(); }
+        prev.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    },
+    'o': () => {
+      // Open override form for the row currently focused (or first row)
+      const active = document.activeElement && document.activeElement.closest('.production-row');
+      const row = active || document.querySelector('#shift-form .production-row');
+      if (!row) return;
+      const productId = row.getAttribute('data-product-id');
+      const forDate = document.querySelector('input[name="for_date"]')?.value;
+      if (productId && forDate) {
+        window.location.href = `/produccion/override?for_date=${forDate}&product_id=${productId}`;
+      }
+    },
+    'c': () => {
+      // Toggle the close-day form (only if not already closed)
+      const closeBtn = document.querySelector('[data-action="toggle-close-day"]');
+      if (closeBtn) closeBtn.click();
+    },
+  };
+
   // Two-key state: waiting for second key after 'g'
   let prefix = null;
   let prefixTimer = null;
@@ -97,6 +147,9 @@
                 <tr><td><kbd>Esc</kbd></td><td>Cerrar diálogo</td></tr>
                 <tr><td><kbd>F2</kbd></td><td>Registrar venta (en /ventas)</td></tr>
                 <tr><td><kbd>F4</kbd></td><td>Aplicar descuento (en /ventas)</td></tr>
+                <tr><td><kbd>J</kbd> / <kbd>K</kbd></td><td>Navegar filas de producción (en /produccion, desktop)</td></tr>
+                <tr><td><kbd>O</kbd></td><td>Abrir override de la fila activa (en /produccion)</td></tr>
+                <tr><td><kbd>C</kbd></td><td>Cerrar / abrir el día (en /produccion)</td></tr>
               </tbody>
             </table>
             <p class="text-muted">
@@ -175,6 +228,20 @@
     if (window.location.pathname.startsWith('/ventas') && POS_HOTKEYS[e.key]) {
       e.preventDefault();
       POS_HOTKEYS[e.key]();
+      return;
+    }
+
+    // T-2026-10-04 (D.5): Production hotkeys (J/K/O/C) only fire on
+    // /produccion and only on viewports ≥768px (mobile users don't
+    // have physical keyboards so the shortcut hint would just be
+    // visual noise). Touch is detected by checking pointer:coarse
+    // first, then falling back to width.
+    if (window.location.pathname.startsWith('/produccion')
+        && PROD_HOTKEYS[key]
+        && !window.matchMedia('(pointer: coarse)').matches
+        && window.innerWidth >= 768) {
+      e.preventDefault();
+      PROD_HOTKEYS[key]();
       return;
     }
   });
