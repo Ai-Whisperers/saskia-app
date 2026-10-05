@@ -166,7 +166,7 @@ The 50-65 days of total work maps to **8 focused sessions** of 4-8 days each:
 | # | Session | Work | Days | Why first |
 |---|---|---|---|---|
 | **0** | **Operational** | DRIFT-1, DRIFT-2, DRIFT-3 + cherry-pick smoke endpoints from feat/prod-quick-merma + merge sprint-2-2-tagging | 1 | Unblocks everything else; makes BACKLOG ✅ actually live |
-| **1** | **Cerrar puertas** | A.1, A.2, A.3, A.4, A.5, A.6 | 3 | Highest security/correctness risk; one focused PR |
+| **1** | **Cerrar puertas** | ~~A.1, A.2, A.3, A.4, A.5, A.6~~ ✅ verified done 2026-10-05 | 3 | Highest security/correctness risk; one focused PR |
 | **2** | **P1 highest-ROI** | B.8 backup + B.1 Venta Express + B.9 supplier prices | 5 | B.8 is "riesgo #1 no atendido"; B.1 = -45s/venta; B.9 = Gs. 4.3M/año |
 | **3** | **P1 forecast + insights** | B.2 forecast enchufado + B.7 insights | 6 | B.2 = -30% desperdicio; "enchufar gemas ocultas" exercise |
 | **4** | **P1 customer workflow** | B.3 pedido upload + B.4 customer merge + B.5 suscripciones button + B.6 Cmd+K | 13 | High-touch but mostly UI work |

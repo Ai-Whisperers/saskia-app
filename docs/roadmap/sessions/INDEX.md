@@ -12,6 +12,7 @@
 | [`round-2-triage-process.md`](round-2-triage-process.md) | 2026-09 | Round-2 feedback triage process (Fase 1.5) |
 | [`round-2-feedback.md`](round-2-feedback.md) | 2026-09 | Round-2 raw feedback notes |
 | [`2026-10-05-session-0-drift.md`](2026-10-05-session-0-drift.md) | 2026-10-05 | Session 0 of EXECUTION-PLAN.md: drift fix (DRIFT-2 migration 098 done; DRIFT-1 redeploy + DRIFT-3 env vars pending operator) |
+| [`2026-10-05-session-1-cerrar-puertas.md`](2026-10-05-session-1-cerrar-puertas.md) | 2026-10-05 | Session 1 of EXECUTION-PLAN.md: A.1-A.6 verification — all 6 items already done in source; no code changes needed |
 
 ## HEREBUS sprint
 
