@@ -81,3 +81,7 @@ test_import*.py
 test_main_simulation*.py
 test_router*.py
 .scratch/
+
+# Branding admin runtime uploads (tests drop 1x1 placeholders here)
+app/static/branding/
+!app/static/branding/.gitkeep

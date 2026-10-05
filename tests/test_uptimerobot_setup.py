@@ -12,7 +12,7 @@ def test_uptimerobot_script_help_runs():
         capture_output=True,
         text=True,
         timeout=30,
-        cwd="/opt/data/work/sazon-app",
+        cwd="/opt/data/work/saskia-app",
     )
     assert r.returncode == 0
     assert "UptimeRobot" in r.stdout or "monitor" in r.stdout.lower()

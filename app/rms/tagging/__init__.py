@@ -118,4 +118,22 @@ __all__ = [
     "refresh_recipe_tag_cache",
     "validate_ingredient",
     "walk_recipe_tree",
+    # ensure (Sprint 2.2 — was in app/rms/tags.py)
+    "TagKind",
+    "ensure_starter_tags",
+    "ensure_tag",
+    "list_tags_for_kind",
+    "tag_target",
+    "tags_for_target",
+    "targets_with_tag",
+    "untag_target",
+    # filters (Sprint 2.2 — was in app/rms/tags.py)
+    "InventoryFilter",
+    "ProductFilter",
+    "RecipeFilter",
+    "SalesFilter",
+    "filter_inventory",
+    "filter_products",
+    "filter_recipes",
+    "filter_sales",
 ]

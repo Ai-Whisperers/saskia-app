@@ -71,6 +71,7 @@
     <div class="card-body">
       <form method="post" action="/produccion/haccp" id="haccp-form"
             style="display: flex; flex-direction: column; gap: var(--space-3);">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="for_date" value="{{ for_date }}">
         <div>
           <label for="haccp-location" style="display: block; margin-bottom: var(--space-1); font-weight: bold;">

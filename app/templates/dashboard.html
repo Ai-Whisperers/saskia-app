@@ -1,11 +1,7 @@
 {% extends "base.html" %}
 {% import "_components/atoms.html" as ui %}
-{% block title %}Dashboard · Sazón{% endblock %}
+{% block title %}Dashboard · Saskia RMS{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1><svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>  Dashboard — {{ month_label }}</h1>
-  <p class="muted">KPIs en vivo · datos del local</p>
-</div>
 
 {# Sazon onboarding banner — only renders when seed_sazon has populated
    this DB. Dismissible via localStorage so it only flashes on first run. #}
@@ -41,7 +37,54 @@
 </script>
 {% endif %}
 
-<div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
+<div class="page-header">
+  <h1><svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>  Dashboard — {{ month_label }}</h1>
+  <p class="muted">KPIs en vivo · datos del local</p>
+</div>
+
+{# ── Empty state for fresh DB ────────────────────────────────────────── #}
+{% if revenue_gs == 0 and unique_customers == 0 %}
+<section class="empty-state" role="status" aria-live="polite">
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  <h2>Sin datos este mes todavía</h2>
+  <p>Registrá tu primera venta o cargá el catálogo para ver los KPIs en vivo.</p>
+  <div class="empty-state__actions">
+    <a href="/ventas" class="btn btn-primary">Registrar venta</a>
+    <a href="/productos" class="btn">Ver catálogo</a>
+  </div>
+</section>
+{# P-35.1: even in empty state, show the group structure so a first-run
+   admin sees where the KPIs will land once data is loaded. #}
+<section class="kpi-group" data-group="dinero" hidden>
+  <h3 class="kpi-group__title">Dinero</h3>
+</section>
+<section class="kpi-group" data-group="actividad" hidden>
+  <h3 class="kpi-group__title">Actividad</h3>
+</section>
+<section class="kpi-group" data-group="costos" hidden>
+  <h3 class="kpi-group__title">Costos</h3>
+</section>
+{% else %}
+
+{# ── Alertas de margen ──────────────────────────────────────────────── #}
+{% if erosion_alerts %}
+<div class="alert alert-warning" style="margin:1rem 0;padding:0.75rem 1rem;border-left:4px solid #d97706;">
+  <strong>⚠️ Márgenes en riesgo</strong> — {{ erosion_alerts|length }} producto{{ 's' if erosion_alerts|length > 1 }} perdió margen por suba de insumos:
+  <ul style="margin:0.5rem 0 0 1.2rem;">
+    {% for a in erosion_alerts[:5] %}
+    <li>
+      <a href="/reportes/margenes/{{ a.product_id }}">{{ a.product_name }}</a>
+      — {{ a.ingredient_name }} subió
+      {% if a.price_delta_pct is not none %}{{ "%.0f"|format(a.price_delta_pct) }}%{% else %}de precio{% endif %}
+      {% if a.margin_delta_pct is not none %}(margen {{ "%+.0f"|format(a.margin_delta_pct) }}%){% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  <a href="/reportes/margenes">Ver deriva completa →</a>
+</div>
+{% endif %}
+
+<div class="kpi-row" style="display:flex;flex-direction:column;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
   {{ ui.skeleton_section(id="dashboard-kpis", variant="kpi", count=4, label="Cargando indicadores del mes") }}
   <div data-loaded-section="dashboard-kpis">
     {# P-35.1: KPIs grouped into 3 named sections so operator's eye can

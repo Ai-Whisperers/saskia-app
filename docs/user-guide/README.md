@@ -33,6 +33,7 @@
 | [18](18-suscripciones.md) | Suscripciones (entregas recurrentes) | Para clientes con pedidos semanales |
 | [19](19-analisis.md) | Análisis (inteligencia de negocio) | Iván — para entender por qué los números son como son |
 | [20](20-kpis-mensuales.md) | KPIs mensuales (dashboard) | Iván — cierre y seguimiento del mes |
+| [21](glosario.md) | Glosario | Cuando un término te suena raro |
 
 ## Páginas del menú lateral (índice completo)
 

@@ -899,3 +899,84 @@ def probabilistic_consumption_forecast(
         )
     out.sort(key=lambda f: f.p_stockout_within_horizon, reverse=True)
     return out
+
+
+# --- Day×hour sales heatmap (Tier-4 #22 follow-up) ---
+
+
+@dataclass
+class DayHourCell:
+    """One (weekday, hour) bucket in operator-local time (Asuncion)."""
+
+    weekday: int  # 0=Monday .. 6=Sunday
+    hour: int  # 0-23, America/Asuncion wall clock
+    sales_gs: float = 0.0
+    n_sales: int = 0
+
+
+@dataclass
+class DayHourHeatmap:
+    days: int
+    cells: list
+    max_sales_gs: float
+    total_sales_gs: float
+    total_n_sales: int
+
+
+def day_hour_heatmap(session: Session, days: int = 7) -> DayHourHeatmap:
+    """Sales bucketed by weekday×hour in Asuncion local time.
+
+    Net revenue per cell = unit_price × qty − discount_gs (Tier-4 #22:
+    post-discount, so operators see real revenue). Voided sales excluded.
+    Every (weekday, hour) cell is materialized — even empty ones — so
+    templates can iterate without sparse-key logic.
+    """
+    from datetime import datetime, timedelta, timezone
+    from zoneinfo import ZoneInfo
+
+    from sqlalchemy import text as _text
+
+    days = max(1, min(int(days), 365))
+    tz = ZoneInfo("America/Asuncion")
+    window_start = datetime.now(timezone.utc) - timedelta(days=days)
+
+    rows = session.execute(
+        _text(
+            """
+            SELECT sold_at, unit_price_gs, qty, discount_gs
+            FROM sale
+            WHERE voided_at IS NULL AND sold_at >= :start
+            """
+        ),
+        {"start": window_start},
+    ).all()
+
+    cells = [DayHourCell(weekday=wd, hour=h) for wd in range(7) for h in range(24)]
+    total_gs = 0.0
+    total_n = 0
+    for sold_at, unit_price, qty, discount in rows:
+        if sold_at is None:
+            continue
+        if isinstance(sold_at, str):
+            try:
+                sold_at = datetime.fromisoformat(sold_at.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+        # SQLite may hand back naive datetimes (mixed-type guard).
+        if sold_at.tzinfo is None:
+            sold_at = sold_at.replace(tzinfo=timezone.utc)
+        local = sold_at.astimezone(tz)
+        net = (unit_price or 0) * (qty or 0) - (discount or 0)
+        cell = cells[local.weekday() * 24 + local.hour]
+        cell.sales_gs += net
+        cell.n_sales += 1
+        total_gs += net
+        total_n += 1
+
+    return DayHourHeatmap(
+        days=days,
+        cells=cells,
+        max_sales_gs=max((c.sales_gs for c in cells), default=0.0),
+        total_sales_gs=total_gs,
+        total_n_sales=total_n,
+    )

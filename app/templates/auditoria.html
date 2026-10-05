@@ -44,13 +44,13 @@
       </div>
       <div class="form-row">
         <label for="source">Origen (merma)</label>
-        <saskia-combo id="source" name="source"
+        <ui-combo id="source" name="source"
                       value="{{ source or '' }}"
                       placeholder="Todos"
                       endpoint="/auditoria/api/sources?q="
                       data-source="/auditoria/api/sources"
                       label-field="display"
-                      value-field="value"></saskia-combo>
+                      value-field="value"></ui-combo>
       </div>
       <div class="form-row">
         <label for="target_type">Tipo de registro</label>

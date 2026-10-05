@@ -51,7 +51,7 @@ from app.rms.recipe_intel import (
     infer_recipe_family,
     recipe_ingredient_count,
 )
-from app.rms.tags import ensure_tag
+from app.rms.tagging.ensure import ensure_tag
 
 # ---------------------------------------------------------------------------
 # 1. Recipe instructions seed (19 clean recipes)

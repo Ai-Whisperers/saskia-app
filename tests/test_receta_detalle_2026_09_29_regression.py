@@ -90,7 +90,7 @@ _RECIPE_LINE_FIXTURES = [
 def seeded_recipe_6(session_factory):
     """Seed recipe 6 + its 6 ingredients + recipe_lines + instructions JSON."""
     from app.rms.models import Ingredient, Recipe, RecipeLine, TagLink
-    from app.rms.tags import ensure_tag
+    from app.rms.tagging.ensure import ensure_tag
 
     with session_factory() as s:
         for iid, iname, iunit, iprice, iallergens in _INGREDIENT_FIXTURES:

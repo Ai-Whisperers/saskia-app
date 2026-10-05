@@ -52,7 +52,7 @@ def test_sentry_import_cost_is_real():
         ["uv", "run", "python", "-c", "import sentry_sdk"],
         capture_output=True,
         text=True,
-        cwd="/opt/data/work/sazon-app",
+        cwd="/opt/data/work/saskia-app",
         timeout=30,
     )
     elapsed_ms = (time.perf_counter() - t0) * 1000

@@ -43,7 +43,7 @@ def test_recibo_renders_branding_business_name(client, seeded_sales, session_fac
     body = resp.text
 
     # Should contain the business name from branding
-    assert "Saskia RMS" in body
+    assert "Sazón" in body
 
 
 def test_recibo_shows_ruc_when_set(client, session_factory):

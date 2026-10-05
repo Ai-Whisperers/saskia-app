@@ -157,15 +157,17 @@ def test_migration_094_creates_monthly_closure_table():
 # ─── Schema version ──────────────────────────────────────────────────────
 
 
-def test_current_schema_version_is_99():
-    """T-2026-10-04: schema version is now 99 after migrations 090-099.
-    Migrations 090-099 added: stock_movement.affected_recipe_id (090),
-    backfill from SaleStockMove (091), drop sale_stock_move (092),
-    production_closed_day (098), production_completion.updated_at (099).
+def test_current_schema_version_is_103():
+    """Schema version sentinel — pin advances with every new migration.
+    99 = migrations 090-099 (stock_movement.affected_recipe_id, drop
+    sale_stock_move, production_closed_day, completion.updated_at).
+    100-103 = pedidos tier sub (100), encargos cancel (101),
+    waste_log.source (102), production_demand_split + plan audit +
+    completion.status (103, PRODUCCION-V2 Fase 1).
     """
     from app.rms.config import CURRENT_SCHEMA_VERSION
 
-    assert CURRENT_SCHEMA_VERSION == 99, f"expected 99, got {CURRENT_SCHEMA_VERSION}"
+    assert CURRENT_SCHEMA_VERSION == 103, f"expected 103, got {CURRENT_SCHEMA_VERSION}"
 
 
 def test_monthly_closure_table_actually_created_on_init_db(session_factory, app_engine):

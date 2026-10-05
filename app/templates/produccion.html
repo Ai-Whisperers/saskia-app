@@ -1248,7 +1248,7 @@
   // tab doesn't submit empty `reason`/`notes` (or anything else named) when
   // the form posts. The hidden attribute alone doesn't prevent submission.
   function togglePanelInputs(panel, enable) {
-    panel.querySelectorAll('input, select, textarea, saskia-combo').forEach(function(el) {
+    panel.querySelectorAll('input, select, textarea, ui-combo').forEach(function(el) {
       if (enable) {
         el.removeAttribute('disabled');
       } else {

@@ -133,6 +133,8 @@ DEFAULT_BRANDING = {
     "contact_email": "",
     "contact_phone": "",
     "address": "",
+    # Paraguay tax ID — printed on receipts (recibo.html) when set
+    "ruc": "",
 }
 
 
