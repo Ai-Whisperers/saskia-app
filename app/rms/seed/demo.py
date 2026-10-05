@@ -50,7 +50,7 @@ from app.rms.models import (
     User,
 )
 from app.rms.models.channels import Channel
-from app.rms.tags import TagKind, ensure_starter_tags, ensure_tag, tag_target
+from app.rms.tagging import TagKind, ensure_starter_tags, ensure_tag, tag_target
 
 # Use UTC-naive datetime columns consistently with existing models.
 # Sale.sold_at is DateTime without tz; we store UTC-naive.

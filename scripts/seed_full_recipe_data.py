@@ -52,7 +52,7 @@ from app.rms.recipe_intel import (  # noqa: E402
     recipe_ingredient_count,
     recipe_yield_grams,
 )
-from app.rms.tags import ensure_tag  # noqa: E402
+from app.rms.tagging import ensure_tag  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
