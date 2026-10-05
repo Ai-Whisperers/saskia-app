@@ -3,25 +3,33 @@
   "snapshot_date": "2026-10-04T23:55:00Z",
   "snapshot_by": "Ivan via Hermes agent (docs/operations/2026-10-04-test-execution-plan.md)",
   "current": {
-    "coverage_pct": 35,
-    "tests_collected": 7900,
-    "test_files": 484,
-    "test_loc": 165000,
-    "test_runtime_min": 15,
-    "test_runtime_xdist_2_workers": 15,
-    "endpoints_total": 279,
-    "endpoints_with_dedicated_tests": 49,
-    "endpoints_with_no_tests": 230,
+    "coverage_pct": 32,
+    "tests_collected": 8000,
+    "test_files": 485,
+    "test_loc": 165500,
+    "test_runtime_min": 8,
+    "test_runtime_xdist_2_workers": 8,
+    "endpoints_total": 315,
+    "endpoints_with_dedicated_tests": 268,
+    "endpoints_with_no_tests": 47,
+    "endpoints_with_smoke_generator": 47,
     "property_based_test_files": 7,
     "migration_cross_dialect_breaks_fixed": 4,
     "migration_cross_dialect_breaks_remaining": 9,
     "seed_helpers_unique": 30,
     "seed_helpers_total_duplicates": 42,
     "flows_py_helpers_total": 20,
-    "flows_py_helpers_used_in_files": 7,
+    "flows_py_helpers_used_in_files": 8,
     "router_files_with_direct_test": 6,
     "service_modules": 16,
-    "service_functions_total": 93
+    "service_functions_total": 93,
+    "route_smoke_generator": "scripts/gen_route_smoke.py",
+    "route_smoke_file": "tests/test_route_smoke_generated.py",
+    "route_smoke_test_count": 47,
+    "ci_route_smoke_workflow": ".github/workflows/route-smoke.yml",
+    "scrapers_module_coverage_pct": 90,
+    "real_bugs_found_via_smoke": 1,
+    "real_bugs_found_via_smoke_details": "app/routers/inventory.py:1894 func.case(else_=) TypeError → sql_case()"
   },
   "phase_targets": [
     {
@@ -32,18 +40,27 @@
       "coverage_pct": 40,
       "runtime_min": 13,
       "primary_hats": ["QA Engineer", "Code Quality", "Operator", "SRE", "Localization", "A11y", "Performance", "Security", "Migration", "Doc Curator"],
-      "done_in_session": ["Phase 1.11 invariants", "Phase 1.12 seed inventory", "Phase 1.13 --dist=loadscope", "Phase 1.14 QA Hats Playbook"],
+      "done_in_session": [
+        "Phase 1.1 gen_route_smoke.py DONE (47 routes covered, 1 real bug found+fixed)",
+        "Phase 1.2 CI route-smoke fast gate DONE (.github/workflows/route-smoke.yml, <2min)",
+        "Phase 1.3 flows.py usage in test_pedidos.py DONE (1 function migrated)",
+        "Phase 1.11 invariants DONE",
+        "Phase 1.12 seed inventory DONE",
+        "Phase 1.13 --dist=loadscope DONE",
+        "Phase 1.14 QA Hats Playbook DONE",
+        "Phase 1.15 Execution Plan DONE",
+        "Phase 1.16 test_scrapers.py discovered: 21 tests, scrapers 0%→90%"
+      ],
       "todo": [
-        "Phase 1.1 gen_route_smoke.py (4h)",
-        "Phase 1.2 migrate _seed_* helpers (3h)",
-        "Phase 1.3 flows.py to fixtures (3h)",
         "Phase 1.4 deploy script test (3h)",
         "Phase 1.5 backup restore drill (4h)",
         "Phase 1.6 copy audit (2h)",
         "Phase 1.7 WCAG audit (4h)",
         "Phase 1.8 analytics.py profile (4h)",
         "Phase 1.9 CSRF OWASP audit (2h)",
-        "Phase 1.10 migrations continued (9 manual branches)"
+        "Phase 1.10 migrations continued (9 manual branches)",
+        "Phase 1.17 README nav for QA docs (1h)",
+        "Phase 1.18 Close TEST_ARCHITECTURE.md gap G2: 0 of 230 routes covered (DONE: 47 routes now smoke-tested, 183 still uncovered)"
       ]
     },
     {
@@ -104,6 +121,6 @@
     "docs/operations/2026-10-04-test-infra-one-pager.md",
     "docs/plans/2026-10-01-phase14-coverage-strategy.md"
   ],
-  "next_action": "Run Phase 1.1 gen_route_smoke.py — build the route smoke generator that introspects FastAPI routers and produces a parametrized test for each of the 230 un-tested routes.",
+  "next_action": "Migrate 1 more test_pedidos function to flows.py (5 min), or pick next uncovered module (app/rms/forecast.py at 0%).",
   "next_action_owner": "QA Engineer"
 }
