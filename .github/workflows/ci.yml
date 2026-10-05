@@ -45,6 +45,11 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           version: "0.5.x"
+          # Cache the uv-managed environment and downloaded wheels.
+          # Caches keyed on pyproject.toml + uv.lock, so they invalidate
+          # automatically when dependencies change.
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       - name: Set up Python
         run: uv python install 3.13
